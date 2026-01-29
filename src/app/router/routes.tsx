@@ -1,4 +1,4 @@
-// src/app/router/routes.ts
+// src/app/router/routes.tsx
 
 import StudentsPage from "@/features/students/pages/StudentsPage";
 import StudentsDetailPage from "@/features/students/pages/StudentsDetailPage";

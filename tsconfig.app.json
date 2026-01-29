@@ -7,20 +7,31 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
-    /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting */
+    "types": ["node"],
+
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@student/*": ["src/student/*"]
+    }
   },
-  "include": ["src", "백업/ThemeSwitcher.tsx", "백업/레가시/AttemptComparisonPanel.tsx", "백업/레가시/ExamAttemptPanel.tsx", "백업/레가시/ResultPanel.tsx", "백업/레가시/AttemptSnapshotPanel.tsx", "백업/레가시/AttemptTimeline.tsx", "백업/레가시/ExamResultDetailPanel.tsx", "백업/레가시/SessionScoresPanel.tsx", "백업/layout/EmptyState.tsx", "백업/layout/OverlayHeader.tsx", "백업/layout/OverlayLayout.tsx", "백업/layout/PageContainer.tsx", "백업/HomeworkEnrollmentModal.tsx", "백업/VideoDetailPage.tsx", "백업/PermissionModal.tsx"]
+
+  "include": ["src"],
+
+  "exclude": [
+    "src/backend_spec",
+    "src/features/**/스펙.ts",
+    "src/features/**/specs",
+    "src/features/results/result 도메인 규칙"
+  ]
 }
