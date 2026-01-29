@@ -1,0 +1,288 @@
+SUBMISSIONS DOMAIN
+FRONTEND COMPLETE CONTRACT SPEC (100%)
+
+기준: apps/domains/submissions 전체 코드
+상태: LOCKED / FINAL
+목적: 프론트 무질문 구현 + 백엔드 계약 고정
+
+0. 도메인 존재 이유 (핵심 정의)
+submissions는 무엇인가?
+
+“제출 행위 + 원본 데이터 + 중간산물(answer)”을 관리하는 이벤트 도메인
+
+점수 ❌
+
+정답 판정 ❌
+
+합불 ❌
+
+진행률 ❌
+
+👉 제출 사실 + 원본 + 추출된 답안까지만 책임
+👉 이후 판단은 results / homework_results / progress의 책임
+
+1. 최상위 설계 원칙 (절대 위반 금지)
+
+Submission은 이벤트(Event) 다
+
+SubmissionAnswer는 중간산물(Raw Answer) 이다
+
+점수/정오/판정은 submissions 책임 아님
+
+status는 submissions 내부 파이프라인 전용 상태
+
+AI 연계는 dispatcher 단일 진입점
+
+exam_question_id만 문항 단일 진실
+
+question_id / number / legacy 개념 ❌
+
+2. 핵심 엔티티
+2.1 Submission (제출 이벤트)
+의미
+
+“학생이 무언가를 제출했다”는 사실
+
+시험 / 과제 공통
+
+파일 제출 / 온라인 입력 / AI 결과 연계 포함
+
+Submission
+- id
+- user_id
+- enrollment_id
+- target_type (exam | homework)
+- target_id
+- source
+- file_key
+- payload
+- status
+- meta
+
+target_type
+값	의미
+exam	시험 제출
+homework	과제 제출
+source (제출 방식 단일 진실)
+값	의미
+omr_scan	시험 OMR 스캔
+omr_manual	시험 OMR 수기
+online	온라인 답안
+homework_image	이미지 숙제
+homework_video	영상 숙제
+ai_match	AI 이미지 매칭
+
+👉 source 기준으로 처리 파이프라인 완전히 분기
+
+status (중요: 내부 파이프라인 상태)
+status	의미
+submitted	생성 직후
+dispatched	AI 작업 큐에 등록
+extracting	(예약)
+answers_ready	답안 저장 완료
+grading	results 채점 중
+done	처리 완료
+failed	실패
+
+❗ 프론트는 status로 UX 분기만 가능
+❗ status 직접 제어 ❌
+
+2.2 SubmissionAnswer (문항 단위 Raw Answer)
+의미
+
+채점 전 “답안 원본”
+
+AI / 온라인 입력 / 수기 수정 결과
+
+SubmissionAnswer
+- submission_id
+- exam_question_id   ← 유일한 문항 기준
+- answer
+- meta
+
+핵심 계약 (FINAL)
+
+✅ exam_question_id = exams.ExamQuestion.id
+
+❌ question_id ❌
+
+❌ question_number ❌
+
+❌ legacy mapping ❌
+
+유니크 제약:
+
+(submission_id, exam_question_id)
+
+3. 파일 처리 원칙 (R2 기준)
+
+파일은 DB에 저장되지 않음
+
+R2(Object Storage)에만 존재
+
+Submission에는 메타만 저장
+
+file_key
+file_type
+file_size
+
+
+👉 다운로드는 presigned URL 로만
+
+4. Submission 생성 계약
+4.1 공통 생성 (REST)
+
+POST /submissions/
+
+{
+  "enrollment_id": 123,
+  "target_type": "exam",
+  "target_id": 45,
+  "source": "online",
+  "file": null,
+  "payload": {...}
+}
+
+validation 규칙 (서버 단일 진실)
+
+exam/homework → enrollment_id 필수
+
+OMR_SCAN / HOMEWORK_IMAGE / VIDEO → file 필수
+
+ONLINE → payload 필수
+
+4.2 시험 OMR 전용 API (STEP 2)
+
+POST /submissions/exams/{exam_id}/omr/
+
+{
+  "enrollment_id": 123,
+  "sheet_id": 45,
+  "file_key": "exams/submissions/abc.jpg"
+}
+
+특징
+
+❌ status 직접 지정 불가
+
+❌ AIJob 직접 생성 불가
+
+✔ Submission 생성만
+
+✔ 이후 흐름은 dispatcher 단일 진실
+
+5. Dispatcher (단일 진입점)
+dispatch_submission(submission)
+
+Submission 생성 후 반드시 호출되는 유일한 진입점
+
+5.1 ONLINE 제출
+SubmissionService.process()
+→ answers 저장
+→ status = ANSWERS_READY
+→ grade_submission_task enqueue
+
+5.2 FILE 제출 (OMR / IMAGE / VIDEO)
+
+status = DISPATCHED
+
+AIJob 생성
+
+Redis Queue(ai:jobs) push
+
+AI Worker 처리 대기
+
+6. AI 결과 처리 (단일 진실)
+apply_ai_result_for_submission()
+
+AI Worker → API 콜백 시 무조건 이 함수만 사용
+
+6.1 시험 OMR (omr_scan)
+
+SubmissionAnswer 생성/갱신
+
+submission.status = ANSWERS_READY
+
+should_grade = True
+
+이후 results 채점 파이프라인 진입
+
+6.2 영상 숙제 (homework_video)
+
+filled_ratio / too_short 기반 판별
+
+meta.homework_video_result 고정
+
+status = DONE
+
+채점 ❌
+
+has_content =
+  not too_short AND filled_ratio >= 0.10
+
+6.3 이미지 숙제 (homework_image)
+
+OCR 결과 meta 저장
+
+status = DONE
+
+채점 ❌
+
+7. 채점 연계 규칙 (중요)
+
+채점은 results 도메인 책임
+
+submissions는 grade_submission_task를 enqueue만 한다
+
+ANSWERS_READY → grade_submission_task → results
+
+8. 수동 수정 + 재채점 API
+
+POST /submissions/{id}/manual-edit/
+
+동작
+
+SubmissionAnswer 수정
+
+meta에 manual_edits 기록
+
+manual_review.required = false
+
+status = ANSWERS_READY
+
+grade_submission_task 재실행
+
+👉 결과는 항상 results 단일 진실
+
+9. Retry API
+
+POST /submissions/{id}/retry/
+
+FAILED 상태만 가능
+
+status = SUBMITTED 로 되돌림
+
+dispatcher 재실행
+
+10. 프론트 절대 금지 목록
+
+❌ status 임의 변경
+❌ 답안 기반 점수 계산
+❌ exam_question_id 변환
+❌ AI 결과 해석
+❌ 채점 여부 판단
+❌ submission.meta 구조 가정
+
+11. 다른 도메인과의 관계 요약
+도메인	역할
+submissions	제출 이벤트 + 원본 + 답안
+results	시험 채점 / 점수
+homework_results	과제 점수
+progress	집계 / 통과 / 위험
+
+👉 submissions는 항상 출발점일 뿐, 판단자는 아니다
+
+12. 최종 요약 (한 줄)
+
+submissions는 “제출 사실과 답안 중간산물”만 책임진다.
+점수·판정·진행은 절대 이 도메인의 일이 아니다.

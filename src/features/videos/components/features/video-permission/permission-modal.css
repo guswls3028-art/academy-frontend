@@ -1,0 +1,143 @@
+/* PATH: src/features/videos/components/features/video-permission/permission-modal.css */
+@reference "tailwindcss";
+
+/* Overlay / Modal */
+.permission-modal-overlay {
+  @apply fixed inset-0 z-[200] bg-black/50 flex items-center justify-center;
+}
+
+.permission-modal {
+  @apply w-[1400px] h-[880px]
+         bg-[var(--bg-surface)]
+         rounded-2xl shadow-2xl
+         flex flex-col;
+}
+
+/* Body (soft surface) */
+.permission-modal-body {
+  @apply flex-1 px-5 pb-5 min-h-0;
+}
+
+.permission-modal-surface {
+  @apply bg-[var(--bg-surface-soft)]
+         rounded-xl
+         p-4
+         h-full
+         min-h-0
+         overflow-hidden;
+}
+
+/* Left panel */
+.permission-left {
+  @apply flex-1
+         bg-[var(--bg-surface)]
+         rounded-xl
+         border border-[var(--border-divider)]
+         flex flex-col
+         min-h-0
+         overflow-hidden;
+}
+
+.permission-header {
+  @apply px-4 py-3
+         flex items-center justify-between
+         border-b border-[var(--border-divider)];
+}
+
+/* Table */
+.permission-table-header {
+  @apply px-4 py-2
+         flex items-center
+         text-xs font-semibold
+         text-[var(--text-secondary)]
+         border-b border-[var(--border-divider)]
+         bg-[var(--bg-surface-soft)];
+}
+
+.permission-row {
+  @apply px-4 py-2
+         flex items-center
+         text-sm
+         border-b border-[var(--border-divider)]
+         transition
+         hover:bg-[var(--bg-surface-soft)];
+}
+
+.permission-row-selected {
+  @apply bg-[var(--bg-surface-soft)];
+}
+
+/* Right panel (NEW UX) */
+.permission-right {
+  @apply w-[480px]
+         bg-[var(--bg-surface)]
+         rounded-xl
+         border border-[var(--border-divider)]
+         flex flex-col
+         min-h-0
+         overflow-hidden;
+}
+
+.permission-right-head {
+  @apply px-4 py-4
+         border-b border-[var(--border-divider)]
+         bg-[var(--bg-surface)];
+}
+
+.permission-right-actions {
+  @apply px-4 py-4
+         border-b border-[var(--border-divider)]
+         bg-[var(--bg-surface-soft)];
+}
+
+.permission-right-listWrap {
+  @apply flex-1 min-h-0
+         bg-[var(--bg-surface)]
+         flex flex-col;
+}
+
+.permission-right-listHeader {
+  @apply px-4 py-2
+         border-b border-[var(--border-divider)]
+         bg-[var(--bg-surface-soft)]
+         text-xs font-semibold
+         text-[var(--text-secondary)]
+         flex items-center gap-3;
+}
+
+.permission-right-listBody {
+  @apply flex-1 min-h-0 overflow-auto;
+}
+
+.permission-right-row {
+  @apply px-4 py-3
+         border-b border-[var(--border-divider)]
+         flex items-center gap-3
+         hover:bg-[var(--bg-surface-soft)]
+         transition;
+}
+
+.permission-right-footer {
+  @apply px-4 py-3
+         border-t border-[var(--border-divider)]
+         bg-[var(--bg-surface)];
+}
+
+/* === PATCH: checkbox / column alignment polish === */
+
+.permission-checkbox {
+  @apply w-[28px] flex items-center justify-center;
+}
+
+.permission-checkbox input[type="checkbox"] {
+  @apply h-4 w-4 cursor-pointer;
+  accent-color: var(--color-primary);
+}
+
+.permission-name {
+  @apply w-[130px] truncate font-medium;
+}
+
+.permission-text-xs {
+  @apply text-xs text-[var(--text-secondary)] truncate;
+}

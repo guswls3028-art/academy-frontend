@@ -1,0 +1,406 @@
+EXAMS DOMAIN
+COMPLETE SPECIFICATION (100% FINAL)
+
+기준: apps/domains/exams 전체 코드
+상태: SEALED / PRODUCTION FINAL
+목적: 시험 정의·자산·구조에 대한 단일 진실
+
+0. 도메인 존재 이유 (한 줄)
+
+exams는 “시험의 정의와 구조”만 책임진다.
+응시, 제출, 점수, 합불, 진행률은 절대 이 도메인의 책임이 아니다.
+
+1. 최상위 설계 원칙 (절대 위반 금지)
+
+시험의 정체성은 Exam.id
+
+시험 구조의 단일 진실은 template exam
+
+운영 시험은 template 복제 기반
+
+시험은 Session과 N:M 관계
+
+시험 응시 대상자는 ExamEnrollment
+
+시험 자산/문항/정답은 template만 수정 가능
+
+점수·채점·합불 판단 ❌ (results 도메인)
+
+2. Exam 개념 모델
+2.1 Exam (시험 정의)
+의미
+
+시험 “자체”를 식별하는 엔티티
+
+동일한 시험을 여러 세션에서 재사용 가능
+
+Exam
+- id
+- title
+- description
+- subject
+- exam_type (template | regular)
+- sessions (N:M)
+- template_exam
+- allow_retake
+- max_attempts
+- pass_score
+- open_at
+- close_at
+- is_active
+
+exam_type (핵심)
+타입	의미
+template	시험 원본 / 구조 정의 전용
+regular	실제 운영 시험
+template exam 규칙
+
+subject 필수
+
+응시 ❌
+
+제출 ❌
+
+결과 ❌
+
+대상자 ❌
+
+구조 수정 가능 (단, 봉인 조건 전)
+
+regular exam 규칙
+
+반드시 template_exam 참조
+
+subject는 template에서 자동 상속
+
+응시/제출/결과 대상
+
+구조 직접 수정 ❌
+
+template_exam (단일 진실 바인딩)
+
+regular → 반드시 template_exam 존재
+
+template → template_exam = null
+
+DB 제약:
+
+template은 template_exam 가질 수 없음
+
+regular는 template_exam 반드시 필요
+
+effective_template_exam_id (중요)
+if template → self.id
+if regular  → template_exam.id
+
+
+👉 모든 구조 조회는 이 resolver 기준
+
+3. Session ↔ Exam 관계
+구조
+Session : Exam = N : M
+
+
+하나의 시험을 여러 차시에 붙일 수 있음
+
+한 차시에 여러 시험 가능
+
+단일 진실
+
+Session ↔ Exam 매핑은 Exam.sessions
+
+results / progress는 이 매핑을 기준으로 동작
+
+4. 시험 구조 엔티티 (Template 전용)
+4.1 Sheet
+의미
+
+시험지 1장
+
+OMR / 온라인 공통 기준
+
+Sheet
+- exam (OneToOne, template only)
+- name (default: MAIN)
+- total_questions
+- file (optional)
+
+
+규칙:
+
+1 Exam : 1 Sheet
+
+regular exam은 sheet 직접 보유 ❌
+
+항상 template에서 resolve
+
+4.2 ExamQuestion
+의미
+
+시험지 위 문항 위치 + 점수 단위
+
+채점/정오 판단 ❌
+
+ExamQuestion
+- id
+- sheet
+- number
+- score
+- image
+- region_meta (bbox)
+
+
+핵심 규칙:
+
+문항 의미 식별 = number
+
+단일 참조 ID = ExamQuestion.id
+
+submissions / results는 exam_question_id만 사용
+
+region_meta:
+
+OMR / Vision Worker bbox 결과
+
+오답노트 / 하이라이트 필수
+
+4.3 AnswerKey
+의미
+
+정답 정의
+
+채점 기준
+
+AnswerKey
+- exam (template only)
+- answers { exam_question_id: correct_answer }
+
+
+규칙:
+
+template exam에만 존재
+
+regular exam은 template_exam을 통해 resolve
+
+template이 사용 중이면 수정 ❌
+
+4.4 ExamAsset
+의미
+
+시험 배포 파일 자산
+
+ExamAsset
+- exam (template)
+- asset_type
+- file_key
+- file_type
+- file_size
+
+
+asset_type:
+
+값	의미
+problem_pdf	문제지
+omr_sheet	OMR 답안지
+
+규칙:
+
+exam + asset_type = 유일
+
+파일은 R2에만 존재
+
+regular에서는 직접 업로드 ❌
+
+template 사용 중이면 교체 ❌
+
+5. 시험 응시 대상자
+5.1 ExamEnrollment
+의미
+
+시험별 응시 대상자
+
+세션 등록의 부분집합
+
+ExamEnrollment
+- exam
+- enrollment
+
+
+규칙:
+
+SessionEnrollment에 속한 enrollment만 가능
+
+시험마다 응시생 다를 수 있음
+
+6. 시험 생성 계약 (API)
+6.1 Template 생성
+
+POST /exams/
+
+{
+  "title": "중간고사",
+  "subject": "Math",
+  "exam_type": "template"
+}
+
+
+규칙:
+
+subject 필수
+
+session_id ❌
+
+template_exam_id ❌
+
+6.2 Regular 생성
+
+POST /exams/
+
+{
+  "title": "중간고사 3주차",
+  "exam_type": "regular",
+  "template_exam_id": 10,
+  "session_id": 5
+}
+
+
+규칙:
+
+template_exam_id 필수
+
+session_id 필수
+
+subject 입력 ❌ (자동 상속)
+
+응답:
+
+항상 read serializer
+
+id 포함 (프론트 즉시 사용 가능)
+
+7. 시험 수정 계약
+허용 필드
+
+title
+
+description
+
+is_active
+
+allow_retake
+
+max_attempts
+
+pass_score
+
+open_at
+
+close_at
+
+금지 필드 (즉시 400)
+
+exam_type
+
+subject
+
+template_exam
+
+template_exam_id
+
+8. 시험 자산 API
+
+GET /exams/{id}/assets/
+
+regular → template resolve
+
+로그인만 필요
+
+POST /exams/{id}/assets/
+
+Teacher/Admin
+
+template only
+
+template 사용 중이면 ❌
+
+9. 시험 문항 API
+
+모든 조회는 regular → template resolve
+
+수정/삭제는 template + 미사용 상태만 허용
+
+자동 문항 생성:
+
+POST /exams/sheets/{sheet_id}/auto-questions/
+
+segmentation boxes 기반
+
+idempotent
+
+구조 변경 = template만 가능
+
+10. 시험 대상자 관리 API
+
+GET /exams/{exam_id}/enrollments/?session_id=
+
+session_id 필수
+
+exam.sessions에 포함된 session만 허용
+
+UI용 is_selected 포함
+
+PUT /exams/{exam_id}/enrollments/?session_id=
+
+enrollment_ids 완전 치환
+
+세션 등록 학생만 허용
+
+11. 학생 시험 목록 API
+
+GET /exams/me/available/
+
+노출 조건:
+
+regular exam
+
+ExamEnrollment에 포함
+
+is_active = true
+
+open_at / close_at 기간 만족
+
+12. 봉인 규칙 요약 (운영 사고 차단)
+구조 봉인
+
+template exam이 derived_exams를 하나라도 가지면:
+
+Sheet 수정 ❌
+
+Question 수정 ❌
+
+AnswerKey 수정 ❌
+
+Asset 교체 ❌
+
+AutoQuestions ❌
+
+13. 프론트 절대 금지 목록
+
+❌ regular exam에 구조 수정 시도
+❌ subject 직접 수정
+❌ template 우회 접근
+❌ asset/question/answer를 regular에 달기
+❌ 시험 점수 계산
+❌ 합불 판단
+
+14. 도메인 책임 분리 요약
+도메인	책임
+exams	시험 정의/구조/자산
+submissions	제출 이벤트
+results	채점/점수
+progress	통과/집계
+enrollment	수강생
+15. 최종 한 줄 요약
+
+exams는 “시험이 무엇인가”만 정의한다.
+시험을 어떻게 보고, 어떻게 채점하고, 어떻게 통과하는지는 이 도메인의 일이 아니다.

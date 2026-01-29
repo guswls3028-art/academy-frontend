@@ -1,0 +1,1218 @@
+====================================================================================================
+# FRONTEND FOLDER: features__materials
+# ROOT PATH: C:\academyfront\src\features\materials
+====================================================================================================
+
+
+==========================================================================================
+# FILE: index.ts
+==========================================================================================
+// PATH: src/features/materials/index.ts
+export { default as MaterialsRoutes } from "./routes";
+
+
+==========================================================================================
+# FILE: routes.tsx
+==========================================================================================
+// PATH: src/features/materials/routes.tsx
+import { Routes, Route, Navigate } from "react-router-dom";
+import MaterialsLayout from "./layout/MaterialsLayout";
+import SheetsListPage from "./sheets/SheetsListPage";
+import SheetsCreatePage from "./sheets/SheetsCreatePage";
+import SheetsEditPage from "./sheets/SheetsEditPage";
+import ReportsPage from "./reports/ReportsPage";
+import MessagesPage from "./messages/MessagesPage";
+
+export default function MaterialsRoutes() {
+  return (
+    <Routes>
+      <Route element={<MaterialsLayout />}>
+        <Route index element={<Navigate to="sheets" replace />} />
+        <Route path="sheets" element={<SheetsListPage />} />
+        <Route path="sheets/new" element={<SheetsCreatePage />} />
+        <Route path="sheets/:sheetId/edit" element={<SheetsEditPage />} />
+        <Route path="reports" element={<ReportsPage />} />
+        <Route path="messages" element={<MessagesPage />} />
+      </Route>
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: api/answerKeys.ts
+==========================================================================================
+// ======================================================================================
+// FILE: src/features/materials/api/answerKeys.ts  (ADD)
+// ======================================================================================
+import api from "@/shared/api/axios";
+import axios from "axios";
+
+export type AnswerKeyEntity = {
+  id: number;
+  exam: number; // 서버 필드 유지 (sheetId와 동일한 컨텍스트)
+  answers: Record<string, string>;
+  created_at?: string;
+  updated_at?: string;
+};
+
+function normalizeArray(data: any): any[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
+export async function getSheetAnswerKey(sheetId: number): Promise<AnswerKeyEntity | null> {
+  if (!Number.isFinite(sheetId) || sheetId <= 0) return null;
+
+  try {
+    const res = await api.get(`/exams/answer-keys/`, {
+      params: { exam: sheetId },
+    });
+
+    const arr = normalizeArray(res.data);
+    const first = arr?.[0];
+    if (!first) return null;
+    return first as AnswerKeyEntity;
+  } catch (err: any) {
+    if (axios.isAxiosError(err) && err.response?.status === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function createAnswerKey(payload: {
+  sheetId: number;
+  answers: Record<string, string>;
+}): Promise<AnswerKeyEntity> {
+  const res = await api.post(`/exams/answer-keys/`, {
+    exam: payload.sheetId,
+    answers: payload.answers,
+  });
+  return res.data as AnswerKeyEntity;
+}
+
+export async function updateAnswerKey(payload: {
+  id: number;
+  sheetId: number;
+  answers: Record<string, string>;
+}): Promise<AnswerKeyEntity> {
+  const res = await api.put(`/exams/answer-keys/${payload.id}/`, {
+    exam: payload.sheetId,
+    answers: payload.answers,
+  });
+  return res.data as AnswerKeyEntity;
+}
+
+export async function upsertSheetAnswerKey(input: {
+  sheetId: number;
+  existingId?: number | null;
+  answers: Record<string, string>;
+}) {
+  if (!Number.isFinite(input.sheetId) || input.sheetId <= 0) {
+    throw new Error("유효하지 않은 sheetId");
+  }
+
+  if (input.existingId) {
+    return await updateAnswerKey({
+      id: input.existingId,
+      sheetId: input.sheetId,
+      answers: input.answers,
+    });
+  }
+
+  return await createAnswerKey({
+    sheetId: input.sheetId,
+    answers: input.answers,
+  });
+}
+
+
+==========================================================================================
+# FILE: api/index.ts
+==========================================================================================
+// ======================================================================================
+// FILE: src/features/materials/api/index.ts  (ADD)
+// ======================================================================================
+export * from "./sheets";
+export * from "./sheetQuestions";
+export * from "./answerKeys";
+
+
+==========================================================================================
+# FILE: api/sheetQuestions.ts
+==========================================================================================
+// ======================================================================================
+// FILE: src/features/materials/api/sheetQuestions.ts  (ADD)
+// ======================================================================================
+import api from "@/shared/api/axios";
+
+export type SheetQuestionEntity = {
+  id: number;
+  sheet: number;
+  number: number;
+  score: number;
+  image?: string | null;
+  region_meta?: any;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export async function getSheetQuestions(sheetId: number): Promise<SheetQuestionEntity[]> {
+  if (!Number.isFinite(sheetId) || sheetId <= 0) return [];
+
+  const res = await api.get(`/exams/${sheetId}/questions/`);
+  const data = res.data;
+
+  if (Array.isArray(data)) return data as SheetQuestionEntity[];
+  if (Array.isArray(data?.items)) return data.items as SheetQuestionEntity[];
+  if (Array.isArray(data?.results)) return data.results as SheetQuestionEntity[];
+  return [];
+}
+
+export async function patchSheetQuestionScore(input: { questionId: number; score: number }): Promise<SheetQuestionEntity> {
+  const res = await api.patch(`/exams/questions/${input.questionId}/`, {
+    score: input.score,
+  });
+  return res.data as SheetQuestionEntity;
+}
+
+
+==========================================================================================
+# FILE: api/sheets.ts
+==========================================================================================
+// ======================================================================================
+// FILE: src/features/materials/api/sheets.ts  (ADD)
+// ======================================================================================
+import api from "@/shared/api/axios";
+
+export type SheetEntity = {
+  id: number;
+  title?: string | null;
+  created_at?: string | null;
+};
+
+function normalizeList(data: any): SheetEntity[] {
+  if (Array.isArray(data)) return data as SheetEntity[];
+  if (Array.isArray(data?.items)) return data.items as SheetEntity[];
+  if (Array.isArray(data?.results)) return data.results as SheetEntity[];
+  return [];
+}
+
+/**
+ * materials(단일진실) 내부에서 "시험지 상품"을 조회/생성한다.
+ * - 백엔드 엔드포인트가 /exams/ 라도 프론트 도메인 경계는 유지한다.
+ */
+export async function listSheets(): Promise<SheetEntity[]> {
+  const res = await api.get("/exams/");
+  return normalizeList(res.data);
+}
+
+export async function getSheet(sheetId: number): Promise<SheetEntity | null> {
+  if (!Number.isFinite(sheetId) || sheetId <= 0) return null;
+  const res = await api.get(`/exams/${sheetId}/`);
+  return (res.data as any) ?? null;
+}
+
+export async function createSheet(input: {
+  title: string;
+  questionCount: 10 | 20 | 30;
+  mode: "preset" | "custom";
+}): Promise<SheetEntity> {
+  const res = await api.post("/exams/", {
+    title: input.title,
+    question_count: input.questionCount,
+    mode: input.mode,
+  });
+
+  const data = res.data as any;
+  if (!data?.id) {
+    throw new Error("시험지 생성 실패");
+  }
+  return data as SheetEntity;
+}
+
+
+==========================================================================================
+# FILE: layout/MaterialsLayout.tsx
+==========================================================================================
+// PATH: src/features/materials/layout/MaterialsLayout.tsx
+import { Outlet } from "react-router-dom";
+import { Page, PageHeader, PageTabs } from "@/shared/ui/page";
+
+export default function MaterialsLayout() {
+  return (
+    <Page>
+      <PageHeader title="자료실" description="시험지 · 성적표 · 메시지 관리" />
+      <PageTabs
+        tabs={[
+          { label: "시험지", to: "/admin/materials/sheets", end: true },
+          { label: "성적표", to: "/admin/materials/reports" },
+          { label: "메시지", to: "/admin/materials/messages" },
+        ]}
+      />
+      <Outlet />
+    </Page>
+  );
+}
+
+
+==========================================================================================
+# FILE: messages/MessagesPage.tsx
+==========================================================================================
+// PATH: src/features/materials/messages/MessagesPage.tsx
+import { EmptyState } from "@/shared/ui/feedback";
+
+export default function MessagesPage() {
+  return (
+    <div className="surface p-4">
+      <EmptyState
+        title="메시지"
+        message="아직 구현전입니다."
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: reports/ReportsPage.tsx
+==========================================================================================
+// PATH: src/features/materials/reports/ReportsPage.tsx
+import { EmptyState } from "@/shared/ui/feedback";
+
+export default function ReportsPage() {
+  return (
+    <div className="surface p-4">
+      <EmptyState
+        title="성적표"
+        message="아직 구현 전입니다"
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: sheets/SheetsCreatePage.tsx
+==========================================================================================
+// PATH: src/features/materials/sheets/SheetsCreatePage.tsx
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { PageSection } from "@/shared/ui/page";
+import { createSheetApi } from "./sheets.api";
+
+type CreateMode = "preset" | "custom";
+type PresetType = "objective_subjective" | "subjective_only";
+
+export default function SheetsCreatePage() {
+  const navigate = useNavigate();
+
+  const [title, setTitle] = useState("");
+  const [mode, setMode] = useState<CreateMode>("preset");
+  const [preset, setPreset] = useState<PresetType>("objective_subjective");
+  const [questionCount, setQuestionCount] = useState<10 | 20 | 30>(20);
+
+  const canProceed = useMemo(() => title.trim().length > 0, [title]);
+
+  const createMut = useMutation({
+    mutationFn: async () => {
+      const sheet = await createSheetApi({
+        title: title.trim(),
+        questionCount,
+        mode,
+      });
+      return sheet;
+    },
+    onSuccess: (sheet) => {
+      navigate(`/admin/materials/sheets/${sheet.id}/edit`);
+    },
+    onError: (e: any) => {
+      alert(e?.message || "시험지 생성 실패");
+    },
+  });
+
+  const Pill = ({
+    active,
+    label,
+    sub,
+    onClick,
+    disabled,
+  }: {
+    active: boolean;
+    label: string;
+    sub: string;
+    onClick: () => void;
+    disabled?: boolean;
+  }) => (
+    <button
+      type="button"
+      tabIndex={-1}
+      className={[
+        "rounded-xl border p-4 text-left transition",
+        active ? "border-[var(--color-primary)] shadow-sm bg-[var(--bg-surface)]" : "bg-[var(--bg-surface)]",
+        disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--bg-surface-soft)]",
+      ].join(" ")}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => !disabled && onClick()}
+      disabled={disabled}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">{label}</div>
+          <div className="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">{sub}</div>
+        </div>
+        {active && (
+          <span className="inline-flex items-center rounded-full bg-[var(--color-primary)] px-2 py-1 text-[11px] text-[var(--text-on-primary)]">
+            선택됨
+          </span>
+        )}
+        {disabled && !active && (
+          <span className="inline-flex items-center rounded-full border px-2 py-1 text-[11px]">비활성</span>
+        )}
+      </div>
+    </button>
+  );
+
+  return (
+    <PageSection
+      title="시험지 생성"
+      description="시험 전에 사용할 시험지 상품을 제작합니다."
+      right={
+        <button className="btn" onClick={() => navigate("/admin/materials/sheets")}>
+          목록
+        </button>
+      }
+    >
+      <div className="surface p-4 space-y-6">
+        <div className="rounded border bg-[var(--bg-surface-soft)] p-4">
+          <div className="text-sm font-semibold">상품 제작 흐름</div>
+          <div className="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
+            ① 시험지 생성 → ② 원본 업로드/문항 매칭 → ③ OMR 오버레이에서 정답·배점 저장
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded border bg-[var(--bg-surface)] p-4 space-y-2">
+            <div className="text-xs font-semibold text-[var(--text-secondary)]">시험지 이름</div>
+            <input
+              className="w-full rounded border px-3 py-2 text-sm bg-[var(--bg-surface)]"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예: 3월 모의고사 시험지"
+            />
+            <div className="text-[11px] text-[var(--text-muted)]">시험지 이름은 시험에서 선택할 때 그대로 노출됩니다.</div>
+          </div>
+
+          <div className="rounded border bg-[var(--bg-surface)] p-4 space-y-3">
+            <div className="text-xs font-semibold text-[var(--text-secondary)]">생성 방식</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Pill
+                active={mode === "preset"}
+                label="기본 제공 시험지"
+                sub="OMR Objective v1 기준을 즉시 적용합니다."
+                onClick={() => setMode("preset")}
+              />
+              <Pill
+                active={mode === "custom"}
+                label="커스텀 답안지 업로드"
+                sub="파일 업로드 기반 제작 (현재 비활성)"
+                onClick={() => setMode("custom")}
+                disabled
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded border bg-[var(--bg-surface)] p-4 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">시험지 구성</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1">
+                OMR Objective v1은 10/20/30문항만 지원하며, A–E 객관식입니다.
+              </div>
+            </div>
+            <span className="inline-flex items-center rounded-full border bg-[var(--bg-surface-soft)] px-3 py-1 text-[11px]">
+              OMR Objective v1 고정
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Pill
+              active={preset === "objective_subjective"}
+              label="객관 + 서술 혼합"
+              sub="기본 제공 시험지 3종 구성"
+              onClick={() => setPreset("objective_subjective")}
+            />
+            <Pill
+              active={preset === "subjective_only"}
+              label="서술형 전용"
+              sub="서술형 답안지 1종 구성"
+              onClick={() => setPreset("subjective_only")}
+            />
+          </div>
+
+          <div className="rounded border bg-[var(--bg-surface-soft)] p-3">
+            <div className="text-xs font-semibold text-[var(--text-secondary)] mb-2">문항 수 (객관식)</div>
+            <div className="flex flex-wrap gap-2">
+              {[10, 20, 30].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  tabIndex={-1}
+                  className={["btn", questionCount === c ? "border-[var(--color-primary)] text-[var(--color-primary)]" : ""].join(
+                    " "
+                  )}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setQuestionCount(c as 10 | 20 | 30)}
+                >
+                  {c}문항
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded border border-dashed bg-[var(--bg-surface)] p-4">
+            <div className="text-sm font-semibold">커스텀 업로드</div>
+            <div className="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
+              커스텀 답안지 업로드 기능은 현재 비활성화되어 있습니다.
+              <br />
+              기본 제공 시험지로 즉시 운영이 가능합니다.
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button className="btn" onClick={() => navigate("/admin/materials/sheets")}>
+            취소
+          </button>
+          <button className="btn-primary" disabled={!canProceed || createMut.isPending} onClick={() => createMut.mutate()}>
+            {createMut.isPending ? "생성 중..." : "생성하고 편집하기"}
+          </button>
+        </div>
+      </div>
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: sheets/SheetsEditPage.tsx
+==========================================================================================
+// PATH: src/features/materials/sheets/SheetsEditPage.tsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PageSection } from "@/shared/ui/page";
+import { EmptyState } from "@/shared/ui/feedback";
+
+import {
+  getSheetApi,
+  getSheetQuestionsApi,
+  getSheetAnswerKeyApi,
+  patchSheetQuestionScoreApi,
+  upsertSheetAnswerKeyApi,
+  fetchOmrObjectiveV1Meta,
+  type SheetQuestionEntity,
+  type OmrObjectiveV1Meta,
+} from "./sheets.api";
+
+const CHOICES = ["A", "B", "C", "D", "E"] as const;
+type Choice = (typeof CHOICES)[number];
+
+function clampInt(v: number) {
+  return Math.max(0, Math.floor(Number.isFinite(v) ? v : 0));
+}
+
+function toQuestionCount(n: number): 10 | 20 | 30 {
+  if (n <= 10) return 10;
+  if (n <= 20) return 20;
+  return 30;
+}
+
+function groupByFive<T extends { number: number }>(items: T[]) {
+  const groups: T[][] = [];
+  for (let i = 0; i < items.length; i += 5) groups.push(items.slice(i, i + 5));
+  return groups;
+}
+
+export default function SheetsEditPage() {
+  const { sheetId } = useParams();
+  const navigate = useNavigate();
+  const id = Number(sheetId);
+  const qc = useQueryClient();
+
+  const sheetQ = useQuery({
+    queryKey: ["materials-sheet", id],
+    queryFn: () => getSheet(id),
+    enabled: id > 0,
+  });
+
+  const qQ = useQuery({
+    queryKey: ["materials-sheet-questions", id],
+    queryFn: () => getSheetQuestions(id),
+    enabled: id > 0,
+  });
+
+  const akQ = useQuery({
+    queryKey: ["materials-sheet-answerkey", id],
+    queryFn: () => getSheetAnswerKey(id),
+    enabled: id > 0,
+  });
+
+  const questions = useMemo(() => {
+    const list = (qQ.data ?? []) as SheetQuestionEntity[];
+    return [...list].sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+  }, [qQ.data]);
+
+  const questionCount = useMemo(() => toQuestionCount(questions.length || 20), [questions.length]);
+
+  const metaQ = useQuery({
+    queryKey: ["materials-omr-meta", questionCount],
+    queryFn: () => fetchOmrObjectiveV1Meta(questionCount),
+    enabled: questionCount === 10 || questionCount === 20 || questionCount === 30,
+    staleTime: 60_000,
+  });
+
+  const [currentScore, setCurrentScore] = useState(0);
+  const [scores, setScores] = useState<Record<number, number>>({});
+  const [answers, setAnswers] = useState<Record<number, Choice | "">>({});
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (initializedRef.current) return;
+    if (questions.length === 0) return;
+    if (qQ.isLoading || akQ.isLoading) return;
+
+    const nextScores: Record<number, number> = {};
+    for (const q of questions) nextScores[q.id] = clampInt(Number(q.score ?? 0));
+
+    const nextAnswers: Record<number, Choice | ""> = {};
+    const ak = akQ.data as any;
+    const akAnswers: Record<string, string> = (ak?.answers ?? {}) as any;
+    Object.entries(akAnswers || {}).forEach(([k, v]) => {
+      const key = Number(k);
+      if (!Number.isFinite(key)) return;
+      const vv = String(v || "").toUpperCase();
+      if (CHOICES.includes(vv as any)) nextAnswers[key] = vv as Choice;
+    });
+
+    setScores(nextScores);
+    setAnswers(nextAnswers);
+    initializedRef.current = true;
+  }, [questions, qQ.isLoading, akQ.isLoading, akQ.data]);
+
+  const totalScore = useMemo(() => {
+    let t = 0;
+    for (const q of questions) t += clampInt(scores[q.id] ?? (q.score ?? 0));
+    return t;
+  }, [questions, scores]);
+
+  const groups = useMemo(() => groupByFive(questions), [questions]);
+
+  const columns = useMemo(() => {
+    const col1: SheetQuestionEntity[][] = [];
+    const col2: SheetQuestionEntity[][] = [];
+    const col3: SheetQuestionEntity[][] = [];
+
+    const g = groups;
+    if (questionCount === 10) {
+      col1.push(...g.slice(0, 1));
+      col2.push(...g.slice(1, 2));
+      col3.push(...g.slice(2, 2));
+    } else if (questionCount === 20) {
+      col1.push(...g.slice(0, 2));
+      col2.push(...g.slice(2, 4));
+      col3.push(...g.slice(4, 4));
+    } else {
+      col1.push(...g.slice(0, 2));
+      col2.push(...g.slice(2, 4));
+      col3.push(...g.slice(4, 6));
+    }
+
+    return [col1, col2, col3];
+  }, [groups, questionCount]);
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      for (const q of questions) {
+        const next = clampInt(scores[q.id] ?? (q.score ?? 0));
+        if (next !== clampInt(Number(q.score ?? 0))) {
+          await patchSheetQuestionScore({
+            questionId: q.id,
+            score: next,
+          });
+        }
+      }
+
+      const payload: Record<string, string> = {};
+      Object.entries(answers).forEach(([k, v]) => {
+        const key = String(k);
+        const vv = String(v || "").toUpperCase();
+        if (CHOICES.includes(vv as any)) payload[key] = vv;
+      });
+
+      await upsertSheetAnswerKey({
+        sheetId: id,
+        existingId: (akQ.data as any)?.id ?? null,
+        answers: payload,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries();
+      alert("저장 완료");
+    },
+    onError: (e: any) => {
+      alert(e?.message || "저장 실패");
+    },
+  });
+
+  const ScorePill = ({ value }: { value: number }) => {
+    const active = currentScore === value;
+    return (
+      <button
+        type="button"
+        tabIndex={-1}
+        className={[
+          "px-3 py-2 rounded-full border text-sm font-semibold transition select-none",
+          active ? "border-[var(--color-primary)] text-[var(--color-primary)] bg-white shadow-sm" : "bg-white hover:bg-[var(--bg-surface-soft)]",
+        ].join(" ")}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setCurrentScore(value)}
+      >
+        {value}점
+      </button>
+    );
+  };
+
+  const AddPill = ({ add }: { add: number }) => (
+    <button
+      type="button"
+      tabIndex={-1}
+      className="px-3 py-2 rounded-full border text-sm font-semibold bg-white hover:bg-[var(--bg-surface-soft)] transition select-none"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => setCurrentScore((p) => clampInt(p + add))}
+    >
+      +{add}
+    </button>
+  );
+
+  const Bubble = ({
+    active,
+    label,
+    onClick,
+  }: {
+    active: boolean;
+    label: Choice;
+    onClick: () => void;
+  }) => (
+    <button
+      type="button"
+      tabIndex={-1}
+      className={[
+        "w-7 h-7 rounded-full border text-[11px] font-semibold transition select-none",
+        active ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-sm" : "bg-white hover:bg-[var(--bg-surface-soft)]",
+      ].join(" ")}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  const QuestionRow = ({ q }: { q: SheetQuestionEntity }) => {
+    const score = clampInt(scores[q.id] ?? (q.score ?? 0));
+    const a = (answers[q.id] ?? "") as Choice | "";
+
+    return (
+      <div
+        className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white/80 px-2.5 py-2 shadow-[0_1px_0_rgba(0,0,0,0.04)] cursor-pointer select-none"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setScores((m) => ({ ...m, [q.id]: clampInt(currentScore) }))}
+      >
+        <div className="flex items-center gap-2 min-w-[92px]">
+          <div className="w-9 text-right font-extrabold text-sm tracking-tight">{q.number}.</div>
+          <div className="inline-flex items-center rounded-full border border-black/10 bg-[var(--bg-surface-soft)] px-2 py-0.5 text-[11px] font-semibold">
+            {score}점
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {CHOICES.map((c) => (
+            <Bubble
+              key={c}
+              label={c}
+              active={a === c}
+              onClick={() =>
+                setAnswers((m) => ({
+                  ...m,
+                  [q.id]: c,
+                }))
+              }
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const Column = ({ title, blocks }: { title: string; blocks: SheetQuestionEntity[][] }) => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-extrabold tracking-[0.18em] text-black/55 uppercase">{title}</div>
+        <div className="h-px flex-1 bg-black/10 ml-3" />
+      </div>
+
+      <div className="space-y-4">
+        {blocks.map((block, idx) => (
+          <div key={idx} className="rounded-xl border border-black/10 bg-white/55 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+            <div className="grid grid-cols-1 gap-2">
+              {block.map((q) => (
+                <QuestionRow key={q.id} q={q} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const Paper = ({ meta }: { meta?: OmrObjectiveV1Meta | null }) => {
+    const ratio = 297 / 210;
+    const w = 1100;
+    const h = Math.round(w / ratio);
+
+    return (
+      <div className="w-full overflow-x-auto">
+        <div
+          className="mx-auto rounded-[24px] border border-black/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(252,252,252,0.92))] shadow-[0_14px_40px_rgba(0,0,0,0.08)]"
+          style={{ width: w, minHeight: h }}
+        >
+          <div className="px-6 pt-5 pb-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="text-[13px] font-extrabold tracking-[0.22em] text-black/60">OMR OBJECTIVE v1</div>
+                <div className="text-xl font-black leading-tight">{String(sheetQ.data?.title ?? "시험지")}</div>
+                <div className="text-xs text-black/50">
+                  A4 · Landscape · {questionCount}문항 · 5지선다 (A–E) {meta?.units ? `· units: ${meta.units}` : ""}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-black/10 bg-white/70 px-4 py-3">
+                <div className="text-[11px] font-bold text-black/55 tracking-[0.22em] uppercase">IDENTIFIER</div>
+                <div className="mt-1 text-xs font-semibold text-black/70">휴대폰 번호 뒤 8자리</div>
+                <div className="mt-2 grid grid-cols-8 gap-1.5">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-8 h-10 rounded-lg border border-black/10 bg-[var(--bg-surface-soft)] flex items-center justify-center text-[11px] font-black text-black/50"
+                    >
+                      {i + 1}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 h-px bg-black/10" />
+          </div>
+
+          <div className="px-6 pb-6">
+            <div className="grid grid-cols-3 gap-4">
+              <Column title="SECTION A" blocks={columns[0]} />
+              <Column title="SECTION B" blocks={columns[1]} />
+              <Column title="SECTION C" blocks={columns[2]} />
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-dashed border-black/15 bg-white/60 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs font-semibold text-black/70">정답/배점은 이 시험지의 단일 진실입니다.</div>
+                <div className="text-[11px] font-bold text-black/45 tracking-[0.2em] uppercase">
+                  objective_v1 · {questionCount}Q
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (id <= 0) {
+    return (
+      <EmptyState
+        title="잘못된 접근"
+        message="유효하지 않은 시험지입니다."
+      />
+    );
+  }
+
+  if (qQ.isLoading || sheetQ.isLoading) {
+    return <div className="p-4 text-sm">불러오는 중...</div>;
+  }
+
+  if (qQ.isError || sheetQ.isError) {
+    return (
+      <div className="surface p-4">
+        <EmptyState title="불러오기 실패" message="시험지 정보를 불러오지 못했습니다." />
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return <EmptyState title="문항 없음" message="문항 데이터가 없습니다." />;
+  }
+
+  return (
+    <PageSection title="정답 · 배점 설정" description="종이 시험지 위에서 마킹하듯 정답과 배점을 설정합니다.">
+      <div className="sticky top-0 z-40 -mx-4 px-4 pt-2 pb-3 bg-[var(--bg-page)]/95 backdrop-blur border-b border-black/5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-xs font-extrabold tracking-[0.18em] text-black/55 uppercase mr-1">SCORE</div>
+            <ScorePill value={0} />
+            <AddPill add={1} />
+            <AddPill add={2} />
+            <AddPill add={3} />
+            <AddPill add={4} />
+            <AddPill add={5} />
+            <AddPill add={10} />
+            <button
+              type="button"
+              tabIndex={-1}
+              className="px-3 py-2 rounded-full border text-sm font-semibold bg-white hover:bg-[var(--bg-surface-soft)] transition select-none"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setCurrentScore(0)}
+            >
+              초기화
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="rounded-full border bg-white px-4 py-2 text-sm font-extrabold shadow-sm">
+              총 배점: {totalScore}점
+            </div>
+            <button className="btn" onClick={() => navigate("/admin/materials/sheets")}>
+              목록
+            </button>
+            <button className="btn-primary" disabled={saveMut.isPending} onClick={() => saveMut.mutate()}>
+              {saveMut.isPending ? "저장 중..." : "저장"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-2 text-[11px] text-black/45">
+          현재 선택 배점: <span className="font-bold text-black/65">{currentScore}점</span> · 문항을 클릭하면 배점 적용 · 버블을 클릭하면 정답 선택
+        </div>
+      </div>
+
+      <div className="surface p-4 space-y-4">
+        <div className="rounded-2xl border bg-[var(--bg-surface-soft)] p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-sm font-extrabold">시험지 상품 제작실</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
+                OMR v1은 규격이 고정된 실상품입니다. 종이 위에 마킹하듯 정답과 배점을 설정하세요.
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] font-bold text-black/45 tracking-[0.2em] uppercase">OMR META</div>
+              <div className="mt-1 text-xs font-semibold text-black/70">
+                {metaQ.isLoading ? "불러오는 중..." : metaQ.isError ? "meta 조회 실패" : `${metaQ.data?.version ?? "objective_v1"} · ${questionCount}Q`}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Paper meta={metaQ.data} />
+      </div>
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: sheets/SheetsListPage.tsx
+==========================================================================================
+// PATH: src/features/materials/sheets/SheetsListPage.tsx
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { PageSection } from "@/shared/ui/page";
+import { EmptyState } from "@/shared/ui/feedback";
+
+import {
+  listSheetsApi,
+  getSheetQuestionsApi,
+  type SheetQuestionEntity
+} from "./sheets.api";
+
+function sumScores(questions: SheetQuestionEntity[]) {
+  let t = 0;
+  for (const q of questions) t += Number(q?.score ?? 0);
+  return t;
+}
+
+function UsageBadge() {
+  return (
+    <div className="inline-flex items-center gap-2">
+      <span className="inline-flex items-center rounded-full border px-2 py-1 text-[11px] bg-[var(--bg-surface)]">
+        재사용 가능
+      </span>
+      <span className="text-xs text-[var(--text-muted)]">연결된 시험 없음</span>
+    </div>
+  );
+}
+
+function QuestionStatCell({ sheetId }: { sheetId: number }) {
+  const q = useQuery({
+    queryKey: ["materials-sheets-questions", sheetId],
+    queryFn: () => getSheetQuestionsApi(sheetId),
+    enabled: Number.isFinite(sheetId) && sheetId > 0,
+    staleTime: 10_000,
+  });
+
+  if (q.isLoading) return <span className="text-xs text-[var(--text-muted)]">불러오는 중...</span>;
+  if (q.isError) return <span className="text-xs text-red-600">조회 실패</span>;
+
+  const list = q.data ?? [];
+  const totalQ = list.length;
+  const totalScore = sumScores(list);
+
+  const chip = (label: string) => (
+    <span className="inline-flex items-center rounded-full border bg-[var(--bg-surface)] px-2 py-1 text-[11px]">
+      {label}
+    </span>
+  );
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        {chip(`${totalQ}문항`)}
+        {chip(`총 ${totalScore}점`)}
+      </div>
+      <div className="text-[11px] text-[var(--text-muted)]">정답/배점 기준은 이 시험지의 단일 진실입니다.</div>
+    </div>
+  );
+}
+
+function SheetRowTitle({ title, createdAt }: { title?: any; createdAt?: any }) {
+  return (
+    <div className="space-y-1">
+      <div className="text-sm font-semibold">{String(title ?? "-")}</div>
+      <div className="text-xs text-[var(--text-muted)]">생성일 {createdAt ? String(createdAt) : "-"}</div>
+    </div>
+  );
+}
+
+export default function SheetsListPage() {
+  const navigate = useNavigate();
+
+  const sheetsQ = useQuery({
+    queryKey: ["materials-sheets"],
+    queryFn: () => listSheetsApi(),
+  });
+
+
+  const items = useMemo(() => sheetsQ.data ?? [], [sheetsQ.data]);
+
+  return (
+    <PageSection
+      title="시험지"
+      description="시험 전에 미리 제작되는 ‘시험지 상품’ 목록"
+      right={
+        <button className="btn-primary" onClick={() => navigate("/admin/materials/sheets/new")}>
+          + 시험지 생성
+        </button>
+      }
+    >
+      <div className="surface p-4 space-y-4">
+        <div className="rounded border bg-[var(--bg-surface-soft)] p-3">
+          <div className="text-sm font-semibold">시험지 상품 제작실</div>
+          <div className="mt-1 text-xs text-[var(--text-muted)] leading-relaxed">
+            시험지는 시험보다 먼저 만들어지는 자산이며, 여러 시험에서 재사용될 수 있습니다.
+            <br />
+            여기서 저장한 정답/배점 기준이 채점의 단일 진실로 사용됩니다.
+          </div>
+        </div>
+
+        {sheetsQ.isLoading && <div className="text-sm text-[var(--text-muted)]">목록 불러오는 중...</div>}
+
+        {sheetsQ.isError && <div className="text-sm text-red-600">목록을 불러오지 못했습니다.</div>}
+
+        {!sheetsQ.isLoading && !sheetsQ.isError && items.length === 0 && (
+          <EmptyState title="시험지가 없습니다" message="시험 전에 사용할 시험지를 먼저 제작하세요." />
+        )}
+
+        {items.length > 0 && (
+          <div className="rounded border overflow-hidden bg-[var(--bg-surface)]">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th style={{ width: 90 }}>ID</th>
+                  <th>시험지 이름</th>
+                  <th style={{ width: 280 }}>문항 / 총점</th>
+                  <th style={{ width: 220 }}>사용 현황</th>
+                  <th style={{ width: 120 }}>편집</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((s: any) => (
+                  <tr key={s.id}>
+                    <td className="text-sm text-[var(--text-muted)]">#{s.id}</td>
+                    <td>
+                      <SheetRowTitle title={s.title} createdAt={s.created_at} />
+                    </td>
+                    <td>
+                      <QuestionStatCell sheetId={Number(s.id)} />
+                    </td>
+                    <td>
+                      <UsageBadge />
+                    </td>
+                    <td>
+                      <button className="btn" onClick={() => navigate(`/admin/materials/sheets/${s.id}/edit`)}>
+                        편집
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: sheets/sheets.api.ts
+==========================================================================================
+// ======================================================================================
+// FILE: src/features/materials/sheets/sheets.api.ts  (UPDATE)
+// ======================================================================================
+import {
+  listSheets,
+  getSheet,
+  createSheet,
+  type SheetEntity,
+} from "@/features/materials/api/sheets";
+
+import {
+  getSheetQuestions,
+  patchSheetQuestionScore,
+  type SheetQuestionEntity,
+} from "@/features/materials/api/sheetQuestions";
+
+import {
+  getSheetAnswerKey,
+  upsertSheetAnswerKey,
+  type AnswerKeyEntity,
+} from "@/features/materials/api/answerKeys";
+
+export type { SheetEntity, SheetQuestionEntity, AnswerKeyEntity };
+
+export type OmrObjectiveV1Meta = {
+  version: "objective_v1";
+  units: "mm";
+  question_count: 10 | 20 | 30;
+  page: {
+    orientation: "landscape";
+    size: { width: number; height: number };
+  };
+  identifier?: {
+    digits: Array<{
+      digit: number;
+      bubbles: Array<{
+        number: number;
+        center: { x: number; y: number };
+        radius: number;
+      }>;
+    }>;
+  };
+  questions: Array<{
+    question_number: number;
+    axis: "x" | "y";
+    roi: { x: number; y: number; w: number; h: number };
+    choices: Array<{
+      choice: "A" | "B" | "C" | "D" | "E";
+      center: { x: number; y: number };
+      radius: number;
+    }>;
+  }>;
+};
+
+// ===== Sheets (materials 단일진실) =====
+export async function listSheetsApi(): Promise<SheetEntity[]> {
+  return await listSheets();
+}
+
+export async function getSheetApi(sheetId: number): Promise<SheetEntity | null> {
+  return await getSheet(sheetId);
+}
+
+export async function createSheetApi(input: {
+  title: string;
+  questionCount: 10 | 20 | 30;
+  mode: "preset" | "custom";
+}): Promise<SheetEntity> {
+  return await createSheet(input);
+}
+
+// ===== SheetQuestions (materials 단일진실) =====
+export async function getSheetQuestionsApi(sheetId: number): Promise<SheetQuestionEntity[]> {
+  return await getSheetQuestions(sheetId);
+}
+
+export async function patchSheetQuestionScoreApi(input: { questionId: number; score: number }) {
+  return await patchSheetQuestionScore(input);
+}
+
+// ===== AnswerKey (materials 단일진실) =====
+export async function getSheetAnswerKeyApi(sheetId: number): Promise<AnswerKeyEntity | null> {
+  return await getSheetAnswerKey(sheetId);
+}
+
+export async function upsertSheetAnswerKeyApi(input: {
+  sheetId: number;
+  existingId?: number | null;
+  answers: Record<string, string>;
+}) {
+  return await upsertSheetAnswerKey(input);
+}
+
+/**
+ * OMR meta / PDF (materials 책임)
+ * - 엔드포인트는 v1 계약대로 유지
+ */
+export async function fetchOmrObjectiveV1Meta(questionCount: 10 | 20 | 30): Promise<OmrObjectiveV1Meta> {
+  const url = `/api/v1/assets/omr/objective/meta/?question_count=${questionCount}`;
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || "OMR meta 조회 실패");
+  }
+  const data = (await res.json().catch(() => null)) as OmrObjectiveV1Meta | null;
+  if (!data?.version) throw new Error("OMR meta 조회 실패");
+  return data;
+}
+
+export async function generateOmrObjectiveV1Pdf(input: { logo_asset_id?: string | null } = {}) {
+  const res = await fetch("/api/v1/assets/omr/objective/pdf/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...(input.logo_asset_id ? { logo_asset_id: input.logo_asset_id } : {}) }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || "OMR PDF 생성 실패");
+  }
+  return res;
+}

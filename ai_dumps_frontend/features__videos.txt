@@ -1,0 +1,3733 @@
+====================================================================================================
+# FRONTEND FOLDER: features__videos
+# ROOT PATH: C:\academyfront\src\features\videos
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/uploadToR2.ts
+==========================================================================================
+// src/features/videos/api/uploadToR2.ts
+
+export function uploadToR2(
+  uploadUrl: string,
+  file: File,
+  contentType: string, // upload/init에서 받은 content_type
+  onProgress?: (percent: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.open("PUT", uploadUrl, true);
+
+    // ✅ presign에서 Content-Type을 서명에 포함했으면 반드시 동일해야 함.
+    // ✅ 반대로 presign이 Content-Type 없이 발급됐다면 헤더를 넣으면 403이 날 수 있음.
+    // => init.content_type이 내려온 경우에만 넣음.
+    if (contentType) {
+      xhr.setRequestHeader("Content-Type", contentType);
+    }
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`R2 upload failed: ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("R2 upload network error"));
+
+    xhr.send(file);
+  });
+}
+
+
+==========================================================================================
+# FILE: api/videos.ts
+==========================================================================================
+// src/features/videos/api/videos.ts
+import api from "@/shared/api/axios";
+
+/**
+ * Backend Video.status enum (확정)
+ */
+export type VideoStatus =
+  | "PENDING"
+  | "UPLOADED"
+  | "PROCESSING"
+  | "READY"
+  | "FAILED";
+
+export type VideoSourceType = "s3" | "unknown";
+
+export interface Video {
+  id: number;
+  session_id: number;
+  title: string;
+
+  file_key: string;
+  duration: number | null;
+  order: number;
+  status: VideoStatus;
+
+  allow_skip: boolean;
+  max_speed: number;
+  show_watermark: boolean;
+
+  // backend 원본 필드(상대경로) - 유지
+  thumbnail?: string | null;
+  hls_path: string | null;
+
+  // ✅ backend 패치로 추가된 CDN 절대 URL
+  thumbnail_url?: string | null;
+  hls_url?: string | null;
+
+  created_at: string;
+  updated_at: string;
+
+  source_type: VideoSourceType;
+}
+
+export interface VideoDetail extends Video {}
+
+export interface VideoStatsStudent {
+  enrollment: number;
+  student_name: string;
+
+  progress: number; // 0 ~ 1 (백엔드 기준)
+  completed: boolean;
+
+  attendance_status: string | null;
+  effective_rule: "free" | "once" | "blocked";
+
+  parent_phone?: string | null;
+  student_phone?: string | null;
+  school?: string | null;
+  grade?: string | null;
+}
+
+export interface VideoStats {
+  video: VideoDetail;
+  students: VideoStatsStudent[];
+  total_filtered?: number;
+}
+
+/**
+ * upload/init 응답
+ */
+export interface UploadInitResponse {
+  video: Video;
+  upload_url: string;
+  file_key: string;
+  content_type: string;
+}
+
+/* ===========================
+   ✅ Policy Impact (NEW)
+   =========================== */
+
+export type PolicyImpactRule = "free" | "once" | "blocked";
+
+export interface PolicyImpactRow {
+  enrollment: number;
+  student_name: string;
+  effective_rule: PolicyImpactRule;
+}
+
+export interface PolicyImpactResponse {
+  eligible_count: number;   // 정책 적용 대상(대개 blocked 제외)
+  impacted_count: number;   // 이번 변경으로 실제 영향 받는 대상 수
+  changed_fields: {
+    allow_skip: { before: boolean; after: boolean };
+    max_speed: { before: number; after: number };
+    show_watermark: { before: boolean; after: boolean };
+  };
+  breakdown_by_rule: Record<PolicyImpactRule, number>;
+  sample: PolicyImpactRow[]; // 상단 샘플(예: 20명)
+}
+
+/* ===========================
+   MEDIA API
+   =========================== */
+
+export async function fetchSessionVideos(sessionId: number): Promise<Video[]> {
+  const res = await api.get("/media/videos/", {
+    params: { session: sessionId },
+  });
+
+  // DRF pagination 대응
+  return res.data?.results ?? res.data;
+}
+
+export async function fetchVideoDetail(videoId: number): Promise<VideoDetail> {
+  const res = await api.get(`/media/videos/${videoId}/`);
+  return res.data;
+}
+
+export async function fetchVideoStats(videoId: number): Promise<VideoStats> {
+  const res = await api.get(`/media/videos/${videoId}/stats/`);
+  return res.data;
+}
+
+export async function retryVideo(videoId: number): Promise<void> {
+  await api.post(`/media/videos/${videoId}/retry/`);
+}
+
+/**
+ * ✅ NEW: policy-impact (저장 전 미리보기)
+ * GET /media/videos/:id/policy-impact/?allow_skip=...&max_speed=...&show_watermark=...
+ */
+export async function fetchPolicyImpact(params: {
+  videoId: number;
+  allow_skip: boolean;
+  max_speed: number;
+  show_watermark: boolean;
+}): Promise<PolicyImpactResponse> {
+  const res = await api.get(`/media/videos/${params.videoId}/policy-impact/`, {
+    params: {
+      allow_skip: params.allow_skip,
+      max_speed: params.max_speed,
+      show_watermark: params.show_watermark,
+    },
+  });
+  return res.data;
+}
+
+/**
+ * Step 1) upload/init
+ */
+export async function uploadInit(payload: {
+  session: number;
+  title: string;
+  filename: string;
+  content_type: string;
+  allow_skip?: boolean;
+  max_speed?: number;
+  show_watermark?: boolean;
+}): Promise<UploadInitResponse> {
+  const res = await api.post("/media/videos/upload/init/", payload);
+  return res.data;
+}
+
+/**
+ * Step 2) upload/complete
+ */
+export async function uploadComplete(videoId: number): Promise<void> {
+  await api.post(`/media/videos/${videoId}/upload/complete/`);
+}
+
+/* ===========================
+   🚫 LEGACY (완전 제거됨)
+   =========================== */
+// createVideoUrl ❌
+// external_url ❌
+// youtube_id ❌
+
+
+==========================================================================================
+# FILE: audit/api/playbackAudit.ts
+==========================================================================================
+import api from "@/shared/api/axios";
+
+export function fetchPlaybackSessions(videoId: number) {
+  return api
+    .get(`/media/admin/videos/${videoId}/sessions/`)
+    .then(res => res.data);
+}
+
+export function fetchPlaybackEvents(sessionId: string) {
+  return api
+    .get(`/media/admin/playback-sessions/${sessionId}/events/`)
+    .then(res => res.data);
+}
+
+
+==========================================================================================
+# FILE: audit/components/EventDetailModal.tsx
+==========================================================================================
+// PATH: src/features/videos/audit/components/EventDetailModal.tsx
+
+interface Props {
+  event: any;
+  onClose: () => void;
+}
+
+export default function EventDetailModal({ event, onClose }: Props) {
+  if (!event) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="w-full max-w-[800px] max-h-[80vh] overflow-hidden rounded-xl bg-[var(--bg-surface)] shadow-xl">
+        {/* ✅ header = 텍스트 블록 */}
+        <div className="px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                이벤트 상세
+              </div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
+                재생 이벤트 원본 데이터 / 정책 스냅샷
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="shrink-0 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+
+        {/* ✅ body = surface */}
+        <div className="px-5 pb-5">
+          <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 space-y-4 text-sm overflow-auto max-h-[70vh]">
+            <Section
+              title="기본 정보"
+              data={{
+                event_type: event.event_type,
+                violated: event.violated,
+                violation_reason: event.violation_reason,
+                occurred_at: event.occurred_at,
+                session_id: event.session_id,
+              }}
+            />
+
+            <Section title="Payload" data={event.event_payload} />
+            <Section title="Policy Snapshot" data={event.policy_snapshot} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, data }: { title: string; data: any }) {
+  return (
+    <div>
+      <div className="text-xs font-semibold text-[var(--text-primary)] mb-2">
+        {title}
+      </div>
+      <pre className="bg-[var(--bg-app)] rounded p-3 text-xs overflow-auto whitespace-pre-wrap text-[var(--text-secondary)]">
+        {JSON.stringify(data || {}, null, 2)}
+      </pre>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: audit/components/PlaybackEventTimeline.tsx
+==========================================================================================
+// PATH: src/features/videos/audit/components/PlaybackEventTimeline.tsx
+
+import { PLAYBACK_EVENT_LABELS } from "../utils/eventLabels";
+import { isAnomalyEvent } from "../utils/anomaly";
+
+type PlaybackEvent = {
+  id?: number;
+  type: string;
+  occurred_at?: number;
+  payload?: Record<string, any>;
+};
+
+type Props = {
+  events: PlaybackEvent[];
+};
+
+export default function PlaybackEventTimeline({ events }: Props) {
+  if (!events.length) {
+    return (
+      <div className="text-sm text-[var(--text-muted)]">
+        기록된 이벤트가 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {events.map((e, idx) => {
+        const label = PLAYBACK_EVENT_LABELS[e.type] ?? e.type;
+        const anomaly = isAnomalyEvent(e.type);
+
+        return (
+          <div
+            key={e.id ?? idx}
+            className={`flex items-start gap-3 border-b border-[var(--border-divider)] pb-2 text-sm ${
+              anomaly ? "bg-red-50" : ""
+            }`}
+          >
+            <div className="w-20 shrink-0 text-[var(--text-muted)]">
+              {e.occurred_at
+                ? new Date(e.occurred_at * 1000).toLocaleTimeString("ko-KR")
+                : "-"}
+            </div>
+
+            <div className="flex-1">
+              <div
+                className={`font-medium ${
+                  anomaly
+                    ? "text-red-600"
+                    : "text-[var(--text-primary)]"
+                }`}
+              >
+                {label}
+              </div>
+
+              {e.payload && (
+                <pre className="mt-1 rounded bg-[var(--bg-surface-soft)] px-2 py-1 text-xs text-[var(--text-secondary)] overflow-x-auto">
+                  {JSON.stringify(e.payload, null, 2)}
+                </pre>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: audit/components/PlaybackSessionTable.tsx
+==========================================================================================
+// PATH: src/features/videos/audit/components/PlaybackSessionTable.tsx
+
+type PlaybackSession = {
+  id: number;
+  student_name: string;
+  device_id: string;
+  started_at: string;
+  ended_at?: string | null;
+  status: string;
+};
+
+type Props = {
+  sessions: PlaybackSession[];
+  selectedSessionId?: number | null;
+  onSelect: (sessionId: number) => void;
+};
+
+export default function PlaybackSessionTable({
+  sessions,
+  selectedSessionId,
+  onSelect,
+}: Props) {
+  if (!sessions.length) {
+    return (
+      <div className="text-sm text-[var(--text-muted)]">
+        재생 세션이 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-[var(--bg-surface-soft)] text-[var(--text-secondary)]">
+          <tr>
+            <th className="px-3 py-2 text-left">학생</th>
+            <th className="px-3 py-2 text-left">기기</th>
+            <th className="px-3 py-2 text-center">시작</th>
+            <th className="px-3 py-2 text-center">종료</th>
+            <th className="px-3 py-2 text-center">상태</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {sessions.map((s) => {
+            const active = s.id === selectedSessionId;
+
+            return (
+              <tr
+                key={s.id}
+                onClick={() => onSelect(s.id)}
+                className={`cursor-pointer border-t border-[var(--border-divider)] ${
+                  active
+                    ? "bg-[var(--bg-surface-soft)]"
+                    : "hover:bg-[var(--bg-surface-soft)]"
+                }`}
+              >
+                <td className="px-3 py-2 font-medium">
+                  {s.student_name}
+                </td>
+                <td className="px-3 py-2 text-xs text-[var(--text-secondary)]">
+                  {s.device_id}
+                </td>
+                <td className="px-3 py-2 text-center text-xs">
+                  {new Date(s.started_at).toLocaleString("ko-KR")}
+                </td>
+                <td className="px-3 py-2 text-center text-xs">
+                  {s.ended_at
+                    ? new Date(s.ended_at).toLocaleString("ko-KR")
+                    : "-"}
+                </td>
+                <td className="px-3 py-2 text-center text-xs">
+                  {s.status}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: audit/pages/VideoAuditPage.tsx
+==========================================================================================
+// PATH: src/features/videos/audit/pages/VideoAuditPage.tsx
+
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { fetchPlaybackSessions, fetchPlaybackEvents } from "../api/playbackAudit";
+import PlaybackSessionTable from "../components/PlaybackSessionTable";
+import PlaybackEventTimeline from "../components/PlaybackEventTimeline";
+
+export default function VideoAuditPage({
+  videoId,
+}: {
+  videoId: number;
+}) {
+  const [selectedSession, setSelectedSession] =
+    useState<string | null>(null);
+
+  const { data: sessions } = useQuery({
+    queryKey: ["audit-sessions", videoId],
+    queryFn: () => fetchPlaybackSessions(videoId),
+  });
+
+  const { data: events } = useQuery({
+    queryKey: ["audit-events", selectedSession],
+    queryFn: () =>
+      fetchPlaybackEvents(selectedSession!),
+    enabled: !!selectedSession,
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-6">
+        {/* SESSION LIST */}
+        <section className="bg-[var(--bg-surface)] rounded-xl px-5 py-4 space-y-3">
+          <div className="text-sm font-semibold text-[var(--text-primary)]">
+            재생 세션
+          </div>
+
+          <PlaybackSessionTable
+            sessions={sessions?.results ?? []}
+            selectedSessionId={
+              selectedSession
+                ? Number(selectedSession)
+                : null
+            }
+            onSelect={(id) =>
+              setSelectedSession(String(id))
+            }
+          />
+        </section>
+
+        {/* EVENT TIMELINE */}
+        <section className="bg-[var(--bg-surface)] rounded-xl px-5 py-4 space-y-3">
+          <div className="text-sm font-semibold text-[var(--text-primary)]">
+            이벤트 타임라인
+          </div>
+
+          {selectedSession ? (
+            <PlaybackEventTimeline
+              events={events?.results ?? []}
+            />
+          ) : (
+            <div className="text-sm text-[var(--text-muted)]">
+              세션을 선택하세요.
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: audit/utils/anomaly.ts
+==========================================================================================
+// v1 기준: "위험 신호"만 표시 (판단/차단 ❌)
+
+export const ANOMALY_EVENT_TYPES = new Set([
+  "SEEK_ATTEMPT",
+  "SPEED_CHANGE_ATTEMPT",
+]);
+
+export function isAnomalyEvent(type: string): boolean {
+  return ANOMALY_EVENT_TYPES.has(type);
+}
+
+
+==========================================================================================
+# FILE: audit/utils/eventLabels.ts
+==========================================================================================
+// src/features/videos/audit/utils/eventLabels.ts
+
+// 관리자 audit 전용 이벤트 라벨 매핑
+// ⚠️ backend enum 변경 금지 (v1 exact match)
+
+export const PLAYBACK_EVENT_LABELS: Record<string, string> = {
+  VISIBILITY_HIDDEN: "탭 이탈",
+  VISIBILITY_VISIBLE: "탭 복귀",
+
+  FOCUS_LOST: "포커스 잃음",
+  FOCUS_GAINED: "포커스 획득",
+
+  SEEK_ATTEMPT: "구간 이동 시도",
+  SPEED_CHANGE_ATTEMPT: "배속 변경 시도",
+
+  FULLSCREEN_ENTER: "전체화면 진입",
+  FULLSCREEN_EXIT: "전체화면 종료",
+
+  PLAYER_ERROR: "재생 오류",
+};
+
+
+==========================================================================================
+# FILE: components/features/video-analytics/JsonViewerModal.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-analytics/JsonViewerModal.tsx
+
+import { useMemo } from "react";
+
+interface Props {
+  open: boolean;
+  title: string;
+  payload: any;
+  snapshot: any;
+  onClose: () => void;
+}
+
+export default function JsonViewerModal({
+  open,
+  title,
+  payload,
+  snapshot,
+  onClose,
+}: Props) {
+  const prettyPayload = useMemo(
+    () => JSON.stringify(payload ?? {}, null, 2),
+    [payload]
+  );
+  const prettySnap = useMemo(
+    () => JSON.stringify(snapshot ?? {}, null, 2),
+    [snapshot]
+  );
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[400] p-4">
+      <div className="w-[900px] h-[600px] rounded-xl bg-[var(--bg-surface)] shadow-xl overflow-hidden flex flex-col">
+        {/* ✅ header = 텍스트 블록 */}
+        <div className="px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                {title}
+              </div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
+                event_payload / policy_snapshot 비교
+              </div>
+            </div>
+
+            <button
+              className="shrink-0 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+              onClick={onClose}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+
+        {/* ✅ body = surface */}
+        <div className="px-5 pb-5 flex-1 min-h-0">
+          <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 h-full min-h-0">
+            <div className="h-full grid grid-cols-2 gap-3 min-h-0">
+              <div className="rounded-lg bg-[var(--bg-surface)] overflow-hidden flex flex-col min-h-0">
+                <div className="px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
+                  event_payload
+                </div>
+                <pre className="flex-1 p-3 text-[12px] overflow-auto whitespace-pre-wrap text-[var(--text-secondary)] bg-[var(--bg-app)]">
+                  {prettyPayload}
+                </pre>
+              </div>
+
+              <div className="rounded-lg bg-[var(--bg-surface)] overflow-hidden flex flex-col min-h-0">
+                <div className="px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
+                  policy_snapshot
+                </div>
+                <pre className="flex-1 p-3 text-[12px] overflow-auto whitespace-pre-wrap text-[var(--text-secondary)] bg-[var(--bg-app)]">
+                  {prettySnap}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-analytics/VideoAchievementTab.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-analytics/VideoAchievementTab.tsx
+
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
+
+type Props = {
+  videoId: number;
+  onSelectStudent?: (enrollmentId: number) => void;
+};
+
+type Row = {
+  enrollment: number;
+  student_name: string;
+  progress: number; // 0~100
+  completed: boolean;
+  watched_seconds: number;
+  status: "completed" | "warning" | "danger";
+};
+
+function formatSeconds(sec: number) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m > 0) return `${m}분 ${r}초`;
+  return `${r}초`;
+}
+
+function StatusBadge({ status }: { status: Row["status"] }) {
+  const map: Record<Row["status"], string> = {
+    completed: "bg-green-600",
+    warning: "bg-yellow-500",
+    danger: "bg-red-600",
+  };
+  const label: Record<Row["status"], string> = {
+    completed: "완료",
+    warning: "주의",
+    danger: "위험",
+  };
+
+  return (
+    <span
+      className={`px-2 py-0.5 rounded-full text-[11px] text-white ${map[status]}`}
+    >
+      {label[status]}
+    </span>
+  );
+}
+
+function KpiCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div className="mt-1 text-2xl font-bold text-[var(--text-primary)]">
+        {value}
+      </div>
+      {sub ? (
+        <div className="mt-1 text-xs text-[var(--text-muted)]">{sub}</div>
+      ) : null}
+    </div>
+  );
+}
+
+export default function VideoAchievementTab({
+  videoId,
+  onSelectStudent,
+}: Props) {
+  const [sortKey, setSortKey] = useState<
+    "progress" | "name" | "status"
+  >("status");
+
+  const { data, isFetching } = useQuery({
+    queryKey: ["video", videoId, "achievement"],
+    queryFn: async () => {
+      const res = await api.get(
+        `/media/videos/${videoId}/achievement/`
+      );
+      return res.data;
+    },
+    enabled: !!videoId,
+    staleTime: 5000,
+  });
+
+  const students: Row[] = data?.students ?? [];
+  const summary = data?.summary;
+
+  const dist = useMemo(() => {
+    const buckets = [
+      { key: "0-49", label: "0~49%", count: 0 },
+      { key: "50-79", label: "50~79%", count: 0 },
+      { key: "80-94", label: "80~94%", count: 0 },
+      { key: "95-100", label: "95~100%", count: 0 },
+    ];
+
+    for (const s of students) {
+      const p = Number(s.progress ?? 0);
+      if (p < 50) buckets[0].count += 1;
+      else if (p < 80) buckets[1].count += 1;
+      else if (p < 95) buckets[2].count += 1;
+      else buckets[3].count += 1;
+    }
+
+    return buckets;
+  }, [students]);
+
+  const sorted = useMemo(() => {
+    const copy = [...students];
+
+    const statusRank: Record<Row["status"], number> = {
+      danger: 0,
+      warning: 1,
+      completed: 2,
+    };
+
+    if (sortKey === "progress") {
+      copy.sort(
+        (a, b) => (b.progress ?? 0) - (a.progress ?? 0)
+      );
+    } else if (sortKey === "name") {
+      copy.sort((a, b) =>
+        (a.student_name || "").localeCompare(
+          b.student_name || ""
+        )
+      );
+    } else {
+      copy.sort((a, b) => {
+        const ra = statusRank[a.status] ?? 99;
+        const rb = statusRank[b.status] ?? 99;
+        if (ra !== rb) return ra - rb;
+        return (a.student_name || "").localeCompare(
+          b.student_name || ""
+        );
+      });
+    }
+    return copy;
+  }, [students, sortKey]);
+
+  if (!data) return null;
+
+  return (
+    <div className="flex h-full flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold text-[var(--text-primary)]">
+            학습 성취도{" "}
+            {isFetching ? (
+              <span className="ml-2 text-xs text-[var(--text-muted)]">
+                동기화 중...
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-1 text-xs text-[var(--text-muted)]">
+            * 출석이 <b>ONLINE(영상)</b> 인 학생만 집계합니다.
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="text-xs text-[var(--text-muted)]">정렬</div>
+          <select
+            className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)]"
+            value={sortKey}
+            onChange={(e) =>
+              setSortKey(e.target.value as any)
+            }
+          >
+            <option value="status">상태(위험→완료)</option>
+            <option value="progress">진도(높은순)</option>
+            <option value="name">이름(가나다)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* KPI */}
+      <div className="grid grid-cols-4 gap-3">
+        <KpiCard
+          label="영상 수강 학생"
+          value={`${summary?.total_students ?? 0}명`}
+        />
+        <KpiCard
+          label="평균 진도율"
+          value={`${summary?.avg_progress ?? 0}%`}
+        />
+        <KpiCard
+          label="완료율"
+          value={`${summary?.completed_rate ?? 0}%`}
+        />
+        <KpiCard
+          label="미완료"
+          value={`${summary?.incomplete_count ?? 0}명`}
+        />
+      </div>
+
+      {/* Chart + Table */}
+      <div className="grid flex-1 min-h-0 grid-cols-12 gap-4">
+        {/* Chart */}
+        <div className="col-span-5 flex min-h-0 flex-col rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
+          <div className="mb-2 text-sm font-semibold text-[var(--text-primary)]">
+            진도 분포
+          </div>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={dist}
+                margin={{
+                  left: 10,
+                  right: 10,
+                  top: 10,
+                  bottom: 10,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 12 }}
+                />
+                // PATH: src/features/videos/components/features/video-analytics/VideoAchievementTab.tsx
+                // (변경 부분만 아님 — 전체 파일 기준, Tooltip만 수정)
+
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--bg-surface-soft)",
+                    border: "1px solid var(--border-divider)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: "var(--text-primary)",
+                  }}
+                  labelStyle={{
+                    color: "var(--text-secondary)",
+                  }}
+                />
+
+                <Bar dataKey="count" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="mt-3 text-xs text-[var(--text-muted)]">
+            * 95% 이상은 “완료”로 간주(백엔드 status 기준)
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="col-span-7 flex min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)]">
+          <div className="flex items-center justify-between border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-3 py-2 text-sm font-semibold">
+            <span>학생별 현황</span>
+            <span className="text-xs text-[var(--text-muted)]">
+              클릭 → 권한 탭으로 이동
+            </span>
+          </div>
+
+          <div className="grid grid-cols-12 border-b border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)]">
+            <div className="col-span-3">이름</div>
+            <div className="col-span-2 text-center">상태</div>
+            <div className="col-span-2 text-center">진도</div>
+            <div className="col-span-3">시청 위치</div>
+            <div className="col-span-2 text-right">완료</div>
+          </div>
+
+          <div className="flex-1 overflow-auto">
+            {sorted.length === 0 ? (
+              <div className="p-4 text-sm text-[var(--text-muted)]">
+                영상 수강(ONLINE) 학생이 없습니다.
+              </div>
+            ) : (
+              sorted.map((s) => (
+                <button
+                  key={s.enrollment}
+                  className="grid w-full grid-cols-12 border-b border-[var(--border-divider)] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-soft)]"
+                  onClick={() =>
+                    onSelectStudent?.(s.enrollment)
+                  }
+                >
+                  <div className="col-span-3 truncate font-medium">
+                    {s.student_name}
+                  </div>
+                  <div className="col-span-2 flex justify-center">
+                    <StatusBadge status={s.status} />
+                  </div>
+                  <div className="col-span-2 text-center font-semibold">
+                    {Number(s.progress ?? 0).toFixed(1)}%
+                  </div>
+                  <div className="col-span-3 text-[var(--text-secondary)]">
+                    {formatSeconds(s.watched_seconds)}
+                  </div>
+                  <div className="col-span-2 text-right text-[var(--text-secondary)]">
+                    {s.completed ? "Y" : "-"}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-analytics/VideoLogTab.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-analytics/VideoLogTab.tsx
+
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+import JsonViewerModal from "./JsonViewerModal";
+
+type RangeKey = "24h" | "7d" | "all";
+
+const SEV_COLORS: Record<string, string> = {
+  danger: "bg-red-600",
+  warn: "bg-yellow-500",
+  info: "bg-[var(--bg-surface-muted)] text-[var(--text-secondary)]",
+};
+
+type Props = {
+  videoId: number;
+  onClickRiskStudent: (enrollmentId: number) => void;
+};
+
+export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
+  const [range, setRange] = useState<RangeKey>("24h");
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
+
+  const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
+
+  const listQueryKey = useMemo(
+    () => ["video", videoId, "events", range, page],
+    [videoId, range, page]
+  );
+  const riskQueryKey = useMemo(
+    () => ["video", videoId, "events-risk", range],
+    [videoId, range]
+  );
+
+  const { data: listData, isFetching } = useQuery({
+    queryKey: listQueryKey,
+    queryFn: async () => {
+      const res = await api.get("/media/video-playback-events/", {
+        params: { video: videoId, range, page, page_size: pageSize },
+      });
+      return res.data;
+    },
+    enabled: !!videoId,
+    staleTime: 3000,
+  });
+
+  const { data: riskData } = useQuery({
+    queryKey: riskQueryKey,
+    queryFn: async () => {
+      const res = await api.get("/media/video-playback-events/risk/", {
+        params: { video: videoId, range, limit: 5 },
+      });
+      return res.data;
+    },
+    enabled: !!videoId,
+    staleTime: 3000,
+  });
+
+  const events = useMemo(() => {
+    if (!listData) return [];
+    if (Array.isArray(listData)) return listData;
+    return listData.results ?? [];
+  }, [listData]);
+
+  const totalCount = useMemo(() => {
+    if (!listData) return 0;
+    if (Array.isArray(listData)) return listData.length;
+    return Number(listData.count ?? 0);
+  }, [listData]);
+
+  const riskTop = Array.isArray(riskData) ? riskData : riskData ?? [];
+
+  const canPrev = page > 1;
+  const canNext = events.length === pageSize;
+
+  return (
+    <div className="h-full flex gap-4">
+      {/* LEFT */}
+      <div className="w-[300px] rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden flex flex-col">
+        <div className="px-3 py-2 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-sm font-semibold">
+          위반 / 이상 징후 학생
+        </div>
+
+        <div className="p-3 space-y-3">
+          <div className="flex gap-2">
+            {(["24h", "7d", "all"] as const).map((k) => (
+              <button
+                key={k}
+                className={`text-xs px-2 py-1 rounded border border-[var(--border-divider)] ${
+                  range === k
+                    ? "bg-[var(--bg-surface)] font-semibold"
+                    : "bg-[var(--bg-surface-soft)]"
+                }`}
+                onClick={() => {
+                  setRange(k);
+                  setPage(1);
+                }}
+              >
+                {k === "24h" ? "24h" : k === "7d" ? "7d" : "전체"}
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="w-full text-xs px-3 py-2 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)]"
+          >
+            CSV Export
+          </button>
+
+          <div className="text-[11px] text-[var(--text-muted)]">
+            * 학생 클릭 → <b>권한 설정 탭</b>에서 해당 학생만 표시
+          </div>
+
+          <div className="space-y-2">
+            {riskTop.length === 0 ? (
+              <div className="text-xs text-[var(--text-muted)] p-2">
+                데이터 없음
+              </div>
+            ) : (
+              riskTop.map((r: any) => (
+                <button
+                  key={r.enrollment_id}
+                  className="w-full text-left rounded-lg border border-[var(--border-divider)] px-3 py-2 hover:bg-[var(--bg-surface-soft)]"
+                  onClick={() => onClickRiskStudent(r.enrollment_id)}
+                >
+                  <div className="text-sm font-semibold">
+                    {r.student_name}
+                  </div>
+                  <div className="text-xs text-[var(--text-secondary)] mt-1">
+                    점수 <b>{r.score}</b> · danger {r.danger} · warn {r.warn}
+                  </div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-1 truncate">
+                    last:{" "}
+                    {r.last_occurred_at
+                      ? new Date(r.last_occurred_at).toLocaleString()
+                      : "-"}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="mt-auto border-t border-[var(--border-divider)] p-3 text-xs text-[var(--text-muted)]">
+          총 이벤트: {totalCount.toLocaleString()}건
+        </div>
+      </div>
+
+      {/* RIGHT */}
+      <div className="flex-1 rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden flex flex-col">
+        <div className="px-3 py-2 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] flex items-center justify-between">
+          <div className="text-sm font-semibold">
+            시청 로그
+            {isFetching && (
+              <span className="ml-2 text-xs text-[var(--text-muted)]">
+                동기화 중...
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-[var(--text-secondary)]">
+            range: {range} · page: {page}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-12 text-xs font-semibold border-b border-[var(--border-divider)] px-3 py-2 bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+          <div className="col-span-2">시간</div>
+          <div className="col-span-2">학생</div>
+          <div className="col-span-3">타입</div>
+          <div className="col-span-1 text-center">위반</div>
+          <div className="col-span-2">사유</div>
+          <div className="col-span-1 text-center">점수</div>
+          <div className="col-span-1 text-center">세션</div>
+        </div>
+
+        <div className="flex-1 overflow-auto">
+          {events.length === 0 ? (
+            <div className="p-4 text-sm text-[var(--text-muted)]">
+              이벤트가 없습니다.
+            </div>
+          ) : (
+            events.map((e: any) => (
+              <button
+                key={e.id}
+                className="w-full text-left grid grid-cols-12 px-3 py-2 border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)] text-xs"
+                onClick={() => setSelectedEvent(e)}
+              >
+                <div className="col-span-2 text-[var(--text-secondary)]">
+                  {e.occurred_at
+                    ? new Date(e.occurred_at).toLocaleString()
+                    : "-"}
+                </div>
+                <div className="col-span-2 font-medium truncate">
+                  {e.student_name}
+                </div>
+                <div className="col-span-3 flex items-center gap-2">
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-white text-[10px] ${
+                      SEV_COLORS[e.severity] || "bg-gray-500"
+                    }`}
+                  >
+                    {e.severity}
+                  </span>
+                  <span className="truncate">{e.event_type}</span>
+                </div>
+                <div className="col-span-1 text-center">
+                  {e.violated ? "Y" : "-"}
+                </div>
+                <div className="col-span-2 text-[var(--text-secondary)] truncate">
+                  {e.violation_reason || "-"}
+                </div>
+                <div className="col-span-1 text-center font-bold">
+                  {e.score}
+                </div>
+                <div className="col-span-1 text-center text-[var(--text-muted)] truncate">
+                  {e.session_id ? String(e.session_id).slice(0, 6) : "-"}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        <div className="px-3 py-2 border-t border-[var(--border-divider)] bg-[var(--bg-surface-soft)] flex justify-end gap-2">
+          <button
+            className="text-xs px-3 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] disabled:opacity-50"
+            disabled={!canPrev}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            이전
+          </button>
+          <button
+            className="text-xs px-3 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] disabled:opacity-50"
+            disabled={!canNext}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            다음
+          </button>
+        </div>
+      </div>
+
+      <JsonViewerModal
+        open={!!selectedEvent}
+        title={`Event #${selectedEvent?.id} · ${selectedEvent?.student_name} · ${selectedEvent?.event_type}`}
+        payload={selectedEvent?.event_payload}
+        snapshot={selectedEvent?.policy_snapshot}
+        onClose={() => setSelectedEvent(null)}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/components/AdminHlsPreview.tsx
+==========================================================================================
+// src/features/videos/pages/components/AdminHlsPreview.tsx
+
+import { useEffect, useRef } from "react";
+import Hls from "hls.js";
+
+export default function AdminHlsPreview({ src }: { src: string }) {
+  const ref = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = src;
+      return;
+    }
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      return () => hls.destroy();
+    }
+
+    video.src = src;
+  }, [src]);
+
+  return (
+    <div className="rounded-lg overflow-hidden bg-black shadow">
+      <video
+        ref={ref}
+        controls
+        autoPlay
+        muted
+        playsInline
+        className="w-full max-h-[520px] object-contain"
+        controlsList="nodownload noremoteplayback"
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/components/AdminStudentVideoPreview.tsx
+==========================================================================================
+// 관리자 전용: 학생 앱 플레이어를 "정책 미리보기" 용도로 감싸는 래퍼
+// - 특정 학생 선택 없이도 재생 가능
+// - audit / progress / heartbeat 저장 ❌
+// - 정책(enforcement)만 동일 적용 ✅
+
+import StudentVideoPlayer from "@/student/media/playback/player/StudentVideoPlayer";
+
+interface Props {
+  videoId: number;
+  enrollmentId?: number | null; // 선택 학생 (옵션)
+}
+
+export default function AdminStudentVideoPreview({
+  videoId,
+  enrollmentId,
+}: Props) {
+  return (
+    <StudentVideoPlayer
+      videoId={videoId}
+      enrollmentId={enrollmentId ?? -1} // dummy enrollment
+      previewMode="admin"
+    />
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/components/StudentWatchPanel.tsx
+==========================================================================================
+import { useMemo } from "react";
+import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+import {
+  RULE_COLORS,
+  RULE_LABELS,
+} from "@/features/videos/components/features/video-permission/permission.constants";
+
+interface Props {
+  students: any[];
+  onOpenPermission: () => void;
+  selectedEnrollmentId?: number | null;
+  onSelectPreviewStudent?: (enrollmentId: number) => void;
+}
+
+export default function StudentWatchPanel({
+  students,
+  onOpenPermission,
+  selectedEnrollmentId,
+  onSelectPreviewStudent,
+}: Props) {
+  const selectable = typeof onSelectPreviewStudent === "function";
+
+  const sorted = useMemo(() => {
+    return [...students].sort((a, b) =>
+      a.student_name.localeCompare(b.student_name)
+    );
+  }, [students]);
+
+  return (
+    <div className="w-full flex flex-col gap-3">
+      {/* ACTION */}
+      <div className="flex justify-end">
+        <button
+          onClick={onOpenPermission}
+          className="text-xs rounded bg-[var(--color-primary)] text-white px-3 py-1.5"
+        >
+          권한 관리
+        </button>
+      </div>
+
+      {/* LIST */}
+      <div className="flex flex-col gap-2">
+        {sorted.map((s: any) => {
+          const progress = Math.round((s.progress ?? 0) * 100);
+          const barWidth = progress === 0 ? 2 : progress;
+          const clickable = selectable && s.enrollment;
+          const selected = selectedEnrollmentId === s.enrollment;
+
+          return (
+            <div
+              key={s.enrollment}
+              role={clickable ? "button" : undefined}
+              tabIndex={clickable ? 0 : -1}
+              onClick={() => {
+                if (clickable) onSelectPreviewStudent!(s.enrollment);
+              }}
+              className={[
+                "flex items-center gap-3",
+                "rounded-lg border px-3 py-2.5 text-sm",
+                "border-[var(--border-divider)] bg-[var(--bg-surface)]",
+                "overflow-hidden", // ✅ 핵심
+                clickable &&
+                  "cursor-pointer hover:bg-[var(--bg-surface-soft)]",
+                selected &&
+                  "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)]",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              {/* NAME */}
+              <div className="w-[90px] truncate font-medium text-[var(--text-primary)]">
+                {s.student_name}
+              </div>
+
+              {/* BADGES */}
+              <div className="w-[140px] flex items-center gap-1 shrink-0">
+                <AttendanceBadge
+                  status={s.attendance_status ?? "UNKNOWN"}
+                />
+
+                <span
+                  className={[
+                    "inline-flex items-center rounded-full px-2 py-0.5",
+                    "text-[11px] font-semibold text-white",
+                    RULE_COLORS[s.effective_rule] ?? "bg-gray-400",
+                  ].join(" ")}
+                >
+                  {RULE_LABELS[s.effective_rule] ?? "미정"}
+                </span>
+              </div>
+
+              {/* PROGRESS */}
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <div className="flex-1 h-[8px] rounded bg-[var(--bg-app)] overflow-hidden">
+                  <div
+                    className="h-full rounded bg-[var(--color-primary)]"
+                    style={{ width: `${barWidth}%` }}
+                  />
+                </div>
+                <div className="w-[40px] shrink-0 text-right text-xs text-[var(--text-muted)]">
+                  {progress}%
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/components/VideoInfoSection.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-detail/components/VideoInfoSection.tsx
+
+interface Props {
+  video: any;
+  memo: string;
+  setMemo: (v: string) => void;
+}
+
+export default function VideoInfoSection({ video, memo, setMemo }: Props) {
+  const formatBytes = (b?: number) =>
+    b ? `${(b / 1024 / 1024).toFixed(1)} MB` : "-";
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {/* FILE INFO */}
+      <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 text-sm space-y-1">
+        <div className="font-medium text-[var(--text-primary)]">
+          파일 기본 정보
+        </div>
+
+        <div className="text-xs text-[var(--text-secondary)]">
+          <div>상태: {video.status}</div>
+          <div>길이: {video.duration ?? "-"}</div>
+          <div>업로드: {video.created_at}</div>
+          <div>용량: {formatBytes(video.file_size)}</div>
+        </div>
+      </div>
+
+      {/* POLICY SNAPSHOT + MEMO */}
+      <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 text-sm space-y-2">
+        <div className="font-medium text-[var(--text-primary)]">
+          현재 적용 정책
+        </div>
+
+        <div className="text-xs text-[var(--text-secondary)]">
+          워터마크: {video.show_watermark ? "ON" : "OFF"}
+          <br />
+          건너뛰기: {video.allow_skip ? "허용" : "차단"}
+          <br />
+          최대 배속: {Number(video.max_speed).toFixed(2)}x
+        </div>
+
+        <textarea
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          className="h-20 w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] p-2 text-xs"
+          placeholder="관리자 메모"
+        />
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/components/VideoPolicySection.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-detail/components/VideoPolicySection.tsx
+
+import ToggleSwitch from "@/features/videos/ui/ToggleSwitch";
+import { useVideoPolicy } from "@/features/videos/hooks/useVideoPolicy";
+
+interface Props {
+  videoId: number;
+  initial: {
+    allow_skip: boolean;
+    max_speed: number;
+    show_watermark: boolean;
+  };
+}
+
+export default function VideoPolicySection({ videoId, initial }: Props) {
+  const {
+    policy,
+    canSave,
+    setAllowSkip,
+    setMaxSpeed,
+    setShowWatermark,
+    save,
+  } = useVideoPolicy({
+    videoId,
+    initial,
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* POLICY CONTROLS */}
+      <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4">
+        <div className="flex items-center gap-6 text-xs text-[var(--text-secondary)]">
+          <label className="flex items-center gap-2">
+            워터마크
+            <ToggleSwitch
+              checked={policy.show_watermark}
+              onChange={setShowWatermark}
+            />
+          </label>
+
+          <label className="flex items-center gap-2">
+            건너뛰기
+            <ToggleSwitch
+              checked={policy.allow_skip}
+              onChange={setAllowSkip}
+            />
+          </label>
+
+          <label className="flex items-center gap-2">
+            최대 배속
+            <input
+              type="number"
+              step={0.25}
+              min={0.25}
+              max={5}
+              value={policy.max_speed}
+              onChange={(e) => setMaxSpeed(Number(e.target.value))}
+              className="w-20 rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-xs text-[var(--text-primary)]"
+            />
+            {policy.max_speed.toFixed(2)}x
+          </label>
+
+          <button
+            onClick={() => save()}
+            disabled={!canSave}
+            className="ml-auto rounded bg-[var(--color-primary)] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/components/VideoPreviewSection.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-detail/components/VideoPreviewSection.tsx
+
+import AdminHlsPreview from "../components/AdminHlsPreview";
+
+type PreviewMode = "admin" | "student";
+
+interface Props {
+  previewMode: PreviewMode;
+  setPreviewMode: (v: PreviewMode) => void;
+  hlsSrc: string | null;
+}
+
+export default function VideoPreviewSection({
+  previewMode,
+  setPreviewMode,
+  hlsSrc,
+}: Props) {
+  return (
+    <div
+      className="
+        rounded-lg
+        border border-[var(--border-divider)]
+        bg-[var(--bg-surface-soft)]
+        p-4
+        space-y-4
+      "
+    >
+      {/* MODE TOGGLE */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPreviewMode("admin")}
+          className={`rounded border px-3 py-1 text-xs ${
+            previewMode === "admin"
+              ? "bg-[var(--bg-surface)] font-semibold"
+              : "bg-[var(--bg-surface-soft)]"
+          }`}
+        >
+          관리자 미리보기
+        </button>
+
+        <button
+          onClick={() => setPreviewMode("student")}
+          className={`rounded border px-3 py-1 text-xs ${
+            previewMode === "student"
+              ? "bg-[var(--bg-surface)] font-semibold"
+              : "bg-[var(--bg-surface-soft)]"
+          }`}
+        >
+          학생 페이지로 보기
+        </button>
+      </div>
+
+      {/* PREVIEW */}
+      <div className="rounded-md bg-[var(--bg-surface)] p-3">
+        {previewMode === "admin" && hlsSrc ? (
+          <AdminHlsPreview src={hlsSrc} />
+        ) : (
+          <div className="text-sm text-[var(--text-muted)]">
+            HLS 없음
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/components/VideoStudentsSection.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-detail/components/VideoStudentsSection.tsx
+
+import StudentWatchPanel from "./StudentWatchPanel";
+
+interface Props {
+  students: any[];
+  onOpenPermission: () => void;
+}
+
+export default function VideoStudentsSection({
+  students,
+  onOpenPermission,
+}: Props) {
+  return (
+    <div className="space-y-3">
+      <div className="text-xs text-[var(--text-muted)]">
+        출결 · 권한 · 진도 요약
+      </div>
+
+      <StudentWatchPanel
+        students={students}
+        selectedEnrollmentId={null}
+        onSelectPreviewStudent={() => {}}
+        onOpenPermission={onOpenPermission}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/modals/PermissionModal.tsx
+==========================================================================================
+import { useMemo, useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import api from "@/shared/api/axios";
+
+import PermissionHeader from "../../video-permission/components/PermissionHeader";
+import PermissionTable from "../../video-permission/components/PermissionTable";
+import PermissionSidePanel from "../../video-permission/components/PermissionSidePanel";
+
+import VideoAchievementTab from "../../video-analytics/VideoAchievementTab";
+import VideoLogTab from "../../video-analytics/VideoLogTab";
+
+import type {
+  PermissionModalProps,
+  TabKey,
+} from "../../video-permission/permission.types";
+
+import "../../video-permission/permission-modal.css";
+
+/* ================= component ================= */
+
+export default function PermissionModal({
+  videoId,
+  open,
+  onClose,
+  focusEnrollmentId,
+  onChangeFocusEnrollmentId,
+}: PermissionModalProps) {
+  const qc = useQueryClient();
+
+  const [tab, setTab] = useState<TabKey>("permission");
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<number[]>([]);
+  const [focusEnrollment, setFocusEnrollment] = useState<number | null>(null);
+
+  /* focus sync (원본 유지) */
+  useEffect(() => {
+    if (!open) return;
+    if (focusEnrollmentId === undefined) return;
+    setFocusEnrollment(focusEnrollmentId ?? null);
+  }, [open, focusEnrollmentId]);
+
+  const setFocusBoth = (v: number | null) => {
+    setFocusEnrollment(v);
+    onChangeFocusEnrollmentId?.(v);
+  };
+
+  const switchTab = (next: TabKey) => {
+    setTab(next);
+    if (next !== "permission") {
+      setSelected([]);
+    }
+  };
+
+  /* ================= query ================= */
+
+  const { data, isFetching } = useQuery({
+    queryKey: ["video", videoId, "stats"],
+    queryFn: async () => {
+      const res = await api.get(`/media/videos/${videoId}/stats/`);
+      return res.data;
+    },
+    enabled: open && !!videoId && tab === "permission",
+    staleTime: 5000,
+  });
+
+  const studentsRaw = data?.students ?? [];
+
+  /* ================= LEFT TABLE DATA ================= */
+
+  const students = useMemo(() => {
+    let list = studentsRaw;
+
+    if (focusEnrollment) {
+      list = list.filter(
+        (s: any) => s.enrollment === focusEnrollment
+      );
+    }
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter((s: any) =>
+        String(s.student_name || "")
+          .toLowerCase()
+          .includes(q)
+      );
+    }
+
+    return list;
+  }, [studentsRaw, focusEnrollment, search]);
+
+  const toggle = (id: number) => {
+    setSelected((prev) =>
+      prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id]
+    );
+  };
+
+  const toggleAll = () => {
+    const ids = students.map((s: any) => s.enrollment);
+    if (!ids.length) return;
+    setSelected(
+      selected.length === ids.length ? [] : ids
+    );
+  };
+
+  /* ================= RIGHT PANEL DATA ================= */
+
+  const selectedStudents = useMemo(() => {
+    if (!selected.length) return [];
+    const set = new Set(selected);
+    return [...studentsRaw]
+      .filter((s: any) => set.has(s.enrollment))
+      .sort((a: any, b: any) =>
+        String(a.student_name || "").localeCompare(
+          String(b.student_name || "")
+        )
+      );
+  }, [studentsRaw, selected]);
+
+  const mutate = useMutation({
+    mutationFn: async (rule: string) => {
+      await api.post(`/media/video-permissions/bulk-set/`, {
+        video: videoId,
+        enrollments: selected,
+        rule,
+      });
+    },
+    onSuccess: async () => {
+      setSelected([]);
+      await qc.invalidateQueries({
+        queryKey: ["video", videoId, "stats"],
+      });
+    },
+  });
+
+  if (!open) return null;
+
+  const totalCount = students.length;
+
+  return (
+    <div className="permission-modal-overlay">
+      <div className="permission-modal">
+        {/* HEADER */}
+        <div className="px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold">
+                시청 권한 관리
+              </div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
+                권한 설정 / 성취도 / 시청 로그
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="rounded border px-3 py-1.5 text-xs"
+            >
+              닫기
+            </button>
+          </div>
+
+          <div className="mt-3">
+            <PermissionHeader
+              tab={tab}
+              onChangeTab={switchTab}
+              onClose={onClose}
+              isFetching={!!isFetching}
+              focusEnrollment={focusEnrollment}
+              onClearFocus={() => setFocusBoth(null)}
+            />
+          </div>
+        </div>
+
+        {/* BODY */}
+        <div className="permission-modal-body">
+          <div className="permission-modal-surface">
+            {tab === "permission" ? (
+              <div className="h-full flex gap-4 min-h-0">
+                {/* LEFT */}
+                <div className="permission-left">
+                  {/* SEARCH BAR ONLY */}
+                  <div className="permission-header flex items-center gap-3">
+                    <input
+                      className="h-8 rounded border px-3 text-sm w-[220px]"
+                      placeholder="이름 검색"
+                      value={search}
+                      onChange={(e) =>
+                        setSearch(e.target.value)
+                      }
+                    />
+
+                    <div className="ml-auto text-sm text-[var(--text-secondary)]">
+                      전체 {totalCount}명
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <PermissionTable
+                      students={students}
+                      selected={selected}
+                      toggle={toggle}
+                      toggleAll={toggleAll}
+                    />
+                  </div>
+                </div>
+
+                {/* RIGHT */}
+                <PermissionSidePanel
+                  selectedStudents={selectedStudents}
+                  selectedCount={selected.length}
+                  pending={mutate.isPending}
+                  onApply={(rule) => mutate.mutate(rule)}
+                  onClear={() => setSelected([])}
+                  onRemoveOne={(enrollment) =>
+                    setSelected((prev) =>
+                      prev.filter((x) => x !== enrollment)
+                    )
+                  }
+                />
+              </div>
+            ) : tab === "achievement" ? (
+              <VideoAchievementTab
+                videoId={videoId}
+                onSelectStudent={(id) => setFocusBoth(id)}
+              />
+            ) : (
+              <VideoLogTab
+                videoId={videoId}
+                onClickRiskStudent={(id) => setFocusBoth(id)}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/modals/VideoUploadModal.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-detail/modals/VideoUploadModal.tsx
+
+/**
+ * VideoUploadModal
+ *
+ * ✅ 변경 목적(디자인만):
+ * - exams 기준 모달 구조
+ *   - header = 텍스트 블록
+ *   - body = surface(bg-surface-soft)
+ * - 불필요한 card/border 제거
+ *
+ * ✅ 로직/props/상태/업로드 플로우 그대로 유지
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+type Props = {
+  sessionId: number;
+  isOpen: boolean;
+  onClose: () => void;
+};
+
+type UploadInitResponse = {
+  video: { id: number };
+  upload_url: string;
+  file_key: string;
+  content_type?: string;
+};
+
+export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) {
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+
+  const [showWatermark, setShowWatermark] = useState(true);
+  const [allowSkip, setAllowSkip] = useState(false);
+  const [maxSpeed, setMaxSpeed] = useState<number>(1);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTitle("");
+    setDescription("");
+    setFile(null);
+    setShowWatermark(true);
+    setAllowSkip(false);
+    setMaxSpeed(1);
+  }, [isOpen]);
+
+  const canSubmit = useMemo(() => {
+    return Number.isFinite(sessionId) && sessionId > 0 && !!file && title.trim().length > 0;
+  }, [sessionId, file, title]);
+
+  const uploadMut = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error("파일이 없습니다.");
+
+      const initPayload = {
+        session: sessionId,
+        title: title.trim(),
+        filename: file.name,
+        content_type: file.type || "video/mp4",
+
+        show_watermark: showWatermark,
+        allow_skip: allowSkip,
+        max_speed: maxSpeed,
+
+        ...(description.trim() ? { description: description.trim() } : {}),
+      };
+
+      const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload);
+
+      const uploadUrl = initRes.data?.upload_url;
+      const videoId = initRes.data?.video?.id;
+      const contentTypeFromServer = initRes.data?.content_type;
+
+      if (!uploadUrl || !videoId) throw new Error("업로드 초기화에 실패했습니다.");
+
+      const putHeaders: Record<string, string> = {};
+      if (contentTypeFromServer) putHeaders["Content-Type"] = contentTypeFromServer;
+
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: putHeaders,
+      });
+
+      if (!putRes.ok) {
+        throw new Error(`R2 업로드 실패: ${putRes.status} ${putRes.statusText}`);
+      }
+
+      const completeRes = await api.post(`/media/videos/${videoId}/upload/complete/`, { ok: true });
+      return completeRes.data;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+      onClose();
+    },
+    onError: (e: any) => {
+      alert(e?.response?.data?.detail || e?.message || "업로드에 실패했습니다.");
+    },
+  });
+
+  if (!isOpen) return null;
+
+  const pickFile = () => fileInputRef.current?.click();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-xl bg-[var(--bg-surface)] shadow-xl">
+        {/* ✅ header = 텍스트 블록 */}
+        <div className="px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">영상 추가</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
+                파일 업로드 및 재생 정책을 설정합니다.
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="shrink-0 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+              onClick={onClose}
+              disabled={uploadMut.isPending}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+
+        {/* ✅ body = surface */}
+        <div className="px-5 pb-5">
+          <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 space-y-4">
+            {/* Title */}
+            <div>
+              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">제목</div>
+              <input
+                className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                placeholder="예: 1강 OT"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            {/* File */}
+            <div>
+              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">파일 업로드</div>
+
+              <div
+                className="flex cursor-pointer items-center justify-center rounded border border-dashed border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-6 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-app)]"
+                onClick={pickFile}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") pickFile();
+                }}
+              >
+                {file ? (
+                  <div className="text-center">
+                    <div className="font-medium text-[var(--text-primary)]">{file.name}</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">클릭해서 파일 변경</div>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="font-medium text-[var(--text-primary)]">여기를 클릭해서 업로드</div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">mp4 등 동영상 파일</div>
+                  </div>
+                )}
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="video/*"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">영상 설명</div>
+              <textarea
+                className="h-24 w-full resize-none rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                placeholder="(선택)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            {/* Options */}
+            <div className="rounded-lg bg-[var(--bg-surface)] p-3">
+              <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">재생 정책</div>
+
+              <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--text-primary)]">
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">워터마크</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowWatermark((v) => !v)}
+                    className={[
+                      "h-6 w-11 rounded-full border border-[var(--border-divider)] transition",
+                      showWatermark ? "bg-[var(--color-primary)]" : "bg-[var(--bg-app)]",
+                    ].join(" ")}
+                    aria-pressed={showWatermark}
+                  >
+                    <span
+                      className={[
+                        "block h-5 w-5 translate-x-0.5 rounded-full bg-white transition",
+                        showWatermark ? "translate-x-5" : "",
+                      ].join(" ")}
+                    />
+                  </button>
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">건너뛰기</span>
+                  <button
+                    type="button"
+                    onClick={() => setAllowSkip((v) => !v)}
+                    className={[
+                      "h-6 w-11 rounded-full border border-[var(--border-divider)] transition",
+                      allowSkip ? "bg-[var(--color-primary)]" : "bg-[var(--bg-app)]",
+                    ].join(" ")}
+                    aria-pressed={allowSkip}
+                  >
+                    <span
+                      className={[
+                        "block h-5 w-5 translate-x-0.5 rounded-full bg-white transition",
+                        allowSkip ? "translate-x-5" : "",
+                      ].join(" ")}
+                    />
+                  </button>
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">최대 배속</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.25}
+                    className="w-20 rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-sm text-[var(--text-primary)]"
+                    value={Number.isFinite(maxSpeed) ? maxSpeed : 1}
+                    onChange={(e) => setMaxSpeed(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-2 text-xs text-[var(--text-muted)]">session_id: {sessionId}</div>
+            </div>
+
+            {/* Actions (footer를 body 내부로 넣어서 ‘body=surface’ 유지) */}
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                className="rounded border border-[var(--border-divider)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-app)] disabled:opacity-50"
+                onClick={onClose}
+                disabled={uploadMut.isPending}
+              >
+                취소
+              </button>
+
+              <button
+                type="button"
+                className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                onClick={() => uploadMut.mutate()}
+                disabled={!canSubmit || uploadMut.isPending}
+              >
+                {uploadMut.isPending ? "업로드 중..." : "업로드"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-permission/permission-modal.css
+==========================================================================================
+/* PATH: src/features/videos/components/features/video-permission/permission-modal.css */
+@reference "tailwindcss";
+
+/* Overlay / Modal */
+.permission-modal-overlay {
+  @apply fixed inset-0 z-[200] bg-black/50 flex items-center justify-center;
+}
+
+.permission-modal {
+  @apply w-[1400px] h-[880px]
+         bg-[var(--bg-surface)]
+         rounded-2xl shadow-2xl
+         flex flex-col;
+}
+
+/* Body (soft surface) */
+.permission-modal-body {
+  @apply flex-1 px-5 pb-5 min-h-0;
+}
+
+.permission-modal-surface {
+  @apply bg-[var(--bg-surface-soft)]
+         rounded-xl
+         p-4
+         h-full
+         min-h-0
+         overflow-hidden;
+}
+
+/* Left panel */
+.permission-left {
+  @apply flex-1
+         bg-[var(--bg-surface)]
+         rounded-xl
+         border border-[var(--border-divider)]
+         flex flex-col
+         min-h-0
+         overflow-hidden;
+}
+
+.permission-header {
+  @apply px-4 py-3
+         flex items-center justify-between
+         border-b border-[var(--border-divider)];
+}
+
+/* Table */
+.permission-table-header {
+  @apply px-4 py-2
+         flex items-center
+         text-xs font-semibold
+         text-[var(--text-secondary)]
+         border-b border-[var(--border-divider)]
+         bg-[var(--bg-surface-soft)];
+}
+
+.permission-row {
+  @apply px-4 py-2
+         flex items-center
+         text-sm
+         border-b border-[var(--border-divider)]
+         transition
+         hover:bg-[var(--bg-surface-soft)];
+}
+
+.permission-row-selected {
+  @apply bg-[var(--bg-surface-soft)];
+}
+
+/* Right panel (NEW UX) */
+.permission-right {
+  @apply w-[480px]
+         bg-[var(--bg-surface)]
+         rounded-xl
+         border border-[var(--border-divider)]
+         flex flex-col
+         min-h-0
+         overflow-hidden;
+}
+
+.permission-right-head {
+  @apply px-4 py-4
+         border-b border-[var(--border-divider)]
+         bg-[var(--bg-surface)];
+}
+
+.permission-right-actions {
+  @apply px-4 py-4
+         border-b border-[var(--border-divider)]
+         bg-[var(--bg-surface-soft)];
+}
+
+.permission-right-listWrap {
+  @apply flex-1 min-h-0
+         bg-[var(--bg-surface)]
+         flex flex-col;
+}
+
+.permission-right-listHeader {
+  @apply px-4 py-2
+         border-b border-[var(--border-divider)]
+         bg-[var(--bg-surface-soft)]
+         text-xs font-semibold
+         text-[var(--text-secondary)]
+         flex items-center gap-3;
+}
+
+.permission-right-listBody {
+  @apply flex-1 min-h-0 overflow-auto;
+}
+
+.permission-right-row {
+  @apply px-4 py-3
+         border-b border-[var(--border-divider)]
+         flex items-center gap-3
+         hover:bg-[var(--bg-surface-soft)]
+         transition;
+}
+
+.permission-right-footer {
+  @apply px-4 py-3
+         border-t border-[var(--border-divider)]
+         bg-[var(--bg-surface)];
+}
+
+/* === PATCH: checkbox / column alignment polish === */
+
+.permission-checkbox {
+  @apply w-[28px] flex items-center justify-center;
+}
+
+.permission-checkbox input[type="checkbox"] {
+  @apply h-4 w-4 cursor-pointer;
+  accent-color: var(--color-primary);
+}
+
+.permission-name {
+  @apply w-[130px] truncate font-medium;
+}
+
+.permission-text-xs {
+  @apply text-xs text-[var(--text-secondary)] truncate;
+}
+
+
+==========================================================================================
+# FILE: components/features/video-permission/permission.constants.ts
+==========================================================================================
+// PATH: src/features/videos/components/features/video-permission/permission.constants.ts
+
+/**
+ * ✅ permission.constants (UI v2)
+ * - "출결"은 공용 AttendanceBadge를 쓰는 쪽으로 정리 (PermissionRow에서 사용)
+ * - 여기서는 기존 계약을 깨지 않기 위해 LABEL은 유지
+ * - 색상은 Tailwind 고정색 → theme var 기반으로 변경 (대기업 SaaS 룩)
+ */
+
+export const ATT_LABELS: Record<string, string> = {
+  PRESENT: "출석",
+  LATE: "지각",
+  ONLINE: "영상",
+  SUPPLEMENT: "보강",
+  EARLY_LEAVE: "조퇴",
+  ABSENT: "결석",
+  RUNAWAY: "출튀",
+  MATERIAL: "자료",
+  INACTIVE: "부재",
+  SECESSION: "탈퇴",
+};
+
+/**
+ * ⚠️ 기존 ATT_COLORS는 레거시 호환용 유지
+ * - PermissionRow에서는 AttendanceBadge로 교체되어 직접 사용 빈도 ↓
+ * - 남아있는 화면이 있으면 최소한 테마에 맞게 보이도록만 유지
+ */
+export const ATT_COLORS: Record<string, string> = {
+  PRESENT: "bg-[color-mix(in_srgb,var(--color-primary)_18%,transparent)] text-[var(--color-primary)]",
+  LATE: "bg-[color-mix(in_srgb,var(--color-warning)_18%,transparent)] text-[var(--color-warning)]",
+  ONLINE: "bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] text-[var(--color-primary)]",
+  SUPPLEMENT: "bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)] text-[var(--text-primary)]",
+  EARLY_LEAVE: "bg-[color-mix(in_srgb,var(--color-warning)_14%,transparent)] text-[var(--color-warning)]",
+  ABSENT: "bg-[color-mix(in_srgb,var(--color-danger)_18%,transparent)] text-[var(--color-danger)]",
+  RUNAWAY: "bg-[color-mix(in_srgb,var(--color-danger)_18%,transparent)] text-[var(--color-danger)]",
+  MATERIAL: "bg-[color-mix(in_srgb,var(--text-muted)_16%,transparent)] text-[var(--text-secondary)]",
+  INACTIVE: "bg-[color-mix(in_srgb,var(--text-muted)_16%,transparent)] text-[var(--text-secondary)]",
+  SECESSION: "bg-[color-mix(in_srgb,var(--text-muted)_16%,transparent)] text-[var(--text-secondary)]",
+};
+
+export const RULE_LABELS: Record<string, string> = {
+  free: "무제한",
+  once: "1회",
+  blocked: "제한",
+};
+
+/**
+ * ✅ RULE_COLORS도 Tailwind 고정 → theme var 기반 (더 고급스러운 톤)
+ * - 텍스트는 on-* 계열 변수가 없다면 white로 유지
+ */
+export const RULE_COLORS: Record<string, string> = {
+  free: "bg-[color-mix(in_srgb,var(--color-primary)_85%,black)]",
+  once: "bg-yellow-400 text-black",
+  blocked: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
+};
+
+
+==========================================================================================
+# FILE: components/features/video-permission/permission.types.ts
+==========================================================================================
+// src/features/videos/components/permission/permission.types.ts
+
+export type TabKey = "permission" | "achievement" | "log";
+
+export interface PermissionModalProps {
+  videoId: number;
+  open: boolean;
+  onClose: () => void;
+  focusEnrollmentId?: number | null;
+  onChangeFocusEnrollmentId?: (v: number | null) => void;
+}
+
+
+==========================================================================================
+# FILE: components/features/video-permission/components/PermissionFilter.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-permission/components/PermissionFilter.tsx
+
+import { useEffect, useState } from "react";
+
+interface Props {
+  filters: any;
+  setFilters: (f: any) => void;
+  onClose: () => void;
+}
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function Chip({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        "h-8 px-3 rounded-full border text-xs font-semibold transition",
+        active
+          ? "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-[var(--color-primary)]"
+          : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-divider)] hover:bg-[var(--bg-app)]"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** ✅ 실제 Attendance 스펙 (8개) */
+const ATTENDANCE_OPTIONS = [
+  { value: "PRESENT", label: "출석" },
+  { value: "LATE", label: "지각" },
+  { value: "ONLINE", label: "영상" },
+  { value: "SUPPLEMENT", label: "보강" },
+  { value: "EARLY_LEAVE", label: "조퇴" },
+  { value: "ABSENT", label: "결석" },
+  { value: "RUNAWAY", label: "출튀" },
+  { value: "MATERIAL", label: "자료" },
+] as const;
+
+/** 권한 */
+const RULE_OPTIONS = [
+  { value: "free", label: "무제한" },
+  { value: "once", label: "1회" },
+  { value: "blocked", label: "제한" },
+] as const;
+
+export default function PermissionFilter({
+  filters,
+  setFilters,
+  onClose,
+}: Props) {
+  const [local, setLocal] = useState<any>({
+    attendance_status: filters.attendance_status ?? "",
+    rule: filters.rule ?? "",
+    grade: filters.grade ?? "",
+  });
+
+  // ✅ 선택 즉시 반영 (적용 버튼 없음)
+  useEffect(() => {
+    const next: any = {};
+    Object.entries(local).forEach(([k, v]) => {
+      if (v) next[k] = v;
+    });
+    setFilters(next);
+  }, [local]);
+
+  const reset = () => {
+    setLocal({
+      attendance_status: "",
+      rule: "",
+      grade: "",
+    });
+    setFilters({});
+  };
+
+  return (
+    <div className="permission-modal-overlay">
+      <div className="w-full max-w-[640px] rounded-xl bg-[var(--bg-surface)] shadow-xl">
+        {/* HEADER */}
+        <div className="px-5 py-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-sm font-semibold">필터</div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
+                선택 즉시 반영됩니다
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="rounded border px-3 py-1.5 text-xs"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+
+        {/* BODY */}
+        <div className="px-5 pb-5">
+          <div className="rounded-lg bg-[var(--bg-surface-soft)] p-4 space-y-5">
+            {/* 출석 */}
+            <div>
+              <div className="text-xs font-semibold mb-2">출석</div>
+              <div className="flex flex-wrap gap-2">
+                {ATTENDANCE_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.value}
+                    label={o.label}
+                    active={local.attendance_status === o.value}
+                    onClick={() =>
+                      setLocal({
+                        ...local,
+                        attendance_status:
+                          local.attendance_status === o.value ? "" : o.value,
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 권한 */}
+            <div>
+              <div className="text-xs font-semibold mb-2">권한</div>
+              <div className="flex gap-2">
+                {RULE_OPTIONS.map((o) => (
+                  <Chip
+                    key={o.value}
+                    label={o.label}
+                    active={local.rule === o.value}
+                    onClick={() =>
+                      setLocal({
+                        ...local,
+                        rule: local.rule === o.value ? "" : o.value,
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 학년 */}
+            <div>
+              <div className="text-xs font-semibold mb-2">학년</div>
+              {[
+                { label: "초", nums: ["1", "2", "3", "4", "5", "6"] },
+                { label: "중", nums: ["1", "2", "3"] },
+                { label: "고", nums: ["1", "2", "3"] },
+              ].map((g) => (
+                <div key={g.label} className="flex items-center gap-2 mb-2">
+                  <span className="w-6 text-xs text-[var(--text-muted)]">
+                    {g.label}
+                  </span>
+                  {g.nums.map((n) => {
+                    const value = `${g.label}${n}`;
+                    return (
+                      <Chip
+                        key={value}
+                        label={n}
+                        active={local.grade === value}
+                        onClick={() =>
+                          setLocal({
+                            ...local,
+                            grade: local.grade === value ? "" : value,
+                          })
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {/* RESET */}
+            <div className="flex justify-end">
+              <button
+                onClick={reset}
+                className="h-8 px-3 text-xs rounded border hover:bg-[var(--bg-app)]"
+              >
+                전체 초기화
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-permission/components/PermissionHeader.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-permission/components/PermissionHeader.tsx
+
+import type { TabKey } from "../permission.types";
+
+export default function PermissionHeader({
+  tab,
+  onChangeTab,
+  isFetching,
+  focusEnrollment,
+  onClearFocus,
+}: {
+  tab: TabKey;
+  onChangeTab: (t: TabKey) => void;
+  isFetching: boolean;
+  focusEnrollment: number | null;
+  onClearFocus: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+      {(["permission", "achievement", "log"] as TabKey[]).map((key) => (
+        <button
+          key={key}
+          className={`text-sm px-3 py-1 rounded border ${
+            tab === key
+              ? "bg-[var(--bg-surface)] font-semibold"
+              : "bg-[var(--bg-surface-soft)]"
+          }`}
+          onClick={() => onChangeTab(key)}
+        >
+          {key === "permission"
+            ? "권한 설정"
+            : key === "achievement"
+            ? "학습 성취도"
+            : "시청 로그"}
+        </button>
+      ))}
+
+      {tab === "permission" && (
+        <span className="text-xs text-[var(--text-muted)] ml-2">
+          {isFetching ? "동기화 중..." : "최신"}
+        </span>
+      )}
+
+      {focusEnrollment && tab === "permission" && (
+        <button
+          className="ml-2 text-xs px-2 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)]"
+          onClick={onClearFocus}
+        >
+          학생 필터 해제
+        </button>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-permission/components/PermissionRow.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-permission/components/PermissionRow.tsx
+
+import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+import { RULE_COLORS, RULE_LABELS } from "../permission.constants";
+
+function Pill({
+  className,
+  children,
+}: {
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className={[
+        "inline-flex items-center justify-center",
+        "h-[22px] px-2 rounded-full",
+        "text-[11px] font-semibold leading-none",
+        className,
+      ].join(" ")}
+    >
+      {children}
+    </span>
+  );
+}
+
+export default function PermissionRow({
+  student,
+  selected,
+  onToggle,
+}: {
+  student: any;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className={[
+        "permission-row",
+        selected ? "permission-row-selected" : "",
+        // ✅ row hover/active 강화 (SaaS 느낌)
+        "transition",
+        selected
+          ? "ring-1 ring-[color-mix(in_srgb,var(--color-primary)_45%,transparent)]"
+          : "",
+      ].join(" ")}
+      onClick={onToggle}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onToggle();
+      }}
+    >
+      {/* CHECK */}
+      <div className="permission-checkbox" onClick={(e) => e.stopPropagation()}>
+        <input type="checkbox" checked={selected} onChange={onToggle} />
+      </div>
+
+      {/* NAME */}
+      <div className="permission-name text-[var(--text-primary)]">
+        {student.student_name}
+      </div>
+
+      {/* ✅ ATTENDANCE (공용 컴포넌트로 통일) */}
+      <div className="w-[90px] flex justify-center">
+        <div className="scale-[0.92] origin-center">
+          <AttendanceBadge status={student.attendance_status ?? "UNKNOWN"} />
+        </div>
+      </div>
+
+      {/* RULE */}
+      <div className="w-[90px] flex justify-center">
+        <Pill className={[RULE_COLORS[student.effective_rule] || "bg-gray-500", "text-white"].join(" ")}>
+          {RULE_LABELS[student.effective_rule] || "-"}
+        </Pill>
+      </div>
+
+      {/* PHONES / META */}
+      <div className="w-[150px] permission-text-xs">
+        {student.parent_phone || "-"}
+      </div>
+      <div className="w-[150px] permission-text-xs">
+        {student.student_phone || "-"}
+      </div>
+      <div className="w-[140px] permission-text-xs">
+        {student.school || "-"}
+      </div>
+      <div className="w-[60px] text-center text-xs text-[var(--text-secondary)]">
+        {student.grade || "-"}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-permission/components/PermissionSidePanel.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-permission/components/PermissionSidePanel.tsx
+
+import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+import { RULE_COLORS, RULE_LABELS } from "../permission.constants";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function ApplyPillButton({
+  label,
+  tone,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  tone: "free" | "once" | "blocked";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const toneClass =
+    tone === "blocked"
+      ? "bg-[color-mix(in_srgb,var(--color-danger)_92%,black)] hover:bg-[color-mix(in_srgb,var(--color-danger)_84%,black)] text-white"
+      : tone === "once"
+      // ✅ 1회 제한: 노랑 하드코딩 (가시성 최우선)
+      ? "bg-yellow-400 hover:bg-yellow-500 border border-yellow-500 text-black"
+      : "bg-[color-mix(in_srgb,var(--color-primary)_92%,black)] hover:bg-[color-mix(in_srgb,var(--color-primary)_84%,black)] text-white";
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cx(
+        "h-8 px-3 rounded-md text-xs font-semibold transition",
+        "disabled:opacity-40 disabled:cursor-not-allowed",
+        toneClass
+      )}
+      title={`${label} 적용`}
+    >
+      {label}
+    </button>
+  );
+}
+
+export default function PermissionSidePanel({
+  selectedCount,
+  selectedStudents,
+  onApply,
+  onClear,
+  onRemoveOne,
+  pending,
+}: {
+  selectedCount: number;
+  selectedStudents: any[];
+  onApply: (rule: string) => void;
+  onClear: () => void;
+  onRemoveOne: (enrollment: number) => void;
+  pending: boolean;
+}) {
+  const disabledApply = selectedCount === 0 || pending;
+
+  return (
+    <div className="permission-right">
+      {/* HEADER */}
+      <div className="px-4 py-3 border-b border-[var(--border-divider)]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-[var(--text-primary)]">
+              선택된 학생
+            </div>
+            <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+              {selectedCount > 0
+                ? `${selectedCount}명 선택됨`
+                : "좌측에서 학생을 선택하세요."}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={selectedCount === 0}
+            className="shrink-0 h-8 px-3 rounded-md border border-[var(--border-divider)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)] disabled:opacity-40"
+          >
+            선택 해제
+          </button>
+        </div>
+
+        {/* 권한 적용 버튼 */}
+        <div className="mt-3 flex items-center gap-2">
+          <ApplyPillButton
+            label={RULE_LABELS.free}
+            tone="free"
+            disabled={disabledApply}
+            onClick={() => onApply("free")}
+          />
+          <ApplyPillButton
+            label={RULE_LABELS.once}
+            tone="once"
+            disabled={disabledApply}
+            onClick={() => onApply("once")}
+          />
+          <ApplyPillButton
+            label={RULE_LABELS.blocked}
+            tone="blocked"
+            disabled={disabledApply}
+            onClick={() => onApply("blocked")}
+          />
+
+          {pending && (
+            <span className="ml-1 text-xs text-[var(--text-muted)]">
+              적용 중...
+            </span>
+          )}
+        </div>
+
+        <div className="mt-2 text-[11px] text-[var(--text-muted)]">
+          * 권한은 <b>선택된 학생</b> 기준으로 즉시 반영됩니다.
+        </div>
+      </div>
+
+      {/* BODY */}
+      <div className="flex-1 min-h-0 p-4">
+        <div className="h-full rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden flex flex-col min-h-0">
+          {/* table head */}
+          <div className="
+            grid grid-cols-12
+            px-3 py-2
+            text-xs font-semibold
+            text-[var(--text-secondary)]
+            border-b border-[var(--border-divider)]
+            bg-[var(--bg-surface-soft)]
+          ">
+            <div className="col-span-2 text-center">출석</div>
+            <div className="col-span-2 text-center">권한</div>
+            <div className="col-span-4">이름</div>
+            <div className="col-span-3">학부모 번호</div>
+            <div className="col-span-1 text-right">삭제</div>
+          </div>
+
+
+
+          {/* table body */}
+          <div className="flex-1 min-h-0 overflow-auto">
+            {selectedStudents.length === 0 ? (
+              <div className="p-6 text-sm text-[var(--text-muted)]">
+                선택된 학생이 없습니다. <br />
+                <span className="text-xs">
+                  좌측 체크 → 우측 상단에서 권한을 바로 적용하세요.
+                </span>
+              </div>
+            ) : (
+              selectedStudents.map((s: any) => (
+                <div
+                  key={s.enrollment}
+                  className="grid grid-cols-12 px-3 py-2 items-center border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                >
+                  {/* 출석 */}
+                  <div className="col-span-2 flex justify-center">
+                    <div className="scale-[0.92] origin-center">
+                      <AttendanceBadge
+                        status={s.attendance_status ?? "UNKNOWN"}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 권한 */}
+                  <div className="col-span-2 flex justify-center">
+                    <span
+                      className={cx(
+                        "inline-flex items-center justify-center",
+                        "h-[22px] px-2 rounded-full",
+                        "text-[11px] font-semibold leading-none text-white",
+                        RULE_COLORS[s.effective_rule] || "bg-gray-500"
+                      )}
+                    >
+                      {RULE_LABELS[s.effective_rule] || "-"}
+                    </span>
+                  </div>
+
+                  {/* 이름 */}
+                  <div className="col-span-4 min-w-0">
+                    <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                      {s.student_name}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] truncate">
+                      학생번호 {s.student_phone || "-"}
+                    </div>
+                  </div>
+
+                  {/* 학부모 번호 */}
+                  <div className="col-span-3 text-sm text-[var(--text-secondary)] truncate">
+                    {s.parent_phone || "-"}
+                  </div>
+
+                  {/* 삭제 */}
+                  <div className="col-span-1 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => onRemoveOne(s.enrollment)}
+                      className="h-7 w-10 rounded-md border border-[var(--border-divider)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+                      title="선택에서 제거"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER */}
+      <div className="p-4 border-t border-[var(--border-divider)]">
+        <button
+          type="button"
+          disabled={selectedCount === 0}
+          onClick={onClear}
+          className="w-full h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)] disabled:opacity-40"
+        >
+          전체 선택 해제
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-permission/components/PermissionTable.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-permission/components/PermissionTable.tsx
+
+import PermissionRow from "./PermissionRow";
+
+export default function PermissionTable({
+  students,
+  selected,
+  toggle,
+  toggleAll,
+}: {
+  students: any[];
+  selected: number[];
+  toggle: (id: number) => void;
+  toggleAll: () => void;
+}) {
+  return (
+    <>
+      <div className="permission-table-header">
+        <div className="permission-checkbox">
+          <input
+            type="checkbox"
+            checked={
+              students.length > 0 && selected.length === students.length
+            }
+            onChange={toggleAll}
+          />
+        </div>
+
+        <div className="w-[130px]">이름</div>
+        <div className="w-[90px] text-center">출석</div>
+        <div className="w-[90px] text-center">권한</div>
+        <div className="w-[150px]">학부모 번호</div>
+        <div className="w-[150px]">학생 번호</div>
+        <div className="w-[140px]">학교</div>
+        <div className="w-[60px] text-center">학년</div>
+      </div>
+
+      <div className="flex-1 overflow-auto">
+        {students.map((s: any) => (
+          <PermissionRow
+            key={s.enrollment}
+            student={s}
+            selected={selected.includes(s.enrollment)}
+            onToggle={() => toggle(s.enrollment)}
+          />
+        ))}
+
+        {students.length === 0 && (
+          <div className="p-6 text-sm text-[var(--text-muted)]">
+            표시할 학생이 없습니다.
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+
+==========================================================================================
+# FILE: hooks/useSessionVideos.ts
+==========================================================================================
+import { useQuery } from "@tanstack/react-query";
+import { fetchSessionVideos, Video } from "../api/videos";
+
+function shouldPoll(videos: Video[]): boolean {
+  return videos.some(
+    (v) =>
+      v.status !== "READY" &&
+      v.status !== "FAILED"
+  );
+}
+
+export function useSessionVideos(sessionId: number) {
+  return useQuery({
+    queryKey: ["session-videos", sessionId],
+    queryFn: () => fetchSessionVideos(sessionId),
+
+    refetchInterval: (query) => {
+      const videos = query.state.data;
+      if (!videos) return 5000;
+
+      return shouldPoll(videos) ? 5000 : false;
+    },
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useVideoPolicy.ts
+==========================================================================================
+// src/features/videos/hooks/useVideoPolicy.ts
+// --------------------------------------------------
+// useVideoPolicy
+// --------------------------------------------------
+// 책임:
+// - 영상 시청 정책 상태 관리 (allow_skip / max_speed / show_watermark)
+// - dirty 여부 계산
+// - 저장(patch) + react-query invalidate
+//
+// ⚠️ UI / JSX / UX 관여 ❌
+// ⚠️ VideoDetailPage 에서만 사용 예정 (A-1)
+// --------------------------------------------------
+
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+export interface VideoPolicy {
+  allow_skip: boolean;
+  max_speed: number;
+  show_watermark: boolean;
+}
+
+interface Options {
+  videoId: number;
+  initial?: VideoPolicy | null;
+}
+
+export function useVideoPolicy({ videoId, initial }: Options) {
+  const qc = useQueryClient();
+
+  // -------------------------------
+  // State
+  // -------------------------------
+  const [policy, setPolicy] = useState<VideoPolicy>({
+    allow_skip: false,
+    max_speed: 1.0,
+    show_watermark: true,
+  });
+
+  const [dirty, setDirty] = useState(false);
+
+  // -------------------------------
+  // Init from server
+  // -------------------------------
+  useEffect(() => {
+    if (!initial) return;
+
+    setPolicy({
+      allow_skip: Boolean(initial.allow_skip),
+      max_speed: Number(initial.max_speed ?? 1),
+      show_watermark: Boolean(initial.show_watermark),
+    });
+
+    setDirty(false);
+  }, [initial?.allow_skip, initial?.max_speed, initial?.show_watermark]);
+
+  // -------------------------------
+  // Helpers
+  // -------------------------------
+  const update = <K extends keyof VideoPolicy>(
+    key: K,
+    value: VideoPolicy[K]
+  ) => {
+    setPolicy((prev) => {
+      if (prev[key] === value) return prev;
+      return { ...prev, [key]: value };
+    });
+    setDirty(true);
+  };
+
+  // -------------------------------
+  // Save
+  // -------------------------------
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!videoId) return;
+
+      await api.patch(`/media/videos/${videoId}/`, {
+        allow_skip: policy.allow_skip,
+        max_speed: policy.max_speed,
+        show_watermark: policy.show_watermark,
+      });
+    },
+
+    onSuccess: async () => {
+      setDirty(false);
+
+      // Video detail / stats 갱신
+      await qc.invalidateQueries({
+        queryKey: ["video-stats", videoId],
+      });
+
+      await qc.invalidateQueries({
+        queryKey: ["video", videoId, "stats"],
+      });
+    },
+  });
+
+  // -------------------------------
+  // Derived
+  // -------------------------------
+  const canSave = useMemo(
+    () => dirty && !saveMutation.isPending,
+    [dirty, saveMutation.isPending]
+  );
+
+  return {
+    policy,
+    dirty,
+    canSave,
+
+    // setters
+    setAllowSkip: (v: boolean) => update("allow_skip", v),
+    setMaxSpeed: (v: number) => update("max_speed", v),
+    setShowWatermark: (v: boolean) => update("show_watermark", v),
+
+    // actions
+    save: saveMutation.mutate,
+    saving: saveMutation.isPending,
+  };
+}
+
+
+==========================================================================================
+# FILE: pages/VideoDetail.styles.ts
+==========================================================================================
+// PATH: src/features/videos/pages/VideoDetail.styles.ts
+
+export const styles = {
+  page: {
+    subtitle:
+      "mt-1 text-sm text-[var(--text-muted)]",
+  },
+
+  layout: {
+    root:
+      "flex gap-10 items-start",
+    left:
+      "flex flex-col gap-8 w-[760px]",
+    right:
+      "w-[520px] shrink-0",
+  },
+
+  section: {
+    /**
+     * Admin / Staff canonical
+     * - wrapper: surface + border + radius
+     * - header: 책임 단위 제목
+     * - body: 실제 조작 영역
+     */
+    wrapper:
+      "bg-[var(--bg-surface)] rounded-xl border border-[var(--border-divider)]",
+
+    header:
+      "px-6 pt-5 pb-2 text-sm font-semibold text-[var(--text-primary)]",
+
+    body:
+      "px-6 pb-6 space-y-4",
+
+    description:
+      "text-xs text-[var(--text-muted)]",
+  },
+
+  header: {
+    title:
+      "text-xl font-semibold text-[var(--text-primary)]",
+    actions:
+      "flex items-center gap-2",
+    backLink:
+      "rounded border border-[var(--border-divider)] px-3 py-1.5 text-sm bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)] transition",
+  },
+};
+
+
+==========================================================================================
+# FILE: pages/VideoDetailLayout.tsx
+==========================================================================================
+// PATH: src/features/videos/pages/VideoDetailLayout.tsx
+
+import { ReactNode } from "react";
+import { styles } from "./VideoDetail.styles";
+
+interface Props {
+  header: ReactNode;
+  subtitle?: ReactNode;
+  left: ReactNode;
+  right: ReactNode;
+}
+
+export default function VideoDetailLayout({
+  header,
+  subtitle,
+  left,
+  right,
+}: Props) {
+  return (
+    <div className="space-y-6">
+      {/* PAGE HEADER */}
+      <div>{header}</div>
+
+      {subtitle && (
+        <div className={styles.page.subtitle}>
+          {subtitle}
+        </div>
+      )}
+
+      {/* PAGE BODY */}
+      <div className={styles.layout.root}>
+        <div className={styles.layout.left}>
+          {left}
+        </div>
+
+        {/* RIGHT = 상태 / 관리 패널 */}
+        <div className={styles.layout.right}>
+          {right}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/VideoDetailPage.tsx
+==========================================================================================
+// PATH: src/features/videos/pages/VideoDetailPage.tsx
+
+import { useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+import VideoDetailLayout from "./VideoDetailLayout";
+import { styles } from "./VideoDetail.styles";
+
+import PermissionModal from "@/features/videos/components/features/video-detail/modals/PermissionModal";
+import VideoPreviewSection from "@/features/videos/components/features/video-detail/components/VideoPreviewSection";
+import VideoPolicySection from "@/features/videos/components/features/video-detail/components/VideoPolicySection";
+import VideoInfoSection from "@/features/videos/components/features/video-detail/components/VideoInfoSection";
+import VideoStudentsSection from "@/features/videos/components/features/video-detail/components/VideoStudentsSection";
+
+type PreviewMode = "admin" | "student";
+
+export default function VideoDetailPage() {
+  const params = useParams();
+  const lectureId = Number(params.lectureId);
+  const sessionId = Number(params.sessionId);
+  const videoId = Number(params.videoId);
+
+  const [previewMode, setPreviewMode] =
+    useState<PreviewMode>("admin");
+  const [openPermission, setOpenPermission] =
+    useState(false);
+  const [memo, setMemo] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["video-stats", videoId],
+    queryFn: async () => {
+      const res = await api.get(
+        `/media/videos/${videoId}/stats/`
+      );
+      return res.data;
+    },
+    enabled: !!videoId,
+  });
+
+  if (isLoading || !data?.video) {
+    return (
+      <div className="text-sm text-[var(--text-muted)]">
+        로딩중…
+      </div>
+    );
+  }
+
+  const video = data.video;
+  const students = data.students ?? [];
+
+  return (
+    <>
+      <VideoDetailLayout
+        header={
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className={styles.header.title}>
+                {video.title}
+              </h2>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">
+                세션 영상 관리 · 정책 / 시청 / 로그
+              </div>
+            </div>
+
+            <div className={styles.header.actions}>
+              <Link
+                to={`/admin/lectures/${lectureId}/sessions/${sessionId}`}
+                className={styles.header.backLink}
+              >
+                출석 화면으로
+              </Link>
+            </div>
+          </div>
+        }
+        subtitle={
+          <span>
+            이 영상에 대한 시청 정책, 학생
+            상태, 로그 데이터를 관리합니다.
+          </span>
+        }
+        left={
+          <>
+            <section className={styles.section.wrapper}>
+              <div className={styles.section.header}>
+                영상 미리보기
+              </div>
+              <div className={styles.section.body}>
+                <VideoPreviewSection
+                  previewMode={previewMode}
+                  setPreviewMode={setPreviewMode}
+                  hlsSrc={video.hls_url}
+                />
+              </div>
+            </section>
+
+            <section className={styles.section.wrapper}>
+              <div className={styles.section.header}>
+                학생 시청 정책
+              </div>
+              <div className={styles.section.body}>
+                <VideoPolicySection
+                  videoId={videoId}
+                  initial={{
+                    allow_skip: video.allow_skip,
+                    max_speed: video.max_speed,
+                    show_watermark: video.show_watermark,
+                  }}
+                />
+              </div>
+            </section>
+
+            <section className={styles.section.wrapper}>
+              <div className={styles.section.header}>
+                영상 정보
+              </div>
+              <div className={styles.section.body}>
+                <VideoInfoSection
+                  video={video}
+                  memo={memo}
+                  setMemo={setMemo}
+                />
+              </div>
+            </section>
+          </>
+        }
+        right={
+          <section className={styles.section.wrapper}>
+            <div className={styles.section.header}>
+              학생 시청 현황
+            </div>
+            <div className={styles.section.body}>
+              <VideoStudentsSection
+                students={students}
+                onOpenPermission={() =>
+                  setOpenPermission(true)
+                }
+              />
+            </div>
+          </section>
+        }
+      />
+
+      <PermissionModal
+        open={openPermission}
+        onClose={() => setOpenPermission(false)}
+        videoId={videoId}
+      />
+    </>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/ToggleSwitch.tsx
+==========================================================================================
+// PATH: src/features/videos/ui/ToggleSwitch.tsx
+
+interface Props {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}
+
+export default function ToggleSwitch({ checked, onChange, disabled = false }: Props) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+      className={[
+        "relative h-6 w-11 rounded-full border transition",
+        "border-[var(--border-divider)]",
+        checked ? "bg-[var(--color-primary)]" : "bg-[var(--bg-app)]",
+        disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer hover:bg-[var(--bg-surface-soft)]",
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition",
+          checked ? "left-5" : "left-0.5",
+        ].join(" ")}
+      />
+    </button>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/VideoInfoCards.tsx
+==========================================================================================
+// src/features/videos/components/VideoInfoCards.tsx
+
+import dayjs from "dayjs";
+
+type Props = {
+  video: any;
+  stats: any;
+  memo: string;
+  setMemo: (v: string) => void;
+};
+
+export default function VideoInfoCards({ video, stats, memo, setMemo }: Props) {
+  const size = video.file_size
+    ? (video.file_size / (1024 * 1024)).toFixed(1)
+    : "-";
+
+  const avg =
+    stats?.avg_progress != null
+      ? (stats.avg_progress * 100).toFixed(1) + "%"
+      : "-";
+
+  const created = video.created_at
+    ? dayjs(video.created_at).format("YYYY-MM-DD HH:mm")
+    : "-";
+
+  const allowSkipLabel = video.allow_skip ? "허용" : "금지";
+  const maxSpeedLabel = video.max_speed
+    ? `${Number(video.max_speed).toFixed(2)}x`
+    : "-";
+  const watermarkLabel = video.show_watermark ? "표시" : "숨김";
+
+  return (
+    <div className="space-y-3 text-sm">
+      {/* FILE INFO + STATS (compact) */}
+      <div className="grid grid-cols-3 gap-3">
+        
+        {/* FILE INFO */}
+        <div className="rounded border bg-white p-3 space-y-0.5">
+          <div className="font-semibold text-xs mb-1">파일 정보</div>
+          <div className="truncate">이름: {video.title}</div>
+          <div>용량: {size}MB</div>
+          <div>업로드: {created}</div>
+
+          <div className="pt-1 text-[11px] text-gray-600 space-y-0.5">
+            <div>건너뛰기: {allowSkipLabel}</div>
+            <div>최대 배속: {maxSpeedLabel}</div>
+            <div>워터마크: {watermarkLabel}</div>
+          </div>
+        </div>
+
+        {/* STATS */}
+        <div className="rounded border bg-white p-3 space-y-0.5">
+          <div className="font-semibold text-xs mb-1">통계</div>
+          <div>100% 완료: {stats?.completed_100 ?? 0}</div>
+          <div>90%+ 완료: {stats?.completed_90 ?? 0}</div>
+          <div>평균 진도율: {avg}</div>
+        </div>
+
+        {/* MEMO */}
+        <div className="rounded border bg-white p-3 flex flex-col">
+          <div className="font-semibold text-xs mb-1">메모</div>
+          <textarea
+            className="w-full border rounded px-2 py-1 text-xs flex-1"
+            placeholder="메모..."
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/VideoStatusBadge.tsx
+==========================================================================================
+import type { VideoStatus } from "../api/videos";
+
+import {
+  VIDEO_STATUS_LABEL,
+  VIDEO_STATUS_STYLE,
+} from "../utils/videoStatus";
+
+interface Props {
+  status?: VideoStatus;
+}
+
+export default function VideoStatusBadge({ status }: Props) {
+  if (!status) return null;
+
+  return (
+    <span
+      className={`rounded px-2 py-0.5 text-xs font-medium ${VIDEO_STATUS_STYLE[status]}`}
+    >
+      {VIDEO_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/VideoThumbnail.tsx
+==========================================================================================
+// src/features/videos/components/VideoThumbnail.tsx
+type VideoStatus =
+  | "READY"
+  | "PROCESSING"
+  | "FAILED"
+  | "PENDING"
+  | "UPLOADED";
+
+interface Props {
+  title?: string;
+  status?: VideoStatus;
+  thumbnail_url?: string | null;
+}
+
+/**
+ * ✅ SaaS 표준 Thumbnail
+ * - thumbnail_url이 절대 URL이면 그대로 사용
+ * - 가공 ❌
+ * - 실패 시 placeholder fallback
+ */
+export default function VideoThumbnail({
+  title,
+  status,
+  thumbnail_url,
+}: Props) {
+  let src = "/placeholder-video.png";
+
+  if (thumbnail_url) {
+    src = thumbnail_url;
+  } else if (status === "PROCESSING") {
+    src = "/placeholder-processing.png";
+  } else if (status === "FAILED") {
+    src = "/placeholder-failed.png";
+  }
+
+  return (
+    <div className="aspect-video w-full overflow-hidden rounded-md bg-gray-100 shadow-sm">
+      <img
+        src={src}
+        alt={title || "영상 썸네일"}
+        className="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
+        onError={(e) => {
+          const img = e.currentTarget;
+          if (img.src.includes("placeholder")) return;
+          img.src = "/placeholder-video.png";
+        }}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: utils/videoStatus.ts
+==========================================================================================
+import type { VideoStatus } from "../api/videos";
+
+export const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {
+  PENDING: "업로드 대기",
+  UPLOADED: "업로드 완료",
+  PROCESSING: "인코딩 중",
+  READY: "시청 가능",
+  FAILED: "처리 실패",
+};
+
+export const VIDEO_STATUS_STYLE: Record<VideoStatus, string> = {
+  PENDING: "bg-gray-100 text-gray-600",
+  UPLOADED: "bg-blue-100 text-blue-700",
+  PROCESSING: "bg-yellow-100 text-yellow-700",
+  READY: "bg-green-100 text-green-700",
+  FAILED: "bg-red-100 text-red-700",
+};

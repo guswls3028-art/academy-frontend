@@ -1,0 +1,1381 @@
+====================================================================================================
+# FRONTEND FOLDER: student__domains
+# ROOT PATH: C:\academyfront\src\student\domains
+====================================================================================================
+
+
+==========================================================================================
+# FILE: dashboard/api/dashboard.ts
+==========================================================================================
+// src/student/domains/dashboard/api/dashboard.ts
+/**
+ * ✅ Student Dashboard API (LOCK v1)
+ *
+ * 주의:
+ * - 백엔드 계약이 아직 프로젝트마다 다를 수 있으므로 "파싱 fallback"만 제공
+ * - 프론트가 판단/계산하는 로직은 절대 넣지 않음
+ *
+ * 권장 엔드포인트(예시):
+ * GET /api/v1/student/dashboard/
+ *
+ * 기대 응답(권장):
+ * {
+ *   notices: [{ id, title, created_at }],
+ *   today_sessions: [{ id, title, date, status }],
+ *   badges: { unread_qna: number }
+ * }
+ */
+
+import api from "@/student/shared/api/studentApi";
+
+export type DashboardNotice = {
+  id: number;
+  title: string;
+  created_at?: string | null;
+};
+
+export type DashboardSession = {
+  id: number;
+  title: string;
+  date?: string | null;
+  // 상태는 백엔드 문자열 그대로 표시만
+  status?: string | null;
+};
+
+export type StudentDashboardResponse = {
+  notices: DashboardNotice[];
+  today_sessions: DashboardSession[];
+  badges?: Record<string, any>;
+};
+
+export async function fetchStudentDashboard(): Promise<StudentDashboardResponse> {
+  const res = await api.get("/student/dashboard/");
+
+  const data = res.data ?? {};
+  return {
+    notices: Array.isArray(data.notices) ? data.notices : [],
+    today_sessions: Array.isArray(data.today_sessions) ? data.today_sessions : [],
+    badges: typeof data.badges === "object" && data.badges ? data.badges : {},
+  };
+}
+
+
+==========================================================================================
+# FILE: dashboard/components/NoticeBanner.tsx
+==========================================================================================
+// src/student/domains/dashboard/components/NoticeBanner.tsx
+/**
+ * ✅ NoticeBanner (MVP)
+ * - 공지 1개만 보여주는 형태
+ * - 판단/필터링 ❌
+ */
+
+import EmptyState from "@/student/shared/components/EmptyState";
+import { DashboardNotice } from "@/student/domains/dashboard/api/dashboard";
+import { formatYmd } from "@/student/shared/utils/date";
+
+export default function NoticeBanner({ notices }: { notices: DashboardNotice[] }) {
+  if (!notices.length) {
+    return <EmptyState title="공지사항이 없습니다." />;
+  }
+
+  const first = notices[0];
+
+  return (
+    <div
+      style={{
+        border: "1px solid #eee",
+        borderRadius: 12,
+        background: "#fff",
+        padding: 14,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ fontWeight: 800 }}>📣 공지사항</div>
+        <div style={{ fontSize: 12, color: "#777" }}>
+          {formatYmd(first.created_at ?? null)}
+        </div>
+      </div>
+      <div style={{ marginTop: 8, color: "#333" }}>{first.title}</div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: dashboard/components/QuickActionGrid.tsx
+==========================================================================================
+// src/student/domains/dashboard/components/QuickActionGrid.tsx
+/**
+ * ✅ QuickActionGrid
+ * - 이미지의 "바로가기 4개" 구현
+ * - 링크만 제공 (판단/계산 ❌)
+ */
+
+import { Link } from "react-router-dom";
+
+export default function QuickActionGrid() {
+  const items = [
+    { label: "과제 제출", to: "/student/assignments" }, // 추후 도메인 연결
+    { label: "학습자료", to: "/student/materials" }, // 추후 도메인 연결
+    { label: "시험 · 평가", to: "/student/exams" },
+    { label: "성적 관리", to: "/student/grades" },
+  ];
+
+  return (
+    <div
+      style={{
+        border: "1px solid #eee",
+        borderRadius: 12,
+        background: "#fff",
+        padding: 14,
+      }}
+    >
+      <div style={{ fontWeight: 800, marginBottom: 10 }}>바로가기</div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 10,
+        }}
+      >
+        {items.map((it) => (
+          <Link
+            key={it.to}
+            to={it.to}
+            style={{
+              textDecoration: "none",
+              border: "1px solid #eee",
+              borderRadius: 10,
+              padding: "14px 12px",
+              fontWeight: 700,
+              color: "#111",
+              background: "#fafafa",
+            }}
+          >
+            {it.label}
+          </Link>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
+        ※ 과제/자료는 추후 도메인 연결 예정 (라우팅 자리만 확보)
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: dashboard/components/TodaySessionsCard.tsx
+==========================================================================================
+// src/student/domains/dashboard/components/TodaySessionsCard.tsx
+/**
+ * ✅ TodaySessionsCard (MVP)
+ * - "오늘 할 일" 카드
+ * - 정렬/판단 ❌ (백엔드가 준 순서 그대로)
+ */
+
+import { Link } from "react-router-dom";
+import EmptyState from "@/student/shared/components/EmptyState";
+import SectionHeader from "@/student/shared/components/SectionHeader";
+import { DashboardSession } from "@/student/domains/dashboard/api/dashboard";
+import { formatYmd } from "@/student/shared/utils/date";
+
+export default function TodaySessionsCard({ sessions }: { sessions: DashboardSession[] }) {
+  return (
+    <div style={{ border: "1px solid #eee", borderRadius: 12, background: "#fff", padding: 14 }}>
+      <SectionHeader title="오늘 할 일" right={<span style={{ fontSize: 12, color: "#777" }}>차시</span>} />
+
+      {!sessions.length && (
+        <EmptyState title="오늘 할 차시가 없습니다." description="백엔드가 내려주는 할 일 목록을 그대로 표시합니다." />
+      )}
+
+      {sessions.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sessions.map((s) => (
+            <Link
+              key={s.id}
+              to={`/student/sessions/${s.id}`}
+              style={{
+                textDecoration: "none",
+                border: "1px solid #eee",
+                borderRadius: 10,
+                padding: 12,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                color: "#111",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 800 }}>{s.title}</div>
+                <div style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
+                  {formatYmd(s.date ?? null)}
+                  {s.status ? ` · ${s.status}` : ""}
+                </div>
+              </div>
+              <div style={{ color: "#999" }}>›</div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: dashboard/hooks/useStudentDashboard.ts
+==========================================================================================
+// src/student/domains/dashboard/hooks/useStudentDashboard.ts
+/**
+ * ✅ useStudentDashboard
+ * - Dashboard 단일 쿼리
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchStudentDashboard } from "@/student/domains/dashboard/api/dashboard";
+
+export function useStudentDashboard() {
+  return useQuery({
+    queryKey: ["student-dashboard"],
+    queryFn: fetchStudentDashboard,
+  });
+}
+
+
+==========================================================================================
+# FILE: dashboard/pages/DashboardPage.tsx
+==========================================================================================
+// src/student/domains/dashboard/pages/DashboardPage.tsx
+/**
+ * ✅ DashboardPage (LOCK v1)
+ * - 학생앱의 행동 허브
+ * - 이미지 UI 구조를 그대로 도메인화한 페이지
+ *
+ * 원칙:
+ * - 오늘 할 일/정렬/판단 ❌
+ * - 백엔드 응답 그대로 렌더링 ✅
+ */
+
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import { useStudentDashboard } from "@/student/domains/dashboard/hooks/useStudentDashboard";
+import NoticeBanner from "@/student/domains/dashboard/components/NoticeBanner";
+import TodaySessionsCard from "@/student/domains/dashboard/components/TodaySessionsCard";
+import QuickActionGrid from "@/student/domains/dashboard/components/QuickActionGrid";
+import EmptyState from "@/student/shared/components/EmptyState";
+
+export default function DashboardPage() {
+  const { data, isLoading, isError } = useStudentDashboard();
+
+  if (isLoading) {
+    return (
+      <StudentPageShell title="홈" description="오늘 해야 할 일을 확인하세요.">
+        <div style={{ color: "#666", fontSize: 14 }}>불러오는 중...</div>
+      </StudentPageShell>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <StudentPageShell title="홈" description="오늘 해야 할 일을 확인하세요.">
+        <EmptyState title="대시보드를 불러오지 못했습니다." description="백엔드 응답을 확인해주세요." />
+      </StudentPageShell>
+    );
+  }
+
+  return (
+    <StudentPageShell title="홈" description="오늘 해야 할 일을 확인하세요.">
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <NoticeBanner notices={data.notices} />
+        <TodaySessionsCard sessions={data.today_sessions} />
+        <QuickActionGrid />
+      </div>
+    </StudentPageShell>
+  );
+}
+
+
+==========================================================================================
+# FILE: exams/api/assets.ts
+==========================================================================================
+// src/student/domains/exams/api/assets.ts
+/**
+ * ✅ Student Exam Assets API (LOCK v1)
+ * - 학생은 download만 (업로드는 관리자/교사)
+ * - asset_type 의미 해석 ❌
+ */
+
+import api from "@/student/shared/api/studentApi";
+
+export type ExamAsset = {
+  id: number;
+  asset_type: string;
+  download_url: string;
+};
+
+export async function fetchExamAssets(examId: number): Promise<ExamAsset[]> {
+  const res = await api.get(`/exams/${examId}/assets/`);
+  const data = res.data;
+  if (Array.isArray(data?.items)) return data.items as ExamAsset[];
+  if (Array.isArray(data)) return data as ExamAsset[];
+  return [];
+}
+
+
+==========================================================================================
+# FILE: exams/api/exams.ts
+==========================================================================================
+// src/student/domains/exams/api/exams.ts
+/**
+ * ✅ Student Exams API (LOCK v1)
+ *
+ * 권장 엔드포인트:
+ * - GET /api/v1/exams/ (학생도 공용 endpoint로 조회 가능하다는 전제)
+ * - GET /api/v1/exams/{id}/
+ *
+ * 주의:
+ * - open/close로 버튼 판단 ❌
+ * - 재시험 가능 여부 판단 ❌ (Result API can_retake만 신뢰)
+ */
+
+import api from "@/student/shared/api/studentApi";
+
+export type StudentExam = {
+  id: number;
+  title: string;
+  open_at: string | null;
+  close_at: string | null;
+  allow_retake: boolean;
+  max_attempts: number;
+  pass_score: number;
+
+  description?: string | null;
+  session_id?: number | null;
+};
+
+export type ExamsListResponse = {
+  items: StudentExam[];
+};
+
+export async function fetchStudentExams(params?: { session_id?: number }): Promise<ExamsListResponse> {
+  const res = await api.get("/exams/", { params: params ?? {} });
+
+  const data = res.data;
+  if (data?.items && Array.isArray(data.items)) return data as ExamsListResponse;
+  if (Array.isArray(data)) return { items: data as StudentExam[] };
+  return { items: [] };
+}
+
+export async function fetchStudentExam(examId: number): Promise<StudentExam> {
+  const res = await api.get(`/exams/${examId}/`);
+  return res.data as StudentExam;
+}
+
+
+==========================================================================================
+# FILE: exams/api/results.ts
+==========================================================================================
+// src/student/domains/exams/api/results.ts
+/**
+ * ✅ Student Result API (LOCK v1)
+ * - 대표 결과 / 문항 상세는 백엔드 응답만 신뢰
+ *
+ * Endpoints (문서 기준):
+ * - GET /results/me/exams/{exam_id}/
+ * - GET /results/me/exams/{exam_id}/items/
+ */
+
+import api from "@/student/shared/api/studentApi";
+
+export type MyExamResult = {
+  exam_id: number;
+  attempt_id: number;
+  total_score: number;
+  max_score: number;
+  is_pass: boolean;
+  submitted_at: string | null;
+  can_retake: boolean;
+
+  // 확장 필드가 있으면 그대로 받음 (예: clinic_required)
+  [k: string]: any;
+};
+
+export type MyExamResultItem = {
+  question_id: number;
+  question_number: number;
+  student_answer: string | null;
+  correct_answer: string | null;
+  score: number;
+  max_score: number;
+  is_correct: boolean;
+  meta?: Record<string, any>;
+};
+
+export async function fetchMyExamResult(examId: number): Promise<MyExamResult> {
+  const res = await api.get(`/results/me/exams/${examId}/`);
+  return res.data as MyExamResult;
+}
+
+export async function fetchMyExamResultItems(examId: number): Promise<MyExamResultItem[]> {
+  const res = await api.get(`/results/me/exams/${examId}/items/`);
+  const data = res.data;
+  if (Array.isArray(data?.items)) return data.items as MyExamResultItem[];
+  if (Array.isArray(data)) return data as MyExamResultItem[];
+  return [];
+}
+
+
+==========================================================================================
+# FILE: exams/components/ExamActionButton.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: exams/components/ExamCard.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: exams/components/ExamResultItems.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: exams/components/ExamResultSummary.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: exams/hooks/useMyExamResult.ts
+==========================================================================================
+// src/student/domains/exams/hooks/useMyExamResult.ts
+/**
+ * ✅ useMyExamResult (LOCK v1)
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchMyExamResult } from "@/student/domains/exams/api/results";
+
+export function useMyExamResult(examId?: number) {
+  const safeId = Number(examId);
+
+  return useQuery({
+    queryKey: ["my-exam-result", safeId],
+    queryFn: () => fetchMyExamResult(safeId),
+    enabled: Number.isFinite(safeId),
+  });
+}
+
+
+==========================================================================================
+# FILE: exams/hooks/useMyExamResultItems.ts
+==========================================================================================
+// src/student/domains/exams/hooks/useMyExamResultItems.ts
+/**
+ * ✅ useMyExamResultItems (LOCK v1)
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchMyExamResultItems } from "@/student/domains/exams/api/results";
+
+export function useMyExamResultItems(examId?: number) {
+  const safeId = Number(examId);
+
+  return useQuery({
+    queryKey: ["my-exam-result-items", safeId],
+    queryFn: () => fetchMyExamResultItems(safeId),
+    enabled: Number.isFinite(safeId),
+  });
+}
+
+
+==========================================================================================
+# FILE: exams/hooks/useStudentExams.ts
+==========================================================================================
+// src/student/domains/exams/hooks/useStudentExams.ts
+/**
+ * ✅ useStudentExams / useStudentExam
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchStudentExam, fetchStudentExams } from "@/student/domains/exams/api/exams";
+
+export function useStudentExams(params?: { session_id?: number }) {
+  const sessionId = params?.session_id;
+  const enabled = sessionId == null ? true : Number.isFinite(Number(sessionId));
+
+  return useQuery({
+    queryKey: ["student-exams", params ?? {}],
+    queryFn: () => fetchStudentExams(params),
+    enabled,
+  });
+}
+
+export function useStudentExam(examId?: number) {
+  const safeId = Number(examId);
+  return useQuery({
+    queryKey: ["student-exam", safeId],
+    queryFn: () => fetchStudentExam(safeId),
+    enabled: Number.isFinite(safeId),
+  });
+}
+
+
+==========================================================================================
+# FILE: exams/pages/ExamDetailPage.tsx
+==========================================================================================
+// src/student/domains/exams/pages/ExamDetailPage.tsx
+/**
+ * ✅ ExamDetailPage (학생)
+ * - 자산 다운로드 + 결과/제출 진입
+ *
+ * 원칙:
+ * - 응시 가능 여부를 프론트에서 판단 ❌
+ * - "재시험 버튼" 판단은 Result API의 can_retake만 신뢰 ✅
+ */
+
+import { Link, useParams } from "react-router-dom";
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import EmptyState from "@/student/shared/components/EmptyState";
+import { useStudentExam } from "@/student/domains/exams/hooks/useStudentExams";
+import { useMyExamResult } from "@/student/domains/exams/hooks/useMyExamResult";
+import { useQuery } from "@tanstack/react-query";
+import { fetchExamAssets } from "@/student/domains/exams/api/assets";
+
+export default function ExamDetailPage() {
+  const { examId } = useParams();
+  const safeId = Number(examId);
+
+  const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
+
+  // ✅ 결과는 "단일 진실": can_retake 포함
+  const resultQ = useMyExamResult(Number.isFinite(safeId) ? safeId : undefined);
+
+  // ✅ 자산 목록
+  const assetsQ = useQuery({
+    queryKey: ["student-exam-assets", safeId],
+    queryFn: () => fetchExamAssets(safeId),
+    enabled: Number.isFinite(safeId),
+  });
+
+  if (!Number.isFinite(safeId)) {
+    return (
+      <StudentPageShell title="시험" description="잘못된 접근입니다.">
+        <EmptyState title="시험 ID가 올바르지 않습니다." />
+      </StudentPageShell>
+    );
+  }
+
+  if (examQ.isLoading) {
+    return (
+      <StudentPageShell title="시험" description="불러오는 중...">
+        <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>
+      </StudentPageShell>
+    );
+  }
+
+  if (examQ.isError || !examQ.data) {
+    return (
+      <StudentPageShell title="시험" description="불러오지 못했습니다.">
+        <EmptyState title="시험 정보를 불러오지 못했습니다." />
+      </StudentPageShell>
+    );
+  }
+
+  const exam = examQ.data;
+  const canRetake = typeof resultQ.data?.can_retake === "boolean" ? resultQ.data.can_retake : true;
+
+  return (
+    <StudentPageShell
+      title={exam.title}
+      description="자산 다운로드 / 제출 / 결과 조회"
+      actions={
+        <Link to="/student/exams" style={linkBtn}>
+          목록
+        </Link>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* ===== Assets ===== */}
+        <div style={card}>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>자산</div>
+
+          {assetsQ.isLoading && <div style={{ fontSize: 13, color: "#666" }}>자산 불러오는 중...</div>}
+          {assetsQ.isError && <div style={{ fontSize: 13, color: "#c00" }}>자산 조회 실패</div>}
+
+          {assetsQ.data && assetsQ.data.length === 0 && (
+            <div style={{ fontSize: 13, color: "#777" }}>등록된 자산이 없습니다.</div>
+          )}
+
+          {assetsQ.data && assetsQ.data.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {assetsQ.data.map((a) => (
+                <a
+                  key={a.id}
+                  href={a.download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ ...linkBtn, width: "fit-content" }}
+                >
+                  다운로드: {a.asset_type}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ===== Actions ===== */}
+        <div style={card}>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>응시 / 결과</div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link to={`/student/exams/${exam.id}/result`} style={linkBtn}>
+              결과 보기
+            </Link>
+
+            {/* ✅ can_retake만 신뢰 */}
+            <Link
+              to={`/student/exams/${exam.id}/submit`}
+              style={{
+                ...linkBtn,
+                opacity: canRetake ? 1 : 0.4,
+                pointerEvents: canRetake ? "auto" : "none",
+              }}
+            >
+              {canRetake ? "제출하기" : "재시험 불가"}
+            </Link>
+          </div>
+
+          <div style={{ marginTop: 8, fontSize: 12, color: "#777" }}>
+            ※ 재시험 가능 여부는 결과 API의 <b>can_retake</b>만 신뢰합니다.
+          </div>
+        </div>
+      </div>
+    </StudentPageShell>
+  );
+}
+
+const card: React.CSSProperties = {
+  border: "1px solid #eee",
+  borderRadius: 12,
+  padding: 14,
+  background: "#fff",
+};
+
+const linkBtn: React.CSSProperties = {
+  display: "inline-block",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #ddd",
+  textDecoration: "none",
+  background: "#fafafa",
+  color: "#111",
+  fontWeight: 800,
+};
+
+
+==========================================================================================
+# FILE: exams/pages/ExamListPage.tsx
+==========================================================================================
+// src/student/domains/exams/pages/ExamListPage.tsx
+/**
+ * ✅ ExamListPage (학생)
+ * - 시험 목록
+ * - session_id query param 지원 (세션 허브에서 진입 시 유용)
+ *
+ * 원칙:
+ * - OPEN/CLOSED 판단 ❌
+ * - 백엔드 필드 그대로 노출 ✅
+ */
+
+import { Link, useSearchParams } from "react-router-dom";
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import EmptyState from "@/student/shared/components/EmptyState";
+import { useStudentExams } from "@/student/domains/exams/hooks/useStudentExams";
+import { formatYmd } from "@/student/shared/utils/date";
+
+export default function ExamListPage() {
+  const [sp] = useSearchParams();
+  const sessionParam = sp.get("session");
+  const sessionId = sessionParam ? Number(sessionParam) : undefined;
+
+  const { data, isLoading, isError } = useStudentExams(
+    sessionId ? { session_id: sessionId } : undefined
+  );
+
+  const items = data?.items ?? [];
+
+  return (
+    <StudentPageShell
+      title="시험"
+      description={sessionId ? `세션(${sessionId}) 기준 시험 목록` : "전체 시험 목록"}
+    >
+      {isLoading && <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>}
+
+      {(isError || !data) && <EmptyState title="시험 목록을 불러오지 못했습니다." />}
+
+      {data && items.length === 0 && (
+        <EmptyState title="시험이 없습니다." description="등록된 시험이 없거나 접근 권한이 없습니다." />
+      )}
+
+      {items.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {items.map((e) => (
+            <Link
+              key={e.id}
+              to={`/student/exams/${e.id}`}
+              style={{
+                textDecoration: "none",
+                border: "1px solid #eee",
+                borderRadius: 10,
+                padding: 12,
+                background: "#fff",
+                color: "#111",
+              }}
+            >
+              <div style={{ fontWeight: 900 }}>{e.title}</div>
+              <div style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
+                open: {formatYmd(e.open_at)} · close: {formatYmd(e.close_at)}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </StudentPageShell>
+  );
+}
+
+
+==========================================================================================
+# FILE: exams/pages/ExamResultPage.tsx
+==========================================================================================
+// src/student/domains/exams/pages/ExamResultPage.tsx
+/**
+ * ✅ ExamResultPage (학생 결과)
+ * - 대표 Result + ResultItem(문항별) 렌더링
+ * - 판단/계산 ❌
+ * - can_retake / is_pass 그대로 사용 ✅
+ */
+
+import { Link, useParams } from "react-router-dom";
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import EmptyState from "@/student/shared/components/EmptyState";
+import { useMyExamResult } from "@/student/domains/exams/hooks/useMyExamResult";
+import { useMyExamResultItems } from "@/student/domains/exams/hooks/useMyExamResultItems";
+
+export default function ExamResultPage() {
+  const { examId } = useParams();
+  const safeId = Number(examId);
+
+  const resultQ = useMyExamResult(Number.isFinite(safeId) ? safeId : undefined);
+  const itemsQ = useMyExamResultItems(Number.isFinite(safeId) ? safeId : undefined);
+
+  if (!Number.isFinite(safeId)) {
+    return (
+      <StudentPageShell title="시험 결과" description="잘못된 접근입니다.">
+        <EmptyState title="시험 ID가 올바르지 않습니다." />
+      </StudentPageShell>
+    );
+  }
+
+  if (resultQ.isLoading) {
+    return (
+      <StudentPageShell title="시험 결과" description="불러오는 중...">
+        <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>
+      </StudentPageShell>
+    );
+  }
+
+  if (resultQ.isError || !resultQ.data) {
+    return (
+      <StudentPageShell title="시험 결과" description="조회 실패">
+        <EmptyState
+          title="결과를 불러오지 못했습니다."
+          description="아직 채점 전이거나 권한/데이터가 없을 수 있습니다."
+        />
+      </StudentPageShell>
+    );
+  }
+
+  const r = resultQ.data;
+
+  return (
+    <StudentPageShell
+      title="시험 결과"
+      description={`exam_id: ${r.exam_id} · attempt_id: ${r.attempt_id}`}
+      actions={
+        <Link to={`/student/exams/${safeId}`} style={linkBtn}>
+          시험으로
+        </Link>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* ===== Summary ===== */}
+        <div style={card}>
+          <div style={{ fontWeight: 900 }}>요약</div>
+
+          <div style={{ marginTop: 8, display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ fontSize: 22, fontWeight: 900 }}>
+              {r.total_score} / {r.max_score}
+            </div>
+
+            <span
+              style={{
+                padding: "4px 8px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 900,
+                background: r.is_pass ? "#e8fff0" : "#ffecec",
+                color: r.is_pass ? "#0a7a38" : "#b10000",
+              }}
+            >
+              {r.is_pass ? "통과" : "미통과"}
+            </span>
+          </div>
+
+          <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
+            submitted_at: {r.submitted_at ?? "-"}
+          </div>
+
+          <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
+            can_retake: <b>{String(r.can_retake)}</b>
+          </div>
+        </div>
+
+        {/* ===== Items ===== */}
+        <div style={card}>
+          <div style={{ fontWeight: 900, marginBottom: 8 }}>문항별 결과</div>
+
+          {itemsQ.isLoading && <div style={{ fontSize: 13, color: "#666" }}>문항 불러오는 중...</div>}
+          {itemsQ.isError && <div style={{ fontSize: 13, color: "#c00" }}>문항 조회 실패</div>}
+
+          {itemsQ.data && itemsQ.data.length === 0 && (
+            <div style={{ fontSize: 13, color: "#777" }}>문항 데이터가 없습니다.</div>
+          )}
+
+          {itemsQ.data && itemsQ.data.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {itemsQ.data.map((it) => (
+                <div
+                  key={`${it.question_id}-${it.question_number}`}
+                  style={{
+                    border: "1px solid #eee",
+                    borderRadius: 10,
+                    padding: 10,
+                    background: "#fafafa",
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>
+                    Q{it.question_number} (id:{it.question_id})
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 13, color: "#444" }}>
+                    정오: <b>{it.is_correct ? "정답" : "오답"}</b>
+                    {" · "}
+                    점수: <b>{it.score}</b> / {it.max_score}
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
+                    내 답: {it.student_answer ?? "-"} / 정답: {it.correct_answer ?? "-"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </StudentPageShell>
+  );
+}
+
+const card: React.CSSProperties = {
+  border: "1px solid #eee",
+  borderRadius: 12,
+  padding: 14,
+  background: "#fff",
+};
+
+const linkBtn: React.CSSProperties = {
+  display: "inline-block",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #ddd",
+  textDecoration: "none",
+  background: "#fafafa",
+  color: "#111",
+  fontWeight: 800,
+};
+
+
+==========================================================================================
+# FILE: exams/pages/ExamSubmitPage.tsx
+==========================================================================================
+// src/student/domains/exams/pages/ExamSubmitPage.tsx
+/**
+ * ✅ ExamSubmitPage (학생 제출)
+ *
+ * ⚠️ 중요:
+ * - Submission feature 재사용이 원칙(C)
+ * - 다만 이 프로젝트는 submissions 구현이 여러 버전이 섞여있을 수 있어,
+ *   "컴파일 안정 + 최소 UX" 기준으로 화면 골격만 제공한다.
+ *
+ * 여기서는:
+ * - 제출은 /features/submissions 로 이식/연결하기 쉬운 형태로만 둔다.
+ * - 프론트에서 상태 판단/계산 ❌
+ * - 제출 완료 후: Result refetch/이동 ✅
+ */
+
+import { Link, useNavigate, useParams } from "react-router-dom";
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import EmptyState from "@/student/shared/components/EmptyState";
+
+export default function ExamSubmitPage() {
+  const { examId } = useParams();
+  const safeId = Number(examId);
+  const nav = useNavigate();
+
+  if (!Number.isFinite(safeId)) {
+    return (
+      <StudentPageShell title="제출" description="잘못된 접근입니다.">
+        <EmptyState title="시험 ID가 올바르지 않습니다." />
+      </StudentPageShell>
+    );
+  }
+
+  return (
+    <StudentPageShell
+      title="시험 제출"
+      description="OMR/답안 제출은 submissions feature로 연결됩니다."
+      actions={
+        <Link to={`/student/exams/${safeId}`} style={linkBtn}>
+          뒤로
+        </Link>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={card}>
+          <div style={{ fontWeight: 900 }}>제출 UX (MVP)</div>
+          <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
+            ✅ 이 화면은 “제출入口”만 담당합니다. 실제 업로드/폴링은
+            <code>features/submissions</code>를 재사용해서 붙이세요.
+          </div>
+
+          <div style={{ marginTop: 12, fontSize: 13, color: "#666" }}>
+            - 업로드 성공 → 폴링 DONE → 결과 페이지 이동
+            <br />- FAILED → 재업로드 유도
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              style={btnStyle}
+              onClick={() => {
+                // ✅ 실제 구현은 submissions로 붙이면 됨
+                // 지금은 네비 UX만
+                nav(`/student/exams/${safeId}/result`);
+              }}
+            >
+              (임시) 제출 완료 처리
+            </button>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 12, color: "#777" }}>
+          ※ 여기서 정책/채점/결과 판단을 하면 안 됩니다. 백엔드가 단일 진실입니다.
+        </div>
+      </div>
+    </StudentPageShell>
+  );
+}
+
+const card: React.CSSProperties = {
+  border: "1px solid #eee",
+  borderRadius: 12,
+  padding: 14,
+  background: "#fff",
+};
+
+const linkBtn: React.CSSProperties = {
+  display: "inline-block",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #ddd",
+  textDecoration: "none",
+  background: "#fafafa",
+  color: "#111",
+  fontWeight: 800,
+};
+
+const btnStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #ddd",
+  background: "#111",
+  color: "#fff",
+  fontWeight: 800,
+};
+
+
+==========================================================================================
+# FILE: grades/api/grades.ts
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: grades/components/GradeBadge.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: grades/components/GradeRow.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: grades/pages/GradeDetailPage.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: grades/pages/GradeListPage.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: grades/pages/GradesPage.tsx
+==========================================================================================
+// src/student/domains/grades/pages/GradesPage.tsx
+/**
+ * ✅ GradesPage (MVP)
+ * - 성적 = 결과 모아보기 허브
+ * - 상세/집계는 백엔드가 내려주는 값만 렌더링 (추후 API 연결)
+ */
+
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import EmptyState from "@/student/shared/components/EmptyState";
+
+export default function GradesPage() {
+  return (
+    <StudentPageShell title="성적" description="시험/과제 결과 요약 허브">
+      <EmptyState
+        title="성적 도메인 연결 예정"
+        description="백엔드 grades API 붙이면 리스트/상세를 바로 확장할 수 있습니다."
+      />
+    </StudentPageShell>
+  );
+}
+
+
+==========================================================================================
+# FILE: qna/pages/QnaPage.tsx
+==========================================================================================
+// src/student/domains/qna/pages/QnaPage.tsx
+/**
+ * ✅ QnaPage (MVP)
+ * - Q&A 목록/작성은 추후 연결
+ */
+
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import EmptyState from "@/student/shared/components/EmptyState";
+
+export default function QnaPage() {
+  return (
+    <StudentPageShell title="Q&A" description="질문/답변">
+      <EmptyState
+        title="Q&A 도메인 연결 예정"
+        description="목록/작성/상세 API 연결 시 바로 확장합니다."
+      />
+    </StudentPageShell>
+  );
+}
+
+
+==========================================================================================
+# FILE: sessions/api/sessions.ts
+==========================================================================================
+// src/student/domains/sessions/api/sessions.ts
+/**
+ * ✅ Student Sessions API (LOCK v1)
+ *
+ * 권장 엔드포인트(예시):
+ * - GET /api/v1/sessions/me/           -> 내가 접근 가능한 차시 목록
+ * - GET /api/v1/sessions/{id}/         -> 차시 상세(행동 허브용)
+ *
+ * 프론트 원칙:
+ * - 정렬/상태판단 ❌
+ * - 백엔드 제공 필드 그대로 렌더링 ✅
+ */
+
+import api from "@/student/shared/api/studentApi";
+
+export type StudentSession = {
+  id: number;
+  title: string;
+  date?: string | null;
+  status?: string | null;
+
+  // 허브 확장 필드(있으면 그대로 받음)
+  media_url?: string | null;
+  exam_ids?: number[] | null;
+  assignment_ids?: number[] | null;
+};
+
+export async function fetchMySessions(): Promise<StudentSession[]> {
+  const res = await api.get("/sessions/me/");
+  const data = res.data;
+  if (Array.isArray(data)) return data as StudentSession[];
+  if (Array.isArray(data?.items)) return data.items as StudentSession[];
+  return [];
+}
+
+export async function fetchSessionDetail(sessionId: number): Promise<StudentSession> {
+  const res = await api.get(`/sessions/${sessionId}/`);
+  return res.data as StudentSession;
+}
+
+
+==========================================================================================
+# FILE: sessions/components/SessionAssignmentAction.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: sessions/components/SessionExamAction.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: sessions/components/SessionInfoCard.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: sessions/components/SessionVideoAction.tsx
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: sessions/hooks/useStudentSessions.ts
+==========================================================================================
+// src/student/domains/sessions/hooks/useStudentSessions.ts
+/**
+ * ✅ useStudentSessions
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchMySessions, fetchSessionDetail } from "@/student/domains/sessions/api/sessions";
+
+export function useMySessions() {
+  return useQuery({
+    queryKey: ["student-sessions"],
+    queryFn: fetchMySessions,
+  });
+}
+
+export function useSessionDetail(sessionId?: number) {
+  const safeId = Number(sessionId);
+  return useQuery({
+    queryKey: ["student-session", safeId],
+    queryFn: () => fetchSessionDetail(safeId),
+    enabled: Number.isFinite(safeId),
+  });
+}
+
+
+==========================================================================================
+# FILE: sessions/pages/SessionDetailPage.tsx
+==========================================================================================
+// src/student/domains/sessions/pages/SessionDetailPage.tsx
+/**
+ * ✅ SessionDetailPage (허브)
+ * - 학생 앱의 "행동 중심 허브"
+ * - 영상/시험/과제/자료 링크만 제공 (판단/계산 ❌)
+ *
+ * 주의:
+ * - session → exam 연결 추론 ❌
+ * - 백엔드가 exam_ids 등을 내려주면 그대로 사용
+ * - 없으면 "시험으로 이동" 같은 범용 링크만 제공
+ */
+
+import { Link, useParams } from "react-router-dom";
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import EmptyState from "@/student/shared/components/EmptyState";
+import { useSessionDetail } from "@/student/domains/sessions/hooks/useStudentSessions";
+import { formatYmd } from "@/student/shared/utils/date";
+
+export default function SessionDetailPage() {
+  const { sessionId } = useParams();
+  const safeId = Number(sessionId);
+
+  const { data, isLoading, isError } = useSessionDetail(
+    Number.isFinite(safeId) ? safeId : undefined
+  );
+
+  if (!Number.isFinite(safeId)) {
+    return (
+      <StudentPageShell title="차시" description="잘못된 접근입니다.">
+        <EmptyState title="세션 ID가 올바르지 않습니다." />
+      </StudentPageShell>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <StudentPageShell title="차시" description="불러오는 중...">
+        <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>
+      </StudentPageShell>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <StudentPageShell title="차시" description="불러오지 못했습니다.">
+        <EmptyState title="차시 상세를 불러오지 못했습니다." />
+      </StudentPageShell>
+    );
+  }
+
+  return (
+    <StudentPageShell title={data.title} description={`날짜: ${formatYmd(data.date ?? null)}`}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* ===== Actions ===== */}
+        <ActionCard title="영상 보기" desc="미디어 도메인으로 이동합니다.">
+          {/* media 이식 전이면 링크만 자리 확보 */}
+          <Link to={`/student/media?session=${data.id}`} style={btnStyle}>
+            영상으로 이동
+          </Link>
+        </ActionCard>
+
+        <ActionCard title="시험/평가" desc="시험 목록 또는 해당 시험으로 이동합니다.">
+          {/* ✅ 백엔드가 exam_ids 내려주는 경우: 직접 링크 */}
+          {Array.isArray(data.exam_ids) && data.exam_ids.length > 0 ? (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {data.exam_ids.map((eid) => (
+                <Link key={eid} to={`/student/exams/${eid}`} style={btnStyle}>
+                  시험 #{eid}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Link to="/student/exams" style={btnStyle}>
+              시험 목록 보기
+            </Link>
+          )}
+        </ActionCard>
+
+        <ActionCard title="성적" desc="결과 요약 화면으로 이동합니다.">
+          <Link to="/student/grades" style={btnStyle}>
+            성적 보기
+          </Link>
+        </ActionCard>
+
+        <div style={{ fontSize: 12, color: "#777" }}>
+          ※ 이 페이지는 “행동 허브”입니다. 정책/상태 판단은 백엔드가 책임집니다.
+        </div>
+      </div>
+    </StudentPageShell>
+  );
+}
+
+function ActionCard({
+  title,
+  desc,
+  children,
+}: {
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14, background: "#fff" }}>
+      <div style={{ fontWeight: 800 }}>{title}</div>
+      <div style={{ marginTop: 4, fontSize: 13, color: "#666" }}>{desc}</div>
+      <div style={{ marginTop: 10 }}>{children}</div>
+    </div>
+  );
+}
+
+const btnStyle: React.CSSProperties = {
+  display: "inline-block",
+  padding: "10px 12px",
+  borderRadius: 10,
+  border: "1px solid #ddd",
+  textDecoration: "none",
+  background: "#fafafa",
+  color: "#111",
+  fontWeight: 700,
+};
+
+
+==========================================================================================
+# FILE: sessions/pages/SessionListPage.tsx
+==========================================================================================
+// src/student/domains/sessions/pages/SessionListPage.tsx
+/**
+ * ✅ SessionListPage (MVP)
+ * - 내 차시 목록
+ * - 클릭 -> SessionDetailPage (행동 허브)
+ */
+
+import { Link } from "react-router-dom";
+import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import EmptyState from "@/student/shared/components/EmptyState";
+import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
+import { formatYmd } from "@/student/shared/utils/date";
+
+export default function SessionListPage() {
+  const { data, isLoading, isError } = useMySessions();
+
+  return (
+    <StudentPageShell title="차시" description="학습할 차시를 선택하세요.">
+      {isLoading && <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>}
+
+      {(isError || !data) && (
+        <EmptyState title="차시 목록을 불러오지 못했습니다." />
+      )}
+
+      {data && data.length === 0 && (
+        <EmptyState title="차시가 없습니다." description="수강 중인 강의/차시를 확인해주세요." />
+      )}
+
+      {data && data.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {data.map((s) => (
+            <Link
+              key={s.id}
+              to={`/student/sessions/${s.id}`}
+              style={{
+                textDecoration: "none",
+                border: "1px solid #eee",
+                borderRadius: 10,
+                padding: 12,
+                background: "#fff",
+                color: "#111",
+              }}
+            >
+              <div style={{ fontWeight: 800 }}>{s.title}</div>
+              <div style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
+                {formatYmd(s.date ?? null)}
+                {s.status ? ` · ${s.status}` : ""}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </StudentPageShell>
+  );
+}

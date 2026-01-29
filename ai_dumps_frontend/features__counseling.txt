@@ -1,0 +1,52 @@
+====================================================================================================
+# FRONTEND FOLDER: features__counseling
+# ROOT PATH: C:\academyfront\src\features\counseling
+====================================================================================================
+
+
+==========================================================================================
+# FILE: counseling_code.html
+==========================================================================================
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<title>counseling</title>
+<style>
+body{background:#0f1115;color:#eaeaea;font-family:Consolas,monospace;padding:24px}
+h2{color:#7dd3fc;font-size:14px}
+pre{background:#111418;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px}
+section{margin-bottom:28px}
+</style>
+<h1>📦 counseling</h1>
+
+<section>
+<h2>pages\CounselPage.tsx</h2>
+<pre><code>export default function CounselPage() {
+  return (
+    &lt;div className=&quot;p-6&quot;&gt;
+      &lt;h1 className=&quot;text-2xl font-bold mb-2&quot;&gt;상담&lt;/h1&gt;
+      &lt;p className=&quot;text-gray-600 text-sm&quot;&gt;
+        상담 기록, 일정, 상담 폼 만들기 기능이 여기에 추가될 예정입니다.
+      &lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+</html>
+
+
+==========================================================================================
+# FILE: pages/CounselPage.tsx
+==========================================================================================
+export default function CounselPage() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-2">상담</h1>
+      <p className="text-gray-600 text-sm">
+        상담 기록, 일정, 상담 폼 만들기 기능이 여기에 추가될 예정입니다.
+      </p>
+    </div>
+  );
+}

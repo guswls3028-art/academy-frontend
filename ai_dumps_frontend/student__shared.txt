@@ -1,0 +1,173 @@
+====================================================================================================
+# FRONTEND FOLDER: student__shared
+# ROOT PATH: C:\academyfront\src\student\shared
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/studentApi.ts
+==========================================================================================
+// src/student/shared/api/studentApi.ts
+/**
+ * ✅ studentApi (LOCK v1)
+ * - 학생 전용 API wrapper
+ * - 내부적으로 shared axios를 그대로 사용 (모노레포 공존)
+ *
+ * 원칙:
+ * - baseURL / auth / interceptors는 shared/api/axios가 책임
+ * - student는 "호출"만 한다 (판단/계산 ❌)
+ */
+
+import api from "@/shared/api/axios";
+
+export default api;
+
+
+==========================================================================================
+# FILE: components/EmptyState.tsx
+==========================================================================================
+// src/student/shared/components/EmptyState.tsx
+/**
+ * ✅ EmptyState
+ * - 빈 상태 표준 컴포넌트
+ */
+
+export default function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "18px 14px",
+        border: "1px dashed #ddd",
+        borderRadius: 10,
+        color: "#666",
+        background: "#fafafa",
+      }}
+    >
+      <div style={{ fontWeight: 800, color: "#444" }}>{title}</div>
+      {description && (
+        <div style={{ marginTop: 6, fontSize: 13 }}>{description}</div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SectionHeader.tsx
+==========================================================================================
+// src/student/shared/components/SectionHeader.tsx
+/**
+ * ✅ SectionHeader
+ * - 카드/섹션 상단 제목용
+ */
+
+import { ReactNode } from "react";
+
+export default function SectionHeader({
+  title,
+  right,
+}: {
+  title: string;
+  right?: ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 10,
+      }}
+    >
+      <div style={{ fontWeight: 800 }}>{title}</div>
+      {right && <div>{right}</div>}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentPageShell.tsx
+==========================================================================================
+// src/student/shared/components/StudentPageShell.tsx
+/**
+ * ✅ StudentPageShell
+ * - 상용 SaaS에서 흔히 쓰는 "페이지 프레임"
+ * - 제목/설명/액션 영역만 제공
+ * - UI는 최소화 (CSS 분리 예정)
+ */
+
+import { ReactNode } from "react";
+
+export default function StudentPageShell({
+  title,
+  description,
+  actions,
+  children,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div style={{ maxWidth: 980, margin: "0 auto" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
+          {description && (
+            <div style={{ marginTop: 4, fontSize: 13, color: "#666" }}>
+              {description}
+            </div>
+          )}
+        </div>
+        {actions && <div>{actions}</div>}
+      </div>
+
+      <div
+        style={{
+          border: "1px solid #eee",
+          borderRadius: 10,
+          background: "#fff",
+          padding: 16,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: utils/date.ts
+==========================================================================================
+// src/student/shared/utils/date.ts
+/**
+ * ✅ date utils
+ * - 포맷만 담당 (계산/판단 ❌)
+ */
+
+export function formatYmd(iso?: string | null) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}

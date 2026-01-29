@@ -1,0 +1,14 @@
+/* src/styles/layout.css */
+
+.sidebar {
+  width: 11rem;
+  background-color: var(--sidebar-bg);
+  color: var(--sidebar-text-primary);
+  border-right: 1px solid var(--border-divider);
+}
+
+.header {
+  height: 3.5rem;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-divider);
+}

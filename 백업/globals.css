@@ -1,0 +1,293 @@
+@import "tailwindcss";
+
+/* ===============================================================
+   BASE VARIABLES
+=============================================================== */
+
+:root {
+  --bg-app: #101214;
+  --bg-surface: #181a1e;
+
+  --main-text-primary: #eaeaea;
+  --main-text-secondary: #a4a4a4;
+
+  --sidebar-bg: #181a1e;
+  --sidebar-text-primary: #ffffff;
+  --sidebar-text-secondary: #c5c5c5;
+
+  --color-primary: #3b82f6;
+
+  --border-divider: #2a2e33;
+
+  --theme-widget-bg: #2a2e33;
+  --theme-widget-hover: #38445a;
+  --theme-widget-text: #ffffff;
+}
+
+
+/* ===============================================================
+   SIDEBAR
+=============================================================== */
+
+.sidebar {
+  background-color: var(--sidebar-bg);
+  color: var(--sidebar-text-primary);
+
+  border-right: 1px solid var(--border-divider);
+
+  width: 8rem;
+  display: flex;
+  flex-direction: column;
+
+  padding: 1rem;
+  gap: 0.5rem;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 1rem;
+}
+
+.nav-item {
+  padding: .5rem .75rem;
+  border-radius: .375rem;
+  font-size: .875rem;
+  cursor: pointer;
+
+  font-weight: 600;
+  color: var(--sidebar-text-secondary);
+  transition: all .16s ease;
+}
+
+.nav-item:hover {
+  color: var(--sidebar-text-primary);
+  background: rgba(255,255,255,.15);
+}
+
+.nav-item.active {
+  background-color: var(--color-primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+
+/* ===============================================================
+   THEME BOX
+=============================================================== */
+
+.theme-box {
+  border: 1px solid var(--border-divider);
+  border-radius: .5rem;
+  background-color: var(--theme-widget-bg);
+  color: var(--theme-widget-text);
+
+  padding: .4rem;
+  margin-top: .75rem;
+
+  transition: all .18s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+
+  animation: fadeUp .18s ease-out;
+}
+
+.theme-box:hover {
+  background-color: var(--theme-widget-hover);
+  box-shadow: 0 3px 9px rgba(0,0,0,.35);
+}
+
+
+/* ===============================================================
+   MAIN AREA
+=============================================================== */
+
+.main-area {
+  background-color: var(--bg-app);
+  color: var(--main-text-primary);
+}
+
+
+/* ===============================================================
+   BUTTON
+=============================================================== */
+
+.btn {
+  background-color: var(--color-primary);
+  color: #fff;
+  padding: .5rem 1rem;
+  border-radius: .375rem;
+  font-size: .875rem;
+  font-weight: 500;
+  transition: opacity .15s;
+}
+
+.btn:hover {
+  opacity: .85;
+}
+
+
+/* ===============================================================
+   ANIMATIONS
+=============================================================== */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dropdownUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ===============================================================
+   THEME SWITCHER
+=============================================================== */
+
+.ts-container {
+  position: relative;
+  width: 100%;
+}
+
+.ts-trigger {
+  width: 100%;
+  padding: .55rem .9rem;
+  border-radius: .45rem;
+
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.12);
+
+  color: var(--theme-widget-text);
+  font-size: .875rem;
+  font-weight: 600;
+
+  transition: all .18s ease;
+}
+
+.ts-trigger:hover {
+  background: rgba(255,255,255,.12);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0,0,0,.25);
+}
+
+.ts-dropdown {
+  position: absolute;
+  bottom: calc(100% + .45rem);
+  left: 0;
+  width: 100%;
+
+  background: var(--theme-widget-bg);
+  border: 1px solid var(--border-divider);
+  border-radius: .45rem;
+
+  box-shadow: 0 3px 10px rgba(0,0,0,.3);
+  overflow: hidden;
+  z-index: 100;
+  animation: dropdownUp .15s ease-out;
+}
+
+.ts-option {
+  width: 100%;
+  padding: .75rem 1rem;
+  font-size: .9rem;
+  font-weight: 600;
+  text-align: left;
+
+  color: var(--theme-widget-text);
+  background: transparent;
+  border: none;
+
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+
+.ts-option:hover {
+  background: var(--theme-widget-hover);
+}
+
+.ts-option.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+
+/* ===============================================================
+   THEMES
+=============================================================== */
+
+html.theme-modern {
+  --bg-app: #101214;
+  --bg-surface: #181a1e;
+  --main-text-primary: #eaeaea;
+  --main-text-secondary: #a4a4a4;
+  --sidebar-bg: #181a1e;
+  --sidebar-text-primary: #ffffff;
+  --sidebar-text-secondary: #c5c5c5;
+  --color-primary: #3b82f6;
+  --border-divider: #2a2e33;
+  --theme-widget-bg: #2a2e33;
+  --theme-widget-hover: #38445a;
+  --theme-widget-text: #ffffff;
+}
+
+html.theme-navy {
+  --bg-app: #0b1120;
+  --bg-surface: #111a2c;
+  --main-text-primary: #f3f4f6;
+  --main-text-secondary: #94a3b8;
+  --sidebar-bg: #111a2c;
+  --sidebar-text-primary: #f3f4f6;
+  --sidebar-text-secondary: #94a3b8;
+  --color-primary: #1d4ed8;
+  --border-divider: #1b2a41;
+  --theme-widget-bg: #1b2a41;
+  --theme-widget-hover: #1e3a5f;
+  --theme-widget-text: #ffffff;
+}
+
+html.theme-kakao {
+  --bg-app: #fffbeb;
+  --bg-surface: #ffffff;
+  --main-text-primary: #1e1e1e;
+  --main-text-secondary: #4b5563;
+  --sidebar-bg: #facc15;
+  --sidebar-text-primary: #111827;
+  --sidebar-text-secondary: #4b5563;
+  --color-primary: #3b2400;
+  --border-divider: #facc15;
+  --theme-widget-bg: #fbbf24;
+  --theme-widget-hover: #f59e0b;
+  --theme-widget-text: #111827;
+}
+
+html.theme-naver {
+  --bg-app: #f0fdf4;
+  --bg-surface: #ffffff;
+  --main-text-primary: #064e3b;
+  --main-text-secondary: #4b5563;
+  --sidebar-bg: #125e0e;
+  --sidebar-text-primary: #ecfdf5;
+  --sidebar-text-secondary: #bbf7d0;
+  --color-primary: #10b981;
+  --border-divider: #a7f3d0;
+  --theme-widget-bg: #059669;
+  --theme-widget-hover: #047857;
+  --theme-widget-text: #ecfdf5;
+}
+
+html.theme-purple {
+  --bg-app: #f5f3ff;
+  --bg-surface: #ffffff;
+  --main-text-primary: #111827;
+  --main-text-secondary: #6b7280;
+  --sidebar-bg: #4c1d95;
+  --sidebar-text-primary: #ffffff;
+  --sidebar-text-secondary: #d1c4ff;
+  --color-primary: #8b5cf6;
+  --border-divider: #e5e7eb;
+  --theme-widget-bg: #4c1d95;
+  --theme-widget-hover: #5b21b6;
+  --theme-widget-text: #f9fafb;
+}

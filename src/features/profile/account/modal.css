@@ -1,0 +1,16 @@
+/* Secondary Button */
+const secondaryBtn =
+  "h-[44px] rounded-lg border border-[var(--border-divider)] \
+   bg-[var(--bg-surface)] text-sm font-semibold text-[var(--text-primary)] \
+   hover:bg-[var(--bg-surface-soft)] active:translate-y-[1px]";
+
+/* Primary Button */
+const primaryBtn =
+  "h-[44px] rounded-lg border border-[var(--color-primary)] \
+   bg-[var(--color-primary)] text-sm font-semibold text-white \
+   hover:brightness-95 active:translate-y-[1px] \
+   disabled:border-[var(--border-divider)] \
+   disabled:bg-[var(--bg-surface)] \
+   disabled:text-[var(--text-muted)] \
+   disabled:cursor-not-allowed \
+   disabled:brightness-100";

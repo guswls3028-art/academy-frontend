@@ -1,0 +1,203 @@
+====================================================================================================
+# FRONTEND FOLDER: features__auth
+# ROOT PATH: C:\academyfront\src\features\auth
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/auth.ts
+==========================================================================================
+// src/features/auth/api/auth.ts
+import axios from "axios";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
+
+export const login = async (username: string, password: string) => {
+  const res = await axios.post(
+    `${API_BASE}/api/v1/token/`,
+    { username, password },
+    { withCredentials: true }
+  );
+
+  localStorage.setItem("access", res.data.access);
+  localStorage.setItem("refresh", res.data.refresh);
+
+  return res.data;
+};
+
+export const logout = () => {
+  localStorage.clear();
+  window.location.href = "/login";
+};
+
+
+==========================================================================================
+# FILE: context/AuthContext.tsx
+==========================================================================================
+// src/features/auth/context/AuthContext.tsx
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import api from "@/shared/api/axios";
+
+export interface User {
+  id: number;
+  username: string;
+  email?: string;
+  is_staff: boolean;
+  is_superuser?: boolean;
+}
+
+type AuthState = {
+  user: User | null;
+  isLoading: boolean;
+  refreshMe: () => Promise<void>;
+  clearAuth: () => void;
+};
+
+const AuthContext = createContext<AuthState | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const clearAuth = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    setUser(null);
+  };
+
+  const refreshMe = async () => {
+    const access = localStorage.getItem("access");
+    if (!access) {
+      setUser(null);
+      return;
+    }
+
+    try {
+      const res = await api.get<User>("/core/me/");
+      setUser(res.data);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      // ✅ 토큰 불량일 때만 로그아웃
+      if (status === 401 || status === 403) {
+        clearAuth();
+      } else {
+        // 네트워크 일시 오류면 user 유지 (null/기존값)
+        // 여기서는 강제로 null로 만들지 않음
+      }
+      throw err;
+    }
+  };
+
+  // ✅ 앱 시작 시 딱 1번만 호출
+  useEffect(() => {
+    (async () => {
+      try {
+        await refreshMe();
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const value = useMemo<AuthState>(
+    () => ({
+      user,
+      isLoading,
+      refreshMe,
+      clearAuth,
+    }),
+    [user, isLoading]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuthContext() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuthContext must be used within AuthProvider");
+  return ctx;
+}
+
+
+==========================================================================================
+# FILE: hooks/useAuth.ts
+==========================================================================================
+// src/features/auth/hooks/useAuth.ts
+import { useAuthContext } from "@/features/auth/context/AuthContext";
+
+export default function useAuth() {
+  const { user, isLoading, refreshMe, clearAuth } = useAuthContext();
+
+  return {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    refreshMe,
+    clearAuth,
+  };
+}
+
+
+==========================================================================================
+# FILE: pages/LoginPage.tsx
+==========================================================================================
+// src/features/auth/pages/LoginPage.tsx
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "@/features/auth/api/auth";
+import useAuth from "@/features/auth/hooks/useAuth";
+
+export default function LoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+
+    setError("");
+    setPending(true);
+
+    try {
+      await login(username, password); // ✅ access/refresh 저장은 auth.ts에서
+      await refreshMe();              // ✅ 여기서 user 확정
+      navigate("/", { replace: true }); // ✅ RootRedirect가 /admin or /student로 분기
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || "Login failed");
+      setPending(false);
+    }
+  }
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>Login</h1>
+
+      <form onSubmit={onSubmit}>
+        <input
+          placeholder="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+
+        <input
+          placeholder="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button type="submit" disabled={pending}>
+          {pending ? "Logging in..." : "Login"}
+        </button>
+      </form>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+    </div>
+  );
+}

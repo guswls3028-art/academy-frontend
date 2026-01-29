@@ -1,0 +1,1719 @@
+====================================================================================================
+# FRONTEND FOLDER: features__students
+# ROOT PATH: C:\academyfront\src\features\students
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/students.ts
+==========================================================================================
+// src/features/students/api/students.ts
+
+import api from "@/shared/api/axios";
+
+/* ===============================
+ * Types
+ * =============================== */
+
+export interface ClientStudent {
+  id: number;
+  name: string;
+
+  studentPhone: string | null;
+  parentPhone: string | null;
+
+  school: string | null;
+  schoolClass: string | null;
+  major: string | null;
+
+  grade: number | null;
+  gender: string | null;
+
+  registeredAt: string | null;
+  active: boolean;
+  memo?: string | null;
+
+  schoolType: "MIDDLE" | "HIGH" | null;
+
+  tags: {
+    id: number;
+    name: string;
+    color: string;
+  }[];
+
+  enrollments: {
+    id: number;
+    lectureName: string | null;
+  }[];
+}
+
+/* ===============================
+ * Mapper
+ * =============================== */
+
+function mapStudent(item: any): ClientStudent {
+  const schoolType: "MIDDLE" | "HIGH" | null =
+    item.school_type ??
+    (item.middle_school ? "MIDDLE" : item.high_school ? "HIGH" : null);
+
+  return {
+    id: item.id,
+    name: item.name,
+
+    studentPhone: item.phone ?? null,
+    parentPhone: item.parent_phone ?? null,
+
+    school: item.high_school ?? item.middle_school ?? null,
+    schoolClass: item.high_school_class ?? null,
+    major: item.major ?? null,
+
+    grade: item.grade ?? null,
+    gender: item.gender ?? null,
+
+    registeredAt: item.created_at ?? null,
+    active: item.is_managed ?? false,
+    memo: item.memo ?? null,
+
+    schoolType,
+
+    tags: (item.tags ?? []).map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      color: t.color,
+    })),
+
+    enrollments: (item.enrollments ?? []).map((en: any) => ({
+      id: en.id,
+      lectureName: en.lecture_name ?? null,
+    })),
+  };
+}
+
+/* ===============================
+ * List / Detail
+ * =============================== */
+
+export async function fetchStudents(search: string, filters: any = {}) {
+  const params = {
+    search: search || undefined,
+    ...filters,
+  };
+
+  const res = await api.get("/students/", { params });
+
+  const items = Array.isArray(res.data?.results)
+    ? res.data.results
+    : Array.isArray(res.data)
+    ? res.data
+    : [];
+
+  return items.map(mapStudent);
+}
+
+export async function getStudentDetail(id: number) {
+  const res = await api.get(`/students/${id}/`);
+  return mapStudent(res.data);
+}
+
+/* ===============================
+ * CREATE
+ * =============================== */
+
+export async function createStudent(form: any) {
+  const schoolType =
+    form.schoolType === "MIDDLE" || form.schoolType === "HIGH"
+      ? form.schoolType
+      : "HIGH";
+
+  const payload = {
+    name: form.name,
+    phone: form.studentPhone,
+    initial_password: form.initialPassword,
+
+    parent_phone: form.parentPhone || null,
+
+    school_type: schoolType,
+    high_school: schoolType === "HIGH" ? form.school || null : null,
+    middle_school: schoolType === "MIDDLE" ? form.school || null : null,
+
+    high_school_class:
+      schoolType === "HIGH" ? form.schoolClass || null : null,
+
+    major: schoolType === "HIGH" ? form.major || null : null,
+
+    grade: form.grade ? Number(form.grade) : null,
+    gender: form.gender || null,
+    memo: form.memo || null,
+
+    is_managed: !!form.active,
+  };
+
+  const res = await api.post("/students/", payload);
+  return mapStudent(res.data);
+}
+
+/* ===============================
+ * UPDATE
+ * =============================== */
+
+export async function updateStudent(id: number, form: any) {
+  const payload = {
+    ...form,
+    grade: form.grade ? Number(form.grade) : null,
+    is_managed: !!form.active,
+  };
+
+  const res = await api.patch(`/students/${id}/`, payload);
+  return mapStudent(res.data);
+}
+
+/* ===============================
+ * 🔥 TOGGLE ACTIVE (문제의 핵심)
+ * =============================== */
+
+export async function toggleStudentActive(
+  id: number,
+  nextActive: boolean
+) {
+  const res = await api.patch(`/students/${id}/`, {
+    is_managed: nextActive,
+  });
+  return mapStudent(res.data);
+}
+
+/* ===============================
+ * DELETE
+ * =============================== */
+
+export async function deleteStudent(id: number) {
+  await api.delete(`/students/${id}/`);
+  return true;
+}
+
+/* ===============================
+ * TAG
+ * =============================== */
+
+export async function getTags() {
+  const res = await api.get(`/students/tags/`);
+  return res.data;
+}
+
+export async function attachStudentTag(studentId: number, tagId: number) {
+  await api.post(`/students/${studentId}/add_tag/`, { tag_id: tagId });
+}
+
+export async function detachStudentTag(studentId: number, tagId: number) {
+  await api.post(`/students/${studentId}/remove_tag/`, { tag_id: tagId });
+}
+
+/* ===============================
+ * MEMO
+ * =============================== */
+
+export async function createMemo(studentId: number, content: string) {
+  await api.patch(`/students/${studentId}/`, { memo: content });
+}
+
+
+==========================================================================================
+# FILE: api/studentsDetail.ts
+==========================================================================================
+import axios from "@/shared/api/axios";
+
+export const fetchStudentDetail = async (id: string | number) => {
+  const res = await axios.get(`/students/${id}/`);
+  return res.data;
+};
+
+export const fetchTags = async () => {
+  const res = await axios.get(`/tags/`);
+  return res.data;
+};
+
+export const addTag = async (id: number, tagId: number) => {
+  const res = await axios.post(`/students/${id}/add_tag/`, {
+    tag_id: tagId,
+  });
+  return res.data;
+};
+
+export const removeTag = async (id: number, tagId: number) => {
+  const res = await axios.post(`/students/${id}/remove_tag/`, {
+    tag_id: tagId,
+  });
+  return res.data;
+};
+
+
+==========================================================================================
+# FILE: components/DeleteConfirmModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/DeleteConfirmModal.tsx
+
+import { deleteStudent } from "../api/students";
+
+export default function DeleteConfirmModal({
+  id,
+  onClose,
+  onSuccess,
+}: {
+  id: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  async function handleDelete() {
+    await deleteStudent(id);
+    onSuccess();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[320px] rounded-lg bg-[var(--bg-surface)] shadow-xl border border-[var(--border-divider)] overflow-hidden">
+        <div className="border-b border-[var(--border-divider)] px-4 py-3 bg-[var(--bg-surface-soft)]">
+          <div className="text-sm font-semibold text-[var(--text-primary)]">
+            학생 삭제
+          </div>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            되돌릴 수 없습니다
+          </div>
+        </div>
+
+        <div className="px-4 py-4 text-sm text-[var(--text-secondary)]">
+          해당 학생을 정말 삭제하시겠습니까?
+        </div>
+
+        <div className="flex justify-end gap-2 px-4 py-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface)]">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded-md
+              border border-[var(--border-divider)]
+              bg-[var(--bg-surface)]
+              text-[var(--text-secondary)]
+              hover:bg-[var(--bg-surface-soft)]"
+          >
+            취소
+          </button>
+
+          <button
+            onClick={handleDelete}
+            className="px-3 py-1.5 text-sm rounded-md
+              bg-[var(--color-danger)]
+              text-white
+              hover:opacity-90"
+          >
+            삭제
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/EditStudentModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/EditStudentModal.tsx
+
+import { useState } from "react";
+import { createStudent, updateStudent } from "../api/students";
+
+export default function StudentFormModal({
+  initialValue,
+  onClose,
+  onSuccess,
+}: {
+  initialValue?: any;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const isEdit = !!initialValue;
+
+  const [form, setForm] = useState(
+    initialValue || {
+      name: "",
+      parentPhone: "",
+      studentPhone: "",
+      school: "",
+      schoolClass: "",
+      grade: "",
+      gender: "",
+      memo: "",
+      active: true,
+    }
+  );
+
+  function handleChange(e: any) {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  }
+
+  async function handleSubmit() {
+    try {
+      if (isEdit) await updateStudent(initialValue.id, form);
+      else await createStudent(form);
+      onSuccess();
+    } catch (err) {
+      alert("오류가 발생했습니다.");
+      console.error(err);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[400px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
+        {/* Header */}
+        <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+            {isEdit ? "학생 수정" : "학생 등록"}
+          </h2>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            정보 수정 후 저장
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-2 max-h-[70vh] overflow-y-auto">
+          <input
+            name="name"
+            placeholder="이름"
+            value={form.name}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <input
+            name="parentPhone"
+            placeholder="학부모 전화번호"
+            value={form.parentPhone}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <input
+            name="studentPhone"
+            placeholder="학생 전화번호"
+            value={form.studentPhone}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <input
+            name="school"
+            placeholder="학교 이름"
+            value={form.school}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <input
+            name="schoolClass"
+            placeholder="반"
+            value={form.schoolClass}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <select
+            name="grade"
+            value={form.grade}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          >
+            <option value="">학년 선택</option>
+            <option value="1">1학년</option>
+            <option value="2">2학년</option>
+            <option value="3">3학년</option>
+          </select>
+
+          <select
+            name="gender"
+            value={form.gender}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          >
+            <option value="">성별 선택</option>
+            <option value="M">남</option>
+            <option value="F">여</option>
+          </select>
+
+          <textarea
+            name="memo"
+            rows={3}
+            placeholder="메모"
+            value={form.memo}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm resize-none
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+            <input
+              type="checkbox"
+              name="active"
+              checked={form.active}
+              onChange={handleChange}
+            />
+            활성 여부
+          </label>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface)]">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded-md
+              border border-[var(--border-divider)]
+              text-[var(--text-secondary)]
+              hover:bg-[var(--bg-surface-soft)]"
+          >
+            취소
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            className="px-3 py-1.5 text-sm rounded-md
+              bg-[var(--color-primary)]
+              text-white
+              hover:opacity-90"
+          >
+            {isEdit ? "수정" : "등록"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentCreateModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/StudentCreateModal.tsx
+
+import { useState } from "react";
+import { createStudent } from "../api/students";
+
+interface Props {
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export default function StudentCreateModal({ onClose, onSuccess }: Props) {
+  const [form, setForm] = useState({
+    name: "",
+    studentPhone: "",
+    initialPassword: "",
+
+    parentPhone: "",
+    schoolType: "HIGH",
+    school: "",
+    schoolClass: "",
+    major: "",
+
+    grade: "",
+    gender: "",
+    memo: "",
+    active: true,
+  });
+
+  function handleChange(e: any) {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  }
+
+  async function handleSubmit() {
+    // ✅ 최소 수정: 백엔드 validate_phone / initial_password 조건 충족 (빈값 방지)
+    if (!form.studentPhone || !String(form.studentPhone).trim()) {
+      alert("학생 전화번호는 필수입니다.");
+      return;
+    }
+
+    if (!form.initialPassword || String(form.initialPassword).trim().length < 4) {
+      alert("초기 비밀번호는 4자 이상 필수입니다.");
+      return;
+    }
+
+    try {
+      await createStudent({
+        ...form,
+        // ✅ 빈 문자열이 서버로 넘어가면 DRF validation에서 걸릴 수 있어서 trim만 적용(필수 필드만)
+        studentPhone: String(form.studentPhone).trim(),
+        initialPassword: String(form.initialPassword).trim(),
+      });
+
+      onSuccess();
+      onClose();
+    } catch (e) {
+      console.error(e);
+      alert("오류가 발생했습니다.");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[420px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
+        {/* Header */}
+        <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+            학생 등록
+          </h2>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            기본 정보 입력 후 생성
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-2 max-h-[70vh] overflow-y-auto">
+          <input
+            name="name"
+            placeholder="이름"
+            value={form.name}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <input
+            name="studentPhone"
+            placeholder="학생 전화번호 (ID)"
+            value={form.studentPhone}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <input
+            name="initialPassword"
+            type="password"
+            placeholder="초기 비밀번호"
+            value={form.initialPassword}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+          <div className="text-xs text-[var(--text-muted)]">
+            * 초기 비밀번호 (학생이 로그인 후 변경 가능)
+          </div>
+
+          <input
+            name="parentPhone"
+            placeholder="학부모 전화번호"
+            value={form.parentPhone}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          {/* School Type */}
+          <div className="flex gap-4 text-sm text-[var(--text-primary)]">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="schoolType"
+                value="HIGH"
+                checked={form.schoolType === "HIGH"}
+                onChange={handleChange}
+              />
+              고등
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="schoolType"
+                value="MIDDLE"
+                checked={form.schoolType === "MIDDLE"}
+                onChange={handleChange}
+              />
+              중등
+            </label>
+          </div>
+
+          <input
+            name="school"
+            placeholder={form.schoolType === "HIGH" ? "고등학교 이름" : "중학교 이름"}
+            value={form.school}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          {form.schoolType === "HIGH" && (
+            <>
+              <input
+                name="schoolClass"
+                placeholder="반"
+                value={form.schoolClass}
+                onChange={handleChange}
+                className="w-full rounded-md px-3 py-2 text-sm
+                  border border-[var(--border-divider)]
+                  bg-[var(--bg-app)]
+                  text-[var(--text-primary)]
+                  placeholder:text-[var(--text-muted)]
+                  focus:outline-none
+                  focus:ring-1
+                  focus:ring-[var(--color-primary)]"
+              />
+
+              <input
+                name="major"
+                placeholder="계열"
+                value={form.major}
+                onChange={handleChange}
+                className="w-full rounded-md px-3 py-2 text-sm
+                  border border-[var(--border-divider)]
+                  bg-[var(--bg-app)]
+                  text-[var(--text-primary)]
+                  placeholder:text-[var(--text-muted)]
+                  focus:outline-none
+                  focus:ring-1
+                  focus:ring-[var(--color-primary)]"
+              />
+            </>
+          )}
+
+          <select
+            name="grade"
+            value={form.grade}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          >
+            <option value="">학년 선택</option>
+            <option value="1">1학년</option>
+            <option value="2">2학년</option>
+            <option value="3">3학년</option>
+          </select>
+
+          <select
+            name="gender"
+            value={form.gender}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          >
+            <option value="">성별 선택</option>
+            <option value="M">남</option>
+            <option value="F">여</option>
+          </select>
+
+          <textarea
+            name="memo"
+            placeholder="메모"
+            rows={3}
+            value={form.memo}
+            onChange={handleChange}
+            className="w-full rounded-md px-3 py-2 text-sm resize-none
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+          />
+
+          <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+            <input
+              type="checkbox"
+              name="active"
+              checked={form.active}
+              onChange={handleChange}
+            />
+            활성 여부
+          </label>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface)]">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded-md
+              border border-[var(--border-divider)]
+              text-[var(--text-secondary)]
+              hover:bg-[var(--bg-surface-soft)]"
+          >
+            취소
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            className="px-3 py-1.5 text-sm rounded-md
+              bg-[var(--color-primary)]
+              text-white
+              hover:opacity-90"
+          >
+            등록
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentFilterModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/StudentFilterModal.tsx
+
+import { useState, useEffect } from "react";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  filters: any;
+  onApply: (next: any) => void;
+}
+
+export default function StudentFilterModal({
+  open,
+  onClose,
+  filters,
+  onApply,
+}: Props) {
+  const [local, setLocal] = useState<any>(filters || {});
+
+  useEffect(() => {
+    setLocal(filters || {});
+  }, [filters]);
+
+  if (!open) return null;
+
+  function update(key: string, value: string) {
+    setLocal((prev: any) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }
+
+  function apply() {
+    onApply(local);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[520px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
+        {/* Header */}
+        <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+            고급 필터
+          </h2>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            조건에 맞는 학생만 조회
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-3">
+          <input
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+            placeholder="학부모 전화번호"
+            value={local.parent_phone || ""}
+            onChange={(e) => update("parent_phone", e.target.value)}
+          />
+
+          <input
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+            placeholder="학생 전화번호"
+            value={local.student_phone || ""}
+            onChange={(e) => update("student_phone", e.target.value)}
+          />
+
+          <input
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+            placeholder="학교 이름"
+            value={local.school || ""}
+            onChange={(e) => update("school", e.target.value)}
+          />
+
+          <input
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              placeholder:text-[var(--text-muted)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+            placeholder="반"
+            value={local.school_class || ""}
+            onChange={(e) => update("school_class", e.target.value)}
+          />
+
+          <select
+            className="w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+              focus:outline-none
+              focus:ring-1
+              focus:ring-[var(--color-primary)]"
+            value={local.gender || ""}
+            onChange={(e) => update("gender", e.target.value)}
+          >
+            <option value="">성별 전체</option>
+            <option value="M">남</option>
+            <option value="F">여</option>
+          </select>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface)]">
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm rounded-md
+              border border-[var(--border-divider)]
+              text-[var(--text-secondary)]
+              hover:bg-[var(--bg-surface-soft)]"
+          >
+            취소
+          </button>
+
+          <button
+            onClick={apply}
+            className="px-3 py-1.5 text-sm rounded-md
+              bg-[var(--color-primary)]
+              text-white
+              hover:opacity-90"
+          >
+            적용
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentsTable.tsx
+==========================================================================================
+// PATH: src/features/students/components/StudentsTable.tsx
+
+import EmptyState from "@/shared/ui/feedback/EmptyState";
+import { toggleStudentActive } from "../api/students";
+import { useQueryClient } from "@tanstack/react-query";
+
+function highlight(text: string, keyword: string) {
+  if (!keyword) return text;
+  const parts = text.split(new RegExp(`(${keyword})`, "gi"));
+  return parts.map((p, i) =>
+    p.toLowerCase() === keyword.toLowerCase() ? (
+      <mark key={i} className="bg-yellow-300/40 px-0.5 rounded">
+        {p}
+      </mark>
+    ) : (
+      p
+    )
+  );
+}
+
+export default function StudentsTable({
+  data = [],
+  search,
+  sort,
+  onSortChange,
+  onDelete,
+  onRowClick,
+}: {
+  data: any[];
+  search: string;
+  sort: string;
+  onSortChange: (v: string) => void;
+  onDelete: (id: number) => void;
+  onRowClick: (id: number) => void;
+}) {
+  const qc = useQueryClient();
+
+  if (!data.length) {
+    return <EmptyState message="학생 정보가 없습니다." />;
+  }
+
+  async function toggle(id: number, active: boolean) {
+    await toggleStudentActive(id, !active);
+    qc.invalidateQueries({ queryKey: ["students"] });
+  }
+
+  return (
+    <table className="w-full text-sm border border-[var(--border-divider)] rounded-md overflow-hidden">
+      <thead className="bg-[var(--bg-surface-soft)] text-[var(--text-secondary)]">
+        <tr>
+          <th
+            className="px-3 py-2 font-semibold cursor-pointer text-center"
+            onClick={() => onSortChange(sort === "name" ? "date" : "name")}
+          >
+            이름 {sort === "name" && "▲"}
+          </th>
+          <th className="px-3 py-2 text-center">학생 전화번호</th>
+          <th className="px-3 py-2 text-center">학부모 전화번호</th>
+          <th className="px-3 py-2 text-center">학교</th>
+          <th className="px-3 py-2 text-center">반</th>
+          <th
+            className="px-3 py-2 font-semibold cursor-pointer text-center"
+            onClick={() => onSortChange(sort === "date" ? "name" : "date")}
+          >
+            등록일 {sort === "date" && "▲"}
+          </th>
+          <th className="px-3 py-2 text-center">상태</th>
+          <th className="px-3 py-2 text-center">관리</th>
+        </tr>
+      </thead>
+
+      <tbody className="divide-y divide-[var(--border-divider)]">
+        {data.map((s) => (
+          <tr
+            key={s.id}
+            onClick={() => onRowClick(s.id)}
+            className="hover:bg-[var(--bg-surface-soft)] cursor-pointer transition"
+          >
+            <td className="px-3 py-2 font-semibold text-[var(--text-primary)]">
+              {highlight(s.name || "-", search)}
+            </td>
+
+            <td className="px-3 py-2 text-center">
+              {highlight(s.studentPhone || "-", search)}
+            </td>
+
+            <td className="px-3 py-2 text-center">
+              {highlight(s.parentPhone || "-", search)}
+            </td>
+
+            <td className="px-3 py-2 text-center">{s.school || "-"}</td>
+            <td className="px-3 py-2 text-center">{s.schoolClass || "-"}</td>
+
+            <td className="px-3 py-2 text-center text-xs text-[var(--text-secondary)]">
+              {s.registeredAt?.slice(0, 10) || "-"}
+            </td>
+
+            <td
+              className="px-3 py-2 text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => toggle(s.id, s.active)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition
+                  ${
+                    s.active
+                      ? "bg-[var(--color-success)]/15 text-[var(--color-success)]"
+                      : "bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
+                  }`}
+              >
+                {s.active ? "활성" : "비활성"}
+              </button>
+            </td>
+
+            <td
+              className="px-3 py-2 text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="text-xs text-[var(--color-danger)] hover:underline"
+                onClick={() => onDelete(s.id)}
+              >
+                삭제
+              </button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+
+==========================================================================================
+# FILE: hooks/useStudentsQuery.ts
+==========================================================================================
+// PATH: src/features/students/hooks/useStudentsQuery.ts
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchStudents } from "../api/students";
+
+export function useStudentsQuery(
+  search: string,
+  filters: any,
+  sort: string
+) {
+  return useQuery({
+    queryKey: ["students", search, filters, sort],
+    queryFn: async () => {
+      const data = await fetchStudents(search, filters);
+
+      if (sort === "name") {
+        return [...data].sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      if (sort === "date") {
+        return [...data].sort(
+          (a, b) =>
+            new Date(b.registeredAt || "").getTime() -
+            new Date(a.registeredAt || "").getTime()
+        );
+      }
+
+      return data;
+    },
+    staleTime: 1000 * 5,
+  });
+}
+
+
+==========================================================================================
+# FILE: pages/StudentsDetailPage.tsx
+==========================================================================================
+// PATH: src/features/students/pages/StudentsDetailPage.tsx
+
+import { useParams, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import {
+  getStudentDetail,
+  getTags,
+  attachStudentTag,
+  detachStudentTag,
+  createMemo,
+  deleteStudent,
+} from "../api/students";
+
+import StudentFormModal from "../components/EditStudentModal";
+
+import { Page, PageHeader, PageSection } from "@/shared/ui/page";
+import EmptyState from "@/shared/ui/feedback/EmptyState";
+
+/* ================= constants ================= */
+
+const TABS = [
+  { key: "enroll", label: "수강 이력" },
+  { key: "clinic", label: "클리닉/상담 이력" },
+  { key: "question", label: "질문 이력" },
+  { key: "score", label: "성적 이력" },
+  { key: "schoolScore", label: "학교 성적" },
+];
+
+/* ================= page ================= */
+
+export default function StudentsDetailPage() {
+  const { studentId } = useParams();
+  const navigate = useNavigate();
+  const id = Number(studentId);
+  const qc = useQueryClient();
+
+  const [tab, setTab] = useState("enroll");
+  const [editOpen, setEditOpen] = useState(false);
+
+  const { data: student, isLoading } = useQuery({
+    queryKey: ["student", id],
+    queryFn: () => getStudentDetail(id),
+    enabled: !!id,
+  });
+
+  const { data: tags } = useQuery({
+    queryKey: ["tags"],
+    queryFn: getTags,
+  });
+
+  const addTag = useMutation({
+    mutationFn: (tagId: number) => attachStudentTag(id, tagId),
+    onSuccess: () => qc.invalidateQueries(["student", id]),
+  });
+
+  const removeTag = useMutation({
+    mutationFn: (tagId: number) => detachStudentTag(id, tagId),
+    onSuccess: () => qc.invalidateQueries(["student", id]),
+  });
+
+  const updateMemo = useMutation({
+    mutationFn: (memo: string) => createMemo(id, memo),
+    onSuccess: () => qc.invalidateQueries(["student", id]),
+  });
+
+  async function handleDelete() {
+    if (!confirm("이 학생을 삭제하시겠습니까?")) return;
+    await deleteStudent(id);
+
+    // ✅ 목록 반영 (최소 추가)
+    qc.invalidateQueries(["students"]);
+
+    navigate(-1);
+  }
+
+  if (isLoading || !student) return null;
+
+  return (
+    <>
+      {/* Overlay Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/50"
+        onClick={() => navigate(-1)}
+      />
+
+      {/* Overlay Card */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+        <div className="w-full max-w-[1100px] max-h-[90vh] overflow-auto rounded-2xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)]">
+          <Page>
+            <PageHeader
+              title={
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-semibold text-[var(--text-primary)]">
+                    {student.name}
+                  </span>
+
+                  {/* Status Badge */}
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      student.active
+                        ? "border border-[var(--color-success)] bg-[var(--color-success)]/10 text-[var(--color-success)]"
+                        : "border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
+                    }`}
+                  >
+                    {student.active ? "활성" : "비활성"}
+                  </span>
+                </div>
+              }
+              actions={
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditOpen(true)}
+                    className="px-3 py-1.5 text-sm rounded-md
+                      border border-[var(--border-divider)]
+                      bg-[var(--bg-surface)]
+                      text-[var(--text-primary)]
+                      hover:bg-[var(--bg-surface-soft)]"
+                  >
+                    수정
+                  </button>
+
+                  <button
+                    onClick={handleDelete}
+                    className="px-3 py-1.5 text-sm rounded-md
+                      border border-[var(--color-danger)]
+                      text-[var(--color-danger)]
+                      hover:bg-[var(--color-danger)]/10"
+                  >
+                    삭제
+                  </button>
+
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="px-3 py-1.5 text-sm rounded-md
+                      border border-[var(--border-divider)]
+                      bg-[var(--bg-app)]
+                      text-[var(--text-primary)]
+                      hover:bg-[var(--bg-surface-soft)]"
+                  >
+                    닫기
+                  </button>
+                </div>
+              }
+            />
+
+            {/* ================= Layout ================= */}
+            <div className="flex gap-6">
+              {/* LEFT */}
+              <div className="w-[320px] shrink-0 space-y-4">
+                <PageSection
+                  className="
+                    rounded-2xl border border-[var(--border-divider)]
+                    bg-[var(--bg-surface)]
+                    overflow-hidden
+                  "
+                >
+                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">
+                      기본 정보
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      연락처 · 학교 · 학년
+                    </div>
+                  </div>
+
+                  <div className="p-4 space-y-2 text-sm">
+                    <InfoItem label="학부모 전화번호" value={student.parentPhone} />
+                    <InfoItem label="학생 전화번호" value={student.studentPhone} />
+                    <InfoItem label="성별" value={student.gender} />
+                    <InfoItem label="학교" value={student.school} />
+                    <InfoItem label="반" value={student.schoolClass} />
+                    <InfoItem label="계열" value={student.major} />
+                    <InfoItem label="학년" value={student.grade} />
+                  </div>
+                </PageSection>
+
+                <PageSection
+                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
+                >
+                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">
+                      태그
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      분류/관리용 라벨
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {student.tags?.length ? (
+                        student.tags.map((t: any) => (
+                          <div
+                            key={t.id}
+                            className="group flex items-center gap-1
+                            px-2 py-1 rounded-full text-xs font-semibold
+                            shadow-sm text-white"
+                            style={{ backgroundColor: t.color }}
+                          >
+                            <span>{t.name}</span>
+                            <button
+                              onClick={() => removeTag.mutate(t.id)}
+                              className="hidden group-hover:inline text-white/80 hover:text-white"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <EmptyState size="sm" message="태그 없음" />
+                      )}
+                    </div>
+
+                    <select
+                      className="w-full rounded-md px-2 py-2 text-sm
+                      border border-[var(--border-divider)]
+                      bg-[var(--bg-app)]
+                      text-[var(--text-primary)]
+                      focus:outline-none
+                      focus:ring-1
+                      focus:ring-[var(--color-primary)]"
+                      onChange={(e) => {
+                        const tagId = Number(e.target.value);
+                        if (tagId) addTag.mutate(tagId);
+                      }}
+                    >
+                      <option value="">태그 추가</option>
+                      {tags?.map((tag: any) => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </PageSection>
+
+                <PageSection
+                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
+                >
+                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                    <div className="text-sm font-semibold text-[var(--text-primary)]">
+                      메모
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      포커스 아웃 시 저장
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    <textarea
+                      className="w-full h-32 rounded-md p-3 text-sm resize-none
+                      border border-[var(--border-divider)]
+                      bg-[var(--bg-app)]
+                      text-[var(--text-primary)]
+                      placeholder:text-[var(--text-muted)]
+                      focus:outline-none
+                      focus:ring-1
+                      focus:ring-[var(--color-primary)]"
+                      defaultValue={student.memo}
+                      placeholder="메모 작성..."
+                      onBlur={(e) => updateMemo.mutate(e.target.value)}
+                    />
+                  </div>
+                </PageSection>
+              </div>
+
+              {/* RIGHT */}
+              <div className="flex-1">
+                <PageSection
+                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
+                >
+                  <div className="px-4 pt-4">
+                    <div className="relative mb-4">
+                      <div className="flex gap-2 border-b border-[var(--border-divider)]">
+                        {TABS.map((t) => {
+                          const active = tab === t.key;
+
+                          return (
+                            <button
+                              key={t.key}
+                              onClick={() => setTab(t.key)}
+                              className={`
+                              relative px-4 py-2 text-sm font-semibold rounded-t-md
+                              transition-all duration-200
+                              ${
+                                active
+                                  ? `
+                                    bg-[var(--bg-surface-soft)]
+                                    text-[var(--text-primary)]
+                                  `
+                                  : `
+                                    text-[var(--text-secondary)]
+                                    hover:text-[var(--text-primary)]
+                                  `
+                              }
+                            `}
+                            >
+                              {t.label}
+
+                              {active && (
+                                <span
+                                  className="
+                                  absolute left-0 right-0 -bottom-[1px]
+                                  h-[2px]
+                                  bg-[var(--color-primary)]
+                                  rounded-full
+                                "
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div
+                        className="
+                        h-[3px]
+                        w-full
+                        bg-gradient-to-r
+                        from-[var(--color-primary)]/40
+                        via-transparent
+                        to-transparent
+                      "
+                      />
+                    </div>
+                  </div>
+
+                  <div className="px-4 pb-4">
+                    <div className="min-h-[300px]">
+                      {tab === "enroll" ? (
+                        <EnrollmentsTab enrollments={student.enrollments} />
+                      ) : (
+                        <EmptyState message="데이터가 없습니다." />
+                      )}
+                    </div>
+                  </div>
+                </PageSection>
+              </div>
+            </div>
+          </Page>
+        </div>
+      </div>
+
+      {/* Edit Modal */}
+      {editOpen && (
+        <StudentFormModal
+          initialValue={student}
+          onClose={() => setEditOpen(false)}
+          onSuccess={() => {
+            setEditOpen(false);
+            qc.invalidateQueries(["student", id]);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/* ================= sub ================= */
+
+function InfoItem({ label, value }: { label: string; value: any }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-xs text-[var(--text-muted)]">{label}</span>
+      <span className="text-sm font-semibold text-[var(--text-primary)]">
+        {value || "-"}
+      </span>
+    </div>
+  );
+}
+
+function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
+  if (!enrollments?.length) {
+    return <EmptyState message="수강 이력이 없습니다." />;
+  }
+
+  return (
+    <div className="space-y-2">
+      {enrollments.map((en: any) => (
+        <div
+          key={en.id}
+          className="rounded-md px-3 py-2 text-sm cursor-pointer
+            border border-[var(--border-divider)]
+            bg-[var(--bg-app)]
+            text-[var(--text-primary)]
+            hover:bg-[var(--bg-surface-soft)]
+            hover:border-[var(--color-primary)]/40
+            transition"
+        >
+          {en.lectureName || "-"}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/StudentsPage.tsx
+==========================================================================================
+// PATH: src/features/students/pages/StudentsPage.tsx
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { useStudentsQuery } from "../hooks/useStudentsQuery";
+import StudentsTable from "../components/StudentsTable";
+import StudentFormModal from "../components/StudentCreateModal";
+import StudentFilterModal from "../components/StudentFilterModal";
+import { deleteStudent } from "../api/students";
+
+import { Page, PageHeader, PageSection, PageToolbar } from "@/shared/ui/page";
+
+export default function StudentsPage() {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<any>({});
+  const [showModal, setShowModal] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const [sort, setSort] = useState<"date" | "name">("date");
+
+  const hasFilter = Object.keys(filters || {}).length > 0;
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data, isLoading, isFetching } = useStudentsQuery(search, filters, sort);
+
+  async function handleDelete(id: number) {
+    if (!confirm("삭제하시겠습니까?")) return;
+    await deleteStudent(id);
+    qc.invalidateQueries({ queryKey: ["students"] });
+  }
+
+  return (
+    <Page>
+      <PageHeader
+        title="학생 관리"
+        description="학생 계정 및 기본 정보를 관리합니다."
+        actions={
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2 rounded-md text-sm font-semibold
+              bg-[var(--color-primary)]
+              text-white"
+          >
+            학생 추가
+          </button>
+        }
+      />
+
+      <PageSection className="bg-[var(--bg-surface-soft)] border rounded-xl">
+        <PageToolbar>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <input
+                className="w-64 py-2 px-3 text-sm rounded-md
+                  border border-[var(--border-divider)]
+                  bg-[var(--bg-app)]"
+                placeholder="이름으로 학생 검색"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+              {isFetching && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2
+                  w-3 h-3 rounded-full border-2 border-t-transparent animate-spin" />
+              )}
+            </div>
+
+            <button
+              onClick={() => setSearch(searchInput)}
+              className="px-3 py-2 text-sm rounded-md
+                border border-[var(--border-divider)]
+                hover:bg-[var(--bg-surface)]"
+            >
+              검색
+            </button>
+
+            <button
+              onClick={() => setShowFilter(true)}
+              className="relative px-3 py-2 text-sm text-[var(--text-secondary)]"
+            >
+              고급 필터
+              {hasFilter && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[var(--color-primary)]" />
+              )}
+            </button>
+          </div>
+        </PageToolbar>
+      </PageSection>
+
+      <PageSection className="border rounded-xl overflow-hidden">
+        <StudentsTable
+          data={data || []}
+          search={search}
+          sort={sort}
+          onSortChange={(v) => setSort(v as any)}
+          onDelete={handleDelete}
+          onRowClick={(id) => navigate(String(id))}
+        />
+      </PageSection>
+
+      {showModal && (
+        <StudentFormModal
+          onClose={() => setShowModal(false)}
+          onSuccess={() => {
+            setShowModal(false);
+            qc.invalidateQueries({ queryKey: ["students"] });
+          }}
+        />
+      )}
+
+      <StudentFilterModal
+        open={showFilter}
+        filters={filters}
+        onClose={() => setShowFilter(false)}
+        onApply={(next) => {
+          setFilters(next);
+          setShowFilter(false);
+        }}
+      />
+    </Page>
+  );
+}

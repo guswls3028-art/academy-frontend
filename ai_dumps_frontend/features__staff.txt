@@ -1,0 +1,4951 @@
+====================================================================================================
+# FRONTEND FOLDER: features__staff
+# ROOT PATH: C:\academyfront\src\features\staff
+====================================================================================================
+
+
+==========================================================================================
+# FILE: StaffLayout.tsx
+==========================================================================================
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Tabs } from "antd";
+
+export default function StaffLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const activeKey = location.pathname.includes("/operations")
+    ? "operations"
+    : location.pathname.includes("/reports")
+    ? "reports"
+    : "home";
+
+  return (
+    <div className="p-6 space-y-4">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between">
+        <div className="text-xl font-semibold">직원 관리</div>
+      </div>
+
+      {/* 로컬 네비게이션 */}
+      <Tabs
+        activeKey={activeKey}
+        onChange={(key) => navigate(`/admin/staff/${key}`)}
+        items={[
+          { key: "home", label: "홈" },
+          { key: "operations", label: "작업" },
+          { key: "reports", label: "리포트" },
+        ]}
+      />
+
+      {/* 페이지 */}
+      <Outlet />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: StaffRoutes.tsx
+==========================================================================================
+﻿import { Routes, Route, Navigate } from "react-router-dom";
+
+import StaffLayout from "./StaffLayout";
+
+import HomePage from "./pages/HomePage/HomePage";
+import OperationsPage from "./pages/OperationsPage/OperationsPage";
+import ReportsPage from "./pages/ReportsPage/ReportsPage";
+import StaffDetailOverlay from "./overlays/StaffDetailOverlay/StaffDetailOverlay";
+
+export default function StaffRoutes() {
+  return (
+    <Routes>
+      <Route element={<StaffLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<HomePage />} />
+        <Route path="operations" element={<OperationsPage />} />
+        <Route path="reports" element={<ReportsPage />} />
+      </Route>
+
+      {/* 직원 상세는 레이아웃 분리 (Overlay 성격) */}
+      <Route path=":staffId/*" element={<StaffDetailOverlay />} />
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: 백엔드스펙.ts
+==========================================================================================
+이거보고 판단하셈. 
+
+0. 공통 규칙 (🔥 절대 규칙)
+- 모든 계산(합계, 급여, 시간, 상태 판정)은 BACKEND 단일진실
+- 프론트는 계산/추론/집계 금지
+- 마감된 월 데이터는 불변 (수정/삭제/추가 불가)
+- PayrollSnapshot은 생성 이후 절대 수정 불가
+- 승인/반려는 관리자만 가능
+
+1. 권한 / 역할 판별
+GET /api/v1/staffs/me/
+
+용도
+
+프론트 UX 분기 (관리자 / 일반 스태프)
+
+버튼 노출 / 승인 가능 여부 판단
+
+Response
+
+{
+  is_authenticated: boolean
+  is_superuser: boolean
+  is_staff: boolean
+  is_payroll_manager: boolean
+}
+
+
+규칙
+
+- 승인/월마감/급여 확정 = is_payroll_manager === true 만 가능
+
+2. Staff (직원)
+GET /api/v1/staffs/
+
+Response Item
+
+{
+  id
+  name
+  phone
+  is_active
+  is_manager
+  pay_type: "HOURLY" | "MONTHLY"
+  staff_work_types: [
+    {
+      id
+      work_type
+      hourly_wage
+      effective_hourly_wage
+    }
+  ]
+  created_at
+  updated_at
+}
+
+GET /api/v1/staffs/{id}/
+
+Response
+
+{
+  id
+  user
+  user_username
+  user_is_staff
+  name
+  phone
+  is_active
+  is_manager
+  pay_type
+  staff_work_types: [...]
+  created_at
+  updated_at
+}
+
+
+UX 규칙
+
+- user_username 없으면 "계정 없음" 표시
+- user_is_staff === true → STAFF 배지 표시
+
+POST /api/v1/staffs/
+
+Request
+
+{
+  username
+  password
+  name
+  phone
+  role: "TEACHER" | "ASSISTANT"
+}
+
+
+동작
+
+- User 생성
+- Staff 생성
+- role == TEACHER → Teacher 자동 생성
+- Teacher는 is_staff 권한 부여
+
+DELETE /api/v1/staffs/{id}/
+
+동작
+
+- Staff 삭제
+- 연결된 Teacher 삭제
+- 연결된 User 삭제
+
+3. 근무 유형 (WorkType)
+GET /api/v1/staffs/work-types/
+POST /api/v1/staffs/work-types/
+
+Response
+
+{
+  id
+  name
+  base_hourly_wage
+  color
+  description
+  is_active
+}
+
+4. 직원별 근무유형/시급 (StaffWorkType)
+GET /api/v1/staffs/{staff_id}/work-types/
+POST /api/v1/staffs/{staff_id}/work-types/
+
+Request
+
+{
+  work_type_id
+  hourly_wage (optional)
+}
+
+
+Response
+
+{
+  id
+  work_type
+  hourly_wage
+  effective_hourly_wage
+}
+
+5. 근무 기록 (WorkRecord)
+GET /api/v1/staffs/work-records/
+
+Filter
+
+staff
+work_type
+date_from
+date_to
+
+
+Response
+
+{
+  id
+  staff
+  staff_name
+  work_type
+  work_type_name
+  date
+  start_time
+  end_time
+  break_minutes
+  work_hours
+  amount
+  memo
+}
+
+POST / PATCH / DELETE /api/v1/staffs/work-records/
+
+제약
+
+- 해당 date가 월 마감이면 → 400 ERROR
+- work_hours / amount는 서버에서 자동 계산
+
+6. 비용 기록 (ExpenseRecord)
+GET /api/v1/staffs/expense-records/
+
+Filter
+
+staff
+status
+date_from
+date_to
+
+
+Response
+
+{
+  id
+  staff
+  staff_name
+  date
+  title
+  amount
+  memo
+  status: "PENDING" | "APPROVED" | "REJECTED"
+  approved_at
+  approved_by
+  approved_by_name
+}
+
+PATCH /api/v1/staffs/expense-records/{id}/
+
+규칙
+
+- APPROVED 이후 수정 불가
+- 상태 변경은 관리자만 가능
+- PENDING → APPROVED | REJECTED 만 허용
+
+7. 월 마감 (WorkMonthLock)
+GET /api/v1/staffs/work-month-locks/
+
+Response
+
+{
+  id
+  staff
+  staff_name
+  year
+  month
+  is_locked
+  locked_by
+  locked_by_name
+  created_at
+}
+
+POST /api/v1/staffs/work-month-locks/
+
+Request
+
+{
+  staff
+  year
+  month
+}
+
+
+동작
+
+- 월 마감 처리
+- PayrollSnapshot 자동 생성
+
+8. 급여 스냅샷 (PayrollSnapshot) 🔒 불변
+GET /api/v1/staffs/payroll-snapshots/
+
+Filter
+
+staff
+year
+month
+
+
+Response
+
+{
+  id
+  staff
+  staff_name
+  year
+  month
+  work_hours
+  work_amount
+  approved_expense_amount
+  total_amount
+  generated_by
+  generated_by_name
+  created_at
+}
+
+
+규칙
+
+- 생성 이후 절대 수정 불가
+- 프론트 계산 금지
+
+GET /api/v1/staffs/payroll-snapshots/export-excel/?year=&month=
+
+월 전체 급여 엑셀 다운로드
+
+GET /api/v1/staffs/payroll-snapshots/export-pdf/?staff=&year=&month=
+
+직원 1명 급여 명세서 PDF
+
+9. Staff 요약 (집계 전용)
+GET /api/v1/staffs/{id}/summary/?date_from=&date_to=
+
+Response
+
+{
+  staff_id
+  work_hours
+  work_amount
+  expense_amount
+  total_amount
+}
+
+
+규칙
+
+- 프론트에서 합계 계산 절대 금지
+- KPI / 카드 수치는 이 API만 사용
+
+10. 프론트 UX 필수 반영 규칙
+- 마감된 월:
+  - 근무/비용 생성/수정/삭제 버튼 DISABLED
+  - 사유 tooltip: "마감된 월입니다"
+
+- 승인 완료 비용:
+  - 수정/삭제 불가
+  - 승인자/승인시각 표시
+
+- 급여:
+  - "마감 = 급여 확정" 설명 문구 항상 노출
+  - PayrollSnapshot 기준으로만 표시
+
+
+==========================================================================================
+# FILE: api/expenses.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/expenses.api.ts
+import api from "@/shared/api/axios";
+
+export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type ExpenseRecord = {
+  id: number;
+  staff: number;
+  staff_name?: string;
+  date: string;
+  title: string;
+  amount: number;
+  memo: string;
+  status: ExpenseStatus;
+  approved_at?: string | null;
+  approved_by?: number | null;
+  approved_by_name?: string | null;
+};
+
+/**
+ * GET /staffs/expense-records/
+ */
+export async function fetchExpenses(params: {
+  staff: number;
+  status?: ExpenseStatus;
+  date_from: string;
+  date_to: string;
+}) {
+  const res = await api.get("/staffs/expense-records/", { params });
+
+  if (Array.isArray(res.data)) return res.data as ExpenseRecord[];
+  if (Array.isArray(res.data?.results)) return res.data.results as ExpenseRecord[];
+  return [];
+}
+
+/**
+ * POST /staffs/expense-records/
+ * - 마감된 월이면 backend가 400 보장
+ */
+export async function createExpense(payload: {
+  staff: number;
+  date: string;
+  title: string;
+  amount: number;
+  memo?: string;
+}) {
+  const res = await api.post("/staffs/expense-records/", {
+    staff: payload.staff,
+    date: payload.date,
+    title: payload.title,
+    amount: payload.amount,
+    memo: payload.memo ?? "",
+  });
+
+  return res.data as ExpenseRecord;
+}
+
+/**
+ * PATCH /staffs/expense-records/{id}/
+ * 🔒 APPROVED 이후 수정 불가 (백엔드 보장)
+ * - 상태 변경은 관리자만 가능 (백엔드 보장)
+ */
+export async function patchExpense(
+  id: number,
+  payload: Partial<{
+    status: ExpenseStatus;
+    memo: string;
+  }>
+) {
+  const res = await api.patch(`/staffs/expense-records/${id}/`, payload);
+  return res.data as ExpenseRecord;
+}
+
+
+==========================================================================================
+# FILE: api/index.ts
+==========================================================================================
+﻿/**
+ * PATH: src/features/staff/api/index.ts
+ * Staff Domain API – Single Source of Truth
+ */
+
+export * from "./staff.api";
+export * from "./staff.detail.api";
+export * from "./staffMe.api";
+
+export * from "./workRecords.api";
+export * from "./expenses.api";
+export * from "./workMonthLocks.api";
+
+export * from "./payrollSnapshots.api";
+export * from "./payrollSnapshotPDF.api";
+
+export * from "./staffWorkType.api";
+
+
+==========================================================================================
+# FILE: api/payrollSnapshotPdf.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/payrollSnapshotPDF.api.ts
+import api from "@/shared/api/axios";
+
+export async function exportPayrollSnapshotPDF(params: {
+  staff: number;
+  year: number;
+  month: number;
+}) {
+  const res = await api.get(
+    "/staffs/payroll-snapshots/export-pdf/",
+    {
+      params,
+      responseType: "blob",
+    }
+  );
+
+  const blob = new Blob([res.data], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `payroll_${params.staff}_${params.year}_${String(
+    params.month
+  ).padStart(2, "0")}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+
+==========================================================================================
+# FILE: api/payrollSnapshots.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/payrollSnapshots.api.ts
+import api from "@/shared/api/axios";
+
+export type PayrollSnapshot = {
+  id: number;
+  staff: number;
+  staff_name?: string;
+  year: number;
+  month: number;
+  work_hours: number;
+  work_amount: number;
+  approved_expense_amount: number;
+  total_amount: number;
+  generated_by?: number;
+  generated_by_name?: string;
+  created_at: string;
+};
+
+/**
+ * GET /staffs/payroll-snapshots/
+ */
+export async function fetchPayrollSnapshots(params: {
+  year?: number;
+  month?: number;
+  staff?: number;
+}) {
+  const cleanParams: any = {};
+  if (params.staff != null) cleanParams.staff = params.staff;
+  if (params.year != null) cleanParams.year = params.year;
+  if (params.month != null) cleanParams.month = params.month;
+
+  const res = await api.get("/staffs/payroll-snapshots/", {
+    params: cleanParams,
+  });
+
+  if (Array.isArray(res.data)) return res.data as PayrollSnapshot[];
+  if (Array.isArray(res.data?.results)) return res.data.results as PayrollSnapshot[];
+  return [];
+}
+
+/**
+ * GET /staffs/payroll-snapshots/export-excel/
+ */
+export async function exportPayrollSnapshotExcel(params: {
+  year: number;
+  month: number;
+}) {
+  const res = await api.get(
+    "/staffs/payroll-snapshots/export-excel/",
+    {
+      params,
+      responseType: "blob",
+    }
+  );
+
+  const blob = new Blob([res.data], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `payroll_${params.year}_${String(params.month).padStart(2, "0")}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+
+==========================================================================================
+# FILE: api/staff.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/staff.api.ts
+import api from "@/shared/api/axios";
+
+/**
+ * Staff (직원)
+ */
+export type Staff = {
+  id: number;
+  name: string;
+  phone: string;
+  is_active: boolean;
+  is_manager: boolean;
+  pay_type: "HOURLY" | "MONTHLY";
+  staff_work_types?: {
+    id: number;
+    work_type: number;
+    hourly_wage: number | null;
+    effective_hourly_wage: number;
+  }[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+/**
+ * Staff Summary (집계 전용)
+ * 🔒 계산 단일진실
+ */
+export type StaffSummary = {
+  staff_id: number;
+  work_hours: number;
+  work_amount: number;
+  expense_amount: number;
+  total_amount: number;
+};
+
+/**
+ * GET /staffs/
+ */
+export async function fetchStaffs(params?: {
+  search?: string;
+  is_active?: boolean;
+  is_manager?: boolean;
+  pay_type?: string;
+}) {
+  const res = await api.get("/staffs/", { params });
+
+  if (Array.isArray(res.data)) return res.data as Staff[];
+  if (Array.isArray(res.data?.results)) return res.data.results as Staff[];
+  return [];
+}
+
+/**
+ * POST /staffs/
+ */
+export async function createStaff(payload: {
+  username: string;
+  password: string;
+  name: string;
+  phone?: string;
+  role: "TEACHER" | "ASSISTANT";
+}) {
+  const res = await api.post("/staffs/", payload);
+  return res.data as Staff;
+}
+
+/**
+ * DELETE /staffs/{id}/
+ */
+export async function deleteStaff(id: number) {
+  await api.delete(`/staffs/${id}/`);
+  return true;
+}
+
+
+==========================================================================================
+# FILE: api/staff.detail.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/staff.detail.api.ts
+import api from "@/shared/api/axios";
+import { Staff, StaffSummary } from "./staff.api";
+
+export type StaffDetail = Staff & {
+  user: number | null;
+  user_username?: string | null;
+  user_is_staff?: boolean;
+};
+
+/**
+ * GET /staffs/{id}/
+ */
+export async function fetchStaffDetail(id: number) {
+  const res = await api.get(`/staffs/${id}/`);
+  return res.data as StaffDetail;
+}
+
+/**
+ * PATCH /staffs/{id}/
+ */
+export async function patchStaffDetail(
+  id: number,
+  payload: Partial<StaffDetail>
+) {
+  const res = await api.patch(`/staffs/${id}/`, payload);
+  return res.data as StaffDetail;
+}
+
+/**
+ * 🔒 집계 단일진실
+ */
+export async function fetchStaffSummaryByRange(
+  staffId: number,
+  date_from: string,
+  date_to: string
+) {
+  const res = await api.get(`/staffs/${staffId}/summary/`, {
+    params: { date_from, date_to },
+  });
+  return res.data as StaffSummary;
+}
+
+
+==========================================================================================
+# FILE: api/staffMe.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/staffMe.api.ts
+import api from "@/shared/api/axios";
+
+export type StaffMe = {
+  is_authenticated: boolean;
+  is_superuser: boolean;
+  is_staff: boolean;
+  is_payroll_manager: boolean;
+};
+
+/**
+ * 🔒 단일진실
+ * - 권한 판단은 무조건 이 API 기준
+ */
+export async function fetchStaffMe() {
+  const res = await api.get("/staffs/me/");
+  return res.data as StaffMe;
+}
+
+
+==========================================================================================
+# FILE: api/staffWorkType.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/staffWorkType.api.ts
+import api from "@/shared/api/axios";
+
+export type WorkType = {
+  id: number;
+  name: string;
+  base_hourly_wage: number;
+  color: string;
+  is_active?: boolean;
+};
+
+export type StaffWorkType = {
+  id: number;
+  staff: number;
+  work_type: WorkType;
+  hourly_wage: number | null;
+  effective_hourly_wage: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/**
+ * GET /staffs/work-types/
+ */
+export async function fetchWorkTypes(params?: { is_active?: boolean }) {
+  const res = await api.get("/staffs/work-types/", { params });
+
+  if (Array.isArray(res.data)) return res.data as WorkType[];
+  if (Array.isArray(res.data?.results)) return res.data.results as WorkType[];
+  return [];
+}
+
+/**
+ * GET /staffs/{staff_id}/work-types/
+ */
+export async function fetchStaffWorkTypes(staffId: number) {
+  const res = await api.get(`/staffs/${staffId}/work-types/`);
+
+  if (Array.isArray(res.data)) return res.data as StaffWorkType[];
+  if (Array.isArray(res.data?.results)) return res.data.results as StaffWorkType[];
+  return [];
+}
+
+/**
+ * POST /staffs/{staff_id}/work-types/
+ */
+export async function createStaffWorkType(
+  staffId: number,
+  payload: { work_type_id: number; hourly_wage?: number | null }
+) {
+  const res = await api.post(`/staffs/${staffId}/work-types/`, payload);
+  return res.data as StaffWorkType[];
+}
+
+export async function patchStaffWorkType(
+  id: number,
+  payload: { hourly_wage?: number | null }
+) {
+  const res = await api.patch(`/staffs/staff-work-types/${id}/`, payload);
+  return res.data as StaffWorkType;
+}
+
+export async function deleteStaffWorkType(id: number) {
+  await api.delete(`/staffs/staff-work-types/${id}/`);
+  return true;
+}
+
+
+==========================================================================================
+# FILE: api/workMonthLocks.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/workMonthLocks.api.ts
+import api from "@/shared/api/axios";
+
+export type WorkMonthLock = {
+  id: number;
+  staff: number;
+  staff_name?: string;
+  year: number;
+  month: number;
+  is_locked: boolean;
+  locked_by?: number;
+  locked_by_name?: string;
+  created_at?: string;
+};
+
+/**
+ * GET /staffs/work-month-locks/
+ * ⚠️ backend는 staff/year/month 필터를 지원하지 않음
+ */
+export async function fetchWorkMonthLocks(params: {
+  staff?: number;
+  year: number;
+  month: number;
+}) {
+  const res = await api.get("/staffs/work-month-locks/");
+
+  const rows: WorkMonthLock[] = Array.isArray(res.data)
+    ? res.data
+    : Array.isArray(res.data?.results)
+    ? res.data.results
+    : [];
+
+  // 🔒 필터링은 계산이 아니라 "선택" → 허용
+  return rows.filter(
+    (r) =>
+      r.year === params.year &&
+      r.month === params.month &&
+      (params.staff ? r.staff === params.staff : true)
+  );
+}
+
+/**
+ * POST /staffs/work-month-locks/
+ */
+export async function lockWorkMonth(payload: {
+  staff: number;
+  year: number;
+  month: number;
+}) {
+  const res = await api.post("/staffs/work-month-locks/", payload);
+  return res.data as WorkMonthLock;
+}
+
+export function isLockedFromLocks(
+  locks: WorkMonthLock[] | undefined
+): boolean {
+  if (!locks || locks.length === 0) return false;
+  return locks.some((l) => l.is_locked);
+}
+
+
+==========================================================================================
+# FILE: api/workRecords.api.ts
+==========================================================================================
+﻿// PATH: src/features/staff/api/workRecords.api.ts
+import api from "@/shared/api/axios";
+
+export type WorkRecord = {
+  id: number;
+  staff: number;
+  staff_name?: string;
+  work_type: number;
+  work_type_name?: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  break_minutes: number;
+  work_hours: number;
+  amount: number;
+  memo: string;
+};
+
+/**
+ * GET /staffs/work-records/
+ */
+export async function fetchWorkRecords(params: {
+  staff: number;
+  work_type?: number;
+  date_from: string;
+  date_to: string;
+}) {
+  const res = await api.get("/staffs/work-records/", { params });
+
+  if (Array.isArray(res.data)) return res.data as WorkRecord[];
+  if (Array.isArray(res.data?.results)) return res.data.results as WorkRecord[];
+  return [];
+}
+
+/**
+ * POST /staffs/work-records/
+ */
+export async function createWorkRecord(payload: {
+  staff: number;
+  work_type: number;
+  date: string;
+  start_time: string;
+  end_time: string;
+  break_minutes?: number;
+  memo?: string;
+}) {
+  const res = await api.post("/staffs/work-records/", payload);
+  return res.data as WorkRecord;
+}
+
+export async function patchWorkRecord(
+  id: number,
+  payload: Partial<{
+    work_type: number;
+    date: string;
+    start_time: string;
+    end_time: string;
+    break_minutes: number;
+    memo: string;
+  }>
+) {
+  const res = await api.patch(`/staffs/work-records/${id}/`, payload);
+  return res.data as WorkRecord;
+}
+
+export async function deleteWorkRecord(id: number) {
+  await api.delete(`/staffs/work-records/${id}/`);
+  return true;
+}
+
+
+==========================================================================================
+# FILE: components/ActionButton.tsx
+==========================================================================================
+// PATH: src/features/staff/components/ActionButton.tsx
+import React from "react";
+
+type Variant =
+  | "primary"
+  | "secondary"
+  | "danger"
+  | "success"
+  | "ghost"
+  | "outline"
+  | "danger-outline";
+
+type Size = "xs" | "sm" | "md";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+const BASE =
+  "inline-flex items-center justify-center select-none whitespace-nowrap font-semibold rounded-lg border transition " +
+  "focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
+
+const SIZE: Record<Size, string> = {
+  xs: "h-[30px] px-2 text-xs",
+  sm: "h-[34px] px-3 text-xs",
+  md: "h-[38px] px-4 text-sm",
+};
+
+/**
+ * 실무 기준 버튼 톤
+ * - danger: 삭제/마감/확정 (되돌릴 수 없음)
+ * - success: 승인/정상
+ * - outline/ghost: 탐색·보조
+ * - disabled: 시각적으로 “죽은 버튼” 명확
+ */
+const VARIANT: Record<Variant, string> = {
+  primary:
+    "border-[var(--color-primary)] bg-[var(--color-primary)] text-white hover:opacity-90",
+  secondary:
+    "border-[var(--border-divider)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-soft)]",
+  outline:
+    "border-[var(--border-divider)] bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-surface-soft)]",
+  ghost:
+    "border-transparent bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-surface-soft)]",
+  danger:
+    "border-[var(--color-danger)] bg-[var(--color-danger)] text-white hover:opacity-95 shadow-[0_8px_18px_rgba(0,0,0,0.28)]",
+  "danger-outline":
+    "border-[var(--color-danger)] bg-transparent text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]",
+  success:
+    "border-[var(--color-success)] bg-[var(--color-success)] text-white hover:opacity-90",
+};
+
+export default function ActionButton({
+  variant = "secondary",
+  size = "sm",
+  disabled,
+  disabledReason,
+  className,
+  title,
+  type = "button",
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
+  size?: Size;
+  disabledReason?: string;
+}) {
+  const isDisabled = !!disabled || !!disabledReason;
+
+  return (
+    <button
+      type={type}
+      disabled={isDisabled}
+      aria-disabled={isDisabled}
+      title={disabledReason || title}
+      className={cx(
+        BASE,
+        SIZE[size],
+        VARIANT[variant],
+        isDisabled &&
+          [
+            "opacity-50 cursor-not-allowed",
+            "hover:opacity-50 active:opacity-50",
+            variant === "outline" ||
+            variant === "ghost" ||
+            variant === "danger-outline"
+              ? "hover:bg-transparent"
+              : "",
+          ].join(" "),
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StaffTable.tsx
+==========================================================================================
+// PATH: src/features/staff/components/StaffTable.tsx
+import { Table } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { Staff } from "../api/staff.api";
+import { RoleBadge } from "./StatusBadge";
+
+type Props = {
+  staffs: Staff[];
+  onRowClick?: (staffId: number) => void;
+};
+
+export default function StaffTable({ staffs, onRowClick }: Props) {
+  const columns: ColumnsType<Staff> = [
+    {
+      title: "이름",
+      dataIndex: "name",
+      render: (_, r) => (
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">{r.name}</span>
+          {!r.is_active && (
+            <span className="px-2 py-0.5 rounded-full text-xs border text-[var(--text-muted)] bg-[var(--bg-surface-muted)]">
+              비활성
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "전화번호",
+      dataIndex: "phone",
+      render: (v) => v || "-",
+    },
+    {
+      title: "역할",
+      dataIndex: "is_manager",
+      render: (v) => <RoleBadge isManager={!!v} />,
+    },
+    {
+      title: "급여",
+      dataIndex: "pay_type",
+      render: (v) => (v === "HOURLY" ? "시급" : "월급"),
+    },
+  ];
+
+  return (
+    <Table
+      rowKey="id"
+      dataSource={staffs}
+      columns={columns}
+      pagination={false}
+      onRow={(r) => ({
+        onClick: () => onRowClick?.(r.id),
+      })}
+    />
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StatusBadge.tsx
+==========================================================================================
+// PATH: src/features/staff/components/StatusBadge.tsx
+import React from "react";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+/**
+ * StatusBadge – 실무 단일 기준
+ *
+ * 원칙:
+ * - 색상 + 텍스트만으로 상태 즉시 인지
+ * - danger = 불변 / 위험 / 되돌릴 수 없음
+ * - success = 정상 / 확정 / 승인
+ * - neutral = 정보 / 대기
+ */
+
+type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+type Tone = "neutral" | "success" | "danger" | "primary";
+type Density = "soft" | "solid";
+
+const BASE =
+  "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border leading-none";
+
+function toneClass(tone: Tone, density: Density = "soft") {
+  if (density === "solid") {
+    if (tone === "danger")
+      return "bg-[var(--color-danger)] text-white border-[var(--color-danger)]";
+    if (tone === "success")
+      return "bg-[var(--color-success)] text-white border-[var(--color-success)]";
+    if (tone === "primary")
+      return "bg-[var(--color-primary)] text-white border-[var(--color-primary)]";
+    return "bg-[var(--bg-surface-muted)] text-[var(--text-primary)] border-[var(--border-divider)]";
+  }
+
+  if (tone === "success")
+    return "bg-[var(--color-success-soft)] text-[var(--color-success)] border-[color-mix(in_srgb,var(--color-success)_55%,transparent)]";
+  if (tone === "danger")
+    return "bg-[var(--color-danger-soft)] text-[var(--color-danger)] border-[color-mix(in_srgb,var(--color-danger)_55%,transparent)]";
+  if (tone === "primary")
+    return "bg-[var(--color-primary-soft)] text-[var(--color-primary)] border-[color-mix(in_srgb,var(--color-primary)_55%,transparent)]";
+
+  return "bg-[var(--bg-surface-muted)] text-[var(--text-secondary)] border-[var(--border-divider)]";
+}
+
+function Dot({ tone }: { tone: Tone }) {
+  const cls =
+    tone === "danger"
+      ? "bg-[var(--color-danger)]"
+      : tone === "success"
+      ? "bg-[var(--color-success)]"
+      : tone === "primary"
+      ? "bg-[var(--color-primary)]"
+      : "bg-[var(--text-muted)]";
+
+  return <span className={cx("inline-block h-1.5 w-1.5 rounded-full", cls)} />;
+}
+
+/* =========================
+   Expense Status
+========================= */
+
+export function ExpenseStatusBadge({ status }: { status: ExpenseStatus }) {
+  const label =
+    status === "APPROVED" ? "승인" : status === "REJECTED" ? "반려" : "대기";
+
+  const tone: Tone =
+    status === "APPROVED"
+      ? "success"
+      : status === "REJECTED"
+      ? "danger"
+      : "neutral";
+
+  return (
+    <span className={cx(BASE, toneClass(tone))}>
+      <Dot tone={tone} />
+      {label}
+    </span>
+  );
+}
+
+/* =========================
+   Lock Status
+========================= */
+
+export function LockBadge({
+  state,
+  compact = false,
+}: {
+  state: "LOCKED" | "OPEN";
+  compact?: boolean;
+}) {
+  const locked = state === "LOCKED";
+  const tone: Tone = locked ? "danger" : "success";
+
+  return (
+    <span className={cx(BASE, toneClass(tone))}>
+      <Dot tone={tone} />
+      {locked ? (compact ? "마감" : "🔒 마감") : compact ? "진행" : "🔓 진행중"}
+    </span>
+  );
+}
+
+/* =========================
+   Role
+========================= */
+
+export function RoleBadge({ isManager }: { isManager: boolean }) {
+  const tone: Tone = isManager ? "primary" : "neutral";
+
+  return (
+    <span className={cx(BASE, toneClass(tone))}>
+      <Dot tone={tone} />
+      {isManager ? "관리자" : "직원"}
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/WorkMonthLockBar.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/components/WorkMonthLockBar.tsx
+import { WorkMonthLock } from "../api/workMonthLocks.api";
+import ActionButton from "./ActionButton";
+import { LockBadge, RoleBadge } from "./StatusBadge";
+
+export default function WorkMonthLockBar({
+  locks,
+  isManager,
+  onLock,
+}: {
+  locks?: WorkMonthLock[];
+  isManager: boolean;
+  onLock?: () => void;
+}) {
+  const locked = !!locks?.some((l) => !!l.is_locked);
+
+  const disabledReason = locked
+    ? "이미 마감된 월입니다."
+    : !isManager
+    ? "마감은 관리자만 가능합니다."
+    : "";
+
+  return (
+    <div className="space-y-2">
+      <div
+        className={[
+          "flex items-start justify-between gap-4 rounded-2xl border px-5 py-4 text-sm",
+          locked
+            ? "border-[color-mix(in_srgb,var(--color-danger)_55%,transparent)] bg-[var(--color-danger-soft)]"
+            : "border-[color-mix(in_srgb,var(--color-success)_55%,transparent)] bg-[var(--color-success-soft)]",
+        ].join(" ")}
+      >
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <LockBadge state={locked ? "LOCKED" : "OPEN"} />
+            <RoleBadge isManager={isManager} />
+          </div>
+          <div className="text-[11px] text-[var(--text-muted)]">
+            * 월 마감 = 급여 확정 · 이후 변경 불가
+          </div>
+        </div>
+
+        <ActionButton
+          variant="danger"
+          size="sm"
+          disabledReason={disabledReason}
+          title={
+            disabledReason ||
+            "이번 달 근무/비용을 확정합니다. 이후 수정·삭제 불가하며 급여 스냅샷이 생성됩니다."
+          }
+          onClick={() => {
+            if (disabledReason) return;
+            if (
+              !confirm(
+                [
+                  "이번 달을 마감할까요?",
+                  "",
+                  "- 마감 후에는 근무/비용 수정·삭제가 불가능합니다.",
+                  "- 급여 스냅샷이 생성됩니다.",
+                ].join("\n")
+              )
+            )
+              return;
+            onLock?.();
+          }}
+        >
+          월 마감
+        </ActionButton>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/index.ts
+==========================================================================================
+﻿
+
+
+==========================================================================================
+# FILE: constants/index.ts
+==========================================================================================
+﻿
+
+
+==========================================================================================
+# FILE: hooks/index.ts
+==========================================================================================
+﻿/**
+ * PATH: src/features/staff/hooks/index.ts
+ */
+
+export * from "./useStaffs";
+export * from "./useStaffDetail";
+export * from "./useWorkRecords";
+export * from "./useExpenses";
+export * from "./useWorkMonthLock";
+export * from "./usePayrollSnapshots";
+
+
+==========================================================================================
+# FILE: hooks/useExpenses.ts
+==========================================================================================
+﻿// PATH: src/features/staff/hooks/useExpenses.ts
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchExpenses,
+  patchExpense,
+  createExpense,
+  ExpenseStatus,
+} from "../api/expenses.api";
+
+export type UseExpensesParams = {
+  staff: number;
+  status?: ExpenseStatus;
+  date_from: string;
+  date_to: string;
+};
+
+/**
+ * 🔒 규칙
+ * - 승인 상태 판단(추론) ❌  -> status 값 그대로 사용
+ * - 합계 계산 ❌
+ */
+export function useExpenses(params: UseExpensesParams) {
+  const qc = useQueryClient();
+
+  const listQ = useQuery({
+    queryKey: ["expenses", params],
+    queryFn: () => fetchExpenses(params),
+    enabled: !!params.staff && !!params.date_from && !!params.date_to,
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["expenses"] });
+    qc.invalidateQueries({ queryKey: ["staff-summary", params.staff] });
+    qc.invalidateQueries({ queryKey: ["payroll-snapshots"] });
+  };
+
+  const createM = useMutation({
+    mutationFn: createExpense,
+    onSuccess: invalidate,
+  });
+
+  const patchM = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: any }) =>
+      patchExpense(id, payload),
+    onSuccess: invalidate,
+  });
+
+  return { listQ, createM, patchM };
+}
+
+
+==========================================================================================
+# FILE: hooks/usePayrollSnapshots.ts
+==========================================================================================
+﻿// PATH: src/features/staff/hooks/usePayrollSnapshots.ts
+import { useQuery } from "@tanstack/react-query";
+import { fetchPayrollSnapshots } from "../api/payrollSnapshots.api";
+
+export type UsePayrollSnapshotsParams = {
+  staff?: number;
+  year?: number;
+  month?: number;
+};
+
+/**
+ * 🔒 PayrollSnapshot = 불변 단일진실
+ * - 프론트 계산 ❌
+ * - 수정 ❌
+ */
+export function usePayrollSnapshots(params: UsePayrollSnapshotsParams) {
+  return useQuery({
+    queryKey: ["payroll-snapshots", params],
+    queryFn: () => fetchPayrollSnapshots(params),
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useStaffDetail.ts
+==========================================================================================
+﻿// PATH: src/features/staff/hooks/useStaffDetail.ts
+import { useQuery } from "@tanstack/react-query";
+import { fetchStaffDetail } from "../api/staff.detail.api";
+
+/**
+ * 🔒 Staff 단건 단일진실
+ */
+export function useStaffDetail(staffId?: number) {
+  return useQuery({
+    queryKey: ["staff", staffId],
+    queryFn: () => fetchStaffDetail(staffId as number),
+    enabled: typeof staffId === "number" && staffId > 0,
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useStaffs.ts
+==========================================================================================
+﻿// PATH: src/features/staff/hooks/useStaffs.ts
+import { useQuery } from "@tanstack/react-query";
+import { fetchStaffs } from "../api/staff.api";
+
+export type UseStaffsParams = {
+  search?: string;
+  is_active?: boolean;
+  is_manager?: boolean;
+  pay_type?: string;
+};
+
+/**
+ * 🔒 단일진실
+ * - Staff 목록은 서버 그대로 신뢰
+ */
+export function useStaffs(params?: UseStaffsParams) {
+  return useQuery({
+    queryKey: ["staffs", params ?? {}],
+    queryFn: () => fetchStaffs(params),
+    staleTime: 10_000,
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useWorkMonthLock.ts
+==========================================================================================
+﻿/**
+ * PATH: src/features/staff/hooks/useWorkMonthLock.ts
+ */
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchWorkMonthLocks,
+  lockWorkMonth,
+  isLockedFromLocks,
+} from "../api/workMonthLocks.api"; // ??? IA  NOTE: legacy comment removed (encoding issue)
+
+export function useWorkMonthLock(params: { staff: number; year: number; month: number }) {
+  const qc = useQueryClient();
+
+  const locksQ = useQuery({
+    queryKey: ["work-month-locks", params.staff, params.year, params.month],
+    queryFn: () =>
+      fetchWorkMonthLocks({
+        staff: params.staff,
+        year: params.year,
+        month: params.month,
+      }),
+    enabled: !!params.staff && !!params.year && !!params.month,
+  });
+
+  const locked = isLockedFromLocks(locksQ.data);
+
+  const lockM = useMutation({
+    mutationFn: () => lockWorkMonth({ staff: params.staff, year: params.year, month: params.month }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["work-month-locks", params.staff] });
+      qc.invalidateQueries({ queryKey: ["work-records", params.staff] });
+      qc.invalidateQueries({ queryKey: ["expenses", params.staff] });
+      qc.invalidateQueries({ queryKey: ["payroll-snapshots"] });
+    },
+  });
+
+  return { locksQ, locked, lockM };
+}
+
+
+==========================================================================================
+# FILE: hooks/useWorkRecords.ts
+==========================================================================================
+﻿// PATH: src/features/staff/hooks/useWorkRecords.ts
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchWorkRecords,
+  createWorkRecord,
+  patchWorkRecord,
+  deleteWorkRecord,
+} from "../api/workRecords.api";
+
+export type UseWorkRecordsParams = {
+  staff: number;
+  work_type?: number;
+  date_from: string;
+  date_to: string;
+};
+
+/**
+ * 🔒 규칙
+ * - 시간/금액 계산 ❌
+ * - 마감 여부 판단 ❌ (백엔드에서 400)
+ */
+export function useWorkRecords(params: UseWorkRecordsParams) {
+  const qc = useQueryClient();
+
+  const listQ = useQuery({
+    queryKey: ["work-records", params],
+    queryFn: () => fetchWorkRecords(params),
+    enabled:
+      !!params.staff && !!params.date_from && !!params.date_to,
+  });
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["work-records"] });
+    qc.invalidateQueries({ queryKey: ["staff-summary", params.staff] });
+    qc.invalidateQueries({ queryKey: ["payroll-snapshots"] });
+  };
+
+  const createM = useMutation({
+    mutationFn: createWorkRecord,
+    onSuccess: invalidate,
+  });
+
+  const patchM = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: any }) =>
+      patchWorkRecord(id, payload),
+    onSuccess: invalidate,
+  });
+
+  const deleteM = useMutation({
+    mutationFn: deleteWorkRecord,
+    onSuccess: invalidate,
+  });
+
+  return { listQ, createM, patchM, deleteM };
+}
+
+
+==========================================================================================
+# FILE: operations/context/WorkMonthContext.tsx
+==========================================================================================
+import React, { createContext, useContext, useMemo } from "react";
+import { useWorkMonthLock } from "../../hooks/useWorkMonthLock";
+import { useQuery } from "@tanstack/react-query";
+import { fetchStaffMe } from "../../api/staffMe.api";
+
+type WorkMonthContextValue = {
+  staffId: number;
+  year: number;
+  month: number;
+  range: { from: string; to: string };
+  locked: boolean;
+  canManage: boolean;
+  lockM: ReturnType<typeof useWorkMonthLock>["lockM"];
+};
+
+const Ctx = createContext<WorkMonthContextValue | null>(null);
+
+function monthRange(year: number, month: number) {
+  const from = `${year}-${String(month).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const to = `${year}-${String(month).padStart(2, "0")}-${String(
+    lastDay
+  ).padStart(2, "0")}`;
+  return { from, to };
+}
+
+export function WorkMonthProvider({
+  staffId,
+  year,
+  month,
+  children,
+}: React.PropsWithChildren<{ staffId: number; year: number; month: number }>) {
+  const { locked, lockM } = useWorkMonthLock({ staff: staffId, year, month });
+
+  const meQ = useQuery({
+    queryKey: ["staff-me"],
+    queryFn: fetchStaffMe,
+  });
+
+  const canManage = !!meQ.data?.is_payroll_manager;
+
+  const range = useMemo(() => monthRange(year, month), [year, month]);
+
+  const value = useMemo(
+    () => ({
+      staffId,
+      year,
+      month,
+      range,
+      locked,
+      canManage,
+      lockM,
+    }),
+    [staffId, year, month, range, locked, canManage, lockM]
+  );
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+export function useWorkMonth() {
+  const v = useContext(Ctx);
+  if (!v) throw new Error("useWorkMonth must be used within WorkMonthProvider");
+  return v;
+}
+
+
+==========================================================================================
+# FILE: overlays/index.ts
+==========================================================================================
+﻿
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { Tabs } from "antd";
+
+import {
+  fetchStaffDetail,
+  fetchStaffSummaryByRange,
+} from "../../api/staff.detail.api";
+import {
+  fetchWorkMonthLocks,
+  isLockedFromLocks,
+} from "../../api/workMonthLocks.api";
+import { fetchStaffMe } from "../../api/staffMe.api";
+
+import ActionButton from "../../components/ActionButton";
+import { LockBadge, RoleBadge } from "../../components/StatusBadge";
+
+import StaffSummaryTab from "./StaffSummaryTab";
+import StaffWorkTypeTab from "./StaffWorkTypeTab";
+import StaffWorkRecordsTab from "./StaffWorkRecordsTab";
+import StaffExpensesTab from "./StaffExpensesTab";
+import StaffPayrollHistoryTab from "./StaffPayrollHistoryTab";
+import StaffReportTab from "./StaffReportTab";
+import StaffSettingsTab from "./StaffSettingsTab";
+
+function getThisMonthRange() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const last = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(
+    2,
+    "0"
+  )}`;
+  return { y, m, from, to };
+}
+
+export default function StaffDetailOverlay() {
+  const { staffId } = useParams();
+  const navigate = useNavigate();
+  const sid = Number(staffId);
+  const [tab, setTab] = useState("summary");
+
+  const { y, m, from, to } = getThisMonthRange();
+
+  const staffQ = useQuery({
+    queryKey: ["staff", sid],
+    queryFn: () => fetchStaffDetail(sid),
+    enabled: !!sid,
+  });
+
+  const meQ = useQuery({
+    queryKey: ["staff-me"],
+    queryFn: fetchStaffMe,
+  });
+
+  const summaryQ = useQuery({
+    queryKey: ["staff-summary", sid, from, to],
+    queryFn: () => fetchStaffSummaryByRange(sid, from, to),
+    enabled: !!sid,
+  });
+
+  const locksQ = useQuery({
+    queryKey: ["work-month-locks", sid, y, m],
+    queryFn: () => fetchWorkMonthLocks({ staff: sid, year: y, month: m }),
+    enabled: !!sid,
+  });
+
+  if (!sid || !staffQ.data) return null;
+
+  const staff = staffQ.data;
+  const summary = summaryQ.data;
+  const locked = isLockedFromLocks(locksQ.data);
+  const canManage = !!meQ.data?.is_payroll_manager;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/50"
+        onClick={() => navigate(-1)}
+      />
+
+      {/* Overlay */}
+      <div className="fixed inset-0 z-50 flex justify-center items-start p-6">
+        <div className="w-full max-w-[1200px] max-h-[90vh] overflow-auto rounded-xl bg-[var(--bg-surface)] shadow-xl">
+          {/* Top Banner (월 마감 UX 임팩트) */}
+          {locked && (
+            <div className="px-6 py-3 border-b border-[color-mix(in_srgb,var(--color-danger)_55%,transparent)] bg-[var(--color-danger-soft)]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <LockBadge state="LOCKED" />
+                  <div className="text-sm font-semibold text-[var(--color-danger)]">
+                    이번달은 마감되었습니다. (급여 확정)
+                  </div>
+                </div>
+                <div className="text-xs text-[var(--text-muted)]">
+                  마감된 월은 근무/비용 생성·수정·삭제가 불가능합니다.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Bar */}
+          <div className="flex justify-end gap-2 px-6 py-3 border-b border-[var(--border-divider)]">
+            {canManage && (
+              <ActionButton variant="secondary" size="sm">
+                수정
+              </ActionButton>
+            )}
+
+            {canManage && (
+              <ActionButton
+                variant="danger-outline"
+                size="sm"
+                title="삭제는 되돌릴 수 없습니다."
+                onClick={() => {
+                  if (!confirm("직원을 삭제할까요? 연결된 데이터도 함께 삭제됩니다.")) return;
+                  alert("삭제 API 연결 필요 (StaffSettingsTab의 삭제 로직을 재사용하세요).");
+                }}
+              >
+                삭제
+              </ActionButton>
+            )}
+
+            <ActionButton variant="outline" size="sm" onClick={() => navigate(-1)}>
+              닫기
+            </ActionButton>
+          </div>
+
+          {/* Body */}
+          <div className="flex gap-5 p-6">
+            {/* LEFT */}
+            <div className="w-[280px] shrink-0 space-y-4">
+              <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-lg font-semibold flex items-center gap-2">
+                    {staff.name}
+                    {staff.user_is_staff && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--color-primary-soft)] text-[var(--color-primary)] border border-[color-mix(in_srgb,var(--color-primary)_45%,transparent)]">
+                        STAFF
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={[
+                      "px-2 py-0.5 rounded-full text-xs font-semibold border",
+                      staff.is_active
+                        ? "bg-[var(--color-success-soft)] text-[var(--color-success)] border-[color-mix(in_srgb,var(--color-success)_45%,transparent)]"
+                        : "bg-[var(--bg-surface-muted)] text-[var(--text-disabled)] border-[var(--border-divider)]",
+                    ].join(" ")}
+                  >
+                    {staff.is_active ? "활성" : "비활성"}
+                  </span>
+                </div>
+
+                <Divider />
+
+                <Info label="계정" value={staff.user_username || "계정 없음"} />
+                <Info label="전화번호" value={staff.phone || "-"} />
+                <Info
+                  label="급여유형"
+                  value={staff.pay_type === "HOURLY" ? "시급" : "월급"}
+                />
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--text-muted)]">역할</span>
+                  <RoleBadge isManager={!!staff.is_manager} />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[var(--border-divider)] p-4 space-y-2 bg-[var(--bg-surface)]">
+                <div className="text-sm font-semibold">이번달 요약</div>
+                <Info label="근무시간" value={`${summary?.work_hours ?? 0} h`} />
+                <Info
+                  label="지급액"
+                  value={`${(summary?.total_amount ?? 0).toLocaleString()} 원`}
+                />
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--text-muted)]">마감상태</span>
+                  <div className="flex items-center gap-2">
+                    <LockBadge state={locked ? "LOCKED" : "OPEN"} compact />
+                    <span
+                      className={[
+                        "font-semibold",
+                        locked
+                          ? "text-[var(--color-danger)]"
+                          : "text-[var(--color-success)]",
+                      ].join(" ")}
+                    >
+                      {locked ? "급여 확정" : "진행중"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT */}
+            <div className="flex-1">
+              <Tabs
+                activeKey={tab}
+                onChange={setTab}
+                items={[
+                  {
+                    key: "summary",
+                    label: "요약",
+                    children: <StaffSummaryTab staffId={sid} />,
+                  },
+                  {
+                    key: "worktype",
+                    label: "시급·근무유형",
+                    children: <StaffWorkTypeTab staffId={sid} />,
+                  },
+                  {
+                    key: "records",
+                    label: "근무기록",
+                    children: <StaffWorkRecordsTab staffId={sid} />,
+                  },
+                  {
+                    key: "expenses",
+                    label: "비용",
+                    children: <StaffExpensesTab staffId={sid} />,
+                  },
+                  {
+                    key: "history",
+                    label: "급여 히스토리",
+                    children: <StaffPayrollHistoryTab />,
+                  },
+                  {
+                    key: "report",
+                    label: "리포트",
+                    children: <StaffReportTab />,
+                  },
+                  canManage
+                    ? {
+                        key: "settings",
+                        label: "설정",
+                        children: <StaffSettingsTab />,
+                      }
+                    : null,
+                ].filter(Boolean) as any}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Info({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: any;
+  valueClass?: string;
+}) {
+  return (
+    <div className="flex justify-between text-sm">
+      <span className="text-[var(--text-muted)]">{label}</span>
+      <span className={`font-semibold ${valueClass ?? ""}`}>{value || "-"}</span>
+    </div>
+  );
+}
+
+function Divider() {
+  return <div className="h-px bg-[var(--border-divider)]" />;
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffExpensesTab.tsx
+==========================================================================================
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffExpensesTab.tsx
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { useExpenses } from "../../hooks/useExpenses";
+import { fetchWorkMonthLocks, isLockedFromLocks } from "../../api/workMonthLocks.api";
+import { fetchStaffMe } from "../../api/staffMe.api";
+
+import ActionButton from "../../components/ActionButton";
+import { ExpenseStatusBadge, LockBadge } from "../../components/StatusBadge";
+
+function getThisMonthRange() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const last = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  return { y, m, from, to };
+}
+
+function fmtDateTime(v?: string | null) {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString();
+}
+
+export default function StaffExpensesTab({ staffId }: { staffId: number }) {
+  const { y, m, from, to } = useMemo(getThisMonthRange, []);
+  const expenses = useExpenses({ staff: staffId, date_from: from, date_to: to });
+
+  const locksQ = useQuery({
+    queryKey: ["work-month-locks", staffId, y, m],
+    queryFn: () => fetchWorkMonthLocks({ staff: staffId, year: y, month: m }),
+  });
+
+  const meQ = useQuery({
+    queryKey: ["staff-me"],
+    queryFn: fetchStaffMe,
+  });
+
+  const canManage = !!meQ.data?.is_payroll_manager;
+  const locked = isLockedFromLocks(locksQ.data);
+  const rows = expenses.listQ.data ?? [];
+
+  return (
+    <div className="space-y-3 max-w-[740px]">
+      <div className="flex justify-between items-center">
+        <div className="text-sm font-semibold">비용</div>
+        {locked && <LockBadge state="LOCKED" />}
+      </div>
+
+      {locked && (
+        <div className="text-xs text-[var(--color-danger)]">
+          * 마감된 월은 비용 변경(승인/반려 포함)이 불가능합니다.
+        </div>
+      )}
+
+      {rows.length === 0 && (
+        <div className="text-sm text-[var(--text-muted)]">비용 없음</div>
+      )}
+
+      <div className={locked ? "opacity-95" : ""}>
+        {rows.map((e) => {
+          const isPending = e.status === "PENDING";
+          const actionDisabled = locked || expenses.patchM.isPending;
+
+          return (
+            <div
+              key={e.id}
+              className="rounded-lg border border-[var(--border-divider)] px-4 py-3 text-sm bg-[var(--bg-surface)] space-y-2"
+            >
+              <div className="flex justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="font-medium">
+                    {e.date} · {e.title}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <ExpenseStatusBadge status={e.status} />
+                    {e.status !== "PENDING" && (
+                      <div className="text-xs text-[var(--text-muted)]">
+                        승인자: {e.approved_by_name ?? "-"} · {fmtDateTime(e.approved_at)}
+                      </div>
+                    )}
+                  </div>
+
+                  {!!e.memo && (
+                    <div className="text-xs text-[var(--text-muted)]">메모: {e.memo}</div>
+                  )}
+                </div>
+
+                <div className="font-semibold">{e.amount.toLocaleString()}원</div>
+              </div>
+
+              {canManage && (
+                <div className="flex items-center justify-end gap-2">
+                  <ActionButton
+                    variant="success"
+                    size="xs"
+                    disabledReason={
+                      actionDisabled
+                        ? locked
+                          ? "마감된 월입니다."
+                          : "처리 중입니다."
+                        : !isPending
+                        ? "대기 상태에서만 가능합니다."
+                        : ""
+                    }
+                    onClick={() => {
+                      if (actionDisabled || !isPending) return;
+                      if (!confirm("이 비용을 승인할까요?")) return;
+                      expenses.patchM.mutate({ id: e.id, payload: { status: "APPROVED" } });
+                    }}
+                  >
+                    승인
+                  </ActionButton>
+
+                  <ActionButton
+                    variant="danger-outline"
+                    size="xs"
+                    disabledReason={
+                      actionDisabled
+                        ? locked
+                          ? "마감된 월입니다."
+                          : "처리 중입니다."
+                        : !isPending
+                        ? "대기 상태에서만 가능합니다."
+                        : ""
+                    }
+                    onClick={() => {
+                      if (actionDisabled || !isPending) return;
+                      if (!confirm("이 비용을 반려할까요?")) return;
+                      expenses.patchM.mutate({ id: e.id, payload: { status: "REJECTED" } });
+                    }}
+                  >
+                    반려
+                  </ActionButton>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="text-[11px] text-[var(--text-muted)]">
+        * 비용 상태/승인은 서버 기준이며, 프론트는 표시/액션만 수행합니다.
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffPayrollHistoryTab.tsx
+==========================================================================================
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffPayrollHistoryTab.tsx
+import PayrollHistoryTable from "../../pages/ReportsPage/PayrollHistoryTable";
+
+export default function StaffPayrollHistoryTab() {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <div className="text-sm font-semibold">급여 히스토리</div>
+        <div className="text-xs text-[var(--text-muted)]">
+          * 급여는 <b>월 마감 시점 PayrollSnapshot</b> 기준이며 이후 수정 불가합니다.
+        </div>
+      </div>
+
+      <PayrollHistoryTable />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffPayrollTab.tsx
+==========================================================================================
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffPayrollTab.tsx
+import { useParams } from "react-router-dom";
+import { usePayrollSnapshots } from "../../hooks/usePayrollSnapshots";
+
+export default function StaffPayrollTab() {
+  const { staffId } = useParams();
+  const sid = Number(staffId);
+
+  const { data, isLoading } = usePayrollSnapshots({ staff: sid });
+
+  if (isLoading) {
+    return <div className="text-sm text-[var(--text-muted)]">Loading payroll...</div>;
+  }
+
+  if (!data || data.length === 0) {
+    return <div className="text-sm text-[var(--text-muted)]">급여 데이터 없음</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {data.map((p) => (
+        <div
+          key={p.id}
+          className="flex justify-between rounded-lg border border-[var(--border-divider)] px-4 py-2 text-sm"
+        >
+          <div>
+            {p.year}-{String(p.month).padStart(2, "0")}
+          </div>
+          <div className="font-semibold">
+            {p.total_amount.toLocaleString()} 원
+          </div>
+        </div>
+      ))}
+
+      <div className="text-xs text-[var(--text-muted)]">
+        * 급여는 수정 불가하며 PayrollSnapshot 기준으로만 표시됩니다.
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffReportTab.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffReportTab.tsx
+
+import { useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardBody } from "@/shared/ui/card";
+
+import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getMonthBoundsFrom(dateISO: string) {
+  const y = Number(dateISO.slice(0, 4));
+  const m = Number(dateISO.slice(5, 7));
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { from, to };
+}
+
+export default function StaffReportTab() {
+  const { staffId } = useParams();
+  const sid = Number(staffId);
+
+  const [range] = useState(() => getMonthBoundsFrom(todayISO()));
+  const monthLabel = useMemo(() => `${range.from} ~ ${range.to}`, [range.from, range.to]);
+
+  const summaryQ = useQuery({
+    queryKey: ["staff-report-summary", sid, range.from, range.to],
+    queryFn: () => fetchStaffSummaryByRange(sid, range.from, range.to),
+    enabled: !!sid,
+  });
+
+  if (summaryQ.isLoading) {
+    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (!summaryQ.data) {
+    return <div className="text-sm text-[var(--text-muted)]">데이터가 없습니다.</div>;
+  }
+
+  const s = summaryQ.data;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div className="space-y-1">
+          <div className="text-sm font-semibold">리포트</div>
+          <div className="text-xs text-[var(--text-muted)]">기간: {monthLabel}</div>
+        </div>
+      </div>
+
+      <Card>
+        <CardBody className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Item label="근무시간" value={`${s.work_hours} h`} />
+          <Item label="급여" value={`${s.work_amount.toLocaleString()} 원`} />
+          <Item label="비용" value={`${s.expense_amount.toLocaleString()} 원`} />
+          <Item label="실 지급액" value={`${s.total_amount.toLocaleString()} 원`} primary />
+        </CardBody>
+      </Card>
+
+      <div className="text-xs text-[var(--text-muted)]">
+        * 리포트 수치는 <b>서버 집계 결과(Summary API)</b> 기준입니다.
+      </div>
+    </div>
+  );
+}
+
+function Item({ label, value, primary }: { label: string; value: string; primary?: boolean }) {
+  return (
+    <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div
+        className={[
+          "mt-1 text-lg font-semibold",
+          primary ? "text-[var(--color-primary)]" : "text-[var(--text-primary)]",
+        ].join(" ")}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffSettingsTab.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffSettingsTab.tsx
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { fetchStaffDetail, patchStaffDetail, StaffDetail } from "../../api/staff.detail.api";
+import { fetchStaffMe } from "../../api/staffMe.api";
+import api from "@/shared/api/axios";
+
+export default function StaffSettingsTab() {
+  const { staffId } = useParams();
+  const sid = Number(staffId);
+  const nav = useNavigate();
+  const qc = useQueryClient();
+
+  const meQ = useQuery({
+    queryKey: ["staff-me"],
+    queryFn: fetchStaffMe,
+  });
+
+  const canManage = !!meQ.data?.is_payroll_manager;
+
+  const detailQ = useQuery({
+    queryKey: ["staff", sid],
+    queryFn: () => fetchStaffDetail(sid),
+    enabled: !!sid,
+  });
+
+  const patchM = useMutation({
+    mutationFn: (payload: Partial<StaffDetail>) => patchStaffDetail(sid, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staff", sid] });
+      alert("저장되었습니다.");
+    },
+  });
+
+  const deleteM = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/staffs/${sid}/`);
+    },
+    onSuccess: async () => {
+      alert("직원이 삭제되었습니다.");
+      await qc.invalidateQueries({ queryKey: ["staffs"] });
+      nav("/admin/staff");
+    },
+  });
+
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    is_active: true,
+    pay_type: "HOURLY" as "HOURLY" | "MONTHLY",
+  });
+
+  useEffect(() => {
+    if (!detailQ.data) return;
+    setForm({
+      name: detailQ.data.name || "",
+      phone: detailQ.data.phone || "",
+      is_active: detailQ.data.is_active,
+      pay_type: detailQ.data.pay_type,
+    });
+  }, [detailQ.data]);
+
+  if (!canManage) {
+    return <div className="text-sm text-[var(--text-muted)]">권한이 없습니다.</div>;
+  }
+
+  if (detailQ.isLoading || !detailQ.data) {
+    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  return (
+    <div className="max-w-[520px] space-y-6">
+      <div className="space-y-3">
+        <Field label="이름">
+          <input
+            value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            className="form-input"
+          />
+        </Field>
+
+        <Field label="전화번호">
+          <input
+            value={form.phone}
+            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+            className="form-input"
+          />
+        </Field>
+
+        <Field label="급여 유형">
+          <select
+            value={form.pay_type}
+            onChange={(e) => setForm((p) => ({ ...p, pay_type: e.target.value as any }))}
+            className="form-input"
+          >
+            <option value="HOURLY">시급</option>
+            <option value="MONTHLY">월급</option>
+          </select>
+        </Field>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.is_active}
+            onChange={(e) => setForm((p) => ({ ...p, is_active: e.target.checked }))}
+          />
+          활성
+        </label>
+      </div>
+
+      <div className="flex items-center justify-between pt-4 border-t border-[var(--border-divider)]">
+        <button
+          onClick={() => patchM.mutate(form)}
+          className="btn-primary"
+          disabled={patchM.isPending}
+        >
+          저장
+        </button>
+
+        <button
+          onClick={() => {
+            if (!confirm("직원을 삭제할까요? 연결된 데이터도 함께 삭제됩니다.")) return;
+            deleteM.mutate();
+          }}
+          className="btn-danger"
+        >
+          직원 삭제
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffSummaryTab.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffSummaryTab.tsx
+import { useQuery } from "@tanstack/react-query";
+import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
+import { fetchWorkMonthLocks, isLockedFromLocks } from "../../api/workMonthLocks.api";
+import { LockBadge } from "../../components/StatusBadge";
+
+export default function StaffSummaryTab({ staffId }: { staffId: number }) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const last = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+
+  const summaryQ = useQuery({
+    queryKey: ["staff-summary", staffId, from, to],
+    queryFn: () => fetchStaffSummaryByRange(staffId, from, to),
+  });
+
+  const locksQ = useQuery({
+    queryKey: ["work-month-locks", staffId, y, m],
+    queryFn: () => fetchWorkMonthLocks({ staff: staffId, year: y, month: m }),
+  });
+
+  if (!summaryQ.data) {
+    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  const locked = isLockedFromLocks(locksQ.data);
+  const s = summaryQ.data;
+
+  return (
+    <div className="space-y-4">
+      <div
+        className={[
+          "rounded-xl border px-4 py-3 flex justify-between items-center",
+          locked
+            ? "border-[color-mix(in_srgb,var(--color-danger)_55%,transparent)] bg-[var(--color-danger-soft)]"
+            : "border-[var(--border-divider)] bg-[var(--bg-surface-soft)]",
+        ].join(" ")}
+      >
+        <div>
+          <div className="text-sm font-semibold">이번달 요약</div>
+          <div className="text-xs text-[var(--text-muted)]">
+            {from} ~ {to}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <LockBadge state={locked ? "LOCKED" : "OPEN"} />
+          <span
+            className={`text-sm font-semibold ${
+              locked
+                ? "text-[var(--color-danger)]"
+                : "text-[var(--color-success)]"
+            }`}
+          >
+            {locked ? "급여 확정" : "진행중"}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Item label="근무시간" value={`${s.work_hours} h`} />
+        <Item label="급여" value={s.work_amount.toLocaleString()} />
+        <Item label="비용" value={s.expense_amount.toLocaleString()} />
+        <Item label="실지급액" value={s.total_amount.toLocaleString()} primary />
+      </div>
+    </div>
+  );
+}
+
+function Item({
+  label,
+  value,
+  primary,
+}: {
+  label: string;
+  value: string;
+  primary?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div
+        className={`mt-1 text-lg font-semibold ${
+          primary ? "text-[var(--color-primary)]" : ""
+        }`}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffWorkRecordsTab.tsx
+==========================================================================================
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffWorkRecordsTab.tsx
+import { useMemo } from "react";
+import { useWorkRecords } from "../../hooks/useWorkRecords";
+import { fetchWorkMonthLocks, isLockedFromLocks } from "../../api/workMonthLocks.api";
+import { useQuery } from "@tanstack/react-query";
+import { LockBadge } from "../../components/StatusBadge";
+import ActionButton from "../../components/ActionButton";
+
+function getThisMonthRange() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const last = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+  return { y, m, from, to };
+}
+
+export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
+  const { y, m, from, to } = useMemo(getThisMonthRange, []);
+  const recordsQ = useWorkRecords({ staff: staffId, date_from: from, date_to: to });
+
+  const locksQ = useQuery({
+    queryKey: ["work-month-locks", staffId, y, m],
+    queryFn: () => fetchWorkMonthLocks({ staff: staffId, year: y, month: m }),
+  });
+
+  const locked = isLockedFromLocks(locksQ.data);
+  const rows = recordsQ.listQ.data ?? [];
+
+  return (
+    <div className="space-y-3 max-w-[720px]">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <div className="text-sm font-semibold">근무기록</div>
+          {locked && <LockBadge state="LOCKED" />}
+        </div>
+      </div>
+
+      {locked && (
+        <div className="text-xs text-[var(--color-danger)]">
+          * 마감된 월은 근무기록 변경이 불가능합니다.
+        </div>
+      )}
+
+      {rows.length === 0 && (
+        <div className="text-sm text-[var(--text-muted)]">기록 없음</div>
+      )}
+
+      <div className={locked ? "opacity-95" : ""}>
+        {rows.map((r) => (
+          <div
+            key={r.id}
+            className="flex justify-between rounded-lg border border-[var(--border-divider)] px-4 py-2 text-sm bg-[var(--bg-surface)]"
+          >
+            <div>
+              <div className="font-medium">
+                {r.date} · {r.work_type_name}
+              </div>
+              <div className="text-xs text-[var(--text-muted)]">
+                {r.start_time} ~ {r.end_time}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="font-semibold">
+                {r.amount.toLocaleString()}원
+              </div>
+
+              <ActionButton
+                variant="danger-outline"
+                size="xs"
+                disabledReason={locked ? "마감된 월입니다." : ""}
+                onClick={() => {
+                  if (locked) return;
+                  if (!confirm("이 근무 기록을 삭제할까요?")) return;
+                  recordsQ.deleteM.mutate(r.id);
+                }}
+              >
+                삭제
+              </ActionButton>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/StaffWorkTypeTab.tsx
+==========================================================================================
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffWorkTypeTab.tsx
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchStaffWorkTypes,
+  fetchWorkTypes,
+  createStaffWorkType,
+  patchStaffWorkType,
+  deleteStaffWorkType,
+} from "../../api/staffWorkType.api";
+
+export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
+  const qc = useQueryClient();
+
+  const staffTypesQ = useQuery({
+    queryKey: ["staff-work-types", staffId],
+    queryFn: () => fetchStaffWorkTypes(staffId),
+  });
+
+  const workTypesQ = useQuery({
+    queryKey: ["work-types"],
+    queryFn: () => fetchWorkTypes({ is_active: true }),
+  });
+
+  const createM = useMutation({
+    mutationFn: (payload: { work_type_id: number }) =>
+      createStaffWorkType(staffId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staff-work-types", staffId] });
+    },
+  });
+
+  const patchM = useMutation({
+    mutationFn: ({ id, hourly_wage }: { id: number; hourly_wage: number | null }) =>
+      patchStaffWorkType(id, { hourly_wage }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staff-work-types", staffId] });
+    },
+  });
+
+  const deleteM = useMutation({
+    mutationFn: deleteStaffWorkType,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staff-work-types", staffId] });
+    },
+  });
+
+  const staffTypes = staffTypesQ.data ?? [];
+  const workTypes = workTypesQ.data ?? [];
+
+  return (
+    <div className="space-y-4 max-w-[640px]">
+      <div className="text-sm font-semibold">시급 · 근무유형</div>
+
+      {staffTypes.length === 0 && (
+        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3 text-sm">
+          <div className="font-semibold">근무유형이 없습니다.</div>
+          <div className="text-xs text-[var(--text-muted)] mt-1">
+            * 근무기록을 입력하려면 최소 1개의 근무유형이 필요합니다.
+          </div>
+        </div>
+      )}
+
+      {staffTypes.map((st) => (
+        <div
+          key={st.id}
+          className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm"
+        >
+          <div>
+            <div className="font-medium">{st.work_type.name}</div>
+            <div className="text-xs text-[var(--text-muted)]">
+              {st.hourly_wage == null
+                ? "기본 시급 사용"
+                : `개별 시급: ${st.hourly_wage.toLocaleString()}원`}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              className="w-[120px] input"
+              defaultValue={st.hourly_wage ?? ""}
+              placeholder="시급"
+              onBlur={(e) => {
+                const v = e.target.value;
+                patchM.mutate({
+                  id: st.id,
+                  hourly_wage: v === "" ? null : Number(v),
+                });
+              }}
+            />
+
+            <button
+              onClick={() => {
+                if (!confirm("이 근무유형을 제거할까요?")) return;
+                deleteM.mutate(st.id);
+              }}
+              className="text-xs text-[var(--color-danger)]"
+            >
+              삭제
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <div className="pt-4 border-t">
+        <div className="text-xs text-[var(--text-muted)] mb-1">
+          근무유형 추가
+        </div>
+        <select
+          className="input"
+          onChange={(e) => {
+            const id = Number(e.target.value);
+            if (!id) return;
+            createM.mutate({ work_type_id: id });
+            e.target.value = "";
+          }}
+        >
+          <option value="">선택</option>
+          {workTypes
+            .filter(
+              (wt) => !staffTypes.some((st) => st.work_type.id === wt.id)
+            )
+            .map((wt) => (
+              <option key={wt.id} value={wt.id}>
+                {wt.name}
+              </option>
+            ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: overlays/StaffDetailOverlay/index.ts
+==========================================================================================
+﻿
+
+
+==========================================================================================
+# FILE: pages/index.ts
+==========================================================================================
+﻿
+
+
+==========================================================================================
+# FILE: pages/HomePage/HomeKpiSection.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/HomePage/HomeKpiSection.tsx
+import React from "react";
+import ActionButton from "../../components/ActionButton";
+import { useNavigate } from "react-router-dom";
+
+export const HomeKpiSection: React.FC<{ canManage: boolean }> = ({ canManage }) => {
+  const nav = useNavigate();
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4">
+        <div className="text-sm font-semibold">운영 규칙</div>
+        <div className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
+          • 합계/급여/시간/상태 판정: <b>백엔드 단일진실</b> <br />
+          • <b>월 마감 = 급여 확정</b> · 마감된 월은 변경 불가 <br />
+          • 승인/마감: <b>관리자(is_payroll_manager)</b>만 가능
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4">
+        <div className="text-sm font-semibold">빠른 작업</div>
+        <div className="text-xs text-[var(--text-muted)] mt-2">
+          근무/비용 입력 및 월 마감(급여 확정)은 작업 탭에서 처리합니다.
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <ActionButton
+            variant="primary"
+            size="sm"
+            onClick={() => nav("/admin/staff/operations")}
+          >
+            작업 탭 열기
+          </ActionButton>
+
+          <ActionButton
+            variant="outline"
+            size="sm"
+            onClick={() => nav("/admin/staff/reports")}
+          >
+            리포트 보기
+          </ActionButton>
+        </div>
+
+        {!canManage && (
+          <div className="mt-2 text-[11px] text-[var(--color-danger)]">
+            * 현재 계정은 승인/마감 권한이 없습니다.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+==========================================================================================
+# FILE: pages/HomePage/HomePage.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/HomePage/HomePage.tsx
+import { useNavigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { StaffHomeTable } from "./StaffHomeTable";
+import { useStaffs } from "../../hooks/useStaffs";
+import StaffCreateModal from "./StaffCreateModal";
+import WorkTypeCreateModal from "./WorkTypeCreateModal";
+import { useQuery } from "@tanstack/react-query";
+import { fetchStaffMe } from "../../api/staffMe.api";
+import { Input } from "antd";
+
+export default function HomePage() {
+  const navigate = useNavigate();
+  const { data: staffs, isLoading } = useStaffs();
+  const [openCreate, setOpenCreate] = useState(false);
+  const [openWorkType, setOpenWorkType] = useState(false);
+  const [q, setQ] = useState("");
+
+  const meQ = useQuery({
+    queryKey: ["staff-me"],
+    queryFn: fetchStaffMe,
+  });
+
+  const canManage = !!meQ.data?.is_payroll_manager;
+
+  const rows = useMemo(() => {
+    const list = Array.isArray(staffs) ? staffs : [];
+    const needle = q.trim().toLowerCase();
+    if (!needle) return list;
+
+    return list.filter((s) => {
+      return (
+        (s.name ?? "").toLowerCase().includes(needle) ||
+        (s.phone ?? "").toLowerCase().includes(needle)
+      );
+    });
+  }, [staffs, q]);
+
+  if (isLoading) {
+    return <div className="text-sm text-gray-500">Loading...</div>;
+  }
+
+  return (
+    <div className="space-y-4 p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="text-lg font-semibold">직원 관리</div>
+          <div className="text-xs text-[var(--text-muted)]">
+            * 급여/시간/합계는 백엔드 기준 · 마감된 월은 변경 불가
+          </div>
+        </div>
+
+        {canManage && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setOpenWorkType(true)}
+              className="btn-outline"
+            >
+              + 근무유형 생성
+            </button>
+            <button
+              onClick={() => setOpenCreate(true)}
+              className="btn-primary"
+            >
+              + 직원 등록
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="max-w-[420px]">
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          allowClear
+          placeholder="이름/전화번호 검색"
+        />
+      </div>
+
+      <StaffHomeTable
+        staffs={rows}
+        canManage={canManage}
+        onOperate={(id) => navigate(`/admin/staff/operations?staffId=${id}`)}
+        onDetail={(id) => navigate(`/admin/staff/${id}`)}
+      />
+
+      <StaffCreateModal open={openCreate} onClose={() => setOpenCreate(false)} />
+      <WorkTypeCreateModal
+        open={openWorkType}
+        onClose={() => setOpenWorkType(false)}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/HomePage/StaffCreateModal.tsx
+==========================================================================================
+// PATH: src/features/staff/pages/HomePage/StaffCreateModal.tsx
+
+import { Modal } from "antd";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+};
+
+type Role = "ASSISTANT" | "TEACHER";
+
+export default function StaffCreateModal({ open, onClose }: Props) {
+  const qc = useQueryClient();
+
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+    name: "",
+    phone: "",
+    role: "ASSISTANT" as Role,
+  });
+
+  const createM = useMutation({
+    mutationFn: async () => {
+      const res = await api.post("/staffs/", {
+        username: form.username,
+        password: form.password,
+        role: form.role,
+        name: form.name,
+        phone: form.phone,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staffs"] });
+      alert("직원이 생성되었습니다.");
+      onClose();
+      setForm({
+        username: "",
+        password: "",
+        name: "",
+        phone: "",
+        role: "ASSISTANT",
+      });
+    },
+    onError: (e: any) => {
+      const msg =
+        e?.response?.data?.detail ||
+        e?.response?.data?.message ||
+        "직원 생성에 실패했습니다.";
+      alert(msg);
+    },
+  });
+
+  return (
+    <Modal
+      title="직원 등록"
+      open={open}
+      onCancel={onClose}
+      onOk={() => {
+        if (!form.username || !form.password || !form.name || !form.role) {
+          alert("필수 항목을 모두 입력하세요.");
+          return;
+        }
+        createM.mutate();
+      }}
+      okText="등록"
+      cancelText="취소"
+      confirmLoading={createM.isPending}
+    >
+      <div className="space-y-3">
+        <Field label="로그인 아이디 *">
+          <input
+            className="input"
+            value={form.username}
+            onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
+            placeholder="로그인에 사용됩니다"
+          />
+        </Field>
+
+        <Field label="비밀번호 *">
+          <input
+            type="password"
+            className="input"
+            value={form.password}
+            onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+          />
+        </Field>
+
+        <Field label="이름 *">
+          <input
+            className="input"
+            value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+          />
+        </Field>
+
+        <Field label="전화번호">
+          <input
+            className="input"
+            value={form.phone}
+            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+          />
+        </Field>
+
+        <Field label="역할 *">
+          <select
+            className="input"
+            value={form.role}
+            onChange={(e) =>
+              setForm((p) => ({
+                ...p,
+                role: e.target.value as Role,
+              }))
+            }
+          >
+            <option value="ASSISTANT">조교 (시급)</option>
+            <option value="TEACHER">강사 (월급 · 관리자)</option>
+          </select>
+        </Field>
+
+        {form.role === "TEACHER" && (
+          <div className="text-xs text-gray-500">
+            * 강사는 자동으로 관리자 권한이 부여되며 월급제로 설정됩니다.
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/HomePage/StaffHomeTable.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/HomePage/StaffHomeTable.tsx
+import { Table, Button, Select } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { Staff } from "../../api/staff.api";
+import { RoleBadge } from "../../components/StatusBadge";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { patchStaffDetail } from "../../api/staff.detail.api";
+
+interface Props {
+  staffs: Staff[] | undefined;
+  onOperate: (staffId: number) => void;
+  onDetail: (staffId: number) => void;
+  canManage: boolean;
+}
+
+export function StaffHomeTable({ staffs, onOperate, onDetail, canManage }: Props) {
+  const dataSource: Staff[] = Array.isArray(staffs) ? staffs : [];
+  const qc = useQueryClient();
+
+  const patchPayTypeM = useMutation({
+    mutationFn: ({ staffId, pay_type }: { staffId: number; pay_type: "HOURLY" | "MONTHLY" }) =>
+      patchStaffDetail(staffId, { pay_type }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: ["staff"] });
+    },
+    onError: (e: any) => {
+      const msg =
+        e?.response?.data?.detail ||
+        e?.response?.data?.message ||
+        "급여 유형 변경에 실패했습니다.";
+      alert(msg);
+    },
+  });
+
+  const columns: ColumnsType<Staff> = [
+    {
+      title: "이름",
+      dataIndex: "name",
+      render: (_, r) => (
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">{r.name}</span>
+          {!r.is_active && (
+            <span className="px-2 py-0.5 rounded-full text-xs border text-[var(--text-muted)] bg-[var(--bg-surface-muted)]">
+              비활성
+            </span>
+          )}
+        </div>
+      ),
+    },
+    { title: "전화번호", dataIndex: "phone", render: (v) => v || "-" },
+    {
+      title: "역할",
+      dataIndex: "is_manager",
+      render: (v) => <RoleBadge isManager={!!v} />,
+    },
+    {
+      title: "급여 유형",
+      dataIndex: "pay_type",
+      render: (v: Staff["pay_type"], record) => {
+        if (!canManage) return v === "HOURLY" ? "시급" : "월급";
+
+        return (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <Select
+              size="small"
+              value={v}
+              style={{ width: 110 }}
+              disabled={patchPayTypeM.isPending}
+              options={[
+                { value: "HOURLY", label: "시급" },
+                { value: "MONTHLY", label: "월급" },
+              ]}
+              onChange={(next) => {
+                if (next === record.pay_type) return;
+                patchPayTypeM.mutate({ staffId: record.id, pay_type: next });
+              }}
+            />
+          </div>
+        );
+      },
+    },
+    {
+      title: "관리",
+      render: (_, record) => (
+        <div className="flex gap-2">
+          <Button
+            type="link"
+            disabled={!canManage}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOperate(record.id);
+            }}
+          >
+            작업
+          </Button>
+          <Button
+            type="link"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDetail(record.id);
+            }}
+          >
+            상세
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <Table
+      rowKey="id"
+      dataSource={dataSource}
+      columns={columns}
+      pagination={false}
+      onRow={(r) => ({
+        onClick: () => onDetail(r.id), // ✅ row 클릭 → 상세 오버레이
+      })}
+    />
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/HomePage/WorkTypeCreateModal.tsx
+==========================================================================================
+// PATH: src/features/staff/pages/HomePage/WorkTypeCreateModal.tsx
+import { Modal } from "antd";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+export default function WorkTypeCreateModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+
+  const [form, setForm] = useState({
+    name: "",
+    base_hourly_wage: 0,
+    color: "#22c55e",
+    description: "",
+  });
+
+  const createM = useMutation({
+    mutationFn: async () => {
+      const res = await api.post("/staffs/work-types/", {
+        name: form.name,
+        base_hourly_wage: Number(form.base_hourly_wage),
+        color: form.color,
+        description: form.description,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["work-types"] });
+      alert("근무유형이 생성되었습니다.");
+      onClose();
+      setForm({
+        name: "",
+        base_hourly_wage: 0,
+        color: "#22c55e",
+        description: "",
+      });
+    },
+    onError: (e: any) => {
+      alert(
+        e?.response?.data?.detail ||
+          e?.response?.data?.message ||
+          "근무유형 생성 실패"
+      );
+    },
+  });
+
+  return (
+    <Modal
+      title="근무유형 생성"
+      open={open}
+      onCancel={onClose}
+      okText="생성"
+      cancelText="취소"
+      confirmLoading={createM.isPending}
+      onOk={() => {
+        if (!form.name.trim()) {
+          alert("근무유형 이름은 필수입니다.");
+          return;
+        }
+        if (form.base_hourly_wage <= 0) {
+          alert("기본 시급은 0보다 커야 합니다.");
+          return;
+        }
+        createM.mutate();
+      }}
+    >
+      <div className="space-y-3">
+        <Field label="근무유형명 *">
+          <input
+            className="input"
+            value={form.name}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, name: e.target.value }))
+            }
+            placeholder="예: 강의, 상담, 보조업무"
+          />
+        </Field>
+
+        <Field label="기본 시급(원) *">
+          <input
+            type="number"
+            className="input"
+            min={0}
+            value={form.base_hourly_wage}
+            onChange={(e) =>
+              setForm((p) => ({
+                ...p,
+                base_hourly_wage: Number(e.target.value),
+              }))
+            }
+          />
+        </Field>
+
+        <Field label="색상">
+          <input
+            type="color"
+            value={form.color}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, color: e.target.value }))
+            }
+          />
+        </Field>
+
+        <Field label="설명">
+          <textarea
+            className="input"
+            rows={2}
+            value={form.description}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, description: e.target.value }))
+            }
+          />
+        </Field>
+
+        <div className="text-xs text-[var(--text-muted)]">
+          * 생성 즉시 직원 근무유형/근무기록에서 사용 가능합니다.
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="text-xs font-medium text-[var(--text-muted)]">
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/OperationsPage/CreateExpenseModal.tsx
+==========================================================================================
+// PATH: src/features/staff/pages/OperationsPage/CreateExpenseModal.tsx
+import { Modal } from "antd";
+import { useEffect, useState } from "react";
+import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useExpenses } from "../../hooks/useExpenses";
+
+export default function CreateExpenseModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { staffId, range, locked } = useWorkMonth();
+
+  const { createM } = useExpenses({
+    staff: staffId,
+    date_from: range.from,
+    date_to: range.to,
+  });
+
+  const [form, setForm] = useState({
+    date: range.from,
+    title: "",
+    amount: 0,
+    memo: "",
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm((p) => ({ ...p, date: range.from }));
+  }, [open, range.from]);
+
+  // 🔒 마감 월이면 모달 자체를 안 띄움 (UX: “추가 버튼 비활성 + 사유”로 이미 안내됨)
+  if (locked) return null;
+
+  return (
+    <Modal
+      title="비용 추가"
+      open={open}
+      onCancel={onClose}
+      onOk={() => {
+        if (!form.title.trim() || !form.amount || form.amount <= 0) {
+          alert("항목과 금액(0보다 큼)을 입력하세요.");
+          return;
+        }
+
+        createM.mutate(
+          {
+            staff: staffId,
+            date: form.date,
+            title: form.title.trim(),
+            amount: Number(form.amount),
+            memo: form.memo ?? "",
+          },
+          {
+            onSuccess: () => {
+              onClose();
+              setForm({
+                date: range.from,
+                title: "",
+                amount: 0,
+                memo: "",
+              });
+            },
+            onError: (e: any) => {
+              const msg =
+                e?.response?.data?.detail ||
+                e?.response?.data?.message ||
+                "비용 추가에 실패했습니다.";
+              alert(msg);
+            },
+          }
+        );
+      }}
+      okText="추가"
+      cancelText="취소"
+      confirmLoading={createM.isPending}
+    >
+      <div className="space-y-3">
+        <Field label="날짜">
+          <input
+            type="date"
+            className="input"
+            value={form.date}
+            onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+          />
+        </Field>
+
+        <Field label="항목 *">
+          <input
+            className="input"
+            value={form.title}
+            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+            placeholder="예: 교재비, 교통비"
+          />
+        </Field>
+
+        <Field label="금액(원) *">
+          <input
+            type="number"
+            className="input"
+            value={form.amount}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, amount: Number(e.target.value) }))
+            }
+            min={0}
+          />
+        </Field>
+
+        <Field label="메모">
+          <textarea
+            className="input"
+            value={form.memo}
+            onChange={(e) => setForm((p) => ({ ...p, memo: e.target.value }))}
+            placeholder="선택"
+            rows={3}
+          />
+        </Field>
+
+        <div className="text-xs text-[var(--text-muted)]">
+          * 금액/상태/승인은 서버 기준입니다.
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/OperationsPage/CreateWorkRecordModal.tsx
+==========================================================================================
+// PATH: src/features/staff/pages/OperationsPage/CreateWorkRecordModal.tsx
+import { Modal } from "antd";
+import { useEffect, useState } from "react";
+import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useWorkRecords } from "../../hooks/useWorkRecords";
+import { useQuery } from "@tanstack/react-query";
+import { fetchStaffWorkTypes } from "../../api/staffWorkType.api";
+import ActionButton from "../../components/ActionButton";
+
+export default function CreateWorkRecordModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { staffId, range, locked } = useWorkMonth();
+
+  const { createM } = useWorkRecords({
+    staff: staffId,
+    date_from: range.from,
+    date_to: range.to,
+  });
+
+  const workTypesQ = useQuery({
+    queryKey: ["staff-work-types", staffId],
+    queryFn: () => fetchStaffWorkTypes(staffId),
+    enabled: open,
+  });
+
+  const staffWorkTypes = workTypesQ.data ?? [];
+  const hasWorkTypes = staffWorkTypes.length > 0;
+
+  const [form, setForm] = useState({
+    date: range.from,
+    work_type: undefined as number | undefined,
+    start_time: "",
+    end_time: "",
+    break_minutes: 0,
+    memo: "",
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setForm((p) => ({ ...p, date: range.from, work_type: undefined }));
+  }, [open, range.from]);
+
+  if (locked) return null;
+
+  return (
+    <Modal
+      title="근무 기록 추가"
+      open={open}
+      onCancel={onClose}
+      okText="추가"
+      cancelText="취소"
+      confirmLoading={createM.isPending}
+      onOk={() => {
+        if (!hasWorkTypes) {
+          alert("먼저 직원에게 근무유형을 등록하세요.");
+          return;
+        }
+        if (!form.work_type) {
+          alert("근무유형을 선택하세요.");
+          return;
+        }
+        if (!form.start_time || !form.end_time) {
+          alert("시작/종료 시간을 입력하세요.");
+          return;
+        }
+
+        createM.mutate(
+          {
+            staff: staffId,
+            work_type: form.work_type,
+            date: form.date,
+            start_time: form.start_time,
+            end_time: form.end_time,
+            break_minutes: form.break_minutes,
+            memo: form.memo,
+          },
+          {
+            onSuccess: () => {
+              onClose();
+              setForm({
+                date: range.from,
+                work_type: undefined,
+                start_time: "",
+                end_time: "",
+                break_minutes: 0,
+                memo: "",
+              });
+            },
+          }
+        );
+      }}
+    >
+      <div className="space-y-3">
+        <Field label="날짜">
+          <input
+            type="date"
+            className="input"
+            value={form.date}
+            onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
+          />
+        </Field>
+
+        <Field label="근무유형 *">
+          <select
+            className="input"
+            disabled={!hasWorkTypes}
+            value={form.work_type ?? ""}
+            onChange={(e) =>
+              setForm((p) => ({
+                ...p,
+                work_type: e.target.value ? Number(e.target.value) : undefined,
+              }))
+            }
+          >
+            <option value="">
+              {hasWorkTypes ? "선택" : "등록된 근무유형 없음"}
+            </option>
+            {staffWorkTypes.map((st) => (
+              <option key={st.id} value={st.work_type.id}>
+                {st.work_type.name}
+              </option>
+            ))}
+          </select>
+
+          {!hasWorkTypes && (
+            <div className="text-xs text-[var(--color-danger)] mt-1">
+              * 근무기록을 추가하려면 먼저 <b>시급·근무유형</b> 탭에서 근무유형을
+              등록하세요.
+            </div>
+          )}
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="시작 시간 *">
+            <input
+              type="time"
+              className="input"
+              value={form.start_time}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, start_time: e.target.value }))
+              }
+            />
+          </Field>
+
+          <Field label="종료 시간 *">
+            <input
+              type="time"
+              className="input"
+              value={form.end_time}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, end_time: e.target.value }))
+              }
+            />
+          </Field>
+        </div>
+
+        <Field label="휴게시간(분)">
+          <input
+            type="number"
+            className="input"
+            min={0}
+            value={form.break_minutes}
+            onChange={(e) =>
+              setForm((p) => ({
+                ...p,
+                break_minutes: Number(e.target.value),
+              }))
+            }
+          />
+        </Field>
+
+        <Field label="메모">
+          <textarea
+            className="input"
+            rows={3}
+            value={form.memo}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, memo: e.target.value }))
+            }
+          />
+        </Field>
+
+        <div className="text-xs text-[var(--text-muted)]">
+          * 근무시간·금액은 서버에서 자동 계산됩니다.
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/OperationsPage/ExpensesPanel.tsx
+==========================================================================================
+// PATH: src/features/staff/pages/OperationsPage/ExpensesPanel.tsx
+import { useMemo, useState } from "react";
+import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useExpenses } from "../../hooks/useExpenses";
+import CreateExpenseModal from "./CreateExpenseModal";
+import ActionButton from "../../components/ActionButton";
+import { ExpenseStatusBadge, LockBadge } from "../../components/StatusBadge";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function fmtDateTime(v?: string | null) {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString();
+}
+
+export default function ExpensesPanel() {
+  const { staffId, range, locked, canManage } = useWorkMonth();
+
+  const { listQ, patchM } = useExpenses({
+    staff: staffId,
+    date_from: range.from,
+    date_to: range.to,
+  });
+
+  const [open, setOpen] = useState(false);
+
+  const rows = useMemo(() => listQ.data ?? [], [listQ.data]);
+
+  if (listQ.isLoading) {
+    return (
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4">
+        <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cx(
+        "rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)]",
+        "overflow-hidden"
+      )}
+    >
+      <div
+        className={cx(
+          "px-5 py-4 border-b border-[var(--border-divider)]",
+          locked ? "bg-[var(--color-danger-soft)]" : "bg-[var(--bg-surface-soft)]"
+        )}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-semibold">비용</div>
+              {locked && <LockBadge state="LOCKED" />}
+              <span className="text-xs text-[var(--text-muted)]">
+                ({range.from} ~ {range.to})
+              </span>
+            </div>
+            <div className="text-[11px] text-[var(--text-muted)]">
+              * 상태/승인/반려는 서버 기준이며, 프론트는 표시/액션만 수행합니다.
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            <ActionButton
+              variant="primary"
+              size="xs"
+              disabledReason={locked ? "마감된 월입니다." : ""}
+              onClick={() => setOpen(true)}
+            >
+              + 추가
+            </ActionButton>
+          </div>
+        </div>
+
+        {locked && (
+          <div className="mt-2 text-xs text-[var(--color-danger)]">
+            마감된 월입니다 · 생성/수정/승인/반려 불가
+          </div>
+        )}
+      </div>
+
+      <div className={cx("p-5", locked && "opacity-95")}>
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-5">
+            <div className="text-sm font-semibold">비용 없음</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">
+              비용을 추가하면 이곳에 리스트가 표시됩니다.
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((r) => {
+              const isPending = r.status === "PENDING";
+              const actionDisabled = locked || patchM.isPending;
+
+              return (
+                <div
+                  key={r.id}
+                  className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-2">
+                      <div className="font-semibold">
+                        {r.date} · {r.title}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ExpenseStatusBadge status={r.status} />
+                        {r.status !== "PENDING" && (
+                          <div className="text-xs text-[var(--text-muted)]">
+                            승인자: {r.approved_by_name ?? "-"} · {fmtDateTime(r.approved_at)}
+                          </div>
+                        )}
+                      </div>
+
+                      {!!r.memo && (
+                        <div className="text-xs text-[var(--text-muted)]">
+                          메모: {r.memo}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <div className="text-xs text-[var(--text-muted)]">금액</div>
+                      <div className="font-semibold">{r.amount.toLocaleString()}원</div>
+                    </div>
+                  </div>
+
+                  {/* 관리자 액션: PENDING만 승인/반려, 메모 수정 */}
+                  {canManage && (
+                    <div className="mt-3 pt-3 border-t border-[var(--border-divider)] flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <ActionButton
+                            variant="success"
+                            size="xs"
+                            disabledReason={
+                              actionDisabled
+                                ? locked
+                                  ? "마감된 월입니다."
+                                  : "처리 중입니다."
+                                : !isPending
+                                ? "대기 상태에서만 가능합니다."
+                                : ""
+                            }
+                            onClick={() => {
+                              if (actionDisabled || !isPending) return;
+                              if (!confirm("이 비용을 승인할까요?")) return;
+                              patchM.mutate({ id: r.id, payload: { status: "APPROVED" } });
+                            }}
+                          >
+                            승인
+                          </ActionButton>
+
+                          <ActionButton
+                            variant="danger-outline"
+                            size="xs"
+                            disabledReason={
+                              actionDisabled
+                                ? locked
+                                  ? "마감된 월입니다."
+                                  : "처리 중입니다."
+                                : !isPending
+                                ? "대기 상태에서만 가능합니다."
+                                : ""
+                            }
+                            onClick={() => {
+                              if (actionDisabled || !isPending) return;
+                              if (!confirm("이 비용을 반려할까요?")) return;
+                              patchM.mutate({ id: r.id, payload: { status: "REJECTED" } });
+                            }}
+                          >
+                            반려
+                          </ActionButton>
+                        </div>
+
+                        <div className="text-[11px] text-[var(--text-muted)]">
+                          * 승인 후 수정 불가(서버 규칙)
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="text-xs text-[var(--text-muted)] shrink-0 w-[52px]">
+                          메모
+                        </div>
+                        <input
+                          className="h-[34px] rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 text-sm w-full"
+                          placeholder="메모 수정 (승인 후에는 backend가 거절)"
+                          defaultValue={r.memo}
+                          disabled={actionDisabled}
+                          onBlur={(e) => {
+                            const next = e.target.value ?? "";
+                            if (next === (r.memo ?? "")) return;
+                            if (actionDisabled) return;
+
+                            patchM.mutate(
+                              { id: r.id, payload: { memo: next } },
+                              {
+                                onError: (err: any) => {
+                                  const msg =
+                                    err?.response?.data?.detail ||
+                                    err?.response?.data?.message ||
+                                    "메모 수정에 실패했습니다.";
+                                  alert(msg);
+                                },
+                              }
+                            );
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!locked && <CreateExpenseModal open={open} onClose={() => setOpen(false)} />}
+      </div>
+
+      <div className="px-5 pb-4">
+        <div className="text-[11px] text-[var(--text-muted)]">
+          * 승인/반려/잠금 규칙은 서버 단일진실입니다. 프론트는 UX로만 안내/차단합니다.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/OperationsPage/MonthLockPanel.tsx
+==========================================================================================
+// PATH: src/features/staff/pages/OperationsPage/MonthLockPanel.tsx
+import ActionButton from "../../components/ActionButton";
+import { LockBadge } from "../../components/StatusBadge";
+import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+export default function MonthLockPanel() {
+  const { year, month, locked, canManage, lockM } = useWorkMonth();
+
+  const disabledReason = locked
+    ? "이미 마감된 월입니다."
+    : !canManage
+    ? "마감은 관리자만 가능합니다."
+    : "";
+
+  return (
+    <div
+      className={cx(
+        "rounded-2xl border px-5 py-4 space-y-2",
+        locked
+          ? "border-[color-mix(in_srgb,var(--color-danger)_55%,transparent)] bg-[var(--color-danger-soft)]"
+          : "border-[color-mix(in_srgb,var(--color-success)_55%,transparent)] bg-[var(--color-success-soft)]"
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-semibold">
+              {year}년 {month}월
+            </div>
+            <LockBadge state={locked ? "LOCKED" : "OPEN"} />
+          </div>
+
+          <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+            * <b>월 마감 = 급여 확정</b> · 마감 후 근무/비용 <b>생성·수정·삭제</b> 불가
+            <br />
+            * 급여 스냅샷(PayrollSnapshot)이 생성되며 이후 변경되지 않습니다.
+          </div>
+        </div>
+
+        <div className="shrink-0 flex items-center gap-2">
+          <ActionButton
+            variant="danger"
+            size="sm"
+            disabledReason={disabledReason || (lockM.isPending ? "처리 중입니다." : "")}
+            title={
+              disabledReason ||
+              "이번 달 근무/비용을 확정합니다. 이후 수정·삭제 불가하며 급여 스냅샷이 생성됩니다."
+            }
+            onClick={() => {
+              if (disabledReason || lockM.isPending) return;
+
+              if (
+                !confirm(
+                  [
+                    `${year}년 ${month}월을 마감할까요?`,
+                    "",
+                    "- 마감 후에는 근무/비용 수정·삭제가 불가능합니다.",
+                    "- 급여 스냅샷이 생성됩니다.",
+                  ].join("\n")
+                )
+              )
+                return;
+
+              lockM.mutate();
+            }}
+          >
+            월 마감
+          </ActionButton>
+        </div>
+      </div>
+
+      {locked && (
+        <div className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_45%,transparent)] bg-[color-mix(in_srgb,var(--color-danger-soft)_70%,white)] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--color-danger)]">
+            마감 완료: 이 달은 확정 데이터입니다.
+          </div>
+          <div className="text-xs text-[var(--text-muted)] mt-1">
+            마감된 월은 변경이 불가능합니다. (서버에서 400으로 보장)
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/OperationsPage/OperationsPage.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/OperationsPage/OperationsPage.tsx
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
+
+import StaffOperationTable from "./StaffOperationTable";
+import MonthLockPanel from "./MonthLockPanel";
+import WorkRecordsPanel from "./WorkRecordsPanel";
+import ExpensesPanel from "./ExpensesPanel";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function getThisMonth() {
+  const d = new Date();
+  return {
+    year: d.getFullYear(),
+    month: d.getMonth() + 1,
+  };
+}
+
+function ymLabel(y: number, m: number) {
+  return `${y}년 ${m}월`;
+}
+
+export default function OperationsPage() {
+  const [params] = useSearchParams();
+  const staffId = Number(params.get("staffId"));
+
+  const { year, month } = useMemo(getThisMonth, []);
+  const monthText = useMemo(() => ymLabel(year, month), [year, month]);
+
+  // ✅ UX: “직원 선택 전” 상태에서도 화면이 비지 않도록 콘솔 프레임 유지
+  return (
+    <div className="p-6">
+      <div className="flex items-end justify-between gap-3 mb-4">
+        <div className="space-y-1">
+          <div className="text-lg font-semibold">작업</div>
+          <div className="text-xs text-[var(--text-muted)]">
+            {monthText} · 근무/비용 입력 및 월 마감(급여 확정) 처리
+          </div>
+        </div>
+
+        <div className="text-xs text-[var(--text-muted)]">
+          * 합계/급여/시간/상태 판정은 <b>백엔드 단일진실</b>입니다.
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[320px_1fr] gap-6">
+        {/* LEFT: Staff list (Sidebar) */}
+        <div
+          className={cx(
+            "rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)]",
+            "overflow-hidden"
+          )}
+        >
+          <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+            <div className="text-sm font-semibold">직원 선택</div>
+            <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+              좌측에서 직원을 선택하면 우측 작업 콘솔이 활성화됩니다.
+            </div>
+          </div>
+
+          <div className="p-3">
+            <StaffOperationTable selectedStaffId={staffId} />
+          </div>
+
+          <div className="px-4 pb-4 pt-2">
+            <div className="text-[11px] text-[var(--text-muted)]">
+              * 직원 선택은 “선택” UI이며, 계산/추론이 아닙니다.
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: Operations Console */}
+        <div
+          className={cx(
+            "rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)]",
+            "min-h-[520px]"
+          )}
+        >
+          <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold">작업 콘솔</div>
+                <div className="text-xs text-[var(--text-muted)]">
+                  {staffId ? (
+                    <>
+                      선택된 직원 기준으로 <b>{monthText}</b> 작업을 수행합니다.
+                    </>
+                  ) : (
+                    <>
+                      먼저 좌측에서 <b>직원</b>을 선택하세요.
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {staffId ? (
+                <div className="text-xs text-[var(--text-muted)]">
+                  직원 ID: <span className="font-semibold">{staffId}</span>
+                </div>
+              ) : (
+                <div className="text-xs text-[var(--text-muted)]">
+                  상태: <span className="font-semibold">대기</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {!staffId ? (
+            <div className="p-10">
+              <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-6">
+                <div className="flex items-start gap-4">
+                  <div className="shrink-0 h-10 w-10 rounded-xl bg-[var(--color-primary-soft)] border border-[color-mix(in_srgb,var(--color-primary)_35%,transparent)] flex items-center justify-center">
+                    <span className="text-[var(--color-primary)] font-bold">!</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold">
+                      직원이 선택되지 않았습니다.
+                    </div>
+                    <div className="text-sm text-[var(--text-muted)] leading-relaxed">
+                      좌측 <b>직원 선택</b>에서 직원을 클릭하면,
+                      <br />
+                      이 영역에 <b>월 마감</b>, <b>근무 기록</b>, <b>비용</b> 작업
+                      패널이 활성화됩니다.
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      * 마감된 월은 생성/수정/삭제가 불가능합니다. (서버 규칙)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <WorkMonthProvider staffId={staffId} year={year} month={month}>
+              <div className="p-5 space-y-4">
+                <MonthLockPanel />
+                <WorkRecordsPanel />
+                <ExpensesPanel />
+              </div>
+            </WorkMonthProvider>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/OperationsPage/StaffOperationTable.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/OperationsPage/StaffOperationTable.tsx
+import { useMemo, useState } from "react";
+import { useStaffs } from "../../hooks/useStaffs";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Staff } from "../../api/staff.api";
+import { Input } from "antd";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function payLabel(v: Staff["pay_type"]) {
+  return v === "HOURLY" ? "시급" : "월급";
+}
+
+export default function StaffOperationTable({
+  selectedStaffId,
+}: {
+  selectedStaffId?: number;
+}) {
+  const { data, isLoading } = useStaffs();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [q, setQ] = useState("");
+
+  /**
+   * 🔒 안정성 보장
+   * - dataSource 는 반드시 배열이어야 함
+   */
+  const staffs: Staff[] = Array.isArray(data)
+    ? data
+    : Array.isArray((data as any)?.results)
+    ? (data as any).results
+    : [];
+
+  // ✅ UX: 검색은 “필터링(선택)”이며 계산/추론이 아님
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return staffs;
+
+    return staffs.filter((s) => {
+      const name = (s.name ?? "").toLowerCase();
+      const phone = (s.phone ?? "").toLowerCase();
+      return name.includes(needle) || phone.includes(needle);
+    });
+  }, [staffs, q]);
+
+  const active = filtered.filter((s) => s.is_active);
+  const inactive = filtered.filter((s) => !s.is_active);
+
+  const pick = (id: number) => {
+    params.set("staffId", String(id));
+    navigate(`/admin/staff/operations?${params.toString()}`);
+  };
+
+  return (
+    <div className="space-y-3">
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="이름/전화번호 검색"
+        allowClear
+        size="middle"
+      />
+
+      {isLoading && (
+        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-muted)]">
+          불러오는 중...
+        </div>
+      )}
+
+      {!isLoading && staffs.length === 0 && (
+        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3">
+          <div className="text-sm font-semibold">직원 없음</div>
+          <div className="text-xs text-[var(--text-muted)] mt-1">
+            직원이 등록되어야 작업 콘솔을 사용할 수 있습니다.
+          </div>
+        </div>
+      )}
+
+      {!isLoading && staffs.length > 0 && filtered.length === 0 && (
+        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3">
+          <div className="text-sm font-semibold">검색 결과 없음</div>
+          <div className="text-xs text-[var(--text-muted)] mt-1">
+            이름 또는 전화번호로 다시 검색해보세요.
+          </div>
+        </div>
+      )}
+
+      {!isLoading && filtered.length > 0 && (
+        <div className="space-y-4">
+          <Section
+            title={`활성 (${active.length})`}
+            hint="현재 근무/비용 입력 대상"
+            emptyText="활성 직원이 없습니다."
+          >
+            {active.map((s) => (
+              <Row
+                key={s.id}
+                staff={s}
+                selected={s.id === selectedStaffId}
+                onClick={() => pick(s.id)}
+              />
+            ))}
+          </Section>
+
+          <Section
+            title={`비활성 (${inactive.length})`}
+            hint="선택은 가능하지만 운영 정책에 맞게 사용"
+            emptyText="비활성 직원이 없습니다."
+          >
+            {inactive.map((s) => (
+              <Row
+                key={s.id}
+                staff={s}
+                selected={s.id === selectedStaffId}
+                onClick={() => pick(s.id)}
+              />
+            ))}
+          </Section>
+        </div>
+      )}
+
+      <div className="text-[11px] text-[var(--text-muted)]">
+        * 선택된 직원은 우측 작업 콘솔에 즉시 반영됩니다.
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  hint,
+  emptyText,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  emptyText: string;
+  children: React.ReactNode;
+}) {
+  const hasItems = !!children && Array.isArray(children) ? children.length > 0 : true;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-end justify-between gap-2">
+        <div className="text-xs font-semibold text-[var(--text-primary)]">{title}</div>
+        {!!hint && <div className="text-[11px] text-[var(--text-muted)]">{hint}</div>}
+      </div>
+
+      {!hasItems ? (
+        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-muted)]">
+          {emptyText}
+        </div>
+      ) : (
+        <div className="space-y-2">{children}</div>
+      )}
+    </div>
+  );
+}
+
+function Row({
+  staff,
+  selected,
+  onClick,
+}: {
+  staff: Staff;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        "w-full text-left rounded-xl border px-4 py-3 transition",
+        "focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]",
+        selected
+          ? "border-[color-mix(in_srgb,var(--color-primary)_45%,transparent)] bg-[var(--color-primary-soft)]"
+          : "border-[var(--border-divider)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)]"
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <div className="font-semibold truncate">{staff.name}</div>
+            {!staff.is_active && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[var(--border-divider)] text-[var(--text-muted)] bg-[var(--bg-surface-muted)]">
+                비활성
+              </span>
+            )}
+            {staff.is_manager && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[color-mix(in_srgb,var(--color-primary)_35%,transparent)] text-[var(--color-primary)] bg-[var(--color-primary-soft)]">
+                관리자
+              </span>
+            )}
+          </div>
+
+          <div className="text-xs text-[var(--text-muted)] mt-1 truncate">
+            {staff.phone || "-"}
+          </div>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <div className="text-xs text-[var(--text-muted)]">급여</div>
+          <div className="text-sm font-semibold">{payLabel(staff.pay_type)}</div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/OperationsPage/WorkRecordsPanel.tsx
+==========================================================================================
+// PATH: src/features/staff/pages/OperationsPage/WorkRecordsPanel.tsx
+import { useState } from "react";
+import ActionButton from "../../components/ActionButton";
+import { LockBadge } from "../../components/StatusBadge";
+import { useWorkMonth } from "../../operations/context/WorkMonthContext";
+import { useWorkRecords } from "../../hooks/useWorkRecords";
+import CreateWorkRecordModal from "./CreateWorkRecordModal";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+export default function WorkRecordsPanel() {
+  const { staffId, range, locked } = useWorkMonth();
+  const { listQ, deleteM } = useWorkRecords({
+    staff: staffId,
+    date_from: range.from,
+    date_to: range.to,
+  });
+
+  const [open, setOpen] = useState(false);
+
+  if (listQ.isLoading) {
+    return (
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4">
+        <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
+      </div>
+    );
+  }
+
+  const rows = listQ.data ?? [];
+
+  return (
+    <div
+      className={cx(
+        "rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)]",
+        "overflow-hidden"
+      )}
+    >
+      <div
+        className={cx(
+          "px-5 py-4 border-b border-[var(--border-divider)]",
+          locked ? "bg-[var(--color-danger-soft)]" : "bg-[var(--bg-surface-soft)]"
+        )}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-semibold">근무 기록</div>
+              {locked && <LockBadge state="LOCKED" />}
+              <span className="text-xs text-[var(--text-muted)]">
+                ({range.from} ~ {range.to})
+              </span>
+            </div>
+            <div className="text-[11px] text-[var(--text-muted)]">
+              * 근무시간·금액은 서버에서 자동 계산됩니다. (프론트 계산 금지)
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            <ActionButton
+              variant="primary"
+              size="xs"
+              disabledReason={locked ? "마감된 월입니다." : ""}
+              onClick={() => setOpen(true)}
+            >
+              + 추가
+            </ActionButton>
+          </div>
+        </div>
+
+        {locked && (
+          <div className="mt-2 text-xs text-[var(--color-danger)]">
+            마감된 월입니다 · 생성/수정/삭제 불가
+          </div>
+        )}
+      </div>
+
+      <div className={cx("p-5", locked && "opacity-95")}>
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-5">
+            <div className="text-sm font-semibold">기록 없음</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">
+              근무 기록을 추가하면 이곳에 리스트가 표시됩니다.
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((r) => (
+              <div
+                key={r.id}
+                className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-semibold">
+                      {r.date} · {r.work_type_name}
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)] mt-1">
+                      {r.start_time} ~ {r.end_time}{" "}
+                      {typeof r.break_minutes === "number" && r.break_minutes > 0
+                        ? `· 휴게 ${r.break_minutes}분`
+                        : ""}
+                    </div>
+                    {!!r.memo && (
+                      <div className="text-xs text-[var(--text-muted)] mt-1">
+                        메모: {r.memo}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-xs text-[var(--text-muted)]">금액</div>
+                      <div className="font-semibold">
+                        {r.amount?.toLocaleString() ?? "-"}원
+                      </div>
+                    </div>
+
+                    <ActionButton
+                      variant="danger-outline"
+                      size="xs"
+                      disabledReason={locked ? "마감된 월입니다." : deleteM.isPending ? "처리 중..." : ""}
+                      onClick={() => {
+                        if (locked || deleteM.isPending) return;
+                        if (!confirm("이 근무 기록을 삭제할까요?")) return;
+                        deleteM.mutate(r.id);
+                      }}
+                    >
+                      삭제
+                    </ActionButton>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!locked && <CreateWorkRecordModal open={open} onClose={() => setOpen(false)} />}
+      </div>
+
+      <div className="px-5 pb-4">
+        <div className="text-[11px] text-[var(--text-muted)]">
+          * 마감된 월은 서버에서 변경을 거부합니다(400). 프론트는 UX로만 차단합니다.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/ReportsPage/PayrollHistoryTable.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/ReportsPage/PayrollHistoryTable.tsx
+import { useMemo } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
+import {
+  fetchPayrollSnapshots,
+  exportPayrollSnapshotExcel,
+} from "../../api/payrollSnapshots.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
+import ActionButton from "../../components/ActionButton";
+
+function ymLabel(y: number, m: number) {
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
+export default function PayrollHistoryTable() {
+  const { staffId } = useParams();
+  const sid = staffId ? Number(staffId) : undefined;
+
+  const listQ = useQuery({
+    queryKey: ["payroll-history", sid],
+    queryFn: () => fetchPayrollSnapshots({ staff: sid }),
+    enabled: typeof sid === "number" && sid > 0,
+  });
+
+  const rows = useMemo(
+    () =>
+      (listQ.data ?? []).slice().sort(
+        (a, b) => b.year * 100 + b.month - (a.year * 100 + a.month)
+      ),
+    [listQ.data]
+  );
+
+  if (!sid) {
+    return (
+      <div className="text-sm text-[var(--text-muted)]">
+        직원 상세 화면에서만 급여 히스토리를 확인할 수 있습니다.
+      </div>
+    );
+  }
+
+  if (listQ.isLoading) {
+    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-5 py-6">
+        <div className="text-sm font-semibold">급여 히스토리 없음</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">
+          아직 마감된 급여 내역이 없습니다.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((r) => (
+        <div
+          key={r.id}
+          className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4 flex justify-between items-center gap-4"
+        >
+          <div>
+            <div className="font-semibold">{ymLabel(r.year, r.month)}</div>
+            <div className="text-xs text-[var(--text-muted)]">
+              생성:{" "}
+              {r.created_at
+                ? new Date(r.created_at).toLocaleString()
+                : "-"}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="font-semibold">
+              {r.total_amount.toLocaleString()}원
+            </div>
+
+            <ActionButton
+              variant="outline"
+              size="xs"
+              onClick={() =>
+                exportPayrollSnapshotPDF({
+                  staff: sid as number,
+                  year: r.year,
+                  month: r.month,
+                })
+              }
+            >
+              PDF
+            </ActionButton>
+
+            <ActionButton
+              variant="outline"
+              size="xs"
+              title="엑셀은 해당 월 전체 급여 다운로드입니다."
+              onClick={() =>
+                exportPayrollSnapshotExcel({
+                  year: r.year,
+                  month: r.month,
+                })
+              }
+            >
+              XLSX
+            </ActionButton>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/ReportsPage/PayrollSnapshotList.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/ReportsPage/PayrollSnapshotList.tsx
+import { useMemo } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
+import {
+  fetchPayrollSnapshots,
+  exportPayrollSnapshotExcel,
+} from "../../api/payrollSnapshots.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
+import ActionButton from "../../components/ActionButton";
+
+export default function PayrollSnapshotList({
+  year,
+  month,
+}: {
+  year: number;
+  month: number;
+}) {
+  const { staffId } = useParams();
+  const sid = staffId ? Number(staffId) : undefined;
+
+  const listQ = useQuery({
+    queryKey: ["payroll-snapshots", sid, year, month],
+    queryFn: () => fetchPayrollSnapshots({ staff: sid, year, month }),
+    enabled: typeof sid === "number" && sid > 0,
+  });
+
+  const rows = useMemo(() => listQ.data ?? [], [listQ.data]);
+
+  if (!sid) {
+    return (
+      <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4 text-sm text-[var(--text-muted)]">
+        직원 상세 화면에서만 확인 가능합니다.
+      </div>
+    );
+  }
+
+  if (listQ.isLoading) {
+    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-5 py-6">
+        <div className="text-sm font-semibold">확정 급여 없음</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">
+          해당 월은 아직 마감되지 않았거나 급여 스냅샷이 생성되지 않았습니다.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((r) => (
+        <div
+          key={r.id}
+          className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4"
+        >
+          <div className="flex justify-between items-start gap-4">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold">
+                {r.year}-{String(r.month).padStart(2, "0")} 급여
+              </div>
+              <div className="text-xs text-[var(--text-muted)]">
+                생성일:{" "}
+                {r.created_at
+                  ? new Date(r.created_at).toLocaleString()
+                  : "-"}
+              </div>
+              {!!r.generated_by_name && (
+                <div className="text-xs text-[var(--text-muted)]">
+                  생성자: {r.generated_by_name}
+                </div>
+              )}
+            </div>
+
+            <div className="text-right space-y-2">
+              <div className="text-lg font-semibold">
+                {r.total_amount.toLocaleString()}원
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <ActionButton
+                  variant="outline"
+                  size="xs"
+                  onClick={() =>
+                    exportPayrollSnapshotPDF({
+                      staff: sid as number,
+                      year: r.year,
+                      month: r.month,
+                    })
+                  }
+                >
+                  PDF
+                </ActionButton>
+
+                <ActionButton
+                  variant="outline"
+                  size="xs"
+                  title="엑셀은 해당 월 전체 직원 급여입니다."
+                  onClick={() =>
+                    exportPayrollSnapshotExcel({
+                      year: r.year,
+                      month: r.month,
+                    })
+                  }
+                >
+                  XLSX
+                </ActionButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="text-[11px] text-[var(--text-muted)]">
+        * Payroll Snapshot은 마감 시점 확정 데이터이며 수정할 수 없습니다.
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/ReportsPage/ReportsPage.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/ReportsPage/ReportsPage.tsx
+import { Tabs } from "antd";
+import { useMemo, useState } from "react";
+import PayrollSnapshotList from "./PayrollSnapshotList";
+import PayrollHistoryTable from "./PayrollHistoryTable";
+import WorkMonthLockHistory from "./WorkMonthLockHistory";
+
+function ymLabel(y: number, m: number) {
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
+export default function ReportsPage() {
+  const now = useMemo(() => new Date(), []);
+  const [ym, setYm] = useState({
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  });
+
+  return (
+    <div className="p-6 space-y-4">
+      {/* 기준 월 헤더 */}
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-6 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <div className="text-lg font-semibold">리포트</div>
+            <div className="text-sm text-[var(--text-muted)]">
+              기준월 <b>{ymLabel(ym.year, ym.month)}</b> · 모든 수치는{" "}
+              <b>서버 확정 데이터</b> 기준입니다.
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={ym.year}
+              onChange={(e) =>
+                setYm((p) => ({ ...p, year: Number(e.target.value) }))
+              }
+              className="h-[36px] rounded-lg border border-[var(--border-divider)] px-3 text-sm bg-[var(--bg-surface)]"
+            >
+              {[ym.year - 1, ym.year, ym.year + 1].map((y) => (
+                <option key={y} value={y}>
+                  {y}년
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={ym.month}
+              onChange={(e) =>
+                setYm((p) => ({ ...p, month: Number(e.target.value) }))
+              }
+              className="h-[36px] rounded-lg border border-[var(--border-divider)] px-3 text-sm bg-[var(--bg-surface)]"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {m}월
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-2 text-[11px] text-[var(--text-muted)]">
+          * Payroll Snapshot은 <b>월 마감 시 생성</b>되며 이후 수정되지 않습니다.
+        </div>
+      </div>
+
+      <Tabs
+        items={[
+          {
+            key: "snapshot",
+            label: "Payroll Snapshot",
+            children: (
+              <PayrollSnapshotList year={ym.year} month={ym.month} />
+            ),
+          },
+          {
+            key: "history",
+            label: "Payroll History",
+            children: <PayrollHistoryTable />,
+          },
+          {
+            key: "lock",
+            label: "Month Lock History",
+            children: (
+              <WorkMonthLockHistory year={ym.year} month={ym.month} />
+            ),
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/ReportsPage/WorkMonthLockHistory.tsx
+==========================================================================================
+﻿// PATH: src/features/staff/pages/ReportsPage/WorkMonthLockHistory.tsx
+import { useQuery } from "@tanstack/react-query";
+import { fetchWorkMonthLocks } from "../../api/workMonthLocks.api";
+import { LockBadge } from "../../components/StatusBadge";
+
+function ymLabel(y: number, m: number) {
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
+export default function WorkMonthLockHistory({
+  year,
+  month,
+}: {
+  year: number;
+  month: number;
+}) {
+  const listQ = useQuery({
+    queryKey: ["work-month-lock-history", year, month],
+    queryFn: () => fetchWorkMonthLocks({ year, month }),
+  });
+
+  const rows = listQ.data ?? [];
+
+  if (listQ.isLoading) {
+    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-5 py-6">
+        <div className="text-sm font-semibold">마감 내역 없음</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">
+          해당 월에는 아직 마감된 직원이 없습니다.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {rows.map((r) => (
+        <div
+          key={r.id}
+          className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4 flex justify-between items-center gap-4"
+        >
+          <div>
+            <div className="font-semibold">
+              {r.staff_name ?? `Staff#${r.staff}`}
+            </div>
+            <div className="text-xs text-[var(--text-muted)]">
+              {ymLabel(r.year, r.month)} · 마감자{" "}
+              {r.locked_by_name ?? "-"}
+            </div>
+          </div>
+
+          <LockBadge state={r.is_locked ? "LOCKED" : "OPEN"} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: types/index.ts
+==========================================================================================
+﻿
+
+
+==========================================================================================
+# FILE: utils/index.ts
+==========================================================================================
+﻿

@@ -1,0 +1,177 @@
+/* PATH: src/styles/components.css */
+
+/* ================= NAV ================= */
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 1rem;
+}
+
+.nav-item {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+
+  color: var(--sidebar-text-secondary);
+  background-color: transparent;
+
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-item:hover {
+  background-color: var(--sidebar-hover-bg);
+  color: var(--sidebar-text-primary);
+}
+
+.nav-item.active {
+  background-color: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
+}
+
+/* ================= BUTTON ================= */
+
+.btn {
+  background-color: var(--color-primary);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+/* ================= CARD ================= */
+
+.card {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-divider);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+/* ================= SURFACE ================= */
+
+.surface {
+  background-color: var(--bg-surface-soft);
+  border-radius: 0.625rem;
+}
+
+.surface-muted {
+  background-color: var(--bg-surface-muted);
+  border-radius: 0.625rem;
+}
+
+.surface-strong {
+  background-color: var(--bg-app);
+  border-radius: 0.625rem;
+}
+
+/* ================= DIVIDER ================= */
+
+.divider {
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.divider-soft {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ================= TABLE ================= */
+/* 🔥 여기서 검은 헤더를 확실히 죽인다 */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  background-color: transparent;
+}
+
+/* THEAD 강제 */
+.table thead {
+  background-color: var(--bg-surface-soft) !important;
+}
+
+.table thead th {
+  background-color: var(--bg-surface-soft) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 600;
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+/* 🔥 AntD Table 헤더 split line 봉인 */
+.ant-table-thead > tr > th::before {
+  background-color: var(--border-divider) !important;
+}
+
+/* TBODY */
+.table td {
+  padding: 0.75rem;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-divider);
+  background-color: transparent;
+}
+
+.table tr:hover td {
+  background-color: rgba(59, 130, 246, 0.06);
+}
+
+/* ================= AntD OVERLAY 봉인 ================= */
+/* Dropdown / Popover / Modal / Tooltip 기본색 차단 */
+
+.ant-dropdown-menu,
+.ant-popover-inner,
+.ant-modal-content {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.ant-dropdown-menu-item:hover {
+  background-color: var(--bg-surface-soft);
+}
+
+.ant-tooltip-inner {
+  background-color: var(--bg-surface-muted);
+  color: var(--text-primary);
+}
+
+/* ================= AntD SELECT DROPDOWN 봉인 ================= */
+/* body 포털 렌더링 영역 */
+
+.ant-select-dropdown {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-primary);
+  border: 1px solid var(--border-divider);
+}
+
+/* 옵션 기본 */
+.ant-select-item-option {
+  color: var(--text-primary);
+}
+
+/* Hover */
+.ant-select-item-option-active,
+.ant-select-item-option:hover {
+  background-color: var(--bg-surface-soft) !important;
+}
+
+/* Selected */
+.ant-select-item-option-selected {
+  background-color: var(--bg-surface-soft) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+/* Disabled */
+.ant-select-item-option-disabled {
+  color: var(--text-disabled);
+}

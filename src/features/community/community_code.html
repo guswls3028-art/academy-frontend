@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<title>community</title>
+<style>
+body{background:#0f1115;color:#eaeaea;font-family:Consolas,monospace;padding:24px}
+h2{color:#7dd3fc;font-size:14px}
+pre{background:#111418;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px}
+section{margin-bottom:28px}
+</style>
+<h1>📦 community</h1>
+
+<section>
+<h2>components\BoardTabs.tsx</h2>
+<pre><code>// src/features/community/components/BoardTabs.tsx
+import { NavLink } from &quot;react-router-dom&quot;;
+
+export default function BoardTabs() {
+  const base = &quot;/community&quot;;
+
+  const tabClass = ({ isActive }: any) =&gt;
+    `px-3 py-2 text-sm font-medium border-b-2 ${
+      isActive 
+        ? &quot;border-blue-600 text-blue-600&quot;
+        : &quot;border-transparent text-gray-600 hover:text-gray-800&quot;
+    }`;
+
+  return (
+    &lt;div className=&quot;flex gap-6 border-b mb-6&quot;&gt;
+      &lt;NavLink to={`${base}/notice`} className={tabClass}&gt;공지사항&lt;/NavLink&gt;
+      &lt;NavLink to={`${base}/qna`} className={tabClass}&gt;질의응답&lt;/NavLink&gt;
+      &lt;NavLink to={`${base}/review`} className={tabClass}&gt;수강후기&lt;/NavLink&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+<section>
+<h2>pages\CommunityPage.tsx</h2>
+<pre><code>// src/features/community/pages/CommunityPage.tsx
+import PageContainer from &quot;@student/shared/components/Page&quot;;
+import PageHeader from &quot;@/shared/ui/PageHeader&quot;;
+import BoardTabs from &quot;../components/BoardTabs&quot;;
+import { Outlet } from &quot;react-router-dom&quot;;
+
+export default function CommunityPage() {
+  return (
+    &lt;PageContainer&gt;
+      &lt;PageHeader title=&quot;커뮤니티&quot; /&gt;
+
+      &lt;BoardTabs /&gt;
+
+      &lt;Outlet /&gt;
+    &lt;/PageContainer&gt;
+  );
+}
+</code></pre>
+</section>
+
+<section>
+<h2>pages\NoticeBoardPage.tsx</h2>
+<pre><code>export default function NoticeBoardPage() {
+  return (
+    &lt;div&gt;
+
+      &lt;p className=&quot;text-gray-500&quot;&gt;아직 등록된 공지가 없습니다.&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+<section>
+<h2>pages\QnaBoardPage.tsx</h2>
+<pre><code>import BoardTabs from &quot;../components/BoardTabs&quot;;
+
+export default function QnaBoardPage() {
+  return (
+    &lt;div className=&quot;p-6&quot;&gt;
+
+      {/* 검색 &amp; 필터 */}
+      &lt;div className=&quot;flex items-center gap-2 mb-4&quot;&gt;
+        &lt;select className=&quot;border rounded px-2 py-1 text-sm&quot;&gt;
+          &lt;option&gt;전체&lt;/option&gt;
+          &lt;option&gt;답변 필요&lt;/option&gt;
+        &lt;/select&gt;
+
+        &lt;input
+          className=&quot;border rounded px-2 py-1 text-sm flex-1&quot;
+          placeholder=&quot;검색&quot;
+        /&gt;
+
+        &lt;button className=&quot;px-3 py-1.5 bg-blue-600 text-white rounded text-sm&quot;&gt;
+          검색
+        &lt;/button&gt;
+      &lt;/div&gt;
+
+      {/* 리스트 */}
+      &lt;div className=&quot;border rounded p-4 text-sm text-gray-700 mb-3&quot;&gt;
+        &lt;div className=&quot;font-semibold&quot;&gt;예시 QnA 제목&lt;/div&gt;
+        &lt;div className=&quot;text-gray-500 text-xs&quot;&gt;작성자 · 날짜&lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div className=&quot;text-center mt-6 text-gray-400 text-sm&quot;&gt;1&lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+<section>
+<h2>pages\ReviewBoardPage.tsx</h2>
+<pre><code>import BoardTabs from &quot;../components/BoardTabs&quot;;
+
+export default function ReviewBoardPage() {
+  return (
+    &lt;div className=&quot;p-6&quot;&gt;
+
+      &lt;div className=&quot;mt-6 text-gray-500 text-sm&quot;&gt;
+        아직 등록된 후기가 없습니다.
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+</html>

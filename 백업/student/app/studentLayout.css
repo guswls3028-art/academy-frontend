@@ -1,0 +1,40 @@
+.student-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.student-header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #eee;
+  font-weight: bold;
+}
+
+.student-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.student-tab {
+  height: 56px;
+  display: flex;
+  border-top: 1px solid #eee;
+}
+
+.student-tab a {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #666;
+}
+
+.student-tab a.active {
+  color: #000;
+  font-weight: bold;
+}

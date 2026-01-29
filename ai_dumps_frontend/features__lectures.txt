@@ -1,0 +1,3914 @@
+====================================================================================================
+# FRONTEND FOLDER: features__lectures
+# ROOT PATH: C:\academyfront\src\features\lectures
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/attendance.ts
+==========================================================================================
+// src/features/lectures/api/attendance.ts
+import api from "@/shared/api/axios";
+
+/* =========================================================
+ * 1️⃣ 세션 단위 출결 목록 조회 (SessionDetailPage)
+ * GET /api/v1/lectures/attendance/?session={id}
+ * ======================================================= */
+export async function fetchAttendance(sessionId: number) {
+  const res = await api.get("/lectures/attendance/", {
+    params: { session: sessionId },
+  });
+  return Array.isArray(res.data) ? res.data : res.data.results;
+}
+
+/* =========================================================
+ * 2️⃣ 출결 단건 수정 (상태 / 메모)
+ * PATCH /api/v1/lectures/attendance/{id}/
+ * ======================================================= */
+export async function updateAttendance(
+  id: number,
+  payload: { status?: string; memo?: string }
+) {
+  const res = await api.patch(`/lectures/attendance/${id}/`, payload);
+  return res.data;
+}
+
+/* =========================================================
+ * 3️⃣ 세션 기준 학생 등록
+ * POST /api/v1/lectures/attendance/bulk_create/
+ * ======================================================= */
+export async function bulkCreateAttendance(
+  sessionId: number,
+  studentIds: number[]
+) {
+  if (!Array.isArray(studentIds) || studentIds.length === 0) {
+    throw new Error("students 배열이 비어있습니다.");
+  }
+
+  const res = await api.post("/lectures/attendance/bulk_create/", {
+    session: sessionId,
+    students: studentIds,
+  });
+  return res.data;
+}
+
+/* =========================================================
+ * 4️⃣ 강의 × 차시 출결 매트릭스
+ * GET /api/v1/lectures/attendance/matrix/?lecture={id}
+ * ======================================================= */
+export async function fetchAttendanceMatrix(lectureId: number) {
+  const res = await api.get("/lectures/attendance/matrix/", {
+    params: { lecture: lectureId },
+  });
+  return res.data;
+}
+
+/* =========================================================
+ * 5️⃣ 출결 엑셀 다운로드
+ * ======================================================= */
+export function downloadAttendanceExcel(lectureId: number) {
+  window.location.href =
+    `/api/v1/lectures/attendance/excel/?lecture=${lectureId}`;
+}
+
+
+==========================================================================================
+# FILE: api/board.ts
+==========================================================================================
+// src/features/lectures/api/board.ts
+import api from "@/shared/api/axios";
+
+/**
+ * ✅ Board 관련 API
+ * /api/v1/interactions/*
+ */
+const PREFIX = "/interactions";
+
+/* =========================
+ * TYPES
+ * ========================= */
+export interface BoardCategory {
+  id: number;
+  lecture: number;
+  name: string;
+  order: number;
+}
+
+export interface BoardAttachment {
+  id: number;
+  post: number;
+  file: string;
+}
+
+export interface BoardPost {
+  id: number;
+  lecture: number;
+  category: number;
+  title: string;
+  content: string;
+  created_by: number | null;
+  created_at: string;
+  attachments: BoardAttachment[];
+}
+
+export interface BoardReadStatus {
+  id: number;
+  post: number;
+  enrollment: number;
+  checked_at: string;
+  student_name?: string;
+}
+
+/* =========================
+ * UTILS
+ * ========================= */
+function unwrap<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
+/* =========================
+ * CATEGORY
+ * ========================= */
+export async function fetchBoardCategories(
+  lectureId: number
+): Promise<BoardCategory[]> {
+  const res = await api.get(`${PREFIX}/board-categories/`, {
+    params: { lecture: lectureId },
+  });
+  return unwrap<BoardCategory>(res.data);
+}
+
+export async function createBoardCategory(payload: {
+  lecture: number;
+  name: string;
+}): Promise<BoardCategory> {
+  const res = await api.post(`${PREFIX}/board-categories/`, payload);
+  return res.data;
+}
+
+/* =========================
+ * POSTS
+ * ========================= */
+export async function fetchBoardPosts(params: {
+  lecture: number;
+  category?: number;
+}): Promise<BoardPost[]> {
+  const res = await api.get(`${PREFIX}/board-posts/`, { params });
+  return unwrap<BoardPost>(res.data);
+}
+
+export async function createBoardPost(
+  formData: FormData
+): Promise<BoardPost> {
+  const res = await api.post(`${PREFIX}/board-posts/`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+/* =========================
+ * READ STATUS
+ * ========================= */
+export async function fetchBoardReadStatus(
+  postId: number
+): Promise<BoardReadStatus[]> {
+  const res = await api.get(`${PREFIX}/board-read-status/`, {
+    params: { post: postId },
+  });
+  return unwrap<BoardReadStatus>(res.data);
+}
+
+
+==========================================================================================
+# FILE: api/ddays.ts
+==========================================================================================
+// src/features/lectures/api/ddays.ts
+/**
+ * ⚠️ D-DAY API
+ * - 현재 backend 미구현
+ * - 프론트 UI 유지용 stub
+ */
+
+export interface Dday {
+  id: number;
+  lecture: number;
+  title: string;
+  date: string;
+  created_at: string;
+}
+
+export async function fetchDdays(_: number): Promise<Dday[]> {
+  return [];
+}
+
+export async function createDday(_: {
+  lecture: number;
+  title: string;
+  date: string;
+}): Promise<Dday> {
+  throw new Error("D-Day API not implemented");
+}
+
+export async function deleteDday(_: number): Promise<void> {
+  throw new Error("D-Day API not implemented");
+}
+
+
+==========================================================================================
+# FILE: api/enrollments.ts
+==========================================================================================
+import api from "@/shared/api/axios";
+
+export async function fetchLectureEnrollments(lectureId: number) {
+  const res = await api.get("/enrollments/", {
+    params: { lecture: lectureId },
+  });
+
+  return Array.isArray(res.data) ? res.data : res.data.results;
+}
+
+export async function bulkCreateEnrollments(
+  lectureId: number,
+  studentIds: number[]
+) {
+  const res = await api.post("/enrollments/bulk_create/", {
+    lecture: lectureId,
+    students: studentIds,
+  });
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/materials.ts
+==========================================================================================
+// src/features/lectures/api/materials.ts
+import api from "@/shared/api/axios";
+
+const PREFIX = "/interactions";
+
+/* =========================
+ * TYPES
+ * ========================= */
+export interface MaterialCategory {
+  id: number;
+  lecture: number;
+  name: string;
+  order: number;
+}
+
+export interface Material {
+  id: number;
+  lecture: number;
+  category: number | null;
+  title: string;
+  description: string;
+  file: string | null;
+  url: string | null;
+  order: number;
+  is_public: boolean;
+  uploader_name?: string | null;
+  created_at: string;
+}
+
+/* =========================
+ * UTILS
+ * ========================= */
+function unwrap<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
+/* =========================
+ * CATEGORY
+ * ========================= */
+export async function fetchMaterialCategories(
+  lectureId: number
+): Promise<MaterialCategory[]> {
+  const res = await api.get(`${PREFIX}/material-categories/`, {
+    params: { lecture: lectureId },
+  });
+  return unwrap<MaterialCategory>(res.data);
+}
+
+export async function createMaterialCategory(payload: {
+  lecture: number;
+  name: string;
+}): Promise<MaterialCategory> {
+  const res = await api.post(`${PREFIX}/material-categories/`, payload);
+  return res.data;
+}
+
+/* =========================
+ * MATERIAL
+ * ========================= */
+export async function fetchMaterials(params: {
+  lecture: number;
+  category?: number;
+}): Promise<Material[]> {
+  const res = await api.get(`${PREFIX}/materials/`, { params });
+  return unwrap<Material>(res.data);
+}
+
+export async function createMaterial(
+  formData: FormData
+): Promise<Material> {
+  const res = await api.post(`${PREFIX}/materials/`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/report.ts
+==========================================================================================
+// src/features/lectures/api/report.ts
+import api from "@/shared/api/axios";
+
+export interface LectureReportStudent {
+  enrollment: number;
+  student_id: number;
+  student_name: string;
+  avg_progress: number;
+  completed_videos: number;
+  total_videos: number;
+  last_attendance_status: string | null;
+}
+
+export interface LectureReportSummary {
+  total_students: number;
+  total_sessions: number;
+  total_videos: number;
+  avg_video_progress: number;
+  completed_students: number;
+}
+
+export interface LectureReportResponse {
+  lecture: {
+    id: number;
+    title: string;
+    name: string;
+    subject: string;
+  };
+  summary: LectureReportSummary;
+  attendance_by_status: Record<string, number>;
+  students: LectureReportStudent[];
+}
+
+/**
+ * ✅ FIX
+ * ❌ /lectures/{id}/report/
+ * ✅ /lectures/lectures/{id}/report/
+ */
+export async function fetchLectureReport(
+  lectureId: number
+): Promise<LectureReportResponse> {
+  const res = await api.get(
+    `/lectures/lectures/${lectureId}/report/`
+  );
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/sessions.ts
+==========================================================================================
+// src/features/lectures/api/sessions.ts
+import api from "@/shared/api/axios";
+
+// ----------------------------------------
+// LECTURE 상세 가져오기
+// ----------------------------------------
+export async function fetchLecture(lectureId: number) {
+  const res = await api.get(`/lectures/lectures/${lectureId}/`);
+  return res.data;
+}
+
+// ----------------------------------------
+// SESSION 목록 가져오기 (lecture 기준)
+// ----------------------------------------
+export async function fetchSessions(lectureId: number) {
+  const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
+  return res.data.results;
+}
+
+// ----------------------------------------
+// SESSION 생성 (기존 기능 유지)
+// ----------------------------------------
+export async function createSession(
+  lectureId: number,
+  title: string,
+  date: string
+) {
+  const res = await api.post(`/lectures/sessions/`, {
+    lecture: lectureId,
+    title,
+    date,
+  });
+
+  return res.data;
+}
+
+/**
+ * ⚠️ ATTENDANCE는 여기서 조회하지 않는다.
+ * - 경로 혼재(attendance vs attendances)로 404 폭탄 방지
+ * - 출결 조회/수정/일괄등록은 반드시 `api/attendance.ts`만 사용
+ */
+// export async function fetchAttendance(sessionId: number) { ... }  // ❌ 제거
+
+
+==========================================================================================
+# FILE: components/BoardCategoryModal.tsx
+==========================================================================================
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createBoardCategory } from "../api/board";
+
+interface Props {
+  lectureId: number;
+  onClose: () => void;
+}
+
+export default function BoardCategoryModal({ lectureId, onClose }: Props) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+
+  const { mutate, isLoading } = useMutation({
+    mutationFn: () => createBoardCategory({ lecture: lectureId, name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["board-categories", lectureId] });
+      onClose();
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    mutate();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-sm rounded-lg bg-[var(--bg-surface)] p-5 shadow-lg">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
+          게시판 카테고리 추가
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            className="
+              w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+            "
+            placeholder="예: 오탈자 및 정정사항"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          <div className="flex justify-end gap-2 text-sm">
+            <button
+              type="button"
+              onClick={onClose}
+              className="
+                rounded-md px-3 py-2
+                border border-[var(--border-divider)]
+                text-[var(--text-secondary)]
+                hover:bg-[var(--bg-surface-soft)]
+              "
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="
+                rounded-md px-3 py-2
+                bg-[var(--color-primary)]
+                text-white
+                disabled:opacity-60
+              "
+            >
+              {isLoading ? "저장 중..." : "추가"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/BoardPostDetail.tsx
+==========================================================================================
+// src/features/lectures/components/BoardPostDetail.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import { BoardPost, fetchBoardReadStatus } from "../api/board";
+import { fetchLectureEnrollments } from "../api/enrollments";
+
+interface Props {
+  lectureId: number;
+  post: BoardPost;
+  onClose: () => void;
+}
+
+export default function BoardPostDetail({ lectureId, post, onClose }: Props) {
+  const { data: readStatus } = useQuery({
+    queryKey: ["board-read-status", post.id],
+    queryFn: () => fetchBoardReadStatus(post.id),
+  });
+
+  const { data: enrollments } = useQuery({
+    queryKey: ["lecture-enrollments", lectureId],
+    queryFn: () => fetchLectureEnrollments(lectureId),
+  });
+
+  const readMap = new Map<number, string>();
+  readStatus?.forEach((r) => {
+    readMap.set(r.enrollment, r.checked_at);
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="flex w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-lg bg-[var(--bg-surface)] shadow-xl">
+        {/* LEFT */}
+        <div className="flex-1 overflow-y-auto border-r border-[var(--border-divider)] p-6">
+          <div className="mb-4 flex items-start justify-between">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+              {post.title}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="mb-4 text-xs text-[var(--text-muted)]">
+            작성일 {post.created_at.slice(0, 10)}
+          </div>
+
+          <div className="whitespace-pre-wrap text-sm text-[var(--text-primary)]">
+            {post.content}
+          </div>
+
+          {post.attachments?.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-2 text-sm font-semibold text-[var(--text-secondary)]">
+                첨부 파일
+              </h3>
+              <ul className="space-y-1 text-sm">
+                {post.attachments.map((a) => (
+                  <li key={a.id}>
+                    <a
+                      href={a.file}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[var(--color-primary)] hover:underline"
+                    >
+                      {a.file.split("/").slice(-1)[0]}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT */}
+        <div className="w-64 overflow-y-auto p-4 text-sm">
+          <h3 className="mb-2 font-semibold text-[var(--text-secondary)]">
+            확인 현황
+          </h3>
+          <p className="mb-3 text-xs text-[var(--text-muted)]">
+            조회 인원: {readStatus?.length ?? 0}명
+          </p>
+
+          <ul className="space-y-1">
+            {enrollments?.map((en: any) => {
+              const name =
+                en.student_name || en.student?.name || "이름 없음";
+              const checkedAt = readMap.get(en.id);
+              const checked = !!checkedAt;
+
+              return (
+                <li
+                  key={en.id}
+                  className="flex items-center justify-between rounded px-2 py-1 hover:bg-[var(--bg-surface)]"
+                >
+                  <span className="truncate text-[var(--text-primary)]">
+                    {name}
+                  </span>
+                  <span
+                    className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      checked
+                        ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                        : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {checked ? checkedAt.slice(5, 16) : "미확인"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/BoardPostModal.tsx
+==========================================================================================
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { BoardCategory, createBoardPost } from "../api/board";
+
+interface Props {
+  lectureId: number;
+  category: BoardCategory;
+  onClose: () => void;
+}
+
+export default function BoardPostModal({ lectureId, category, onClose }: Props) {
+  const qc = useQueryClient();
+
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [files, setFiles] = useState<FileList | null>(null);
+
+  const { mutate, isLoading } = useMutation({
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append("lecture", String(lectureId));
+      fd.append("category", String(category.id));
+      fd.append("title", title);
+      fd.append("content", content);
+      if (files) {
+        Array.from(files).forEach((file) => fd.append("files", file));
+      }
+      return createBoardPost(fd);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ["board-posts", lectureId, category.id],
+      });
+      onClose();
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    mutate();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-3xl rounded-lg bg-[var(--bg-surface)] p-6 shadow-lg">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
+          {category.name} - 글 작성
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+          <div>
+            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+              제목
+            </label>
+            <input
+              className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+              내용
+            </label>
+            <textarea
+              className="h-60 w-full resize-none rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+              첨부 파일
+            </label>
+            <input type="file" multiple onChange={(e) => setFiles(e.target.files)} />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-[var(--border-divider)] px-3 py-2 text-[var(--text-secondary)]"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-white disabled:opacity-60"
+            >
+              {isLoading ? "저장 중..." : "등록"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/DdayModal.tsx
+==========================================================================================
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createDday } from "../api/ddays";
+
+interface Props {
+  lectureId: number;
+  onClose: () => void;
+}
+
+export default function DdayModal({ lectureId, onClose }: Props) {
+  const qc = useQueryClient();
+
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState<string>("");
+  const [time, setTime] = useState<string>("12:00");
+
+  const { mutate, isLoading } = useMutation({
+    mutationFn: () => {
+      const iso = date && time ? `${date}T${time}:00` : `${date}T00:00:00`;
+      return createDday({ lecture: lectureId, title, date: iso });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ddays", lectureId] });
+      onClose();
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !date) return;
+    mutate();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-md rounded-lg bg-[var(--bg-surface)] p-6 shadow-lg">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
+          D-Day 추가
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+          <div>
+            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+              제목
+            </label>
+            <input
+              className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+                날짜
+              </label>
+              <input
+                type="date"
+                className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <div className="w-32">
+              <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+                시간
+              </label>
+              <input
+                type="time"
+                className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-[var(--border-divider)] px-3 py-2 text-[var(--text-secondary)]"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-white disabled:opacity-60"
+            >
+              {isLoading ? "저장 중..." : "추가"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/EnrollStudentModal.tsx
+==========================================================================================
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { bulkCreateAttendance } from "../api/attendance";
+import {
+  fetchStudents as fetchStudentList,
+  type ClientStudent,
+} from "@/features/students/api/students";
+
+interface Props {
+  sessionId: number;
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+type Student = {
+  id: number;
+  name: string;
+  phone?: string | null;
+};
+
+export default function EnrollStudentModal({
+  sessionId,
+  isOpen,
+  onClose,
+  onSuccess,
+}: Props) {
+  const qc = useQueryClient();
+
+  const [keyword, setKeyword] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(keyword.trim()), 300);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ["enroll-modal-students", search],
+    queryFn: async (): Promise<Student[]> => {
+      const list: ClientStudent[] = await fetchStudentList(search, {});
+      return list.map((s) => ({
+        id: s.id,
+        name: s.name,
+        phone: s.studentPhone,
+      }));
+    },
+    enabled: isOpen,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (ids: number[]) => bulkCreateAttendance(sessionId, ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
+      onSuccess?.();
+      onClose();
+      setSelectedIds([]);
+    },
+  });
+
+  if (!isOpen) return null;
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg overflow-hidden rounded-lg bg-[var(--bg-surface)] shadow-xl text-sm">
+        <div className="flex items-center justify-between border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-2">
+          <h2 className="font-semibold text-[var(--text-primary)]">
+            학생 추가 (세션 기준)
+          </h2>
+          <button onClick={onClose}>✕</button>
+        </div>
+
+        <div className="border-b border-[var(--border-divider)] px-4 py-2">
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="학생 이름 검색"
+            className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+          />
+        </div>
+
+        <div className="max-h-72 overflow-y-auto px-4 py-2">
+          {isLoading ? (
+            <div className="py-6 text-center text-[var(--text-muted)]">
+              불러오는 중…
+            </div>
+          ) : (
+            <ul className="divide-y">
+              {students.map((st) => {
+                const checked = selectedIds.includes(st.id);
+                return (
+                  <li
+                    key={st.id}
+                    onClick={() => toggleSelect(st.id)}
+                    className={`
+                      flex cursor-pointer items-center gap-3 py-2
+                      ${checked
+                        ? "bg-[var(--bg-surface-soft)]"
+                        : "hover:bg-[var(--bg-surface-soft)]"}
+                    `}
+                  >
+                    <input type="checkbox" checked={checked} readOnly />
+                    <div>
+                      <div className="font-medium text-[var(--text-primary)]">
+                        {st.name}
+                      </div>
+                      <div className="text-xs text-[var(--text-muted)]">
+                        {st.phone || "-"}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
+          <button
+            onClick={onClose}
+            className="rounded-md border border-[var(--border-divider)] px-4 py-1.5"
+          >
+            취소
+          </button>
+          <button
+            onClick={() => mutation.mutate(selectedIds)}
+            disabled={mutation.isPending}
+            className="rounded-md bg-[var(--color-primary)] px-4 py-1.5 text-white disabled:opacity-50"
+          >
+            {mutation.isPending ? "추가 중…" : "추가"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/LectureCreateModal.tsx
+==========================================================================================
+// src/features/lectures/components/LectureCreateModal.tsx
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+interface Props {
+  onClose: () => void;
+}
+
+interface CreateLecturePayload {
+  title: string;
+  name: string;
+  subject: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+}
+
+export default function LectureCreateModal({ onClose }: Props) {
+  const queryClient = useQueryClient();
+
+  const [title, setTitle] = useState("");
+  const [name, setName] = useState("");
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const { mutate, isPending, isError } = useMutation({
+    mutationFn: async (payload: CreateLecturePayload) => {
+      await api.post("/lectures/lectures/", payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lectures"] });
+      onClose();
+    },
+  });
+
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    mutate({
+      title,
+      name,
+      subject,
+      description,
+      start_date: startDate,
+      end_date: endDate,
+      is_active: true,
+    });
+  };
+
+  // ✅ 학생앱 스타일 기준 input class (전역CSS 없이 인라인으로만)
+  const inputCls =
+    "w-full rounded-md px-3 py-2 text-sm " +
+    "border border-[var(--border-divider)] " +
+    "bg-[var(--bg-app)] text-[var(--text-primary)] " +
+    "placeholder:text-[var(--text-muted)] " +
+    "focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
+
+  const labelCls = "mb-1 block text-sm font-medium text-[var(--text-secondary)]";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[500px] rounded-xl bg-[var(--bg-surface)] p-6 shadow-2xl">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
+          강의 추가
+        </h2>
+
+        {isError && (
+          <div className="mb-3 text-sm text-[var(--color-danger)]">
+            등록 중 오류가 발생했습니다.
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className={labelCls}>강의 이름</label>
+            <input
+              type="text"
+              className={inputCls}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>담당 강사</label>
+            <input
+              type="text"
+              className={inputCls}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>과목</label>
+            <input
+              type="text"
+              className={inputCls}
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>설명</label>
+            <textarea
+              className={
+                inputCls +
+                " h-24 resize-none"
+              }
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className={labelCls}>시작일</label>
+              <input
+                type="date"
+                className={inputCls}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+
+            <div className="flex-1">
+              <label className={labelCls}>종료일</label>
+              <input
+                type="date"
+                className={inputCls}
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="
+                px-4 py-2 rounded-md text-sm
+                border border-[var(--border-divider)]
+                bg-[var(--bg-surface)]
+                text-[var(--text-secondary)]
+                hover:bg-[var(--bg-surface-soft)]
+              "
+            >
+              취소
+            </button>
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="
+                px-4 py-2 rounded-md text-sm font-semibold
+                bg-[var(--color-primary)]
+                text-white
+                hover:opacity-90
+                disabled:opacity-60
+              "
+            >
+              {isPending ? "등록 중..." : "등록"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/LectureTabs.tsx
+==========================================================================================
+// src/features/lectures/components/LectureTabs.tsx
+import { NavLink, useParams } from "react-router-dom";
+
+export default function LectureTabs() {
+  const { lectureId } = useParams<{ lectureId: string }>();
+  if (!lectureId) return null;
+
+  const tabs = [
+    { key: "students", label: "수강생", to: `/admin/lectures/${lectureId}` },
+    { key: "materials", label: "자료실", to: `/admin/lectures/${lectureId}/materials` },
+    { key: "board", label: "게시판", to: `/admin/lectures/${lectureId}/board` },
+    { key: "ddays", label: "디데이", to: `/admin/lectures/${lectureId}/ddays` },
+    { key: "attendance", label: "출결", to: `/admin/lectures/${lectureId}/attendance` },
+    { key: "report", label: "리포트", to: `/admin/lectures/${lectureId}/report` },
+  ];
+
+  return (
+    <div
+      className="
+        rounded-t-2xl
+        border border-b-0 border-[var(--border-divider)]
+        bg-[var(--bg-surface)]
+        px-4 pt-4
+      "
+    >
+      <div className="flex gap-2 border-b border-[var(--border-divider)]">
+        {tabs.map((tab) => (
+          <NavLink
+            key={tab.key}
+            to={tab.to}
+            end={tab.key === "students"}
+            className={({ isActive }) =>
+              [
+                "relative px-4 py-2 text-sm font-semibold rounded-t-lg",
+                "transition-all duration-200",
+                isActive
+                  ? "bg-[var(--bg-surface)] text-[var(--text-primary)]"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+              ].join(" ")
+            }
+          >
+            {({ isActive }) => (
+              <>
+                {tab.label}
+                {isActive && (
+                  <span
+                    className="
+                      absolute left-0 right-0 -bottom-[1px]
+                      h-[2px]
+                      bg-[var(--color-primary)]
+                      rounded-full
+                    "
+                  />
+                )}
+              </>
+            )}
+          </NavLink>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/MaterialCategoryModal.tsx
+==========================================================================================
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createMaterialCategory } from "../api/materials";
+
+interface Props {
+  lectureId: number;
+  onClose: () => void;
+}
+
+export default function MaterialCategoryModal({ lectureId, onClose }: Props) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+
+  const { mutate, isLoading } = useMutation({
+    mutationFn: () => createMaterialCategory({ lecture: lectureId, name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["material-categories", lectureId] });
+      onClose();
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    mutate();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-sm rounded-lg bg-[var(--bg-surface)] p-5 shadow-lg">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
+          자료실 카테고리 추가
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            className="
+              w-full rounded-md px-3 py-2 text-sm
+              border border-[var(--border-divider)]
+              bg-[var(--bg-app)]
+              text-[var(--text-primary)]
+            "
+            placeholder="예: 숙제, 시험, 복습 과제..."
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+
+          <div className="flex justify-end gap-2 text-sm">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-[var(--border-divider)] px-3 py-2 text-[var(--text-secondary)]"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="rounded-md bg-[var(--color-primary)] px-3 py-2 text-white disabled:opacity-60"
+            >
+              {isLoading ? "저장 중..." : "추가"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/MaterialUploadModal.tsx
+==========================================================================================
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createMaterial } from "../api/materials";
+
+interface Props {
+  lectureId: number;
+  categoryId: number | null;
+  onClose: () => void;
+}
+
+export default function MaterialUploadModal({
+  lectureId,
+  categoryId,
+  onClose,
+}: Props) {
+  const qc = useQueryClient();
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [url, setUrl] = useState("");
+
+  const { mutate, isLoading } = useMutation({
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append("lecture", String(lectureId));
+      if (categoryId) fd.append("category", String(categoryId));
+      fd.append("title", title || (file ? file.name : "자료"));
+      fd.append("description", description);
+      if (file) fd.append("file", file);
+      if (url) fd.append("url", url);
+      fd.append("is_public", "true");
+      return createMaterial(fd);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: ["materials", lectureId, categoryId ?? "all"],
+      });
+      onClose();
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file && !url.trim()) return;
+    mutate();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-lg rounded-lg bg-[var(--bg-surface)] p-6 shadow-lg">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
+          자료 추가하기
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
+          <div>
+            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+              제목
+            </label>
+            <input
+              className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+              설명
+            </label>
+            <textarea
+              className="h-20 w-full resize-none rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+                파일 업로드
+              </label>
+              <input
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+
+            <div className="flex-1">
+              <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+                외부 URL
+              </label>
+              <input
+                className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-[var(--border-divider)] px-3 py-2 text-[var(--text-secondary)]"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-white disabled:opacity-60"
+            >
+              {isLoading ? "저장 중..." : "추가"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SessionBar.tsx
+==========================================================================================
+// src/features/lectures/components/SessionBar.tsx
+
+import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+import SessionCreateModal from "./SessionCreateModal";
+import { useLectureParams } from "../hooks/useLectureParams";
+
+export default function SessionBar() {
+  const { lectureId } = useLectureParams();
+  const location = useLocation();
+
+  if (!Number.isFinite(lectureId)) return null;
+
+  const [showModal, setShowModal] = useState(false);
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["lecture-sessions", lectureId],
+    queryFn: async () => {
+      const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
+      return res.data.results ?? res.data;
+    },
+  });
+
+  return (
+    <div className="mb-6">
+      <div
+        className="
+          flex gap-3 overflow-x-auto pb-2
+          scrollbar-thin scrollbar-thumb-gray-300
+        "
+      >
+        {sessions.map((s: any) => {
+          const active = location.pathname.includes(`/sessions/${s.id}`);
+
+          return (
+            <Link
+              key={s.id}
+              to={`sessions/${s.id}`}
+              className={[
+                "min-w-[150px] rounded-full px-5 py-3 text-sm transition-all",
+                "border",
+                active
+                  ? `
+                    border-[var(--color-primary)]
+                    bg-[var(--color-primary)]
+                    text-white
+                    shadow-sm
+                  `
+                  : `
+                    border-[var(--border-divider)]
+                    bg-[var(--bg-surface-soft)]
+                    text-[var(--text-primary)]
+                    hover:bg-[var(--bg-surface)]
+                  `,
+              ].join(" ")}
+            >
+              <div className="font-semibold">
+                {s.order ?? "?"}차시
+              </div>
+
+              {s.date && (
+                <div
+                  className={[
+                    "mt-0.5 text-xs",
+                    active ? "text-white/80" : "text-[var(--text-muted)]",
+                  ].join(" ")}
+                >
+                  {s.date}
+                </div>
+              )}
+            </Link>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={() => setShowModal(true)}
+          className="
+            min-w-[150px]
+            rounded-full
+            border-2 border-dashed
+            border-[var(--border-divider)]
+            px-5 py-3
+            text-sm font-medium
+            text-[var(--text-muted)]
+            bg-[var(--bg-surface)]
+            hover:border-[var(--color-primary)]
+            hover:text-[var(--color-primary)]
+            hover:bg-[var(--bg-surface-soft)]
+            transition
+          "
+        >
+          + 차시 추가
+        </button>
+      </div>
+
+      {showModal && (
+        <SessionCreateModal
+          lectureId={lectureId}
+          sessionCount={sessions.length}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SessionCreateModal.tsx
+==========================================================================================
+// src/features/lectures/components/SessionCreateModal.tsx
+
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+interface Props {
+  lectureId: number;
+  sessionCount: number;
+  onClose: () => void;
+}
+
+export default function SessionCreateModal({
+  lectureId,
+  sessionCount,
+  onClose,
+}: Props) {
+  const queryClient = useQueryClient();
+  const [date, setDate] = useState("");
+
+  if (!Number.isFinite(lectureId)) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="rounded bg-[var(--bg-surface)] p-6 text-red-500 shadow">
+          잘못된 강의 ID
+        </div>
+      </div>
+    );
+  }
+
+  const safeCount = Number.isFinite(sessionCount) ? sessionCount : 0;
+  const title = `${safeCount + 1}차시`;
+
+  const { mutate, isPending, isError } = useMutation({
+    mutationFn: async () => {
+      await api.post("/lectures/sessions/", {
+        lecture: lectureId,
+        title,
+        date,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["lecture-sessions", lectureId],
+      });
+      onClose();
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[360px] rounded-lg bg-[var(--bg-surface)] p-6 shadow-lg">
+        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
+          새 차시 생성
+        </h2>
+
+        {isError && (
+          <div className="mb-2 text-sm text-[var(--color-danger)]">
+            생성에 실패했습니다.
+          </div>
+        )}
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!date) return;
+            mutate();
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">
+              차시 제목
+            </label>
+            <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm">
+              {title}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-[var(--text-secondary)]">
+              날짜
+            </label>
+            <input
+              type="date"
+              className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="
+                rounded-md px-3 py-1.5 text-sm
+                border border-[var(--border-divider)]
+                bg-[var(--bg-surface)]
+                text-[var(--text-secondary)]
+                hover:bg-[var(--bg-surface-soft)]
+              "
+            >
+              취소
+            </button>
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="
+                rounded-md px-3 py-1.5 text-sm
+                bg-[var(--color-primary)]
+                text-white
+                disabled:opacity-60
+              "
+            >
+              생성
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SessionVideosTab.tsx
+==========================================================================================
+// PATH: src/features/lectures/components/SessionVideosTab.tsx
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import api from "@/shared/api/axios";
+import VideoUploadModal from "@/features/videos/components/features/video-detail/modals/VideoUploadModal";
+import VideoThumbnail from "@/features/videos/ui/VideoThumbnail";
+import VideoStatusBadge from "@/features/videos/ui/VideoStatusBadge";
+
+import { useSessionVideos } from "../hooks/useSessionVideos";
+
+/**
+ * media 도메인 기준 Video 타입 (관리자 목록용)
+ * ⚠️ status 필드 반드시 포함
+ */
+export interface MediaVideo {
+  id: number;
+  title: string;
+  file: string | null;
+  file_key?: string | null;
+
+  source_type: "s3" | "file" | "youtube" | "external" | "unknown";
+
+  youtube_id?: string | null;
+  external_url?: string | null;
+
+  duration?: number | null;
+  file_size?: number | null;
+  thumbnail_url?: string | null;
+
+  allow_skip: boolean;
+  max_speed: number;
+  show_watermark: boolean;
+
+  status?: "PENDING" | "UPLOADED" | "PROCESSING" | "READY" | "FAILED";
+
+  created_at: string;
+}
+
+interface SessionVideosTabProps {
+  sessionId: number;
+}
+
+export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
+  const qc = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+
+  // --------------------------------------------------
+  // FETCH
+  // --------------------------------------------------
+  const { data: videos = [], isLoading } = useSessionVideos(sessionId);
+
+  // --------------------------------------------------
+  // DELETE
+  // --------------------------------------------------
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/media/videos/${id}/`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+    },
+  });
+
+  // --------------------------------------------------
+  // RETRY (FAILED → 재처리)
+  // --------------------------------------------------
+  const retryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await api.post(`/media/videos/${id}/retry/`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="text-base font-medium text-[var(--text-secondary)]">
+          해당 차시에 등록된 영상 목록입니다.
+        </div>
+
+        <button
+          className="btn"
+          onClick={() => setShowModal(true)}
+        >
+          영상 추가
+        </button>
+      </div>
+
+      {/* List */}
+      <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 shadow-sm">
+        {isLoading && (
+          <div className="p-3 text-base text-[var(--text-muted)]">
+            로딩중...
+          </div>
+        )}
+
+        {!isLoading && videos.length === 0 && (
+          <div className="p-3 text-base text-[var(--text-muted)]">
+            등록된 영상이 없습니다.
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {videos.map((video: MediaVideo) => {
+            const fileSize =
+              video.file_size && video.file_size > 0
+                ? `${(video.file_size / 1024 / 1024).toFixed(2)}MB`
+                : "-";
+
+            const uploadDate = video.created_at
+              ? new Date(video.created_at).toLocaleString("ko-KR", {
+                  year: "2-digit",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                })
+              : "-";
+
+            return (
+              <div
+                key={video.id}
+                className="group rounded-lg border border-[var(--border-divider)] bg-[var(--bg-app)] p-3 shadow-sm transition hover:bg-[var(--bg-surface-soft)]"
+              >
+                {/* Thumbnail → Detail */}
+                <Link to={`${video.id}`}>
+                  <VideoThumbnail
+                    title={video.title}
+                    status={video.status ?? "PENDING"}
+                    thumbnail_url={video.thumbnail_url}
+                  />
+                </Link>
+
+                {/* Title + Status */}
+                <div className="mt-3 flex items-start justify-between gap-2">
+                  <div className="text-sm leading-tight text-[var(--text-primary)]">
+                    <div className="text-base font-semibold">
+                      {video.title}
+                    </div>
+
+                    {fileSize !== "-" && (
+                      <div className="text-sm text-[var(--text-muted)]">
+                        {fileSize} · {uploadDate}
+                      </div>
+                    )}
+                  </div>
+
+                  <VideoStatusBadge status={video.status} />
+                </div>
+
+                {/* Policy summary */}
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
+                  <span>
+                    워터마크:{" "}
+                    <span
+                      className={
+                        video.show_watermark
+                          ? "font-semibold text-[var(--color-primary)]"
+                          : "font-semibold text-[var(--text-muted)]"
+                      }
+                    >
+                      {video.show_watermark ? "표시" : "숨김"}
+                    </span>
+                  </span>
+
+                  <span className="text-[var(--text-muted)]">|</span>
+
+                  <span>
+                    건너뛰기:{" "}
+                    <span
+                      className={
+                        video.allow_skip
+                          ? "font-semibold text-[var(--text-muted)]"
+                          : "font-semibold text-[var(--color-primary)]"
+                      }
+                    >
+                      {video.allow_skip ? "허용" : "금지"}
+                    </span>
+                  </span>
+
+                  <span className="text-[var(--text-muted)]">|</span>
+
+                  <span>
+                    배속:{" "}
+                    <span
+                      className={
+                        video.max_speed > 1.0
+                          ? "font-semibold text-[var(--text-muted)]"
+                          : "font-semibold text-[var(--color-primary)]"
+                      }
+                    >
+                      {video.max_speed.toFixed(2)}x
+                    </span>
+                  </span>
+                </div>
+
+                {/* FAILED → Retry */}
+                {video.status === "FAILED" && (
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      className="rounded bg-[var(--color-primary)] px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                      disabled={retryMutation.isPending}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        if (window.confirm("영상 처리를 다시 시도할까요?")) {
+                          retryMutation.mutate(video.id);
+                        }
+                      }}
+                    >
+                      재처리
+                    </button>
+                  </div>
+                )}
+
+                {/* Delete */}
+                <div className="mt-2 flex justify-end">
+                  <button
+                    className="text-sm text-[var(--text-muted)] hover:underline"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      if (window.confirm("정말 삭제하시겠습니까?")) {
+                        deleteMutation.mutate(video.id);
+                      }
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Upload Modal */}
+      <VideoUploadModal
+        sessionId={sessionId}
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: hooks/useLectureEnrollments.ts
+==========================================================================================
+import { useQuery } from "@tanstack/react-query";
+import { fetchLectureEnrollments } from "../api/enrollments";
+
+export function useLectureEnrollments(lectureId: number) {
+  return useQuery({
+    queryKey: ["lecture-enrollments", lectureId],
+    queryFn: () => fetchLectureEnrollments(lectureId),
+    enabled: !!lectureId,
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useLectureParams.ts
+==========================================================================================
+// src/features/lectures/hooks/useLectureParams.ts
+import { useParams } from "react-router-dom";
+
+export function useLectureParams() {
+  const { lectureId, sessionId } = useParams<{
+    lectureId?: string;
+    sessionId?: string;
+  }>();
+
+  const parsedLectureId = Number(lectureId);
+  const parsedSessionId = sessionId ? Number(sessionId) : undefined;
+
+  return {
+    lectureId: parsedLectureId,
+    sessionId: parsedSessionId,
+  };
+}
+
+
+==========================================================================================
+# FILE: hooks/useSessionVideos.ts
+==========================================================================================
+// src/features/lectures/hooks/useSessionVideos.ts
+
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+/**
+ * Session 기준 media/videos 조회 + 상태 polling
+ *
+ * - READY / FAILED 아닌 영상이 있으면 2초 polling
+ * - 전부 READY/FAILED면 polling 중단
+ */
+export function useSessionVideos(sessionId: number) {
+  return useQuery({
+    queryKey: ["session-videos", sessionId],
+    enabled: !!sessionId,
+
+    queryFn: async () => {
+      const res = await api.get("/media/videos/", {
+        params: { session_id: sessionId },
+      });
+      return res.data.results ?? res.data;
+    },
+
+    refetchInterval: (query) => {
+      const videos = query.state.data as any[] | undefined;
+      if (!videos || videos.length === 0) return false;
+
+      const hasProcessing = videos.some(
+        (v) =>
+          v.status === "PENDING" ||
+          v.status === "UPLOADED" ||
+          v.status === "PROCESSING"
+      );
+
+      // 아직 처리중이면 polling 유지
+      return hasProcessing ? 2000 : false;
+    },
+  });
+}
+
+
+==========================================================================================
+# FILE: layout/LectureLayout.tsx
+==========================================================================================
+// src/features/lectures/layout/LectureLayout.tsx
+
+import { Outlet } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
+import api from "@/shared/api/axios";
+import { Page, PageHeader } from "@/shared/ui/page";
+
+import SessionBar from "../components/SessionBar";
+import LectureTabs from "../components/LectureTabs";
+import { useLectureParams } from "../hooks/useLectureParams";
+
+export default function LectureLayout() {
+  const { lectureId, sessionId } = useLectureParams();
+
+  if (!Number.isFinite(lectureId)) {
+    return <Page>잘못된 강의 ID</Page>;
+  }
+
+  const { data: lecture, isLoading } = useQuery({
+    queryKey: ["lecture", lectureId],
+    queryFn: async () =>
+      (await api.get(`/lectures/lectures/${lectureId}/`)).data,
+    enabled: Number.isFinite(lectureId),
+  });
+
+  if (isLoading || !lecture) {
+    return <Page>로딩중...</Page>;
+  }
+
+  const isSessionDetail = Number.isFinite(sessionId);
+
+  return (
+    <Page>
+      {isSessionDetail ? (
+        <>
+          <button
+            onClick={() => window.history.back()}
+            className="
+              mb-4 inline-flex items-center gap-1
+              rounded-md border border-[var(--border-divider)]
+              bg-[var(--bg-surface)]
+              px-3 py-1.5 text-sm font-medium
+              text-[var(--text-secondary)]
+              hover:bg-[var(--bg-surface-soft)]
+            "
+          >
+            ← 강의로 돌아가기
+          </button>
+
+          <Outlet />
+        </>
+      ) : (
+        <>
+          <PageHeader
+            title={lecture.title}
+            description={`${lecture.subject ?? "-"} · 강사 ${lecture.name ?? "-"}`}
+          />
+
+          <SessionBar />
+
+          <LectureTabs />
+
+          <div
+            className="
+              rounded-b-2xl
+              border border-t-0 border-[var(--border-divider)]
+              bg-[var(--bg-surface)]
+              p-6
+            "
+          >
+            <Outlet />
+          </div>
+        </>
+      )}
+    </Page>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/attendance/LectureAttendanceMatrixPage.tsx
+==========================================================================================
+// src/features/lectures/pages/attendance/LectureAttendanceMatrixPage.tsx
+
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { PageSection } from "@/shared/ui/page";
+import { useLectureParams } from "@/features/lectures/hooks/useLectureParams";
+
+import {
+  fetchAttendanceMatrix,
+  updateAttendance,
+  downloadAttendanceExcel,
+} from "../../api/attendance";
+
+import "./attendanceMatrix.css";
+
+const STATUS_ORDER = [
+  "PRESENT",
+  "LATE",
+  "ONLINE",
+  "SUPPLEMENT",
+  "EARLY_LEAVE",
+  "ABSENT",
+  "RUNAWAY",
+  "MATERIAL",
+  "INACTIVE",
+  "SECESSION",
+];
+
+const STATUS_LABEL: Record<string, string> = {
+  PRESENT: "출석",
+  LATE: "지각",
+  ONLINE: "온라인",
+  SUPPLEMENT: "보강",
+  EARLY_LEAVE: "조퇴",
+  ABSENT: "결석",
+  RUNAWAY: "출튀",
+  MATERIAL: "자료",
+  INACTIVE: "부재",
+  SECESSION: "탈퇴",
+};
+
+function nextStatus(current: string) {
+  const idx = STATUS_ORDER.indexOf(current);
+  return idx === -1
+    ? STATUS_ORDER[0]
+    : STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
+}
+
+function statusClass(status: string) {
+  return `status-${status.toLowerCase().replace("_", "-")}`;
+}
+
+export default function LectureAttendanceMatrixPage() {
+  const { lectureId } = useLectureParams();
+  const qc = useQueryClient();
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["attendance-matrix", lectureId],
+    queryFn: () => fetchAttendanceMatrix(lectureId),
+    enabled: Number.isFinite(lectureId),
+  });
+
+  const mutation = useMutation({
+    mutationFn: ({
+      attendanceId,
+      status,
+    }: {
+      attendanceId: number;
+      status: string;
+    }) => {
+      setUpdatingId(attendanceId);
+      return updateAttendance(attendanceId, { status });
+    },
+    onSettled: () => {
+      setUpdatingId(null);
+      qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
+    },
+  });
+
+  return (
+    <PageSection
+      title="출결 매트릭스"
+      actions={
+        <button
+          className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
+          onClick={() => downloadAttendanceExcel(lectureId)}
+        >
+          엑셀 다운로드
+        </button>
+      }
+    >
+      {isLoading || !data ? (
+        <div className="py-12 text-center text-sm text-[var(--text-muted)]">
+          출결 데이터를 불러오는 중입니다.
+        </div>
+      ) : (
+        <div className="overflow-auto rounded border border-[var(--border-divider)]">
+          <table className="attendance-table">
+            <thead className="attendance-sticky-header">
+              <tr>
+                <th className="attendance-sticky-student">학생</th>
+                {data.sessions.map((s: any) => (
+                  <th key={s.id}>{s.order}차시</th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              {data.students.map((st: any) => (
+                <tr key={st.student_id} className="attendance-row">
+                  <td className="attendance-sticky-student">
+                    {st.name}
+                  </td>
+
+                  {data.sessions.map((s: any) => {
+                    const cell = st.attendance[String(s.id)];
+                    if (!cell) return <td key={s.id}>-</td>;
+
+                    const isUpdating =
+                      updatingId === cell.attendance_id;
+                    const disabled = cell.status === "SECESSION";
+
+                    return (
+                      <td
+                        key={s.id}
+                        className={[
+                          "attendance-cell",
+                          statusClass(cell.status),
+                          disabled ? "disabled" : "",
+                          isUpdating ? "updating" : "",
+                        ].join(" ")}
+                        title={STATUS_LABEL[cell.status]}
+                        onClick={() => {
+                          if (disabled || isUpdating) return;
+                          mutation.mutate({
+                            attendanceId: cell.attendance_id,
+                            status: nextStatus(cell.status),
+                          });
+                        }}
+                      >
+                        {STATUS_LABEL[cell.status]}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/attendance/SessionAttendancePage.tsx
+==========================================================================================
+// src/features/lectures/pages/attendance/SessionAttendancePage.tsx
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchAttendance,
+  updateAttendance,
+} from "@/features/lectures/api/attendance";
+import { PageSection } from "@/shared/ui/page";
+
+/* ================= 출결 상수 (색상 통일 HARD CODE) ================= */
+
+const STATUS_BUTTONS = [
+  {
+    code: "PRESENT",
+    label: "현장",
+    active: "bg-[var(--color-primary)] text-white border-[var(--color-primary)]",
+    idle: "text-[var(--color-primary)] border-[var(--color-primary)]/40",
+  },
+  {
+    code: "LATE",
+    label: "지각",
+    active: "bg-yellow-500 text-white border-yellow-500",
+    idle: "text-yellow-600 border-yellow-400/40",
+  },
+  {
+    code: "ONLINE",
+    label: "영상",
+    active: "bg-sky-500 text-white border-sky-500",
+    idle: "text-sky-600 border-sky-400/40",
+  },
+  {
+    code: "SUPPLEMENT",
+    label: "보강",
+    active: "bg-violet-500 text-white border-violet-500",
+    idle: "text-violet-600 border-violet-400/40",
+  },
+  {
+    code: "EARLY_LEAVE",
+    label: "조퇴",
+    active: "bg-amber-500 text-white border-amber-500",
+    idle: "text-amber-600 border-amber-400/40",
+  },
+  {
+    code: "ABSENT",
+    label: "결석",
+    active: "bg-red-500 text-white border-red-500",
+    idle: "text-red-600 border-red-400/40",
+  },
+  {
+    code: "RUNAWAY",
+    label: "출튀",
+    active: "bg-rose-500 text-white border-rose-500",
+    idle: "text-rose-600 border-rose-400/40",
+  },
+  {
+    code: "MATERIAL",
+    label: "자료",
+    active: "bg-slate-500 text-white border-slate-500",
+    idle: "text-slate-600 border-slate-400/40",
+  },
+  {
+    code: "INACTIVE",
+    label: "부재",
+    active: "bg-gray-400 text-white border-gray-400",
+    idle: "text-gray-500 border-gray-300",
+  },
+  {
+    code: "SECESSION",
+    label: "퇴원",
+    active: "bg-gray-700 text-white border-gray-700",
+    idle: "text-gray-600 border-gray-500/40",
+  },
+];
+
+const STATUS_STYLE_MAP = Object.fromEntries(
+  STATUS_BUTTONS.map((b) => [
+    b.code,
+    { active: b.active, idle: b.idle, label: b.label },
+  ])
+);
+
+export default function SessionAttendancePage({
+  sessionId,
+}: {
+  sessionId: number;
+}) {
+  const qc = useQueryClient();
+  const safeSessionId = Number(sessionId);
+
+  const { data: attendance } = useQuery({
+    queryKey: ["attendance", safeSessionId],
+    queryFn: () => fetchAttendance(safeSessionId),
+    enabled: Number.isFinite(safeSessionId),
+  });
+
+  const mutationStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      updateAttendance(id, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["attendance", safeSessionId] });
+    },
+  });
+
+  const mutationMemo = useMutation({
+    mutationFn: ({ id, memo }: { id: number; memo: string }) =>
+      updateAttendance(id, { memo }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["attendance", safeSessionId] });
+    },
+  });
+
+  if (!attendance) {
+    return (
+      <PageSection title="출결 관리">
+        <div className="text-sm text-[var(--text-muted)]">로딩중...</div>
+      </PageSection>
+    );
+  }
+
+  return (
+    <PageSection title="출결 관리">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="border-b border-[var(--border-divider)] text-[var(--text-secondary)]">
+            <tr>
+              <th className="px-3 py-2 text-left">이름</th>
+              <th className="px-3 py-2 text-left">현재 상태</th>
+              <th className="px-3 py-2 text-left">출결 변경</th>
+              <th className="px-3 py-2 text-left">메모</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {attendance.map((att: any) => {
+              const style = STATUS_STYLE_MAP[att.status];
+
+              return (
+                <tr
+                  key={att.id}
+                  className="border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                >
+                  {/* 이름 */}
+                  <td className="px-3 py-2 font-medium text-[var(--text-primary)]">
+                    {att.name}
+                  </td>
+
+                  {/* 현재 상태 (색상 반영) */}
+                  <td className="px-3 py-2">
+                    {style ? (
+                      <span
+                        className={[
+                          "inline-flex rounded-full border px-2 py-1 text-xs font-semibold",
+                          style.active,
+                        ].join(" ")}
+                      >
+                        {style.label}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+
+                  {/* 출결 변경 */}
+                  <td className="px-3 py-2">
+                    <div className="flex flex-wrap gap-1">
+                      {STATUS_BUTTONS.map((btn) => {
+                        const active = att.status === btn.code;
+
+                        return (
+                          <button
+                            key={btn.code}
+                            type="button"
+                            className={[
+                              "rounded border px-2 py-1 text-xs font-semibold transition",
+                              active ? btn.active : btn.idle,
+                              !active &&
+                                "hover:bg-[var(--bg-surface-soft)]",
+                            ].join(" ")}
+                            onClick={() => {
+                              if (active) return;
+                              mutationStatus.mutate({
+                                id: att.id,
+                                status: btn.code,
+                              });
+                            }}
+                          >
+                            {btn.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </td>
+
+                  {/* 메모 */}
+                  <td className="px-3 py-2">
+                    <input
+                      defaultValue={att.memo}
+                      placeholder="메모 입력"
+                      className="w-full rounded-md border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                      onBlur={(e) =>
+                        mutationMemo.mutate({
+                          id: att.id,
+                          memo: e.target.value,
+                        })
+                      }
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/attendance/attendanceMatrix.css
+==========================================================================================
+/* src/features/lectures/pages/attendance/attendanceMatrix.css */
+
+/* ===== 테이블 기본 ===== */
+.attendance-table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.attendance-table th,
+.attendance-table td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+}
+
+/* ===== Sticky ===== */
+.attendance-sticky-header {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  z-index: 10;
+}
+
+.attendance-sticky-student {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 20;
+  font-weight: 600;
+}
+
+/* ===== Hover ===== */
+.attendance-row:hover {
+  background: #f9fafb;
+}
+
+/* ===== Status Colors ===== */
+.status-present {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-late {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.status-online {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-supplement {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.status-early-leave {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.status-absent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-runaway {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.status-material {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.status-inactive {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.status-secession {
+  background: #d1d5db;
+  color: #6b7280;
+  text-decoration: line-through;
+}
+
+/* ===== Interaction ===== */
+.attendance-cell {
+  cursor: pointer;
+  user-select: none;
+}
+
+.attendance-cell.disabled {
+  cursor: not-allowed;
+}
+
+.attendance-cell.updating {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+
+==========================================================================================
+# FILE: pages/boards/LectureBoardPage.tsx
+==========================================================================================
+// src/features/lectures/pages/boards/LectureBoardPage.tsx
+
+import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
+import {
+  BoardCategory,
+  BoardPost,
+  fetchBoardCategories,
+  fetchBoardPosts,
+} from "../../api/board";
+
+import BoardCategoryModal from "../../components/BoardCategoryModal";
+import BoardPostModal from "../../components/BoardPostModal";
+import BoardPostDetail from "../../components/BoardPostDetail";
+
+import { PageSection } from "@/shared/ui/page";
+import { EmptyState } from "@/shared/ui/feedback";
+
+export default function LectureBoardPage() {
+  const { lectureId } = useParams<{ lectureId: string }>();
+  const lectureIdNum = Number(lectureId);
+
+  const [selectedCategory, setSelectedCategory] =
+    useState<BoardCategory | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [openedPost, setOpenedPost] = useState<BoardPost | null>(null);
+
+  const { data: categories = [] } = useQuery<BoardCategory[]>({
+    queryKey: ["board-categories", lectureIdNum],
+    queryFn: () => fetchBoardCategories(lectureIdNum),
+    enabled: Number.isFinite(lectureIdNum),
+    onSuccess: (data) => {
+      if (!selectedCategory && data.length > 0) {
+        setSelectedCategory(data[0]);
+      }
+    },
+  });
+
+  const { data: posts = [] } = useQuery<BoardPost[]>({
+    queryKey: [
+      "board-posts",
+      lectureIdNum,
+      selectedCategory?.id ?? "none",
+    ],
+    queryFn: () =>
+      fetchBoardPosts({
+        lecture: lectureIdNum,
+        category: selectedCategory?.id,
+      }),
+    enabled: Number.isFinite(lectureIdNum) && !!selectedCategory,
+  });
+
+  return (
+    <PageSection
+      title="강의 게시판"
+      actions={
+        selectedCategory && (
+          <button
+            onClick={() => setShowPostModal(true)}
+            className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
+          >
+            글 작성
+          </button>
+        )
+      }
+    >
+      <div className="flex gap-6">
+        {/* LEFT */}
+        <div
+          className="
+            w-60 shrink-0
+            rounded-xl border border-[var(--border-divider)]
+            bg-[var(--bg-surface)]
+            p-4 text-sm
+          "
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-[var(--text-muted)]">
+              게시판 목록
+            </span>
+            <button
+              onClick={() => setShowCategoryModal(true)}
+              className="text-xs font-medium text-[var(--color-primary)] hover:underline"
+            >
+              + 추가
+            </button>
+          </div>
+
+          <ul className="space-y-1">
+            {categories.map((cat) => (
+              <li key={cat.id}>
+                <button
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`w-full rounded-md px-3 py-2 text-left ${
+                    selectedCategory?.id === cat.id
+                      ? "bg-[var(--bg-surface-soft)] font-semibold text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* RIGHT */}
+        <div
+          className="
+            flex-1
+            rounded-xl border border-[var(--border-divider)]
+            bg-[var(--bg-surface)]
+            p-6
+          "
+        >
+          {!selectedCategory || posts.length === 0 ? (
+            <EmptyState
+              title="등록된 글이 없습니다."
+              description="게시글을 작성하면 여기에 표시됩니다."
+            />
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-[var(--border-divider)]">
+              <table className="w-full text-sm">
+                <thead className="bg-[var(--bg-surface-soft)]">
+                  <tr>
+                    <th className="px-4 py-2 text-left">제목</th>
+                    <th className="px-4 py-2 text-left">작성일</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {posts.map((p) => (
+                    <tr
+                      key={p.id}
+                      onClick={() => setOpenedPost(p)}
+                      className="
+                        cursor-pointer
+                        border-t border-[var(--border-divider)]
+                        hover:bg-[var(--bg-surface-soft)]
+                      "
+                    >
+                      <td className="px-4 py-2 font-medium">
+                        {p.title}
+                      </td>
+                      <td className="px-4 py-2 text-[var(--text-muted)]">
+                        {p.created_at.slice(0, 10)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showCategoryModal && (
+        <BoardCategoryModal
+          lectureId={lectureIdNum}
+          onClose={() => setShowCategoryModal(false)}
+        />
+      )}
+
+      {showPostModal && selectedCategory && (
+        <BoardPostModal
+          lectureId={lectureIdNum}
+          category={selectedCategory}
+          onClose={() => setShowPostModal(false)}
+        />
+      )}
+
+      {openedPost && (
+        <BoardPostDetail
+          lectureId={lectureIdNum}
+          post={openedPost}
+          onClose={() => setOpenedPost(null)}
+        />
+      )}
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/ddays/LectureDdayPage.tsx
+==========================================================================================
+// src/features/lectures/pages/ddays/LectureDdayPage.tsx
+
+import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import {
+  fetchDdays,
+  deleteDday,
+  type Dday,
+} from "@/features/lectures/api/ddays";
+
+import DdayModal from "@/features/lectures/components/DdayModal";
+import { PageSection } from "@/shared/ui/page";
+
+export default function LectureDdayPage() {
+  const { lectureId } = useParams<{ lectureId: string }>();
+  const lectureIdNum = Number(lectureId);
+  const qc = useQueryClient();
+
+  const [showModal, setShowModal] = useState(false);
+
+  const { data: ddays = [], isLoading } = useQuery<Dday[]>({
+    queryKey: ["ddays", lectureIdNum],
+    queryFn: () => fetchDdays(lectureIdNum),
+    enabled: Number.isFinite(lectureIdNum),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteDday(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ddays", lectureIdNum] });
+    },
+  });
+
+  if (!Number.isFinite(lectureIdNum)) {
+    return (
+      <PageSection title="D-Day 설정">
+        <div className="text-sm text-red-500">잘못된 강의 ID</div>
+      </PageSection>
+    );
+  }
+
+  return (
+    <PageSection
+      title="D-Day 설정"
+      actions={
+        <button
+          onClick={() => setShowModal(true)}
+          className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
+        >
+          D-Day 추가
+        </button>
+      }
+    >
+      {isLoading ? (
+        <div className="py-12 text-center text-sm text-[var(--text-muted)]">
+          불러오는 중…
+        </div>
+      ) : ddays.length === 0 ? (
+        <div className="py-12 text-center text-sm text-[var(--text-muted)]">
+          등록된 D-Day가 없습니다.
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded border">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-[var(--bg-surface-soft)]">
+              <tr>
+                <th className="px-4 py-2 text-left">제목</th>
+                <th className="px-4 py-2 text-left">날짜</th>
+                <th className="px-4 py-2 text-right">관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ddays.map((d) => (
+                <tr key={d.id} className="border-b">
+                  <td className="px-4 py-2">{d.title}</td>
+                  <td className="px-4 py-2">
+                    {new Date(d.date).toLocaleString("ko-KR")}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      disabled={deleteMutation.isPending}
+                      onClick={() => {
+                        if (window.confirm("삭제하시겠습니까?")) {
+                          deleteMutation.mutate(d.id);
+                        }
+                      }}
+                      className="text-sm text-[var(--text-muted)] hover:underline"
+                    >
+                      삭제
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showModal && (
+        <DdayModal
+          lectureId={lectureIdNum}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/exams/SessionExamsRoute.tsx
+==========================================================================================
+// src/features/lectures/pages/exams/SessionExamsRoute.tsx
+// --------------------------------------------------
+// Route adapter
+// - URL param(sessionId) → SessionExamsPage props로 전달
+// --------------------------------------------------
+
+import { useParams } from "react-router-dom";
+import SessionExamsPage from "./SessionExamsPage";
+
+export default function SessionExamsRoute() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const sid = Number(sessionId);
+
+  if (!Number.isFinite(sid)) {
+    return <div className="p-4 text-sm text-red-600">잘못된 sessionId</div>;
+  }
+
+  return <SessionExamsPage sessionId={sid} />;
+}
+
+
+==========================================================================================
+# FILE: pages/lectures/LectureReportPage.tsx
+==========================================================================================
+// src/features/lectures/pages/lectures/LectureReportPage.tsx
+
+import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
+import { Page, PageHeader } from "@/shared/ui/page";
+
+import {
+  fetchLectureReport,
+  LectureReportResponse,
+} from "../../api/report";
+
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
+
+const STATUS_LABEL_MAP: Record<string, string> = {
+  PRESENT: "현장",
+  LATE: "지각",
+  ONLINE: "영상",
+  SUPPLEMENT: "보강",
+  EARLY_LEAVE: "조퇴",
+  ABSENT: "결석",
+  RUNAWAY: "출튀",
+  MATERIAL: "자료",
+  INACTIVE: "부재",
+  SECESSION: "퇴원",
+};
+
+export default function LectureReportPage() {
+  const { lectureId } = useParams<{ lectureId: string }>();
+  const lectureIdNum = Number(lectureId);
+
+  const { data, isLoading, error } = useQuery<LectureReportResponse>({
+    queryKey: ["lecture-report", lectureIdNum],
+    queryFn: () => fetchLectureReport(lectureIdNum),
+    enabled: Number.isFinite(lectureIdNum),
+  });
+
+  if (!Number.isFinite(lectureIdNum)) {
+    return <Page>잘못된 강의 ID</Page>;
+  }
+
+  if (isLoading) {
+    return <Page>로딩중…</Page>;
+  }
+
+  if (error || !data) {
+    return (
+      <Page>
+        <div className="text-sm text-red-500">
+          리포트 데이터를 불러오지 못했습니다.
+        </div>
+      </Page>
+    );
+  }
+
+  const { lecture, summary, attendance_by_status, students } = data;
+
+  const attendanceChartData = Object.entries(attendance_by_status).map(
+    ([key, value]) => ({
+      status: STATUS_LABEL_MAP[key] ?? key,
+      count: value as number,
+    })
+  );
+
+  return (
+    <Page>
+      <PageHeader
+        title={`강의 리포트 — ${lecture.title}`}
+        actions={
+          <Link
+            to=".."
+            relative="path"
+            className="rounded border border-[var(--border-divider)] px-3 py-2 text-sm"
+          >
+            강의 상세
+          </Link>
+        }
+      />
+
+      <div className="mb-6 text-sm text-[var(--text-muted)]">
+        강사: {lecture.name} · 과목: {lecture.subject}
+      </div>
+
+      {/* SUMMARY */}
+      <div className="mb-8 grid gap-4 md:grid-cols-4">
+        <SummaryCard label="총 수강 학생" value={summary.total_students} />
+        <SummaryCard label="차시 수" value={summary.total_sessions} />
+        <SummaryCard label="영상 개수" value={summary.total_videos} />
+        <SummaryCard
+          label="평균 영상 진도율"
+          value={`${(summary.avg_video_progress * 100).toFixed(0)}%`}
+          sub={`완료 학생 ${summary.completed_students}명`}
+        />
+      </div>
+
+      {/* CHART */}
+      <div className="rounded border bg-white p-4">
+        <div className="mb-2 text-sm font-semibold">
+          출석 상태 분포
+        </div>
+
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={attendanceChartData}>
+              <XAxis
+                dataKey="status"
+                interval={0}
+                angle={-20}
+                height={60}
+              />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* STUDENTS */}
+      <div className="mt-6 overflow-hidden rounded border">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-2 py-1 text-left">학생</th>
+              <th className="px-2 py-1 text-right">평균 진도</th>
+              <th className="px-2 py-1 text-center">완료</th>
+              <th className="px-2 py-1 text-center">마지막 출석</th>
+            </tr>
+          </thead>
+          <tbody>
+            {students.map((s) => (
+              <tr key={s.enrollment} className="border-t">
+                <td className="px-2 py-1">{s.student_name}</td>
+                <td className="px-2 py-1 text-right">
+                  {(s.avg_progress * 100).toFixed(0)}%
+                </td>
+                <td className="px-2 py-1 text-center">
+                  {s.completed_videos}/{s.total_videos}
+                </td>
+                <td className="px-2 py-1 text-center">
+                  {STATUS_LABEL_MAP[s.last_attendance_status ?? ""] ?? "-"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Page>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: number | string;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded border bg-white p-4 text-sm">
+      <div className="text-gray-500">{label}</div>
+      <div className="mt-1 text-2xl font-semibold">{value}</div>
+      {sub && <div className="mt-1 text-xs text-gray-400">{sub}</div>}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/lectures/LectureStudentsPage.tsx
+==========================================================================================
+import { useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import StudentsTable from "@/features/students/components/StudentsTable";
+import api from "@/shared/api/axios";
+
+import { fetchLectureEnrollments } from "@/features/lectures/api/enrollments";
+import { PageSection } from "@/shared/ui/page";
+import { EmptyState } from "@/shared/ui/feedback";
+
+export default function LectureStudentsPage() {
+  const { lectureId } = useParams<{ lectureId?: string }>();
+  const lectureIdNum = Number(lectureId);
+  const qc = useQueryClient();
+
+  const { data: enrollments = [], isLoading } = useQuery({
+    queryKey: ["lecture-enrollments", lectureIdNum],
+    queryFn: () => fetchLectureEnrollments(lectureIdNum),
+    enabled: Number.isFinite(lectureIdNum),
+  });
+
+  if (isLoading) {
+    return (
+      <PageSection title="수강생 목록">
+        <div className="text-sm text-[var(--text-muted)]">
+          로딩중...
+        </div>
+      </PageSection>
+    );
+  }
+
+  const studentList = enrollments.map((en: any) => {
+    const st = en.student;
+    return {
+      id: en.id,
+      name: st?.name,
+      studentPhone: st?.phone,
+      parentPhone: st?.parent_phone,
+      school: st?.high_school,
+      schoolClass: st?.high_school_class,
+      major: st?.major,
+      grade: st?.grade,
+      gender: st?.gender ?? "-",
+      registeredAt: en.enrolled_at,
+      active: en.status === "ACTIVE",
+    };
+  });
+
+  return (
+    <PageSection title={`수강생 목록 (${studentList.length})`}>
+      {studentList.length === 0 ? (
+        <EmptyState
+          title="수강 중인 학생이 없습니다."
+          description="학생을 등록하면 이곳에 표시됩니다."
+        />
+      ) : (
+        <StudentsTable
+          data={studentList}
+          onDelete={async (enrollmentId: number) => {
+            await api.delete(`/enrollments/${enrollmentId}/`);
+            qc.invalidateQueries({
+              queryKey: ["lecture-enrollments", lectureIdNum],
+            });
+          }}
+          onRowClick={() => {}}
+        />
+      )}
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/lectures/LecturesPage.tsx
+==========================================================================================
+// PATH: src/features/lectures/pages/lectures/LecturesPage.tsx
+
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+
+import api from "@/shared/api/axios";
+import { Page, PageHeader, PageSection } from "@/shared/ui/page";
+
+import LectureCreateModal from "../../components/LectureCreateModal";
+
+type LectureItem = {
+  id: number;
+  title: string;
+  subject?: string | null;
+  name?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_active?: boolean;
+};
+
+type TabKey = "active" | "past";
+
+function isPastLecture(lec: LectureItem) {
+  // ✅ 실무 기준: end_date가 과거면 past
+  // + is_active가 false면 past 취급(서버가 내려주는 경우 대비)
+  const activeFlag =
+    typeof lec.is_active === "boolean" ? lec.is_active : undefined;
+
+  if (activeFlag === false) return true;
+
+  if (!lec.end_date) return false;
+
+  const end = new Date(lec.end_date);
+  if (Number.isNaN(end.getTime())) return false;
+
+  // 날짜 비교(시간 영향 최소화)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  return end.getTime() < today.getTime();
+}
+
+export default function LecturesPage() {
+  const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
+
+  // ✅ 2중 구조 탭: 강의목록 | 지난강의
+  const [tab, setTab] = useState<TabKey>("active");
+
+  // ✅ 실무 UX: 로컬 검색(탭 내에서만 필터)
+  const [q, setQ] = useState("");
+
+  const { data = [], isLoading, error, isFetching } = useQuery({
+    queryKey: ["lectures"],
+    queryFn: async (): Promise<LectureItem[]> => {
+      const res = await api.get("/lectures/lectures/");
+      const list = (res.data?.results ?? res.data) as LectureItem[] | any;
+      return Array.isArray(list) ? list : [];
+    },
+  });
+
+  const { activeLectures, pastLectures } = useMemo(() => {
+    const active: LectureItem[] = [];
+    const past: LectureItem[] = [];
+
+    for (const lec of data) {
+      if (isPastLecture(lec)) past.push(lec);
+      else active.push(lec);
+    }
+
+    // ✅ 정렬: 진행중은 최신 시작일(내림), 지난강의는 종료일 최신(내림)
+    const toTime = (v?: string | null) => {
+      if (!v) return 0;
+      const t = new Date(v).getTime();
+      return Number.isFinite(t) ? t : 0;
+    };
+
+    active.sort((a, b) => toTime(b.start_date) - toTime(a.start_date));
+    past.sort((a, b) => toTime(b.end_date) - toTime(a.end_date));
+
+    return { activeLectures: active, pastLectures: past };
+  }, [data]);
+
+  const list = useMemo(() => {
+    const base = tab === "active" ? activeLectures : pastLectures;
+    const keyword = q.trim().toLowerCase();
+    if (!keyword) return base;
+
+    return base.filter((lec) => {
+      const hay = [
+        lec.title,
+        lec.subject ?? "",
+        lec.name ?? "",
+        lec.start_date ?? "",
+        lec.end_date ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return hay.includes(keyword);
+    });
+  }, [tab, activeLectures, pastLectures, q]);
+
+  if (isLoading) return <Page>로딩중...</Page>;
+  if (error) return <Page>에러가 발생했습니다.</Page>;
+
+  const tabBtn = (key: TabKey, label: string, count: number) => {
+    const active = tab === key;
+
+    return (
+      <button
+        type="button"
+        onClick={() => setTab(key)}
+        className={[
+          "relative px-4 py-2 text-sm font-semibold rounded-t-lg",
+          "transition-all duration-200",
+          active
+            ? "bg-[var(--bg-surface)] text-[var(--text-primary)]"
+            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+        ].join(" ")}
+      >
+        <span className="flex items-center gap-2">
+          {label}
+          <span
+            className={[
+              "inline-flex items-center justify-center",
+              "min-w-[22px] h-[18px] px-1.5",
+              "text-[11px] font-semibold rounded-full",
+              active
+                ? "bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20"
+                : "bg-[var(--bg-surface-soft)] text-[var(--text-muted)] border border-[var(--border-divider)]",
+            ].join(" ")}
+          >
+            {count}
+          </span>
+        </span>
+
+        {active && (
+          <span
+            className="
+              absolute left-0 right-0 -bottom-[1px]
+              h-[2px] bg-[var(--color-primary)]
+              rounded-full
+            "
+          />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <Page>
+      <PageHeader
+        title="강의 관리"
+        description="강의 목록과 진행 상태를 관리합니다."
+        actions={
+          <button
+            onClick={() => setShowModal(true)}
+            className="
+              px-4 py-2 rounded-md text-sm font-semibold
+              bg-[var(--color-primary)]
+              text-white
+              hover:opacity-90
+              shadow-sm
+            "
+          >
+            강의 추가
+          </button>
+        }
+      />
+
+      {/* ✅ 상단 탭 + 검색 (학생/클리닉 모티브) */}
+      <PageSection
+        className="
+          rounded-2xl border border-[var(--border-divider)]
+          bg-[var(--bg-surface)]
+          overflow-hidden
+        "
+      >
+        {/* 탭 헤더 */}
+        <div className="px-4 pt-4">
+          <div className="flex gap-2 border-b border-[var(--border-divider)]">
+            {tabBtn("active", "강의목록", activeLectures.length)}
+            {tabBtn("past", "지난강의", pastLectures.length)}
+          </div>
+
+          <div
+            className="
+              h-[3px] w-full
+              bg-gradient-to-r
+              from-[var(--color-primary)]/40
+              via-transparent
+              to-transparent
+            "
+          />
+        </div>
+
+        {/* 툴바 */}
+        <div className="px-4 py-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div
+              className="
+                flex items-center
+                rounded-lg
+                border border-[var(--border-divider)]
+                bg-[var(--bg-app)]
+                px-3
+                focus-within:ring-1
+                focus-within:ring-[var(--color-primary)]
+              "
+            >
+              <input
+                className="
+                  w-72 max-w-full py-2 text-sm font-medium
+                  bg-transparent
+                  text-[var(--text-primary)]
+                  placeholder:text-[var(--text-secondary)]
+                  focus:outline-none
+                "
+                placeholder={
+                  tab === "active"
+                    ? "진행중 강의 검색 (강의명/과목/강사)"
+                    : "지난 강의 검색 (강의명/과목/강사)"
+                }
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+
+              {isFetching && (
+                <span className="ml-2 w-3 h-3 rounded-full border-2 border-t-transparent animate-spin" />
+              )}
+            </div>
+
+            <div className="text-xs text-[var(--text-muted)]">
+              {tab === "active"
+                ? "종료일이 지나지 않은 강의(또는 진행중)만 표시"
+                : "종료일이 지난 강의 또는 비활성 강의만 표시"}
+            </div>
+          </div>
+        </div>
+      </PageSection>
+
+      {/* ✅ 목록 카드 */}
+      <PageSection
+        className="
+          mt-4
+          rounded-2xl border border-[var(--border-divider)]
+          bg-[var(--bg-surface)]
+          overflow-hidden
+        "
+      >
+        {list.length === 0 ? (
+          <div className="py-16 text-center">
+            <div className="text-sm font-semibold text-[var(--text-primary)]">
+              {tab === "active" ? "표시할 강의가 없습니다." : "지난 강의가 없습니다."}
+            </div>
+            <div className="mt-1 text-xs text-[var(--text-muted)]">
+              {q.trim()
+                ? "검색 조건을 변경해 보세요."
+                : "강의를 추가하거나 기간/상태를 확인해 보세요."}
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-[var(--text-secondary)]">
+                <tr>
+                  <th className="px-4 py-3 text-left">강의 이름</th>
+                  <th className="px-4 py-3 text-center">과목</th>
+                  <th className="px-4 py-3 text-center">강사</th>
+                  <th className="px-4 py-3 text-center">기간</th>
+                  <th className="px-4 py-3 text-center">상태</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-[var(--border-divider)]">
+                {list.map((lec) => {
+                  const past = isPastLecture(lec);
+
+                  return (
+                    <tr
+                      key={lec.id}
+                      onClick={() => navigate(`${lec.id}`)}
+                      className="
+                        cursor-pointer
+                        hover:bg-[var(--bg-surface-soft)]
+                        transition
+                      "
+                    >
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-[var(--text-primary)]">
+                          {lec.title}
+                        </div>
+                        <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                          ID: {lec.id}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3 text-center text-[var(--text-secondary)]">
+                        {lec.subject || "-"}
+                      </td>
+
+                      <td className="px-4 py-3 text-center text-[var(--text-secondary)]">
+                        {lec.name || "-"}
+                      </td>
+
+                      <td className="px-4 py-3 text-center text-[var(--text-muted)]">
+                        {lec.start_date && lec.end_date
+                          ? `${lec.start_date} ~ ${lec.end_date}`
+                          : lec.start_date && !lec.end_date
+                          ? `${lec.start_date} ~`
+                          : "-"}
+                      </td>
+
+                      <td className="px-4 py-3 text-center">
+                        <span
+                          className={[
+                            "inline-flex items-center justify-center",
+                            "px-2.5 py-1 rounded-full text-xs font-semibold",
+                            past
+                              ? "border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
+                              : "border border-[var(--color-success)]/20 bg-[var(--color-success)]/10 text-[var(--color-success)]",
+                          ].join(" ")}
+                        >
+                          {past ? "종료" : "진행중"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </PageSection>
+
+      {showModal && <LectureCreateModal onClose={() => setShowModal(false)} />}
+    </Page>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/materials/MaterialsPage.tsx
+==========================================================================================
+// src/features/lectures/pages/materials/MaterialsPage.tsx
+
+import { useState } from "react";
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+
+import {
+  fetchMaterialCategories,
+  fetchMaterials,
+  MaterialCategory,
+  Material,
+} from "../../api/materials";
+
+import MaterialCategoryModal from "../../components/MaterialCategoryModal";
+import MaterialUploadModal from "../../components/MaterialUploadModal";
+
+import { PageSection } from "@/shared/ui/page";
+import { EmptyState } from "@/shared/ui/feedback";
+
+export default function MaterialsPage() {
+  const { lectureId } = useParams<{ lectureId: string }>();
+  const lectureIdNum = Number(lectureId);
+
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+
+  const { data: categories = [] } = useQuery<MaterialCategory[]>({
+    queryKey: ["material-categories", lectureIdNum],
+    queryFn: () => fetchMaterialCategories(lectureIdNum),
+    enabled: Number.isFinite(lectureIdNum),
+  });
+
+  const { data: materials = [] } = useQuery<Material[]>({
+    queryKey: ["materials", lectureIdNum, selectedCategory ?? "all"],
+    queryFn: () =>
+      fetchMaterials({
+        lecture: lectureIdNum,
+        category: selectedCategory ?? undefined,
+      }),
+    enabled: Number.isFinite(lectureIdNum),
+  });
+
+  const currentCategoryName =
+    selectedCategory === null
+      ? "전체 자료"
+      : categories.find((c) => c.id === selectedCategory)?.name ?? "전체 자료";
+
+  return (
+    <PageSection
+      title="강의 자료실"
+      actions={
+        <button
+          onClick={() => setShowUploadModal(true)}
+          className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
+        >
+          자료 추가
+        </button>
+      }
+    >
+      <div className="flex gap-6">
+        {/* LEFT */}
+        <div
+          className="
+            w-60 shrink-0
+            rounded-xl border border-[var(--border-divider)]
+            bg-[var(--bg-surface)]
+            p-4 text-sm
+          "
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-[var(--text-muted)]">
+              자료 분류
+            </span>
+            <button
+              onClick={() => setShowCategoryModal(true)}
+              className="text-xs font-medium text-[var(--color-primary)] hover:underline"
+            >
+              + 추가
+            </button>
+          </div>
+
+          <ul className="space-y-1">
+            <li>
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`w-full rounded-md px-3 py-2 text-left ${
+                  selectedCategory === null
+                    ? "bg-[var(--bg-surface-soft)] font-semibold text-[var(--text-primary)]"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+                }`}
+              >
+                전체 자료
+              </button>
+            </li>
+
+            {categories.map((cat) => (
+              <li key={cat.id}>
+                <button
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`w-full rounded-md px-3 py-2 text-left ${
+                    selectedCategory === cat.id
+                      ? "bg-[var(--bg-surface-soft)] font-semibold text-[var(--text-primary)]"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* RIGHT */}
+        <div
+          className="
+            flex-1
+            rounded-xl border border-[var(--border-divider)]
+            bg-[var(--bg-surface)]
+            p-6
+          "
+        >
+          <div className="mb-4 text-sm font-semibold text-[var(--text-primary)]">
+            {currentCategoryName}
+          </div>
+
+          {materials.length === 0 ? (
+            <EmptyState
+              title="등록된 자료가 없습니다."
+              description="자료를 업로드하면 여기에 표시됩니다."
+            />
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-[var(--border-divider)]">
+              <table className="w-full text-sm">
+                <thead className="bg-[var(--bg-surface-soft)]">
+                  <tr>
+                    <th className="px-4 py-2 text-left">제목</th>
+                    <th className="px-4 py-2 text-left">등록자</th>
+                    <th className="px-4 py-2 text-left">등록일</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materials.map((m) => (
+                    <tr
+                      key={m.id}
+                      className="border-t border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                    >
+                      <td className="px-4 py-2">
+                        <a
+                          href={m.file || m.url || "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-medium text-[var(--color-primary)] hover:underline"
+                        >
+                          {m.title}
+                        </a>
+                      </td>
+                      <td className="px-4 py-2">
+                        {m.uploader_name || "-"}
+                      </td>
+                      <td className="px-4 py-2">
+                        {m.created_at?.slice(0, 10)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showCategoryModal && (
+        <MaterialCategoryModal
+          lectureId={lectureIdNum}
+          onClose={() => setShowCategoryModal(false)}
+        />
+      )}
+
+      {showUploadModal && (
+        <MaterialUploadModal
+          lectureId={lectureIdNum}
+          categoryId={selectedCategory}
+          onClose={() => setShowUploadModal(false)}
+        />
+      )}
+    </PageSection>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/scores/SessionScoresEntryPage.tsx
+==========================================================================================
+// src/features/lectures/pages/scores/SessionScoresTable.tsx
+/**
+ * ✅ SessionScoresTable (ENTRY PAGE)
+ *
+ * 책임:
+ * - sessionId 라우팅 파싱
+ * - 세션 단위 시험 요약 표시 (viewer)
+ * - 실제 성적 테이블은 scores 도메인에 위임
+ *
+ * ❌ 학생별 점수 렌더 ❌
+ * ❌ mock 데이터 ❌
+ * ❌ 점수 입력 ❌
+ */
+
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
+
+// ------------------------------------------------------------
+// Types (요약용)
+// ------------------------------------------------------------
+
+type SessionExamSummary = {
+  exam_id: number;
+  title: string;
+  pass_score: number;
+
+  participant_count: number;
+  avg_score: number;
+  min_score: number;
+  max_score: number;
+
+  pass_count: number;
+  fail_count: number;
+  pass_rate: number;
+};
+
+type SessionExamsSummaryResponse = {
+  session_id: number;
+  participant_count: number;
+  pass_rate: number;
+  clinic_rate: number;
+
+  strategy: string;
+  pass_source: string;
+
+  exams: SessionExamSummary[];
+};
+
+// ------------------------------------------------------------
+// API (viewer only)
+// ------------------------------------------------------------
+
+async function fetchSessionExamsSummary(
+  sessionId: number
+): Promise<SessionExamsSummaryResponse> {
+  const res = await api.get(
+    `/results/admin/sessions/${sessionId}/exams/summary/`
+  );
+  return res.data;
+}
+
+// ------------------------------------------------------------
+// Component
+// ------------------------------------------------------------
+
+export default function SessionScoresTable() {
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const numericSessionId = Number(sessionId);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["session-exams-summary", numericSessionId],
+    queryFn: () => fetchSessionExamsSummary(numericSessionId),
+    enabled: Number.isFinite(numericSessionId),
+  });
+
+  if (!Number.isFinite(numericSessionId)) {
+    return (
+      <div className="text-sm text-red-600">
+        유효하지 않은 sessionId 입니다.
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="text-sm text-gray-500">
+        세션 성적 정보 불러오는 중...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ===================== */}
+      {/* Session Exam Summary */}
+      {/* ===================== */}
+      {data && data.exams.length > 0 ? (
+        <div className="rounded border bg-white p-4">
+          <div className="mb-2 text-sm font-semibold">
+            세션 시험 요약
+          </div>
+
+          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+            {data.exams.map((exam) => (
+              <div
+                key={exam.exam_id}
+                className="rounded border px-3 py-2"
+              >
+                <div className="font-medium">
+                  {exam.title}
+                </div>
+                <div>
+                  평균 {exam.avg_score} ·
+                  합격률 {exam.pass_rate}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded border bg-gray-50 p-6 text-sm text-gray-500">
+          이 세션에는 성적 대상 시험이 없습니다.
+        </div>
+      )}
+
+      {/* ===================== */}
+      {/* Scores Domain Entry */}
+      {/* ===================== */}
+      <SessionScoresPanel sessionId={numericSessionId} />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/sessions/LectureSessionsPage.tsx
+==========================================================================================
+// src/features/lectures/pages/sessions/LectureSessionsPage.tsx
+import { useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSessions } from "../../api/sessions";
+import SessionCreateModal from "../../components/SessionCreateModal";
+
+export default function LectureSessionsPage() {
+  const { lectureId } = useParams<{ lectureId: string }>();
+  const lecId = Number(lectureId);
+
+  const [open, setOpen] = useState(false);
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["lecture-sessions", lecId],
+    queryFn: () => fetchSessions(lecId),
+    enabled: Number.isFinite(lecId),
+  });
+
+  return (
+    <div className="p-4">
+      <div className="mb-4 flex justify-between">
+        <h2 className="text-xl font-semibold">차시 목록</h2>
+        <button
+          className="rounded bg-blue-600 px-4 py-2 text-white"
+          onClick={() => setOpen(true)}
+        >
+          + 차시 추가
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {sessions.map((s: any) => (
+          <Link
+            key={s.id}
+            to={`${s.id}`}   // ✅ 상대경로
+            className="flex justify-between rounded border bg-gray-50 px-4 py-3 hover:bg-gray-100"
+          >
+            <div>
+              <div className="text-lg font-semibold">
+                {s.order}차시 - {s.title}
+              </div>
+              {s.date && (
+                <div className="text-sm text-gray-600">{s.date}</div>
+              )}
+            </div>
+            <div className="text-sm text-gray-500">ID: {s.id}</div>
+          </Link>
+        ))}
+      </div>
+
+      {open && (
+        <SessionCreateModal
+          lectureId={lecId}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </div>
+  );
+}

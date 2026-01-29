@@ -1,0 +1,15 @@
+## Results Domain Rules
+
+1. Attempt
+- Attempt 조회/변경은 Admin + enrollment 스코프 API만 사용
+- /results/exam-attempts/ ❌ 금지
+
+2. Result
+- 단일 학생 결과의 진실은
+  GET /results/admin/exams/{exam_id}/enrollments/{enrollment_id}/
+- PATCH/POST 후 반드시 재조회
+
+3. Frontend
+- 점수 계산 ❌
+- 합불 판단 ❌
+- backend 상태 조합만 수행

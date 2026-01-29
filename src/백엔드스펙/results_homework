@@ -1,0 +1,240 @@
+HOMEWORK_RESULTS DOMAIN
+FRONTEND COMPLETE CONTRACT SPEC (100%)
+
+기준: 제공된 homework_results 코드 전체
+상태: LOCKED / FINAL
+목적: 프론트 무질문 구현
+
+0. 도메인 존재 이유 (핵심)
+왜 homework_results가 따로 존재하는가?
+
+homework 도메인: 정의 / 정책 / 설정
+
+homework_results 도메인: 운영 중 생성되는 결과 스냅샷
+
+👉 results(exam)와 동일한 레이어링을 숙제에 적용한 것
+👉 시험과 과제는 정의/결과가 분리된 동등한 시민
+
+1. 최상위 설계 원칙 (절대 위반 금지)
+
+숙제 점수/판정/락 상태의 단일 진실 = homework_results
+
+프론트는 점수/합불/클리닉 여부를 계산하지 않는다
+
+enrollment_id는 학생 식별의 유일 기준
+
+HomeworkScore는 스냅샷 엔티티
+
+결과는 overwrite 가능 (append-only 아님)
+
+Session은 항상 컨텍스트의 최상위 단위
+
+2. 핵심 엔티티
+2.1 Homework (Runtime Entity)
+
+의미
+
+세션 내 실제 “과제” 실체
+
+프론트 좌측 패널 / 과제 목록용
+
+중요
+
+세션 1 : 과제 N 구조
+
+“대표 과제”는 정책적 개념이지 DB 제약 아님
+
+Homework
+- id
+- session_id
+- title
+- status (DRAFT | OPEN | CLOSED)
+- meta
+- created_at
+- updated_at
+
+2.2 HomeworkScore (Result Snapshot)
+
+의미
+
+Enrollment × Session × Homework 단위 결과 스냅샷
+
+results.Result 와 정확히 같은 포지션
+
+HomeworkScore
+- enrollment_id
+- session_id
+- homework_id
+- score
+- max_score
+- teacher_approved
+- passed
+- clinic_required
+- is_locked
+- lock_reason
+- updated_by_user_id
+- meta
+- updated_at
+
+3. 핵심 제약 조건 (DB 레벨)
+3.1 유니크 제약 (절대적)
+(enrollment_id, session_id, homework_id)
+
+
+👉 한 학생은
+
+한 세션에서
+
+한 과제에 대해
+
+하나의 스냅샷만 존재
+
+3.2 Index 전략 (운영 기준)
+목적	인덱스
+학생별 최신 점수	(enrollment_id, updated_at)
+세션별 현황	(session_id, updated_at)
+과제별 채점	(homework_id, updated_at)
+4. Homework.status 의미 (프론트 필수 인지)
+상태	의미
+DRAFT	초안 (학생 노출 X 가능)
+OPEN	진행중
+CLOSED	마감
+
+❗ status는 점수 lock과 직접 연결되지 않는다
+(lock은 HomeworkScore가 가진다)
+
+5. HomeworkScore Lock 규칙 (중요)
+5.1 is_locked
+값	의미
+true	프론트 입력 ❌
+false	프론트 입력 가능
+5.2 lock_reason (UI 표시용)
+값	의미
+GRADING	채점 중
+PUBLISHED	게시 완료
+MANUAL	관리자 수동 잠금
+OTHER	기타
+
+👉 프론트는 문자열 그대로 표시
+👉 로직 판단 ❌
+
+6. passed / clinic_required 규칙
+
+homework_results가 단일 진실
+
+exams.results 와 독립
+
+프론트 계산 ❌
+
+passed           → Boolean (서버 판정 결과)
+clinic_required  → Boolean (서버 판정 결과)
+
+7. Homework 대표 제목 규칙 (SessionScores 메타용)
+서버 헬퍼
+Homework.get_representative_title_for_session(session)
+
+선택 규칙 (중요)
+
+같은 session의 Homework 중
+
+상태 우선순위:
+
+CLOSED → OPEN → DRAFT
+
+
+그 안에서 최신(updated_at desc)
+
+없으면 fallback ("과제")
+
+👉 프론트는 대표 과제 추론 금지
+
+8. API 계약 (100%)
+8.1 Homework 목록 조회 (핵심)
+
+GET /homeworks/?session_id={sessionId}
+
+권한
+
+Teacher / Admin only
+
+서버 동작
+
+session_id 기준 필터
+
+session + lecture select_related
+
+ordering: -updated_at, -id
+
+응답
+
+[
+  {
+    "id": 12,
+    "session": 5,
+    "title": "과제 1",
+    "status": "OPEN",
+    "meta": {},
+    "updated_at": "2026-01-21T10:00:00Z",
+    "created_at": "2026-01-20T09:00:00Z"
+  }
+]
+
+8.2 Homework 단건 조회
+
+GET /homeworks/{homework_id}/
+
+리스트와 동일한 serializer
+
+권한 동일
+
+8.3 Homework 생성 (선택)
+
+POST /homeworks/
+
+{
+  "session": 5,
+  "title": "과제 2",
+  "status": "DRAFT",
+  "meta": {}
+}
+
+
+주의
+
+생성 자체는 정책 로직 없음
+
+점수/판정/클리닉과 무관
+
+9. 프론트 절대 금지 목록
+
+❌ session에 과제가 1개라고 가정
+❌ 대표 과제 프론트 계산
+❌ passed / clinic_required 계산
+❌ lock_reason 의미 해석
+❌ enrollment_id 추론
+❌ homework_results를 exams.results와 섞어 계산
+
+10. exams.results 와의 관계 (정확한 경계)
+항목	exams.results	homework_results
+단위	Exam	Homework
+Attempt	있음	없음
+Fact 로그	있음	없음
+Snapshot	Result	HomeworkScore
+재시험	있음	없음
+Lock	attempt 기반	score 기반
+
+👉 같은 UI 테이블(SessionScores) 에서
+👉 서로 다른 도메인이 나란히 표시될 뿐
+👉 절대 섞이지 않는다
+
+11. 최종 요약 (중요)
+
+homework_results는 “숙제 결과의 단일 진실”이다.
+
+프론트는:
+
+Homework → 목록/표시
+
+HomeworkScore → 결과/락/판정 표시
+
+그 이상도, 그 이하도 아니다.

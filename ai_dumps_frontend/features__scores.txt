@@ -1,0 +1,1444 @@
+====================================================================================================
+# FRONTEND FOLDER: features__scores
+# ROOT PATH: C:\academyfront\src\features\scores
+====================================================================================================
+
+
+==========================================================================================
+# FILE: types.ts
+==========================================================================================
+/**
+ * PATH: src/features/scores/types.ts
+ *
+ * ✅ Scores Domain Types
+ */
+
+export type EditableScoreCell = {
+  exam_id: number;
+  enrollment_id: number;
+  question_id: number;
+  score: number | null;
+  max_score: number;
+  is_editable: boolean;
+  is_locked: boolean;
+};
+
+
+==========================================================================================
+# FILE: api/fetchEditableExamItems.ts
+==========================================================================================
+// PATH: src/features/scores/api/fetchEditableExamItems.ts
+/**
+ * results 도메인 문항별 점수 조회 (READ ONLY)
+ * - scores 작업대에서 소비
+ * - 단일진실: results
+ */
+
+import api from "@/shared/api/axios";
+import type { EditableScoreCell } from "../types";
+
+export async function fetchEditableExamItems(params: {
+  examId: number;
+  enrollmentId: number;
+}) {
+  const { examId, enrollmentId } = params;
+
+  const res = await api.get(
+    `/results/admin/exams/${examId}/enrollments/${enrollmentId}/`
+  );
+
+  return res.data.items as EditableScoreCell[];
+}
+
+
+==========================================================================================
+# FILE: api/patchHomeworkQuick.ts
+==========================================================================================
+// PATH: src/features/scores/api/patchHomeworkQuick.ts
+/**
+ * Homework Quick Patch API
+ *
+ * ✅ LOCKED SPEC
+ * - PATCH /homework/scores/quick/
+ * - 프론트는 계산/판정 금지 → 서버 결과만 신뢰
+ */
+
+import api from "@/shared/api/axios";
+
+export async function patchHomeworkQuick(params: {
+  sessionId: number;
+  enrollmentId: number;
+  homeworkId: number;
+  score: number;
+  maxScore?: number | null;
+}) {
+  const res = await api.patch("/homework/scores/quick/", {
+    session_id: params.sessionId,
+    enrollment_id: params.enrollmentId,
+    homework_id: params.homeworkId,
+    score: params.score,
+    max_score: params.maxScore ?? null,
+  });
+
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/patchItemScore.ts
+==========================================================================================
+// PATH: src/features/scores/api/patchItemScore.ts
+/**
+ * Subjective item score patch (Results 도메인 단일 계약)
+ * - optimistic update 금지
+ */
+
+import api from "@/shared/api/axios";
+
+export async function patchExamItemScore(params: {
+  examId: number;
+  enrollmentId: number;
+  questionId: number;
+  score: number;
+}) {
+  const { examId, enrollmentId, questionId, score } = params;
+
+  const res = await api.patch(
+    `/results/admin/exams/${examId}/enrollments/${enrollmentId}/items/${questionId}/`,
+    { score }
+  );
+
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/sessionScores.ts
+==========================================================================================
+// PATH: src/features/scores/api/sessionScores.ts
+/**
+ * Session Scores API (ADMIN)
+ * - 서버가 계산/판정/클리닉 단일 진실
+ * - 프론트는 표시 + 입력 + invalidate만 수행
+ *
+ * ✅ DTO 핵심:
+ * - rows[n].exams = 시험 1:N 배열
+ * - (변경) rows[n].homeworks = 과제 1:N 배열
+ */
+
+import api from "@/shared/api/axios";
+
+export type ScoreBlock = {
+  score: number | null;
+  max_score: number | null;
+  passed: boolean | null;
+  clinic_required: boolean;
+
+  is_locked?: boolean;
+  lock_reason?: string | null;
+};
+
+export type SessionScoreExamEntry = {
+  exam_id: number;
+  title: string;
+  pass_score: number;
+  block: ScoreBlock;
+};
+
+export type SessionScoreHomeworkEntry = {
+  homework_id: number;
+  title: string;
+  block: ScoreBlock;
+};
+
+export type SessionScoreRow = {
+  enrollment_id: number;
+  student_name: string;
+
+  // 시험 1:N
+  exams: SessionScoreExamEntry[];
+
+  // ✅ 과제 1:N
+  homeworks: SessionScoreHomeworkEntry[];
+
+  updated_at: string;
+};
+
+export type SessionScoreMeta = {
+  exams: {
+    exam_id: number;
+    title: string;
+    pass_score: number;
+  }[];
+
+  // ✅ 과제 1:N
+  homeworks: {
+    homework_id: number;
+    title: string;
+    unit: string | null; // "%", "점" 등 (서버 단일 진실)
+  }[];
+};
+
+export type SessionScoresResponse = {
+  meta: SessionScoreMeta;
+  rows: SessionScoreRow[];
+};
+
+export async function fetchSessionScores(sessionId: number) {
+  const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`);
+  return res.data as SessionScoresResponse;
+}
+
+
+==========================================================================================
+# FILE: components/ExamStatusChip.tsx
+==========================================================================================
+// PATH: src/features/scores/components/ExamStatusChip.tsx
+/**
+ * ExamStatusChip
+ * - 우측 영수증 상단용 상태 요약
+ * - (변경) 클릭 가능 옵션 지원 (시험/과제 칩 선택 → 테이블 컬럼 전환)
+ */
+
+type Props = {
+  label: string;
+  passed: boolean | null;
+
+  /** optional: 클릭 가능 */
+  onClick?: () => void;
+
+  /** optional: 현재 선택 상태 강조 */
+  active?: boolean;
+};
+
+export default function ExamStatusChip({
+  label,
+  passed,
+  onClick,
+  active,
+}: Props) {
+  const clickable = typeof onClick === "function";
+
+  const base = [
+    "rounded px-2 py-1 text-xs",
+    clickable ? "cursor-pointer select-none" : "",
+    active ? "ring-2 ring-[var(--color-primary)] ring-offset-1" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (passed === null) {
+    return (
+      <div
+        className={[
+          base,
+          "border border-gray-300 bg-white text-gray-500",
+        ].join(" ")}
+        onClick={onClick}
+        role={clickable ? "button" : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        onKeyDown={(e) => {
+          if (!clickable) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick?.();
+          }
+        }}
+        title={clickable ? "클릭하여 컬럼 전환" : undefined}
+      >
+        {label}
+      </div>
+    );
+  }
+
+  return passed ? (
+    <div
+      className={[
+        base,
+        "bg-emerald-100 font-semibold text-emerald-700",
+      ].join(" ")}
+      onClick={onClick}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (!clickable) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      title={clickable ? "클릭하여 컬럼 전환" : undefined}
+    >
+      {label}
+    </div>
+  ) : (
+    <div
+      className={[
+        base,
+        "bg-red-100 font-semibold text-red-700",
+      ].join(" ")}
+      onClick={onClick}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (!clickable) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
+      title={clickable ? "클릭하여 컬럼 전환" : undefined}
+    >
+      {label}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/HomeworkScoreInput.tsx
+==========================================================================================
+// PATH: src/features/scores/components/HomeworkScoreInput.tsx
+// 역할: 조교가 "대충" 입력하는 UI (32문항 / 80%)
+
+type Props = {
+  value: number | null;
+  locked: boolean;
+  onChange: (v: number | null) => void;
+};
+
+export default function HomeworkScoreInput({
+  value,
+  locked,
+  onChange,
+}: Props) {
+  if (locked) {
+    return <span className="text-gray-400">{value ?? "-"}</span>;
+  }
+
+  return (
+    <input
+      type="number"
+      min={0}
+      max={100}
+      step={5}
+      value={value ?? ""}
+      onChange={(e) =>
+        onChange(e.target.value === "" ? null : Number(e.target.value))
+      }
+      className="w-16 rounded border px-1 py-0.5 text-sm"
+      placeholder="%"
+    />
+  );
+}
+
+
+==========================================================================================
+# FILE: components/HomeworkStatusBadge.tsx
+==========================================================================================
+// PATH: src/features/scores/components/HomeworkStatusBadge.tsx
+/**
+ * HomeworkStatusBadge
+ *
+ * ⚠️ 중요 계약:
+ * - score 기준 판정 ❌
+ * - backend HomeworkScore.passed 사실만 표시
+ */
+
+export function HomeworkStatusBadge({
+  passed,
+}: {
+  passed: boolean | null;
+}) {
+  if (passed == null) {
+    return (
+      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+        미산출
+      </span>
+    );
+  }
+
+  return passed ? (
+    <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
+      완료
+    </span>
+  ) : (
+    <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
+      미통과
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/InlineExamItemsRow.tsx
+==========================================================================================
+// PATH: src/features/scores/components/InlineExamItemsRow.tsx
+/**
+ * 시험 서술형 문항 인라인 빠른 입력 Row
+ * - 테이블 내부 확장(선택된 학생 아래)
+ * - results API 소비 (READ/WRITE)
+ * - 키보드 연속 입력 전용:
+ *   - Enter 저장 후 다음 칸 자동 이동
+ *   - ←/→ 이동 지원
+ */
+
+import { useMemo, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchEditableExamItems } from "../api/fetchEditableExamItems";
+import ScoreInputCell from "./ScoreInputCell";
+
+type Props = {
+  examId: number;
+  enrollmentId: number;
+  colSpan: number;
+};
+
+export default function InlineExamItemsRow({ examId, enrollmentId, colSpan }: Props) {
+  const qc = useQueryClient();
+
+  const { data: items } = useQuery({
+    queryKey: ["exam-items", examId, enrollmentId],
+    queryFn: () => fetchEditableExamItems({ examId, enrollmentId }),
+    enabled: Number.isFinite(examId) && examId > 0 && Number.isFinite(enrollmentId) && enrollmentId > 0,
+  });
+
+  const list = useMemo(() => items ?? [], [items]);
+
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+
+  if (!list || list.length === 0) return null;
+
+  const focusAt = (idx: number) => {
+    const el = inputRefs.current[idx];
+    if (el) el.focus();
+  };
+
+  return (
+    <tr className="bg-[var(--bg-surface-soft)]">
+      <td colSpan={colSpan} className="p-2">
+        <div className="flex flex-wrap gap-2">
+          {list.map((it, i) => {
+            const disabled = !it.is_editable || it.is_locked;
+
+            return (
+              <div
+                key={it.question_id}
+                className={[
+                  "flex items-center gap-1 rounded border px-2 py-1",
+                  "border-[var(--border-divider)] bg-[var(--bg-surface)]",
+                ].join(" ")}
+              >
+                <span className="text-xs text-muted">Q{it.question_id}</span>
+
+                <ScoreInputCell
+                  examId={it.exam_id}
+                  enrollmentId={it.enrollment_id}
+                  questionId={it.question_id}
+                  value={it.score}
+                  maxScore={it.max_score}
+                  disabled={disabled}
+                  inputRef={(el) => {
+                    inputRefs.current[i] = el;
+                  }}
+                  onMovePrev={() => focusAt(Math.max(0, i - 1))}
+                  onMoveNext={() => focusAt(Math.min(list.length - 1, i + 1))}
+                  onSaved={() => {
+                    qc.invalidateQueries({
+                      queryKey: ["exam-items", examId, enrollmentId],
+                    });
+                    // session-scores는 sessionId를 모르는 컴포넌트라 prefix로 invalidate
+                    qc.invalidateQueries({
+                      queryKey: ["session-scores"],
+                    });
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/PassFailBadge.tsx
+==========================================================================================
+// PATH: src/features/scores/components/PassFailBadge.tsx
+/**
+ * PASS/FAIL 표시 전용
+ */
+
+export default function PassFailBadge({ passed }: { passed: boolean | null }) {
+  if (passed == null) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface-soft)] px-2 py-1 text-[11px] text-[var(--text-muted)]">
+        -
+      </span>
+    );
+  }
+
+  return passed ? (
+    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
+      PASS
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">
+      FAIL
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/QuickScoreInput.tsx
+==========================================================================================
+// PATH: src/features/scores/components/QuickScoreInput.tsx
+/**
+ * 빠른 점수 입력 UI
+ * - 95, 95%, 16/64 같은 입력을 지원 (편의 기능)
+ * - 실제 판정(passed)은 서버 PATCH 결과 단일 진실
+ */
+
+import React, { useMemo, useState } from "react";
+
+type Props = {
+  defaultValue: number | null;
+  maxScore?: number | null;
+
+  disabled?: boolean;
+  disabledReason?: string;
+
+  onSubmit: (score: number) => Promise<void>;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+};
+
+function parseScore(input: string, maxScore?: number | null): number | null {
+  const v = input.trim();
+  const hasMax =
+    maxScore != null &&
+    Number.isFinite(Number(maxScore)) &&
+    Number(maxScore) > 0;
+
+  if (v.endsWith("%") && hasMax) {
+    const p = Number(v.slice(0, -1));
+    if (Number.isFinite(p)) {
+      return Math.round((p / 100) * Number(maxScore));
+    }
+  }
+
+  if (v.includes("/") && hasMax) {
+    const [aRaw, bRaw] = v.split("/");
+    const a = Number(aRaw);
+    const b = Number(bRaw);
+    if (Number.isFinite(a) && Number.isFinite(b) && b > 0) {
+      return Math.round((a / b) * Number(maxScore));
+    }
+  }
+
+  const n = Number(v);
+  if (Number.isFinite(n)) return n;
+
+  return null;
+}
+
+const QuickScoreInput = React.forwardRef<HTMLInputElement, Props>(
+  function QuickScoreInput(
+    {
+      defaultValue,
+      maxScore,
+      disabled,
+      disabledReason,
+      onSubmit,
+      onMoveUp,
+      onMoveDown,
+    },
+    ref
+  ) {
+    const initial = useMemo(
+      () => (defaultValue == null ? "" : String(defaultValue)),
+      [defaultValue]
+    );
+
+    const [value, setValue] = useState(initial);
+    const [saving, setSaving] = useState(false);
+
+    React.useEffect(() => {
+      setValue(initial);
+    }, [initial]);
+
+    const commit = async () => {
+      const parsed = parseScore(value, maxScore);
+      if (parsed == null) return;
+
+      try {
+        setSaving(true);
+        await onSubmit(parsed);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <input
+        ref={ref}
+        className={[
+          "w-20 rounded border px-1 py-0.5 text-xs",
+          "border-[var(--border-default)]",
+          disabled
+            ? "bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
+            : "bg-[var(--bg-surface)] text-[var(--text-primary)]",
+        ].join(" ")}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={() => {
+          if (!disabled) void commit();
+        }}
+        onKeyDown={async (e) => {
+          if (disabled) return;
+
+          if (e.key === "Enter") {
+            e.preventDefault();
+            await commit();
+            return;
+          }
+
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            onMoveUp?.();
+            return;
+          }
+
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            onMoveDown?.();
+            return;
+          }
+        }}
+        disabled={disabled || saving}
+        title={
+          disabled
+            ? disabledReason ?? "편집 불가"
+            : "Enter/blur 저장 · 95% / 16/64 입력 가능"
+        }
+      />
+    );
+  }
+);
+
+export default QuickScoreInput;
+
+
+==========================================================================================
+# FILE: components/ScoreInputCell.tsx
+==========================================================================================
+// PATH: src/features/scores/components/ScoreInputCell.tsx
+/**
+ * ✅ ScoreInputCell
+ * - 인라인 점수 입력
+ * - blur / Enter 시 즉시 저장
+ * - (추가) Enter 저장 후 다음 셀로 이동 가능(onMoveNext)
+ * - (추가) ArrowLeft/Right로 이전/다음 이동 가능(onMovePrev/onMoveNext)
+ *
+ * ⚠️ 단일진실: results PATCH 응답
+ * - optimistic update 금지
+ */
+
+import { useEffect, useState } from "react";
+import { patchExamItemScore } from "../api/patchItemScore";
+
+type Props = {
+  examId: number;
+  enrollmentId: number;
+  questionId: number;
+  value: number | null;
+  maxScore: number;
+  disabled: boolean;
+  onSaved: () => void;
+
+  /** optional: 외부에서 focus 제어 */
+  inputRef?: (el: HTMLInputElement | null) => void;
+
+  /** optional: 키보드 연속 입력용 */
+  onMovePrev?: () => void;
+  onMoveNext?: () => void;
+};
+
+export default function ScoreInputCell({
+  examId,
+  enrollmentId,
+  questionId,
+  value,
+  maxScore,
+  disabled,
+  onSaved,
+  inputRef,
+  onMovePrev,
+  onMoveNext,
+}: Props) {
+  const [draft, setDraft] = useState<string>(value == null ? "" : String(value));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(value == null ? "" : String(value));
+  }, [value]);
+
+  const commit = async () => {
+    if (disabled) return false;
+
+    const next = Number(draft);
+    if (!Number.isFinite(next) || next < 0 || next > maxScore) {
+      setDraft(value == null ? "" : String(value));
+      return false;
+    }
+
+    try {
+      setSaving(true);
+      await patchExamItemScore({
+        examId,
+        enrollmentId,
+        questionId,
+        score: next,
+      });
+      onSaved();
+      return true;
+    } catch {
+      setDraft(value == null ? "" : String(value));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      type="number"
+      min={0}
+      max={maxScore}
+      value={draft}
+      disabled={disabled || saving}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        void commit();
+      }}
+      onKeyDown={async (e) => {
+        if (disabled) return;
+
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const ok = await commit();
+          if (ok) onMoveNext?.();
+          return;
+        }
+
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          onMovePrev?.();
+          return;
+        }
+
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          onMoveNext?.();
+          return;
+        }
+      }}
+      className={[
+        "w-16 rounded border px-1 py-0.5 text-xs text-right",
+        "border-[var(--border-default)]",
+        disabled
+          ? "bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
+          : "bg-[var(--bg-surface)] text-[var(--text-primary)]",
+      ].join(" ")}
+      title={
+        disabled
+          ? "채점 중이거나 편집 불가 상태"
+          : "Enter 저장 · ←/→ 이동 · blur 저장"
+      }
+    />
+  );
+}
+
+
+==========================================================================================
+# FILE: components/ScoresTable.tsx
+==========================================================================================
+// PATH: src/features/scores/components/ScoresTable.tsx
+
+import { useMemo, useRef, Fragment, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
+import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
+import QuickScoreInput from "./QuickScoreInput";
+import InlineExamItemsRow from "./InlineExamItemsRow";
+import { StatusBadge } from "@/shared/ui/feedback";
+import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
+
+function clinicText(row: SessionScoreRow, currentHomeworkId: number | null) {
+  const examRequired = !!row.exams?.[0]?.block?.clinic_required;
+
+  const hwEntry =
+    (currentHomeworkId != null
+      ? row.homeworks?.find((h) => h.homework_id === currentHomeworkId)
+      : row.homeworks?.[0]) ?? null;
+
+  const hwRequired = !!hwEntry?.block?.clinic_required;
+
+  if (examRequired && hwRequired) return "시험 + 과제";
+  if (examRequired) return "시험";
+  if (hwRequired) return "과제";
+  return "-";
+}
+
+function toStatus(passed: boolean | null | undefined) {
+  if (passed == null) return "pending";
+  return passed ? "pass" : "fail";
+}
+
+type Props = {
+  rows: SessionScoreRow[];
+  meta: SessionScoreMeta | null;
+  sessionId: number;
+
+  selectedEnrollmentId: number | null;
+
+  currentExamId: number | null;
+  onChangeExam: (examId: number) => void;
+
+  currentHomeworkId: number | null;
+  onChangeHomework: (homeworkId: number) => void;
+
+  onSelectRow: (row: SessionScoreRow) => void;
+
+  activeColumn?: "exam" | "homework";
+};
+
+export default function ScoresTable({
+  rows,
+  meta,
+  sessionId,
+  selectedEnrollmentId,
+  currentExamId,
+  onChangeExam,
+  currentHomeworkId,
+  onChangeHomework,
+  onSelectRow,
+  activeColumn = "exam",
+}: Props) {
+  const qc = useQueryClient();
+  const homeworkInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  const selectedIndex = useMemo(() => {
+    if (selectedEnrollmentId == null) return -1;
+    return rows.findIndex((r) => r.enrollment_id === selectedEnrollmentId);
+  }, [rows, selectedEnrollmentId]);
+
+  const examOptions = meta?.exams ?? [];
+  const homeworkOptions = meta?.homeworks ?? [];
+
+  const focusHomeworkInput = (enrollmentId: number) => {
+    homeworkInputRefs.current[enrollmentId]?.focus();
+  };
+
+  const moveSelection = (nextIndex: number) => {
+    const row = rows[nextIndex];
+    if (row) onSelectRow(row);
+  };
+
+  useEffect(() => {
+    if (activeColumn !== "homework") return;
+    if (selectedEnrollmentId == null) return;
+    focusHomeworkInput(selectedEnrollmentId);
+  }, [activeColumn, selectedEnrollmentId]);
+
+  /** ✅ 컬럼 레이아웃 고정 (헤더/바디 완전 일치) */
+  const grid =
+    "grid grid-cols-[200px_180px_120px_240px_120px_120px]";
+
+  const thBase =
+    "px-3 py-3 text-sm font-semibold text-[var(--text-secondary)] tracking-tight";
+
+  const tdBase =
+    "px-3 py-3 text-base text-[var(--text-primary)]";
+
+  const thActive =
+    "bg-[var(--color-primary-soft)] border-b-2 border-[var(--color-primary)]";
+
+  return (
+    <div
+      className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)]"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (rows.length === 0) return;
+
+        const baseIndex = selectedIndex >= 0 ? selectedIndex : 0;
+
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          moveSelection(Math.max(0, baseIndex - 1));
+        }
+
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          moveSelection(Math.min(rows.length - 1, baseIndex + 1));
+        }
+
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const row = rows[baseIndex];
+          if (row) focusHomeworkInput(row.enrollment_id);
+        }
+      }}
+    >
+      {/* ================= HEADER ================= */}
+      <div className={`border-b ${grid}`}>
+        <div className={thBase}>학생</div>
+
+        <div
+          className={[
+            thBase,
+            activeColumn === "exam" ? thActive : "",
+          ].join(" ")}
+        >
+          시험
+          {examOptions.length > 1 && (
+            <select
+              className="mt-1 w-full rounded-md border border-[var(--border-default)] bg-white px-2 py-1 text-sm font-medium text-black shadow-sm focus:ring-2 focus:ring-[var(--color-primary)]"
+              value={currentExamId ?? ""}
+              onChange={(e) => onChangeExam(Number(e.target.value))}
+            >
+              {examOptions.map((e) => (
+                <option key={e.exam_id} value={e.exam_id}>
+                  {e.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className={thBase}>판정</div>
+
+        <div
+          className={[
+            thBase,
+            activeColumn === "homework" ? thActive : "",
+          ].join(" ")}
+        >
+          과제
+          {homeworkOptions.length > 1 && (
+            <select
+              className="mt-1 w-full rounded-md border border-[var(--border-default)] bg-white px-2 py-1 text-sm font-medium text-black shadow-sm focus:ring-2 focus:ring-[var(--color-primary)]"
+              value={currentHomeworkId ?? ""}
+              onChange={(e) => onChangeHomework(Number(e.target.value))}
+            >
+              {homeworkOptions.map((h) => (
+                <option key={h.homework_id} value={h.homework_id}>
+                  {h.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className={thBase}>판정</div>
+        <div className={thBase}>클리닉</div>
+      </div>
+
+      {/* ================= BODY ================= */}
+      {rows.map((row, idx) => {
+        const selected = selectedEnrollmentId === row.enrollment_id;
+
+        const examEntry =
+          row.exams.find((e) => e.exam_id === currentExamId) ??
+          row.exams[0];
+
+        const homeworkEntry =
+          (currentHomeworkId != null
+            ? row.homeworks.find((h) => h.homework_id === currentHomeworkId)
+            : row.homeworks[0]) ?? null;
+
+        return (
+          <Fragment key={row.enrollment_id}>
+            <div
+              className={[
+                grid,
+                "border-b cursor-pointer",
+                selected
+                  ? "bg-[var(--color-primary-soft)]"
+                  : "hover:bg-[var(--bg-surface-soft)]",
+              ].join(" ")}
+              onClick={() => onSelectRow(row)}
+            >
+              <div className={`${tdBase} font-semibold`}>
+                {row.student_name}
+              </div>
+
+              <div className={tdBase}>
+                {examEntry?.block?.score == null
+                  ? "-"
+                  : examEntry.block.max_score == null
+                  ? examEntry.block.score
+                  : `${examEntry.block.score}/${examEntry.block.max_score}`}
+              </div>
+
+              <div className={tdBase}>
+                <StatusBadge status={toStatus(examEntry?.block?.passed)} />
+              </div>
+
+              <div className={tdBase}>
+                {homeworkEntry ? (
+                  <QuickScoreInput
+                    ref={(el) => {
+                      homeworkInputRefs.current[row.enrollment_id] = el;
+                    }}
+                    defaultValue={homeworkEntry.block.score}
+                    maxScore={homeworkEntry.block.max_score}
+                    disabled={!!homeworkEntry.block.is_locked}
+                    disabledReason={homeworkEntry.block.lock_reason ?? ""}
+                    onSubmit={async (score) => {
+                      await patchHomeworkQuick({
+                        sessionId,
+                        enrollmentId: row.enrollment_id,
+                        homeworkId: homeworkEntry.homework_id,
+                        score,
+                        maxScore: homeworkEntry.block.max_score ?? null,
+                      });
+                      qc.invalidateQueries({
+                        queryKey: ["session-scores", sessionId],
+                      });
+                    }}
+                  />
+                ) : (
+                  "-"
+                )}
+              </div>
+
+              <div className={tdBase}>
+                <StatusBadge
+                  status={toStatus(homeworkEntry?.block?.passed)}
+                />
+              </div>
+
+              <div className={`${tdBase} text-sm text-[var(--text-secondary)]`}>
+                {clinicText(row, currentHomeworkId)}
+              </div>
+            </div>
+
+            {selected && examEntry?.exam_id && (
+              <InlineExamItemsRow
+                examId={examEntry.exam_id}
+                enrollmentId={row.enrollment_id}
+                colSpan={6}
+              />
+            )}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/ScoresTableExtended.tsx
+==========================================================================================
+// PATH: src/features/scores/components/ScoresTableExtended.tsx
+/**
+ * ScoresTableExtended (LEGACY BRIDGE)
+ * - 기존 import가 남아있을 수 있어 브릿지로 유지
+ * - 현재는 ScoresTable을 그대로 렌더링
+ *
+ * ⚠️ 중첩 <table> 만들던 이전 구현은 제거(깨지는 구조였음)
+ */
+
+import ScoresTable from "./ScoresTable";
+import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
+
+type Props = {
+  rows: SessionScoreRow[];
+  meta: SessionScoreMeta | null;
+  sessionId: number;
+  selectedEnrollmentId: number | null;
+  onSelectRow: (row: SessionScoreRow) => void;
+};
+
+export default function ScoresTableExtended(props: Props) {
+  return <ScoresTable {...props} />;
+}
+
+
+==========================================================================================
+# FILE: panels/ScoreSidePanel.tsx
+==========================================================================================
+// PATH: src/features/scores/panels/ScoreSidePanel.tsx
+
+import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
+import ExamStatusChip from "../components/ExamStatusChip";
+
+type Props = {
+  sessionId: number;
+  examId: number;
+  row: SessionScoreRow;
+  meta: SessionScoreMeta;
+  onClose: () => void;
+
+  activeColumn?: "exam" | "homework";
+  onSelectExam?: (examId: number) => void;
+
+  // ✅ 과제 선택
+  homeworkId: number;
+  onSelectHomework?: (homeworkId: number) => void;
+};
+
+function overallPassed(row: SessionScoreRow): boolean | null {
+  const examResults = row.exams.map((e) => e.block.passed);
+  const hwResults = row.homeworks.map((h) => h.block.passed);
+
+  if ([...examResults, ...hwResults].some((v) => v == null)) return null;
+  return [...examResults, ...hwResults].every((v) => v === true);
+}
+
+function failReasons(row: SessionScoreRow) {
+  const failedExams = row.exams
+    .filter((e) => e.block.passed === false)
+    .map((e) => e.title);
+
+  const failedHomework = row.homeworks
+    .filter((h) => h.block.passed === false)
+    .map((h) => h.title);
+
+  return [...failedExams, ...failedHomework];
+}
+
+function reasonType(row: SessionScoreRow) {
+  const examFail = row.exams.some((e) => e.block.passed === false);
+  const hwFail = row.homeworks.some((h) => h.block.passed === false);
+
+  if (examFail && hwFail) return "시험 + 과제";
+  if (examFail) return "시험";
+  if (hwFail) return "과제";
+  return "-";
+}
+
+export default function ScoreSidePanel({
+  row,
+  meta,
+  examId,
+  homeworkId,
+  activeColumn = "exam",
+  onSelectExam,
+  onSelectHomework,
+}: Props) {
+  const exams = row.exams ?? [];
+  const homeworks = row.homeworks ?? [];
+  const passed = overallPassed(row);
+
+  const reasons = failReasons(row);
+
+  return (
+    <div className="card h-full p-4 overflow-y-auto">
+      {/* Header */}
+      <div className="mb-4 border-b pb-3">
+        <div className="text-xs text-muted">enrollment #{row.enrollment_id}</div>
+        <div className="text-lg font-semibold">{row.student_name}</div>
+      </div>
+
+      {/* 시험 */}
+      <div className="mb-4">
+        <div className="mb-1 text-xs font-semibold text-muted">시험</div>
+        <div className="flex flex-wrap gap-1">
+          {exams.map((e) => (
+            <ExamStatusChip
+              key={e.exam_id}
+              label={e.title}
+              passed={e.block.passed}
+              onClick={() => onSelectExam?.(e.exam_id)}
+              active={activeColumn === "exam" && e.exam_id === examId}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* 과제 (다건) */}
+      <div className="mb-4">
+        <div className="mb-1 text-xs font-semibold text-muted">과제</div>
+        <div className="flex flex-wrap gap-1">
+          {homeworks.map((h) => (
+            <ExamStatusChip
+              key={h.homework_id}
+              label={h.title}
+              passed={h.block.passed}
+              onClick={() => onSelectHomework?.(h.homework_id)}
+              active={activeColumn === "homework" && h.homework_id === homeworkId}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="my-4 border-t" />
+
+      {/* 판정 */}
+      <div className="mb-2 flex justify-between text-sm">
+        <span className="text-muted">판정</span>
+        <span className="font-semibold">
+          {passed == null ? "-" : passed ? "PASS" : "FAIL"}
+        </span>
+      </div>
+
+      {/* 사유 */}
+      <div className="mb-2 flex justify-between text-sm">
+        <span className="text-muted">사유</span>
+        <span className="font-medium">{reasonType(row)}</span>
+      </div>
+
+      {/* 사유상세 */}
+      <div className="mt-3">
+        <div className="mb-1 text-xs font-semibold text-muted">사유상세</div>
+
+        {reasons.length === 0 ? (
+          <div className="text-xs text-muted">-</div>
+        ) : (
+          <ul className="list-disc pl-4 text-sm">
+            {reasons.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/ScoresAnalyticsPanel.tsx
+==========================================================================================
+// PATH: src/features/scores/panels/ScoresAnalyticsPanel.tsx
+/**
+ * ScoresAnalyticsPanel
+ *
+ * ✅ UI ONLY
+ * - Card 기반 공용 디자인 적용
+ * - 테마(token.css) 연동
+ * - 로직 / API / 데이터 구조 변경 ❌
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchSessionScoreSummary } from "@/features/sessions/api/sessionScoreSummary";
+import { PageSection } from "@/shared/ui/page";
+
+export default function ScoresAnalyticsPanel({
+  sessionId,
+}: {
+  sessionId: number;
+}) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["session-score-summary", sessionId],
+    queryFn: () => fetchSessionScoreSummary(sessionId),
+  });
+
+  return (
+    <PageSection title="성적 분석">
+      {/* Loading */}
+      {isLoading && (
+        <div className="text-sm text-muted">분석 불러오는 중...</div>
+      )}
+
+      {/* Error */}
+      {isError && (
+        <div className="text-sm text-red-500">
+          분석 데이터를 불러오지 못했습니다.
+        </div>
+      )}
+
+      {/* Content */}
+      {!isLoading && !isError && data && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <AnalyticsCard title="전체" data={data.total} />
+          <AnalyticsCard title="오프라인" data={data.offline} />
+          <AnalyticsCard title="온라인" data={data.online} />
+        </div>
+      )}
+    </PageSection>
+  );
+}
+
+/* ================================
+   Card Block
+================================ */
+
+function AnalyticsCard({
+  title,
+  data,
+}: {
+  title: string;
+  data: {
+    count: number;
+    avg: number;
+  };
+}) {
+  return (
+    <div className="card p-4">
+      <div className="mb-3 text-sm font-semibold text-secondary">
+        {title}
+      </div>
+
+      <div className="space-y-1 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted">응시자</span>
+          <span className="font-medium text-primary">{data.count}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-muted">평균</span>
+          <span className="font-medium text-primary">{data.avg}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/SessionScoresPanel.tsx
+==========================================================================================
+// PATH: src/features/scores/panels/SessionScoresPanel.tsx
+
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import {
+  fetchSessionScores,
+  type SessionScoreRow,
+  type SessionScoreMeta,
+} from "../api/sessionScores";
+
+import ScoresTable from "../components/ScoresTable";
+import ScoreSidePanel from "./ScoreSidePanel";
+
+export default function SessionScoresPanel({ sessionId }: { sessionId: number }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["session-scores", sessionId],
+    queryFn: () => fetchSessionScores(sessionId),
+    enabled: Number.isFinite(sessionId) && sessionId > 0,
+  });
+
+  const rows = useMemo<SessionScoreRow[]>(() => data?.rows ?? [], [data]);
+  const meta: SessionScoreMeta | null = data?.meta ?? null;
+
+  const [selected, setSelected] = useState<SessionScoreRow | null>(null);
+  const [currentExamId, setCurrentExamId] = useState<number | null>(null);
+
+  // ✅ 과제 선택
+  const [currentHomeworkId, setCurrentHomeworkId] = useState<number | null>(null);
+
+  // ✅ 사이드패널 칩 클릭에 따른 “활성 컬럼”
+  const [activeColumn, setActiveColumn] = useState<"exam" | "homework">("exam");
+
+  useEffect(() => {
+    if (!rows.length) {
+      setSelected(null);
+      setCurrentExamId(null);
+      setCurrentHomeworkId(null);
+      return;
+    }
+
+    if (!selected) {
+      const first = rows[0];
+      setSelected(first);
+      setCurrentExamId(first.exams?.[0]?.exam_id ?? null);
+      setCurrentHomeworkId(first.homeworks?.[0]?.homework_id ?? null);
+      return;
+    }
+
+    const next = rows.find((r) => r.enrollment_id === selected.enrollment_id);
+    const resolved = next ?? rows[0];
+    setSelected(resolved);
+
+    if (
+      currentExamId == null ||
+      !resolved.exams.some((e) => e.exam_id === currentExamId)
+    ) {
+      setCurrentExamId(resolved.exams?.[0]?.exam_id ?? null);
+    }
+
+    if (
+      currentHomeworkId == null ||
+      !resolved.homeworks.some((h) => h.homework_id === currentHomeworkId)
+    ) {
+      setCurrentHomeworkId(resolved.homeworks?.[0]?.homework_id ?? null);
+    }
+  }, [rows, selected, currentExamId, currentHomeworkId]);
+
+  return (
+    <section className="card p-4 space-y-4">
+      <div className="flex items-center justify-between border-b pb-3">
+        <div>
+          <h3 className="text-base font-semibold">성적 관리</h3>
+          <p className="text-xs text-[var(--text-muted)]">
+            세션 등록 학생 기준 성적 입력 및 판정
+          </p>
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="text-sm text-[var(--text-muted)]">성적 불러오는 중...</div>
+      )}
+
+      {!isLoading && (isError || !data) && (
+        <div className="text-sm text-red-500">성적 로드 실패</div>
+      )}
+
+      {!isLoading && !isError && data && (
+        <div className="flex gap-4">
+          <div className="flex-1 min-w-0">
+            <ScoresTable
+              rows={rows}
+              meta={meta}
+              sessionId={sessionId}
+              selectedEnrollmentId={selected?.enrollment_id ?? null}
+              currentExamId={currentExamId}
+              onChangeExam={(id) => {
+                setActiveColumn("exam");
+                setCurrentExamId(id);
+              }}
+              currentHomeworkId={currentHomeworkId}
+              onChangeHomework={(id) => {
+                setActiveColumn("homework");
+                setCurrentHomeworkId(id);
+              }}
+              onSelectRow={setSelected}
+              activeColumn={activeColumn}
+            />
+          </div>
+
+          {selected && currentExamId && currentHomeworkId && meta && (
+            <div className="w-[420px] shrink-0">
+              <ScoreSidePanel
+                sessionId={sessionId}
+                examId={currentExamId}
+                homeworkId={currentHomeworkId}
+                row={selected}
+                meta={meta}
+                onClose={() => {}}
+                activeColumn={activeColumn}
+                onSelectExam={(id) => {
+                  setActiveColumn("exam");
+                  setCurrentExamId(id);
+                }}
+                onSelectHomework={(id) => {
+                  setActiveColumn("homework");
+                  setCurrentHomeworkId(id);
+                }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

@@ -1,0 +1,324 @@
+====================================================================================================
+# FRONTEND FOLDER: app
+# ROOT PATH: C:\academyfront\src\app
+====================================================================================================
+
+
+==========================================================================================
+# FILE: App.tsx
+==========================================================================================
+// src/app/App.tsx  (경로가 app/App.tsx 인 걸로 보여서 그 기준)
+import { BrowserRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import AppRouter from "./router/AppRouter";
+import { AuthProvider } from "@/features/auth/context/AuthContext";
+
+const queryClient = new QueryClient();
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRouter />
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+}
+
+
+==========================================================================================
+# FILE: api/index.ts
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: providers/QueryProvider.tsx
+==========================================================================================
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactNode } from "react";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 10000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+export default function QueryProvider({ children }: { children: ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+}
+
+
+==========================================================================================
+# FILE: router/AdminRouter.tsx
+==========================================================================================
+// PATH: src/app/router/AdminRouter.tsx
+
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AppLayout } from "@/shared/ui/layout";
+
+/* ================= Dashboard ================= */
+import DashboardPage from "@/features/dashboard/pages/DashboardPage";
+
+/* ================= Students ================= */
+import StudentsPage from "@/features/students/pages/StudentsPage";
+import StudentsDetailPage from "@/features/students/pages/StudentsDetailPage";
+
+/* ================= Lectures ================= */
+import LecturesPage from "@/features/lectures/pages/lectures/LecturesPage";
+import LectureLayout from "@/features/lectures/layout/LectureLayout";
+import LectureStudentsPage from "@/features/lectures/pages/lectures/LectureStudentsPage";
+import LectureReportPage from "@/features/lectures/pages/lectures/LectureReportPage";
+import LectureSessionsPage from "@/features/lectures/pages/sessions/LectureSessionsPage";
+import MaterialsPage from "@/features/lectures/pages/materials/MaterialsPage";
+import LectureBoardPage from "@/features/lectures/pages/boards/LectureBoardPage";
+import LectureDdayPage from "@/features/lectures/pages/ddays/LectureDdayPage";
+import LectureAttendanceMatrixPage from "@/features/lectures/pages/attendance/LectureAttendanceMatrixPage";
+
+/* ================= Sessions ================= */
+import SessionLayout from "@/features/sessions/layout/SessionLayout";
+import SessionAttendanceRoute from "@/features/sessions/routes/SessionAttendanceRoute";
+import SessionScoresRoute from "@/features/sessions/routes/SessionScoresRoute";
+import SessionExamsRoute from "@/features/sessions/routes/SessionExamsRoute";
+import SessionAssignmentsRoute from "@/features/sessions/routes/SessionAssignmentsRoute";
+import SessionVideosRoute from "@/features/sessions/routes/SessionVideosRoute";
+
+/* ================= Video ================= */
+import VideoDetailPage from "@/features/videos/pages/VideoDetailPage";
+
+/* ================= Community ================= */
+import CommunityPage from "@/features/community/pages/CommunityPage";
+import NoticeBoardPage from "@/features/community/pages/NoticeBoardPage";
+import QnaBoardPage from "@/features/community/pages/QnaBoardPage";
+import ReviewBoardPage from "@/features/community/pages/ReviewBoardPage";
+
+/* ================= Clinic ================= */
+import ClinicRoutes from "@/features/clinic/ClinicRoutes";
+
+/* ================= Profile ================= */
+import {
+  ProfileLayout,
+  ProfileAccountPage,
+  ProfileAttendancePage,
+  ProfileExpensePage,
+} from "@/features/profile";
+
+/* ================= Staff ================= */
+import StaffRoutes from "@/features/staff/StaffRoutes";
+
+/* ================= Materials (NEW) ================= */
+import { MaterialsRoutes } from "@/features/materials";
+
+/* ================= Placeholder ================= */
+const CounselPage = () => <div className="p-6">상담 페이지</div>;
+const NoticePage = () => <div className="p-6">공지 페이지</div>;
+const MessagePage = () => <div className="p-6">메시지 페이지</div>;
+
+export default function AdminRouter() {
+  return (
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+
+        <Route path="dashboard" element={<DashboardPage />} />
+
+        <Route path="students" element={<StudentsPage />} />
+        <Route path="students/:studentId" element={<StudentsDetailPage />} />
+
+        <Route path="lectures" element={<LecturesPage />} />
+        <Route path="lectures/:lectureId" element={<LectureLayout />}>
+          <Route index element={<LectureStudentsPage />} />
+          <Route path="materials" element={<MaterialsPage />} />
+          <Route path="board" element={<LectureBoardPage />} />
+          <Route path="ddays" element={<LectureDdayPage />} />
+          <Route path="attendance" element={<LectureAttendanceMatrixPage />} />
+          <Route path="report" element={<LectureReportPage />} />
+          <Route path="sessions" element={<LectureSessionsPage />} />
+        </Route>
+
+        <Route
+          path="lectures/:lectureId/sessions/:sessionId/*"
+          element={<SessionLayout />}
+        >
+          <Route index element={<SessionAttendanceRoute />} />
+          <Route path="attendance" element={<SessionAttendanceRoute />} />
+          <Route path="scores" element={<SessionScoresRoute />} />
+          <Route path="exams" element={<SessionExamsRoute />} />
+          <Route path="assignments" element={<SessionAssignmentsRoute />} />
+          <Route path="videos" element={<SessionVideosRoute />} />
+          <Route path="videos/:videoId" element={<VideoDetailPage />} />
+        </Route>
+
+        {/* ================= Materials (NEW) ================= */}
+        <Route path="materials/*" element={<MaterialsRoutes />} />
+
+        {/* ✅ 여기 핵심 */}
+        <Route path="clinic/*" element={<ClinicRoutes />} />
+
+        <Route path="counsel" element={<CounselPage />} />
+        <Route path="notice" element={<NoticePage />} />
+        <Route path="message" element={<MessagePage />} />
+
+        <Route path="community" element={<CommunityPage />}>
+          <Route index element={<NoticeBoardPage />} />
+          <Route path="notice" element={<NoticeBoardPage />} />
+          <Route path="qna" element={<QnaBoardPage />} />
+          <Route path="review" element={<ReviewBoardPage />} />
+        </Route>
+
+        <Route path="staff/*" element={<StaffRoutes />} />
+
+        <Route path="profile" element={<ProfileLayout />}>
+          <Route index element={<Navigate to="account" replace />} />
+          <Route path="account" element={<ProfileAccountPage />} />
+          <Route path="attendance" element={<ProfileAttendancePage />} />
+          <Route path="expense" element={<ProfileExpensePage />} />
+        </Route>
+      </Route>
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: router/AppRouter.tsx
+==========================================================================================
+// PATH: src/app/router/AppRouter.tsx
+// --------------------------------------------------
+// AppRouter
+// - AppLayout은 각 Router(Admin/Student) 내부에서만 사용한다
+// - 여기서는 절대 AppLayout으로 감싸지 않는다 (❗ 중요)
+// --------------------------------------------------
+
+import { Routes, Route, Navigate } from "react-router-dom";
+import ProtectedRoute from "./ProtectedRoute";
+
+import LoginPage from "@/features/auth/pages/LoginPage";
+import AdminRouter from "./AdminRouter";
+import StudentRouter from "@/student/app/StudentRouter";
+import useAuth from "@/features/auth/hooks/useAuth";
+
+function RootRedirect() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) return <div>loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+
+  return user.is_staff ? (
+    <Navigate to="/admin" replace />
+  ) : (
+    <Navigate to="/student" replace />
+  );
+}
+
+export default function AppRouter() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<RootRedirect />} />
+
+      {/* ================= Student ================= */}
+      <Route element={<ProtectedRoute role="student" />}>
+        <Route path="/student/*" element={<StudentRouter />} />
+      </Route>
+
+      {/* ================= Admin ================= */}
+      <Route element={<ProtectedRoute role="staff" />}>
+        <Route path="/admin/*" element={<AdminRouter />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: router/ProtectedRoute.tsx
+==========================================================================================
+// src/app/router/ProtectedRoute.tsx
+
+import { Navigate, Outlet } from "react-router-dom";
+import useAuth from "@/features/auth/hooks/useAuth";
+
+export default function ProtectedRoute({
+  role,
+}: {
+  role?: "student" | "staff";
+}) {
+  const { user, isLoading } = useAuth();
+
+  // 🔒 인증 판별 중
+  if (isLoading || user === undefined) {
+    return <div>loading...</div>;
+  }
+
+  // 🔒 비로그인
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // 🔒 역할 분기
+  if (role === "student" && user.is_staff) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  if (role === "staff" && !user.is_staff) {
+    return <Navigate to="/student" replace />;
+  }
+
+  // ✅ 핵심: 자식 Route 유지
+  return <Outlet />;
+}
+
+
+==========================================================================================
+# FILE: router/routes.ts
+==========================================================================================
+// src/app/router/routes.ts
+
+import StudentsPage from "@/features/students/pages/StudentsPage";
+import StudentsDetailPage from "@/features/students/pages/StudentsDetailPage";
+
+export const routes = [
+  { path: "/students", element: <StudentsPage /> },
+  { path: "/students/:id", element: <StudentsDetailPage /> },
+];
+
+
+==========================================================================================
+# FILE: router/staff.routes.tsx
+==========================================================================================
+import { Navigate, RouteObject } from "react-router-dom";
+
+import HomePage from "@/features/staff/pages/HomePage/HomePage";
+import OperationsPage from "@/features/staff/pages/OperationsPage/OperationsPage";
+import ReportsPage from "@/features/staff/pages/ReportsPage/ReportsPage";
+import StaffDetailOverlay from "@/features/staff/overlays/StaffDetailOverlay/StaffDetailOverlay";
+
+export const staffRoutes: RouteObject[] = [
+  { index: true, element: <Navigate to="home" replace /> },
+
+  { path: "home", element: <HomePage /> },
+  { path: "operations", element: <OperationsPage /> },
+  { path: "reports", element: <ReportsPage /> },
+
+  // Overlay
+  { path: ":staffId/*", element: <StaffDetailOverlay /> },
+];
+
+
+==========================================================================================
+# FILE: store/authStore.ts
+==========================================================================================
+

@@ -1,0 +1,361 @@
+RESULTS DOMAIN
+FRONTEND COMPLETE CONTRACT SPEC (100%)
+
+기준: 제공된 코드 전체
+상태: LOCKED / FINAL
+목적: 프론트엔드 무질문 구현
+
+0. 최상위 설계 원칙 (절대 위반 금지)
+
+점수 / 합불 / 통계 / 판정의 단일 진실 = results 도메인
+
+프론트는 계산하지 않는다
+
+프론트는 추론하지 않는다
+
+enrollment_id는 results 도메인 전역 식별자다
+
+ResultFact는 append-only 로그다
+
+Result / ResultItem은 대표 attempt 기준 스냅샷이다
+
+Session ↔ Exam 관계 해석은 서버 util만 신뢰한다
+
+1. 핵심 엔티티 & 관계 (정규화)
+Enrollment (학생-세션 등록)
+ └─ Submission (제출 이벤트)
+     └─ ExamAttempt (시험 1회 시도, append-only)
+         ├─ ResultFact (문항 단위 채점 로그, append-only)
+         └─ Result (대표 attempt 스냅샷)
+              └─ ResultItem (문항별 최신 상태)
+
+불변 조건 (Invariants)
+
+ExamAttempt는 수정되지 않는다
+
+대표 attempt(is_representative=True)는 항상 정확히 1개
+
+Result / ResultItem은 언제든 ResultFact로 재생성 가능
+
+ResultFact는 절대 수정/삭제되지 않는다
+
+2. 공통 식별자 규칙 (중요)
+이름	의미	사용 범위
+enrollment_id	Enrollment PK	results 전역 기준
+exam_id	Exam PK	시험 단위
+session_id	Session PK	세션 단위 API
+attempt_id	ExamAttempt PK	시도 단위
+submission_id	Submission PK	grading/progress 연결
+
+❌ student_id / user_id 직접 사용 금지
+❌ 프론트에서 enrollment 추론 금지
+
+3. Session ↔ Exam 관계 규칙 (완전 명시)
+서버 단일 진실
+
+utils.session_exam.get_exams_for_session(session)
+
+utils.session_exam.get_sessions_for_exam(exam_id)
+
+utils.session_exam.get_primary_session_for_exam(exam_id)
+
+프론트 규칙
+
+❌ exam → session 직접 매핑 시도 금지
+
+❌ session.exams 구조 가정 금지
+
+✅ session 기반 API만 session_id 필요
+
+✅ exam 기반 API는 내부적으로 대표 session을 추론함
+
+4. 권한 체계
+사용자	접근 가능
+Student	/results/me/*, /results/wrong-notes* (본인 enrollment만)
+Teacher/Admin	/results/admin/*, /results/wrong-notes*
+5. STUDENT API (완전)
+5.1 시험 결과 조회
+
+GET /results/me/exams/{exam_id}/
+
+서버 동작
+
+request.user → enrollment 자동 탐색
+
+Result 스냅샷 반환
+
+대표 session 자동 추론 → clinic 판단
+
+응답
+
+{
+  "id": 10,
+  "exam_id": 5,
+  "total_score": 85,
+  "max_score": 100,
+  "items": [
+    {
+      "question_id": 101,
+      "answer": "B",
+      "score": 0,
+      "max_score": 2,
+      "is_correct": false
+    }
+  ],
+  "allow_retake": true,
+  "max_attempts": 3,
+  "can_retake": true,
+  "clinic_required": false
+}
+
+
+주의
+
+passed 필드 ❌
+
+lock 정보 ❌
+
+grading 중이라도 조회는 가능
+
+5.2 학생 재시험 히스토리
+
+GET /results/me/exams/{exam_id}/attempts/
+
+[
+  {
+    "attempt_id": 12,
+    "attempt_index": 1,
+    "is_retake": false,
+    "is_representative": true,
+    "status": "done",
+    "created_at": "2025-01-01T10:00:00Z"
+  }
+]
+
+6. WRONG NOTE (오답노트) – 완전 명세
+6.1 오답노트 조회
+
+GET /results/wrong-notes/
+
+Query Params
+
+enrollment_id (required)
+exam_id (optional)
+lecture_id (optional)
+from_session_order (optional, default=2)
+offset (default=0)
+limit (default=50, max=200)
+
+필터 규칙 (서버 단일 진실)
+
+is_correct = false 인 ResultFact만 사용
+
+exam_id 있으면 target_id 필터
+
+lecture_id 있으면:
+
+Exam.lecture_id 기준
+
+session.order >= from_session_order
+
+조건 실패 시 결과 0개 반환
+
+응답
+{
+  "count": 23,
+  "next": 50,
+  "prev": null,
+  "results": [
+    {
+      "exam_id": 5,
+      "attempt_id": 3,
+      "attempt_created_at": "2025-01-01T10:00:00Z",
+      "question_id": 101,
+      "question_number": 3,
+      "answer_type": "objective",
+      "student_answer": "B",
+      "correct_answer": "D",
+      "is_correct": false,
+      "score": 0,
+      "max_score": 2,
+      "meta": {},
+      "extra": {}
+    }
+  ]
+}
+
+6.2 오답노트 PDF 생성
+
+POST /results/wrong-notes/pdf/
+
+{
+  "enrollment_id": 10,
+  "lecture_id": 3,
+  "exam_id": null,
+  "from_session_order": 2
+}
+
+{
+  "job_id": 7,
+  "status": "PENDING",
+  "status_url": "https://.../results/wrong-notes/pdf/7/"
+}
+
+6.3 PDF 상태 조회
+
+GET /results/wrong-notes/pdf/{job_id}/
+
+{
+  "job_id": 7,
+  "status": "DONE",
+  "file_path": "results/wrong_notes/7.pdf",
+  "file_url": "https://cdn/.../7.pdf",
+  "error_message": "",
+  "created_at": "...",
+  "updated_at": "..."
+}
+
+7. ADMIN / TEACHER API (완전)
+7.1 시험 결과 리스트
+
+GET /results/admin/exams/{exam_id}/results/
+
+enrollment 중복 방어: 최신 Result만
+
+passed 기준 = Exam.pass_score
+
+{
+  "enrollment_id": 10,
+  "student_name": "-",
+  "exam_score": 85,
+  "exam_max_score": 100,
+  "final_score": 85,
+  "passed": true,
+  "clinic_required": false,
+  "submitted_at": "...",
+  "submission_id": 22,
+  "submission_status": "done"
+}
+
+7.2 시험 요약
+
+GET /results/admin/exams/{exam_id}/summary/
+
+{
+  "participant_count": 20,
+  "avg_score": 72.3,
+  "min_score": 10,
+  "max_score": 100,
+  "pass_count": 12,
+  "fail_count": 8,
+  "pass_rate": 0.6,
+  "clinic_count": 3
+}
+
+7.3 시험 결과 상세 (단일 학생)
+
+GET /results/admin/exams/{exam_id}/enrollments/{enrollment_id}/
+
+추가 필드:
+
+{
+  "passed": true,
+  "clinic_required": false,
+  "edit_state": {
+    "can_edit": true,
+    "is_locked": false,
+    "lock_reason": null
+  },
+  "allow_retake": true,
+  "max_attempts": 3,
+  "can_retake": true
+}
+
+7.4 문항 점수 수동 수정
+
+PATCH /results/admin/exams/{exam_id}/enrollments/{enrollment_id}/items/{question_id}/
+
+{ "score": 3 }
+
+
+즉시 발생
+
+ResultFact append
+
+ResultItem 수정
+
+Result.total_score 재계산
+
+progress pipeline 즉시 실행
+
+7.5 Attempt 목록
+
+GET /results/admin/exams/{exam_id}/enrollments/{enrollment_id}/attempts/
+
+7.6 대표 Attempt 변경
+
+POST /results/admin/exams/{exam_id}/representative-attempt/
+
+{
+  "enrollment_id": 10,
+  "attempt_id": 5
+}
+
+
+효과
+
+대표 attempt 변경
+
+Result / ResultItem 스냅샷 재빌드
+
+progress pipeline 즉시 실행
+
+8. SESSION 기반 API
+8.1 Session → Exams
+
+GET /results/admin/sessions/{session_id}/exams/
+
+8.2 Session 시험 요약
+
+GET /results/admin/sessions/{session_id}/exams/summary/
+
+pass_rate = SessionProgress.exam_passed
+
+clinic_rate = ClinicLink(is_auto=True)
+
+8.3 Session 성적 테이블 (메인)
+
+GET /results/admin/sessions/{session_id}/scores/
+
+enrollment 모수 = 시험 OR 과제 연결된 enrollment
+
+clinic 판단 = ClinicLink(is_auto=True)
+
+lock 판단 = attempt.status == grading
+
+9. LOCK / GRADING 규칙 (절대 중요)
+조건	의미
+attempt.status == grading	수정 ❌
+edit_state.is_locked	UI disable
+lock_reason == GRADING	사유 표시
+10. 프론트 절대 금지 목록
+
+점수 계산
+
+pass/fail 계산
+
+clinic 판단
+
+session ↔ exam 직접 매핑
+
+enrollment 추론
+
+ResultFact 직접 접근
+
+11. 최종 요약
+
+프론트는 “표시 장치”다.
+계산·판정·정합성은 results 도메인이 전부 책임진다.
+
+이 문서는 100% 완결이다.
+이제 프론트가 질문하면 그게 잘못된 질문이다.

@@ -1,0 +1,1680 @@
+====================================================================================================
+# FRONTEND FOLDER: features__sessions
+# ROOT PATH: C:\academyfront\src\features\sessions
+====================================================================================================
+
+
+==========================================================================================
+# FILE: routes.tsx
+==========================================================================================
+// PATH: src/features/sessions/routes.tsx
+
+import { RouteObject } from "react-router-dom";
+
+import SessionLayout from "./layout/SessionLayout";
+
+// 탭 라우트들
+import SessionAttendanceRoute from "./routes/SessionAttendanceRoute";
+import SessionExamsRoute from "./routes/SessionExamsRoute";
+import SessionScoresRoute from "./routes/SessionScoresRoute";
+import SessionAssignmentsRoute from "./routes/SessionAssignmentsRoute";
+import SessionVideosRoute from "./routes/SessionVideosRoute";
+
+/**
+ * ✅ Session Feature Routes
+ * - 원본 구조 유지: layout/ + routes/ 하위 탭 라우트
+ * - UI/UX 계약은 SessionTabs에서 제어, 여기서는 라우팅만 담당
+ */
+export const sessionRoutes: RouteObject[] = [
+  {
+    path: "sessions/:sessionId",
+    element: <SessionLayout />,
+    children: [
+      { index: true, element: <SessionAttendanceRoute /> }, // 기본 진입 탭(원본 존중)
+      { path: "attendance", element: <SessionAttendanceRoute /> },
+      { path: "exams", element: <SessionExamsRoute /> },
+      { path: "assignments", element: <SessionAssignmentsRoute /> },
+      { path: "scores", element: <SessionScoresRoute /> },
+      { path: "videos", element: <SessionVideosRoute /> },
+    ],
+  },
+];
+
+
+==========================================================================================
+# FILE: api/deleteSessionExam.ts
+==========================================================================================
+// PATH: src/features/sessions/api/deleteSessionExam.ts
+/**
+ * ✅ Session Exam Delete (TEST MODE)
+ * - 즉시 삭제 (안전장치 없음)
+ * - exams list 단일진실은 results 도메인(admin-session-exams) 기준
+ */
+
+import api from "@/shared/api/axios";
+
+export async function deleteSessionExam(examId: number) {
+  const res = await api.delete(`/exams/${examId}/`);
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/deleteSessionHomework.ts
+==========================================================================================
+// PATH: src/features/sessions/api/deleteSessionHomework.ts
+/**
+ * ✅ Session Homework Delete (TEST MODE)
+ * - 즉시 삭제 (안전장치 없음)
+ * - homeworks list 단일진실은 /homeworks/?session_id= 기준
+ */
+
+import api from "@/shared/api/axios";
+
+export async function deleteSessionHomework(homeworkId: number) {
+  const res = await api.delete(`/homeworks/${homeworkId}/`);
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/sessionScoreSummary.ts
+==========================================================================================
+// PATH: src/features/sessions/api/sessionScoreSummary.ts
+
+import api from "@/shared/api/axios";
+
+export type ScoreGroupSummary = {
+  count: number;
+  avg: number;
+  min?: number;
+  max?: number;
+  pass_count?: number;
+};
+
+export type SessionScoreSummary = {
+  total: ScoreGroupSummary;
+  offline: ScoreGroupSummary;
+  online: ScoreGroupSummary;
+};
+
+/**
+ * ✅ 세션 성적 통계 요약
+ * - 온라인/오프라인 분리
+ * - 모든 계산은 backend 기준
+ */
+export async function fetchSessionScoreSummary(
+  sessionId: number
+): Promise<SessionScoreSummary> {
+  const res = await api.get(
+    `/sessions/${sessionId}/score-summary/`
+  );
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: components/ScoresReadonlyTable.tsx
+==========================================================================================
+/**
+ * PATH: src/features/sessions/components/ScoresReadonlyTable.tsx
+ *
+ * ✅ Sessions Readonly Scores Table
+ *
+ * 책임:
+ * - 세션 단위 학생 목록 + 점수 "정보 표시"
+ *
+ * ❌ 금지:
+ * - 합격/불합격 판단 강조
+ * - 클리닉 대상 여부 강조
+ * - 결과 해석 UX
+ *
+ * 👉 상세 판단은 results 도메인으로 위임
+ */
+
+import type { SessionScoreRow } from "../api/sessionScores";
+
+type Props = {
+  rows: SessionScoreRow[];
+  selectedEnrollmentId: number | null;
+  onSelectRow: (row: SessionScoreRow) => void;
+};
+
+export default function ScoresReadonlyTable({
+  rows,
+  selectedEnrollmentId,
+  onSelectRow,
+}: Props) {
+  return (
+    <div className="overflow-hidden rounded border bg-white">
+      <table className="w-full text-sm">
+        <thead className="border-b bg-gray-50 text-gray-600">
+          <tr>
+            <th className="px-3 py-2 text-left">학생</th>
+            <th className="px-3 py-2 text-left">점수</th>
+            <th className="px-3 py-2 text-left">비고</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {rows.map((row) => {
+            const selected =
+              selectedEnrollmentId === row.enrollment_id;
+
+            return (
+              <tr
+                key={row.enrollment_id}
+                className={[
+                  "border-t cursor-pointer",
+                  selected ? "bg-purple-50" : "hover:bg-gray-50",
+                ].join(" ")}
+                onClick={() => onSelectRow(row)}
+              >
+                <td className="px-3 py-2 font-medium">
+                  {row.student_name}
+                </td>
+
+                {/* 🔒 점수는 정보용 표시만 */}
+                <td className="px-3 py-2">
+                  {row.final_score == null
+                    ? "-"
+                    : row.final_score}
+                </td>
+
+                <td className="px-3 py-2 text-xs text-gray-400">
+                  결과 상세에서 확인
+                </td>
+              </tr>
+            );
+          })}
+
+          {rows.length === 0 && (
+            <tr>
+              <td
+                colSpan={3}
+                className="px-3 py-8 text-center text-gray-400"
+              >
+                성적 데이터가 없습니다.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SessionAssessmentSidePanel.tsx
+==========================================================================================
+// PATH: src/features/sessions/components/SessionAssessmentSidePanel.tsx
+
+import { useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import api from "@/shared/api/axios";
+import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
+
+import CreateRegularExamModal
+  from "@/features/exams/components/create/CreateRegularExamModal";
+
+import CreateHomeworkModal
+  from "@/features/homework/components/CreateHomeworkModal";
+
+import { deleteSessionExam }
+  from "@/features/sessions/api/deleteSessionExam";
+import { deleteSessionHomework }
+  from "@/features/sessions/api/deleteSessionHomework";
+
+type Props = {
+  lectureId: number;
+  sessionId: number;
+};
+
+type HomeworkItem = {
+  id: number;
+  title: string;
+  status?: string;
+};
+
+export default function SessionAssessmentSidePanel({
+  lectureId,
+  sessionId,
+}: Props) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ===============================
+  // 선택 단일 진실
+  // ===============================
+  const examId = useMemo(() => {
+    const v = Number(searchParams.get("examId"));
+    return Number.isFinite(v) ? v : null;
+  }, [searchParams]);
+
+  const homeworkId = useMemo(() => {
+    const v = Number(searchParams.get("homeworkId"));
+    return Number.isFinite(v) ? v : null;
+  }, [searchParams]);
+
+  const clearQuery = (key: "examId" | "homeworkId") => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete(key);
+      return next;
+    });
+  };
+
+  // ===============================
+  // 시험 목록 (results 단일진실)
+  // ===============================
+  const { data: exams = [], isLoading: examsLoading } = useQuery({
+    queryKey: ["admin-session-exams", sessionId],
+    queryFn: () => fetchAdminSessionExams(sessionId),
+    enabled: !!sessionId,
+  });
+
+  // ===============================
+  // 과제 목록
+  // ===============================
+  const { data: homeworks = [], isLoading: hwLoading } = useQuery({
+    queryKey: ["session-homeworks", sessionId],
+    queryFn: async (): Promise<HomeworkItem[]> => {
+      const res = await api.get("/homeworks/", {
+        params: { session_id: sessionId },
+      });
+
+      const arr =
+        res.data?.results ??
+        res.data?.items ??
+        res.data ??
+        [];
+
+      return arr.map((x: any) => ({
+        id: Number(x.id),
+        title: String(x.title ?? ""),
+        status: x.status,
+      }));
+    },
+    enabled: !!sessionId,
+  });
+
+  // ===============================
+  // 생성 모달 상태
+  // ===============================
+  const [openCreateExam, setOpenCreateExam] = useState(false);
+  const [openCreateHomework, setOpenCreateHomework] = useState(false);
+
+  const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+
+  const invalidateExams = () =>
+    qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
+
+  const invalidateHomeworks = () =>
+    qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
+
+  const onSelectExam = (id: number) => {
+    navigate({
+      pathname: `${base}/exams`,
+      search: `?examId=${id}`,
+    });
+  };
+
+  const onSelectHomework = (id: number) => {
+    navigate({
+      pathname: `${base}/assignments`,
+      search: `?homeworkId=${id}`,
+    });
+  };
+
+  const handleDeleteExam = async (id: number) => {
+    await deleteSessionExam(id);
+    if (examId === id) clearQuery("examId");
+    invalidateExams();
+  };
+
+  const handleDeleteHomework = async (id: number) => {
+    await deleteSessionHomework(id);
+    if (homeworkId === id) clearQuery("homeworkId");
+    invalidateHomeworks();
+  };
+
+  return (
+    <aside className="w-[220px] shrink-0 space-y-4 rounded border bg-white p-3">
+
+      {/* ================= Exams ================= */}
+      <Section title="시험" onAdd={() => setOpenCreateExam(true)}>
+
+        {examsLoading && <Empty>불러오는 중...</Empty>}
+        {!examsLoading && exams.length === 0 && <Empty>시험 없음</Empty>}
+
+        {exams.map((exam: any) => {
+          const active =
+            examId != null &&
+            Number(exam.exam_id) === examId;
+
+          return (
+            <ItemRow
+              key={exam.exam_id}
+              active={active}
+              label={exam.title}
+              sub={`exam_id: ${exam.exam_id}`}
+              onClick={() => onSelectExam(Number(exam.exam_id))}
+              onDelete={() => handleDeleteExam(Number(exam.exam_id))}
+            />
+          );
+        })}
+      </Section>
+
+      {/* ================= Homework ================= */}
+      <Section title="과제" onAdd={() => setOpenCreateHomework(true)}>
+
+        {hwLoading && <Empty>불러오는 중...</Empty>}
+        {!hwLoading && homeworks.length === 0 && <Empty>과제 없음</Empty>}
+
+        {homeworks.map((hw) => {
+          const active = homeworkId === hw.id;
+
+          return (
+            <ItemRow
+              key={hw.id}
+              active={active}
+              label={hw.title}
+              sub={hw.status ? `상태: ${hw.status}` : undefined}
+              onClick={() => onSelectHomework(hw.id)}
+              onDelete={() => handleDeleteHomework(hw.id)}
+            />
+          );
+        })}
+      </Section>
+
+      {/* ================= Modals ================= */}
+
+      <CreateRegularExamModal
+        open={openCreateExam}
+        onClose={() => setOpenCreateExam(false)}
+        sessionId={sessionId}
+        onCreated={(id) => {
+          invalidateExams();
+          onSelectExam(id);
+        }}
+      />
+
+      <CreateHomeworkModal
+        open={openCreateHomework}
+        onClose={() => setOpenCreateHomework(false)}
+        sessionId={sessionId}
+        onCreated={(id) => {
+          invalidateHomeworks();
+          onSelectHomework(id);
+        }}
+      />
+    </aside>
+  );
+}
+
+/* ================= UI ================= */
+
+function Section({
+  title,
+  onAdd,
+  children,
+}: any) {
+  return (
+    <div>
+      <div className="mb-2 flex justify-between">
+        <div className="text-xs font-semibold text-gray-500">
+          {title}
+        </div>
+
+        <button
+          onClick={onAdd}
+          className="rounded bg-gray-100 px-2 py-1 text-xs"
+        >
+          + 추가
+        </button>
+      </div>
+
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+function ItemRow({
+  label,
+  sub,
+  onClick,
+  onDelete,
+  active,
+}: any) {
+  return (
+    <div
+      className={`flex rounded ${
+        active ? "bg-blue-50" : "hover:bg-gray-50"
+      }`}
+    >
+      <button
+        onClick={onClick}
+        className="flex-1 px-2 py-2 text-left"
+      >
+        <div className="text-sm">{label}</div>
+        {sub && (
+          <div className="text-xs text-gray-500">{sub}</div>
+        )}
+      </button>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="px-2 text-red-500"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+function Empty({ children }: any) {
+  return (
+    <div className="px-2 py-2 text-xs text-gray-400">
+      {children}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SessionAssessmentWorkspace.tsx
+==========================================================================================
+// PATH: src/features/sessions/components/SessionAssessmentWorkspace.tsx
+
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+
+import { useSessionParams } from "../hooks/useSessionParams";
+
+import AdminExamDetail from "@/features/exams/components/AdminExamDetail";
+import AdminHomeworkDetail from "@/features/homework/components/AdminHomeworkDetail";
+
+type Mode = "exam" | "homework";
+
+type Props = {
+  mode: Mode;
+};
+
+export default function SessionAssessmentWorkspace({
+  mode,
+}: Props) {
+  const { sessionId } = useSessionParams();
+  const [searchParams] = useSearchParams();
+
+  const queryKey = mode === "exam" ? "examId" : "homeworkId";
+
+  const activeId = useMemo(() => {
+    const v = Number(searchParams.get(queryKey));
+    return Number.isFinite(v) ? v : null;
+  }, [searchParams, queryKey]);
+
+  const titleLabel = mode === "exam" ? "시험" : "과제";
+
+  if (!sessionId) {
+    return (
+      <div className="text-sm text-red-600">
+        잘못된 sessionId
+      </div>
+    );
+  }
+
+  return (
+    <section className="card p-4 min-w-0">
+      {!activeId ? (
+        <EmptyCard title={titleLabel} />
+      ) : (
+        <>
+          {mode === "exam" && (
+            <AdminExamDetail examId={activeId} />
+          )}
+          {mode === "homework" && (
+            <AdminHomeworkDetail homeworkId={activeId} />
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+/* ================= UI ================= */
+
+function EmptyCard({ title }: { title: string }) {
+  return (
+    <div className="flex h-full min-h-[240px] flex-col items-center justify-center text-center">
+      <div className="text-sm font-medium text-gray-700">
+        선택된 {title}이 없습니다
+      </div>
+
+      <div className="mt-1 text-xs text-gray-500">
+        좌측 패널에서 {title}을 선택하세요
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SessionScoresTab.tsx
+==========================================================================================
+// PATH: src/features/sessions/components/SessionScoresTab.tsx
+/**
+ * ✅ SessionScoresTab (FINAL / 정석)
+ *
+ * 책임:
+ * - sessions 탭에서 scores 도메인 화면을 연결
+ *
+ * 원칙:
+ * - sessionId는 useSessionParams에서 직접 획득
+ * - 성적 UI / 선택 / SidePanel 로직 ❌
+ * - scores 도메인의 SessionScoresPanel이 단일 진실
+ */
+
+import { useSessionParams } from "../hooks/useSessionParams";
+import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
+
+export default function SessionScoresTab() {
+  const { sessionId } = useSessionParams();
+
+  if (!sessionId) {
+    return (
+      <div className="text-sm text-red-600">
+        잘못된 sessionId
+      </div>
+    );
+  }
+
+  return <SessionScoresPanel sessionId={sessionId} />;
+}
+
+
+==========================================================================================
+# FILE: components/SessionTabs.tsx
+==========================================================================================
+// src/features/sessions/components/SessionTabs.tsx
+
+type SessionTab =
+  | "attendance"
+  | "scores"
+  | "exams"
+  | "assignments"
+  | "videos"
+  | "materials";
+
+const TABS: { id: SessionTab; label: string }[] = [
+  { id: "attendance", label: "출결" },
+  { id: "scores", label: "성적" },
+  { id: "exams", label: "시험" },
+  { id: "assignments", label: "과제" },
+  { id: "videos", label: "영상" },
+  { id: "materials", label: "자료" },
+];
+
+export default function SessionTabs({
+  activeTab,
+  onChange,
+}: {
+  activeTab: SessionTab;
+  onChange: (tab: SessionTab) => void;
+}) {
+  return (
+    <div className="mb-6 border-b">
+      <div className="flex gap-2">
+        {TABS.map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onChange(tab.id)}
+              className={
+                "border-b-2 px-4 py-2 text-sm " +
+                (active
+                  ? "border-blue-600 font-semibold text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-800")
+              }
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/enrollment/EnrollmentManageFooter.tsx
+==========================================================================================
+// PATH: src/features/sessions/components/enrollment/EnrollmentManageFooter.tsx
+
+export default function EnrollmentManageFooter({
+  readOnly,
+  onClose,
+  onSave,
+  saving,
+  dirty,
+}: {
+  readOnly: boolean;
+  onClose: () => void;
+  onSave?: () => void;
+  saving?: boolean;
+  dirty?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between border-t border-[var(--border-divider)] px-5 py-4">
+      <div className="text-xs text-[var(--text-muted)]">
+        {readOnly
+          ? "조회 전용"
+          : dirty
+          ? "변경사항이 있습니다. 저장하면 확정됩니다."
+          : "변경사항 없음"}
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className="h-9 rounded border border-[var(--border-divider)] px-4 text-sm hover:bg-[var(--bg-surface-soft)]"
+          onClick={onClose}
+          disabled={saving}
+        >
+          취소
+        </button>
+
+        {!readOnly && (
+          <button
+            type="button"
+            className="h-9 rounded bg-[var(--color-primary)] px-4 text-sm font-semibold text-white disabled:opacity-50"
+            onClick={onSave}
+            disabled={saving}
+          >
+            {saving ? "저장중..." : "선택 확정(저장)"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/enrollment/EnrollmentManageHeader.tsx
+==========================================================================================
+// PATH: src/features/sessions/components/enrollment/EnrollmentManageHeader.tsx
+
+export default function EnrollmentManageHeader({
+  title,
+  description,
+  onClose,
+}: {
+  title: string;
+  description?: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between border-b border-[var(--border-divider)] px-5 py-4">
+      <div>
+        <div className="text-base font-semibold text-[var(--text-primary)]">
+          {title}
+        </div>
+        {description && (
+          <div className="mt-1 text-xs text-[var(--text-secondary)]">
+            {description}
+          </div>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+        onClick={onClose}
+      >
+        닫기
+      </button>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/enrollment/EnrollmentManageModal.tsx
+==========================================================================================
+// PATH: src/features/sessions/components/enrollment/EnrollmentManageModal.tsx
+/**
+ * EnrollmentManageModal (UI ONLY)
+ *
+ * ✅ HomeworkEnrollmentManageModal UX canonical 적용
+ * - surface / token 기반
+ * - API / state 관리 ❌
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import type { EnrollmentRow } from "./types";
+import EnrollmentManageHeader from "./EnrollmentManageHeader";
+import EnrollmentManageToolbar from "./EnrollmentManageToolbar";
+import EnrollmentManageTable from "./EnrollmentManageTable";
+import EnrollmentManageFooter from "./EnrollmentManageFooter";
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+
+  title: string;
+  description?: string;
+
+  sessionId: number;
+
+  rows: EnrollmentRow[];
+  loading?: boolean;
+  error?: string | null;
+
+  selectedIds: Set<number>;
+  onToggle?: (id: number) => void;
+
+  onSave?: () => void;
+  saving?: boolean;
+
+  onSetSelectedIds?: (next: Set<number>) => void;
+};
+
+export default function EnrollmentManageModal({
+  open,
+  onClose,
+  title,
+  description,
+  sessionId,
+  rows,
+  loading,
+  error,
+  selectedIds,
+  onToggle,
+  onSave,
+  saving,
+  onSetSelectedIds,
+}: Props) {
+  const [keyword, setKeyword] = useState("");
+
+  useEffect(() => {
+    if (!open) setKeyword("");
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    const k = keyword.trim().toLowerCase();
+    if (!k) return rows;
+    return rows.filter((r) =>
+      (r.student_name ?? "").toLowerCase().includes(k)
+    );
+  }, [rows, keyword]);
+
+  const readOnly = !onSave;
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-2xl rounded-lg bg-[var(--bg-surface)] shadow-lg">
+        <EnrollmentManageHeader
+          title={title}
+          description={description}
+          onClose={onClose}
+        />
+
+        <div className="space-y-4 px-5 py-4">
+          <EnrollmentManageToolbar
+            keyword={keyword}
+            onKeywordChange={setKeyword}
+            selectedCount={selectedIds.size}
+            totalCount={rows.length}
+            sessionId={sessionId}
+            readOnly={readOnly}
+            rows={filtered}
+            selectedIds={selectedIds}
+            onToggle={onToggle}
+            onSetSelected={onSetSelectedIds}
+          />
+
+          {error && (
+            <div className="rounded border border-[var(--color-danger)] bg-[var(--color-danger-soft)] px-4 py-3 text-sm text-[var(--color-danger)]">
+              {error}
+            </div>
+          )}
+
+          <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3 text-xs text-[var(--text-secondary)]">
+            ⚠{" "}
+            {readOnly
+              ? "조회 전용 화면입니다."
+              : "저장을 눌러야 서버에 실제 반영됩니다."}
+          </div>
+
+          <EnrollmentManageTable
+            rows={filtered}
+            loading={loading}
+            error={error}
+            selectedIds={selectedIds}
+            onToggle={onToggle}
+            readOnly={readOnly}
+          />
+        </div>
+
+        <EnrollmentManageFooter
+          readOnly={readOnly}
+          onClose={onClose}
+          onSave={onSave}
+          saving={saving}
+          dirty
+        />
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/enrollment/EnrollmentManageTable.tsx
+==========================================================================================
+// PATH: src/features/sessions/components/enrollment/EnrollmentManageTable.tsx
+
+import type { EnrollmentRow } from "./types";
+
+export default function EnrollmentManageTable({
+  rows,
+  loading,
+  error,
+  selectedIds,
+  onToggle,
+  readOnly,
+}: {
+  rows: EnrollmentRow[];
+  loading?: boolean;
+  error?: string | null;
+  selectedIds: Set<number>;
+  onToggle?: (id: number) => void;
+  readOnly: boolean;
+}) {
+  return (
+    <div className="max-h-[340px] overflow-auto rounded border border-[var(--border-divider)]">
+      {loading ? (
+        <div className="p-6 text-sm text-[var(--text-muted)]">
+          불러오는 중...
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="p-6 text-sm text-[var(--text-muted)]">
+          표시할 학생이 없습니다.
+        </div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-[var(--text-secondary)]">
+            <tr>
+              <th className="w-12 px-3 py-2 text-left">선택</th>
+              <th className="px-3 py-2 text-left">학생</th>
+              <th className="px-3 py-2 text-left">enrollment_id</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const checked = selectedIds.has(r.enrollment_id);
+              return (
+                <tr
+                  key={r.enrollment_id}
+                  className="border-t border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                >
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={readOnly}
+                      onChange={() => onToggle?.(r.enrollment_id)}
+                    />
+                  </td>
+                  <td className="px-3 py-2 font-medium text-[var(--text-primary)]">
+                    {r.student_name || "(이름 없음)"}
+                  </td>
+                  <td className="px-3 py-2 text-[var(--text-muted)]">
+                    {r.enrollment_id}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/enrollment/EnrollmentManageToolbar.tsx
+==========================================================================================
+// PATH: src/features/sessions/components/enrollment/EnrollmentManageToolbar.tsx
+
+import type { EnrollmentRow } from "./types";
+
+export default function EnrollmentManageToolbar({
+  keyword,
+  onKeywordChange,
+  selectedCount,
+  totalCount,
+  sessionId,
+  readOnly,
+  rows,
+  selectedIds,
+  onToggle,
+  onSetSelected,
+}: {
+  keyword: string;
+  onKeywordChange: (v: string) => void;
+  selectedCount: number;
+  totalCount: number;
+  sessionId: number;
+  readOnly: boolean;
+  rows: EnrollmentRow[];
+  selectedIds: Set<number>;
+  onToggle?: (id: number) => void;
+  onSetSelected?: (next: Set<number>) => void;
+}) {
+  const selectAll = () => {
+    if (readOnly) return;
+
+    if (onSetSelected) {
+      const next = new Set(selectedIds);
+      rows.forEach((r) => next.add(r.enrollment_id));
+      onSetSelected(next);
+      return;
+    }
+
+    rows.forEach((r) => {
+      if (!selectedIds.has(r.enrollment_id))
+        onToggle?.(r.enrollment_id);
+    });
+  };
+
+  const clearAll = () => {
+    if (readOnly) return;
+
+    if (onSetSelected) {
+      const next = new Set(selectedIds);
+      rows.forEach((r) => next.delete(r.enrollment_id));
+      onSetSelected(next);
+      return;
+    }
+
+    rows.forEach((r) => {
+      if (selectedIds.has(r.enrollment_id))
+        onToggle?.(r.enrollment_id);
+    });
+  };
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <input
+        value={keyword}
+        onChange={(e) => onKeywordChange(e.target.value)}
+        placeholder="학생 이름 검색"
+        className="h-9 w-[240px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+      />
+
+      <div className="text-xs text-[var(--text-secondary)]">
+        선택됨: <b>{selectedCount}</b>명 / 전체 {totalCount}명
+        <span className="ml-2 text-[var(--text-muted)]">
+          session #{sessionId}
+        </span>
+      </div>
+
+      {!readOnly && (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={selectAll}
+            className="h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 text-sm hover:bg-[var(--bg-surface-soft)]"
+          >
+            현재 목록 전체 선택
+          </button>
+          <button
+            type="button"
+            onClick={clearAll}
+            className="h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 text-sm hover:bg-[var(--bg-surface-soft)]"
+          >
+            현재 목록 전체 해제
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/enrollment/types.ts
+==========================================================================================
+// PATH: src/features/sessions/components/enrollment/types.ts
+
+/**
+ * EnrollmentRow
+ *
+ * 공용 Enrollment UI에서 사용하는 최소 단위
+ * - server concept(is_selected) 사용 ❌
+ * - 선택 상태는 selectedIds(Set)로만 관리
+ */
+export type EnrollmentRow = {
+  enrollment_id: number;
+  student_name: string;
+};
+
+
+==========================================================================================
+# FILE: hooks/useSessionParams.ts
+==========================================================================================
+// PATH: src/features/sessions/hooks/useSessionParams.ts
+
+import { useParams } from "react-router-dom";
+
+/**
+ * ✅ Session 파라미터 단일 진실
+ * - lectures / sessions 어디서든 동일하게 사용
+ * - parsing 책임을 hook으로 고정
+ */
+export function useSessionParams() {
+  const { lectureId, sessionId } = useParams<{
+    lectureId?: string;
+    sessionId?: string;
+  }>();
+
+  const parsedLectureId = lectureId ? Number(lectureId) : undefined;
+  const parsedSessionId = sessionId ? Number(sessionId) : undefined;
+
+  return {
+    lectureId: Number.isFinite(parsedLectureId)
+      ? parsedLectureId
+      : undefined,
+    sessionId: Number.isFinite(parsedSessionId)
+      ? parsedSessionId
+      : undefined,
+  };
+}
+
+
+==========================================================================================
+# FILE: layout/SessionLayout.tsx
+==========================================================================================
+// PATH: src/features/sessions/layout/SessionLayout.tsx
+// ------------------------------------------------------------
+// SessionLayout (SESSIONS HUB SHELL) ✅ FIXED / LOCK
+// ------------------------------------------------------------
+// 책임:
+// - sessions 허브 Shell
+// - 상단: 세션 메타(title/date)
+// - 탭: attendance/scores/exams/assignments/videos/materials 이동
+// - 좌측: 시험/과제 전용 공용 평가 패널(SessionAssessmentSidePanel)
+// - 우측: 실제 탭 콘텐츠(Outlet)
+//
+// 규칙:
+// - Page는 여기서만 1회 사용
+// - 하위 route/component에서는 Page 사용 금지
+// ------------------------------------------------------------
+
+import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+import api from "@/shared/api/axios";
+import { Page } from "@/shared/ui/page";
+
+import { useSessionParams } from "../hooks/useSessionParams";
+import SessionAssessmentSidePanel from "../components/SessionAssessmentSidePanel";
+
+// ✅ 학생 추가 모달 (lectures 쪽 재사용)
+import EnrollStudentModal from "@/features/lectures/components/EnrollStudentModal";
+
+type TabId =
+  | "attendance"
+  | "scores"
+  | "exams"
+  | "assignments"
+  | "videos"
+  | "materials";
+
+const TABS: { id: TabId; label: string; path: string }[] = [
+  { id: "attendance", label: "출결", path: "attendance" },
+  { id: "scores", label: "성적", path: "scores" },
+  { id: "exams", label: "시험", path: "exams" },
+  { id: "assignments", label: "과제", path: "assignments" },
+  { id: "videos", label: "영상", path: "videos" },
+  { id: "materials", label: "자료", path: "materials" },
+];
+
+export default function SessionLayout() {
+  const { lectureId, sessionId } = useSessionParams();
+  const location = useLocation();
+  const qc = useQueryClient();
+
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
+
+  // ---------------------------
+  // Param guard
+  // ---------------------------
+  if (!lectureId || !sessionId) {
+    return (
+      <Page>
+        <div className="text-sm text-red-600">
+          잘못된 세션 접근입니다.
+        </div>
+      </Page>
+    );
+  }
+
+  // ---------------------------
+  // Session meta
+  // ---------------------------
+  const { data: session, isLoading } = useQuery({
+    queryKey: ["session", sessionId],
+    queryFn: async () =>
+      (await api.get(`/lectures/sessions/${sessionId}/`)).data,
+    enabled: Number.isFinite(sessionId),
+  });
+
+  if (isLoading || !session) {
+    return <Page>로딩중...</Page>;
+  }
+
+  const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+
+  // ---------------------------
+  // 좌측 평가 패널 노출 조건
+  // ---------------------------
+  const pathname = location.pathname;
+  const showAssessmentPanel =
+    pathname.startsWith(`${base}/exams`) ||
+    pathname.startsWith(`${base}/assignments`);
+
+  return (
+    <Page>
+      {/* ================= Header ================= */}
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <div className="text-xs text-gray-500">
+            Lecture #{lectureId} · Session #{sessionId}
+          </div>
+
+          <h1 className="text-xl font-bold">
+            {session.title}
+          </h1>
+
+          {session.date && (
+            <div className="text-sm text-gray-500">
+              {session.date}
+            </div>
+          )}
+        </div>
+
+        {/* 학생 추가 (세션 기준) */}
+        <div className="shrink-0">
+          <button
+            type="button"
+            className="rounded bg-blue-600 px-4 py-2 text-sm text-white"
+            onClick={() => setShowEnrollModal(true)}
+          >
+            학생 추가
+          </button>
+        </div>
+      </div>
+
+      {/* ================= Tabs ================= */}
+      <div className="mb-6 border-b">
+        <div className="flex gap-2">
+          {TABS.map((tab) => (
+            <NavLink
+              key={tab.id}
+              to={`${base}/${tab.path}`}
+              end={tab.id === "attendance"}
+              className={({ isActive }) =>
+                "border-b-2 px-4 py-2 text-sm " +
+                (isActive
+                  ? "border-blue-600 font-semibold text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-800")
+              }
+            >
+              {tab.label}
+            </NavLink>
+          ))}
+        </div>
+      </div>
+
+      {/* ================= Body ================= */}
+      <div className="flex gap-4">
+        {/* LEFT: 시험/과제 전용 */}
+        {showAssessmentPanel && (
+          <aside className="w-[220px] shrink-0">
+            <SessionAssessmentSidePanel
+              lectureId={lectureId}
+              sessionId={sessionId}
+            />
+          </aside>
+        )}
+
+        {/* RIGHT: 실제 탭 콘텐츠 */}
+        <section className="flex-1 min-w-0">
+          <Outlet />
+        </section>
+      </div>
+
+      {/* ================= Modal ================= */}
+      {showEnrollModal && (
+        <EnrollStudentModal
+          sessionId={sessionId}
+          isOpen={showEnrollModal}
+          onClose={() => setShowEnrollModal(false)}
+          onSuccess={() => {
+            qc.invalidateQueries({
+              queryKey: ["attendance", sessionId],
+            });
+            qc.invalidateQueries({
+              queryKey: ["attendance-matrix", lectureId],
+            });
+          }}
+        />
+      )}
+    </Page>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/SessionDetailPage.tsx
+==========================================================================================
+// PATH: src/features/sessions/pages/SessionDetailPage.tsx
+// ------------------------------------------------------------
+// SessionDetailPage (SESSIONS HUB)
+// ------------------------------------------------------------
+// 책임:
+// - sessions 기준 단일 허브
+// - 탭 상태 관리
+// - 좌측 공용 평가 패널 노출 제어
+//
+// ❌ 금지
+// - 점수/합불/정책 해석
+// ------------------------------------------------------------
+
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+
+  
+import { Page, PageHeader, PageSection } from "@/shared/ui/page";
+import EmptyState from "@/shared/ui/feedback/EmptyState";
+
+import api from "@/shared/api/axios";
+
+import EnrollStudentModal from "@/features/lectures/components/EnrollStudentModal";
+import SessionVideosTab from "@/features/lectures/components/SessionVideosTab";
+import { useLectureParams } from "@/features/lectures/hooks/useLectureParams";
+
+/* ================= sessions UI ================= */
+import SessionTabs from "../components/SessionTabs";
+import SessionAssessmentSidePanel
+  from "../components/SessionAssessmentSidePanel";
+
+/* ================= 기존 페이지 재사용 ================= */
+import SessionAttendancePage from "@/features/lectures/pages/attendance/SessionAttendancePage";
+import SessionExamsPage from "@/features/lectures/pages/exams/SessionExamsPage";
+import SessionScoresEntryPage from "@/features/lectures/pages/scores/SessionScoresEntryPage";
+import SessionAssignmentsEntryPage from "@/features/lectures/pages/assignments/SessionAssignmentsEntryPage";
+
+type SessionTab =
+  | "attendance"
+  | "scores"
+  | "exams"
+  | "assignments"
+  | "videos"
+  | "materials";
+
+async function fetchSession(id: number) {
+  const res = await api.get(`/lectures/sessions/${id}/`);
+  return res.data;
+}
+
+export default function SessionDetailPage() {
+  const { lectureId, sessionId } = useLectureParams();
+  const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const lecId = Number(lectureId);
+  const sId = Number(sessionId);
+
+  if (!Number.isFinite(lecId) || !Number.isFinite(sId)) {
+    return <Page title="">잘못된 접근입니다.</Page>;
+  }
+
+  /* --------------------------------------------------
+   * 탭 상태
+   * - 기본은 attendance
+   * - searchParams(tab) 있으면 우선
+   * -------------------------------------------------- */
+  const paramTab = searchParams.get("tab") as SessionTab | null;
+
+  const [activeTab, setActiveTab] =
+    useState<SessionTab>(paramTab ?? "attendance");
+
+  useEffect(() => {
+    if (paramTab && paramTab !== activeTab) {
+      setActiveTab(paramTab);
+    }
+  }, [paramTab]);
+
+  const handleChangeTab = (tab: SessionTab) => {
+    setActiveTab(tab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tab);
+      return next;
+    });
+  };
+
+  const [showModal, setShowModal] = useState(false);
+
+  const { data: session } = useQuery({
+    queryKey: ["session", sId],
+    queryFn: () => fetchSession(sId),
+    enabled: Number.isFinite(sId),
+  });
+
+  if (!session) {
+    return <Page title="">로딩중...</Page>;
+  }
+
+  const showAssessmentPanel =
+    activeTab === "exams" ||
+    activeTab === "scores" ||
+    activeTab === "assignments";
+
+  return (
+    <Page title="">
+      <PageHeader
+        title={session.title}
+        actions={
+          <button
+            type="button"
+            className="rounded bg-blue-600 px-4 py-2 text-sm text-white"
+            onClick={() => setShowModal(true)}
+          >
+            학생 추가
+          </button>
+        }
+      />
+
+      <div className="mb-6 text-sm text-gray-500">
+        {session.date}
+      </div>
+
+      {/* ================= Tabs ================= */}
+      <SessionTabs
+        activeTab={activeTab}
+        onChange={handleChangeTab}
+      />
+
+      {/* ================= CONTENT ================= */}
+      <div className="flex gap-4">
+        {/* LEFT: 공용 평가 패널 */}
+        {showAssessmentPanel && (
+          <SessionAssessmentSidePanel
+            lectureId={lecId}
+            sessionId={sId}
+          />
+        )}
+
+        {/* RIGHT */}
+        <div className="flex-1 min-w-0">
+          {activeTab === "attendance" && (
+            <SessionAttendancePage sessionId={sId} />
+          )}
+
+          {activeTab === "exams" && (
+            <SessionExamsPage sessionId={sId} />
+          )}
+
+          {activeTab === "scores" && (
+            <SessionScoresEntryPage
+              lectureId={lecId}
+              sessionId={sId}
+            />
+          )}
+
+          {activeTab === "assignments" && (
+            <SessionAssignmentsEntryPage
+              lectureId={lecId}
+              sessionId={sId}
+            />
+          )}
+
+          {activeTab === "videos" && (
+            <SessionVideosTab sessionId={sId} />
+          )}
+
+          {activeTab === "materials" && (
+            <div>자료 UI 예정</div>
+          )}
+        </div>
+      </div>
+
+      {/* ================= MODAL ================= */}
+      {showModal && (
+        <EnrollStudentModal
+          sessionId={sId}
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          onSuccess={() =>
+            qc.invalidateQueries({
+              queryKey: ["attendance", sId],
+            })
+          }
+        />
+      )}
+    </Page>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/SessionScoreSummaryPanel.tsx
+==========================================================================================
+/**
+ * PATH: src/features/sessions/panels/SessionScoreSummaryPanel.tsx
+ *
+ * ✅ SessionScoreSummaryPanel (UX 개선 FINAL)
+ *
+ * 개선 사항:
+ * - 합격률을 "전체 학생 수 대비" 명확히 표시
+ * - 퍼센트 + n/m 명 병기
+ *
+ * 설계 계약:
+ * - count / pass_count는 backend 단일 진실
+ * - 프론트는 계산 ❌ (표현용 비율만 계산)
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import {
+  fetchSessionScoreSummary,
+  ScoreGroupSummary,
+} from "../api/sessionScoreSummary";
+
+export default function SessionScoreSummaryPanel({
+  sessionId,
+}: {
+  sessionId: number;
+}) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["session-score-summary", sessionId],
+    queryFn: () => fetchSessionScoreSummary(sessionId),
+    enabled: Number.isFinite(sessionId),
+  });
+
+  if (isLoading || !data) {
+    return (
+      <div className="text-sm text-gray-500">
+        통계 불러오는 중...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 rounded border bg-white p-4">
+      <div className="text-sm font-semibold">
+        시험 성적 통계 (전체 학생 대비)
+      </div>
+
+      <StatBlock title="전체" data={data.total} />
+      <StatBlock title="오프라인 응시" data={data.offline} />
+      <StatBlock title="온라인 응시" data={data.online} muted />
+    </div>
+  );
+}
+
+/* ===================== UI ===================== */
+
+function StatBlock({
+  title,
+  data,
+  muted,
+}: {
+  title: string;
+  data: ScoreGroupSummary;
+  muted?: boolean;
+}) {
+  const total = data.count ?? 0;
+  const passed = data.pass_count ?? 0;
+
+  const passRate =
+    total > 0
+      ? ((passed / total) * 100).toFixed(1)
+      : "-";
+
+  return (
+    <div
+      className={[
+        "rounded border p-3 text-sm",
+        muted ? "bg-gray-50" : "bg-white",
+      ].join(" ")}
+    >
+      <div className="mb-2 font-medium">
+        {title}
+      </div>
+
+      <div className="grid grid-cols-2 gap-y-1 text-xs text-gray-700">
+        <div>응시자 수</div>
+        <div>{total}</div>
+
+        <div>평균 점수</div>
+        <div>{Number.isFinite(data.avg) ? data.avg : "-"}</div>
+
+        <div>합격률</div>
+        <div>
+          {passRate !== "-" ? (
+            <>
+              {passRate}%
+              <span className="ml-1 text-gray-500">
+                ({passed}/{total} 명)
+              </span>
+            </>
+          ) : (
+            "-"
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: routes/SessionAssignmentsRoute.tsx
+==========================================================================================
+// PATH: src/features/sessions/routes/SessionAssignmentsRoute.tsx
+
+import SessionAssessmentWorkspace from "../components/SessionAssessmentWorkspace";
+
+/**
+ * SessionAssignmentsRoute
+ * - "과제" 탭 엔트리
+ * - 실제 화면/UX는 SessionAssessmentWorkspace가 담당
+ * - 도메인 스펙/계약 변경 금지 (여긴 라우팅 껍데기)
+ */
+export default function SessionAssignmentsRoute() {
+  return <SessionAssessmentWorkspace mode="homework" />;
+}
+
+
+==========================================================================================
+# FILE: routes/SessionAttendanceRoute.tsx
+==========================================================================================
+// PATH: src/features/sessions/routes/SessionAttendanceRoute.tsx
+
+import { useSessionParams } from "../hooks/useSessionParams";
+import SessionAttendancePage from "@/features/lectures/pages/attendance/SessionAttendancePage";
+
+export default function SessionAttendanceRoute() {
+  const { sessionId } = useSessionParams();
+  if (!sessionId) return <div className="text-sm text-red-600">잘못된 sessionId</div>;
+  return <SessionAttendancePage sessionId={sessionId} />;
+}
+
+
+==========================================================================================
+# FILE: routes/SessionExamsRoute.tsx
+==========================================================================================
+// PATH: src/features/sessions/routes/SessionExamsRoute.tsx
+
+import SessionAssessmentWorkspace from "../components/SessionAssessmentWorkspace";
+
+/**
+ * SessionExamsRoute
+ * - "시험" 탭 엔트리
+ * - 실제 화면/UX는 SessionAssessmentWorkspace가 담당
+ * - 도메인 스펙/계약 변경 금지 (여긴 라우팅 껍데기)
+ */
+export default function SessionExamsRoute() {
+  return <SessionAssessmentWorkspace mode="exam" />;
+}
+
+
+==========================================================================================
+# FILE: routes/SessionScoresRoute.tsx
+==========================================================================================
+// PATH: src/features/sessions/routes/SessionScoresRoute.tsx
+
+import SessionScoresTab from "../components/SessionScoresTab";
+
+/**
+ * SessionScoresRoute
+ * - "성적" 탭 엔트리
+ * - SessionScoresTab이 실제 UI/데이터 연동 담당
+ */
+export default function SessionScoresRoute() {
+  return <SessionScoresTab />;
+}
+
+
+==========================================================================================
+# FILE: routes/SessionVideosRoute.tsx
+==========================================================================================
+// PATH: src/features/sessions/routes/SessionVideosRoute.tsx
+
+import { useSessionParams } from "../hooks/useSessionParams";
+import SessionVideosTab from "@/features/lectures/components/SessionVideosTab";
+
+export default function SessionVideosRoute() {
+  const { sessionId } = useSessionParams();
+  if (!sessionId) return <div className="text-sm text-red-600">잘못된 sessionId</div>;
+  return <SessionVideosTab sessionId={sessionId} />;
+}

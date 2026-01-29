@@ -1,0 +1,47 @@
+/* src/styles/base.css */
+/* ------------------------------------------------------
+   Global Base Styles
+------------------------------------------------------ */
+
+html,
+body {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+}
+
+/* 🔥 Ant Design 루트 봉인 */
+.ant-app {
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+}
+
+/* ❌ span, div 전역 색상 제거 (antd / 상태 UI 충돌 원인) */
+p,
+td {
+  color: var(--text-primary);
+}
+
+label,
+th,
+dt {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+small,
+.caption {
+  color: var(--text-muted);
+}
+
+::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+* {
+  border-color: var(--border-divider);
+}
+
+button {
+  cursor: pointer;
+}

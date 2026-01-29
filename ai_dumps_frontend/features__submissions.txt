@@ -1,0 +1,2006 @@
+====================================================================================================
+# FRONTEND FOLDER: features__submissions
+# ROOT PATH: C:\academyfront\src\features\submissions
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api.ts
+==========================================================================================
+// src/features/submissions/api.ts
+// --------------------------------------------------
+// Submission API (공통 엔드포인트)
+// --------------------------------------------------
+//
+// ✔ 시험 / 과제 / 영상 업로드 전부 여기로
+// ✔ 프론트는 R2 / Worker / AI를 절대 알 필요 없음
+//
+
+import api from "@/shared/api/axios";
+import { Submission } from "./types";
+
+/**
+ * ✅ 제출 생성 (파일 업로드)
+ *
+ * formData 필수 필드 (backend contract):
+ * - kind
+ * - target_type (exam | homework | video)
+ * - target_id
+ * - file
+ */
+export async function createSubmission(formData: FormData) {
+  const res = await api.post<Submission>(
+    "/submissions/",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+
+  return res.data;
+}
+
+/**
+ * ✅ 제출 상태 단건 조회 (Polling)
+ */
+export async function fetchSubmission(submissionId: number) {
+  const res = await api.get<Submission>(
+    `/submissions/${submissionId}/`
+  );
+  return res.data;
+}
+
+/**
+ * ✅ 제출 재처리 (FAILED 상태 전용)
+ * - 관리자 액션
+ */
+export async function retrySubmission(submissionId: number) {
+  const res = await api.post(
+    `/submissions/${submissionId}/retry/`
+  );
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: statusMaps.ts
+==========================================================================================
+// src/features/submissions/statusMaps.ts
+
+import type { SubmissionStatus } from "./types";
+
+/**
+ * ✅ Submission status label/color maps
+ * - submissions 도메인이 소유
+ * - exams/results/sessions에서 가져다 쓰면 됨
+ */
+
+export const SUBMISSION_STATUS_LABEL: Record<SubmissionStatus, string> = {
+  submitted: "업로드됨",
+  dispatched: "작업 큐 등록",
+  extracting: "인식 중",
+  answers_ready: "답안 생성됨",
+  grading: "채점 중",
+  done: "완료",
+  failed: "실패",
+};
+
+export const SUBMISSION_STATUS_COLOR: Record<SubmissionStatus, string> = {
+  submitted: "gray",
+  dispatched: "blue",
+  extracting: "indigo",
+  answers_ready: "yellow",
+  grading: "yellow",
+  done: "green",
+  failed: "red",
+};
+
+
+==========================================================================================
+# FILE: types.ts
+==========================================================================================
+// --------------------------------------------------
+// Submission 공통 타입 (Backend 1:1 계약)
+// --------------------------------------------------
+
+export type SubmissionStatus =
+  | "submitted"
+  | "dispatched"
+  | "extracting"
+  | "answers_ready"
+  | "grading"
+  | "done"
+  | "failed";
+
+export type SubmissionSource =
+  | "omr_scan"
+  | "omr_manual"
+  | "online"
+  | "homework_image"
+  | "homework_video"
+  | "ai_match";
+
+export type SubmissionTargetType =
+  | "exam"
+  | "homework";
+
+/**
+ * ✅ Backend Submission 모델과 1:1 대응
+ * ❗ 이 타입 기준으로 polling / retry / admin UX 전부 동작
+ */
+export type Submission = {
+  id: number;
+
+  enrollment_id: number | null;
+
+  target_type: SubmissionTargetType;
+  target_id: number;
+
+  source: SubmissionSource;
+  status: SubmissionStatus;
+
+  file_key?: string | null;
+  file_type?: string | null;
+  file_size?: number | null;
+
+  payload?: any;
+  meta?: any;
+  error_message?: string;
+
+  created_at: string;
+  updated_at: string;
+};
+
+
+==========================================================================================
+# FILE: 작업용프롬프트.ts
+==========================================================================================
+역할:
+너는 대기업 실무급 Frontend(React/Next.js) + Backend 연동 엔지니어다.
+교육용 OMR 시스템을 실제 학원/학교에 상용 배포한 경험이 있다.
+“데모 화면”이 아니라 “운영자가 매일 쓰는 실서비스 화면”을 만든다.
+
+==============================
+[단일진실 – 백엔드/워커 상태 (절대 변경 금지)]
+==============================
+
+1) assets 도메인
+- OMR objective v1 PDF + meta(mm) 완성
+- 시험지 레이아웃/좌표/문항 수 고정
+- 프론트는 PDF 다운로드 API만 사용
+- 답안지 구조를 해석하거나 계산하지 않는다
+
+2) worker 도메인
+- OMR v1 인식 완료 (objective + identifier)
+- scan / photo / auto 모드 구현 완료
+- 인식 로직, threshold, ROI 변경 금지
+- 프론트는 mode 선택 외에 AI 로직을 알 필요 없음
+
+3) submissions / results 도메인
+- Submission이 모든 비동기 처리의 단일 엔트리
+- status + meta가 유일한 UX 판단 기준
+- manual_review 정책 서버에서 이미 결정됨
+- 재처리(retry)는 FAILED 상태에서만 가능
+
+==============================
+[프론트가 반드시 지켜야 할 계약]
+==============================
+
+### 1️⃣ Submission은 “작업 객체”다
+- 시험 / OMR / 영상 / 과제 전부 Submission 하나로 처리
+- 프론트는 **Submission.id 하나만 추적**하면 된다
+
+### 2️⃣ 프론트는 status와 meta만 본다
+- AI 진행률, 채점 여부, 실패 원인 추론 금지
+- 아래 필드만 신뢰:
+  - submission.status
+  - submission.meta.manual_review
+  - submission.error_message
+
+### 3️⃣ Polling은 submissions 도메인 책임
+- 2초 polling
+- status in (done, failed) 도달 시 중단
+- 이미 제공된 useSubmissionPolling 훅을 단일 진실로 사용
+
+==============================
+[Submission 상태 해석 (운영 기준)]
+==============================
+
+status 의미 (프론트 표시 기준):
+
+- submitted / dispatched / extracting
+  → “처리 중” (스피너)
+
+- answers_ready
+  → AI 인식 완료
+  → meta.manual_review.required === true
+      → ⚠️ “수동 검토 필요”
+      → 운영자 수정 화면으로 이동
+  → false
+      → 자동 채점 진행됨 (잠시 후 grading)
+
+- grading
+  → 채점 중 (대기)
+
+- done
+  → 결과 확정 (Result 조회 가능)
+
+- failed
+  → 처리 실패
+  → 관리자만 “재처리” 버튼 활성화
+
+==============================
+[manual_review 정책 (프론트 해석용)]
+==============================
+
+submission.meta.manual_review 구조:
+
+{
+  required: boolean,
+  reasons: string[],
+  updated_at: string
+}
+
+- required === true 이면:
+  - identifier 실패
+  - blank / multi / low_confidence 문항 존재
+- 프론트는 reasons를 “라벨”로만 표시
+- 점수 계산 / 합격 여부 판단 금지 (results 도메인 책임)
+
+==============================
+[프론트 구현 범위 – 반드시 구현해야 함]
+==============================
+
+📁 ROOT: src/features/submissions
+
+1) OMR 답안 업로드 화면
+- 단일 업로드 (AdminOmrUploadBox)
+- 다건 업로드 (AdminOmrBatchUploadBox)
+- 파일명 기반 enrollment_id 추론 UX 유지
+- 업로드 성공 시 submission_id 노출
+
+2) Submission 상태 추적
+- useSubmissionPolling 사용
+- SubmissionStatusBadge 사용
+- status 변화 실시간 반영
+
+3) 결과 진입 분기
+- status === done
+  → results 화면으로 이동
+- status === answers_ready && manual_review.required
+  → “수동 검토 필요” 안내 + 수정 버튼
+
+4) 실패 처리 UX
+- status === failed
+  → error_message 표시
+  → retry 버튼 노출 (관리자만)
+
+==============================
+[프론트가 하면 안 되는 것]
+==============================
+
+- OMR 결과 해석 (detected, confidence 직접 사용 ❌)
+- 점수 계산 ❌
+- identifier로 학생 매칭 ❌
+- AI 상태 추론 ❌
+- meta 구조 변경 ❌
+
+==============================
+[운영자/영업용 요약 (1페이지)]
+==============================
+
+이 시스템은 다음을 보장합니다.
+
+✔ 오늘 인쇄한 OMR 답안지를  
+✔ 오늘 스캔/촬영해서  
+✔ 오늘 자동 채점하고  
+✔ 신뢰도 낮은 건 사람이 확인한 뒤  
+✔ 즉시 성적을 확정할 수 있습니다.
+
+- 모든 자동화는 실패해도 **되돌릴 수 있음**
+- 모든 결과는 **추적 가능(ResultFact)**
+- 자동/수동 경계가 명확해 운영 리스크 없음
+
+==============================
+[v1 종료 선언]
+==============================
+
+- 이 상태는 **기능 추가 없이 바로 상용 운영 가능**
+- 프론트는 이 계약만 지키면 됨
+- 확장은 v2에서만 논의
+
+v2에서만 가능한 것:
+- 다른 답안지 레이아웃
+- 서술형 OMR
+- 모바일 실시간 채점
+- 적응형 threshold
+
+지금부터 구현은 “완성”이 아니라 “사용” 단계다.
+
+
+역할:
+너는 대기업 실무급 Frontend(React/Next.js) + 운영 UX 엔지니어다.
+교육용 OMR 자동 채점 시스템을 실제 학원/학교에 상용 배포·운영한 경험이 있다.
+너의 정체성은 “기능 구현자”가 아니라 “출시 봉인 책임자”다.
+
+너의 목표는 단 하나다:
+👉 “오늘 계약 → 오늘 인쇄 → 오늘 채점”이 가능한
+👉 실제 학원/학교 실사용 프론트를 완성하는 것.
+
+====================================================
+[🚨 단일진실 – 절대 변경 금지]
+====================================================
+
+1) Backend / Worker (이미 완성됨, 변경 금지)
+- assets 도메인: OMR objective v1 PDF + meta(mm) 단일진실 완성
+- worker 도메인: scan / photo / auto 인식 완료
+- ROI / 좌표 / threshold / AI 로직 수정 금지
+- submissions → results 흐름 고정
+- manual_review 정책은 서버에서 이미 결정됨
+
+2) Frontend 계약 (절대 위반 금지)
+- Submission이 유일한 “작업 엔트리”
+- 프론트는 submission.id 하나만 추적
+- 프론트 판단 기준은 아래 3개뿐:
+  - submission.status
+  - submission.meta.manual_review
+  - submission.error_message
+- score / confidence / AI 결과 해석 절대 금지
+
+❌ 금지 사항
+- 기능 추가
+- 구조 리팩토링
+- 새로운 상태/필드 추가
+- OMR 결과 직접 해석
+- “더 좋은 설계” 제안
+- 백엔드/워커 변경 요구
+
+====================================================
+[📦 이미 제공된 프론트 단일진실]
+====================================================
+
+- features/submissions 전체 코드 (업로드 / polling / manual edit)
+- features/exams 전체 코드 (시험 설정 / 자산 / 제출 / 결과 진입)
+- submissions ↔ exams ↔ results 연결 구조는 이미 고정
+
+👉 너는 “새로 설계”하지 않는다.
+👉 지금 코드베이스를 **상품 수준으로 다듬고 봉인**하는 역할이다.
+
+====================================================
+[🎯 목표]
+====================================================
+
+현재 코드베이스를 기준으로
+“운영자가 매일 쓰는 실서비스 프론트 UI/UX”를 완성하라.
+
+PoC, 데모, 예제, 설명 중심 결과물은 불합격이다.
+운영자가 오늘 처음 써도 막히지 않아야 한다.
+
+====================================================
+[🔁 Submission 상태 해석 (운영 기준)]
+====================================================
+
+status / 프론트 행동
+
+- submitted / dispatched / extracting
+  → 처리 중 (스피너, 대기)
+
+- answers_ready
+  → AI 인식 완료
+  → meta.manual_review.required === true
+      → “수동 검토 필요” 명확히 표시
+      → 즉시 수정 화면으로 이동 가능
+  → false
+      → 자동 채점 진행 (잠시 후 grading)
+
+- grading
+  → 채점 중 (대기)
+
+- done
+  → 결과 확정
+  → exams → results 뷰어로 자연스럽게 진입
+
+- failed
+  → 처리 실패
+  → error_message 표시
+  → retry 버튼 (관리자만)
+
+====================================================
+[⚠️ manual_review 정책 – 프론트 해석 기준]
+====================================================
+
+meta.manual_review = {
+  required: boolean,
+  reasons: string[],
+  updated_at: string
+}
+
+- required === true 이면:
+  - identifier 실패
+  - blank / multi / low_confidence 문항 존재
+- 프론트는 reasons를 “라벨”로만 표시
+- 점수 판단 / 합격 여부 판단 ❌
+
+====================================================
+[🧑‍💼 프론트가 반드시 제공해야 할 화면]
+====================================================
+
+1️⃣ OMR 답안지 다운로드
+- 문항 수: 10 / 20 / 30
+- 로고 업로드(optional)
+- PDF 즉시 다운로드
+- “v1 단일진실 사용 중” 안내 문구
+
+2️⃣ 관리자 OMR 업로드
+- 단건 업로드
+- 다건 업로드
+- 파일명 기반 enrollment_id 추론 유지
+- 업로드 성공 시 submission_id 즉시 표시
+
+3️⃣ 제출 현황 리스트
+- submission.id
+- exam_id / enrollment_id
+- status badge
+- manual_review 여부
+- failed 상태에서만 retry 버튼
+
+4️⃣ 제출 상세 (수동 검토 화면)
+- identifier 수정
+- 문항 답 수정
+- invalid_reason 표시
+- “저장 + 재채점” 버튼
+- 수정 이력은 meta 그대로 표시
+
+5️⃣ 결과 진입 분기
+- status === done → ExamResultsViewerPanel
+- answers_ready + manual_review → 수정 화면 유지
+- failed → 오류 + 재처리
+
+====================================================
+[🚫 프론트가 하면 안 되는 것]
+====================================================
+
+- OMR confidence 해석 ❌
+- 정답 비교 ❌
+- 점수 계산 ❌
+- identifier 기반 학생 매칭 ❌
+- meta 구조 변경 ❌
+
+====================================================
+[🧪 운영 UX 합격 기준]
+====================================================
+
+운영자가 UI만 보고 아래 질문에 즉시 답할 수 있어야 한다:
+
+- 지금 이 제출은 자동으로 끝났나?
+- 사람이 봐야 하나?
+- 실패했나? 다시 돌릴 수 있나?
+- 지금 내가 해야 할 행동은 뭔가?
+
+하나라도 애매하면 불합격이다.
+
+====================================================
+[🧾 운영/영업용 1페이지 메시지 (프론트로 증명)]
+====================================================
+
+이 시스템은:
+
+✔ 오늘 인쇄한 OMR 답안지를  
+✔ 오늘 스캔/촬영해서  
+✔ 오늘 자동 채점하고  
+✔ 애매한 건 사람이 확인한 뒤  
+✔ 즉시 성적을 확정할 수 있습니다.
+
+- 실패해도 다시 처리 가능
+- 모든 수정은 이력으로 남음
+- 자동/수동 경계가 명확해 운영 리스크 없음
+
+====================================================
+[🔚 v1 종료 선언]
+====================================================
+
+- 이 상태는 기능 추가 없이 즉시 상용 운영 가능
+- 프론트는 이 계약만 지키면 됨
+- 확장은 v2에서만 논의
+
+v2에서만 가능한 것:
+- 새로운 답안지 레이아웃
+- 서술형 OMR
+- 모바일 실시간 채점
+- adaptive threshold
+
+====================================================
+[✅ 최종 요구]
+====================================================
+
+지금 있는 시스템을 “설명”하지 말고
+“바로 쓰게 만들어라.”
+
+완성 기준은 단 하나다:
+
+👉 “학원 운영자가 오늘 처음 써도 막히지 않는가?”
+
+이 질문에 예라고 답할 수 있어야 한다.
+
+실제 상품용 마스터 프롬프트 (최종본)
+역할:
+너는 대기업 실무급 Frontend(React/Next.js) 엔지니어다.
+교육용 시험/OMR/채점 시스템을 실제 학원·학교에 상용 배포한 경험이 있다.
+너의 관점은 “기능 개발자”가 아니라 “출시 봉인 책임자”다.
+
+너의 목표는 하나다.
+👉 지금 주어진 프론트 코드베이스에
+👉 실제 학원/학교에서 바로 쓸 수 있는
+👉 “시험 자산 + 답안지 + 채점 연계 UI”를
+👉 **상품 완성 상태로 구현**하는 것이다.
+
+====================================================
+[🚨 단일진실 – 절대 변경 금지]
+====================================================
+
+1) Backend / Worker
+- assets 도메인: OMR objective v1 PDF + meta(mm) 완성
+- worker 도메인: scan / photo / auto 인식 완료
+- ROI / 좌표 / threshold / AI 로직 변경 금지
+- submissions → results 흐름 고정
+- manual_review 정책 서버에서 이미 결정됨
+
+2) Frontend 계약
+- Submission이 유일한 작업 엔트리
+- 프론트는 submission.id만 추적
+- 프론트 판단 기준:
+  - submission.status
+  - submission.meta.manual_review
+  - submission.error_message
+- score / confidence / AI 결과 해석 절대 금지
+
+❌ 금지
+- 기존 API/타입 수정
+- 구조 리팩토링
+- 새로운 비즈니스 로직 설계
+- 서버 동작을 가정한 UI 판단
+- “더 좋은 설계” 제안
+
+====================================================
+[📦 현재 프론트 단일진실]
+====================================================
+
+- features/exams : 시험 정의 / 자산 / 제출 / 결과 진입
+- features/submissions : 업로드 / polling / retry
+- features/results : 결과 Viewer
+- exams → submissions → results 연결 구조는 이미 고정
+
+👉 새로 설계하지 않는다.
+👉 **기존 구조 위에 UI 컴포넌트만 구현**한다.
+
+====================================================
+[🎯 구현해야 할 최종 요구사항]
+====================================================
+
+아래 기능들은 **백엔드 연결 없이도 프론트 코드로 완성된 상태**여야 한다.
+(연결은 추후 진행, 지금은 구현만)
+
+----------------------------------------------------
+1️⃣ 시험 자산 업로드 확장 (ExamAssetsPanel 기반)
+----------------------------------------------------
+
+현재 ExamAssetsPanel에는 자산 업로드가 있다.
+
+이를 확장하여 다음 자산 타입을 **UI 레벨에서 명확히 분리**해 구현하라.
+
+### A. 시험지 원본 PDF 업로드
+- asset_type: "problem_pdf"
+- 사용자 업로드: 시험지 PDF 원본
+- 업로드 후 UI 상태:
+  - “문항 분리 처리 대기 중” 표시
+  - 각 문항별 썸네일 영역 placeholder 생성
+    - 예: 문제 1, 문제 2, 문제 3 …
+
+⚠️ 실제 분리 로직은 구현하지 않는다.
+👉 대신 **문항 단위 결과가 들어올 것을 전제로 한 UI 구조만 구현**한다.
+
+### B. 문항 이미지 리스트 UI
+- 시험지 PDF에서 분리된 결과를 가정
+- 각 문항:
+  - question_no
+  - image_url (mock 가능)
+- UI:
+  - Grid 형태
+  - “문항 #n” + 이미지 미리보기
+  - 추후 오답노트 재조합을 고려한 식별자 표시
+
+----------------------------------------------------
+2️⃣ 정답지(답안 기준표) 업로드 UI
+----------------------------------------------------
+
+시험 생성 시 **정답 기준 답안지**를 업로드할 수 있어야 한다.
+
+- asset_type: "answer_sheet"
+- 용도:
+  - 객관식 자동 채점 기준
+  - 주관식은 “사람이 보는 데이터”로만 사용
+
+UI 요구사항:
+- 업로드 영역 명확히 분리
+  - “이 답안지는 채점 기준으로 사용됩니다” 안내 문구
+- 업로드 후 상태:
+  - “채점 기준 답안 등록됨” 뱃지
+  - 수정/재업로드 가능 UI
+
+⚠️ 프론트는 정답을 해석하지 않는다.
+⚠️ 채점 결과 계산/판단 절대 금지.
+
+----------------------------------------------------
+3️⃣ 학생 제출 답안 표시 (채점 연계 전 단계)
+----------------------------------------------------
+
+Submission 결과가 results로 넘어오기 전,
+또는 manual_review가 필요한 경우를 대비해:
+
+- 학생이 제출한 답안 내용을
+- **사람이 볼 수 있는 형태로만 UI에 표시**한다.
+
+요구사항:
+- 문항 단위 리스트
+- 각 문항:
+  - 학생이 선택/작성한 답안
+  - 주관식은 텍스트/이미지 그대로 표시
+- 판단/채점/정답 비교 ❌
+- “검토용 데이터”라는 라벨 명확히 표시
+
+----------------------------------------------------
+4️⃣ 오답노트 생성을 위한 문항 재조합 UI (초기 구현)
+----------------------------------------------------
+
+목표:
+- 학생이 틀린 문항들을 모아
+- “오답노트용 시험지”를 만들 수 있는 기반 UI
+
+지금 단계에서 구현할 것:
+- 문항 리스트에서
+  - 체크박스로 문항 선택
+- 선택된 문항 요약 영역
+  - “선택된 문항 n개”
+- “오답노트 생성” 버튼 (비활성 처리 가능)
+
+⚠️ 실제 생성 API 호출 ❌
+⚠️ PDF 생성 ❌
+👉 **UI 구조와 상태 관리까지만 구현**
+
+----------------------------------------------------
+5️⃣ UX 기준 (출시 봉인 기준)
+----------------------------------------------------
+
+운영자가 UI를 보고 다음 질문에 즉시 답할 수 있어야 한다.
+
+- 이 시험에 시험지 PDF가 등록되었는가?
+- 정답 기준 답안지가 등록되었는가?
+- 문항별 이미지가 준비되었는가?
+- 학생 답안을 사람이 확인할 수 있는가?
+- 오답노트 생성을 위한 준비가 되었는가?
+
+하나라도 애매하면 불합격이다.
+
+====================================================
+[🧱 구현 규칙]
+====================================================
+
+- 기존 컴포넌트/패널 내부에 구현
+- 새로운 API 호출은 mock 또는 placeholder 처리
+- 타입은 기존 ExamAsset / Submission 구조를 확장하지 말고
+  UI 전용 타입으로만 처리
+- 연결 TODO는 주석으로만 남긴다
+
+====================================================
+[📦 결과물 요구]
+====================================================
+
+- 실제 React 컴포넌트 코드
+- ExamAssetsPanel / 관련 하위 컴포넌트 구현
+- 상태/UX 흐름이 명확한 UI
+- “상품 수준” 마감 (데모 UI ❌)
+
+====================================================
+[🔚 v1 종료 선언]
+====================================================
+
+이 구현은:
+- 오늘 계약
+- 오늘 시험 생성
+- 오늘 시험지/답안지 업로드
+- 오늘 채점 준비 완료
+
+가 가능한 **실제 상품 프론트 상태**다.
+
+지금부터 너는 “설계”가 아니라
+**“완성된 제품 코드”를 출력하라.**
+
+
+==========================================================================================
+# FILE: api/adminOmrUpload.ts
+==========================================================================================
+// PATH: src/features/submissions/api/adminOmrUpload.ts
+
+import api from "@/shared/api/axios";
+// ✅ [수정] SubmissionStatus는 submissions 도메인 타입을 사용해야 함
+// (기존) import type { SubmissionStatus } from "@/features/exams/types";
+import type { SubmissionStatus } from "@/features/submissions/types";
+
+// ✅ 너의 현재 백엔드 라우터 기준(기본값)
+// - 만약 서버를 정리해서 /submissions/... 로 만들면 아래만 바꾸면 됨.
+const SUBMISSIONS_BASE = "/submissions/submissions";
+
+export interface AdminOmrUploadResponse {
+  submission_id: number;
+  status: SubmissionStatus;
+}
+
+/**
+ * POST /api/v1/submissions/submissions/admin/omr-upload/
+ * form-data: enrollment_id, target_id(exam_id), file
+ */
+export async function adminOmrUpload(params: {
+  examId: number;
+  enrollmentId: number;
+  file: File;
+}): Promise<AdminOmrUploadResponse> {
+  const fd = new FormData();
+  fd.append("enrollment_id", String(params.enrollmentId));
+  fd.append("target_id", String(params.examId));
+  fd.append("file", params.file);
+
+  const res = await api.post(`${SUBMISSIONS_BASE}/admin/omr-upload/`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  return res.data;
+}
+
+/**
+ * POST /api/v1/submissions/submissions/{id}/retry/
+ */
+export async function retrySubmission(submissionId: number): Promise<{
+  submission_id: number;
+  status: SubmissionStatus;
+}> {
+  const res = await api.post(`${SUBMISSIONS_BASE}/${submissionId}/retry/`);
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/adminSubmissions.ts
+==========================================================================================
+// PATH: src/features/submissions/api/adminSubmissions.ts
+import api from "@/shared/api/axios";
+import type { Submission, SubmissionStatus } from "@/features/submissions/types";
+
+const CANDIDATE_BASES = ["/submissions", "/submissions/submissions"] as const;
+
+async function tryGet<T>(paths: string[], params?: any): Promise<T> {
+  let lastErr: any = null;
+  for (const p of paths) {
+    try {
+      const res = await api.get(p, { params });
+      return res.data as T;
+    } catch (e: any) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
+async function tryPost<T>(paths: string[], body?: any): Promise<T> {
+  let lastErr: any = null;
+  for (const p of paths) {
+    try {
+      const res = await api.post(p, body ?? {});
+      return res.data as T;
+    } catch (e: any) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * ✅ Admin submission list (best-effort)
+ * - filters: exam_id(target_id), enrollment_id, status
+ * - supports DRF pagination or plain array
+ */
+export async function fetchAdminSubmissions(params?: {
+  examId?: number;
+  enrollmentId?: number;
+  status?: SubmissionStatus;
+  limit?: number;
+}): Promise<Submission[]> {
+  const query: any = {};
+  if (Number.isFinite(params?.examId)) {
+    query.target_type = "exam";
+    query.target_id = params!.examId;
+  }
+  if (Number.isFinite(params?.enrollmentId)) query.enrollment_id = params!.enrollmentId;
+  if (params?.status) query.status = params.status;
+  if (Number.isFinite(params?.limit)) query.limit = params!.limit;
+
+  const paths: string[] = [];
+  for (const b of CANDIDATE_BASES) {
+    paths.push(`${b}/admin/submissions/`);
+    paths.push(`${b}/submissions/`);
+    paths.push(`${b}/`);
+  }
+
+  const data = await tryGet<any>(paths, query);
+
+  if (Array.isArray(data)) return data as Submission[];
+  if (Array.isArray(data?.results)) return data.results as Submission[];
+  if (Array.isArray(data?.items)) return data.items as Submission[];
+  return [];
+}
+
+/**
+ * ✅ Unified retry (FAILED only)
+ * - tries both public and admin base paths
+ */
+export async function retryAnySubmission(submissionId: number): Promise<{
+  submission_id?: number;
+  id?: number;
+  status?: SubmissionStatus;
+} | any> {
+  const paths: string[] = [];
+  for (const b of CANDIDATE_BASES) {
+    paths.push(`${b}/${submissionId}/retry/`);
+    paths.push(`${b}/submissions/${submissionId}/retry/`);
+  }
+  return tryPost<any>(paths, {});
+}
+
+/**
+ * ✅ Manual review fetch (best-effort)
+ * - expects shape:
+ *   {
+ *     identifier?: string | null,
+ *     answers?: Array<{ question_id?: number; question_no?: number; answer?: string; meta?: any }>,
+ *     meta?: any
+ *   }
+ */
+export async function fetchSubmissionManualReview(submissionId: number): Promise<{
+  identifier?: string | null;
+  answers?: Array<{
+    question_id?: number;
+    question_no?: number;
+    answer?: string;
+    meta?: any;
+  }>;
+  meta?: any;
+}> {
+  const paths: string[] = [];
+  for (const b of CANDIDATE_BASES) {
+    paths.push(`${b}/${submissionId}/manual-review/`);
+    paths.push(`${b}/${submissionId}/manual_edit/`);
+    paths.push(`${b}/${submissionId}/manual-edit/`);
+    paths.push(`${b}/submissions/${submissionId}/manual-review/`);
+    paths.push(`${b}/submissions/${submissionId}/manual_edit/`);
+    paths.push(`${b}/submissions/${submissionId}/manual-edit/`);
+  }
+  return tryGet<any>(paths);
+}
+
+/**
+ * ✅ Manual review save + regrade (best-effort)
+ * - payload contract is intentionally minimal and append-only friendly:
+ *   {
+ *     identifier?: string | null,
+ *     answers?: Array<{ question_id?: number; question_no?: number; answer: string }>
+ *   }
+ */
+export async function saveSubmissionManualReview(submissionId: number, payload: {
+  identifier?: string | null;
+  answers: Array<{ question_id?: number; question_no?: number; answer: string }>;
+}): Promise<any> {
+  const paths: string[] = [];
+  for (const b of CANDIDATE_BASES) {
+    paths.push(`${b}/${submissionId}/manual-review/`);
+    paths.push(`${b}/${submissionId}/manual_edit/`);
+    paths.push(`${b}/${submissionId}/manual-edit/`);
+    paths.push(`${b}/submissions/${submissionId}/manual-review/`);
+    paths.push(`${b}/submissions/${submissionId}/manual_edit/`);
+    paths.push(`${b}/submissions/${submissionId}/manual-edit/`);
+  }
+  return tryPost<any>(paths, payload);
+}
+
+
+==========================================================================================
+# FILE: components/AdminOmrBatchUploadBox.tsx
+==========================================================================================
+// PATH: src/features/submissions/components/AdminOmrBatchUploadBox.tsx
+// src/features/submissions/components/AdminOmrBatchUploadBox.tsx
+
+import { useMemo, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { adminOmrUpload } from "@/features/submissions/api/adminOmrUpload";
+
+type Item = {
+  file: File;
+  enrollment_id: number | null;
+  status: "ready" | "uploading" | "done" | "failed";
+  message?: string;
+  submission_id?: number;
+};
+
+function inferEnrollmentId(filename: string): number | null {
+  const base = filename.split(".")[0] || "";
+  const m1 = base.match(/^(\d+)[-_ ]/);
+  if (m1?.[1]) return Number(m1[1]);
+
+  const m2 = base.match(/^(\d+)$/);
+  if (m2?.[1]) return Number(m2[1]);
+
+  const m3 = base.match(/(?:E|enroll)(\d+)/i);
+  if (m3?.[1]) return Number(m3[1]);
+
+  return null;
+}
+
+export default function AdminOmrBatchUploadBox(props: {
+  examId: number;
+  onSubmissionCreated?: (submissionId: number) => void;
+}) {
+  const { examId, onSubmissionCreated } = props;
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const [items, setItems] = useState<Item[]>([]);
+
+  const total = items.length;
+  const done = items.filter((x) => x.status === "done").length;
+  const failed = items.filter((x) => x.status === "failed").length;
+
+  const hasInvalid = useMemo(() => items.some((x) => !x.enrollment_id), [items]);
+
+  const batchMut = useMutation({
+    mutationFn: async () => {
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (!it.enrollment_id) continue;
+
+        setItems((prev) =>
+          prev.map((p, idx) =>
+            idx === i ? { ...p, status: "uploading", message: "" } : p
+          )
+        );
+
+        try {
+          const res = await adminOmrUpload({
+            examId,
+            enrollmentId: it.enrollment_id,
+            file: it.file,
+          });
+
+          setItems((prev) =>
+            prev.map((p, idx) =>
+              idx === i
+                ? {
+                    ...p,
+                    status: "done",
+                    submission_id: res.submission_id,
+                    message: res.status,
+                  }
+                : p
+            )
+          );
+
+          onSubmissionCreated?.(res.submission_id);
+        } catch (e: any) {
+          setItems((prev) =>
+            prev.map((p, idx) =>
+              idx === i
+                ? { ...p, status: "failed", message: e?.message || "failed" }
+                : p
+            )
+          );
+        }
+      }
+    },
+  });
+
+  const onPick = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const next: Item[] = Array.from(files).map((f) => ({
+      file: f,
+      enrollment_id: inferEnrollmentId(f.name),
+      status: "ready",
+    }));
+
+    setItems(next);
+  };
+
+  return (
+    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-sm font-semibold text-neutral-100">다건 OMR 업로드</div>
+        <div className="text-xs text-neutral-400">
+          {done}/{total} done · {failed} failed
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2 text-sm text-neutral-100"
+          onClick={() => inputRef.current?.click()}
+        >
+          여러 파일 선택
+        </button>
+
+        <button
+          className="rounded-lg bg-neutral-100 px-4 py-2 text-sm text-neutral-950 disabled:opacity-40"
+          disabled={items.length === 0 || hasInvalid || batchMut.isPending}
+          onClick={() => batchMut.mutate()}
+          title={hasInvalid ? "파일명에서 enrollment_id를 추출 못한 항목이 있음" : ""}
+        >
+          {batchMut.isPending ? "업로드 중..." : "일괄 업로드 시작"}
+        </button>
+
+        {hasInvalid ? (
+          <div className="text-xs text-yellow-300">
+            ⚠️ enrollment_id 추출 실패 항목 있음 (파일명 규칙: 12_xxx.png / E12_xxx.jpg)
+          </div>
+        ) : null}
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        multiple
+        onChange={(e) => onPick(e.target.files)}
+      />
+
+      <div className="mt-4 overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="text-xs text-neutral-400">
+            <tr className="border-b border-neutral-800">
+              <th className="px-3 py-2 text-left">파일</th>
+              <th className="px-3 py-2 text-left">enrollment_id</th>
+              <th className="px-3 py-2 text-left">상태</th>
+              <th className="px-3 py-2 text-left">submission</th>
+              <th className="px-3 py-2 text-left">메시지</th>
+            </tr>
+          </thead>
+          <tbody className="text-neutral-100">
+            {items.map((it, idx) => (
+              <tr key={idx} className="border-b border-neutral-900">
+                <td className="px-3 py-2">{it.file.name}</td>
+                <td className="px-3 py-2">
+                  {it.enrollment_id ?? <span className="text-yellow-300">?</span>}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="text-xs text-neutral-300">{it.status}</span>
+                </td>
+                <td className="px-3 py-2">
+                  {it.submission_id ? <span className="text-xs">#{it.submission_id}</span> : "-"}
+                </td>
+                <td className="px-3 py-2">
+                  <span className="text-xs text-neutral-400">{it.message ?? ""}</span>
+                </td>
+              </tr>
+            ))}
+            {items.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-3 py-6 text-center text-neutral-500">
+                  아직 파일 선택 안 함
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-neutral-800 bg-neutral-900/30 p-3 text-xs text-neutral-400">
+        업로드가 완료되면 submission_id가 생성됩니다. 아래 “제출 현황”에서 상태를 자동 추적합니다.
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/AdminOmrUploadBox.tsx
+==========================================================================================
+import { useMemo, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { adminOmrUpload } from "@/features/submissions/api/adminOmrUpload";
+
+type Props = {
+  examId: number;
+  onUploaded?: (submissionId: number) => void;
+};
+
+export default function AdminOmrUploadBox({ examId, onUploaded }: Props) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const [enrollmentId, setEnrollmentId] = useState<number | "">("");
+  const [dragOver, setDragOver] = useState(false);
+  const [lastFileName, setLastFileName] = useState<string>("");
+
+  const canSubmit = useMemo(() => {
+    return typeof enrollmentId === "number" && enrollmentId > 0;
+  }, [enrollmentId]);
+
+  const uploadMut = useMutation({
+    mutationFn: async (file: File) => {
+      if (!canSubmit) throw new Error("enrollment_id required");
+      setLastFileName(file.name);
+      return adminOmrUpload({ examId, enrollmentId: enrollmentId as number, file });
+    },
+    onSuccess: (data) => {
+      onUploaded?.(data.submission_id);
+      alert(`업로드 완료: submission_id=${data.submission_id} / status=${data.status}`);
+    },
+    onError: (e: any) => {
+      alert(e?.message || "업로드 실패");
+    },
+  });
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    uploadMut.mutate(files[0]); // 1개 업로드 박스는 단일 파일만
+  };
+
+  return (
+    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-sm font-semibold text-neutral-100">관리자 OMR 업로드</div>
+        <div className="text-xs text-neutral-400">exam_id: {examId}</div>
+      </div>
+
+      <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+        <label className="text-xs text-neutral-400">enrollment_id</label>
+        <input
+          className="md:col-span-2 rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none"
+          placeholder="예: 12"
+          value={enrollmentId}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            if (v === "") return setEnrollmentId("");
+            const n = Number(v);
+            if (!Number.isFinite(n)) return;
+            setEnrollmentId(n);
+          }}
+        />
+      </div>
+
+      <div
+        className={[
+          "rounded-xl border border-dashed p-6 text-center transition",
+          dragOver ? "border-neutral-400 bg-neutral-900/40" : "border-neutral-700 bg-neutral-950",
+        ].join(" ")}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(true);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDragOver(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+      >
+        <div className="text-sm text-neutral-200">
+          파일을 드래그&드롭 하거나, 아래 버튼으로 선택
+        </div>
+        <div className="mt-2 text-xs text-neutral-500">
+          pdf / png / jpg 등 (서버에서 R2 업로드 → AI job 발행)
+        </div>
+
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2 text-sm text-neutral-100"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploadMut.isPending}
+          >
+            파일 선택
+          </button>
+
+          <button
+            type="button"
+            className="rounded-lg bg-neutral-100 px-4 py-2 text-sm text-neutral-950 disabled:opacity-40"
+            onClick={() => inputRef.current?.click()}
+            disabled={!canSubmit || uploadMut.isPending}
+            title={!canSubmit ? "enrollment_id 입력 필요" : ""}
+          >
+            업로드
+          </button>
+        </div>
+
+        {lastFileName ? (
+          <div className="mt-3 text-xs text-neutral-400">
+            last: <span className="text-neutral-200">{lastFileName}</span>
+          </div>
+        ) : null}
+
+        {uploadMut.isPending ? (
+          <div className="mt-2 text-xs text-neutral-400">업로드 중...</div>
+        ) : null}
+
+        <input
+          ref={inputRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/AdminSubmissionDetailModal.tsx
+==========================================================================================
+// PATH: src/features/submissions/components/AdminSubmissionDetailModal.tsx
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import type { Submission } from "@/features/submissions/types";
+import SubmissionStatusBadge from "@/features/submissions/components/SubmissionStatusBadge";
+import { useSubmissionPolling } from "@/features/submissions/hooks/useSubmissionPolling";
+import { retryAnySubmission, fetchSubmissionManualReview, saveSubmissionManualReview } from "@/features/submissions/api/adminSubmissions";
+
+function safeManualReview(meta: any): { required: boolean; reasons: string[]; updated_at?: string } {
+  const mr = meta?.manual_review;
+  return {
+    required: Boolean(mr?.required),
+    reasons: Array.isArray(mr?.reasons) ? mr.reasons.map(String) : [],
+    updated_at: mr?.updated_at ? String(mr.updated_at) : undefined,
+  };
+}
+
+function invalidReasonFromMeta(meta: any): string | null {
+  const r = meta?.grading?.invalid_reason ?? meta?.invalid_reason;
+  if (!r) return null;
+  return String(r);
+}
+
+export default function AdminSubmissionDetailModal({
+  open,
+  onClose,
+  submissionId,
+  examId,
+  onGoResults,
+}: {
+  open: boolean;
+  onClose: () => void;
+  submissionId: number | null;
+  examId?: number;
+  onGoResults?: (examId: number) => void;
+}) {
+  const qc = useQueryClient();
+
+  const poll = useSubmissionPolling(submissionId ?? undefined, open && !!submissionId);
+  const submission: Submission | null = poll.data ?? null;
+
+  const manualReview = useMemo(() => safeManualReview(submission?.meta), [submission?.meta]);
+  const needsManual = (submission?.status === "answers_ready") && manualReview.required;
+
+  const [identifier, setIdentifier] = useState<string>("");
+  const [answers, setAnswers] = useState<Array<{ question_id?: number; question_no?: number; answer: string; meta?: any }>>([]);
+
+  const loadReviewMut = useMutation({
+    mutationFn: async () => fetchSubmissionManualReview(submissionId!),
+    onSuccess: (data) => {
+      setIdentifier(String(data?.identifier ?? ""));
+      const list = Array.isArray(data?.answers) ? data.answers : [];
+      setAnswers(
+        list.map((a: any) => ({
+          question_id: Number.isFinite(a?.question_id) ? Number(a.question_id) : undefined,
+          question_no: Number.isFinite(a?.question_no) ? Number(a.question_no) : undefined,
+          answer: String(a?.answer ?? ""),
+          meta: a?.meta,
+        }))
+      );
+    },
+  });
+
+  useEffect(() => {
+    if (!open || !submissionId) return;
+    setIdentifier("");
+    setAnswers([]);
+    // only load manual review payload when review is required OR operator wants to edit
+    loadReviewMut.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, submissionId]);
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      if (!submissionId) throw new Error("submissionId required");
+      return saveSubmissionManualReview(submissionId, {
+        identifier: identifier.trim() ? identifier.trim() : null,
+        answers: answers.map((a) => ({
+          question_id: a.question_id,
+          question_no: a.question_no,
+          answer: String(a.answer ?? ""),
+        })),
+      });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["submission", submissionId] });
+      await qc.invalidateQueries({ queryKey: ["admin-submissions"] });
+      alert("저장 완료: 재채점이 진행됩니다.");
+    },
+    onError: (e: any) => {
+      alert(e?.response?.data?.detail || e?.message || "저장 실패");
+    },
+  });
+
+  const retryMut = useMutation({
+    mutationFn: async () => retryAnySubmission(submissionId!),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["submission", submissionId] });
+      await qc.invalidateQueries({ queryKey: ["admin-submissions"] });
+      alert("재처리 요청 완료");
+    },
+    onError: (e: any) => {
+      alert(e?.response?.data?.detail || e?.message || "재처리 실패");
+    },
+  });
+
+  const stageLabel = useMemo(() => {
+    const st = submission?.status;
+    if (!st) return "불러오는 중";
+    if (st === "submitted" || st === "dispatched" || st === "extracting") return "처리 중";
+    if (st === "answers_ready") return manualReview.required ? "수동 검토 필요" : "답안 생성됨";
+    if (st === "grading") return "채점 중";
+    if (st === "done") return "완료";
+    if (st === "failed") return "실패";
+    return st;
+  }, [submission?.status, manualReview.required]);
+
+  const canRetry = submission?.status === "failed";
+  const canSave = needsManual && !saveMut.isPending;
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-5xl overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950 shadow-xl">
+        <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="text-sm font-semibold text-neutral-100">제출 상세</div>
+            <div className="text-xs text-neutral-400">
+              {submissionId ? `submission #${submissionId}` : "-"}
+              {submission?.target_id ? ` · exam #${submission.target_id}` : ""}
+              {submission?.enrollment_id ? ` · enrollment #${submission.enrollment_id}` : ""}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100 hover:bg-neutral-800"
+              onClick={onClose}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-3">
+          {/* Left: Status & Actions */}
+          <div className="space-y-3 lg:col-span-1">
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 p-4">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-xs font-semibold text-neutral-200">현재 상태</div>
+                <SubmissionStatusBadge status={submission?.status ?? null} />
+              </div>
+
+              <div className="text-sm text-neutral-200">{stageLabel}</div>
+
+              {manualReview.required ? (
+                <div className="mt-2 rounded-lg border border-yellow-900 bg-yellow-950/40 p-3 text-xs text-yellow-200">
+                  <div className="font-semibold">⚠️ 수동 검토 필요</div>
+                  <div className="mt-1 text-yellow-200/90">
+                    사유:{" "}
+                    <span className="font-medium">
+                      {manualReview.reasons.length ? manualReview.reasons.join(", ") : "-"}
+                    </span>
+                  </div>
+                  {manualReview.updated_at ? (
+                    <div className="mt-1 text-yellow-200/70">updated_at: {manualReview.updated_at}</div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {submission?.status === "failed" ? (
+                <div className="mt-2 rounded-lg border border-red-900 bg-red-950/40 p-3 text-xs text-red-200">
+                  <div className="font-semibold">실패 원인</div>
+                  <div className="mt-1 whitespace-pre-wrap break-words text-red-200/90">
+                    {submission?.error_message || "error_message 없음"}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {submission?.status === "done" && typeof onGoResults === "function" ? (
+                  <button
+                    className="rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-950"
+                    onClick={() => {
+                      const tid = Number(submission?.target_id ?? examId ?? 0);
+                      if (Number.isFinite(tid) && tid > 0) onGoResults(tid);
+                    }}
+                  >
+                    결과 보기
+                  </button>
+                ) : null}
+
+                {canRetry ? (
+                  <button
+                    className="rounded-lg bg-red-100 px-3 py-2 text-sm text-red-950 disabled:opacity-50"
+                    onClick={() => retryMut.mutate()}
+                    disabled={retryMut.isPending || !submissionId}
+                  >
+                    {retryMut.isPending ? "재처리 중..." : "재처리"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 p-4">
+              <div className="text-xs font-semibold text-neutral-200">진행 상황</div>
+              <div className="mt-2 text-xs text-neutral-400">
+                - submitted / dispatched / extracting: 처리 중<br />
+                - answers_ready: 답안 생성됨 (수동 검토 필요 여부 확인)<br />
+                - grading: 채점 중<br />
+                - done: 완료 (결과 보기 가능)<br />
+                - failed: 실패 (재처리 가능)
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Manual Review Editor */}
+          <div className="space-y-3 lg:col-span-2">
+            {needsManual ? (
+              <div className="rounded-xl border border-yellow-900 bg-yellow-950/20 p-4">
+                <div className="mb-2 text-sm font-semibold text-yellow-200">수동 검토</div>
+                <div className="text-xs text-yellow-200/80">
+                  이 화면은 “표시 및 수정”만 합니다. 점수/정답 비교/AI 해석은 하지 않습니다.
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 p-4">
+                <div className="text-sm font-semibold text-neutral-100">검토 · 수정</div>
+                <div className="mt-1 text-xs text-neutral-400">
+                  수동 검토가 필요할 때만 저장이 활성화됩니다.
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-semibold text-neutral-100">식별자 (identifier)</div>
+                <div className="text-xs text-neutral-500">
+                  {loadReviewMut.isPending ? "불러오는 중..." : ""}
+                </div>
+              </div>
+
+              <input
+                className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 outline-none"
+                placeholder="예: 학생 식별자 (운영 정책에 따라 사용)"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                disabled={!needsManual}
+              />
+
+              <div className="mt-2 text-xs text-neutral-500">
+                ※ identifier는 “표시/수정”만 합니다. 학생 매칭/판단 로직은 서버 단일진실입니다.
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm font-semibold text-neutral-100">문항 답안 수정</div>
+                <div className="text-xs text-neutral-500">
+                  {answers.length ? `${answers.length}개 문항` : "문항 데이터 없음"}
+                </div>
+              </div>
+
+              {answers.length === 0 ? (
+                <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3 text-sm text-neutral-400">
+                  문항 데이터가 없습니다. (서버 manual-edit 응답을 확인하세요)
+                </div>
+              ) : (
+                <div className="max-h-[52vh] overflow-auto rounded-lg border border-neutral-800">
+                  <table className="min-w-full text-sm">
+                    <thead className="sticky top-0 bg-neutral-950 text-xs text-neutral-400">
+                      <tr className="border-b border-neutral-800">
+                        <th className="px-3 py-2 text-left">문항</th>
+                        <th className="px-3 py-2 text-left">답</th>
+                        <th className="px-3 py-2 text-left">invalid_reason</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-neutral-100">
+                      {answers.map((a, idx) => {
+                        const qLabel =
+                          Number.isFinite(a.question_no) && (a.question_no as number) > 0
+                            ? `#${a.question_no}`
+                            : Number.isFinite(a.question_id) && (a.question_id as number) > 0
+                              ? `id:${a.question_id}`
+                              : `row:${idx + 1}`;
+
+                        const inv = invalidReasonFromMeta(a.meta);
+
+                        return (
+                          <tr key={idx} className="border-b border-neutral-900">
+                            <td className="px-3 py-2 text-xs text-neutral-300">{qLabel}</td>
+                            <td className="px-3 py-2">
+                              <input
+                                className="w-full rounded-md border border-neutral-800 bg-neutral-900 px-2 py-1 text-sm text-neutral-100 outline-none"
+                                value={a.answer}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setAnswers((prev) =>
+                                    prev.map((p, i) => (i === idx ? { ...p, answer: v } : p))
+                                  );
+                                }}
+                                disabled={!needsManual}
+                              />
+                            </td>
+                            <td className="px-3 py-2 text-xs text-neutral-400">
+                              {inv ? (
+                                <span className="rounded-full border border-neutral-800 bg-neutral-900 px-2 py-0.5">
+                                  {inv}
+                                </span>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="text-xs text-neutral-500">
+                  ※ invalid_reason은 표시만 합니다. 판단/점수 계산은 하지 않습니다.
+                </div>
+
+                <button
+                  className="rounded-lg bg-yellow-100 px-4 py-2 text-sm text-yellow-950 disabled:opacity-40"
+                  disabled={!canSave || saveMut.isPending || !submissionId}
+                  onClick={() => saveMut.mutate()}
+                  title={!needsManual ? "수동 검토 필요 상태에서만 저장 가능" : ""}
+                >
+                  {saveMut.isPending ? "저장 중..." : "저장 + 재채점"}
+                </button>
+              </div>
+            </div>
+
+            {submission?.meta?.manual_edits ? (
+              <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+                <div className="mb-2 text-sm font-semibold text-neutral-100">수정 이력 (meta.manual_edits)</div>
+                <pre className="max-h-[240px] overflow-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-xs text-neutral-300">
+                  {JSON.stringify(submission.meta.manual_edits, null, 2)}
+                </pre>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="border-t border-neutral-800 px-4 py-3 text-xs text-neutral-500">
+          {poll.isFetching ? "상태 업데이트 중..." : " "}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/AdminSubmissionsPanel.tsx
+==========================================================================================
+// PATH: src/features/submissions/components/AdminSubmissionsPanel.tsx
+import { useMemo, useState } from "react";
+import type { Submission } from "@/features/submissions/types";
+import SubmissionStatusBadge from "@/features/submissions/components/SubmissionStatusBadge";
+import ManualReviewBadge from "@/features/submissions/components/ManualReviewBadge";
+import AdminSubmissionDetailModal from "@/features/submissions/components/AdminSubmissionDetailModal";
+import { useAdminSubmissions } from "@/features/submissions/hooks/useAdminSubmissions";
+import { retryAnySubmission } from "@/features/submissions/api/adminSubmissions";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+function safeManualReview(meta: any): { required: boolean; reasons: string[]; updated_at?: string } {
+  const mr = meta?.manual_review;
+  return {
+    required: Boolean(mr?.required),
+    reasons: Array.isArray(mr?.reasons) ? mr.reasons.map(String) : [],
+    updated_at: mr?.updated_at ? String(mr.updated_at) : undefined,
+  };
+}
+
+export default function AdminSubmissionsPanel({
+  examId,
+  onGoResults,
+}: {
+  examId: number;
+  onGoResults?: (examId: number) => void;
+}) {
+  const qc = useQueryClient();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  const q = useAdminSubmissions({
+    examId,
+    enabled: Number.isFinite(examId) && examId > 0,
+    limit: 100,
+    polling: true,
+  });
+
+  const list: Submission[] = q.data ?? [];
+
+  const stats = useMemo(() => {
+    const out = {
+      total: list.length,
+      manual: 0,
+      done: 0,
+      failed: 0,
+      processing: 0,
+    };
+    for (const s of list) {
+      const mr = safeManualReview(s.meta);
+      if (mr.required && s.status === "answers_ready") out.manual++;
+      if (s.status === "done") out.done++;
+      else if (s.status === "failed") out.failed++;
+      else out.processing++;
+    }
+    return out;
+  }, [list]);
+
+  const retryMut = useMutation({
+    mutationFn: async (id: number) => retryAnySubmission(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["admin-submissions", examId] });
+      await qc.invalidateQueries({ queryKey: ["admin-submissions"] });
+      alert("재처리 요청 완료");
+    },
+    onError: (e: any) => {
+      alert(e?.response?.data?.detail || e?.message || "재처리 실패");
+    },
+  });
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-neutral-100">제출 현황</div>
+            <div className="text-xs text-neutral-500">
+              업로드 → 인식 → (필요 시 수동 검토) → 채점 → 결과 확정
+            </div>
+          </div>
+          <div className="text-xs text-neutral-400">
+            exam_id: <span className="text-neutral-200">{examId}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-neutral-300">
+            전체 {stats.total}
+          </span>
+          <span className="rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1 text-neutral-300">
+            처리중 {stats.processing}
+          </span>
+          <span className="rounded-full border border-yellow-900 bg-yellow-950 px-3 py-1 text-yellow-200">
+            수동검토 {stats.manual}
+          </span>
+          <span className="rounded-full border border-emerald-900 bg-emerald-950 px-3 py-1 text-emerald-200">
+            완료 {stats.done}
+          </span>
+          <span className="rounded-full border border-red-900 bg-red-950 px-3 py-1 text-red-200">
+            실패 {stats.failed}
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-neutral-800 bg-neutral-950">
+        <div className="border-b border-neutral-800 px-4 py-3">
+          <div className="text-xs font-semibold text-neutral-300">제출 목록</div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="text-xs text-neutral-500">
+              <tr className="border-b border-neutral-800">
+                <th className="px-3 py-2 text-left">submission</th>
+                <th className="px-3 py-2 text-left">enrollment</th>
+                <th className="px-3 py-2 text-left">status</th>
+                <th className="px-3 py-2 text-left">manual_review</th>
+                <th className="px-3 py-2 text-left">action</th>
+              </tr>
+            </thead>
+
+            <tbody className="text-neutral-100">
+              {q.isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-neutral-500">
+                    불러오는 중...
+                  </td>
+                </tr>
+              ) : q.isError ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-red-300">
+                    제출 목록 조회 실패
+                  </td>
+                </tr>
+              ) : list.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-8 text-center text-neutral-500">
+                    아직 제출이 없습니다. 위에서 OMR 업로드 후 submission_id가 생성됩니다.
+                  </td>
+                </tr>
+              ) : (
+                list.map((s) => {
+                  const mr = safeManualReview(s.meta);
+                  const canRetry = s.status === "failed";
+
+                  return (
+                    <tr key={s.id} className="border-b border-neutral-900 hover:bg-neutral-900/30">
+                      <td className="px-3 py-2">
+                        <button
+                          className="text-left text-sm text-neutral-100 underline decoration-neutral-700 underline-offset-2 hover:decoration-neutral-200"
+                          onClick={() => setSelectedId(s.id)}
+                        >
+                          #{s.id}
+                        </button>
+                        <div className="text-xs text-neutral-500">exam #{s.target_id}</div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="text-sm">{s.enrollment_id ?? "-"}</div>
+                        <div className="text-xs text-neutral-500">{s.source}</div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <SubmissionStatusBadge status={s.status} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <ManualReviewBadge required={mr.required && s.status === "answers_ready"} reasons={mr.reasons} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs text-neutral-100 hover:bg-neutral-800"
+                            onClick={() => setSelectedId(s.id)}
+                          >
+                            상세
+                          </button>
+
+                          {s.status === "done" && typeof onGoResults === "function" ? (
+                            <button
+                              className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs text-emerald-950"
+                              onClick={() => onGoResults(Number(s.target_id))}
+                            >
+                              결과
+                            </button>
+                          ) : null}
+
+                          {canRetry ? (
+                            <button
+                              className="rounded-lg bg-red-100 px-3 py-1.5 text-xs text-red-950 disabled:opacity-50"
+                              disabled={retryMut.isPending}
+                              onClick={() => retryMut.mutate(s.id)}
+                            >
+                              {retryMut.isPending ? "재처리..." : "재처리"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="border-t border-neutral-800 px-4 py-3 text-xs text-neutral-500">
+          {q.isFetching ? "상태 업데이트 중..." : " "}
+        </div>
+      </div>
+
+      <AdminSubmissionDetailModal
+        open={selectedId != null}
+        submissionId={selectedId}
+        examId={examId}
+        onClose={() => setSelectedId(null)}
+        onGoResults={onGoResults}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/ManualReviewBadge.tsx
+==========================================================================================
+// PATH: src/features/submissions/components/ManualReviewBadge.tsx
+export default function ManualReviewBadge({
+  required,
+  reasons,
+}: {
+  required: boolean;
+  reasons?: string[];
+}) {
+  if (!required) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-neutral-800 bg-neutral-950 px-2 py-1 text-xs text-neutral-400">
+        자동 처리
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-yellow-800 bg-yellow-950 px-2 py-1 text-xs text-yellow-200"
+      title={(reasons ?? []).join(", ")}
+    >
+      ⚠️ 수동 검토 필요{reasons?.length ? ` (${reasons.length})` : ""}
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SubmissionStatusBadge.tsx
+==========================================================================================
+// src/features/submissions/components/SubmissionStatusBadge.tsx
+
+import type { SubmissionStatus } from "@/features/submissions/types";
+import {
+  SUBMISSION_STATUS_COLOR,
+  SUBMISSION_STATUS_LABEL,
+} from "@/features/submissions/statusMaps";
+
+const COLOR_CLASS: Record<string, string> = {
+  gray: "bg-neutral-800 text-neutral-200 border-neutral-700",
+  blue: "bg-blue-950 text-blue-200 border-blue-800",
+  indigo: "bg-indigo-950 text-indigo-200 border-indigo-800",
+  yellow: "bg-yellow-950 text-yellow-200 border-yellow-800",
+  green: "bg-emerald-950 text-emerald-200 border-emerald-800",
+  red: "bg-red-950 text-red-200 border-red-800",
+};
+
+export default function SubmissionStatusBadge({
+  status,
+}: {
+  status: SubmissionStatus | null;
+}) {
+  if (!status) {
+    return (
+      <span className="inline-flex items-center rounded-full border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-300">
+        -
+      </span>
+    );
+  }
+
+  const key = SUBMISSION_STATUS_COLOR[status];
+  const cls = COLOR_CLASS[key] ?? COLOR_CLASS.gray;
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs ${cls}`}>
+      {SUBMISSION_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: dev/SubmissionTestPanel.tsx
+==========================================================================================
+const handleUpload = async (file: File) => {
+  const formData = new FormData();
+
+  // ✅ backend contract 정확히 맞춤
+  formData.append("enrollment_id", "1"); // 테스트용
+  formData.append("target_type", "exam");
+  formData.append("target_id", "1");
+  formData.append("source", "omr_scan");
+  formData.append("file", file);
+
+  const submission = await createSubmission(formData);
+  setSubmissionId(submission.id);
+};
+
+
+==========================================================================================
+# FILE: hooks/useAdminSubmissions.ts
+==========================================================================================
+// PATH: src/features/submissions/hooks/useAdminSubmissions.ts
+import { useQuery } from "@tanstack/react-query";
+import type { Submission, SubmissionStatus } from "@/features/submissions/types";
+import { fetchAdminSubmissions } from "@/features/submissions/api/adminSubmissions";
+
+export function useAdminSubmissions(params: {
+  examId?: number;
+  enrollmentId?: number;
+  status?: SubmissionStatus;
+  enabled?: boolean;
+  limit?: number;
+  polling?: boolean;
+}) {
+  const enabled = params.enabled ?? true;
+  const polling = params.polling ?? true;
+
+  return useQuery<Submission[]>({
+    queryKey: ["admin-submissions", params.examId, params.enrollmentId, params.status, params.limit],
+    queryFn: () =>
+      fetchAdminSubmissions({
+        examId: params.examId,
+        enrollmentId: params.enrollmentId,
+        status: params.status,
+        limit: params.limit ?? 50,
+      }),
+    enabled: enabled,
+    refetchInterval: polling ? 2000 : false,
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useSubmissionPolling.ts
+==========================================================================================
+// src/features/submissions/hooks/useSubmissionPolling.ts
+// --------------------------------------------------
+// Submission 상태 Polling 공통 훅 (⭐ 핵심)
+// --------------------------------------------------
+//
+// 이 훅 하나로:
+// - 학생 업로드 진행 상태
+// - 관리자 재처리 상태
+// - 영상 분석 상태
+// 전부 동일 UX로 처리 가능
+//
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchSubmission } from "../api";
+import { Submission } from "../types";
+
+const TERMINAL_STATUS = ["done", "failed"] as const;
+
+/**
+ * ✅ Submission 상태 자동 추적 훅
+ *
+ * - 2초 간격 polling
+ * - done / failed 도달 시 자동 중단
+ */
+export function useSubmissionPolling(
+  submissionId?: number,
+  enabled: boolean = true
+) {
+  return useQuery<Submission>({
+    queryKey: ["submission", submissionId],
+    queryFn: () => fetchSubmission(submissionId!),
+
+    enabled: enabled && Number.isFinite(submissionId),
+
+    refetchInterval: (data) => {
+      if (!data) return 2000;
+      return TERMINAL_STATUS.includes(data.status)
+        ? false
+        : 2000;
+    },
+  });
+}

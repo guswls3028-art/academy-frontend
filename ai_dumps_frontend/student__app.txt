@@ -1,0 +1,158 @@
+====================================================================================================
+# FRONTEND FOLDER: student__app
+# ROOT PATH: C:\academyfront\src\student\app
+====================================================================================================
+
+
+==========================================================================================
+# FILE: StudentApp.tsx
+==========================================================================================
+// src/student/app/StudentApp.tsx
+/**
+ * ✅ StudentApp (LOCK v1)
+ * - 학생 앱 진입점
+ * - Router만 렌더링
+ *
+ * 원칙:
+ * - student는 features를 "사용"만 가능
+ * - features → student 참조는 절대 금지
+ */
+
+import StudentRouter from "@/student/app/StudentRouter";
+
+export default function StudentApp() {
+  return <StudentRouter />;
+}
+
+
+==========================================================================================
+# FILE: StudentLayout.tsx
+==========================================================================================
+// src/student/app/StudentLayout.tsx
+/**
+ * ✅ StudentLayout (LOCK v1)
+ * - "상용 SaaS" 기준 최소 Shell
+ * - 하단 탭 제거 (요구사항)
+ * - 상단에 간단한 네비(생산성)만 제공
+ *
+ * 주의:
+ * - 정책 판단/계산 ❌
+ * - 단순 라우팅 링크 제공만 ✅
+ *
+ * UI는 나중에 CSS 분리 예정이라 최대한 간소화함.
+ */
+
+import { NavLink, Outlet } from "react-router-dom";
+
+export default function StudentLayout() {
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* ===== Header ===== */}
+      <header
+        style={{
+          height: 56,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 16px",
+          borderBottom: "1px solid #eee",
+          background: "#fff",
+        }}
+      >
+        <div style={{ fontWeight: 800 }}>STUDENT</div>
+
+        {/* ✅ 최소 네비 (상용 SaaS 생산성용) */}
+        <nav style={{ display: "flex", gap: 12, fontSize: 14 }}>
+          <TopLink to="/student/dashboard" label="홈" />
+          <TopLink to="/student/sessions" label="차시" />
+          <TopLink to="/student/exams" label="시험" />
+          <TopLink to="/student/grades" label="성적" />
+          <TopLink to="/student/qna" label="Q&A" />
+        </nav>
+      </header>
+
+      {/* ===== Content ===== */}
+      <main style={{ flex: 1, padding: 16, background: "#fafafa" }}>
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+function TopLink({ to, label }: { to: string; label: string }) {
+  return (
+    <NavLink
+      to={to}
+      style={({ isActive }) => ({
+        textDecoration: "none",
+        color: isActive ? "#111" : "#666",
+        fontWeight: isActive ? 700 : 500,
+      })}
+    >
+      {label}
+    </NavLink>
+  );
+}
+
+
+==========================================================================================
+# FILE: StudentRouter.tsx
+==========================================================================================
+// src/student/app/StudentRouter.tsx
+/**
+ * ✅ StudentRouter (LOCK v1)
+ * - 학생 앱 라우팅
+ * - 레거시 student/pages 전부 무시하고, domains 기반으로 새로 구성
+ *
+ * 원칙:
+ * - student 라우팅은 domains/pages만 바라본다
+ * - features의 화면 컴포넌트를 직접 import 하지 않는다 (공용 훅/유틸은 OK)
+ */
+
+import { Navigate, Route, Routes } from "react-router-dom";
+import StudentLayout from "@/student/app/StudentLayout";
+
+// domains
+import DashboardPage from "@/student/domains/dashboard/pages/DashboardPage";
+import SessionListPage from "@/student/domains/sessions/pages/SessionListPage";
+import SessionDetailPage from "@/student/domains/sessions/pages/SessionDetailPage";
+
+import ExamListPage from "@/student/domains/exams/pages/ExamListPage";
+import ExamDetailPage from "@/student/domains/exams/pages/ExamDetailPage";
+import ExamSubmitPage from "@/student/domains/exams/pages/ExamSubmitPage";
+import ExamResultPage from "@/student/domains/exams/pages/ExamResultPage";
+
+import GradesPage from "@/student/domains/grades/pages/GradesPage";
+import QnaPage from "@/student/domains/qna/pages/QnaPage";
+
+export default function StudentRouter() {
+  return (
+    <Routes>
+      <Route element={<StudentLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+
+        {/* ✅ Dashboard (행동 허브) */}
+        <Route path="dashboard" element={<DashboardPage />} />
+
+        {/* ✅ Sessions (허브) */}
+        <Route path="sessions" element={<SessionListPage />} />
+        <Route path="sessions/:sessionId" element={<SessionDetailPage />} />
+
+        {/* ✅ Exams */}
+        <Route path="exams" element={<ExamListPage />} />
+        <Route path="exams/:examId" element={<ExamDetailPage />} />
+        <Route path="exams/:examId/submit" element={<ExamSubmitPage />} />
+        <Route path="exams/:examId/result" element={<ExamResultPage />} />
+
+        {/* ✅ Grades */}
+        <Route path="grades" element={<GradesPage />} />
+
+        {/* ✅ QnA */}
+        <Route path="qna" element={<QnaPage />} />
+      </Route>
+
+      {/* fallback */}
+      <Route path="*" element={<Navigate to="/student" replace />} />
+    </Routes>
+  );
+}

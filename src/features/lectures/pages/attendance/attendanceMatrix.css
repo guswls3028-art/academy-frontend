@@ -1,0 +1,103 @@
+/* src/features/lectures/pages/attendance/attendanceMatrix.css */
+
+/* ===== 테이블 기본 ===== */
+.attendance-table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.attendance-table th,
+.attendance-table td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+}
+
+/* ===== Sticky ===== */
+.attendance-sticky-header {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  z-index: 10;
+}
+
+.attendance-sticky-student {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 20;
+  font-weight: 600;
+}
+
+/* ===== Hover ===== */
+.attendance-row:hover {
+  background: #f9fafb;
+}
+
+/* ===== Status Colors ===== */
+.status-present {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-late {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.status-online {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-supplement {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.status-early-leave {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.status-absent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-runaway {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.status-material {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.status-inactive {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.status-secession {
+  background: #d1d5db;
+  color: #6b7280;
+  text-decoration: line-through;
+}
+
+/* ===== Interaction ===== */
+.attendance-cell {
+  cursor: pointer;
+  user-select: none;
+}
+
+.attendance-cell.disabled {
+  cursor: not-allowed;
+}
+
+.attendance-cell.updating {
+  opacity: 0.5;
+  cursor: wait;
+}
