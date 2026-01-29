@@ -7,7 +7,7 @@ import {
   fetchPayrollSnapshots,
   exportPayrollSnapshotExcel,
 } from "../../api/payrollSnapshots.api";
-import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
 import ActionButton from "../../components/ActionButton";
 
 function ymLabel(y: number, m: number) {
