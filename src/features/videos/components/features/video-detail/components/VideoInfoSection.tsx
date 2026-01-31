@@ -8,15 +8,13 @@ interface Props {
 
 export default function VideoInfoSection({ video, memo, setMemo }: Props) {
   const formatBytes = (b?: number) =>
-    b ? `${(b / 1024 / 1024).toFixed(1)} MB` : "-";
+    b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "-";
 
   return (
     <div className="grid grid-cols-2 gap-4">
       {/* FILE INFO */}
       <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 text-sm space-y-1">
-        <div className="font-medium text-[var(--text-primary)]">
-          파일 기본 정보
-        </div>
+        <div className="font-medium text-[var(--text-primary)]">파일 기본 정보</div>
 
         <div className="text-xs text-[var(--text-secondary)]">
           <div>상태: {video.status}</div>
@@ -28,16 +26,14 @@ export default function VideoInfoSection({ video, memo, setMemo }: Props) {
 
       {/* POLICY SNAPSHOT + MEMO */}
       <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 text-sm space-y-2">
-        <div className="font-medium text-[var(--text-primary)]">
-          현재 적용 정책
-        </div>
+        <div className="font-medium text-[var(--text-primary)]">현재 적용 정책</div>
 
         <div className="text-xs text-[var(--text-secondary)]">
           워터마크: {video.show_watermark ? "ON" : "OFF"}
           <br />
           건너뛰기: {video.allow_skip ? "허용" : "차단"}
           <br />
-          최대 배속: {Number(video.max_speed).toFixed(2)}x
+          최대 배속: {Number(video.max_speed ?? 1).toFixed(2)}x
         </div>
 
         <textarea

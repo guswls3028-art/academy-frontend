@@ -45,9 +45,7 @@ export default function PlaybackEventTimeline({ events }: Props) {
             <div className="flex-1">
               <div
                 className={`font-medium ${
-                  anomaly
-                    ? "text-red-600"
-                    : "text-[var(--text-primary)]"
+                  anomaly ? "text-red-600" : "text-[var(--text-primary)]"
                 }`}
               >
                 {label}

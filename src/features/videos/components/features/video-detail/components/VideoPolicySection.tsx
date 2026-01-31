@@ -13,17 +13,11 @@ interface Props {
 }
 
 export default function VideoPolicySection({ videoId, initial }: Props) {
-  const {
-    policy,
-    canSave,
-    setAllowSkip,
-    setMaxSpeed,
-    setShowWatermark,
-    save,
-  } = useVideoPolicy({
-    videoId,
-    initial,
-  });
+  const { policy, canSave, setAllowSkip, setMaxSpeed, setShowWatermark, save } =
+    useVideoPolicy({
+      videoId,
+      initial,
+    } as any);
 
   return (
     <div className="space-y-4">
@@ -32,18 +26,12 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
         <div className="flex items-center gap-6 text-xs text-[var(--text-secondary)]">
           <label className="flex items-center gap-2">
             워터마크
-            <ToggleSwitch
-              checked={policy.show_watermark}
-              onChange={setShowWatermark}
-            />
+            <ToggleSwitch checked={policy.show_watermark} onChange={setShowWatermark} />
           </label>
 
           <label className="flex items-center gap-2">
             건너뛰기
-            <ToggleSwitch
-              checked={policy.allow_skip}
-              onChange={setAllowSkip}
-            />
+            <ToggleSwitch checked={policy.allow_skip} onChange={setAllowSkip} />
           </label>
 
           <label className="flex items-center gap-2">
@@ -64,6 +52,7 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
             onClick={() => save()}
             disabled={!canSave}
             className="ml-auto rounded bg-[var(--color-primary)] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+            type="button"
           >
             저장
           </button>

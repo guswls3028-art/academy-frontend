@@ -79,24 +79,18 @@ function KpiCard({
   );
 }
 
-export default function VideoAchievementTab({
-  videoId,
-  onSelectStudent,
-}: Props) {
-  const [sortKey, setSortKey] = useState<
-    "progress" | "name" | "status"
-  >("status");
+export default function VideoAchievementTab({ videoId, onSelectStudent }: Props) {
+  const [sortKey, setSortKey] = useState<"progress" | "name" | "status">("status");
 
   const { data, isFetching } = useQuery({
     queryKey: ["video", videoId, "achievement"],
     queryFn: async () => {
-      const res = await api.get(
-        `/media/videos/${videoId}/achievement/`
-      );
+      const res = await api.get(`/media/videos/${videoId}/achievement/`);
       return res.data;
     },
     enabled: !!videoId,
     staleTime: 5000,
+    retry: 1,
   });
 
   const students: Row[] = data?.students ?? [];
@@ -131,23 +125,15 @@ export default function VideoAchievementTab({
     };
 
     if (sortKey === "progress") {
-      copy.sort(
-        (a, b) => (b.progress ?? 0) - (a.progress ?? 0)
-      );
+      copy.sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0));
     } else if (sortKey === "name") {
-      copy.sort((a, b) =>
-        (a.student_name || "").localeCompare(
-          b.student_name || ""
-        )
-      );
+      copy.sort((a, b) => (a.student_name || "").localeCompare(b.student_name || ""));
     } else {
       copy.sort((a, b) => {
         const ra = statusRank[a.status] ?? 99;
         const rb = statusRank[b.status] ?? 99;
         if (ra !== rb) return ra - rb;
-        return (a.student_name || "").localeCompare(
-          b.student_name || ""
-        );
+        return (a.student_name || "").localeCompare(b.student_name || "");
       });
     }
     return copy;
@@ -178,9 +164,7 @@ export default function VideoAchievementTab({
           <select
             className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)]"
             value={sortKey}
-            onChange={(e) =>
-              setSortKey(e.target.value as any)
-            }
+            onChange={(e) => setSortKey(e.target.value as any)}
           >
             <option value="status">상태(위험→완료)</option>
             <option value="progress">진도(높은순)</option>
@@ -191,22 +175,10 @@ export default function VideoAchievementTab({
 
       {/* KPI */}
       <div className="grid grid-cols-4 gap-3">
-        <KpiCard
-          label="영상 수강 학생"
-          value={`${summary?.total_students ?? 0}명`}
-        />
-        <KpiCard
-          label="평균 진도율"
-          value={`${summary?.avg_progress ?? 0}%`}
-        />
-        <KpiCard
-          label="완료율"
-          value={`${summary?.completed_rate ?? 0}%`}
-        />
-        <KpiCard
-          label="미완료"
-          value={`${summary?.incomplete_count ?? 0}명`}
-        />
+        <KpiCard label="영상 수강 학생" value={`${summary?.total_students ?? 0}명`} />
+        <KpiCard label="평균 진도율" value={`${summary?.avg_progress ?? 0}%`} />
+        <KpiCard label="완료율" value={`${summary?.completed_rate ?? 0}%`} />
+        <KpiCard label="미완료" value={`${summary?.incomplete_count ?? 0}명`} />
       </div>
 
       {/* Chart + Table */}
@@ -220,22 +192,11 @@ export default function VideoAchievementTab({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={dist}
-                margin={{
-                  left: 10,
-                  right: 10,
-                  top: 10,
-                  bottom: 10,
-                }}
+                margin={{ left: 10, right: 10, top: 10, bottom: 10 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 12 }}
-                />
-                // PATH: src/features/videos/components/features/video-analytics/VideoAchievementTab.tsx
-                // (변경 부분만 아님 — 전체 파일 기준, Tooltip만 수정)
-
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip
                   contentStyle={{
                     background: "var(--bg-surface-soft)",
@@ -244,11 +205,8 @@ export default function VideoAchievementTab({
                     fontSize: 12,
                     color: "var(--text-primary)",
                   }}
-                  labelStyle={{
-                    color: "var(--text-secondary)",
-                  }}
+                  labelStyle={{ color: "var(--text-secondary)" }}
                 />
-
                 <Bar dataKey="count" />
               </BarChart>
             </ResponsiveContainer>
@@ -286,9 +244,7 @@ export default function VideoAchievementTab({
                 <button
                   key={s.enrollment}
                   className="grid w-full grid-cols-12 border-b border-[var(--border-divider)] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-soft)]"
-                  onClick={() =>
-                    onSelectStudent?.(s.enrollment)
-                  }
+                  onClick={() => onSelectStudent?.(s.enrollment)}
                 >
                   <div className="col-span-3 truncate font-medium">
                     {s.student_name}

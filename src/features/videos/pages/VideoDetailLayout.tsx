@@ -10,33 +10,20 @@ interface Props {
   right: ReactNode;
 }
 
-export default function VideoDetailLayout({
-  header,
-  subtitle,
-  left,
-  right,
-}: Props) {
+export default function VideoDetailLayout({ header, subtitle, left, right }: Props) {
   return (
     <div className="space-y-6">
       {/* PAGE HEADER */}
       <div>{header}</div>
 
-      {subtitle && (
-        <div className={styles.page.subtitle}>
-          {subtitle}
-        </div>
-      )}
+      {subtitle && <div className={styles.page.subtitle}>{subtitle}</div>}
 
       {/* PAGE BODY */}
       <div className={styles.layout.root}>
-        <div className={styles.layout.left}>
-          {left}
-        </div>
+        <div className={styles.layout.left}>{left}</div>
 
         {/* RIGHT = 상태 / 관리 패널 */}
-        <div className={styles.layout.right}>
-          {right}
-        </div>
+        <div className={styles.layout.right}>{right}</div>
       </div>
     </div>
   );

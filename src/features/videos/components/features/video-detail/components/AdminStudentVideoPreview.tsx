@@ -1,3 +1,4 @@
+// PATH: src/features/videos/components/features/video-detail/components/AdminStudentVideoPreview.tsx
 // 관리자 전용: 학생 앱 플레이어를 "정책 미리보기" 용도로 감싸는 래퍼
 // - 특정 학생 선택 없이도 재생 가능
 // - audit / progress / heartbeat 저장 ❌

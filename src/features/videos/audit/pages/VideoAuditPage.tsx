@@ -7,24 +7,23 @@ import { fetchPlaybackSessions, fetchPlaybackEvents } from "../api/playbackAudit
 import PlaybackSessionTable from "../components/PlaybackSessionTable";
 import PlaybackEventTimeline from "../components/PlaybackEventTimeline";
 
-export default function VideoAuditPage({
-  videoId,
-}: {
-  videoId: number;
-}) {
-  const [selectedSession, setSelectedSession] =
-    useState<string | null>(null);
+export default function VideoAuditPage({ videoId }: { videoId: number }) {
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
 
   const { data: sessions } = useQuery({
     queryKey: ["audit-sessions", videoId],
     queryFn: () => fetchPlaybackSessions(videoId),
+    enabled: !!videoId,
+    staleTime: 5000,
+    retry: 1,
   });
 
   const { data: events } = useQuery({
     queryKey: ["audit-events", selectedSession],
-    queryFn: () =>
-      fetchPlaybackEvents(selectedSession!),
+    queryFn: () => fetchPlaybackEvents(selectedSession!),
     enabled: !!selectedSession,
+    staleTime: 3000,
+    retry: 1,
   });
 
   return (
@@ -37,15 +36,9 @@ export default function VideoAuditPage({
           </div>
 
           <PlaybackSessionTable
-            sessions={sessions?.results ?? []}
-            selectedSessionId={
-              selectedSession
-                ? Number(selectedSession)
-                : null
-            }
-            onSelect={(id) =>
-              setSelectedSession(String(id))
-            }
+            sessions={sessions?.results ?? sessions ?? []}
+            selectedSessionId={selectedSession ? Number(selectedSession) : null}
+            onSelect={(id) => setSelectedSession(String(id))}
           />
         </section>
 
@@ -56,9 +49,7 @@ export default function VideoAuditPage({
           </div>
 
           {selectedSession ? (
-            <PlaybackEventTimeline
-              events={events?.results ?? []}
-            />
+            <PlaybackEventTimeline events={events?.results ?? events ?? []} />
           ) : (
             <div className="text-sm text-[var(--text-muted)]">
               세션을 선택하세요.

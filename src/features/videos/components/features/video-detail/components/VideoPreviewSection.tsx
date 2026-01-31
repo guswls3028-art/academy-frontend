@@ -1,6 +1,6 @@
 // PATH: src/features/videos/components/features/video-detail/components/VideoPreviewSection.tsx
 
-import AdminHlsPreview from "../components/AdminHlsPreview";
+import AdminHlsPreview from "./AdminHlsPreview";
 
 type PreviewMode = "admin" | "student";
 
@@ -34,6 +34,7 @@ export default function VideoPreviewSection({
               ? "bg-[var(--bg-surface)] font-semibold"
               : "bg-[var(--bg-surface-soft)]"
           }`}
+          type="button"
         >
           관리자 미리보기
         </button>
@@ -45,6 +46,7 @@ export default function VideoPreviewSection({
               ? "bg-[var(--bg-surface)] font-semibold"
               : "bg-[var(--bg-surface-soft)]"
           }`}
+          type="button"
         >
           학생 페이지로 보기
         </button>
@@ -55,9 +57,7 @@ export default function VideoPreviewSection({
         {previewMode === "admin" && hlsSrc ? (
           <AdminHlsPreview src={hlsSrc} />
         ) : (
-          <div className="text-sm text-[var(--text-muted)]">
-            HLS 없음
-          </div>
+          <div className="text-sm text-[var(--text-muted)]">HLS 없음</div>
         )}
       </div>
     </div>

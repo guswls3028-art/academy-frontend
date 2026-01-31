@@ -1,4 +1,4 @@
-// src/features/videos/pages/components/AdminHlsPreview.tsx
+// PATH: src/features/videos/components/features/video-detail/components/AdminHlsPreview.tsx
 
 import { useEffect, useRef } from "react";
 import Hls from "hls.js";
@@ -9,6 +9,14 @@ export default function AdminHlsPreview({ src }: { src: string }) {
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
+
+    if (!src) {
+      video.removeAttribute("src");
+      try {
+        video.load();
+      } catch {}
+      return;
+    }
 
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;

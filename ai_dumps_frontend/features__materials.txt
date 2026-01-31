@@ -236,6 +236,230 @@ export async function createSheet(input: {
 
 
 ==========================================================================================
+# FILE: components/TemplateMaterialEditorModal.AssetsTab.tsx
+==========================================================================================
+// PATH: src/features/materials/components/TemplateMaterialEditorModal.AssetsTab.tsx
+// WHY:
+// OMR PDF 생성에 필요한 최소 입력(question_count, logo)만 받아
+// assets 도메인의 stateless PDF API를 호출한다.
+// 실패/성공 상태를 명확히 드러내어 운영자 사고를 줄인다.
+
+import { useState } from "react";
+
+const QUESTION_COUNTS = [10, 20, 30] as const;
+
+export function AssetsTab() {
+  const [questionCount, setQuestionCount] = useState<number | null>(null);
+  const [logo, setLogo] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const canSubmit = questionCount !== null && !loading;
+
+  const downloadPdf = async () => {
+    if (!questionCount) return;
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("question_count", String(questionCount));
+      if (logo) fd.append("logo", logo);
+
+      const res = await fetch("/api/v1/assets/omr/objective/pdf/", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url);
+    } catch (e: any) {
+      alert(e.message || "PDF 생성 실패");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <label className="text-sm">문항 수</label>
+        {QUESTION_COUNTS.map((qc) => (
+          <button
+            key={qc}
+            onClick={() => setQuestionCount(qc)}
+            className={`px-3 py-1 border rounded ${
+              questionCount === qc ? "bg-black text-white" : ""
+            }`}
+          >
+            {qc}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-4">
+        <label className="text-sm">로고 (선택)</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setLogo(e.target.files?.[0] || null)}
+        />
+      </div>
+
+      <div>
+        <button
+          disabled={!canSubmit}
+          onClick={downloadPdf}
+          className="px-4 py-2 bg-black text-white rounded disabled:opacity-40"
+        >
+          {loading ? "생성 중..." : "OMR PDF 다운로드"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/TemplateMaterialEditorModal.MetaPreviewTab.tsx
+==========================================================================================
+// PATH: src/features/materials/components/TemplateMaterialEditorModal.MetaPreviewTab.tsx
+// WHY:
+// OMR 채점 엔진이 소비하는 구조 정보(meta)를 운영자가 직접 확인할 수 있게 한다.
+// PDF와 1:1 대응되는 데이터임을 명확히 하여 오해를 방지한다.
+// 읽기 전용, 복사 가능, 수정 불가가 핵심이다.
+
+import { useEffect, useState } from "react";
+
+export function MetaPreviewTab() {
+  const [questionCount, setQuestionCount] = useState<number>(10);
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setError(null);
+        const res = await fetch(
+          `/api/v1/assets/omr/objective/meta/?question_count=${questionCount}`,
+          { credentials: "include" }
+        );
+        if (!res.ok) throw new Error(await res.text());
+        const json = await res.json();
+        if (alive) setData(json);
+      } catch (e: any) {
+        if (alive) setError(e.message || "meta 조회 실패");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [questionCount]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {[10, 20, 30].map((qc) => (
+          <button
+            key={qc}
+            onClick={() => setQuestionCount(qc)}
+            className={`px-2 py-1 border rounded ${
+              questionCount === qc ? "bg-black text-white" : ""
+            }`}
+          >
+            {qc}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs text-gray-600">
+        이 정보는 OMR 채점 엔진이 사용하는 구조 정보입니다. 수정할 수 없습니다.
+      </p>
+
+      {error && <div className="text-sm text-red-600">{error}</div>}
+
+      {data && (
+        <pre className="text-xs bg-gray-100 p-3 rounded overflow-auto max-h-[400px]">
+{JSON.stringify(data, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/TemplateMaterialEditorModal.tsx
+==========================================================================================
+// PATH: src/features/materials/components/TemplateMaterialEditorModal.tsx
+// WHY:
+// 템플릿 시험의 OMR 자산 편집을 단일 진입점에서 완결하기 위한 공용 모달.
+// assets 도메인(PDF/meta)을 소비만 하며, 시험/채점 책임을 넘지 않는다.
+// 이 모달 하나로 운영자가 “생성 → 확인 → 안내” 흐름을 끝낸다.
+
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { AssetsTab } from "./TemplateMaterialEditorModal.AssetsTab";
+import { MetaPreviewTab } from "./TemplateMaterialEditorModal.MetaPreviewTab";
+
+type TabKey = "assets" | "meta" | "guide";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function TemplateMaterialEditorModal({ open, onClose }: Props) {
+  const [tab, setTab] = useState<TabKey>("assets");
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+      <div className="bg-white w-[920px] max-h-[90vh] rounded shadow flex flex-col">
+        <header className="px-6 py-4 border-b flex items-center justify-between">
+          <h2 className="text-lg font-semibold">OMR 템플릿 자산</h2>
+          <button onClick={onClose} className="text-sm text-gray-500">
+            닫기
+          </button>
+        </header>
+
+        <nav className="px-6 pt-3 flex gap-4 text-sm">
+          <button onClick={() => setTab("assets")} className={tab === "assets" ? "font-semibold" : ""}>
+            자산
+          </button>
+          <button onClick={() => setTab("meta")} className={tab === "meta" ? "font-semibold" : ""}>
+            구조 정보
+          </button>
+          <button onClick={() => setTab("guide")} className={tab === "guide" ? "font-semibold" : ""}>
+            안내
+          </button>
+        </nav>
+
+        <section className="px-6 py-4 overflow-auto flex-1">
+          {tab === "assets" && <AssetsTab />}
+          {tab === "meta" && <MetaPreviewTab />}
+          {tab === "guide" && (
+            <div className="space-y-2 text-sm">
+              <p>이 시험지는 템플릿 단일진실 기반 OMR 답안지입니다.</p>
+              <p>스캔/촬영 인식 안정성을 위해 레이아웃 수정은 허용되지 않습니다.</p>
+              <p>정답, 채점, 결과는 다른 도메인의 책임입니다.</p>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+
+==========================================================================================
 # FILE: layout/MaterialsLayout.tsx
 ==========================================================================================
 // PATH: src/features/materials/layout/MaterialsLayout.tsx

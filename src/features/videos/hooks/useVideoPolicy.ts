@@ -1,4 +1,4 @@
-// src/features/videos/hooks/useVideoPolicy.ts
+// PATH: src/features/videos/hooks/useVideoPolicy.ts
 // --------------------------------------------------
 // useVideoPolicy
 // --------------------------------------------------
@@ -58,10 +58,7 @@ export function useVideoPolicy({ videoId, initial }: Options) {
   // -------------------------------
   // Helpers
   // -------------------------------
-  const update = <K extends keyof VideoPolicy>(
-    key: K,
-    value: VideoPolicy[K]
-  ) => {
+  const update = <K extends keyof VideoPolicy>(key: K, value: VideoPolicy[K]) => {
     setPolicy((prev) => {
       if (prev[key] === value) return prev;
       return { ...prev, [key]: value };
@@ -86,24 +83,15 @@ export function useVideoPolicy({ videoId, initial }: Options) {
     onSuccess: async () => {
       setDirty(false);
 
-      // Video detail / stats 갱신
-      await qc.invalidateQueries({
-        queryKey: ["video-stats", videoId],
-      });
-
-      await qc.invalidateQueries({
-        queryKey: ["video", videoId, "stats"],
-      });
+      await qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      await qc.invalidateQueries({ queryKey: ["video", videoId, "stats"] });
     },
   });
 
   // -------------------------------
   // Derived
   // -------------------------------
-  const canSave = useMemo(
-    () => dirty && !saveMutation.isPending,
-    [dirty, saveMutation.isPending]
-  );
+  const canSave = useMemo(() => dirty && !saveMutation.isPending, [dirty, saveMutation.isPending]);
 
   return {
     policy,

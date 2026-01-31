@@ -19,9 +19,7 @@ export default function PermissionTable({
         <div className="permission-checkbox">
           <input
             type="checkbox"
-            checked={
-              students.length > 0 && selected.length === students.length
-            }
+            checked={students.length > 0 && selected.length === students.length}
             onChange={toggleAll}
           />
         </div>

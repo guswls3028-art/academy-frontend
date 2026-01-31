@@ -1,3 +1,5 @@
+// PATH: src/features/videos/components/features/video-detail/modals/PermissionModal.tsx
+
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -10,10 +12,7 @@ import PermissionSidePanel from "../../video-permission/components/PermissionSid
 import VideoAchievementTab from "../../video-analytics/VideoAchievementTab";
 import VideoLogTab from "../../video-analytics/VideoLogTab";
 
-import type {
-  PermissionModalProps,
-  TabKey,
-} from "../../video-permission/permission.types";
+import type { PermissionModalProps, TabKey } from "../../video-permission/permission.types";
 
 import "../../video-permission/permission-modal.css";
 
@@ -62,6 +61,7 @@ export default function PermissionModal({
     },
     enabled: open && !!videoId && tab === "permission",
     staleTime: 5000,
+    retry: 1,
   });
 
   const studentsRaw = data?.students ?? [];
@@ -72,17 +72,13 @@ export default function PermissionModal({
     let list = studentsRaw;
 
     if (focusEnrollment) {
-      list = list.filter(
-        (s: any) => s.enrollment === focusEnrollment
-      );
+      list = list.filter((s: any) => s.enrollment === focusEnrollment);
     }
 
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((s: any) =>
-        String(s.student_name || "")
-          .toLowerCase()
-          .includes(q)
+        String(s.student_name || "").toLowerCase().includes(q)
       );
     }
 
@@ -90,19 +86,13 @@ export default function PermissionModal({
   }, [studentsRaw, focusEnrollment, search]);
 
   const toggle = (id: number) => {
-    setSelected((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id]
-    );
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const toggleAll = () => {
     const ids = students.map((s: any) => s.enrollment);
     if (!ids.length) return;
-    setSelected(
-      selected.length === ids.length ? [] : ids
-    );
+    setSelected(selected.length === ids.length ? [] : ids);
   };
 
   /* ================= RIGHT PANEL DATA ================= */
@@ -113,9 +103,7 @@ export default function PermissionModal({
     return [...studentsRaw]
       .filter((s: any) => set.has(s.enrollment))
       .sort((a: any, b: any) =>
-        String(a.student_name || "").localeCompare(
-          String(b.student_name || "")
-        )
+        String(a.student_name || "").localeCompare(String(b.student_name || ""))
       );
   }, [studentsRaw, selected]);
 
@@ -129,9 +117,7 @@ export default function PermissionModal({
     },
     onSuccess: async () => {
       setSelected([]);
-      await qc.invalidateQueries({
-        queryKey: ["video", videoId, "stats"],
-      });
+      await qc.invalidateQueries({ queryKey: ["video", videoId, "stats"] });
     },
   });
 
@@ -146,18 +132,13 @@ export default function PermissionModal({
         <div className="px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-sm font-semibold">
-                시청 권한 관리
-              </div>
+              <div className="text-sm font-semibold">시청 권한 관리</div>
               <div className="mt-1 text-xs text-[var(--text-muted)]">
                 권한 설정 / 성취도 / 시청 로그
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="rounded border px-3 py-1.5 text-xs"
-            >
+            <button onClick={onClose} className="rounded border px-3 py-1.5 text-xs" type="button">
               닫기
             </button>
           </div>
@@ -187,9 +168,7 @@ export default function PermissionModal({
                       className="h-8 rounded border px-3 text-sm w-[220px]"
                       placeholder="이름 검색"
                       value={search}
-                      onChange={(e) =>
-                        setSearch(e.target.value)
-                      }
+                      onChange={(e) => setSearch(e.target.value)}
                     />
 
                     <div className="ml-auto text-sm text-[var(--text-secondary)]">
@@ -215,22 +194,14 @@ export default function PermissionModal({
                   onApply={(rule) => mutate.mutate(rule)}
                   onClear={() => setSelected([])}
                   onRemoveOne={(enrollment) =>
-                    setSelected((prev) =>
-                      prev.filter((x) => x !== enrollment)
-                    )
+                    setSelected((prev) => prev.filter((x) => x !== enrollment))
                   }
                 />
               </div>
             ) : tab === "achievement" ? (
-              <VideoAchievementTab
-                videoId={videoId}
-                onSelectStudent={(id) => setFocusBoth(id)}
-              />
+              <VideoAchievementTab videoId={videoId} onSelectStudent={(id) => setFocusBoth(id)} />
             ) : (
-              <VideoLogTab
-                videoId={videoId}
-                onClickRiskStudent={(id) => setFocusBoth(id)}
-              />
+              <VideoLogTab videoId={videoId} onClickRiskStudent={(id) => setFocusBoth(id)} />
             )}
           </div>
         </div>

@@ -1,10 +1,6 @@
-// src/features/videos/components/VideoThumbnail.tsx
-type VideoStatus =
-  | "READY"
-  | "PROCESSING"
-  | "FAILED"
-  | "PENDING"
-  | "UPLOADED";
+// PATH: src/features/videos/ui/VideoThumbnail.tsx
+
+type VideoStatus = "READY" | "PROCESSING" | "FAILED" | "PENDING" | "UPLOADED";
 
 interface Props {
   title?: string;
@@ -18,11 +14,7 @@ interface Props {
  * - 가공 ❌
  * - 실패 시 placeholder fallback
  */
-export default function VideoThumbnail({
-  title,
-  status,
-  thumbnail_url,
-}: Props) {
+export default function VideoThumbnail({ title, status, thumbnail_url }: Props) {
   let src = "/placeholder-video.png";
 
   if (thumbnail_url) {

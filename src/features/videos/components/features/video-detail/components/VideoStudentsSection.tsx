@@ -7,15 +7,10 @@ interface Props {
   onOpenPermission: () => void;
 }
 
-export default function VideoStudentsSection({
-  students,
-  onOpenPermission,
-}: Props) {
+export default function VideoStudentsSection({ students, onOpenPermission }: Props) {
   return (
     <div className="space-y-3">
-      <div className="text-xs text-[var(--text-muted)]">
-        출결 · 권한 · 진도 요약
-      </div>
+      <div className="text-xs text-[var(--text-muted)]">출결 · 권한 · 진도 요약</div>
 
       <StudentWatchPanel
         students={students}

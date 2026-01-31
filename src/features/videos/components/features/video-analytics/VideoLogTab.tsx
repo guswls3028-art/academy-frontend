@@ -44,6 +44,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
     },
     enabled: !!videoId,
     staleTime: 3000,
+    retry: 1,
   });
 
   const { data: riskData } = useQuery({
@@ -56,6 +57,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
     },
     enabled: !!videoId,
     staleTime: 3000,
+    retry: 1,
   });
 
   const events = useMemo(() => {
@@ -105,6 +107,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
 
           <button
             className="w-full text-xs px-3 py-2 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)]"
+            type="button"
           >
             CSV Export
           </button>
@@ -124,10 +127,9 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                   key={r.enrollment_id}
                   className="w-full text-left rounded-lg border border-[var(--border-divider)] px-3 py-2 hover:bg-[var(--bg-surface-soft)]"
                   onClick={() => onClickRiskStudent(r.enrollment_id)}
+                  type="button"
                 >
-                  <div className="text-sm font-semibold">
-                    {r.student_name}
-                  </div>
+                  <div className="text-sm font-semibold">{r.student_name}</div>
                   <div className="text-xs text-[var(--text-secondary)] mt-1">
                     점수 <b>{r.score}</b> · danger {r.danger} · warn {r.warn}
                   </div>
@@ -185,11 +187,10 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                 key={e.id}
                 className="w-full text-left grid grid-cols-12 px-3 py-2 border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)] text-xs"
                 onClick={() => setSelectedEvent(e)}
+                type="button"
               >
                 <div className="col-span-2 text-[var(--text-secondary)]">
-                  {e.occurred_at
-                    ? new Date(e.occurred_at).toLocaleString()
-                    : "-"}
+                  {e.occurred_at ? new Date(e.occurred_at).toLocaleString() : "-"}
                 </div>
                 <div className="col-span-2 font-medium truncate">
                   {e.student_name}
@@ -210,9 +211,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                 <div className="col-span-2 text-[var(--text-secondary)] truncate">
                   {e.violation_reason || "-"}
                 </div>
-                <div className="col-span-1 text-center font-bold">
-                  {e.score}
-                </div>
+                <div className="col-span-1 text-center font-bold">{e.score}</div>
                 <div className="col-span-1 text-center text-[var(--text-muted)] truncate">
                   {e.session_id ? String(e.session_id).slice(0, 6) : "-"}
                 </div>
@@ -226,6 +225,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
             className="text-xs px-3 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] disabled:opacity-50"
             disabled={!canPrev}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
+            type="button"
           >
             이전
           </button>
@@ -233,6 +233,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
             className="text-xs px-3 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] disabled:opacity-50"
             disabled={!canNext}
             onClick={() => setPage((p) => p + 1)}
+            type="button"
           >
             다음
           </button>

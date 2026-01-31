@@ -1,3 +1,5 @@
+// PATH: src/features/videos/components/features/video-detail/components/StudentWatchPanel.tsx
+
 import { useMemo } from "react";
 import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
 import {
@@ -22,7 +24,7 @@ export default function StudentWatchPanel({
 
   const sorted = useMemo(() => {
     return [...students].sort((a, b) =>
-      a.student_name.localeCompare(b.student_name)
+      String(a.student_name || "").localeCompare(String(b.student_name || ""))
     );
   }, [students]);
 
@@ -33,6 +35,7 @@ export default function StudentWatchPanel({
         <button
           onClick={onOpenPermission}
           className="text-xs rounded bg-[var(--color-primary)] text-white px-3 py-1.5"
+          type="button"
         >
           권한 관리
         </button>
@@ -41,8 +44,8 @@ export default function StudentWatchPanel({
       {/* LIST */}
       <div className="flex flex-col gap-2">
         {sorted.map((s: any) => {
-          const progress = Math.round((s.progress ?? 0) * 100);
-          const barWidth = progress === 0 ? 2 : progress;
+          const progress = Math.round((Number(s.progress ?? 0) || 0) * 100);
+          const barWidth = progress === 0 ? 2 : Math.min(100, Math.max(0, progress));
           const clickable = selectable && s.enrollment;
           const selected = selectedEnrollmentId === s.enrollment;
 
@@ -54,15 +57,17 @@ export default function StudentWatchPanel({
               onClick={() => {
                 if (clickable) onSelectPreviewStudent!(s.enrollment);
               }}
+              onKeyDown={(e) => {
+                if (!clickable) return;
+                if (e.key === "Enter" || e.key === " ") onSelectPreviewStudent!(s.enrollment);
+              }}
               className={[
                 "flex items-center gap-3",
                 "rounded-lg border px-3 py-2.5 text-sm",
                 "border-[var(--border-divider)] bg-[var(--bg-surface)]",
-                "overflow-hidden", // ✅ 핵심
-                clickable &&
-                  "cursor-pointer hover:bg-[var(--bg-surface-soft)]",
-                selected &&
-                  "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)]",
+                "overflow-hidden",
+                clickable && "cursor-pointer hover:bg-[var(--bg-surface-soft)]",
+                selected && "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)]",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -74,9 +79,7 @@ export default function StudentWatchPanel({
 
               {/* BADGES */}
               <div className="w-[140px] flex items-center gap-1 shrink-0">
-                <AttendanceBadge
-                  status={s.attendance_status ?? "UNKNOWN"}
-                />
+                <AttendanceBadge status={s.attendance_status ?? "UNKNOWN"} />
 
                 <span
                   className={[

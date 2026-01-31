@@ -1,3 +1,5 @@
+// PATH: src/features/videos/utils/videoStatus.ts
+
 import type { VideoStatus } from "../api/videos";
 
 export const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {

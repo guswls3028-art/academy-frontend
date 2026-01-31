@@ -55,23 +55,19 @@ export default function PlaybackSessionTable({
                     : "hover:bg-[var(--bg-surface-soft)]"
                 }`}
               >
-                <td className="px-3 py-2 font-medium">
-                  {s.student_name}
-                </td>
+                <td className="px-3 py-2 font-medium">{s.student_name}</td>
                 <td className="px-3 py-2 text-xs text-[var(--text-secondary)]">
                   {s.device_id}
                 </td>
                 <td className="px-3 py-2 text-center text-xs">
-                  {new Date(s.started_at).toLocaleString("ko-KR")}
-                </td>
-                <td className="px-3 py-2 text-center text-xs">
-                  {s.ended_at
-                    ? new Date(s.ended_at).toLocaleString("ko-KR")
+                  {s.started_at
+                    ? new Date(s.started_at).toLocaleString("ko-KR")
                     : "-"}
                 </td>
                 <td className="px-3 py-2 text-center text-xs">
-                  {s.status}
+                  {s.ended_at ? new Date(s.ended_at).toLocaleString("ko-KR") : "-"}
                 </td>
+                <td className="px-3 py-2 text-center text-xs">{s.status}</td>
               </tr>
             );
           })}
