@@ -1,17 +1,5 @@
 // PATH: src/features/videos/components/features/video-detail/modals/VideoUploadModal.tsx
 
-/**
- * VideoUploadModal
- *
- * ✅ 변경 목적(디자인만):
- * - exams 기준 모달 구조
- *   - header = 텍스트 블록
- *   - body = surface(bg-surface-soft)
- * - 불필요한 card/border 제거
- *
- * ✅ 로직/props/상태/업로드 플로우 그대로 유지
- */
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -33,6 +21,9 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // ✅ 추가: 부모 state와 무관하게 즉시 닫기용
+  const [forceClosed, setForceClosed] = useState(false);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -42,7 +33,10 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   const [maxSpeed, setMaxSpeed] = useState<number>(1);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setForceClosed(false); // ✅ 리셋
+      return;
+    }
     setTitle("");
     setDescription("");
     setFile(null);
@@ -108,7 +102,6 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       return completeRes.data;
     },
 
-    // ✅ 모달은 버튼 클릭 시 이미 닫힘 → 여기서 닫지 않음
     onSuccess: async () => {
       await qc.invalidateQueries({
         queryKey: ["session-videos", sessionId],
@@ -124,14 +117,14 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     },
   });
 
-  if (!isOpen) return null;
+  // ✅ 핵심: 강제 닫힘 반영
+  if (!isOpen || forceClosed) return null;
 
   const pickFile = () => fileInputRef.current?.click();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-xl bg-[var(--bg-surface)] shadow-xl">
-        {/* ✅ header */}
         <div className="px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -153,10 +146,8 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
           </div>
         </div>
 
-        {/* ✅ body */}
         <div className="px-5 pb-5">
           <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 space-y-4">
-            {/* Title */}
             <div>
               <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
                 제목
@@ -170,7 +161,6 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               />
             </div>
 
-            {/* File */}
             <div>
               <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
                 파일 업로드
@@ -217,7 +207,6 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               />
             </div>
 
-            {/* Description */}
             <div>
               <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
                 영상 설명
@@ -230,7 +219,6 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               />
             </div>
 
-            {/* Options */}
             <div className="rounded-lg bg-[var(--bg-surface)] p-3">
               <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
                 재생 정책
@@ -304,7 +292,6 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -318,8 +305,9 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                 type="button"
                 className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white"
                 onClick={() => {
-                  onClose();          // ✅ 즉시 닫기
-                  uploadMut.mutate(); // ✅ 백그라운드 업로드
+                  setForceClosed(true); // ✅ 즉시 제거
+                  onClose();
+                  uploadMut.mutate();
                 }}
                 disabled={!canSubmit}
               >
