@@ -270,10 +270,13 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               <button
                 type="button"
                 className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                onClick={() => uploadMut.mutate()}
-                disabled={!canSubmit || uploadMut.isPending}
+                onClick={() => {
+                  onClose();          // ✅ 즉시 닫기
+                  uploadMut.mutate(); // ✅ 백그라운드 업로드
+                }}
+                disabled={!canSubmit}
               >
-                {uploadMut.isPending ? "업로드 중..." : "업로드"}
+                업로드
               </button>
             </div>
           </div>
