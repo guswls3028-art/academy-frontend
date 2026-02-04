@@ -28,9 +28,16 @@ const api = axios.create({
 
 // ============================
 // ✅ MULTI TENANT (FIX)
-// - 모든 요청에 테넌트 코드 강제 주입
+// - 하드코딩 제거, 요청 시 localStorage 또는 기타 로직 기반
 // ============================
-api.defaults.headers.common["X-Tenant-Code"] = "2_limglish";
+api.interceptors.request.use((config) => {
+  const tenant = localStorage.getItem("tenant") || undefined;
+  if (tenant) {
+    config.headers = config.headers ?? {};
+    config.headers["X-Tenant-Code"] = tenant;
+  }
+  return config;
+});
 
 // ============================
 // Request: access token

@@ -1,4 +1,6 @@
-// src/features/auth/context/AuthContext.tsx
+// ====================================================================================================
+// PATH: src/features/auth/context/AuthContext.tsx
+// ====================================================================================================
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import api from "@/shared/api/axios";
 
@@ -31,7 +33,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshMe = async () => {
     const access = localStorage.getItem("access");
-    if (!access) {
+    const tenantCode = localStorage.getItem("tenant_code");
+
+    if (!access || !tenantCode) {
       setUser(null);
       return;
     }
@@ -45,8 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (status === 401 || status === 403) {
         clearAuth();
       } else {
-        // 네트워크 일시 오류면 user 유지 (null/기존값)
-        // 여기서는 강제로 null로 만들지 않음
+        // 네트워크 일시 오류 등은 user 상태 유지
       }
       throw err;
     }

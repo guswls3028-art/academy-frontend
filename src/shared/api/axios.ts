@@ -1,4 +1,6 @@
+// ====================================================================================================
 // PATH: src/shared/api/axios.ts
+// ====================================================================================================
 import axios from "axios";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
@@ -13,9 +15,16 @@ const api = axios.create({
 
 // ============================
 // ✅ MULTI TENANT (FIX)
-// - 모든 요청에 테넌트 코드 강제 주입
+// - localStorage key SSOT: tenant_code
 // ============================
-api.defaults.headers.common["X-Tenant-Code"] = "2_limglish";
+api.interceptors.request.use((config) => {
+  const tenantCode = localStorage.getItem("tenant_code");
+  if (tenantCode) {
+    config.headers = config.headers ?? {};
+    config.headers["X-Tenant-Code"] = tenantCode;
+  }
+  return config;
+});
 
 // ============================
 // Request: access token

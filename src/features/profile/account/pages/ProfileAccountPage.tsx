@@ -1,3 +1,4 @@
+// PATH: src/features/profile/account/pages/ProfileAccountPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FiKey, FiLogOut } from "react-icons/fi";
@@ -63,7 +64,6 @@ export default function ProfileAccountPage() {
       <style>{`
         .acc-wrap{
           max-width: 980px;
-          /* ✅ 왼쪽 정렬 + 여백 최소 */
           margin: 0;
         }
         .acc-toolbar{
@@ -126,7 +126,7 @@ export default function ProfileAccountPage() {
         .acc-cell{
           display:flex;
           align-items:center;
-          justify-content:flex-start; /* ✅ 오른쪽 허공 금지 */
+          justify-content:flex-start;
           min-width: 0;
         }
         .acc-value{
@@ -184,7 +184,7 @@ export default function ProfileAccountPage() {
           background: rgba(239,68,68,0.08);
         }
 
-        /* 버튼: "글자처럼 보이는 버튼" 금지 */
+        /* 버튼 */
         .acc-btn{
           display:inline-flex;
           align-items:center;
@@ -233,7 +233,6 @@ export default function ProfileAccountPage() {
 
       <AccountHeader />
 
-      {/* 액션 */}
       <PageSection>
         <div className="acc-wrap">
           <div className="acc-toolbar">
@@ -250,7 +249,6 @@ export default function ProfileAccountPage() {
         </div>
       </PageSection>
 
-      {/* 내 정보 */}
       <PageSection title="내 정보">
         <div className="acc-wrap">
           {meQ.isLoading && <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>}
@@ -266,7 +264,6 @@ export default function ProfileAccountPage() {
               onSave={save}
               saving={updateMut.isPending}
               dirty={dirty}
-              message={message}
             />
           )}
         </div>
