@@ -13,6 +13,11 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { refreshMe } = useAuth();
 
+  // ✅ 추가: 도메인 분기 (최소)
+  const host = window.location.hostname;
+  const isLimglish =
+    host === "limglish.kr" || host === "www.limglish.kr";
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (pending) return;
@@ -64,8 +69,17 @@ export default function LoginPage() {
               color: "var(--color-primary)",
             }}
           >
-            임시 페이지<br></br>
-            관리자화면 확인용
+            {isLimglish ? (
+              <>
+                LIMGLISH<br />
+                선생님 전용 페이지
+              </>
+            ) : (
+              <>
+                임시 페이지<br />
+                관리자화면 확인용
+              </>
+            )}
           </h1>
 
           <div
