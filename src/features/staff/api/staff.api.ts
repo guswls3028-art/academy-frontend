@@ -1,4 +1,4 @@
-﻿// PATH: src/features/staff/api/staff.api.ts
+﻿﻿// PATH: src/features/staff/api/staff.api.ts
 import api from "@/shared/api/axios";
 
 /**
@@ -51,13 +51,22 @@ export async function fetchStaffs(params?: {
 
 /**
  * POST /staffs/
+ * 🔒 생성 스펙 단일진실
+ *
+ * permission_role:
+ * - ASSISTANT : 일반 직원
+ * - TEACHER   : 강사
+ * - ADMIN     : 관리자 (승인/마감 가능)
+ *
+ * ⚠️ OWNER는 백엔드 전용이며 프론트에서 지정 불가
+ * ⚠️ is_manager / is_payroll_manager 변환 책임은 백엔드
  */
 export async function createStaff(payload: {
   username: string;
   password: string;
   name: string;
   phone?: string;
-  role: "TEACHER" | "ASSISTANT";
+  permission_role: "ADMIN" | "TEACHER" | "ASSISTANT";
 }) {
   const res = await api.post("/staffs/", payload);
   return res.data as Staff;

@@ -39,16 +39,16 @@ export default function LimglishLoginPage() {
         {/* ===== Branding ===== */}
         <div style={styles.header}>
           <div style={styles.logo}>LIMGLISH</div>
-          <div style={styles.subtitle}>선생님 전용 로그인</div>
+          <div style={styles.subtitle}>임시 로그인 화면</div>
         </div>
 
         {/* ===== Temporary Hint ===== */}
         <div style={styles.hint}>
           <div>
-            <b>ID</b> : 1111
+            학생계정은 학생탭에서 학생추가하기
           </div>
           <div>
-            <b>PW</b> : 1111
+            
           </div>
         </div>
 

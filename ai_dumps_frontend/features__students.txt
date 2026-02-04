@@ -205,8 +205,7 @@ export async function updateStudent(id: number, form: any) {
       form.schoolType === "MIDDLE" ? form.school || null : null;
     payload.high_school_class =
       form.schoolType === "HIGH" ? form.schoolClass || null : null;
-    payload.major =
-      form.schoolType === "HIGH" ? form.major || null : null;
+    payload.major = form.schoolType === "HIGH" ? form.major || null : null;
   }
 
   const res = await api.patch(`/students/${id}/`, payload);
@@ -217,10 +216,7 @@ export async function updateStudent(id: number, form: any) {
  * TOGGLE ACTIVE
  * =============================== */
 
-export async function toggleStudentActive(
-  id: number,
-  nextActive: boolean
-) {
+export async function toggleStudentActive(id: number, nextActive: boolean) {
   const res = await api.patch(`/students/${id}/`, {
     is_managed: nextActive,
   });
@@ -260,36 +256,6 @@ export async function detachStudentTag(studentId: number, tagId: number) {
 export async function createMemo(studentId: number, content: string) {
   await api.patch(`/students/${studentId}/`, { memo: content });
 }
-
-
-==========================================================================================
-# FILE: api/studentsDetail.ts
-==========================================================================================
-import axios from "@/shared/api/axios";
-
-export const fetchStudentDetail = async (id: string | number) => {
-  const res = await axios.get(`/students/${id}/`);
-  return res.data;
-};
-
-export const fetchTags = async () => {
-  const res = await axios.get(`/tags/`);
-  return res.data;
-};
-
-export const addTag = async (id: number, tagId: number) => {
-  const res = await axios.post(`/students/${id}/add_tag/`, {
-    tag_id: tagId,
-  });
-  return res.data;
-};
-
-export const removeTag = async (id: number, tagId: number) => {
-  const res = await axios.post(`/students/${id}/remove_tag/`, {
-    tag_id: tagId,
-  });
-  return res.data;
-};
 
 
 ==========================================================================================
@@ -377,8 +343,7 @@ export default function EditStudentModal({
   onSuccess,
 }: Props) {
   const [noPhone, setNoPhone] = useState(
-    initialValue.studentPhone &&
-      /^\d{8}$/.test(initialValue.studentPhone)
+    initialValue.studentPhone && /^\d{8}$/.test(initialValue.studentPhone)
   );
 
   const [form, setForm] = useState({
@@ -403,6 +368,13 @@ export default function EditStudentModal({
     memo: initialValue.memo || "",
     active: !!initialValue.active,
   });
+
+  const inputBase =
+    "w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)]";
+  const inputRequired =
+    "border-2 border-[var(--color-primary)]/70 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
+  const inputNormal =
+    "border border-[var(--border-divider)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
 
   function handleChange(e: any) {
     const { name, value, type, checked } = e.target;
@@ -473,7 +445,7 @@ export default function EditStudentModal({
               placeholder="이름"
               value={form.name}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputRequired}`}
             />
             <div className="flex gap-1">
               <button
@@ -506,22 +478,17 @@ export default function EditStudentModal({
             placeholder="아이디"
             value={form.psNumber}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputRequired}`}
           />
 
           {/* 전화번호 / 식별자 */}
           <div className="flex gap-2 items-center">
             <input
               name={noPhone ? "omrCode" : "studentPhone"}
-              placeholder={
-                noPhone
-                  ? "식별자 (XXXXXXXX)"
-                  : "학생 전화번호 (010XXXXXXXX)"
-              }
+              placeholder={noPhone ? "식별자 (XXXXXXXX)" : "학생 전화번호 (010XXXXXXXX)"}
               value={noPhone ? form.omrCode : form.studentPhone}
               onChange={handleChange}
-              className="flex-1 ro
-              unded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputRequired}`}
             />
             <button
               type="button"
@@ -541,7 +508,7 @@ export default function EditStudentModal({
             placeholder="학부모 전화번호 (010XXXXXXXX)"
             value={form.parentPhone}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputRequired}`}
           />
 
           {/* 학교 */}
@@ -550,9 +517,7 @@ export default function EditStudentModal({
               <button
                 key={t}
                 type="button"
-                onClick={() =>
-                  setForm((p) => ({ ...p, schoolType: t }))
-                }
+                onClick={() => setForm((p) => ({ ...p, schoolType: t }))}
                 className={`flex-1 px-3 py-2 text-sm rounded-md border ${
                   form.schoolType === t
                     ? "bg-[var(--color-primary)] text-white"
@@ -570,7 +535,7 @@ export default function EditStudentModal({
               placeholder="학교명"
               value={form.school}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
             <div className="flex gap-1">
               {["1", "2", "3"].map((g) => (
@@ -596,14 +561,14 @@ export default function EditStudentModal({
               placeholder="반"
               value={form.schoolClass}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
             <input
               name="major"
               placeholder="계열"
               value={form.major}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
           </div>
 
@@ -612,7 +577,7 @@ export default function EditStudentModal({
             placeholder="주소"
             value={form.address}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputNormal}`}
           />
 
           <textarea
@@ -621,7 +586,7 @@ export default function EditStudentModal({
             rows={3}
             value={form.memo}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)] resize-none"
+            className={`w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)] resize-none ${inputNormal}`}
           />
         </div>
 
@@ -684,6 +649,13 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
     memo: "",
     active: true,
   });
+
+  const inputBase =
+    "w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)]";
+  const inputRequired =
+    "border-2 border-[var(--color-primary)]/70 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
+  const inputNormal =
+    "border border-[var(--border-divider)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
 
   function handleChange(e: any) {
     const { name, value, type, checked } = e.target;
@@ -759,7 +731,7 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
               placeholder="이름"
               value={form.name}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputRequired}`}
             />
             <div className="flex gap-1">
               <button
@@ -792,7 +764,7 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
             placeholder="아이디"
             value={form.psNumber}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputRequired}`}
           />
 
           <input
@@ -801,7 +773,7 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
             placeholder="비밀번호"
             value={form.initialPassword}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputRequired}`}
           />
 
           {/* 전화번호 / 식별자 */}
@@ -809,13 +781,11 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
             <input
               name={noPhone ? "omrCode" : "studentPhone"}
               placeholder={
-                noPhone
-                  ? "식별자 (8자리)"
-                  : "학생 전화번호 (010XXXXXXXX)"
+                noPhone ? "식별자 (8자리)" : "학생 전화번호 (010XXXXXXXX)"
               }
               value={noPhone ? form.omrCode : form.studentPhone}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputRequired}`}
             />
             <button
               type="button"
@@ -835,7 +805,7 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
             placeholder="학부모 전화번호 (010XXXXXXXX)"
             value={form.parentPhone}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputRequired}`}
           />
 
           {/* 학교 */}
@@ -844,9 +814,7 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
               <button
                 key={t}
                 type="button"
-                onClick={() =>
-                  setForm((p) => ({ ...p, schoolType: t }))
-                }
+                onClick={() => setForm((p) => ({ ...p, schoolType: t }))}
                 className={`flex-1 px-3 py-2 text-sm rounded-md border ${
                   form.schoolType === t
                     ? "bg-[var(--color-primary)] text-white"
@@ -864,7 +832,7 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
               placeholder="학교명"
               value={form.school}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
             <div className="flex gap-1">
               {["1", "2", "3"].map((g) => (
@@ -890,14 +858,14 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
               placeholder="반"
               value={form.schoolClass}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
             <input
               name="major"
               placeholder="계열"
               value={form.major}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
           </div>
 
@@ -906,7 +874,7 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
             placeholder="주소"
             value={form.address}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputNormal}`}
           />
 
           <textarea
@@ -915,7 +883,7 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
             rows={3}
             value={form.memo}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)] resize-none"
+            className={`w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)] resize-none ${inputNormal}`}
           />
         </div>
 
@@ -976,7 +944,15 @@ export default function StudentFilterModal({
   }
 
   function apply() {
-    onApply(local);
+    const next = { ...local };
+
+    // ✅ 최소 정리: 빈 값은 params에서 제거(운영에서 필수)
+    Object.keys(next).forEach((k) => {
+      const v = next[k];
+      if (v === "" || v == null) delete next[k];
+    });
+
+    onApply(next);
   }
 
   return (
@@ -1017,7 +993,7 @@ export default function StudentFilterModal({
               focus:outline-none
               focus:ring-1
               focus:ring-[var(--color-primary)]"
-            placeholder="학생 전화번호"
+            placeholder="학생 전화번호/식별자"
             value={local.student_phone || ""}
             onChange={(e) => update("student_phone", e.target.value)}
           />
@@ -1050,21 +1026,40 @@ export default function StudentFilterModal({
             onChange={(e) => update("school_class", e.target.value)}
           />
 
-          <select
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            value={local.gender || ""}
-            onChange={(e) => update("gender", e.target.value)}
-          >
-            <option value="">성별 전체</option>
-            <option value="M">남</option>
-            <option value="F">여</option>
-          </select>
+          <div className="flex gap-2">
+            <select
+              className="flex-1 rounded-md px-3 py-2 text-sm
+                border border-[var(--border-divider)]
+                bg-[var(--bg-app)]
+                text-[var(--text-primary)]
+                focus:outline-none
+                focus:ring-1
+                focus:ring-[var(--color-primary)]"
+              value={local.gender || ""}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">성별 전체</option>
+              <option value="M">남</option>
+              <option value="F">여</option>
+            </select>
+
+            {/* ✅ 상태 필터 추가(정렬과 공존) */}
+            <select
+              className="flex-1 rounded-md px-3 py-2 text-sm
+                border border-[var(--border-divider)]
+                bg-[var(--bg-app)]
+                text-[var(--text-primary)]
+                focus:outline-none
+                focus:ring-1
+                focus:ring-[var(--color-primary)]"
+              value={local.is_managed ?? ""}
+              onChange={(e) => update("is_managed", e.target.value)}
+            >
+              <option value="">상태 전체</option>
+              <option value="true">활성</option>
+              <option value="false">비활성</option>
+            </select>
+          </div>
         </div>
 
         {/* Footer */}
@@ -1148,12 +1143,24 @@ export default function StudentsTable({
     const isAsc = sort === key;
     const isDesc = sort === `-${key}`;
 
+    // ✅ 3단 클릭: ASC -> DESC -> 해제
+    const next = isAsc ? `-${key}` : isDesc ? "" : key;
+
     return (
       <th
-        className="px-3 py-2 font-semibold cursor-pointer text-center select-none"
-        onClick={() => onSortChange(isAsc ? `-${key}` : key)}
+        className="
+          px-3 py-2 font-semibold cursor-pointer text-center select-none
+          border-b-2 border-[var(--border-divider)]
+          text-[13px]
+        "
+        onClick={() => onSortChange(next)}
+        title="클릭하여 정렬"
       >
-        {label} {isAsc && "▲"} {isDesc && "▼"}
+        <span className="inline-flex items-center gap-1">
+          {label}
+          {isAsc && <span className="text-[11px]">▲</span>}
+          {isDesc && <span className="text-[11px]">▼</span>}
+        </span>
       </th>
     );
   }
@@ -1169,7 +1176,9 @@ export default function StudentsTable({
           {sortHeader("schoolClass", "반")}
           {sortHeader("registeredAt", "등록일")}
           {sortHeader("active", "상태")}
-          <th className="px-3 py-2 text-center">관리</th>
+          <th className="px-3 py-2 text-center border-b-2 border-[var(--border-divider)] text-[13px]">
+            관리
+          </th>
         </tr>
       </thead>
 
@@ -1187,7 +1196,7 @@ export default function StudentsTable({
             <td className="px-3 py-2 text-center">
               {s.studentPhone && String(s.studentPhone).length === 8 ? (
                 <span className="text-[var(--text-muted)]">
-                  식별자 {highlight(s.studentPhone, search)}
+                  식별자 {highlight(String(s.studentPhone), search)}
                 </span>
               ) : (
                 highlight(s.studentPhone || "-", search)
@@ -1257,6 +1266,16 @@ function compare(a: any, b: any, key: string) {
   if (av == null) return -1;
   if (bv == null) return 1;
 
+  if (key === "registeredAt") {
+    const at = new Date(av || "").getTime();
+    const bt = new Date(bv || "").getTime();
+    return at - bt;
+  }
+
+  if (typeof av === "boolean" && typeof bv === "boolean") {
+    return Number(av) - Number(bv);
+  }
+
   if (typeof av === "number" && typeof bv === "number") {
     return av - bv;
   }
@@ -1264,11 +1283,7 @@ function compare(a: any, b: any, key: string) {
   return String(av).localeCompare(String(bv), "ko");
 }
 
-export function useStudentsQuery(
-  search: string,
-  filters: any,
-  sort: string
-) {
+export function useStudentsQuery(search: string, filters: any, sort: string) {
   return useQuery({
     queryKey: ["students", search, filters, sort],
     queryFn: async () => {
@@ -1372,10 +1387,7 @@ export default function StudentsDetailPage() {
   return (
     <>
       {/* Overlay Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/50"
-        onClick={() => navigate(-1)}
-      />
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={() => navigate(-1)} />
 
       {/* Overlay Card */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
@@ -1440,7 +1452,7 @@ export default function StudentsDetailPage() {
             {/* ================= Layout ================= */}
             <div className="flex gap-6">
               {/* LEFT */}
-              <div className="w-[320px] shrink-0 space-y-4">
+              <div className="w-[340px] shrink-0 space-y-4">
                 <PageSection
                   className="
                     rounded-2xl border border-[var(--border-divider)]
@@ -1453,24 +1465,32 @@ export default function StudentsDetailPage() {
                       기본 정보
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      연락처 · 학교 · 학년
+                      계정 · 연락처 · 학교
                     </div>
                   </div>
 
                   <div className="p-4 space-y-2 text-sm">
-                    <InfoItem label="학부모 전화번호" value={student.parentPhone} />
-                    <InfoItem label="학생 전화번호" value={student.studentPhone} />
+                    <InfoItem label="아이디(PS)" value={student.psNumber} strong />
+                    <InfoItem
+                      label="학생 전화번호/식별자"
+                      value={
+                        student.studentPhone && String(student.studentPhone).length === 8
+                          ? `식별자 ${student.studentPhone}`
+                          : student.studentPhone
+                      }
+                      strong
+                    />
+                    <InfoItem label="학부모 전화번호" value={student.parentPhone} strong />
                     <InfoItem label="성별" value={student.gender} />
                     <InfoItem label="학교" value={student.school} />
+                    <InfoItem label="학년" value={student.grade ? `${student.grade}학년` : null} />
                     <InfoItem label="반" value={student.schoolClass} />
                     <InfoItem label="계열" value={student.major} />
-                    <InfoItem label="학년" value={student.grade} />
+                    <InfoItem label="등록일" value={student.registeredAt?.slice(0, 10)} />
                   </div>
                 </PageSection>
 
-                <PageSection
-                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
-                >
+                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
                   <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">
                       태그
@@ -1518,7 +1538,7 @@ export default function StudentsDetailPage() {
                         if (tagId) addTag.mutate(tagId);
                       }}
                     >
-                      <option value="">태그 추가</option>
+                      <option value="">태그 목록</option>
                       {tags?.map((tag: any) => (
                         <option key={tag.id} value={tag.id}>
                           {tag.name}
@@ -1528,9 +1548,7 @@ export default function StudentsDetailPage() {
                   </div>
                 </PageSection>
 
-                <PageSection
-                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
-                >
+                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
                   <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">
                       메모
@@ -1560,9 +1578,7 @@ export default function StudentsDetailPage() {
 
               {/* RIGHT */}
               <div className="flex-1">
-                <PageSection
-                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
-                >
+                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
                   <div className="px-4 pt-4">
                     <div className="relative mb-4">
                       <div className="flex gap-2 border-b border-[var(--border-divider)]">
@@ -1652,11 +1668,23 @@ export default function StudentsDetailPage() {
 
 /* ================= sub ================= */
 
-function InfoItem({ label, value }: { label: string; value: any }) {
+function InfoItem({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: any;
+  strong?: boolean;
+}) {
   return (
     <div className="flex justify-between gap-3">
       <span className="text-xs text-[var(--text-muted)]">{label}</span>
-      <span className="text-sm font-semibold text-[var(--text-primary)]">
+      <span
+        className={`text-sm text-right ${
+          strong ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-primary)]"
+        }`}
+      >
         {value || "-"}
       </span>
     </div>

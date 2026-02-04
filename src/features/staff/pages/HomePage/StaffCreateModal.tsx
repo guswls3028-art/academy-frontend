@@ -10,7 +10,7 @@ type Props = {
   onClose: () => void;
 };
 
-type Role = "ASSISTANT" | "TEACHER";
+type PermissionRole = "ADMIN" | "TEACHER" | "ASSISTANT" | "OWNER";
 
 export default function StaffCreateModal({ open, onClose }: Props) {
   const qc = useQueryClient();
@@ -20,18 +20,29 @@ export default function StaffCreateModal({ open, onClose }: Props) {
     password: "",
     name: "",
     phone: "",
-    role: "ASSISTANT" as Role,
+    permission_role: "ASSISTANT" as PermissionRole,
   });
 
   const createM = useMutation({
     mutationFn: async () => {
+      /**
+       * 🔒 스펙 단일진실
+       * - backend는 role 필드만 인식
+       * - OWNER는 프론트에서 전송 금지
+       */
+      const role =
+        form.permission_role === "OWNER"
+          ? undefined
+          : form.permission_role;
+
       const res = await api.post("/staffs/", {
         username: form.username,
         password: form.password,
-        role: form.role,
         name: form.name,
-        phone: form.phone,
+        phone: form.phone || undefined,
+        role, // ✅ 핵심 수정
       });
+
       return res.data;
     },
     onSuccess: () => {
@@ -43,7 +54,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
         password: "",
         name: "",
         phone: "",
-        role: "ASSISTANT",
+        permission_role: "ASSISTANT",
       });
     },
     onError: (e: any) => {
@@ -61,7 +72,12 @@ export default function StaffCreateModal({ open, onClose }: Props) {
       open={open}
       onCancel={onClose}
       onOk={() => {
-        if (!form.username || !form.password || !form.name || !form.role) {
+        if (
+          !form.username.trim() ||
+          !form.password.trim() ||
+          !form.name.trim() ||
+          !form.permission_role
+        ) {
           alert("필수 항목을 모두 입력하세요.");
           return;
         }
@@ -76,7 +92,9 @@ export default function StaffCreateModal({ open, onClose }: Props) {
           <input
             className="input"
             value={form.username}
-            onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, username: e.target.value }))
+            }
             placeholder="로그인에 사용됩니다"
           />
         </Field>
@@ -86,7 +104,9 @@ export default function StaffCreateModal({ open, onClose }: Props) {
             type="password"
             className="input"
             value={form.password}
-            onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, password: e.target.value }))
+            }
           />
         </Field>
 
@@ -94,7 +114,9 @@ export default function StaffCreateModal({ open, onClose }: Props) {
           <input
             className="input"
             value={form.name}
-            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, name: e.target.value }))
+            }
           />
         </Field>
 
@@ -102,40 +124,55 @@ export default function StaffCreateModal({ open, onClose }: Props) {
           <input
             className="input"
             value={form.phone}
-            onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, phone: e.target.value }))
+            }
           />
         </Field>
 
-        <Field label="역할 *">
+        <Field label="권한 *">
           <select
             className="input"
-            value={form.role}
+            value={form.permission_role}
             onChange={(e) =>
               setForm((p) => ({
                 ...p,
-                role: e.target.value as Role,
+                permission_role: e.target.value as PermissionRole,
               }))
             }
           >
-            <option value="ASSISTANT">조교 (시급)</option>
-            <option value="TEACHER">강사 (월급 · 관리자)</option>
+            <option value="ASSISTANT">조교 (일반 직원)</option>
+            <option value="TEACHER">강사</option>
+            <option value="ADMIN">관리자</option>
+            <option value="OWNER" disabled>
+              오너 (백엔드 지정)
+            </option>
           </select>
         </Field>
 
-        {form.role === "TEACHER" && (
-          <div className="text-xs text-gray-500">
-            * 강사는 자동으로 관리자 권한이 부여되며 월급제로 설정됩니다.
-          </div>
-        )}
+        <div className="text-xs text-[var(--text-muted)] leading-relaxed">
+          • <b>관리자</b>: 직원 관리 · 승인 · 마감 가능<br />
+          • <b>강사</b>: 강의 담당 (권한은 백엔드 정책에 따름)<br />
+          • <b>조교</b>: 일반 직원<br />
+          • <b>오너</b>: 시스템 전용 (프론트에서 지정 불가)
+        </div>
       </div>
     </Modal>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
+      <div className="text-xs font-medium text-[var(--text-muted)]">
+        {label}
+      </div>
       {children}
     </div>
   );
