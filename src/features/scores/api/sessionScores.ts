@@ -6,7 +6,7 @@
  *
  * ✅ DTO 핵심:
  * - rows[n].exams = 시험 1:N 배열
- * - (변경) rows[n].homeworks = 과제 1:N 배열
+ * - rows[n].homeworks = 과제 1:N 배열
  */
 
 import api from "@/shared/api/axios";
@@ -19,6 +19,11 @@ export type ScoreBlock = {
 
   is_locked?: boolean;
   lock_reason?: string | null;
+
+  // ✅ 확장(옵셔널, 계약 파괴 없음): 서버가 내려주는 meta.status 소비
+  meta?: {
+    status?: string | null; // "NOT_SUBMITTED" | null
+  } | null;
 };
 
 export type SessionScoreExamEntry = {
@@ -41,7 +46,7 @@ export type SessionScoreRow = {
   // 시험 1:N
   exams: SessionScoreExamEntry[];
 
-  // ✅ 과제 1:N
+  // 과제 1:N
   homeworks: SessionScoreHomeworkEntry[];
 
   updated_at: string;
@@ -54,7 +59,6 @@ export type SessionScoreMeta = {
     pass_score: number;
   }[];
 
-  // ✅ 과제 1:N
   homeworks: {
     homework_id: number;
     title: string;

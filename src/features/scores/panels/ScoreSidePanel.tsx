@@ -2,6 +2,7 @@
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import ExamStatusChip from "../components/ExamStatusChip";
+import { getHomeworkStatus } from "../utils/homeworkStatus";
 
 type Props = {
   sessionId: number;
@@ -32,7 +33,13 @@ function failReasons(row: SessionScoreRow) {
     .map((e) => e.title);
 
   const failedHomework = row.homeworks
-    .filter((h) => h.block.passed === false)
+    .filter((h) => {
+      const st = getHomeworkStatus({
+        score: h.block.score,
+        metaStatus: h.block.meta?.status ?? null,
+      });
+      return st === "NOT_SUBMITTED" || h.block.passed === false;
+    })
     .map((h) => h.title);
 
   return [...failedExams, ...failedHomework];
@@ -40,7 +47,13 @@ function failReasons(row: SessionScoreRow) {
 
 function reasonType(row: SessionScoreRow) {
   const examFail = row.exams.some((e) => e.block.passed === false);
-  const hwFail = row.homeworks.some((h) => h.block.passed === false);
+  const hwFail = row.homeworks.some((h) => {
+    const st = getHomeworkStatus({
+      score: h.block.score,
+      metaStatus: h.block.meta?.status ?? null,
+    });
+    return st === "NOT_SUBMITTED" || h.block.passed === false;
+  });
 
   if (examFail && hwFail) return "시험 + 과제";
   if (examFail) return "시험";
@@ -91,15 +104,27 @@ export default function ScoreSidePanel({
       <div className="mb-4">
         <div className="mb-1 text-xs font-semibold text-muted">과제</div>
         <div className="flex flex-wrap gap-1">
-          {homeworks.map((h) => (
-            <ExamStatusChip
-              key={h.homework_id}
-              label={h.title}
-              passed={h.block.passed}
-              onClick={() => onSelectHomework?.(h.homework_id)}
-              active={activeColumn === "homework" && h.homework_id === homeworkId}
-            />
-          ))}
+          {homeworks.map((h) => {
+            const st = getHomeworkStatus({
+              score: h.block.score,
+              metaStatus: h.block.meta?.status ?? null,
+            });
+
+            const chipPassed =
+              st === "NOT_SUBMITTED" ? false : h.block.passed;
+
+            const label = st === "NOT_SUBMITTED" ? `${h.title} (미제출)` : h.title;
+
+            return (
+              <ExamStatusChip
+                key={h.homework_id}
+                label={label}
+                passed={chipPassed}
+                onClick={() => onSelectHomework?.(h.homework_id)}
+                active={activeColumn === "homework" && h.homework_id === homeworkId}
+              />
+            );
+          })}
         </div>
       </div>
 

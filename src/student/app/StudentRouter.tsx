@@ -1,14 +1,4 @@
-// src/student/app/StudentRouter.tsx
-/**
- * ✅ StudentRouter (LOCK v1)
- * - 학생 앱 라우팅
- * - 레거시 student/pages 전부 무시하고, domains 기반으로 새로 구성
- *
- * 원칙:
- * - student 라우팅은 domains/pages만 바라본다
- * - features의 화면 컴포넌트를 직접 import 하지 않는다 (공용 훅/유틸은 OK)
- */
-
+// PATH: C:\academyfront\src\student\app\StudentRouter.tsx
 import { Navigate, Route, Routes } from "react-router-dom";
 import StudentLayout from "@/student/app/StudentLayout";
 
@@ -25,6 +15,9 @@ import ExamResultPage from "@/student/domains/exams/pages/ExamResultPage";
 import GradesPage from "@/student/domains/grades/pages/GradesPage";
 import QnaPage from "@/student/domains/qna/pages/QnaPage";
 
+// ✅ NEW
+import MediaPlayerPage from "@/student/domains/media/pages/MediaPlayerPage";
+
 export default function StudentRouter() {
   return (
     <Routes>
@@ -37,6 +30,9 @@ export default function StudentRouter() {
         {/* ✅ Sessions (허브) */}
         <Route path="sessions" element={<SessionListPage />} />
         <Route path="sessions/:sessionId" element={<SessionDetailPage />} />
+
+        {/* ✅ Media (실제 재생) */}
+        <Route path="media" element={<MediaPlayerPage />} />
 
         {/* ✅ Exams */}
         <Route path="exams" element={<ExamListPage />} />
