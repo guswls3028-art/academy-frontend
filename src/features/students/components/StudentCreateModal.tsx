@@ -9,19 +9,27 @@ interface Props {
 }
 
 export default function StudentCreateModal({ onClose, onSuccess }: Props) {
+  const [noPhone, setNoPhone] = useState(false);
+
   const [form, setForm] = useState({
     name: "",
-    studentPhone: "",
+    gender: "",
+
+    psNumber: "",
     initialPassword: "",
 
+    studentPhone: "",
+    omrCode: "",
+
     parentPhone: "",
+
     schoolType: "HIGH",
     school: "",
+    grade: "",
     schoolClass: "",
     major: "",
 
-    grade: "",
-    gender: "",
+    address: "",
     memo: "",
     active: true,
   });
@@ -35,23 +43,42 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
   }
 
   async function handleSubmit() {
-    // ✅ 최소 수정: 백엔드 validate_phone / initial_password 조건 충족 (빈값 방지)
-    if (!form.studentPhone || !String(form.studentPhone).trim()) {
-      alert("학생 전화번호는 필수입니다.");
+    if (!form.name.trim()) {
+      alert("이름은 필수입니다.");
       return;
     }
 
-    if (!form.initialPassword || String(form.initialPassword).trim().length < 4) {
-      alert("초기 비밀번호는 4자 이상 필수입니다.");
+    if (!form.psNumber.trim()) {
+      alert("PS 번호는 필수입니다.");
+      return;
+    }
+
+    if (!form.initialPassword || form.initialPassword.trim().length < 4) {
+      alert("비밀번호는 4자 이상 필수입니다.");
+      return;
+    }
+
+    if (noPhone) {
+      if (!/^\d{8}$/.test(form.omrCode)) {
+        alert("식별자는 숫자 8자리입니다.");
+        return;
+      }
+    } else {
+      if (!/^010\d{8}$/.test(form.studentPhone)) {
+        alert("학생 전화번호는 010XXXXXXXX 형식입니다.");
+        return;
+      }
+    }
+
+    if (!/^010\d{8}$/.test(form.parentPhone)) {
+      alert("학부모 전화번호는 010XXXXXXXX 형식입니다.");
       return;
     }
 
     try {
       await createStudent({
         ...form,
-        // ✅ 빈 문자열이 서버로 넘어가면 DRF validation에서 걸릴 수 있어서 trim만 적용(필수 필드만)
-        studentPhone: String(form.studentPhone).trim(),
-        initialPassword: String(form.initialPassword).trim(),
+        noPhone,
       });
 
       onSuccess();
@@ -64,190 +91,172 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[420px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
+      <div className="w-[520px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
         {/* Header */}
         <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
           <h2 className="text-sm font-semibold text-[var(--text-primary)]">
             학생 등록
           </h2>
-          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-            기본 정보 입력 후 생성
-          </div>
         </div>
 
         {/* Body */}
-        <div className="px-5 py-4 space-y-2 max-h-[70vh] overflow-y-auto">
-          <input
-            name="name"
-            placeholder="이름"
-            value={form.name}
-            onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-          />
+        <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
+          {/* 이름 / 성별 */}
+          <div className="flex gap-2">
+            <input
+              name="name"
+              placeholder="이름"
+              value={form.name}
+              onChange={handleChange}
+              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            />
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, gender: "M" }))}
+                className={`px-3 py-2 text-sm rounded-md border ${
+                  form.gender === "M"
+                    ? "bg-blue-500 text-white border-blue-500"
+                    : "border-[var(--border-divider)]"
+                }`}
+              >
+                남자
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, gender: "F" }))}
+                className={`px-3 py-2 text-sm rounded-md border ${
+                  form.gender === "F"
+                    ? "bg-pink-500 text-white border-pink-500"
+                    : "border-[var(--border-divider)]"
+                }`}
+              >
+                여자
+              </button>
+            </div>
+          </div>
 
           <input
-            name="studentPhone"
-            placeholder="학생 전화번호 (ID)"
-            value={form.studentPhone}
+            name="psNumber"
+            placeholder="아이디"
+            value={form.psNumber}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
+            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
           />
 
           <input
             name="initialPassword"
             type="password"
-            placeholder="초기 비밀번호"
+            placeholder="비밀번호"
             value={form.initialPassword}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
+            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
           />
-          <div className="text-xs text-[var(--text-muted)]">
-            * 초기 비밀번호 (학생이 로그인 후 변경 가능)
+
+          {/* 전화번호 / 식별자 */}
+          <div className="flex gap-2 items-center">
+            <input
+              name={noPhone ? "omrCode" : "studentPhone"}
+              placeholder={
+                noPhone
+                  ? "식별자 (8자리)"
+                  : "학생 전화번호 (010XXXXXXXX)"
+              }
+              value={noPhone ? form.omrCode : form.studentPhone}
+              onChange={handleChange}
+              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            />
+            <button
+              type="button"
+              onClick={() => setNoPhone((v) => !v)}
+              className={`px-3 py-2 text-sm rounded-md border ${
+                noPhone
+                  ? "bg-[var(--color-primary)] text-white"
+                  : "border-[var(--border-divider)]"
+              }`}
+            >
+              없음(식별자)
+            </button>
           </div>
 
           <input
             name="parentPhone"
-            placeholder="학부모 전화번호"
+            placeholder="학부모 전화번호 (010XXXXXXXX)"
             value={form.parentPhone}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
+            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
           />
 
-          {/* School Type */}
-          <div className="flex gap-4 text-sm text-[var(--text-primary)]">
-            <label className="flex items-center gap-1">
-              <input
-                type="radio"
-                name="schoolType"
-                value="HIGH"
-                checked={form.schoolType === "HIGH"}
-                onChange={handleChange}
-              />
-              고등
-            </label>
-            <label className="flex items-center gap-1">
-              <input
-                type="radio"
-                name="schoolType"
-                value="MIDDLE"
-                checked={form.schoolType === "MIDDLE"}
-                onChange={handleChange}
-              />
-              중등
-            </label>
+          {/* 학교 */}
+          <div className="flex gap-2">
+            {["HIGH", "MIDDLE"].map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() =>
+                  setForm((p) => ({ ...p, schoolType: t }))
+                }
+                className={`flex-1 px-3 py-2 text-sm rounded-md border ${
+                  form.schoolType === t
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "border-[var(--border-divider)]"
+                }`}
+              >
+                {t === "HIGH" ? "고등학교" : "중학교"}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              name="school"
+              placeholder="학교명"
+              value={form.school}
+              onChange={handleChange}
+              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            />
+            <div className="flex gap-1">
+              {["1", "2", "3"].map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, grade: g }))}
+                  className={`px-3 py-2 text-sm rounded-md border ${
+                    form.grade === g
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "border-[var(--border-divider)]"
+                  }`}
+                >
+                  {g}학년
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              name="schoolClass"
+              placeholder="반"
+              value={form.schoolClass}
+              onChange={handleChange}
+              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            />
+            <input
+              name="major"
+              placeholder="계열"
+              value={form.major}
+              onChange={handleChange}
+              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            />
           </div>
 
           <input
-            name="school"
-            placeholder={form.schoolType === "HIGH" ? "고등학교 이름" : "중학교 이름"}
-            value={form.school}
+            name="address"
+            placeholder="주소"
+            value={form.address}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
+            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
           />
-
-          {form.schoolType === "HIGH" && (
-            <>
-              <input
-                name="schoolClass"
-                placeholder="반"
-                value={form.schoolClass}
-                onChange={handleChange}
-                className="w-full rounded-md px-3 py-2 text-sm
-                  border border-[var(--border-divider)]
-                  bg-[var(--bg-app)]
-                  text-[var(--text-primary)]
-                  placeholder:text-[var(--text-muted)]
-                  focus:outline-none
-                  focus:ring-1
-                  focus:ring-[var(--color-primary)]"
-              />
-
-              <input
-                name="major"
-                placeholder="계열"
-                value={form.major}
-                onChange={handleChange}
-                className="w-full rounded-md px-3 py-2 text-sm
-                  border border-[var(--border-divider)]
-                  bg-[var(--bg-app)]
-                  text-[var(--text-primary)]
-                  placeholder:text-[var(--text-muted)]
-                  focus:outline-none
-                  focus:ring-1
-                  focus:ring-[var(--color-primary)]"
-              />
-            </>
-          )}
-
-          <select
-            name="grade"
-            value={form.grade}
-            onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-          >
-            <option value="">학년 선택</option>
-            <option value="1">1학년</option>
-            <option value="2">2학년</option>
-            <option value="3">3학년</option>
-          </select>
-
-          <select
-            name="gender"
-            value={form.gender}
-            onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-          >
-            <option value="">성별 선택</option>
-            <option value="M">남</option>
-            <option value="F">여</option>
-          </select>
 
           <textarea
             name="memo"
@@ -255,45 +264,21 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
             rows={3}
             value={form.memo}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm resize-none
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
+            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)] resize-none"
           />
-
-          <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
-            <input
-              type="checkbox"
-              name="active"
-              checked={form.active}
-              onChange={handleChange}
-            />
-            활성 여부
-          </label>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface)]">
+        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)]">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-md
-              border border-[var(--border-divider)]
-              text-[var(--text-secondary)]
-              hover:bg-[var(--bg-surface-soft)]"
+            className="px-3 py-1.5 text-sm rounded-md border border-[var(--border-divider)]"
           >
             취소
           </button>
-
           <button
             onClick={handleSubmit}
-            className="px-3 py-1.5 text-sm rounded-md
-              bg-[var(--color-primary)]
-              text-white
-              hover:opacity-90"
+            className="px-3 py-1.5 text-sm rounded-md bg-[var(--color-primary)] text-white"
           >
             등록
           </button>

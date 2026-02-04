@@ -10,6 +10,9 @@ export interface ClientStudent {
   id: number;
   name: string;
 
+  psNumber: string;
+  omrCode: string;
+
   studentPhone: string | null;
   parentPhone: string | null;
 
@@ -43,6 +46,14 @@ export interface ClientStudent {
  * =============================== */
 
 function mapStudent(item: any): ClientStudent {
+  const phone = item.phone ?? null;
+  const omrCode = item.omr_code ?? "";
+
+  const displayPhone =
+    phone && phone.startsWith("010") && phone.slice(3) === omrCode
+      ? omrCode
+      : phone;
+
   const schoolType: "MIDDLE" | "HIGH" | null =
     item.school_type ??
     (item.middle_school ? "MIDDLE" : item.high_school ? "HIGH" : null);
@@ -51,7 +62,10 @@ function mapStudent(item: any): ClientStudent {
     id: item.id,
     name: item.name,
 
-    studentPhone: item.phone ?? null,
+    psNumber: item.ps_number,
+    omrCode,
+
+    studentPhone: displayPhone,
     parentPhone: item.parent_phone ?? null,
 
     school: item.high_school ?? item.middle_school ?? null,
@@ -111,26 +125,28 @@ export async function getStudentDetail(id: number) {
  * =============================== */
 
 export async function createStudent(form: any) {
-  const schoolType =
-    form.schoolType === "MIDDLE" || form.schoolType === "HIGH"
-      ? form.schoolType
-      : "HIGH";
+  const phone =
+    form.noPhone === true
+      ? `010${form.omrCode}`
+      : String(form.studentPhone).trim();
 
   const payload = {
     name: form.name,
-    phone: form.studentPhone,
+    ps_number: form.psNumber,
+    phone,
+    omr_code: phone.slice(-8),
     initial_password: form.initialPassword,
 
-    parent_phone: form.parentPhone || null,
+    parent_phone: form.parentPhone,
 
-    school_type: schoolType,
-    high_school: schoolType === "HIGH" ? form.school || null : null,
-    middle_school: schoolType === "MIDDLE" ? form.school || null : null,
+    school_type: form.schoolType,
+    high_school: form.schoolType === "HIGH" ? form.school || null : null,
+    middle_school: form.schoolType === "MIDDLE" ? form.school || null : null,
 
     high_school_class:
-      schoolType === "HIGH" ? form.schoolClass || null : null,
+      form.schoolType === "HIGH" ? form.schoolClass || null : null,
 
-    major: schoolType === "HIGH" ? form.major || null : null,
+    major: form.schoolType === "HIGH" ? form.major || null : null,
 
     grade: form.grade ? Number(form.grade) : null,
     gender: form.gender || null,
@@ -159,7 +175,7 @@ export async function updateStudent(id: number, form: any) {
 }
 
 /* ===============================
- * 🔥 TOGGLE ACTIVE (문제의 핵심)
+ * TOGGLE ACTIVE
  * =============================== */
 
 export async function toggleStudentActive(
