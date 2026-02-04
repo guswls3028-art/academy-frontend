@@ -160,15 +160,45 @@ export async function createStudent(form: any) {
 }
 
 /* ===============================
- * UPDATE
+ * UPDATE  (✅ 최소 수정)
  * =============================== */
 
 export async function updateStudent(id: number, form: any) {
-  const payload = {
-    ...form,
+  const phone =
+    form.noPhone === true
+      ? `010${form.omrCode}`
+      : form.studentPhone
+      ? String(form.studentPhone).trim()
+      : undefined;
+
+  const payload: any = {
     grade: form.grade ? Number(form.grade) : null,
+    gender: form.gender ?? null,
+    parent_phone: form.parentPhone ?? null,
+    memo: form.memo ?? null,
     is_managed: !!form.active,
   };
+
+  if (phone) {
+    payload.phone = phone;
+    payload.omr_code = phone.slice(-8);
+  }
+
+  if (form.psNumber !== undefined) {
+    payload.ps_number = form.psNumber;
+  }
+
+  if (form.schoolType) {
+    payload.school_type = form.schoolType;
+    payload.high_school =
+      form.schoolType === "HIGH" ? form.school || null : null;
+    payload.middle_school =
+      form.schoolType === "MIDDLE" ? form.school || null : null;
+    payload.high_school_class =
+      form.schoolType === "HIGH" ? form.schoolClass || null : null;
+    payload.major =
+      form.schoolType === "HIGH" ? form.major || null : null;
+  }
 
   const res = await api.patch(`/students/${id}/`, payload);
   return mapStudent(res.data);
