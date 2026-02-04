@@ -12,8 +12,8 @@ import {
   StudentVideoListItem,
 } from "@/student/domains/media/api/media";
 
-// ✅ 이미 프로젝트에 존재하는 "진짜 학생 플레이어"
-import StudentVideoPlayer from "@/student/domains/media/playback/player/StudentVideoPlayer";
+import StudentVideoPlayer from
+  "@student/domains/media/playback/player/StudentVideoPlayer";
 
 function Pill({
   tone,

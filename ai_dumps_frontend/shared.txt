@@ -84,6 +84,28 @@ export default api;
 
 
 ==========================================================================================
+# FILE: constants/SiteContext.tsx
+==========================================================================================
+import { createContext, useContext } from "react";
+import { getSiteType, SiteType } from "@/shared/utils/site";
+
+const SiteContext = createContext<SiteType>("hakwonplus");
+
+export function SiteProvider({ children }: { children: React.ReactNode }) {
+  const site = getSiteType();
+  return (
+    <SiteContext.Provider value={site}>
+      {children}
+    </SiteContext.Provider>
+  );
+}
+
+export function useSite() {
+  return useContext(SiteContext);
+}
+
+
+==========================================================================================
 # FILE: constants/api.ts
 ==========================================================================================
 // src/shared/constants/api.ts
