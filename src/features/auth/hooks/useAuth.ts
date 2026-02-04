@@ -1,4 +1,4 @@
-// src/features/auth/hooks/useAuth.ts
+// PATH: src/features/auth/hooks/useAuth.ts
 import { useAuthContext } from "@/features/auth/context/AuthContext";
 
 export default function useAuth() {

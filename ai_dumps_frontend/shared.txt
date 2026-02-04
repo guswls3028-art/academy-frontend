@@ -15,6 +15,7 @@
 ==========================================================================================
 // PATH: src/shared/api/axios.ts
 import axios from "axios";
+import { resolveTenantCode } from "@/shared/constants/tenant";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -27,15 +28,16 @@ const api = axios.create({
 });
 
 // ============================
-// ✅ MULTI TENANT (FIX)
-// - 하드코딩 제거, 요청 시 localStorage 또는 기타 로직 기반
+// ✅ MULTI TENANT (FINAL / SSOT)
+// - tenant는 localStorage ❌
+// - domain → tenant code 단일 진실
 // ============================
 api.interceptors.request.use((config) => {
-  const tenant = localStorage.getItem("tenant") || undefined;
-  if (tenant) {
-    config.headers = config.headers ?? {};
-    config.headers["X-Tenant-Code"] = tenant;
-  }
+  config.headers = config.headers ?? {};
+
+  // ✅ tenant code: default | 2_limglish
+  config.headers["X-Tenant-Code"] = resolveTenantCode();
+
   return config;
 });
 
@@ -69,7 +71,7 @@ api.interceptors.response.use(
 
       const refresh = localStorage.getItem("refresh");
       if (!refresh) {
-        return Promise.reject(error); // ❌ 여기서도 redirect 금지
+        return Promise.reject(error);
       }
 
       try {
@@ -126,6 +128,23 @@ export function useSite() {
 export const API = {
   ATTENDANCE: "/lectures/attendance/",
 };
+
+
+==========================================================================================
+# FILE: constants/tenant.ts
+==========================================================================================
+// PATH: src/shared/constants/tenant.ts
+export type TenantCode = "default" | "2_limglish";
+
+export function resolveTenantCode(): TenantCode {
+  const host = window.location.hostname;
+
+  if (host === "limglish.kr" || host === "www.limglish.kr") {
+    return "2_limglish";
+  }
+
+  return "default";
+}
 
 
 ==========================================================================================

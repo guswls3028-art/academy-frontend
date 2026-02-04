@@ -1,7 +1,13 @@
 // ====================================================================================================
 // PATH: src/features/auth/context/AuthContext.tsx
 // ====================================================================================================
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import api from "@/shared/api/axios";
 
 export interface User {
@@ -10,6 +16,9 @@ export interface User {
   email?: string;
   is_staff: boolean;
   is_superuser?: boolean;
+
+  // ✅ 멀티테넌트 역할 (ProtectedRoute에서 사용)
+  tenantRole?: "owner" | "admin" | "teacher" | "staff" | "student" | "parent";
 }
 
 type AuthState = {
@@ -33,9 +42,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshMe = async () => {
     const access = localStorage.getItem("access");
-    const tenantCode = localStorage.getItem("tenant_code");
 
-    if (!access || !tenantCode) {
+    // ✅ access 토큰만 체크 (tenant는 interceptor에서 처리)
+    if (!access) {
       setUser(null);
       return;
     }
@@ -45,17 +54,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(res.data);
     } catch (err: any) {
       const status = err?.response?.status;
-      // ✅ 토큰 불량일 때만 로그아웃
       if (status === 401 || status === 403) {
         clearAuth();
-      } else {
-        // 네트워크 일시 오류 등은 user 상태 유지
       }
       throw err;
     }
   };
 
-  // ✅ 앱 시작 시 딱 1번만 호출
+  // ✅ 앱 시작 시 1회 실행
   useEffect(() => {
     (async () => {
       try {
@@ -82,6 +88,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuthContext() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuthContext must be used within AuthProvider");
+  if (!ctx) {
+    throw new Error("useAuthContext must be used within AuthProvider");
+  }
   return ctx;
 }

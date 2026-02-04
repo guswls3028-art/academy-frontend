@@ -1,7 +1,6 @@
-// ====================================================================================================
 // PATH: src/shared/api/axios.ts
-// ====================================================================================================
 import axios from "axios";
+import { resolveTenantCode } from "@/shared/constants/tenant";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
@@ -14,15 +13,16 @@ const api = axios.create({
 });
 
 // ============================
-// ✅ MULTI TENANT (FIX)
-// - localStorage key SSOT: tenant_code
+// ✅ MULTI TENANT (FINAL / SSOT)
+// - tenant는 localStorage ❌
+// - domain → tenant code 단일 진실
 // ============================
 api.interceptors.request.use((config) => {
-  const tenantCode = localStorage.getItem("tenant_code");
-  if (tenantCode) {
-    config.headers = config.headers ?? {};
-    config.headers["X-Tenant-Code"] = tenantCode;
-  }
+  config.headers = config.headers ?? {};
+
+  // ✅ tenant code: default | 2_limglish
+  config.headers["X-Tenant-Code"] = resolveTenantCode();
+
   return config;
 });
 
@@ -56,7 +56,7 @@ api.interceptors.response.use(
 
       const refresh = localStorage.getItem("refresh");
       if (!refresh) {
-        return Promise.reject(error); // ❌ 여기서도 redirect 금지
+        return Promise.reject(error);
       }
 
       try {
