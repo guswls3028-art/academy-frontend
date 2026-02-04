@@ -1,12 +1,20 @@
-// ======================================================================================
-// FILE: src/features/materials/api/sheets.ts  (ADD)
-// ======================================================================================
+// PATH: src/features/materials/api/sheets.ts
 import api from "@/shared/api/axios";
 
 export type SheetEntity = {
-  id: number;
+  id: number; // ✅ backend Exam.id (template/regular)
   title?: string | null;
+  description?: string | null;
+  subject?: string | null;
+  exam_type?: "template" | "regular";
+  is_active?: boolean | null;
+  allow_retake?: boolean | null;
+  max_attempts?: number | null;
+  pass_score?: number | null;
+  open_at?: string | null;
+  close_at?: string | null;
   created_at?: string | null;
+  updated_at?: string | null;
 };
 
 function normalizeList(data: any): SheetEntity[] {
@@ -17,11 +25,13 @@ function normalizeList(data: any): SheetEntity[] {
 }
 
 /**
- * materials(단일진실) 내부에서 "시험지 상품"을 조회/생성한다.
- * - 백엔드 엔드포인트가 /exams/ 라도 프론트 도메인 경계는 유지한다.
+ * materials(단일진실) 내부에서 "시험지 상품(=template exam)"을 조회/생성한다.
+ * - 백엔드 엔드포인트는 /exams/
+ * - SSOT: template exam이 Sheet/Question/AnswerKey/Asset의 단일 진실
  */
 export async function listSheets(): Promise<SheetEntity[]> {
-  const res = await api.get("/exams/");
+  // template만 자료실에 노출
+  const res = await api.get("/exams/", { params: { exam_type: "template" } });
   return normalizeList(res.data);
 }
 
@@ -33,18 +43,17 @@ export async function getSheet(sheetId: number): Promise<SheetEntity | null> {
 
 export async function createSheet(input: {
   title: string;
-  questionCount: 10 | 20 | 30;
-  mode: "preset" | "custom";
+  subject: string; // ✅ template 생성에는 subject 필수 (백엔드 계약)
+  description?: string;
 }): Promise<SheetEntity> {
   const res = await api.post("/exams/", {
     title: input.title,
-    question_count: input.questionCount,
-    mode: input.mode,
+    description: input.description ?? "",
+    subject: input.subject,
+    exam_type: "template",
   });
 
   const data = res.data as any;
-  if (!data?.id) {
-    throw new Error("시험지 생성 실패");
-  }
+  if (!data?.id) throw new Error("시험지 생성 실패");
   return data as SheetEntity;
 }

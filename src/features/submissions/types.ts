@@ -1,11 +1,10 @@
-// --------------------------------------------------
-// Submission 공통 타입 (Backend 1:1 계약)
-// --------------------------------------------------
+// PATH: src/features/submissions/types.ts
 
 export type SubmissionStatus =
   | "submitted"
   | "dispatched"
   | "extracting"
+  | "needs_identification" // ✅ 추가
   | "answers_ready"
   | "grading"
   | "done"
@@ -19,13 +18,10 @@ export type SubmissionSource =
   | "homework_video"
   | "ai_match";
 
-export type SubmissionTargetType =
-  | "exam"
-  | "homework";
+export type SubmissionTargetType = "exam" | "homework";
 
 /**
  * ✅ Backend Submission 모델과 1:1 대응
- * ❗ 이 타입 기준으로 polling / retry / admin UX 전부 동작
  */
 export type Submission = {
   id: number;

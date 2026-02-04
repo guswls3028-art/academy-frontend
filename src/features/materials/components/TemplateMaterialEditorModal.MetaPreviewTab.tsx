@@ -1,64 +1,35 @@
 // PATH: src/features/materials/components/TemplateMaterialEditorModal.MetaPreviewTab.tsx
-// WHY:
-// OMR 채점 엔진이 소비하는 구조 정보(meta)를 운영자가 직접 확인할 수 있게 한다.
-// PDF와 1:1 대응되는 데이터임을 명확히 하여 오해를 방지한다.
-// 읽기 전용, 복사 가능, 수정 불가가 핵심이다.
-
-import { useEffect, useState } from "react";
+// NOTE:
+// - objective_v1 meta 직접 조회 endpoint는 현재 assets에 존재하지 않는다.
+// - 메타는 OMR 생성 시점에 외부/워커에서 생성되어 소비된다.
+// - 이 탭은 유지하되, 스펙 안내 + TODO로 대체한다.
 
 export function MetaPreviewTab() {
-  const [questionCount, setQuestionCount] = useState<number>(10);
-  const [data, setData] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setError(null);
-        const res = await fetch(
-          `/api/v1/assets/omr/objective/meta/?question_count=${questionCount}`,
-          { credentials: "include" }
-        );
-        if (!res.ok) throw new Error(await res.text());
-        const json = await res.json();
-        if (alive) setData(json);
-      } catch (e: any) {
-        if (alive) setError(e.message || "meta 조회 실패");
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [questionCount]);
-
   return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        {[10, 20, 30].map((qc) => (
-          <button
-            key={qc}
-            onClick={() => setQuestionCount(qc)}
-            className={`px-2 py-1 border rounded ${
-              questionCount === qc ? "bg-black text-white" : ""
-            }`}
-          >
-            {qc}
-          </button>
-        ))}
+    <div className="space-y-4">
+      <div className="rounded border bg-yellow-50 p-4 text-sm">
+        <div className="font-semibold mb-1">OMR 메타데이터 (안내)</div>
+        <ul className="list-disc ml-5 space-y-1">
+          <li>
+            현재 스펙에서 <b>assets는 메타를 생성/계산하지 않습니다.</b>
+          </li>
+          <li>
+            메타는 OMR PDF와 1:1 대응되는 외부 산출물로,
+            채점/인식 파이프라인에서 소비됩니다.
+          </li>
+          <li>
+            프론트에서 임의 생성·추정·가공은 금지됩니다.
+          </li>
+        </ul>
       </div>
 
-      <p className="text-xs text-gray-600">
-        이 정보는 OMR 채점 엔진이 사용하는 구조 정보입니다. 수정할 수 없습니다.
-      </p>
-
-      {error && <div className="text-sm text-red-600">{error}</div>}
-
-      {data && (
-        <pre className="text-xs bg-gray-100 p-3 rounded overflow-auto max-h-[400px]">
-{JSON.stringify(data, null, 2)}
-        </pre>
-      )}
+      <div className="rounded border p-4 text-sm text-gray-600">
+        <div className="font-semibold mb-1">TODO</div>
+        <ul className="list-disc ml-5 space-y-1">
+          <li>exams/submissions에서 확정된 meta read-only 조회 연결</li>
+          <li>PDF 자산과 연결된 meta 버전 표시</li>
+        </ul>
+      </div>
     </div>
   );
 }

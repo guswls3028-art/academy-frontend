@@ -113,6 +113,35 @@ export async function patchExamItemScore(params: {
 
 
 ==========================================================================================
+# FILE: api/pollingSubmission.ts
+==========================================================================================
+import api from "@/shared/api/axios";
+
+export type SubmissionStatus =
+  | "SUBMITTED"
+  | "PROCESSING"
+  | "ANSWERS_READY"
+  | "NEEDS_IDENTIFICATION"
+  | "GRADED"
+  | "FAILED";
+
+export type SubmissionDTO = {
+  id: number;
+  status: SubmissionStatus;
+  enrollment_id: number | null;
+  target_id: number;
+  meta: any;
+  error_message: string | null;
+  updated_at: string;
+};
+
+export async function fetchSubmission(submissionId: number) {
+  const res = await api.get(`/submissions/${submissionId}/`);
+  return res.data as SubmissionDTO;
+}
+
+
+==========================================================================================
 # FILE: api/sessionScores.ts
 ==========================================================================================
 // PATH: src/features/scores/api/sessionScores.ts
@@ -1068,6 +1097,105 @@ type Props = {
 
 export default function ScoresTableExtended(props: Props) {
   return <ScoresTable {...props} />;
+}
+
+
+==========================================================================================
+# FILE: components/SubmissionStatusBadge.tsx
+==========================================================================================
+type Props = {
+  status: string;
+};
+
+export default function SubmissionStatusBadge({ status }: Props) {
+  const base =
+    "inline-flex rounded px-2 py-0.5 text-xs font-semibold";
+
+  switch (status) {
+    case "PROCESSING":
+      return <span className={`${base} bg-blue-100 text-blue-700`}>AI 처리중</span>;
+    case "ANSWERS_READY":
+      return <span className={`${base} bg-amber-100 text-amber-700`}>답안 확인</span>;
+    case "NEEDS_IDENTIFICATION":
+      return <span className={`${base} bg-red-100 text-red-700`}>식별 필요</span>;
+    case "GRADED":
+      return <span className={`${base} bg-emerald-100 text-emerald-700`}>채점 완료</span>;
+    case "FAILED":
+      return <span className={`${base} bg-gray-200 text-gray-600`}>실패</span>;
+    default:
+      return <span className={`${base} bg-gray-100 text-gray-500`}>{status}</span>;
+  }
+}
+
+
+==========================================================================================
+# FILE: pages/ExamOmrWorkspace.tsx
+==========================================================================================
+import { useState } from "react";
+import SessionScoresPanel from "../panels/SessionScoresPanel";
+import OmrSubmissionPanel from "../panels/OmrSubmissionPanel";
+
+export default function ExamOmrWorkspace({
+  sessionId,
+}: {
+  sessionId: number;
+}) {
+  const [submissionId, setSubmissionId] = useState<number | null>(null);
+
+  return (
+    <div className="space-y-4">
+      {submissionId && (
+        <OmrSubmissionPanel submissionId={submissionId} />
+      )}
+
+      <SessionScoresPanel sessionId={sessionId} />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/OmrSubmissionPanel.tsx
+==========================================================================================
+import { useQuery } from "@tanstack/react-query";
+import { fetchSubmission } from "../api/pollingSubmission";
+import SubmissionStatusBadge from "../components/SubmissionStatusBadge";
+
+export default function OmrSubmissionPanel({
+  submissionId,
+}: {
+  submissionId: number;
+}) {
+  const { data } = useQuery({
+    queryKey: ["submission", submissionId],
+    queryFn: () => fetchSubmission(submissionId),
+    refetchInterval: 2000, // ✅ polling only
+  });
+
+  if (!data) return null;
+
+  return (
+    <div className="card p-4 space-y-2">
+      <div className="flex justify-between">
+        <div className="font-semibold">
+          OMR 제출 #{submissionId}
+        </div>
+        <SubmissionStatusBadge status={data.status} />
+      </div>
+
+      {data.status === "NEEDS_IDENTIFICATION" && (
+        <div className="text-sm text-red-600">
+          학생 식별이 필요합니다 (휴대폰 번호 기준)
+        </div>
+      )}
+
+      {data.error_message && (
+        <div className="text-sm text-red-500">
+          {data.error_message}
+        </div>
+      )}
+    </div>
+  );
 }
 
 

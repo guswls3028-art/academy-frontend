@@ -1,0 +1,108 @@
+/* PATH: src/student/app/student.css */
+
+/* =========================
+   Student App Global Styles
+   ========================= */
+
+:root {
+  --student-bg: #fafafa;
+  --student-surface: #ffffff;
+  --student-border: #eeeeee;
+  --student-text: #111111;
+  --student-muted: #666666;
+
+  --student-radius: 12px;
+  --student-radius-sm: 10px;
+
+  --student-header-height: 56px;
+  --student-max-width: 980px;
+}
+
+/* Reset scope (student only) */
+.student-app {
+  min-height: 100vh;
+  background: var(--student-bg);
+  color: var(--student-text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Header */
+.student-header {
+  height: var(--student-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--student-border);
+  background: var(--student-surface);
+}
+
+.student-header__brand {
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.student-header__nav {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.student-header__link {
+  text-decoration: none;
+  color: var(--student-muted);
+  font-weight: 500;
+}
+
+.student-header__link.active {
+  color: var(--student-text);
+  font-weight: 700;
+}
+
+/* Content */
+.student-content {
+  flex: 1;
+  padding: 16px;
+}
+
+/* Page container */
+.student-page {
+  max-width: var(--student-max-width);
+  margin: 0 auto;
+}
+
+/* Card */
+.student-card {
+  border: 1px solid var(--student-border);
+  border-radius: var(--student-radius);
+  background: var(--student-surface);
+  padding: 14px;
+}
+
+/* Utilities */
+.student-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.student-muted {
+  color: var(--student-muted);
+  font-size: 13px;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .student-header {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .student-header__nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

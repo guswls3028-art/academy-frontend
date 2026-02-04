@@ -1,13 +1,15 @@
-const handleUpload = async (file: File) => {
-  const formData = new FormData();
+// ====================================================================================================
+// FILE: src/features/submissions/dev/SubmissionTestPanel.tsx
+// (선택: 즉시 체감 테스트 버튼 유지)
+// ====================================================================================================
+import { createSubmission } from "../api";
 
-  // ✅ backend contract 정확히 맞춤
-  formData.append("enrollment_id", "1"); // 테스트용
+export async function handleUploadTest(file: File, examId: number) {
+  const formData = new FormData();
+  formData.append("enrollment_id", "1");
   formData.append("target_type", "exam");
-  formData.append("target_id", "1");
+  formData.append("target_id", String(examId));
   formData.append("source", "omr_scan");
   formData.append("file", file);
-
-  const submission = await createSubmission(formData);
-  setSubmissionId(submission.id);
-};
+  return createSubmission(formData);
+}

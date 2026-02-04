@@ -7,54 +7,18 @@
 ==========================================================================================
 # FILE: dashboard/api/dashboard.ts
 ==========================================================================================
-// src/student/domains/dashboard/api/dashboard.ts
-/**
- * ✅ Student Dashboard API (LOCK v1)
- *
- * 주의:
- * - 백엔드 계약이 아직 프로젝트마다 다를 수 있으므로 "파싱 fallback"만 제공
- * - 프론트가 판단/계산하는 로직은 절대 넣지 않음
- *
- * 권장 엔드포인트(예시):
- * GET /api/v1/student/dashboard/
- *
- * 기대 응답(권장):
- * {
- *   notices: [{ id, title, created_at }],
- *   today_sessions: [{ id, title, date, status }],
- *   badges: { unread_qna: number }
- * }
- */
+// PATH: src/student/domains/dashboard/api/dashboard.ts
 
 import api from "@/student/shared/api/studentApi";
 
-export type DashboardNotice = {
-  id: number;
-  title: string;
-  created_at?: string | null;
-};
-
-export type DashboardSession = {
-  id: number;
-  title: string;
-  date?: string | null;
-  // 상태는 백엔드 문자열 그대로 표시만
-  status?: string | null;
-};
-
-export type StudentDashboardResponse = {
-  notices: DashboardNotice[];
-  today_sessions: DashboardSession[];
-  badges?: Record<string, any>;
-};
-
-export async function fetchStudentDashboard(): Promise<StudentDashboardResponse> {
+export async function fetchStudentDashboard() {
   const res = await api.get("/student/dashboard/");
-
   const data = res.data ?? {};
   return {
     notices: Array.isArray(data.notices) ? data.notices : [],
-    today_sessions: Array.isArray(data.today_sessions) ? data.today_sessions : [],
+    today_sessions: Array.isArray(data.today_sessions)
+      ? data.today_sessions
+      : [],
     badges: typeof data.badges === "object" && data.badges ? data.badges : {},
   };
 }
@@ -328,18 +292,7 @@ export async function fetchExamAssets(examId: number): Promise<ExamAsset[]> {
 ==========================================================================================
 # FILE: exams/api/exams.ts
 ==========================================================================================
-// src/student/domains/exams/api/exams.ts
-/**
- * ✅ Student Exams API (LOCK v1)
- *
- * 권장 엔드포인트:
- * - GET /api/v1/exams/ (학생도 공용 endpoint로 조회 가능하다는 전제)
- * - GET /api/v1/exams/{id}/
- *
- * 주의:
- * - open/close로 버튼 판단 ❌
- * - 재시험 가능 여부 판단 ❌ (Result API can_retake만 신뢰)
- */
+// PATH: src/student/domains/exams/api/exams.ts
 
 import api from "@/student/shared/api/studentApi";
 
@@ -351,7 +304,6 @@ export type StudentExam = {
   allow_retake: boolean;
   max_attempts: number;
   pass_score: number;
-
   description?: string | null;
   session_id?: number | null;
 };
@@ -360,9 +312,8 @@ export type ExamsListResponse = {
   items: StudentExam[];
 };
 
-export async function fetchStudentExams(params?: { session_id?: number }): Promise<ExamsListResponse> {
-  const res = await api.get("/exams/", { params: params ?? {} });
-
+export async function fetchStudentExams(): Promise<ExamsListResponse> {
+  const res = await api.get("/student/exams/");
   const data = res.data;
   if (data?.items && Array.isArray(data.items)) return data as ExamsListResponse;
   if (Array.isArray(data)) return { items: data as StudentExam[] };
@@ -370,7 +321,7 @@ export async function fetchStudentExams(params?: { session_id?: number }): Promi
 }
 
 export async function fetchStudentExam(examId: number): Promise<StudentExam> {
-  const res = await api.get(`/exams/${examId}/`);
+  const res = await api.get(`/student/exams/${examId}/`);
   return res.data as StudentExam;
 }
 
@@ -378,15 +329,7 @@ export async function fetchStudentExam(examId: number): Promise<StudentExam> {
 ==========================================================================================
 # FILE: exams/api/results.ts
 ==========================================================================================
-// src/student/domains/exams/api/results.ts
-/**
- * ✅ Student Result API (LOCK v1)
- * - 대표 결과 / 문항 상세는 백엔드 응답만 신뢰
- *
- * Endpoints (문서 기준):
- * - GET /results/me/exams/{exam_id}/
- * - GET /results/me/exams/{exam_id}/items/
- */
+// PATH: src/student/domains/exams/api/results.ts
 
 import api from "@/student/shared/api/studentApi";
 
@@ -398,9 +341,6 @@ export type MyExamResult = {
   is_pass: boolean;
   submitted_at: string | null;
   can_retake: boolean;
-
-  // 확장 필드가 있으면 그대로 받음 (예: clinic_required)
-  [k: string]: any;
 };
 
 export type MyExamResultItem = {
@@ -415,12 +355,14 @@ export type MyExamResultItem = {
 };
 
 export async function fetchMyExamResult(examId: number): Promise<MyExamResult> {
-  const res = await api.get(`/results/me/exams/${examId}/`);
+  const res = await api.get(`/student/results/me/exams/${examId}/`);
   return res.data as MyExamResult;
 }
 
-export async function fetchMyExamResultItems(examId: number): Promise<MyExamResultItem[]> {
-  const res = await api.get(`/results/me/exams/${examId}/items/`);
+export async function fetchMyExamResultItems(
+  examId: number
+): Promise<MyExamResultItem[]> {
+  const res = await api.get(`/student/results/me/exams/${examId}/items/`);
   const data = res.data;
   if (Array.isArray(data?.items)) return data.items as MyExamResultItem[];
   if (Array.isArray(data)) return data as MyExamResultItem[];
@@ -1103,18 +1045,7 @@ export default function QnaPage() {
 ==========================================================================================
 # FILE: sessions/api/sessions.ts
 ==========================================================================================
-// src/student/domains/sessions/api/sessions.ts
-/**
- * ✅ Student Sessions API (LOCK v1)
- *
- * 권장 엔드포인트(예시):
- * - GET /api/v1/sessions/me/           -> 내가 접근 가능한 차시 목록
- * - GET /api/v1/sessions/{id}/         -> 차시 상세(행동 허브용)
- *
- * 프론트 원칙:
- * - 정렬/상태판단 ❌
- * - 백엔드 제공 필드 그대로 렌더링 ✅
- */
+// PATH: src/student/domains/sessions/api/sessions.ts
 
 import api from "@/student/shared/api/studentApi";
 
@@ -1123,15 +1054,11 @@ export type StudentSession = {
   title: string;
   date?: string | null;
   status?: string | null;
-
-  // 허브 확장 필드(있으면 그대로 받음)
-  media_url?: string | null;
   exam_ids?: number[] | null;
-  assignment_ids?: number[] | null;
 };
 
 export async function fetchMySessions(): Promise<StudentSession[]> {
-  const res = await api.get("/sessions/me/");
+  const res = await api.get("/student/sessions/me/");
   const data = res.data;
   if (Array.isArray(data)) return data as StudentSession[];
   if (Array.isArray(data?.items)) return data.items as StudentSession[];
@@ -1139,7 +1066,7 @@ export async function fetchMySessions(): Promise<StudentSession[]> {
 }
 
 export async function fetchSessionDetail(sessionId: number): Promise<StudentSession> {
-  const res = await api.get(`/sessions/${sessionId}/`);
+  const res = await api.get(`/student/sessions/${sessionId}/`);
   return res.data as StudentSession;
 }
 

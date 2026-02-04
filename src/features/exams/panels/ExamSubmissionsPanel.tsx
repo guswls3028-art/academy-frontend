@@ -1,78 +1,61 @@
+// PATH: src/features/exams/panels/ExamSubmissionsPanel.tsx
 /**
- * ExamSubmissionsPanel
- *
- * WHY:
- * - 시험 제출은 session + asset 조건을 반드시 만족해야 한다
- * - 막힌 이유를 상단에서 명확히 설명한다
- * - submissions의 역할과 결과 흐름을 사람 언어로 안내한다
+ * ExamSubmissionsPanel - "실제 작업대"
+ * - 조교 입력칸 없음: 파일만 드롭/선택
+ * - 실패해도 UX 막지 않음 (항상 재시도 가능)
+ * - 업로드 -> 목록 자동 갱신
  */
 
-import { useMemo } from "react";
-import GateNotice from "../components/common/GateNotice";
-import AdminOmrUploadSection from "../components/submissions/AdminOmrUploadSection";
-import { useExamDetail } from "../hooks/useExamDetail";
-import { useExamAssets } from "../hooks/useExamAssets";
+import { useState } from "react";
+import AdminOmrUploadSection from "@/features/submissions/components/AdminOmrUploadSection";
+import AdminSubmissionsPanel from "@/features/submissions/components/AdminSubmissionsPanel";
 
-export default function ExamSubmissionsPanel({
-  examId,
-  sessionId,
-}: {
+type Props = {
   examId: number;
-  sessionId?: number;
-}) {
-  const { data: exam } = useExamDetail(examId);
-  const { data: assets } = useExamAssets(examId);
+};
 
-  const hasSession = Number.isFinite(sessionId) && Number(sessionId) > 0;
-  const hasProblemPdf = Boolean(assets?.problem_pdf);
-  const hasOmrSheet = Boolean(assets?.omr_sheet);
-
-  const blockedReason = useMemo(() => {
-    if (!hasSession) return "NO_SESSION";
-    if (!hasProblemPdf || !hasOmrSheet) return "NO_ASSET";
-    return null;
-  }, [hasSession, hasProblemPdf, hasOmrSheet]);
-
-  if (blockedReason === "NO_SESSION") {
-    return (
-      <GateNotice
-        title="세션이 선택되지 않았습니다"
-        description="시험 제출은 반드시 세션 컨텍스트에서만 가능합니다."
-        checklist={[
-          "URL에 session_id가 포함되어야 합니다",
-          "운영 중인 차시(Session)를 선택해야 합니다",
-        ]}
-      />
-    );
-  }
-
-  if (blockedReason === "NO_ASSET") {
-    return (
-      <GateNotice
-        title="시험 자산이 준비되지 않았습니다"
-        description="OMR 제출을 위해서는 문제지와 OMR 양식이 모두 필요합니다."
-        checklist={[
-          hasProblemPdf ? "문제지 PDF ✔" : "문제지 PDF 필요",
-          hasOmrSheet ? "OMR 양식 ✔" : "OMR 양식 필요",
-        ]}
-      />
-    );
-  }
+export default function ExamSubmissionsPanel({ examId }: Props) {
+  const [refreshKey, setRefreshKey] = useState(0);
 
   return (
     <div className="space-y-6">
-      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">
-          제출 처리 흐름 안내
+      {/* 상단: 운영 안내 */}
+      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
+        <div className="text-sm font-semibold text-neutral-100">
+          OMR 시험 운영 작업대
         </div>
-        <ul className="mt-2 list-disc pl-5 text-sm text-[var(--text-secondary)] space-y-1">
-          <li>제출은 submissions 도메인에서 이벤트로 기록됩니다.</li>
-          <li>답안 추출 후 자동으로 채점 파이프라인이 실행됩니다.</li>
-          <li>점수/합불 판단은 결과 탭에서 확인합니다.</li>
-        </ul>
-      </section>
+        <div className="mt-2 text-xs text-neutral-400 leading-relaxed">
+          조교는 <b>스캔 파일만 업로드</b>하면 됩니다. <br />
+          학생 식별(번호 8자리)은 <b>OMR 마킹값</b>을 서버가 읽습니다. (수동 입력 ❌)
+        </div>
 
-      <AdminOmrUploadSection examId={examId} />
+        <ol className="mt-3 list-decimal pl-4 text-xs text-neutral-300 space-y-1">
+          <li>OMR 스캔본 업로드 (단건/다건)</li>
+          <li>서버: 식별/답안추출/채점 워커 자동 실행</li>
+          <li>아래 목록에서 처리 상태 확인</li>
+          <li>실패한 건은 재업로드/재처리 가능</li>
+        </ol>
+      </div>
+
+      {/* 1) 업로드 박스 */}
+      <AdminOmrUploadSection
+        examId={examId}
+        onUploaded={() => setRefreshKey((k) => k + 1)}
+      />
+
+      {/* 2) 제출/처리 상태 */}
+      <AdminSubmissionsPanel
+        examId={examId}
+        refreshKey={refreshKey}
+      />
+
+      {/* 하단: 실패도 정상 흐름 */}
+      <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+        <div className="text-xs text-neutral-400">
+          ⚠️ 실패/지연은 정상입니다. <br />
+          운영은 “막히지 않고 계속 시도”가 정답입니다. (재업로드/재처리 가능)
+        </div>
+      </div>
     </div>
   );
 }

@@ -28,41 +28,19 @@ export default function StudentApp() {
 ==========================================================================================
 # FILE: StudentLayout.tsx
 ==========================================================================================
-// src/student/app/StudentLayout.tsx
-/**
- * ✅ StudentLayout (LOCK v1)
- * - "상용 SaaS" 기준 최소 Shell
- * - 하단 탭 제거 (요구사항)
- * - 상단에 간단한 네비(생산성)만 제공
- *
- * 주의:
- * - 정책 판단/계산 ❌
- * - 단순 라우팅 링크 제공만 ✅
- *
- * UI는 나중에 CSS 분리 예정이라 최대한 간소화함.
- */
+// PATH: src/student/app/StudentLayout.tsx
 
 import { NavLink, Outlet } from "react-router-dom";
+import "@/student/app/student.css";
 
 export default function StudentLayout() {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="student-app">
       {/* ===== Header ===== */}
-      <header
-        style={{
-          height: 56,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 16px",
-          borderBottom: "1px solid #eee",
-          background: "#fff",
-        }}
-      >
-        <div style={{ fontWeight: 800 }}>STUDENT</div>
+      <header className="student-header">
+        <div className="student-header__brand">STUDENT</div>
 
-        {/* ✅ 최소 네비 (상용 SaaS 생산성용) */}
-        <nav style={{ display: "flex", gap: 12, fontSize: 14 }}>
+        <nav className="student-header__nav">
           <TopLink to="/student/dashboard" label="홈" />
           <TopLink to="/student/sessions" label="차시" />
           <TopLink to="/student/exams" label="시험" />
@@ -72,8 +50,10 @@ export default function StudentLayout() {
       </header>
 
       {/* ===== Content ===== */}
-      <main style={{ flex: 1, padding: 16, background: "#fafafa" }}>
-        <Outlet />
+      <main className="student-content">
+        <div className="student-page">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
@@ -83,14 +63,58 @@ function TopLink({ to, label }: { to: string; label: string }) {
   return (
     <NavLink
       to={to}
-      style={({ isActive }) => ({
-        textDecoration: "none",
-        color: isActive ? "#111" : "#666",
-        fontWeight: isActive ? 700 : 500,
-      })}
+      className={({ isActive }) =>
+        `student-header__link ${isActive ? "active" : ""}`
+      }
     >
       {label}
     </NavLink>
+  );
+}
+
+
+==========================================================================================
+# FILE: StudentPageShell.tsx
+==========================================================================================
+// PATH: src/student/shared/components/StudentPageShell.tsx
+
+import { ReactNode } from "react";
+
+export default function StudentPageShell({
+  title,
+  description,
+  actions,
+  children,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
+          {description && (
+            <div className="student-muted" style={{ marginTop: 4 }}>
+              {description}
+            </div>
+          )}
+        </div>
+        {actions && <div>{actions}</div>}
+      </div>
+
+      <div className="student-card">{children}</div>
+    </div>
   );
 }
 
@@ -155,4 +179,117 @@ export default function StudentRouter() {
       <Route path="*" element={<Navigate to="/student" replace />} />
     </Routes>
   );
+}
+
+
+==========================================================================================
+# FILE: student.css
+==========================================================================================
+/* PATH: src/student/app/student.css */
+
+/* =========================
+   Student App Global Styles
+   ========================= */
+
+:root {
+  --student-bg: #fafafa;
+  --student-surface: #ffffff;
+  --student-border: #eeeeee;
+  --student-text: #111111;
+  --student-muted: #666666;
+
+  --student-radius: 12px;
+  --student-radius-sm: 10px;
+
+  --student-header-height: 56px;
+  --student-max-width: 980px;
+}
+
+/* Reset scope (student only) */
+.student-app {
+  min-height: 100vh;
+  background: var(--student-bg);
+  color: var(--student-text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Header */
+.student-header {
+  height: var(--student-header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--student-border);
+  background: var(--student-surface);
+}
+
+.student-header__brand {
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.student-header__nav {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.student-header__link {
+  text-decoration: none;
+  color: var(--student-muted);
+  font-weight: 500;
+}
+
+.student-header__link.active {
+  color: var(--student-text);
+  font-weight: 700;
+}
+
+/* Content */
+.student-content {
+  flex: 1;
+  padding: 16px;
+}
+
+/* Page container */
+.student-page {
+  max-width: var(--student-max-width);
+  margin: 0 auto;
+}
+
+/* Card */
+.student-card {
+  border: 1px solid var(--student-border);
+  border-radius: var(--student-radius);
+  background: var(--student-surface);
+  padding: 14px;
+}
+
+/* Utilities */
+.student-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.student-muted {
+  color: var(--student-muted);
+  font-size: 13px;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .student-header {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 8px;
+    padding: 12px 16px;
+  }
+
+  .student-header__nav {
+    width: 100%;
+    justify-content: space-between;
+  }
 }

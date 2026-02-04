@@ -5,6 +5,188 @@
 
 
 ==========================================================================================
+# FILE: readme.md
+==========================================================================================
+1️⃣ 지금 코드 기준으로 본 “사실 관계” 정리
+(A) 자료실(Materials)이 실제로 책임지고 있는 것들
+
+네가 올린 프론트 코드 기준으로 보면, 자료실은 이미 다음을 완전히 소유한다.
+
+✅ 자료실(Materials) 책임 (이미 구현됨)
+항목	근거
+시험지 상품(Sheet) 생성	POST /exams/ ← 프론트에서는 materials/api/sheets
+시험지 목록/조회	listSheetsApi, getSheetApi
+문항 구조	getSheetQuestionsApi
+문항 배점	patchSheetQuestionScoreApi
+정답(AnswerKey)	getSheetAnswerKeyApi, upsertSheetAnswerKeyApi
+OMR 메타 조회	/api/v1/assets/omr/objective/meta/
+OMR PDF 생성	/api/v1/assets/omr/objective/pdf/
+OMR 시각적 미리보기	Paper 컴포넌트
+“단일 진실” 선언	UI 텍스트, 저장 로직 전반
+
+👉 이건 100% ‘시험 전에 미리 만드는 상품’이다.
+👉 Exams(실제 시험)가 개입할 여지가 없다.
+
+(B) Exams 도메인이 해야 할 일 (그리고 실제로 하는 일)
+
+반대로 **Exams는 ‘실행 컨텍스트’**다.
+
+✅ Exams 책임 (이미 다른 곳에서 구현됨)
+항목	설명
+시험 일정	open_at / close_at
+시험 세션	session_id
+응시자 등록	enrollment
+제출 생성	submission
+AI 채점 트리거	AIJob 생성
+채점 결과 저장	submission_answers
+성적 계산	score aggregation
+클리닉/오답노트	after-submit flow
+
+👉 Exams는 Materials를 “참조만” 해야 한다.
+👉 절대 수정하면 안 됨.
+
+2️⃣ 왜 지금 “헷갈려 보이느냐?”
+
+이유는 딱 하나다.
+
+엔드포인트 URL이 /exams/ 라서 그렇다.
+
+하지만 프론트 도메인 경계는 이미 올바르다.
+
+// src/features/materials/api/sheets.ts
+/**
+ * materials(단일진실) 내부에서 "시험지 상품"을 조회/생성한다.
+ * - 백엔드 엔드포인트가 /exams/ 라도 프론트 도메인 경계는 유지한다.
+ */
+
+
+이 주석은 아주 정확하고, 대기업에서도 실제로 쓰는 방식이다.
+
+📌 URL ≠ 도메인 책임
+
+📌 도메인 책임은 “누가 수정 권한을 가지느냐”
+
+3️⃣ 지금 상태를 “공식 책임 경계”로 확정하면 이렇게 된다
+
+아래를 SSOT로 확정해도 된다.
+
+🟦 Materials (자료실) — 시험지 상품 도메인
+
+시험 전에 만들어지는, 수정 가능한 모든 것
+
+Materials가 단일 진실인 것
+
+시험지(Sheet)
+
+문항 목록/번호
+
+배점
+
+정답
+
+OMR 메타
+
+OMR PDF
+
+시각적 레이아웃
+
+Materials의 원칙
+
+시험과 독립적
+
+여러 시험에서 재사용 가능
+
+수정은 “시험 시작 전”만 가능
+
+수정 시 기존 시험에 영향 없음
+
+🟥 Exams — 시험 실행 도메인
+
+시험 시작 이후의 모든 것
+
+Exams가 단일 진실인 것
+
+어떤 시험이 어떤 시험지를 쓰는지
+
+응시자
+
+제출
+
+채점 결과
+
+점수
+
+클리닉/피드백
+
+Exams의 원칙
+
+Materials는 read-only
+
+시험 시작 후 Materials 변경 불가
+
+결과는 Exams 소유
+
+4️⃣ “그럼 exams에 구현해둔 게 잘못이냐?”
+
+❌ 아니다.
+지금은 “기술적 위치”와 “도메인 책임”이 살짝 어긋나 있을 뿐이다.
+
+지금 상태를 정확히 표현하면
+
+백엔드 앱 이름: exams
+
+실제 역할:
+
+materials.exams (시험지 상품)
+
+runtime.exams (실제 시험)
+
+👉 이건 리팩토링 대상이지, 설계 오류는 아님이다.
+
+5️⃣ 지금 당장 해야 할 결론 조치 (중요)
+✅ 1. 문서로 확정해라 (이게 제일 중요)
+
+“시험지 상품(Sheet), 문항, 정답, 배점, OMR 메타는
+Materials 도메인의 단일 진실이다.”
+
+이 문장 하나면 된다.
+
+✅ 2. Exams 쪽에서 절대 하지 말아야 할 것
+
+❌ AnswerKey 수정
+
+❌ 배점 수정
+
+❌ OMR 메타 재계산
+
+❌ 문항 수 변경
+
+✅ 3. 나중에 할 수 있는 선택적 정리 (지금은 X)
+
+/exams/ → /materials/sheets/
+
+DB 테이블 rename
+
+앱 분리
+
+👉 지금 단계에서는 절대 필요 없음
+
+6️⃣ 네 질문에 대한 최종 답변
+
+“여기가 시험템플릿 관리 자료실인데 exams와 자료실의 명확한 책임경계 구분을 확정짓고 싶다. 지금 exams에 구현을 해둔 상태같은데 맞는가?”
+
+✅ 답변
+
+맞다.
+
+구현은 exams 앱에 있지만
+
+책임은 이미 Materials로 정확히 분리돼 있다
+
+지금 필요한 건 이 경계를 ‘선언’하고 유지하는 것이지, 코드를 갈아엎는 게 아니다.
+
+
+==========================================================================================
 # FILE: types.ts
 ==========================================================================================
 export type ExamType = "template" | "regular";
@@ -129,6 +311,34 @@ export async function recalculateExam(
 
 
 ==========================================================================================
+# FILE: api/answerKeyApi.ts
+==========================================================================================
+// PATH: src/features/exams/api/answerKeyApi.ts
+import { api } from "@/shared/api";
+
+export interface AnswerKey {
+  id: number;
+  exam: number; // template exam id
+  answers: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchAnswerKeyByExam(examId: number) {
+  // backend: AnswerKeyViewSet.get_queryset() uses ?exam=<id> and resolves template
+  return api.get<AnswerKey[]>(`/exams/answer-keys/`, { params: { exam: examId } });
+}
+
+export async function createAnswerKey(payload: { exam: number; answers: Record<string, string> }) {
+  return api.post<AnswerKey>(`/exams/answer-keys/`, payload);
+}
+
+export async function updateAnswerKey(id: number, payload: { answers: Record<string, string> }) {
+  return api.put<AnswerKey>(`/exams/answer-keys/${id}/`, payload);
+}
+
+
+==========================================================================================
 # FILE: api/assets.ts
 ==========================================================================================
 import api from "@/shared/api/axios";
@@ -165,6 +375,21 @@ export async function fetchExamAssets(
 
 
 ==========================================================================================
+# FILE: api/autoQuestionsApi.ts
+==========================================================================================
+// PATH: src/features/exams/api/autoQuestionsApi.ts
+import { api } from "@/shared/api";
+import { ExamQuestion } from "./questionApi";
+
+export type Box = [number, number, number, number]; // [x,y,w,h]
+
+export async function postAutoQuestions(sheetId: number, boxes: Box[]) {
+  // backend: POST /exams/sheets/<sheet_id>/auto-questions/  { boxes: [[x,y,w,h], ...] }
+  return api.post<ExamQuestion[]>(`/exams/sheets/${sheetId}/auto-questions/`, { boxes });
+}
+
+
+==========================================================================================
 # FILE: api/enrollments.ts
 ==========================================================================================
 // PATH: src/features/exams/api/enrollments.ts
@@ -197,6 +422,47 @@ export async function fetchExamEnrollments(
     student_id: Number(x.student_id),
     student_name: String(x.student_name ?? ""),
   }));
+}
+
+
+==========================================================================================
+# FILE: api/examAssetApi.ts
+==========================================================================================
+// PATH: src/features/exams/api/examAssetApi.ts
+import { api } from "@/shared/api";
+
+export type ExamAssetType = "problem_pdf" | "omr_sheet";
+
+export interface ExamAsset {
+  id: number;
+  exam: number; // template exam id
+  asset_type: ExamAssetType;
+  file_key: string;
+  file_type?: string | null;
+  file_size?: number | null;
+  download_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchExamAssets(examId: number) {
+  // backend: GET /exams/<exam_id>/assets/ -> resolves template if regular
+  return api.get<ExamAsset[]>(`/exams/${examId}/assets/`);
+}
+
+export async function uploadExamAsset(params: {
+  examId: number;
+  assetType: ExamAssetType;
+  file: File;
+}) {
+  // backend: POST /exams/<exam_id>/assets/ (template only, locked check)
+  const fd = new FormData();
+  fd.append("asset_type", params.assetType);
+  fd.append("file", params.file);
+
+  return api.post<ExamAsset>(`/exams/${params.examId}/assets/`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 }
 
 
@@ -362,6 +628,54 @@ export async function createRegularExam(
 
 
 ==========================================================================================
+# FILE: api/questionApi.ts
+==========================================================================================
+// PATH: src/features/exams/api/questionApi.ts
+import { api } from "@/shared/api";
+
+export interface ExamQuestion {
+  id: number;
+  sheet: number;
+  number: number;
+  score: number;
+  image?: string;
+  region_meta?: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+}
+
+export function fetchQuestionsByExam(examId: number) {
+  return api.get<ExamQuestion[]>(`/exams/${examId}/questions/`);
+}
+
+
+==========================================================================================
+# FILE: api/regularExamApi.ts
+==========================================================================================
+// PATH: src/features/exams/api/regularExamApi.ts
+import { api } from "@/shared/api";
+import { Exam } from "./examApi";
+
+export async function createRegularExam(params: {
+  title: string;
+  description?: string;
+  template_exam_id: number;
+  session_id: number;
+}) {
+  return api.post<Exam>("/exams/", {
+    exam_type: "regular",
+    title: params.title,
+    description: params.description,
+    template_exam_id: params.template_exam_id,
+    session_id: params.session_id,
+  });
+}
+
+
+==========================================================================================
 # FILE: api/sessionEnrollments.ts
 ==========================================================================================
 /**
@@ -438,23 +752,43 @@ export async function fetchSessionEnrollments(
 
 
 ==========================================================================================
+# FILE: api/templateEditorApi.ts
+==========================================================================================
+// PATH: src/features/exams/api/templateEditorApi.ts
+import { api } from "@/shared/api";
+
+export interface TemplateEditorSummary {
+  exam_id: number;
+  title: string;
+  subject: string;
+  sheet_id: number;
+  total_questions: number;
+  has_answer_key: boolean;
+  is_locked: boolean;
+}
+
+export interface TemplateValidationResult {
+  template_exam_id: number;
+  ok: boolean;
+  reason?: string;
+}
+
+export function fetchTemplateEditor(examId: number) {
+  return api.get<TemplateEditorSummary>(`/exams/${examId}/template-editor/`);
+}
+
+export function fetchTemplateValidation(examId: number) {
+  return api.get<TemplateValidationResult>(
+    `/exams/${examId}/template-validation/`
+  );
+}
+
+
+==========================================================================================
 # FILE: components/AdminExamDetail.tsx
 ==========================================================================================
-// PATH: src/features/exams/components/AdminExamDetail.tsx
-
-/**
- * AdminExamDetail (UX 강화)
- *
- * FIX:
- * - session 컨텍스트: query(session_id) 또는 pathname(/sessions/:id)에서 자동 resolve
- * - session_id 수동 입력폼 제거 (운영 흐름은 세션에서 들어오는 것이 정석)
- */
-
-import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-
+import { useState } from "react";
 import { useAdminExam } from "../hooks/useAdminExam";
-import { useExamAssets, isAssetsReady } from "../hooks/useExamAssets";
 
 import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
@@ -464,121 +798,174 @@ import ExamAssetsPanel from "../panels/ExamAssetsPanel";
 import ExamSubmissionsPanel from "../panels/ExamSubmissionsPanel";
 import ExamResultsViewerPanel from "../panels/ExamResultsViewerPanel";
 
-import BlockReason from "./BlockReason";
-import GateNotice from "./common/GateNotice";
-import { resolveSessionIdFromLocation } from "../utils/sessionContext";
-
 export default function AdminExamDetail({ examId }: { examId: number }) {
-  const safeExamId = Number.isFinite(examId) && examId > 0 ? examId : 0;
-
-  // sp는 유지(기존 라우팅 영향 최소화). 단, sessionId는 location 기반으로 resolve.
-  const [sp] = useSearchParams();
-
-  const sessionId = useMemo(() => {
-    return resolveSessionIdFromLocation(
-      window.location.search,
-      window.location.pathname
-    );
-  }, [sp]);
-
-  const hasSession = Number.isFinite(sessionId) && sessionId > 0;
-
-  const { data: exam, isLoading } = useAdminExam(safeExamId);
-
-  const assetsQ = useExamAssets(safeExamId);
-  const assets = assetsQ.data ?? [];
-  const assetsReady = useMemo(() => isAssetsReady(assets), [assets]);
-
+  const { data: exam, isLoading } = useAdminExam(examId);
   const [tab, setTab] = useState<"setup" | "assets" | "submissions" | "results">(
     "setup"
   );
 
-  if (!safeExamId) {
-    return (
-      <BlockReason title="잘못된 시험 ID" description="시험을 다시 선택하세요." />
-    );
-  }
-
   if (isLoading) return <div>Loading...</div>;
-
-  if (!exam) {
-    return (
-      <BlockReason
-        title="시험 조회 실패"
-        description="시험 정보를 불러오지 못했습니다."
-      />
-    );
-  }
+  if (!exam) return <div>시험 없음</div>;
 
   return (
     <div className="space-y-6">
       <ExamHeader exam={exam} />
 
-      {/* ✅ Session Gate: 수동 입력 금지, 대신 정확한 행동 안내 */}
-      {!hasSession && (
-        <GateNotice
-          title="세션 컨텍스트가 필요합니다"
-          description="시험 운영(제출/결과/대상자 관리)은 세션(Session) 화면에서 진입해야 합니다."
-          checklist={[
-            "세션 화면에서 시험으로 진입하면 session 컨텍스트가 자동 포함됩니다.",
-            "현재 URL이 /sessions/:id 경로라면 자동 인식됩니다.",
-            "직접 쿼리를 붙여야 한다면 ?session_id= 형태를 사용합니다. (임시/운영 비권장)",
-          ]}
-        />
-      )}
-
-      {/* ✅ Asset Gate: 막힘 이유 + 다음 행동 CTA */}
-      {hasSession && !assetsReady && (
-        <GateNotice
-          title="제출/채점 준비가 완료되지 않았습니다"
-          description={
-            exam.exam_type === "regular"
-              ? "운영 시험은 템플릿 자산(PDF/OMR)을 그대로 사용합니다. 템플릿에서 자산을 등록하세요."
-              : "시험지 PDF와 OMR 답안지가 등록되어야 제출 입력이 가능합니다."
-          }
-          checklist={[
-            assets.some((a) => a.asset_type === "problem_pdf")
-              ? "문제지 PDF ✔"
-              : "문제지 PDF 필요",
-            assets.some((a) => a.asset_type === "omr_sheet")
-              ? "OMR 답안지 ✔"
-              : "OMR 답안지 필요",
-          ]}
-          cta={{
-            label: "자산 탭으로 이동",
-            onClick: () => setTab("assets"),
-          }}
-        />
-      )}
-
       <ExamTabs
         activeTab={tab}
         onChange={setTab}
-        hasSession={hasSession}
-        assetsReady={assetsReady}
+        hasSession={true}
+        assetsReady={true}
       />
 
-      {tab === "setup" && <ExamSetupPanel examId={safeExamId} />}
-
-      {tab === "assets" && <ExamAssetsPanel examId={safeExamId} />}
-
-      {tab === "submissions" && (
-        <ExamSubmissionsPanel examId={safeExamId} sessionId={sessionId} />
-      )}
-
-      {tab === "results" && (
-        <>
-          {!hasSession && (
-            <BlockReason
-              title="세션 필요"
-              description="결과 조회는 세션 컨텍스트가 있을 때만 가능합니다."
-            />
-          )}
-
-          {hasSession && <ExamResultsViewerPanel examId={safeExamId} />}
-        </>
-      )}
+      {tab === "setup" && <ExamSetupPanel examId={examId} />}
+      {tab === "assets" && <ExamAssetsPanel examId={examId} />}
+      {tab === "submissions" && <ExamSubmissionsPanel examId={examId} />}
+      {tab === "results" && <ExamResultsViewerPanel examId={examId} />}
     </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/AnswerKeyEditor.tsx
+==========================================================================================
+// PATH: src/features/exams/components/AnswerKeyEditor.tsx
+import { useEffect, useMemo, useState } from "react";
+import {
+  createAnswerKey,
+  fetchAnswerKeyByExam,
+  updateAnswerKey,
+  AnswerKey,
+} from "../api/answerKeyApi";
+import { fetchQuestionsByExam, ExamQuestion } from "../api/questionApi";
+
+interface Props {
+  examId: number; // template or regular id (backend resolves)
+  disabled: boolean; // template locked이면 true (정답 변경 금지 정책 반영)
+}
+
+function normalizeAnswers(input: Record<string, string>) {
+  const out: Record<string, string> = {};
+  Object.entries(input || {}).forEach(([k, v]) => {
+    out[String(k)] = String(v ?? "").trim();
+  });
+  return out;
+}
+
+export function AnswerKeyEditor({ examId, disabled }: Props) {
+  const [questions, setQuestions] = useState<ExamQuestion[]>([]);
+  const [answerKey, setAnswerKey] = useState<AnswerKey | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string>("");
+
+  useEffect(() => {
+    async function load() {
+      const q = await fetchQuestionsByExam(examId);
+      setQuestions(q.data);
+
+      const ak = await fetchAnswerKeyByExam(examId);
+      const first = (ak.data || [])[0] ?? null;
+      setAnswerKey(first);
+      setDraft(first ? normalizeAnswers(first.answers) : {});
+    }
+    load();
+  }, [examId]);
+
+  const sorted = useMemo(() => {
+    return [...questions].sort((a, b) => a.number - b.number);
+  }, [questions]);
+
+  async function save() {
+    if (disabled) return;
+
+    setBusy(true);
+    setMsg("");
+
+    try {
+      const normalized = normalizeAnswers(draft);
+
+      if (!answerKey) {
+        // ⚠️ backend contract: create needs template exam id
+        // 여기서는 backend가 regular->template resolve를 create에 적용하지 않으므로
+        // 이 Editor는 "템플릿 화면에서" 쓰는 것이 안전 (SSOT 준수).
+        // (정규시험 화면에서는 조회만 허용하는 형태로 사용할 예정)
+        const created = await createAnswerKey({ exam: examId, answers: normalized });
+        setAnswerKey(created.data);
+        setMsg("저장 완료");
+      } else {
+        const updated = await updateAnswerKey(answerKey.id, { answers: normalized });
+        setAnswerKey(updated.data);
+        setMsg("저장 완료");
+      }
+    } catch (e: any) {
+      setMsg(e?.response?.data?.detail || "저장 실패");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">정답표</h3>
+
+        <div className="flex items-center gap-2">
+          {disabled && (
+            <span className="text-xs text-red-500">
+              템플릿이 이미 사용 중이라 정답 수정이 봉인됩니다
+            </span>
+          )}
+          <button
+            onClick={save}
+            disabled={disabled || busy}
+            className={`px-3 py-2 rounded text-sm ${
+              disabled || busy
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                : "bg-black text-white"
+            }`}
+          >
+            저장
+          </button>
+        </div>
+      </div>
+
+      {msg && <div className="text-xs text-gray-600">{msg}</div>}
+
+      <div className="border rounded">
+        {sorted.length === 0 && (
+          <div className="p-3 text-sm text-gray-400">문항이 없습니다.</div>
+        )}
+
+        {sorted.map((q) => {
+          const key = String(q.id);
+          return (
+            <div key={q.id} className="flex items-center gap-3 border-b p-2 text-sm">
+              <div className="w-12 text-right font-medium">{q.number}</div>
+
+              <input
+                disabled={disabled}
+                value={draft[key] ?? ""}
+                onChange={(ev) => setDraft((prev) => ({ ...prev, [key]: ev.target.value }))}
+                className={`flex-1 border rounded px-2 py-1 ${
+                  disabled ? "bg-gray-100 text-gray-500" : ""
+                }`}
+                placeholder="정답 입력"
+              />
+
+              <div className="w-16 text-right text-gray-500">
+                {q.score}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="text-xs text-gray-400">
+        * 저장 단위: key = ExamQuestion.id (string), value = 정답
+      </div>
+    </section>
   );
 }
 
@@ -661,6 +1048,100 @@ export default function AttemptSelectorPanel({
 
 
 ==========================================================================================
+# FILE: components/AutoQuestionsImporter.tsx
+==========================================================================================
+// PATH: src/features/exams/components/AutoQuestionsImporter.tsx
+import { useState } from "react";
+import { postAutoQuestions, Box } from "../api/autoQuestionsApi";
+
+interface Props {
+  sheetId: number;
+  disabled: boolean; // template locked
+  onDone?: () => void;
+}
+
+/**
+ * 목적:
+ * - Vision/Segmentation worker 결과(JSON boxes)를 그대로 붙여넣어 반영
+ * - 클릭 최소화, 키보드 중심
+ */
+export function AutoQuestionsImporter({ sheetId, disabled, onDone }: Props) {
+  const [raw, setRaw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  function parseBoxes(): Box[] {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      throw new Error("boxes must be an array");
+    }
+    return parsed.map((b) => {
+      if (!Array.isArray(b) || b.length !== 4) {
+        throw new Error("each box must be [x,y,w,h]");
+      }
+      return [Number(b[0]), Number(b[1]), Number(b[2]), Number(b[3])] as Box;
+    });
+  }
+
+  async function submit() {
+    if (disabled) return;
+    setBusy(true);
+    setMsg("");
+
+    try {
+      const boxes = parseBoxes();
+      await postAutoQuestions(sheetId, boxes);
+      setMsg("문항 생성 완료");
+      setRaw("");
+      onDone?.();
+    } catch (e: any) {
+      setMsg(e?.response?.data?.detail || e.message || "실패");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="space-y-2">
+      <h3 className="font-medium">문항 자동 생성 (AI 결과 입력)</h3>
+
+      {disabled && (
+        <div className="text-xs text-red-500">
+          템플릿이 이미 사용 중이라 문항 구조 변경이 봉인됩니다
+        </div>
+      )}
+
+      <textarea
+        disabled={disabled}
+        value={raw}
+        onChange={(e) => setRaw(e.target.value)}
+        rows={6}
+        placeholder='[[x,y,w,h], ...]'
+        className="w-full border rounded p-2 text-sm font-mono"
+      />
+
+      <div className="flex items-center gap-2">
+        <button
+          disabled={disabled || busy}
+          onClick={submit}
+          className={`px-3 py-2 rounded text-sm ${
+            disabled || busy
+              ? "bg-gray-300 text-gray-500"
+              : "bg-black text-white"
+          }`}
+        >
+          적용
+        </button>
+
+        {busy && <span className="text-xs text-gray-400">처리 중…</span>}
+        {msg && <span className="text-xs text-gray-600">{msg}</span>}
+      </div>
+    </section>
+  );
+}
+
+
+==========================================================================================
 # FILE: components/BlockReason.tsx
 ==========================================================================================
 // PATH: src/features/exams/components/BlockReason.tsx
@@ -676,6 +1157,129 @@ export default function BlockReason({
       <div className="font-semibold">{title}</div>
       <div className="mt-1">{description}</div>
     </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/ExamAssetManager.tsx
+==========================================================================================
+// PATH: src/features/exams/components/ExamAssetManager.tsx
+import { useEffect, useState } from "react";
+import {
+  fetchExamAssets,
+  uploadExamAsset,
+  ExamAsset,
+  ExamAssetType,
+} from "../api/examAssetApi";
+
+interface Props {
+  examId: number; // template or regular id (backend resolves on GET)
+  disabled: boolean; // template locked이면 true (업로드 봉인 정책 반영)
+}
+
+const ASSET_LABEL: Record<ExamAssetType, string> = {
+  problem_pdf: "문제 PDF",
+  omr_sheet: "OMR 답안지",
+};
+
+export function ExamAssetManager({ examId, disabled }: Props) {
+  const [items, setItems] = useState<ExamAsset[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function reload() {
+    const res = await fetchExamAssets(examId);
+    setItems(res.data || []);
+  }
+
+  useEffect(() => {
+    reload();
+  }, [examId]);
+
+  async function onUpload(assetType: ExamAssetType, file: File | null) {
+    if (!file || disabled) return;
+
+    setBusy(true);
+    setMsg("");
+
+    try {
+      await uploadExamAsset({ examId, assetType, file });
+      await reload();
+      setMsg("업로드 완료");
+    } catch (e: any) {
+      setMsg(e?.response?.data?.detail || "업로드 실패");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function find(type: ExamAssetType) {
+    return items.find((x) => x.asset_type === type) ?? null;
+  }
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">시험 자산</h3>
+        {disabled && (
+          <span className="text-xs text-red-500">
+            템플릿이 이미 사용 중이라 자산 교체가 봉인됩니다
+          </span>
+        )}
+      </div>
+
+      {msg && <div className="text-xs text-gray-600">{msg}</div>}
+
+      <div className="border rounded divide-y">
+        {(Object.keys(ASSET_LABEL) as ExamAssetType[]).map((t) => {
+          const existing = find(t);
+          return (
+            <div key={t} className="p-3 flex items-center gap-3">
+              <div className="w-28 text-sm font-medium">{ASSET_LABEL[t]}</div>
+
+              <div className="flex-1 text-xs text-gray-500">
+                {existing ? (
+                  <>
+                    <span className="mr-2">{existing.file_key}</span>
+                    <span className="mr-2">
+                      {existing.file_size ? `${existing.file_size} bytes` : ""}
+                    </span>
+                  </>
+                ) : (
+                  <span>등록된 파일 없음</span>
+                )}
+              </div>
+
+              {existing?.download_url && (
+                <a
+                  className="text-sm underline"
+                  href={existing.download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  다운로드
+                </a>
+              )}
+
+              <label className={`text-sm px-3 py-2 rounded border cursor-pointer ${
+                disabled || busy ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white"
+              }`}>
+                교체 업로드
+                <input
+                  type="file"
+                  className="hidden"
+                  disabled={disabled || busy}
+                  onChange={(ev) => onUpload(t, ev.target.files?.[0] ?? null)}
+                />
+              </label>
+            </div>
+          );
+        })}
+      </div>
+
+      {busy && <div className="text-xs text-gray-400">처리 중...</div>}
+    </section>
   );
 }
 
@@ -791,6 +1395,244 @@ export default function ExamTargetEditModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/QuestionEditorRow.tsx
+==========================================================================================
+// PATH: src/features/exams/components/QuestionEditorRow.tsx
+import { ExamQuestion } from "../api/questionApi";
+
+interface Props {
+  question: ExamQuestion;
+  disabled: boolean;
+}
+
+export function QuestionEditorRow({ question, disabled }: Props) {
+  return (
+    <div
+      className="flex items-center gap-3 border-b py-2 text-sm"
+      tabIndex={0}
+    >
+      <div className="w-10 text-right font-medium">
+        {question.number}
+      </div>
+
+      <div className="flex-1 text-gray-700">
+        점수: {question.score}
+        {question.region_meta && (
+          <span className="ml-2 text-xs text-gray-400">
+            bbox 있음
+          </span>
+        )}
+      </div>
+
+      {disabled && (
+        <div className="text-xs text-red-500">
+          LOCKED
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/RegularExamCreatePanel.tsx
+==========================================================================================
+// PATH: src/features/exams/components/RegularExamCreatePanel.tsx
+import { useState } from "react";
+import { createRegularExam } from "../api/regularExamApi";
+
+interface Props {
+  templateExamId: number;
+  sessionId: number;
+  onCreated?: (examId: number) => void;
+}
+
+/**
+ * 목적:
+ * - template → 실제 운영 시험 생성
+ * - subject/구조는 서버 단일진실
+ */
+export function RegularExamCreatePanel({
+  templateExamId,
+  sessionId,
+  onCreated,
+}: Props) {
+  const [title, setTitle] = useState("");
+  const [desc, setDesc] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function submit() {
+    setBusy(true);
+    setMsg("");
+
+    try {
+      const res = await createRegularExam({
+        title,
+        description: desc,
+        template_exam_id: templateExamId,
+        session_id: sessionId,
+      });
+      setMsg("시험 생성 완료");
+      setTitle("");
+      setDesc("");
+      onCreated?.(res.data.id);
+    } catch (e: any) {
+      setMsg(e?.response?.data?.detail || "생성 실패");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="space-y-2">
+      <h3 className="font-medium">운영 시험 생성</h3>
+
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="시험명"
+        className="w-full border rounded px-2 py-1 text-sm"
+      />
+
+      <textarea
+        value={desc}
+        onChange={(e) => setDesc(e.target.value)}
+        placeholder="설명 (선택)"
+        rows={3}
+        className="w-full border rounded p-2 text-sm"
+      />
+
+      <div className="flex items-center gap-2">
+        <button
+          disabled={busy || !title}
+          onClick={submit}
+          className={`px-3 py-2 rounded text-sm ${
+            busy || !title
+              ? "bg-gray-300 text-gray-500"
+              : "bg-black text-white"
+          }`}
+        >
+          생성
+        </button>
+
+        {busy && <span className="text-xs text-gray-400">처리 중…</span>}
+        {msg && <span className="text-xs text-gray-600">{msg}</span>}
+      </div>
+    </section>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/TemplateEditor.tsx
+==========================================================================================
+// PATH: src/features/exams/components/TemplateEditor.tsx
+import { useEffect, useState } from "react";
+import {
+  fetchTemplateEditor,
+  fetchTemplateValidation,
+  TemplateEditorSummary,
+} from "../api/templateEditorApi";
+import { fetchQuestionsByExam, ExamQuestion } from "../api/questionApi";
+import { QuestionEditorRow } from "./QuestionEditorRow";
+
+interface Props {
+  examId: number;
+}
+
+export function TemplateEditor({ examId }: Props) {
+  const [summary, setSummary] = useState<TemplateEditorSummary | null>(null);
+  const [questions, setQuestions] = useState<ExamQuestion[]>([]);
+  const [validation, setValidation] = useState<{
+    ok: boolean;
+    reason?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const s = await fetchTemplateEditor(examId);
+      setSummary(s.data);
+
+      const q = await fetchQuestionsByExam(examId);
+      setQuestions(q.data);
+
+      const v = await fetchTemplateValidation(examId);
+      setValidation(v.data);
+    }
+
+    load();
+  }, [examId]);
+
+  if (!summary) {
+    return <div className="p-4">로딩 중...</div>;
+  }
+
+  return (
+    <div className="p-4 space-y-4">
+      <header>
+        <h2 className="text-xl font-semibold">
+          {summary.title}
+        </h2>
+        <div className="text-sm text-gray-500">
+          과목: {summary.subject}
+        </div>
+      </header>
+
+      <section>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-medium">
+            문항 ({questions.length})
+          </h3>
+
+          {summary.is_locked && (
+            <span className="text-xs text-red-500">
+              이 템플릿은 이미 시험에 사용 중입니다
+            </span>
+          )}
+        </div>
+
+        <div className="border rounded">
+          {questions.length === 0 && (
+            <div className="p-4 text-sm text-gray-400">
+              아직 문항이 없습니다.
+            </div>
+          )}
+
+          {questions.map((q) => (
+            <QuestionEditorRow
+              key={q.id}
+              question={q}
+              disabled={summary.is_locked}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="flex justify-end gap-2">
+        <button
+          disabled={!validation?.ok}
+          className={`px-4 py-2 rounded text-sm ${
+            validation?.ok
+              ? "bg-blue-600 text-white"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }`}
+        >
+          실제 시험 생성
+        </button>
+      </section>
+
+      {!validation?.ok && validation?.reason && (
+        <div className="text-xs text-red-500">
+          시험 생성 불가 사유: {validation.reason}
+        </div>
+      )}
     </div>
   );
 }
@@ -1109,15 +1951,6 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
 ==========================================================================================
 # FILE: components/common/ExamTabs.tsx
 ==========================================================================================
-/**
- * ExamTabs
- *
- * WHY:
- * - disabled 탭을 "숨김"하지 않고, 왜 막혔는지 툴팁/사유로 명시
- * - 라우팅/탭 구조 유지 (state 기반 탭 전환 유지)
- * - session/assets gate는 UI에서만 안내하고, 계산/판정은 절대 하지 않는다
- */
-
 import type { ExamTabKey } from "../../types";
 
 type Props = {
@@ -1134,62 +1967,26 @@ const TABS: { key: ExamTabKey; label: string }[] = [
   { key: "results", label: "결과" },
 ];
 
-function disabledReason(
-  key: ExamTabKey,
-  hasSession: boolean,
-  assetsReady: boolean
-) {
-  if (key === "submissions") {
-    if (!hasSession) return "세션 컨텍스트(session_id)가 필요합니다.";
-    if (!assetsReady) return "시험 자산(PDF/OMR)이 준비되어야 합니다.";
-  }
-
-  if (key === "results") {
-    if (!hasSession) return "세션 컨텍스트(session_id)가 필요합니다.";
-  }
-
-  return "";
-}
-
-export default function ExamTabs({
-  activeTab,
-  onChange,
-  hasSession,
-  assetsReady,
-}: Props) {
+export default function ExamTabs({ activeTab, onChange }: Props) {
   return (
     <div className="flex gap-6 border-b border-[var(--border-divider)]">
       {TABS.map((t) => {
-        const reason = disabledReason(t.key, hasSession, assetsReady);
-        const disabled = !!reason;
-
         const isActive = activeTab === t.key;
 
         return (
-          <div key={t.key} className="flex flex-col">
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => !disabled && onChange(t.key)}
-              title={disabled ? reason : undefined}
-              className={[
-                "pb-2 text-sm border-b-2 transition-colors",
-                disabled && "opacity-40 cursor-not-allowed",
-                isActive
-                  ? "border-[var(--color-primary)] font-semibold text-[var(--text-primary)]"
-                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-              ].join(" ")}
-            >
-              {t.label}
-            </button>
-
-            {/* ✅ disabled 사유를 hover뿐 아니라 텍스트로도 노출 (접근성/현장 UX) */}
-            {disabled && (
-              <div className="mt-1 text-[11px] text-[var(--text-muted)]">
-                {reason}
-              </div>
-            )}
-          </div>
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            className={[
+              "pb-2 text-sm border-b-2 transition-colors",
+              isActive
+                ? "border-[var(--color-primary)] font-semibold text-[var(--text-primary)]"
+                : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+            ].join(" ")}
+          >
+            {t.label}
+          </button>
         );
       })}
     </div>
@@ -1665,12 +2462,6 @@ export default function CreateTemplateExamModal({
 ==========================================================================================
 import { ExamAsset } from "../../api/assets";
 
-function isReady(assets: ExamAsset[]) {
-  const hasPdf = assets.some(a => a.asset_type === "problem_pdf");
-  const hasOmr = assets.some(a => a.asset_type === "omr_sheet");
-  return hasPdf && hasOmr;
-}
-
 export default function RequireAssetsReady({
   assets,
   children,
@@ -1678,17 +2469,7 @@ export default function RequireAssetsReady({
   assets: ExamAsset[];
   children: React.ReactNode;
 }) {
-  if (!isReady(assets)) {
-    return (
-      <div className="rounded border border-yellow-600/30 bg-yellow-600/10 p-4 text-sm text-yellow-800">
-        <div className="font-semibold">운영 불가</div>
-        <div className="mt-1">
-          시험지 PDF 또는 OMR 답안지가 누락되었습니다.
-        </div>
-      </div>
-    );
-  }
-
+  // ✅ 판매/체험 모드: 항상 통과
   return <>{children}</>;
 }
 
@@ -1696,7 +2477,6 @@ export default function RequireAssetsReady({
 ==========================================================================================
 # FILE: components/guards/RequireSessionContext.tsx
 ==========================================================================================
-// PATH: src/features/exams/components/guards/RequireSessionContext.tsx
 export default function RequireSessionContext({
   sessionId,
   children,
@@ -1704,15 +2484,7 @@ export default function RequireSessionContext({
   sessionId?: number;
   children: React.ReactNode;
 }) {
-  if (!sessionId) {
-    return (
-      <div className="rounded border bg-[var(--bg-surface-soft)] p-4 text-sm text-muted">
-        ⚠️ 세션 컨텍스트(session_id)가 필요합니다.  
-        <br />
-        세션 화면에서 시험으로 진입하거나, URL에 session_id를 포함하세요.
-      </div>
-    );
-  }
+  // ✅ UX 체험 모드: session 없어도 전부 노출
   return <>{children}</>;
 }
 
@@ -2218,81 +2990,122 @@ export default function ExamResultsViewerPanel({
 ==========================================================================================
 # FILE: panels/ExamSubmissionsPanel.tsx
 ==========================================================================================
+// PATH: src/features/exams/panels/ExamSubmissionsPanel.tsx
 /**
- * ExamSubmissionsPanel
- *
- * WHY:
- * - 시험 제출은 session + asset 조건을 반드시 만족해야 한다
- * - 막힌 이유를 상단에서 명확히 설명한다
- * - submissions의 역할과 결과 흐름을 사람 언어로 안내한다
+ * ExamSubmissionsPanel - "실제 작업대"
+ * - 조교 입력칸 없음: 파일만 드롭/선택
+ * - 실패해도 UX 막지 않음 (항상 재시도 가능)
+ * - 업로드 -> 목록 자동 갱신
  */
 
-import { useMemo } from "react";
-import GateNotice from "../components/common/GateNotice";
-import AdminOmrUploadSection from "../components/submissions/AdminOmrUploadSection";
-import { useExamDetail } from "../hooks/useExamDetail";
-import { useExamAssets } from "../hooks/useExamAssets";
+import { useState } from "react";
+import AdminOmrUploadSection from "@/features/submissions/components/AdminOmrUploadSection";
+import AdminSubmissionsPanel from "@/features/submissions/components/AdminSubmissionsPanel";
 
-export default function ExamSubmissionsPanel({
-  examId,
-  sessionId,
-}: {
+type Props = {
   examId: number;
-  sessionId?: number;
-}) {
-  const { data: exam } = useExamDetail(examId);
-  const { data: assets } = useExamAssets(examId);
+};
 
-  const hasSession = Number.isFinite(sessionId) && Number(sessionId) > 0;
-  const hasProblemPdf = Boolean(assets?.problem_pdf);
-  const hasOmrSheet = Boolean(assets?.omr_sheet);
-
-  const blockedReason = useMemo(() => {
-    if (!hasSession) return "NO_SESSION";
-    if (!hasProblemPdf || !hasOmrSheet) return "NO_ASSET";
-    return null;
-  }, [hasSession, hasProblemPdf, hasOmrSheet]);
-
-  if (blockedReason === "NO_SESSION") {
-    return (
-      <GateNotice
-        title="세션이 선택되지 않았습니다"
-        description="시험 제출은 반드시 세션 컨텍스트에서만 가능합니다."
-        checklist={[
-          "URL에 session_id가 포함되어야 합니다",
-          "운영 중인 차시(Session)를 선택해야 합니다",
-        ]}
-      />
-    );
-  }
-
-  if (blockedReason === "NO_ASSET") {
-    return (
-      <GateNotice
-        title="시험 자산이 준비되지 않았습니다"
-        description="OMR 제출을 위해서는 문제지와 OMR 양식이 모두 필요합니다."
-        checklist={[
-          hasProblemPdf ? "문제지 PDF ✔" : "문제지 PDF 필요",
-          hasOmrSheet ? "OMR 양식 ✔" : "OMR 양식 필요",
-        ]}
-      />
-    );
-  }
+export default function ExamSubmissionsPanel({ examId }: Props) {
+  const [refreshKey, setRefreshKey] = useState(0);
 
   return (
     <div className="space-y-6">
-      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">
-          제출 처리 흐름 안내
+      {/* 상단: 운영 안내 */}
+      <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5">
+        <div className="text-sm font-semibold text-neutral-100">
+          OMR 시험 운영 작업대
         </div>
-        <ul className="mt-2 list-disc pl-5 text-sm text-[var(--text-secondary)] space-y-1">
-          <li>제출은 submissions 도메인에서 이벤트로 기록됩니다.</li>
-          <li>답안 추출 후 자동으로 채점 파이프라인이 실행됩니다.</li>
-          <li>점수/합불 판단은 결과 탭에서 확인합니다.</li>
-        </ul>
-      </section>
+        <div className="mt-2 text-xs text-neutral-400 leading-relaxed">
+          조교는 <b>스캔 파일만 업로드</b>하면 됩니다. <br />
+          학생 식별(번호 8자리)은 <b>OMR 마킹값</b>을 서버가 읽습니다. (수동 입력 ❌)
+        </div>
 
-      <AdminOmrUploadSection examId={examId} />
+        <ol className="mt-3 list-decimal pl-4 text-xs text-neutral-300 space-y-1">
+          <li>OMR 스캔본 업로드 (단건/다건)</li>
+          <li>서버: 식별/답안추출/채점 워커 자동 실행</li>
+          <li>아래 목록에서 처리 상태 확인</li>
+          <li>실패한 건은 재업로드/재처리 가능</li>
+        </ol>
+      </div>
+
+      {/* 1) 업로드 박스 */}
+      <AdminOmrUploadSection
+        examId={examId}
+        onUploaded={() => setRefreshKey((k) => k + 1)}
+      />
+
+      {/* 2) 제출/처리 상태 */}
+      <AdminSubmissionsPanel
+        examId={examId}
+        refreshKey={refreshKey}
+      />
+
+      {/* 하단: 실패도 정상 흐름 */}
+      <div className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-4">
+        <div className="text-xs text-neutral-400">
+          ⚠️ 실패/지연은 정상입니다. <br />
+          운영은 “막히지 않고 계속 시도”가 정답입니다. (재업로드/재처리 가능)
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/RegularExamPanel.tsx
+==========================================================================================
+// PATH: src/features/exams/panels/RegularExamPanel.tsx
+import { useState } from "react";
+import { Exam } from "../api/examApi";
+import { ExamAssetManager } from "../components/ExamAssetManager";
+import { AnswerKeyEditor } from "../components/AnswerKeyEditor";
+
+/**
+ * 운영 시험 패널
+ * - 정답/자산은 template에서 resolve되어 read-only
+ * - 실제 응시/제출/채점은 backend pipeline으로 연결
+ */
+export function RegularExamPanel({ exam }: { exam: Exam }) {
+  // regular exam은 template 구조를 수정할 수 없음
+  const locked = true;
+
+  return (
+    <div className="space-y-6">
+      <header>
+        <h2 className="text-lg font-bold">{exam.title}</h2>
+        <div className="text-sm text-gray-500">
+          운영 시험 (Template 기반)
+        </div>
+      </header>
+
+      <ExamAssetManager examId={exam.id} disabled={locked} />
+
+      <AnswerKeyEditor examId={exam.id} disabled={locked} />
+
+      <div className="text-xs text-gray-400">
+        * 정답/자산은 템플릿 단일진실 기준으로 조회됩니다.
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/TemplateExamPanel.tsx
+==========================================================================================
+// PATH: src/features/exams/panels/TemplateExamPanel.tsx
+import { TemplateEditor } from "../components/TemplateEditor";
+
+interface Props {
+  examId: number;
+}
+
+export default function TemplateExamPanel({ examId }: Props) {
+  return (
+    <div className="max-w-4xl mx-auto">
+      <TemplateEditor examId={examId} />
     </div>
   );
 }

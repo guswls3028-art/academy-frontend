@@ -77,6 +77,8 @@ export default function VideoDetailPage() {
                   previewMode={previewMode}
                   setPreviewMode={setPreviewMode}
                   hlsSrc={video.hls_url}
+                  status={video.status}
+                  progressPercent={null}
                 />
               </div>
             </section>
@@ -116,7 +118,11 @@ export default function VideoDetailPage() {
         }
       />
 
-      <PermissionModal open={openPermission} onClose={() => setOpenPermission(false)} videoId={videoId} />
+      <PermissionModal
+        open={openPermission}
+        onClose={() => setOpenPermission(false)}
+        videoId={videoId}
+      />
     </>
   );
 }

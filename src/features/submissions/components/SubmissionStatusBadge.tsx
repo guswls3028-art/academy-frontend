@@ -1,10 +1,8 @@
-// src/features/submissions/components/SubmissionStatusBadge.tsx
-
+// ====================================================================================================
+// FILE: src/features/submissions/components/SubmissionStatusBadge.tsx
+// ====================================================================================================
 import type { SubmissionStatus } from "@/features/submissions/types";
-import {
-  SUBMISSION_STATUS_COLOR,
-  SUBMISSION_STATUS_LABEL,
-} from "@/features/submissions/statusMaps";
+import { SUBMISSION_STATUS_COLOR, SUBMISSION_STATUS_LABEL } from "@/features/submissions/statusMaps";
 
 const COLOR_CLASS: Record<string, string> = {
   gray: "bg-neutral-800 text-neutral-200 border-neutral-700",
@@ -18,7 +16,7 @@ const COLOR_CLASS: Record<string, string> = {
 export default function SubmissionStatusBadge({
   status,
 }: {
-  status: SubmissionStatus | null;
+  status: SubmissionStatus | "graded" | null;
 }) {
   if (!status) {
     return (
@@ -27,13 +25,11 @@ export default function SubmissionStatusBadge({
       </span>
     );
   }
-
-  const key = SUBMISSION_STATUS_COLOR[status];
+  const key = (SUBMISSION_STATUS_COLOR as any)[status] ?? "gray";
   const cls = COLOR_CLASS[key] ?? COLOR_CLASS.gray;
-
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs ${cls}`}>
-      {SUBMISSION_STATUS_LABEL[status]}
+      {(SUBMISSION_STATUS_LABEL as any)[status] ?? status}
     </span>
   );
 }

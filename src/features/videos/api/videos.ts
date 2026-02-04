@@ -96,6 +96,18 @@ function safeData<T>(d: any, fallback: T): T {
   return d;
 }
 
+/**
+ * ✅ 최소 추가
+ * backend의 thumbnail → frontend thumbnail_url 매핑
+ */
+function normalizeVideo(v: any): Video {
+  if (!v) return v;
+  if (!v.thumbnail_url && v.thumbnail) {
+    v.thumbnail_url = v.thumbnail;
+  }
+  return v as Video;
+}
+
 export async function fetchSessionVideos(
   sessionId: number
 ): Promise<Video[]> {
@@ -104,8 +116,8 @@ export async function fetchSessionVideos(
   });
 
   const d = res?.data;
-  if (Array.isArray(d)) return d;
-  if (Array.isArray(d?.results)) return d.results;
+  if (Array.isArray(d)) return d.map(normalizeVideo);
+  if (Array.isArray(d?.results)) return d.results.map(normalizeVideo);
   return [];
 }
 
@@ -113,17 +125,25 @@ export async function fetchVideoDetail(
   videoId: number
 ): Promise<VideoDetail> {
   const res = await api.get(`/media/videos/${videoId}/`);
-  return safeData<VideoDetail>(res.data, {} as any);
+  return normalizeVideo(
+    safeData<VideoDetail>(res.data, {} as any)
+  );
 }
 
 export async function fetchVideoStats(
   videoId: number
 ): Promise<VideoStats> {
   const res = await api.get(`/media/videos/${videoId}/stats/`);
-  return safeData<VideoStats>(res.data, {
+  const data = safeData<VideoStats>(res.data, {
     video: {} as any,
     students: [],
   });
+
+  if (data.video) {
+    data.video = normalizeVideo(data.video);
+  }
+
+  return data;
 }
 
 export async function retryVideo(videoId: number): Promise<void> {
@@ -169,6 +189,7 @@ export async function uploadInit(payload: {
   show_watermark?: boolean;
 }): Promise<UploadInitResponse> {
   const res = await api.post("/media/videos/upload/init/", payload);
+  res.data.video = normalizeVideo(res.data.video);
   return res.data;
 }
 

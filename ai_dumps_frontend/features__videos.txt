@@ -16,31 +16,59 @@ export function uploadToR2(
   onProgress?: (percent: number) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (!uploadUrl) {
+      reject(new Error("uploadUrl is empty"));
+      return;
+    }
+
     const xhr = new XMLHttpRequest();
 
-    xhr.open("PUT", uploadUrl, true);
+    try {
+      xhr.open("PUT", uploadUrl, true);
+    } catch (e) {
+      reject(new Error("Failed to open XHR"));
+      return;
+    }
 
     if (contentType) {
-      xhr.setRequestHeader("Content-Type", contentType);
+      try {
+        xhr.setRequestHeader("Content-Type", contentType);
+      } catch {
+        // presigned URL may forbid setting headers
+      }
     }
+
+    xhr.timeout = 60_000;
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
+        const percent = Math.max(
+          0,
+          Math.min(100, Math.round((e.loaded / e.total) * 100))
+        );
+        onProgress(percent);
       }
     };
 
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) { // MODIFIED
-        resolve(); // MODIFIED
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
       } else {
-        reject(new Error(`R2 upload failed: ${xhr.status}`));
+        reject(
+          new Error(`R2 upload failed: ${xhr.status} ${xhr.statusText}`)
+        );
       }
     };
 
     xhr.onerror = () => reject(new Error("R2 upload network error"));
+    xhr.ontimeout = () => reject(new Error("R2 upload timeout"));
+    xhr.onabort = () => reject(new Error("R2 upload aborted"));
 
-    xhr.send(file);
+    try {
+      xhr.send(file);
+    } catch (e) {
+      reject(new Error("R2 upload send failed"));
+    }
   });
 }
 
@@ -96,7 +124,7 @@ export interface VideoStatsStudent {
   enrollment: number;
   student_name: string;
 
-  progress: number; // 0 ~ 1 (backend 기준)
+  progress: number;
   completed: boolean;
 
   attendance_status: string | null;
@@ -121,19 +149,15 @@ export interface UploadInitResponse {
   content_type: string;
 }
 
-/* ===========================
-   Policy Impact (RESTORED)
-   =========================== */ // MODIFIED
+export type PolicyImpactRule = "free" | "once" | "blocked";
 
-export type PolicyImpactRule = "free" | "once" | "blocked"; // MODIFIED
-
-export interface PolicyImpactRow { // MODIFIED
+export interface PolicyImpactRow {
   enrollment: number;
   student_name: string;
   effective_rule: PolicyImpactRule;
 }
 
-export interface PolicyImpactResponse { // MODIFIED
+export interface PolicyImpactResponse {
   eligible_count: number;
   impacted_count: number;
   changed_fields: {
@@ -145,28 +169,46 @@ export interface PolicyImpactResponse { // MODIFIED
   sample: PolicyImpactRow[];
 }
 
-export async function fetchSessionVideos(sessionId: number): Promise<Video[]> {
+function safeData<T>(d: any, fallback: T): T {
+  if (d == null) return fallback;
+  return d;
+}
+
+export async function fetchSessionVideos(
+  sessionId: number
+): Promise<Video[]> {
   const res = await api.get("/media/videos/", {
     params: { session: sessionId },
   });
-  return res.data?.results ?? res.data;
+
+  const d = res?.data;
+  if (Array.isArray(d)) return d;
+  if (Array.isArray(d?.results)) return d.results;
+  return [];
 }
 
-export async function fetchVideoDetail(videoId: number): Promise<VideoDetail> {
+export async function fetchVideoDetail(
+  videoId: number
+): Promise<VideoDetail> {
   const res = await api.get(`/media/videos/${videoId}/`);
-  return res.data;
+  return safeData<VideoDetail>(res.data, {} as any);
 }
 
-export async function fetchVideoStats(videoId: number): Promise<VideoStats> {
+export async function fetchVideoStats(
+  videoId: number
+): Promise<VideoStats> {
   const res = await api.get(`/media/videos/${videoId}/stats/`);
-  return res.data;
+  return safeData<VideoStats>(res.data, {
+    video: {} as any,
+    students: [],
+  });
 }
 
 export async function retryVideo(videoId: number): Promise<void> {
   await api.post(`/media/videos/${videoId}/retry/`);
 }
 
-export async function fetchPolicyImpact(params: { // MODIFIED
+export async function fetchPolicyImpact(params: {
   videoId: number;
   allow_skip: boolean;
   max_speed: number;
@@ -182,7 +224,17 @@ export async function fetchPolicyImpact(params: { // MODIFIED
       },
     }
   );
-  return res.data;
+  return safeData<PolicyImpactResponse>(res.data, {
+    eligible_count: 0,
+    impacted_count: 0,
+    changed_fields: {
+      allow_skip: { before: false, after: false },
+      max_speed: { before: 1, after: 1 },
+      show_watermark: { before: false, after: false },
+    },
+    breakdown_by_rule: { free: 0, once: 0, blocked: 0 },
+    sample: [],
+  });
 }
 
 export async function uploadInit(payload: {
@@ -198,7 +250,9 @@ export async function uploadInit(payload: {
   return res.data;
 }
 
-export async function uploadComplete(videoId: number): Promise<void> {
+export async function uploadComplete(
+  videoId: number
+): Promise<void> {
   await api.post(`/media/videos/${videoId}/upload/complete/`);
 }
 
@@ -212,13 +266,13 @@ import api from "@/shared/api/axios";
 
 export function fetchPlaybackSessions(videoId: number) {
   return api
-    .get(`/media/admin/videos/${videoId}/sessions/`) // MODIFIED
+    .get(`/media/admin/videos/${videoId}/sessions/`)
     .then((res) => res.data);
 }
 
 export function fetchPlaybackEvents(sessionId: string) {
   return api
-    .get(`/media/admin/playback-sessions/${sessionId}/events/`) // MODIFIED
+    .get(`/media/admin/playback-sessions/${sessionId}/events/`)
     .then((res) => res.data);
 }
 
@@ -347,9 +401,7 @@ export default function PlaybackEventTimeline({ events }: Props) {
             <div className="flex-1">
               <div
                 className={`font-medium ${
-                  anomaly
-                    ? "text-red-600"
-                    : "text-[var(--text-primary)]"
+                  anomaly ? "text-red-600" : "text-[var(--text-primary)]"
                 }`}
               >
                 {label}
@@ -429,23 +481,19 @@ export default function PlaybackSessionTable({
                     : "hover:bg-[var(--bg-surface-soft)]"
                 }`}
               >
-                <td className="px-3 py-2 font-medium">
-                  {s.student_name}
-                </td>
+                <td className="px-3 py-2 font-medium">{s.student_name}</td>
                 <td className="px-3 py-2 text-xs text-[var(--text-secondary)]">
                   {s.device_id}
                 </td>
                 <td className="px-3 py-2 text-center text-xs">
-                  {new Date(s.started_at).toLocaleString("ko-KR")}
-                </td>
-                <td className="px-3 py-2 text-center text-xs">
-                  {s.ended_at
-                    ? new Date(s.ended_at).toLocaleString("ko-KR")
+                  {s.started_at
+                    ? new Date(s.started_at).toLocaleString("ko-KR")
                     : "-"}
                 </td>
                 <td className="px-3 py-2 text-center text-xs">
-                  {s.status}
+                  {s.ended_at ? new Date(s.ended_at).toLocaleString("ko-KR") : "-"}
                 </td>
+                <td className="px-3 py-2 text-center text-xs">{s.status}</td>
               </tr>
             );
           })}
@@ -468,24 +516,23 @@ import { fetchPlaybackSessions, fetchPlaybackEvents } from "../api/playbackAudit
 import PlaybackSessionTable from "../components/PlaybackSessionTable";
 import PlaybackEventTimeline from "../components/PlaybackEventTimeline";
 
-export default function VideoAuditPage({
-  videoId,
-}: {
-  videoId: number;
-}) {
-  const [selectedSession, setSelectedSession] =
-    useState<string | null>(null);
+export default function VideoAuditPage({ videoId }: { videoId: number }) {
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
 
   const { data: sessions } = useQuery({
     queryKey: ["audit-sessions", videoId],
     queryFn: () => fetchPlaybackSessions(videoId),
+    enabled: !!videoId,
+    staleTime: 5000,
+    retry: 1,
   });
 
   const { data: events } = useQuery({
     queryKey: ["audit-events", selectedSession],
-    queryFn: () =>
-      fetchPlaybackEvents(selectedSession!),
+    queryFn: () => fetchPlaybackEvents(selectedSession!),
     enabled: !!selectedSession,
+    staleTime: 3000,
+    retry: 1,
   });
 
   return (
@@ -498,15 +545,9 @@ export default function VideoAuditPage({
           </div>
 
           <PlaybackSessionTable
-            sessions={sessions?.results ?? []}
-            selectedSessionId={
-              selectedSession
-                ? Number(selectedSession)
-                : null
-            }
-            onSelect={(id) =>
-              setSelectedSession(String(id))
-            }
+            sessions={sessions?.results ?? sessions ?? []}
+            selectedSessionId={selectedSession ? Number(selectedSession) : null}
+            onSelect={(id) => setSelectedSession(String(id))}
           />
         </section>
 
@@ -517,9 +558,7 @@ export default function VideoAuditPage({
           </div>
 
           {selectedSession ? (
-            <PlaybackEventTimeline
-              events={events?.results ?? []}
-            />
+            <PlaybackEventTimeline events={events?.results ?? events ?? []} />
           ) : (
             <div className="text-sm text-[var(--text-muted)]">
               세션을 선택하세요.
@@ -743,24 +782,18 @@ function KpiCard({
   );
 }
 
-export default function VideoAchievementTab({
-  videoId,
-  onSelectStudent,
-}: Props) {
-  const [sortKey, setSortKey] = useState<
-    "progress" | "name" | "status"
-  >("status");
+export default function VideoAchievementTab({ videoId, onSelectStudent }: Props) {
+  const [sortKey, setSortKey] = useState<"progress" | "name" | "status">("status");
 
   const { data, isFetching } = useQuery({
     queryKey: ["video", videoId, "achievement"],
     queryFn: async () => {
-      const res = await api.get(
-        `/media/videos/${videoId}/achievement/`
-      );
+      const res = await api.get(`/media/videos/${videoId}/achievement/`);
       return res.data;
     },
     enabled: !!videoId,
     staleTime: 5000,
+    retry: 1,
   });
 
   const students: Row[] = data?.students ?? [];
@@ -795,23 +828,15 @@ export default function VideoAchievementTab({
     };
 
     if (sortKey === "progress") {
-      copy.sort(
-        (a, b) => (b.progress ?? 0) - (a.progress ?? 0)
-      );
+      copy.sort((a, b) => (b.progress ?? 0) - (a.progress ?? 0));
     } else if (sortKey === "name") {
-      copy.sort((a, b) =>
-        (a.student_name || "").localeCompare(
-          b.student_name || ""
-        )
-      );
+      copy.sort((a, b) => (a.student_name || "").localeCompare(b.student_name || ""));
     } else {
       copy.sort((a, b) => {
         const ra = statusRank[a.status] ?? 99;
         const rb = statusRank[b.status] ?? 99;
         if (ra !== rb) return ra - rb;
-        return (a.student_name || "").localeCompare(
-          b.student_name || ""
-        );
+        return (a.student_name || "").localeCompare(b.student_name || "");
       });
     }
     return copy;
@@ -842,9 +867,7 @@ export default function VideoAchievementTab({
           <select
             className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)]"
             value={sortKey}
-            onChange={(e) =>
-              setSortKey(e.target.value as any)
-            }
+            onChange={(e) => setSortKey(e.target.value as any)}
           >
             <option value="status">상태(위험→완료)</option>
             <option value="progress">진도(높은순)</option>
@@ -855,22 +878,10 @@ export default function VideoAchievementTab({
 
       {/* KPI */}
       <div className="grid grid-cols-4 gap-3">
-        <KpiCard
-          label="영상 수강 학생"
-          value={`${summary?.total_students ?? 0}명`}
-        />
-        <KpiCard
-          label="평균 진도율"
-          value={`${summary?.avg_progress ?? 0}%`}
-        />
-        <KpiCard
-          label="완료율"
-          value={`${summary?.completed_rate ?? 0}%`}
-        />
-        <KpiCard
-          label="미완료"
-          value={`${summary?.incomplete_count ?? 0}명`}
-        />
+        <KpiCard label="영상 수강 학생" value={`${summary?.total_students ?? 0}명`} />
+        <KpiCard label="평균 진도율" value={`${summary?.avg_progress ?? 0}%`} />
+        <KpiCard label="완료율" value={`${summary?.completed_rate ?? 0}%`} />
+        <KpiCard label="미완료" value={`${summary?.incomplete_count ?? 0}명`} />
       </div>
 
       {/* Chart + Table */}
@@ -884,22 +895,11 @@ export default function VideoAchievementTab({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={dist}
-                margin={{
-                  left: 10,
-                  right: 10,
-                  top: 10,
-                  bottom: 10,
-                }}
+                margin={{ left: 10, right: 10, top: 10, bottom: 10 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis
-                  allowDecimals={false}
-                  tick={{ fontSize: 12 }}
-                />
-                // PATH: src/features/videos/components/features/video-analytics/VideoAchievementTab.tsx
-                // (변경 부분만 아님 — 전체 파일 기준, Tooltip만 수정)
-
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
                 <Tooltip
                   contentStyle={{
                     background: "var(--bg-surface-soft)",
@@ -908,11 +908,8 @@ export default function VideoAchievementTab({
                     fontSize: 12,
                     color: "var(--text-primary)",
                   }}
-                  labelStyle={{
-                    color: "var(--text-secondary)",
-                  }}
+                  labelStyle={{ color: "var(--text-secondary)" }}
                 />
-
                 <Bar dataKey="count" />
               </BarChart>
             </ResponsiveContainer>
@@ -950,9 +947,7 @@ export default function VideoAchievementTab({
                 <button
                   key={s.enrollment}
                   className="grid w-full grid-cols-12 border-b border-[var(--border-divider)] px-3 py-2 text-left text-sm hover:bg-[var(--bg-surface-soft)]"
-                  onClick={() =>
-                    onSelectStudent?.(s.enrollment)
-                  }
+                  onClick={() => onSelectStudent?.(s.enrollment)}
                 >
                   <div className="col-span-3 truncate font-medium">
                     {s.student_name}
@@ -1029,6 +1024,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
     },
     enabled: !!videoId,
     staleTime: 3000,
+    retry: 1,
   });
 
   const { data: riskData } = useQuery({
@@ -1041,6 +1037,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
     },
     enabled: !!videoId,
     staleTime: 3000,
+    retry: 1,
   });
 
   const events = useMemo(() => {
@@ -1090,6 +1087,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
 
           <button
             className="w-full text-xs px-3 py-2 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)]"
+            type="button"
           >
             CSV Export
           </button>
@@ -1109,10 +1107,9 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                   key={r.enrollment_id}
                   className="w-full text-left rounded-lg border border-[var(--border-divider)] px-3 py-2 hover:bg-[var(--bg-surface-soft)]"
                   onClick={() => onClickRiskStudent(r.enrollment_id)}
+                  type="button"
                 >
-                  <div className="text-sm font-semibold">
-                    {r.student_name}
-                  </div>
+                  <div className="text-sm font-semibold">{r.student_name}</div>
                   <div className="text-xs text-[var(--text-secondary)] mt-1">
                     점수 <b>{r.score}</b> · danger {r.danger} · warn {r.warn}
                   </div>
@@ -1170,11 +1167,10 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                 key={e.id}
                 className="w-full text-left grid grid-cols-12 px-3 py-2 border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)] text-xs"
                 onClick={() => setSelectedEvent(e)}
+                type="button"
               >
                 <div className="col-span-2 text-[var(--text-secondary)]">
-                  {e.occurred_at
-                    ? new Date(e.occurred_at).toLocaleString()
-                    : "-"}
+                  {e.occurred_at ? new Date(e.occurred_at).toLocaleString() : "-"}
                 </div>
                 <div className="col-span-2 font-medium truncate">
                   {e.student_name}
@@ -1195,9 +1191,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
                 <div className="col-span-2 text-[var(--text-secondary)] truncate">
                   {e.violation_reason || "-"}
                 </div>
-                <div className="col-span-1 text-center font-bold">
-                  {e.score}
-                </div>
+                <div className="col-span-1 text-center font-bold">{e.score}</div>
                 <div className="col-span-1 text-center text-[var(--text-muted)] truncate">
                   {e.session_id ? String(e.session_id).slice(0, 6) : "-"}
                 </div>
@@ -1211,6 +1205,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
             className="text-xs px-3 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] disabled:opacity-50"
             disabled={!canPrev}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
+            type="button"
           >
             이전
           </button>
@@ -1218,6 +1213,7 @@ export default function VideoLogTab({ videoId, onClickRiskStudent }: Props) {
             className="text-xs px-3 py-1 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] disabled:opacity-50"
             disabled={!canNext}
             onClick={() => setPage((p) => p + 1)}
+            type="button"
           >
             다음
           </button>
@@ -1250,6 +1246,14 @@ export default function AdminHlsPreview({ src }: { src: string }) {
   useEffect(() => {
     const video = ref.current;
     if (!video) return;
+
+    if (!src) {
+      video.removeAttribute("src");
+      try {
+        video.load();
+      } catch {}
+      return;
+    }
 
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;
@@ -1341,7 +1345,7 @@ export default function StudentWatchPanel({
 
   const sorted = useMemo(() => {
     return [...students].sort((a, b) =>
-      a.student_name.localeCompare(b.student_name)
+      String(a.student_name || "").localeCompare(String(b.student_name || ""))
     );
   }, [students]);
 
@@ -1352,6 +1356,7 @@ export default function StudentWatchPanel({
         <button
           onClick={onOpenPermission}
           className="text-xs rounded bg-[var(--color-primary)] text-white px-3 py-1.5"
+          type="button"
         >
           권한 관리
         </button>
@@ -1360,8 +1365,8 @@ export default function StudentWatchPanel({
       {/* LIST */}
       <div className="flex flex-col gap-2">
         {sorted.map((s: any) => {
-          const progress = Math.round((s.progress ?? 0) * 100);
-          const barWidth = progress === 0 ? 2 : progress;
+          const progress = Math.round((Number(s.progress ?? 0) || 0) * 100);
+          const barWidth = progress === 0 ? 2 : Math.min(100, Math.max(0, progress));
           const clickable = selectable && s.enrollment;
           const selected = selectedEnrollmentId === s.enrollment;
 
@@ -1373,15 +1378,17 @@ export default function StudentWatchPanel({
               onClick={() => {
                 if (clickable) onSelectPreviewStudent!(s.enrollment);
               }}
+              onKeyDown={(e) => {
+                if (!clickable) return;
+                if (e.key === "Enter" || e.key === " ") onSelectPreviewStudent!(s.enrollment);
+              }}
               className={[
                 "flex items-center gap-3",
                 "rounded-lg border px-3 py-2.5 text-sm",
                 "border-[var(--border-divider)] bg-[var(--bg-surface)]",
                 "overflow-hidden",
-                clickable &&
-                  "cursor-pointer hover:bg-[var(--bg-surface-soft)]",
-                selected &&
-                  "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)]",
+                clickable && "cursor-pointer hover:bg-[var(--bg-surface-soft)]",
+                selected && "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)]",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -1393,9 +1400,7 @@ export default function StudentWatchPanel({
 
               {/* BADGES */}
               <div className="w-[140px] flex items-center gap-1 shrink-0">
-                <AttendanceBadge
-                  status={s.attendance_status ?? "UNKNOWN"}
-                />
+                <AttendanceBadge status={s.attendance_status ?? "UNKNOWN"} />
 
                 <span
                   className={[
@@ -1442,15 +1447,13 @@ interface Props {
 
 export default function VideoInfoSection({ video, memo, setMemo }: Props) {
   const formatBytes = (b?: number) =>
-    b ? `${(b / 1024 / 1024).toFixed(1)} MB` : "-";
+    b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "-";
 
   return (
     <div className="grid grid-cols-2 gap-4">
       {/* FILE INFO */}
       <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 text-sm space-y-1">
-        <div className="font-medium text-[var(--text-primary)]">
-          파일 기본 정보
-        </div>
+        <div className="font-medium text-[var(--text-primary)]">파일 기본 정보</div>
 
         <div className="text-xs text-[var(--text-secondary)]">
           <div>상태: {video.status}</div>
@@ -1462,16 +1465,14 @@ export default function VideoInfoSection({ video, memo, setMemo }: Props) {
 
       {/* POLICY SNAPSHOT + MEMO */}
       <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 text-sm space-y-2">
-        <div className="font-medium text-[var(--text-primary)]">
-          현재 적용 정책
-        </div>
+        <div className="font-medium text-[var(--text-primary)]">현재 적용 정책</div>
 
         <div className="text-xs text-[var(--text-secondary)]">
           워터마크: {video.show_watermark ? "ON" : "OFF"}
           <br />
           건너뛰기: {video.allow_skip ? "허용" : "차단"}
           <br />
-          최대 배속: {Number(video.max_speed).toFixed(2)}x
+          최대 배속: {Number(video.max_speed ?? 1).toFixed(2)}x
         </div>
 
         <textarea
@@ -1504,17 +1505,11 @@ interface Props {
 }
 
 export default function VideoPolicySection({ videoId, initial }: Props) {
-  const {
-    policy,
-    canSave,
-    setAllowSkip,
-    setMaxSpeed,
-    setShowWatermark,
-    save,
-  } = useVideoPolicy({
-    videoId,
-    initial,
-  });
+  const { policy, canSave, setAllowSkip, setMaxSpeed, setShowWatermark, save } =
+    useVideoPolicy({
+      videoId,
+      initial,
+    } as any);
 
   return (
     <div className="space-y-4">
@@ -1523,18 +1518,12 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
         <div className="flex items-center gap-6 text-xs text-[var(--text-secondary)]">
           <label className="flex items-center gap-2">
             워터마크
-            <ToggleSwitch
-              checked={policy.show_watermark}
-              onChange={setShowWatermark}
-            />
+            <ToggleSwitch checked={policy.show_watermark} onChange={setShowWatermark} />
           </label>
 
           <label className="flex items-center gap-2">
             건너뛰기
-            <ToggleSwitch
-              checked={policy.allow_skip}
-              onChange={setAllowSkip}
-            />
+            <ToggleSwitch checked={policy.allow_skip} onChange={setAllowSkip} />
           </label>
 
           <label className="flex items-center gap-2">
@@ -1555,6 +1544,7 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
             onClick={() => save()}
             disabled={!canSave}
             className="ml-auto rounded bg-[var(--color-primary)] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+            type="button"
           >
             저장
           </button>
@@ -1568,9 +1558,8 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
 ==========================================================================================
 # FILE: components/features/video-detail/components/VideoPreviewSection.tsx
 ==========================================================================================
-// PATH: src/features/videos/components/features/video-detail/components/VideoPreviewSection.tsx
-
-import AdminHlsPreview from "../components/AdminHlsPreview";
+import AdminHlsPreview from "./AdminHlsPreview";
+import VideoProcessingPreview from "./VideoProcessingPreview";
 
 type PreviewMode = "admin" | "student";
 
@@ -1578,23 +1567,21 @@ interface Props {
   previewMode: PreviewMode;
   setPreviewMode: (v: PreviewMode) => void;
   hlsSrc: string | null;
+  status: string;
+  progressPercent?: number | null;
 }
 
 export default function VideoPreviewSection({
   previewMode,
   setPreviewMode,
   hlsSrc,
+  status,
+  progressPercent,
 }: Props) {
+  const isReady = status === "READY";
+
   return (
-    <div
-      className="
-        rounded-lg
-        border border-[var(--border-divider)]
-        bg-[var(--bg-surface-soft)]
-        p-4
-        space-y-4
-      "
-    >
+    <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 space-y-4">
       {/* MODE TOGGLE */}
       <div className="flex items-center gap-2">
         <button
@@ -1622,13 +1609,60 @@ export default function VideoPreviewSection({
 
       {/* PREVIEW */}
       <div className="rounded-md bg-[var(--bg-surface)] p-3">
-        {previewMode === "admin" && hlsSrc ? (
+        {isReady && previewMode === "admin" && hlsSrc ? (
           <AdminHlsPreview src={hlsSrc} />
         ) : (
-          <div className="text-sm text-[var(--text-muted)]">
-            HLS 없음
-          </div>
+          <VideoProcessingPreview
+            status={status}
+            percent={progressPercent}
+          />
         )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/features/video-detail/components/VideoProcessingPreview.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-detail/components/VideoProcessingPreview.tsx
+
+interface Props {
+  percent?: number | null;
+  status: string;
+}
+
+export default function VideoProcessingPreview({ percent, status }: Props) {
+  const safePercent =
+    typeof percent === "number"
+      ? Math.min(100, Math.max(0, Math.round(percent)))
+      : null;
+
+  return (
+    <div className="flex flex-col items-center justify-center h-[320px] rounded-lg bg-[var(--bg-surface)] border border-[var(--border-divider)]">
+      <div className="text-sm font-semibold text-[var(--text-primary)]">
+        {status === "UPLOADED" ? "업로드 완료" : "영상 처리 중"}
+      </div>
+
+      <div className="mt-2 text-xs text-[var(--text-muted)]">
+        썸네일 생성 및 인코딩 진행 중
+      </div>
+
+      {/* Progress Bar */}
+      <div className="mt-6 w-[260px]">
+        <div className="h-2 rounded bg-[var(--bg-app)] overflow-hidden">
+          <div
+            className="h-full bg-[var(--color-primary)] transition-all"
+            style={{
+              width: `${safePercent ?? 0}%`,
+            }}
+          />
+        </div>
+
+        <div className="mt-2 text-center text-xs text-[var(--text-secondary)]">
+          {safePercent != null ? `${safePercent}%` : "진행률 계산 중..."}
+        </div>
       </div>
     </div>
   );
@@ -1647,15 +1681,10 @@ interface Props {
   onOpenPermission: () => void;
 }
 
-export default function VideoStudentsSection({
-  students,
-  onOpenPermission,
-}: Props) {
+export default function VideoStudentsSection({ students, onOpenPermission }: Props) {
   return (
     <div className="space-y-3">
-      <div className="text-xs text-[var(--text-muted)]">
-        출결 · 권한 · 진도 요약
-      </div>
+      <div className="text-xs text-[var(--text-muted)]">출결 · 권한 · 진도 요약</div>
 
       <StudentWatchPanel
         students={students}
@@ -1671,6 +1700,8 @@ export default function VideoStudentsSection({
 ==========================================================================================
 # FILE: components/features/video-detail/modals/PermissionModal.tsx
 ==========================================================================================
+// PATH: src/features/videos/components/features/video-detail/modals/PermissionModal.tsx
+
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -1683,10 +1714,7 @@ import PermissionSidePanel from "../../video-permission/components/PermissionSid
 import VideoAchievementTab from "../../video-analytics/VideoAchievementTab";
 import VideoLogTab from "../../video-analytics/VideoLogTab";
 
-import type {
-  PermissionModalProps,
-  TabKey,
-} from "../../video-permission/permission.types";
+import type { PermissionModalProps, TabKey } from "../../video-permission/permission.types";
 
 import "../../video-permission/permission-modal.css";
 
@@ -1735,6 +1763,7 @@ export default function PermissionModal({
     },
     enabled: open && !!videoId && tab === "permission",
     staleTime: 5000,
+    retry: 1,
   });
 
   const studentsRaw = data?.students ?? [];
@@ -1745,17 +1774,13 @@ export default function PermissionModal({
     let list = studentsRaw;
 
     if (focusEnrollment) {
-      list = list.filter(
-        (s: any) => s.enrollment === focusEnrollment
-      );
+      list = list.filter((s: any) => s.enrollment === focusEnrollment);
     }
 
     const q = search.trim().toLowerCase();
     if (q) {
       list = list.filter((s: any) =>
-        String(s.student_name || "")
-          .toLowerCase()
-          .includes(q)
+        String(s.student_name || "").toLowerCase().includes(q)
       );
     }
 
@@ -1763,19 +1788,13 @@ export default function PermissionModal({
   }, [studentsRaw, focusEnrollment, search]);
 
   const toggle = (id: number) => {
-    setSelected((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id]
-    );
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   const toggleAll = () => {
     const ids = students.map((s: any) => s.enrollment);
     if (!ids.length) return;
-    setSelected(
-      selected.length === ids.length ? [] : ids
-    );
+    setSelected(selected.length === ids.length ? [] : ids);
   };
 
   /* ================= RIGHT PANEL DATA ================= */
@@ -1786,9 +1805,7 @@ export default function PermissionModal({
     return [...studentsRaw]
       .filter((s: any) => set.has(s.enrollment))
       .sort((a: any, b: any) =>
-        String(a.student_name || "").localeCompare(
-          String(b.student_name || "")
-        )
+        String(a.student_name || "").localeCompare(String(b.student_name || ""))
       );
   }, [studentsRaw, selected]);
 
@@ -1802,9 +1819,7 @@ export default function PermissionModal({
     },
     onSuccess: async () => {
       setSelected([]);
-      await qc.invalidateQueries({
-        queryKey: ["video", videoId, "stats"],
-      });
+      await qc.invalidateQueries({ queryKey: ["video", videoId, "stats"] });
     },
   });
 
@@ -1819,18 +1834,13 @@ export default function PermissionModal({
         <div className="px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-sm font-semibold">
-                시청 권한 관리
-              </div>
+              <div className="text-sm font-semibold">시청 권한 관리</div>
               <div className="mt-1 text-xs text-[var(--text-muted)]">
                 권한 설정 / 성취도 / 시청 로그
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="rounded border px-3 py-1.5 text-xs"
-            >
+            <button onClick={onClose} className="rounded border px-3 py-1.5 text-xs" type="button">
               닫기
             </button>
           </div>
@@ -1860,9 +1870,7 @@ export default function PermissionModal({
                       className="h-8 rounded border px-3 text-sm w-[220px]"
                       placeholder="이름 검색"
                       value={search}
-                      onChange={(e) =>
-                        setSearch(e.target.value)
-                      }
+                      onChange={(e) => setSearch(e.target.value)}
                     />
 
                     <div className="ml-auto text-sm text-[var(--text-secondary)]">
@@ -1888,22 +1896,14 @@ export default function PermissionModal({
                   onApply={(rule) => mutate.mutate(rule)}
                   onClear={() => setSelected([])}
                   onRemoveOne={(enrollment) =>
-                    setSelected((prev) =>
-                      prev.filter((x) => x !== enrollment)
-                    )
+                    setSelected((prev) => prev.filter((x) => x !== enrollment))
                   }
                 />
               </div>
             ) : tab === "achievement" ? (
-              <VideoAchievementTab
-                videoId={videoId}
-                onSelectStudent={(id) => setFocusBoth(id)}
-              />
+              <VideoAchievementTab videoId={videoId} onSelectStudent={(id) => setFocusBoth(id)} />
             ) : (
-              <VideoLogTab
-                videoId={videoId}
-                onClickRiskStudent={(id) => setFocusBoth(id)}
-              />
+              <VideoLogTab videoId={videoId} onClickRiskStudent={(id) => setFocusBoth(id)} />
             )}
           </div>
         </div>
@@ -1990,16 +1990,23 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         ...(description.trim() ? { description: description.trim() } : {}),
       };
 
-      const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload);
+      const initRes = await api.post<UploadInitResponse>(
+        "/media/videos/upload/init/",
+        initPayload
+      );
 
       const uploadUrl = initRes.data?.upload_url;
       const videoId = initRes.data?.video?.id;
       const contentTypeFromServer = initRes.data?.content_type;
 
-      if (!uploadUrl || !videoId) throw new Error("업로드 초기화에 실패했습니다.");
+      if (!uploadUrl || !videoId) {
+        throw new Error("업로드 초기화에 실패했습니다.");
+      }
 
       const putHeaders: Record<string, string> = {};
-      if (contentTypeFromServer) putHeaders["Content-Type"] = contentTypeFromServer;
+      if (contentTypeFromServer) {
+        putHeaders["Content-Type"] = contentTypeFromServer;
+      }
 
       const putRes = await fetch(uploadUrl, {
         method: "PUT",
@@ -2011,15 +2018,26 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         throw new Error(`R2 업로드 실패: ${putRes.status} ${putRes.statusText}`);
       }
 
-      const completeRes = await api.post(`/media/videos/${videoId}/upload/complete/`, { ok: true });
+      const completeRes = await api.post(
+        `/media/videos/${videoId}/upload/complete/`,
+        { ok: true }
+      );
+
       return completeRes.data;
     },
+
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
-      onClose();
+      await qc.invalidateQueries({
+        queryKey: ["session-videos", sessionId],
+      });
     },
+
     onError: (e: any) => {
-      alert(e?.response?.data?.detail || e?.message || "업로드에 실패했습니다.");
+      alert(
+        e?.response?.data?.detail ||
+          e?.message ||
+          "업로드에 실패했습니다."
+      );
     },
   });
 
@@ -2030,11 +2048,13 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-xl bg-[var(--bg-surface)] shadow-xl">
-        {/* ✅ header = 텍스트 블록 */}
+        {/* header */}
         <div className="px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-sm font-semibold text-[var(--text-primary)]">영상 추가</div>
+              <div className="text-sm font-semibold text-[var(--text-primary)]">
+                영상 추가
+              </div>
               <div className="mt-1 text-xs text-[var(--text-muted)]">
                 파일 업로드 및 재생 정책을 설정합니다.
               </div>
@@ -2044,19 +2064,20 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               type="button"
               className="shrink-0 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
               onClick={onClose}
-              disabled={uploadMut.isPending}
             >
               닫기
             </button>
           </div>
         </div>
 
-        {/* ✅ body = surface */}
+        {/* body */}
         <div className="px-5 pb-5">
           <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 space-y-4">
             {/* Title */}
             <div>
-              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">제목</div>
+              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+                제목
+              </div>
               <input
                 className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                 placeholder="예: 1강 OT"
@@ -2068,7 +2089,9 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
             {/* File */}
             <div>
-              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">파일 업로드</div>
+              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+                파일 업로드
+              </div>
 
               <div
                 className="flex cursor-pointer items-center justify-center rounded border border-dashed border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-6 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-app)]"
@@ -2081,13 +2104,21 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               >
                 {file ? (
                   <div className="text-center">
-                    <div className="font-medium text-[var(--text-primary)]">{file.name}</div>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">클릭해서 파일 변경</div>
+                    <div className="font-medium text-[var(--text-primary)]">
+                      {file.name}
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">
+                      클릭해서 파일 변경
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center">
-                    <div className="font-medium text-[var(--text-primary)]">여기를 클릭해서 업로드</div>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">mp4 등 동영상 파일</div>
+                    <div className="font-medium text-[var(--text-primary)]">
+                      여기를 클릭해서 업로드
+                    </div>
+                    <div className="mt-1 text-xs text-[var(--text-muted)]">
+                      mp4 등 동영상 파일
+                    </div>
                   </div>
                 )}
               </div>
@@ -2097,13 +2128,17 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                 type="file"
                 className="hidden"
                 accept="video/*"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                onChange={(e) =>
+                  setFile(e.target.files?.[0] ?? null)
+                }
               />
             </div>
 
             {/* Description */}
             <div>
-              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">영상 설명</div>
+              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+                영상 설명
+              </div>
               <textarea
                 className="h-24 w-full resize-none rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
                 placeholder="(선택)"
@@ -2114,84 +2149,98 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
             {/* Options */}
             <div className="rounded-lg bg-[var(--bg-surface)] p-3">
-              <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">재생 정책</div>
+              <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
+                재생 정책
+              </div>
 
               <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--text-primary)]">
                 <label className="flex items-center gap-2">
-                  <span className="text-sm">워터마크</span>
+                  <span>워터마크</span>
                   <button
                     type="button"
                     onClick={() => setShowWatermark((v) => !v)}
                     className={[
                       "h-6 w-11 rounded-full border border-[var(--border-divider)] transition",
-                      showWatermark ? "bg-[var(--color-primary)]" : "bg-[var(--bg-app)]",
+                      showWatermark
+                        ? "bg-[var(--color-primary)]"
+                        : "bg-[var(--bg-app)]",
                     ].join(" ")}
-                    aria-pressed={showWatermark}
                   >
                     <span
                       className={[
-                        "block h-5 w-5 translate-x-0.5 rounded-full bg-white transition",
-                        showWatermark ? "translate-x-5" : "",
+                        "block h-5 w-5 rounded-full bg-white transition",
+                        showWatermark
+                          ? "translate-x-5"
+                          : "translate-x-0.5",
                       ].join(" ")}
                     />
                   </button>
                 </label>
 
                 <label className="flex items-center gap-2">
-                  <span className="text-sm">건너뛰기</span>
+                  <span>건너뛰기</span>
                   <button
                     type="button"
                     onClick={() => setAllowSkip((v) => !v)}
                     className={[
                       "h-6 w-11 rounded-full border border-[var(--border-divider)] transition",
-                      allowSkip ? "bg-[var(--color-primary)]" : "bg-[var(--bg-app)]",
+                      allowSkip
+                        ? "bg-[var(--color-primary)]"
+                        : "bg-[var(--bg-app)]",
                     ].join(" ")}
-                    aria-pressed={allowSkip}
                   >
                     <span
                       className={[
-                        "block h-5 w-5 translate-x-0.5 rounded-full bg-white transition",
-                        allowSkip ? "translate-x-5" : "",
+                        "block h-5 w-5 rounded-full bg-white transition",
+                        allowSkip
+                          ? "translate-x-5"
+                          : "translate-x-0.5",
                       ].join(" ")}
                     />
                   </button>
                 </label>
 
                 <label className="flex items-center gap-2">
-                  <span className="text-sm">최대 배속</span>
+                  <span>최대 배속</span>
                   <input
                     type="number"
                     min={1}
                     max={5}
                     step={0.25}
-                    className="w-20 rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-sm text-[var(--text-primary)]"
-                    value={Number.isFinite(maxSpeed) ? maxSpeed : 1}
-                    onChange={(e) => setMaxSpeed(Number(e.target.value))}
+                    className="w-20 rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-sm"
+                    value={maxSpeed}
+                    onChange={(e) =>
+                      setMaxSpeed(Number(e.target.value))
+                    }
                   />
                 </label>
               </div>
 
-              <div className="mt-2 text-xs text-[var(--text-muted)]">session_id: {sessionId}</div>
+              <div className="mt-2 text-xs text-[var(--text-muted)]">
+                session_id: {sessionId}
+              </div>
             </div>
 
-            {/* Actions (footer를 body 내부로 넣어서 ‘body=surface’ 유지) */}
+            {/* Actions */}
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                className="rounded border border-[var(--border-divider)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-app)] disabled:opacity-50"
+                className="rounded border border-[var(--border-divider)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-app)]"
                 onClick={onClose}
-                disabled={uploadMut.isPending}
               >
                 취소
               </button>
 
               <button
                 type="button"
-                className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                onClick={() => uploadMut.mutate()}
-                disabled={!canSubmit || uploadMut.isPending}
+                className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => {
+                  uploadMut.mutate(); // ✅ 먼저 시작
+                  onClose();          // ✅ 그 다음 닫기
+                }}
+                disabled={!canSubmit}
               >
-                {uploadMut.isPending ? "업로드 중..." : "업로드"}
+                업로드
               </button>
             </div>
           </div>
@@ -3043,9 +3092,7 @@ export default function PermissionTable({
         <div className="permission-checkbox">
           <input
             type="checkbox"
-            checked={
-              students.length > 0 && selected.length === students.length
-            }
+            checked={students.length > 0 && selected.length === students.length}
             onChange={toggleAll}
           />
         </div>
@@ -3083,26 +3130,26 @@ export default function PermissionTable({
 ==========================================================================================
 # FILE: hooks/useSessionVideos.ts
 ==========================================================================================
+// PATH: src/features/videos/hooks/useSessionVideos.ts
+
 import { useQuery } from "@tanstack/react-query";
 import { fetchSessionVideos, Video } from "../api/videos";
 
 function shouldPoll(videos: Video[]): boolean {
-  return videos.some(
-    (v) =>
-      v.status !== "READY" &&
-      v.status !== "FAILED"
-  );
+  return videos.some((v) => v.status !== "READY" && v.status !== "FAILED");
 }
 
 export function useSessionVideos(sessionId: number) {
   return useQuery({
     queryKey: ["session-videos", sessionId],
     queryFn: () => fetchSessionVideos(sessionId),
-
+    enabled: Number.isFinite(sessionId) && sessionId > 0,
+    staleTime: 2000,
+    retry: 1,
+    refetchOnWindowFocus: false,
     refetchInterval: (query) => {
       const videos = query.state.data;
       if (!videos) return 5000;
-
       return shouldPoll(videos) ? 5000 : false;
     },
   });
@@ -3112,7 +3159,7 @@ export function useSessionVideos(sessionId: number) {
 ==========================================================================================
 # FILE: hooks/useVideoPolicy.ts
 ==========================================================================================
-// src/features/videos/hooks/useVideoPolicy.ts
+// PATH: src/features/videos/hooks/useVideoPolicy.ts
 // --------------------------------------------------
 // useVideoPolicy
 // --------------------------------------------------
@@ -3172,10 +3219,7 @@ export function useVideoPolicy({ videoId, initial }: Options) {
   // -------------------------------
   // Helpers
   // -------------------------------
-  const update = <K extends keyof VideoPolicy>(
-    key: K,
-    value: VideoPolicy[K]
-  ) => {
+  const update = <K extends keyof VideoPolicy>(key: K, value: VideoPolicy[K]) => {
     setPolicy((prev) => {
       if (prev[key] === value) return prev;
       return { ...prev, [key]: value };
@@ -3200,24 +3244,15 @@ export function useVideoPolicy({ videoId, initial }: Options) {
     onSuccess: async () => {
       setDirty(false);
 
-      // Video detail / stats 갱신
-      await qc.invalidateQueries({
-        queryKey: ["video-stats", videoId],
-      });
-
-      await qc.invalidateQueries({
-        queryKey: ["video", videoId, "stats"],
-      });
+      await qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      await qc.invalidateQueries({ queryKey: ["video", videoId, "stats"] });
     },
   });
 
   // -------------------------------
   // Derived
   // -------------------------------
-  const canSave = useMemo(
-    () => dirty && !saveMutation.isPending,
-    [dirty, saveMutation.isPending]
-  );
+  const canSave = useMemo(() => dirty && !saveMutation.isPending, [dirty, saveMutation.isPending]);
 
   return {
     policy,
@@ -3243,17 +3278,13 @@ export function useVideoPolicy({ videoId, initial }: Options) {
 
 export const styles = {
   page: {
-    subtitle:
-      "mt-1 text-sm text-[var(--text-muted)]",
+    subtitle: "mt-1 text-sm text-[var(--text-muted)]",
   },
 
   layout: {
-    root:
-      "flex gap-10 items-start",
-    left:
-      "flex flex-col gap-8 w-[760px]",
-    right:
-      "w-[520px] shrink-0",
+    root: "flex gap-10 items-start",
+    left: "flex flex-col gap-8 w-[760px]",
+    right: "w-[520px] shrink-0",
   },
 
   section: {
@@ -3263,24 +3294,18 @@ export const styles = {
      * - header: 책임 단위 제목
      * - body: 실제 조작 영역
      */
-    wrapper:
-      "bg-[var(--bg-surface)] rounded-xl border border-[var(--border-divider)]",
+    wrapper: "bg-[var(--bg-surface)] rounded-xl border border-[var(--border-divider)]",
 
-    header:
-      "px-6 pt-5 pb-2 text-sm font-semibold text-[var(--text-primary)]",
+    header: "px-6 pt-5 pb-2 text-sm font-semibold text-[var(--text-primary)]",
 
-    body:
-      "px-6 pb-6 space-y-4",
+    body: "px-6 pb-6 space-y-4",
 
-    description:
-      "text-xs text-[var(--text-muted)]",
+    description: "text-xs text-[var(--text-muted)]",
   },
 
   header: {
-    title:
-      "text-xl font-semibold text-[var(--text-primary)]",
-    actions:
-      "flex items-center gap-2",
+    title: "text-xl font-semibold text-[var(--text-primary)]",
+    actions: "flex items-center gap-2",
     backLink:
       "rounded border border-[var(--border-divider)] px-3 py-1.5 text-sm bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)] transition",
   },
@@ -3302,33 +3327,20 @@ interface Props {
   right: ReactNode;
 }
 
-export default function VideoDetailLayout({
-  header,
-  subtitle,
-  left,
-  right,
-}: Props) {
+export default function VideoDetailLayout({ header, subtitle, left, right }: Props) {
   return (
     <div className="space-y-6">
       {/* PAGE HEADER */}
       <div>{header}</div>
 
-      {subtitle && (
-        <div className={styles.page.subtitle}>
-          {subtitle}
-        </div>
-      )}
+      {subtitle && <div className={styles.page.subtitle}>{subtitle}</div>}
 
       {/* PAGE BODY */}
       <div className={styles.layout.root}>
-        <div className={styles.layout.left}>
-          {left}
-        </div>
+        <div className={styles.layout.left}>{left}</div>
 
         {/* RIGHT = 상태 / 관리 패널 */}
-        <div className={styles.layout.right}>
-          {right}
-        </div>
+        <div className={styles.layout.right}>{right}</div>
       </div>
     </div>
   );
@@ -3362,29 +3374,22 @@ export default function VideoDetailPage() {
   const sessionId = Number(params.sessionId);
   const videoId = Number(params.videoId);
 
-  const [previewMode, setPreviewMode] =
-    useState<PreviewMode>("admin");
-  const [openPermission, setOpenPermission] =
-    useState(false);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("admin");
+  const [openPermission, setOpenPermission] = useState(false);
   const [memo, setMemo] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["video-stats", videoId],
     queryFn: async () => {
-      const res = await api.get(
-        `/media/videos/${videoId}/stats/`
-      );
+      const res = await api.get(`/media/videos/${videoId}/stats/`);
       return res.data;
     },
     enabled: !!videoId,
+    retry: 1,
   });
 
   if (isLoading || !data?.video) {
-    return (
-      <div className="text-sm text-[var(--text-muted)]">
-        로딩중…
-      </div>
-    );
+    return <div className="text-sm text-[var(--text-muted)]">로딩중…</div>;
   }
 
   const video = data.video;
@@ -3396,9 +3401,7 @@ export default function VideoDetailPage() {
         header={
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className={styles.header.title}>
-                {video.title}
-              </h2>
+              <h2 className={styles.header.title}>{video.title}</h2>
               <div className="mt-1 text-xs text-[var(--text-muted)]">
                 세션 영상 관리 · 정책 / 시청 / 로그
               </div>
@@ -3415,30 +3418,25 @@ export default function VideoDetailPage() {
           </div>
         }
         subtitle={
-          <span>
-            이 영상에 대한 시청 정책, 학생
-            상태, 로그 데이터를 관리합니다.
-          </span>
+          <span>이 영상에 대한 시청 정책, 학생 상태, 로그 데이터를 관리합니다.</span>
         }
         left={
           <>
             <section className={styles.section.wrapper}>
-              <div className={styles.section.header}>
-                영상 미리보기
-              </div>
+              <div className={styles.section.header}>영상 미리보기</div>
               <div className={styles.section.body}>
                 <VideoPreviewSection
                   previewMode={previewMode}
                   setPreviewMode={setPreviewMode}
                   hlsSrc={video.hls_url}
+                  status={video.status}
+                  progressPercent={null}
                 />
               </div>
             </section>
 
             <section className={styles.section.wrapper}>
-              <div className={styles.section.header}>
-                학생 시청 정책
-              </div>
+              <div className={styles.section.header}>학생 시청 정책</div>
               <div className={styles.section.body}>
                 <VideoPolicySection
                   videoId={videoId}
@@ -3452,30 +3450,20 @@ export default function VideoDetailPage() {
             </section>
 
             <section className={styles.section.wrapper}>
-              <div className={styles.section.header}>
-                영상 정보
-              </div>
+              <div className={styles.section.header}>영상 정보</div>
               <div className={styles.section.body}>
-                <VideoInfoSection
-                  video={video}
-                  memo={memo}
-                  setMemo={setMemo}
-                />
+                <VideoInfoSection video={video} memo={memo} setMemo={setMemo} />
               </div>
             </section>
           </>
         }
         right={
           <section className={styles.section.wrapper}>
-            <div className={styles.section.header}>
-              학생 시청 현황
-            </div>
+            <div className={styles.section.header}>학생 시청 현황</div>
             <div className={styles.section.body}>
               <VideoStudentsSection
                 students={students}
-                onOpenPermission={() =>
-                  setOpenPermission(true)
-                }
+                onOpenPermission={() => setOpenPermission(true)}
               />
             </div>
           </section>
@@ -3608,12 +3596,11 @@ export default function VideoInfoCards({ video, stats, memo, setMemo }: Props) {
 ==========================================================================================
 # FILE: ui/VideoStatusBadge.tsx
 ==========================================================================================
+// PATH: src/features/videos/ui/VideoStatusBadge.tsx
+
 import type { VideoStatus } from "../api/videos";
 
-import {
-  VIDEO_STATUS_LABEL,
-  VIDEO_STATUS_STYLE,
-} from "../utils/videoStatus";
+import { VIDEO_STATUS_LABEL, VIDEO_STATUS_STYLE } from "../utils/videoStatus";
 
 interface Props {
   status?: VideoStatus;
@@ -3623,9 +3610,7 @@ export default function VideoStatusBadge({ status }: Props) {
   if (!status) return null;
 
   return (
-    <span
-      className={`rounded px-2 py-0.5 text-xs font-medium ${VIDEO_STATUS_STYLE[status]}`}
-    >
+    <span className={`rounded px-2 py-0.5 text-xs font-medium ${VIDEO_STATUS_STYLE[status]}`}>
       {VIDEO_STATUS_LABEL[status]}
     </span>
   );
@@ -3635,13 +3620,9 @@ export default function VideoStatusBadge({ status }: Props) {
 ==========================================================================================
 # FILE: ui/VideoThumbnail.tsx
 ==========================================================================================
-// src/features/videos/components/VideoThumbnail.tsx
-type VideoStatus =
-  | "READY"
-  | "PROCESSING"
-  | "FAILED"
-  | "PENDING"
-  | "UPLOADED";
+// PATH: src/features/videos/ui/VideoThumbnail.tsx
+
+type VideoStatus = "READY" | "PROCESSING" | "FAILED" | "PENDING" | "UPLOADED";
 
 interface Props {
   title?: string;
@@ -3655,11 +3636,7 @@ interface Props {
  * - 가공 ❌
  * - 실패 시 placeholder fallback
  */
-export default function VideoThumbnail({
-  title,
-  status,
-  thumbnail_url,
-}: Props) {
+export default function VideoThumbnail({ title, status, thumbnail_url }: Props) {
   let src = "/placeholder-video.png";
 
   if (thumbnail_url) {
@@ -3692,6 +3669,8 @@ export default function VideoThumbnail({
 ==========================================================================================
 # FILE: utils/videoStatus.ts
 ==========================================================================================
+// PATH: src/features/videos/utils/videoStatus.ts
+
 import type { VideoStatus } from "../api/videos";
 
 export const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {
