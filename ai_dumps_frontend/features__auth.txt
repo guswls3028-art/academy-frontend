@@ -7,16 +7,15 @@
 ==========================================================================================
 # FILE: api/auth.ts
 ==========================================================================================
-// src/features/auth/api/auth.ts
-import axios from "axios";
+// PATH: src/features/auth/api/auth.ts
+import api from "@/shared/api/axios";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
-
+// ⚠️ 구조/로직 유지
+// ⚠️ axios 직접 사용만 제거
 export const login = async (username: string, password: string) => {
-  const res = await axios.post(
-    `${API_BASE}/api/v1/token/`,
-    { username, password },
-    { withCredentials: true }
+  const res = await api.post(
+    "/token/",
+    { username, password }
   );
 
   localStorage.setItem("access", res.data.access);
