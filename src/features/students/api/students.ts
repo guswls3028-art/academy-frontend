@@ -196,8 +196,7 @@ export async function updateStudent(id: number, form: any) {
       form.schoolType === "MIDDLE" ? form.school || null : null;
     payload.high_school_class =
       form.schoolType === "HIGH" ? form.schoolClass || null : null;
-    payload.major =
-      form.schoolType === "HIGH" ? form.major || null : null;
+    payload.major = form.schoolType === "HIGH" ? form.major || null : null;
   }
 
   const res = await api.patch(`/students/${id}/`, payload);
@@ -208,10 +207,7 @@ export async function updateStudent(id: number, form: any) {
  * TOGGLE ACTIVE
  * =============================== */
 
-export async function toggleStudentActive(
-  id: number,
-  nextActive: boolean
-) {
+export async function toggleStudentActive(id: number, nextActive: boolean) {
   const res = await api.patch(`/students/${id}/`, {
     is_managed: nextActive,
   });

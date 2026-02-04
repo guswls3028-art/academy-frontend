@@ -31,7 +31,15 @@ export default function StudentFilterModal({
   }
 
   function apply() {
-    onApply(local);
+    const next = { ...local };
+
+    // ✅ 최소 정리: 빈 값은 params에서 제거(운영에서 필수)
+    Object.keys(next).forEach((k) => {
+      const v = next[k];
+      if (v === "" || v == null) delete next[k];
+    });
+
+    onApply(next);
   }
 
   return (
@@ -72,7 +80,7 @@ export default function StudentFilterModal({
               focus:outline-none
               focus:ring-1
               focus:ring-[var(--color-primary)]"
-            placeholder="학생 전화번호"
+            placeholder="학생 전화번호/식별자"
             value={local.student_phone || ""}
             onChange={(e) => update("student_phone", e.target.value)}
           />
@@ -105,21 +113,40 @@ export default function StudentFilterModal({
             onChange={(e) => update("school_class", e.target.value)}
           />
 
-          <select
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            value={local.gender || ""}
-            onChange={(e) => update("gender", e.target.value)}
-          >
-            <option value="">성별 전체</option>
-            <option value="M">남</option>
-            <option value="F">여</option>
-          </select>
+          <div className="flex gap-2">
+            <select
+              className="flex-1 rounded-md px-3 py-2 text-sm
+                border border-[var(--border-divider)]
+                bg-[var(--bg-app)]
+                text-[var(--text-primary)]
+                focus:outline-none
+                focus:ring-1
+                focus:ring-[var(--color-primary)]"
+              value={local.gender || ""}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">성별 전체</option>
+              <option value="M">남</option>
+              <option value="F">여</option>
+            </select>
+
+            {/* ✅ 상태 필터 추가(정렬과 공존) */}
+            <select
+              className="flex-1 rounded-md px-3 py-2 text-sm
+                border border-[var(--border-divider)]
+                bg-[var(--bg-app)]
+                text-[var(--text-primary)]
+                focus:outline-none
+                focus:ring-1
+                focus:ring-[var(--color-primary)]"
+              value={local.is_managed ?? ""}
+              onChange={(e) => update("is_managed", e.target.value)}
+            >
+              <option value="">상태 전체</option>
+              <option value="true">활성</option>
+              <option value="false">비활성</option>
+            </select>
+          </div>
         </div>
 
         {/* Footer */}

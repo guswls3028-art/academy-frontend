@@ -15,8 +15,7 @@ export default function EditStudentModal({
   onSuccess,
 }: Props) {
   const [noPhone, setNoPhone] = useState(
-    initialValue.studentPhone &&
-      /^\d{8}$/.test(initialValue.studentPhone)
+    initialValue.studentPhone && /^\d{8}$/.test(initialValue.studentPhone)
   );
 
   const [form, setForm] = useState({
@@ -41,6 +40,13 @@ export default function EditStudentModal({
     memo: initialValue.memo || "",
     active: !!initialValue.active,
   });
+
+  const inputBase =
+    "w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)]";
+  const inputRequired =
+    "border-2 border-[var(--color-primary)]/70 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
+  const inputNormal =
+    "border border-[var(--border-divider)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
 
   function handleChange(e: any) {
     const { name, value, type, checked } = e.target;
@@ -111,7 +117,7 @@ export default function EditStudentModal({
               placeholder="이름"
               value={form.name}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputRequired}`}
             />
             <div className="flex gap-1">
               <button
@@ -144,22 +150,17 @@ export default function EditStudentModal({
             placeholder="아이디"
             value={form.psNumber}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputRequired}`}
           />
 
           {/* 전화번호 / 식별자 */}
           <div className="flex gap-2 items-center">
             <input
               name={noPhone ? "omrCode" : "studentPhone"}
-              placeholder={
-                noPhone
-                  ? "식별자 (XXXXXXXX)"
-                  : "학생 전화번호 (010XXXXXXXX)"
-              }
+              placeholder={noPhone ? "식별자 (XXXXXXXX)" : "학생 전화번호 (010XXXXXXXX)"}
               value={noPhone ? form.omrCode : form.studentPhone}
               onChange={handleChange}
-              className="flex-1 ro
-              unded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputRequired}`}
             />
             <button
               type="button"
@@ -179,7 +180,7 @@ export default function EditStudentModal({
             placeholder="학부모 전화번호 (010XXXXXXXX)"
             value={form.parentPhone}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputRequired}`}
           />
 
           {/* 학교 */}
@@ -188,9 +189,7 @@ export default function EditStudentModal({
               <button
                 key={t}
                 type="button"
-                onClick={() =>
-                  setForm((p) => ({ ...p, schoolType: t }))
-                }
+                onClick={() => setForm((p) => ({ ...p, schoolType: t }))}
                 className={`flex-1 px-3 py-2 text-sm rounded-md border ${
                   form.schoolType === t
                     ? "bg-[var(--color-primary)] text-white"
@@ -208,7 +207,7 @@ export default function EditStudentModal({
               placeholder="학교명"
               value={form.school}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
             <div className="flex gap-1">
               {["1", "2", "3"].map((g) => (
@@ -234,14 +233,14 @@ export default function EditStudentModal({
               placeholder="반"
               value={form.schoolClass}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
             <input
               name="major"
               placeholder="계열"
               value={form.major}
               onChange={handleChange}
-              className="flex-1 rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+              className={`flex-1 ${inputBase} ${inputNormal}`}
             />
           </div>
 
@@ -250,7 +249,7 @@ export default function EditStudentModal({
             placeholder="주소"
             value={form.address}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)]"
+            className={`${inputBase} ${inputNormal}`}
           />
 
           <textarea
@@ -259,7 +258,7 @@ export default function EditStudentModal({
             rows={3}
             value={form.memo}
             onChange={handleChange}
-            className="w-full rounded-md px-3 py-2 text-sm border border-[var(--border-divider)] bg-[var(--bg-app)] resize-none"
+            className={`w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)] resize-none ${inputNormal}`}
           />
         </div>
 

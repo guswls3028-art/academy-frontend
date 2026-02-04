@@ -80,10 +80,7 @@ export default function StudentsDetailPage() {
   return (
     <>
       {/* Overlay Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/50"
-        onClick={() => navigate(-1)}
-      />
+      <div className="fixed inset-0 z-40 bg-black/50" onClick={() => navigate(-1)} />
 
       {/* Overlay Card */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
@@ -148,7 +145,7 @@ export default function StudentsDetailPage() {
             {/* ================= Layout ================= */}
             <div className="flex gap-6">
               {/* LEFT */}
-              <div className="w-[320px] shrink-0 space-y-4">
+              <div className="w-[340px] shrink-0 space-y-4">
                 <PageSection
                   className="
                     rounded-2xl border border-[var(--border-divider)]
@@ -161,24 +158,32 @@ export default function StudentsDetailPage() {
                       기본 정보
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      연락처 · 학교 · 학년
+                      계정 · 연락처 · 학교
                     </div>
                   </div>
 
                   <div className="p-4 space-y-2 text-sm">
-                    <InfoItem label="학부모 전화번호" value={student.parentPhone} />
-                    <InfoItem label="학생 전화번호" value={student.studentPhone} />
+                    <InfoItem label="아이디(PS)" value={student.psNumber} strong />
+                    <InfoItem
+                      label="학생 전화번호/식별자"
+                      value={
+                        student.studentPhone && String(student.studentPhone).length === 8
+                          ? `식별자 ${student.studentPhone}`
+                          : student.studentPhone
+                      }
+                      strong
+                    />
+                    <InfoItem label="학부모 전화번호" value={student.parentPhone} strong />
                     <InfoItem label="성별" value={student.gender} />
                     <InfoItem label="학교" value={student.school} />
+                    <InfoItem label="학년" value={student.grade ? `${student.grade}학년` : null} />
                     <InfoItem label="반" value={student.schoolClass} />
                     <InfoItem label="계열" value={student.major} />
-                    <InfoItem label="학년" value={student.grade} />
+                    <InfoItem label="등록일" value={student.registeredAt?.slice(0, 10)} />
                   </div>
                 </PageSection>
 
-                <PageSection
-                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
-                >
+                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
                   <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">
                       태그
@@ -226,7 +231,7 @@ export default function StudentsDetailPage() {
                         if (tagId) addTag.mutate(tagId);
                       }}
                     >
-                      <option value="">태그 추가</option>
+                      <option value="">태그 목록</option>
                       {tags?.map((tag: any) => (
                         <option key={tag.id} value={tag.id}>
                           {tag.name}
@@ -236,9 +241,7 @@ export default function StudentsDetailPage() {
                   </div>
                 </PageSection>
 
-                <PageSection
-                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
-                >
+                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
                   <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
                     <div className="text-sm font-semibold text-[var(--text-primary)]">
                       메모
@@ -268,9 +271,7 @@ export default function StudentsDetailPage() {
 
               {/* RIGHT */}
               <div className="flex-1">
-                <PageSection
-                  className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
-                >
+                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
                   <div className="px-4 pt-4">
                     <div className="relative mb-4">
                       <div className="flex gap-2 border-b border-[var(--border-divider)]">
@@ -360,11 +361,23 @@ export default function StudentsDetailPage() {
 
 /* ================= sub ================= */
 
-function InfoItem({ label, value }: { label: string; value: any }) {
+function InfoItem({
+  label,
+  value,
+  strong,
+}: {
+  label: string;
+  value: any;
+  strong?: boolean;
+}) {
   return (
     <div className="flex justify-between gap-3">
       <span className="text-xs text-[var(--text-muted)]">{label}</span>
-      <span className="text-sm font-semibold text-[var(--text-primary)]">
+      <span
+        className={`text-sm text-right ${
+          strong ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-primary)]"
+        }`}
+      >
         {value || "-"}
       </span>
     </div>
