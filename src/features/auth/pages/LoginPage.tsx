@@ -20,7 +20,7 @@ export default function LoginPage() {
     return isLimglish
       ? {
           title: "LIMGLISH",
-          subtitle: "선생님 전용 로그인",
+          subtitle: "임근혁 영어 임시 로그인 학생계정 생성후 학생페이지 확인가능",
           accent: "linear-gradient(135deg, #111 0%, #333 55%, #111 100%)",
           badge: "Teacher",
         }
@@ -80,11 +80,13 @@ export default function LoginPage() {
           {/* hint box */}
           <div style={styles.hintBox}>
             <div style={styles.hintRow}>
-              <span style={styles.hintKey}>학생계정 </span>
-              <span style={styles.hintVal}>ID : gochul   PW : 0000</span>
+              <span style={styles.hintKey}></span>
+              학생ID : gochul
+              <span style={styles.hintVal}></span>
             </div>
             <div style={styles.hintRow}>
               <span style={styles.hintKey}></span>
+              학생PS : PS: 0000
               <span style={styles.hintVal}></span>
             </div>
           </div>
