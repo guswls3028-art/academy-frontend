@@ -80,12 +80,12 @@ export default function LoginPage() {
           {/* hint box */}
           <div style={styles.hintBox}>
             <div style={styles.hintRow}>
-              <span style={styles.hintKey}>ID</span>
-              <span style={styles.hintVal}>1111</span>
+              <span style={styles.hintKey}>학생계정 </span>
+              <span style={styles.hintVal}>ID : gochul   PW : 0000</span>
             </div>
             <div style={styles.hintRow}>
-              <span style={styles.hintKey}>PW</span>
-              <span style={styles.hintVal}>1111</span>
+              <span style={styles.hintKey}></span>
+              <span style={styles.hintVal}></span>
             </div>
           </div>
 
