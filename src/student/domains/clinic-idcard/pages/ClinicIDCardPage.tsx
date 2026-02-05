@@ -12,14 +12,13 @@ type History = {
 export default function ClinicIDCardPage() {
   const [now, setNow] = useState(new Date());
 
-  // ⏱ 실시간 시간 (움직임 = 사기 방지)
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // ✅ MOCK 데이터 (현장 예시용)
   const studentName = "홍길동";
+
   const histories: History[] = [
     { index: 1, result: "SUCCESS" },
     { index: 2, result: "SUCCESS" },
@@ -28,6 +27,13 @@ export default function ClinicIDCardPage() {
   ];
 
   const hasFail = histories.some((h) => h.result === "FAIL");
+
+  const dateText = now.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
 
   return (
     <div
@@ -38,48 +44,57 @@ export default function ClinicIDCardPage() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        paddingTop: 40,
+        paddingTop: 32,
       }}
     >
-      {/* ⏰ 실시간 정보 */}
-      <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ fontSize: 18, opacity: 0.8 }}>
-          {now.toLocaleDateString()}
-        </div>
-        <div
-          style={{
-            fontSize: 32,
-            fontWeight: 900,
-            letterSpacing: 1,
-            marginTop: 4,
-          }}
-        >
-          {now.toLocaleTimeString()}
-        </div>
+      {/* 📅 날짜 (대형, 최상단) */}
+      <div
+        style={{
+          fontSize: 30,
+          fontWeight: 900,
+          letterSpacing: "-0.5px",
+          marginBottom: 25,
+          color: "#b2e5e9ff",
+          textShadow: "0 0 12px rgba(0,255,208,0.35)",
+        }}
+      >
+        {dateText}
+      </div>
+
+      {/* ⏰ 시간 (움직임) */}
+      <div
+        style={{
+          fontSize: 36,
+          fontWeight: 900,
+          letterSpacing: 1,
+          marginBottom: 28,
+        }}
+      >
+        {now.toLocaleTimeString()}
       </div>
 
       {/* 👤 학생 이름 */}
       <div
         style={{
-          fontSize: 36,
+          fontSize: 38,
           fontWeight: 900,
-          marginBottom: 20,
+          marginBottom: 22,
         }}
       >
         {studentName}
       </div>
 
-      {/* ✅ 합/불 메인 판정 */}
+      {/* ✅ 합/불 메인 */}
       <div
         style={{
           width: "90%",
           maxWidth: 420,
-          padding: "28px 20px",
-          borderRadius: 20,
+          padding: "30px 20px",
+          borderRadius: 22,
           textAlign: "center",
-          fontSize: 40,
+          fontSize: 42,
           fontWeight: 900,
-          marginBottom: 28,
+          marginBottom: 30,
           background: hasFail
             ? "linear-gradient(135deg, #ff3b3b, #b40000)"
             : "linear-gradient(135deg, #00ff9c, #00b36b)",
@@ -87,7 +102,7 @@ export default function ClinicIDCardPage() {
           animation: "pulse 1.2s infinite",
         }}
       >
-        {hasFail ? "❌ 불합격" : "✅ 합격"}
+        {hasFail ? "❌ 클리닉 대상자" : "✅ 합격"}
       </div>
 
       {/* 📊 차시 히스토리 */}
@@ -110,21 +125,18 @@ export default function ClinicIDCardPage() {
               fontWeight: 900,
               fontSize: 16,
               background:
-                h.result === "SUCCESS"
-                  ? "#0aff9d"
-                  : "#ff2e2e",
+                h.result === "SUCCESS" ? "#0aff9d" : "#ff2e2e",
               color: "#000",
             }}
           >
-            {h.index}차
+            {h.index}차시
             <div style={{ marginTop: 6 }}>
-              {h.result === "SUCCESS" ? "통과" : "실패"}
+              {h.result === "SUCCESS" ? "합격" : "불합격"}
             </div>
           </div>
         ))}
       </div>
 
-      {/* ⚠️ 경고 문구 */}
       {hasFail && (
         <div
           style={{
@@ -139,12 +151,11 @@ export default function ClinicIDCardPage() {
         </div>
       )}
 
-      {/* 애니메이션 정의 */}
       <style>
         {`
           @keyframes pulse {
             0% { transform: scale(1); }
-            50% { transform: scale(1.03); }
+            50% { transform: scale(1.035); }
             100% { transform: scale(1); }
           }
         `}
