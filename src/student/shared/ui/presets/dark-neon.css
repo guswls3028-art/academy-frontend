@@ -1,19 +1,62 @@
-/* PATH: src/student/shared/ui/theme/presets/dark-neon.css */
+/* PATH: src/student/shared/ui/presets/dark-neon-real.css */
+/**
+ * THEME: Dark Neon REAL (LOCK v1)
+ *
+ * 컨셉:
+ * - 진짜 블랙 배경
+ * - IDE / 터미널 / VS Code / iTerm 감성
+ * - 네온은 "발광 포인트"로만 사용
+ *
+ * 타겟:
+ * - 개발자 감성
+ * - 고급 사용자
+ * - “와 미쳤다” 체감용
+ */
+
 :root {
-  --stu-bg: #0b0f19;
-  --stu-surface: #0f1629;
-  --stu-surface-soft: #111a33;
-  --stu-border: rgba(255, 255, 255, 0.12);
+  /* =========================
+     Background / Surface
+     ========================= */
+  --stu-bg: #05060a;              /* true black */
+  --stu-surface: #0b0d14;         /* editor panel */
+  --stu-surface-soft: #0f121c;
+  --stu-border: rgba(255, 255, 255, 0.08);
 
-  --stu-text: rgba(255, 255, 255, 0.92);
-  --stu-text-muted: rgba(255, 255, 255, 0.65);
-  --stu-text-subtle: rgba(255, 255, 255, 0.45);
+  /* =========================
+     Text
+     ========================= */
+  --stu-text: #e6e8ef;
+  --stu-text-muted: #9aa0b4;
+  --stu-text-subtle: #6f7690;
 
-  --stu-primary: #4cc9f0;        /* neon blue */
-  --stu-primary-hover: #22b8e6;
+  /* =========================
+     Primary (IDE Blue)
+     ========================= */
+  --stu-primary: #4f7cff;         /* VSCode-ish blue */
+  --stu-primary-hover: #3b6bf0;
   --stu-primary-contrast: #020617;
 
-  --stu-success: #22c55e;
-  --stu-warn: #facc15;
-  --stu-danger: #f43f5e;
+  /* =========================
+     Neon Accents (sparingly)
+     ========================= */
+  --stu-accent-cyan: #3fffe5;
+  --stu-accent-green: #2cff9a;
+  --stu-accent-pink: #ff4fd8;
+  --stu-accent-purple: #b084ff;
+
+  /* =========================
+     States
+     ========================= */
+  --stu-success: #2cff9a;
+  --stu-warn: #ffd84d;
+  --stu-danger: #ff4f6d;
+
+  /* =========================
+     Glow helpers (optional)
+     ========================= */
+  --stu-glow-primary: 0 0 0 rgba(79, 124, 255, 0),
+    0 0 18px rgba(79, 124, 255, 0.35);
+
+  --stu-glow-cyan: 0 0 16px rgba(63, 255, 229, 0.45);
+  --stu-glow-green: 0 0 16px rgba(44, 255, 154, 0.45);
 }

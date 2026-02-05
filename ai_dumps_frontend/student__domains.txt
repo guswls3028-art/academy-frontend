@@ -11,9 +11,29 @@
 
 import api from "@/student/shared/api/studentApi";
 
-export async function fetchStudentDashboard() {
+export type DashboardNotice = {
+  id: number;
+  title: string;
+  created_at?: string | null;
+};
+
+export type DashboardSession = {
+  id: number;
+  title: string;
+  date?: string | null;
+  status?: string | null;
+};
+
+export type StudentDashboardResponse = {
+  notices: DashboardNotice[];
+  today_sessions: DashboardSession[];
+  badges: Record<string, any>;
+};
+
+export async function fetchStudentDashboard(): Promise<StudentDashboardResponse> {
   const res = await api.get("/student/dashboard/");
   const data = res.data ?? {};
+
   return {
     notices: Array.isArray(data.notices) ? data.notices : [],
     today_sessions: Array.isArray(data.today_sessions)
@@ -25,42 +45,114 @@ export async function fetchStudentDashboard() {
 
 
 ==========================================================================================
-# FILE: dashboard/components/NoticeBanner.tsx
+# FILE: dashboard/components/DashboardScheduleCard.tsx
 ==========================================================================================
-// src/student/domains/dashboard/components/NoticeBanner.tsx
+// PATH: src/student/domains/dashboard/components/DashboardScheduleCard.tsx
 /**
- * ✅ NoticeBanner (MVP)
- * - 공지 1개만 보여주는 형태
- * - 판단/필터링 ❌
+ * ✅ DashboardScheduleCard
+ * - 클리닉 / 상담 일정
  */
 
-import EmptyState from "../../../shared/ui/layout/EmptyState";
-import { DashboardNotice } from "@/student/domains/dashboard/api/dashboard";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
+import { formatYmd } from "@/student/shared/utils/date";
+import { DashboardScheduleItem } from "../api/dashboard";
+
+export default function DashboardScheduleCard({
+  items,
+}: {
+  items: DashboardScheduleItem[];
+}) {
+  return (
+    <div
+      style={{
+        borderRadius: 16,
+        padding: 16,
+        background: "var(--stu-surface)",
+        boxShadow: "var(--stu-shadow-2)",
+      }}
+    >
+      <div style={{ fontWeight: 900, marginBottom: 12 }}>
+        클리닉 · 상담 일정
+      </div>
+
+      {items.length === 0 && (
+        <EmptyState title="예정된 일정이 없습니다." />
+      )}
+
+      {items.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {items.map((it) => (
+            <div
+              key={`${it.type}-${it.id}`}
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                background: "var(--stu-card)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 800 }}>{it.title}</div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--stu-text-muted)",
+                    marginTop: 4,
+                  }}
+                >
+                  {formatYmd(it.date)} ·{" "}
+                  {it.type === "CLINIC" ? "클리닉" : "상담"}
+                </div>
+              </div>
+              <span style={{ opacity: 0.4 }}>›</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: dashboard/components/NoticeBanner.tsx
+==========================================================================================
+// PATH: src/student/domains/dashboard/components/NoticeBanner.tsx
+
+import { DashboardNotice } from "../api/dashboard";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { formatYmd } from "@/student/shared/utils/date";
 
-export default function NoticeBanner({ notices }: { notices: DashboardNotice[] }) {
-  if (!notices.length) {
+export default function NoticeBanner({
+  notices,
+}: {
+  notices: DashboardNotice[];
+}) {
+  if (!notices || notices.length === 0) {
     return <EmptyState title="공지사항이 없습니다." />;
   }
 
   const first = notices[0];
 
   return (
-    <div
-      style={{
-        border: "1px solid #eee",
-        borderRadius: 12,
-        background: "#fff",
-        padding: 14,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-        <div style={{ fontWeight: 800 }}>📣 공지사항</div>
-        <div style={{ fontSize: 12, color: "#777" }}>
+    <div className="stu-card">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 6,
+        }}
+      >
+        <div style={{ fontWeight: 900 }}>📣 공지사항</div>
+        <div style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>
           {formatYmd(first.created_at ?? null)}
         </div>
       </div>
-      <div style={{ marginTop: 8, color: "#333" }}>{first.title}</div>
+
+      <div style={{ fontSize: 14, fontWeight: 700 }}>{first.title}</div>
     </div>
   );
 }
@@ -69,33 +161,26 @@ export default function NoticeBanner({ notices }: { notices: DashboardNotice[] }
 ==========================================================================================
 # FILE: dashboard/components/QuickActionGrid.tsx
 ==========================================================================================
-// src/student/domains/dashboard/components/QuickActionGrid.tsx
-/**
- * ✅ QuickActionGrid
- * - 이미지의 "바로가기 4개" 구현
- * - 링크만 제공 (판단/계산 ❌)
- */
+// PATH: src/student/domains/dashboard/components/QuickActionGrid.tsx
 
 import { Link } from "react-router-dom";
 
-export default function QuickActionGrid() {
-  const items = [
-    { label: "과제 제출", to: "/student/assignments" }, // 추후 도메인 연결
-    { label: "학습자료", to: "/student/materials" }, // 추후 도메인 연결
-    { label: "시험 · 평가", to: "/student/exams" },
-    { label: "성적 관리", to: "/student/grades" },
-  ];
+type Item = {
+  label: string;
+  to: string;
+};
 
+const items: Item[] = [
+  { label: "시험 · 성적", to: "/student/exams" },
+  { label: "자료실", to: "/student/materials" },
+  { label: "과제 제출", to: "/student/assignments" },
+  { label: "성적 관리", to: "/student/grades" },
+];
+
+export default function QuickActionGrid() {
   return (
-    <div
-      style={{
-        border: "1px solid #eee",
-        borderRadius: 12,
-        background: "#fff",
-        padding: 14,
-      }}
-    >
-      <div style={{ fontWeight: 800, marginBottom: 10 }}>바로가기</div>
+    <div className="stu-card">
+      <div style={{ fontWeight: 900, marginBottom: 10 }}>바로가기</div>
 
       <div
         style={{
@@ -105,26 +190,10 @@ export default function QuickActionGrid() {
         }}
       >
         {items.map((it) => (
-          <Link
-            key={it.to}
-            to={it.to}
-            style={{
-              textDecoration: "none",
-              border: "1px solid #eee",
-              borderRadius: 10,
-              padding: "14px 12px",
-              fontWeight: 700,
-              color: "#111",
-              background: "#fafafa",
-            }}
-          >
+          <Link key={it.to} to={it.to} className="stu-quick-btn">
             {it.label}
           </Link>
         ))}
-      </div>
-
-      <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
-        ※ 과제/자료는 추후 도메인 연결 예정 (라우팅 자리만 확보)
       </div>
     </div>
   );
@@ -134,53 +203,43 @@ export default function QuickActionGrid() {
 ==========================================================================================
 # FILE: dashboard/components/TodaySessionsCard.tsx
 ==========================================================================================
-// src/student/domains/dashboard/components/TodaySessionsCard.tsx
-/**
- * ✅ TodaySessionsCard (MVP)
- * - "오늘 할 일" 카드
- * - 정렬/판단 ❌ (백엔드가 준 순서 그대로)
- */
+// PATH: src/student/domains/dashboard/components/TodaySessionsCard.tsx
 
 import { Link } from "react-router-dom";
-import EmptyState from "../../../shared/ui/layout/EmptyState";
-import SectionHeader from "../../../shared/ui/layout/SectionHeader";
-import { DashboardSession } from "@/student/domains/dashboard/api/dashboard";
+import { DashboardSession } from "../api/dashboard";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
+import SectionHeader from "@/student/shared/ui/layout/SectionHeader";
 import { formatYmd } from "@/student/shared/utils/date";
 
-export default function TodaySessionsCard({ sessions }: { sessions: DashboardSession[] }) {
+export default function TodaySessionsCard({
+  sessions,
+}: {
+  sessions: DashboardSession[];
+}) {
   return (
-    <div style={{ border: "1px solid #eee", borderRadius: 12, background: "#fff", padding: 14 }}>
-      <SectionHeader title="오늘 할 일" right={<span style={{ fontSize: 12, color: "#777" }}>차시</span>} />
+    <div className="stu-card">
+      <SectionHeader title="오늘 할 일" />
 
-      {!sessions.length && (
-        <EmptyState title="오늘 할 차시가 없습니다." description="백엔드가 내려주는 할 일 목록을 그대로 표시합니다." />
+      {(!sessions || sessions.length === 0) && (
+        <EmptyState title="오늘 할 차시가 없습니다." />
       )}
 
-      {sessions.length > 0 && (
+      {sessions && sessions.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {sessions.map((s) => (
             <Link
               key={s.id}
               to={`/student/sessions/${s.id}`}
-              style={{
-                textDecoration: "none",
-                border: "1px solid #eee",
-                borderRadius: 10,
-                padding: 12,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                color: "#111",
-              }}
+              className="stu-list-item"
             >
               <div>
                 <div style={{ fontWeight: 800 }}>{s.title}</div>
-                <div style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
+                <div className="stu-muted" style={{ fontSize: 12 }}>
                   {formatYmd(s.date ?? null)}
                   {s.status ? ` · ${s.status}` : ""}
                 </div>
               </div>
-              <div style={{ color: "#999" }}>›</div>
+              <div style={{ opacity: 0.6 }}>›</div>
             </Link>
           ))}
         </div>
@@ -193,14 +252,10 @@ export default function TodaySessionsCard({ sessions }: { sessions: DashboardSes
 ==========================================================================================
 # FILE: dashboard/hooks/useStudentDashboard.ts
 ==========================================================================================
-// src/student/domains/dashboard/hooks/useStudentDashboard.ts
-/**
- * ✅ useStudentDashboard
- * - Dashboard 단일 쿼리
- */
+// PATH: src/student/domains/dashboard/hooks/useStudentDashboard.ts
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchStudentDashboard } from "@/student/domains/dashboard/api/dashboard";
+import { fetchStudentDashboard } from "../api/dashboard";
 
 export function useStudentDashboard() {
   return useQuery({
@@ -213,46 +268,40 @@ export function useStudentDashboard() {
 ==========================================================================================
 # FILE: dashboard/pages/DashboardPage.tsx
 ==========================================================================================
-// src/student/domains/dashboard/pages/DashboardPage.tsx
-/**
- * ✅ DashboardPage (LOCK v1)
- * - 학생앱의 행동 허브
- * - 이미지 UI 구조를 그대로 도메인화한 페이지
- *
- * 원칙:
- * - 오늘 할 일/정렬/판단 ❌
- * - 백엔드 응답 그대로 렌더링 ✅
- */
+// PATH: src/student/domains/dashboard/pages/DashboardPage.tsx
 
-import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
-import { useStudentDashboard } from "@/student/domains/dashboard/hooks/useStudentDashboard";
-import NoticeBanner from "@/student/domains/dashboard/components/NoticeBanner";
-import TodaySessionsCard from "@/student/domains/dashboard/components/TodaySessionsCard";
-import QuickActionGrid from "@/student/domains/dashboard/components/QuickActionGrid";
-import EmptyState from "../../../shared/ui/layout/EmptyState";
+import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
+import { useStudentDashboard } from "../hooks/useStudentDashboard";
+import NoticeBanner from "../components/NoticeBanner";
+import TodaySessionsCard from "../components/TodaySessionsCard";
+import QuickActionGrid from "../components/QuickActionGrid";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
 
 export default function DashboardPage() {
   const { data, isLoading, isError } = useStudentDashboard();
 
   if (isLoading) {
     return (
-      <StudentPageShell title="홈" description="오늘 해야 할 일을 확인하세요.">
-        <div style={{ color: "#666", fontSize: 14 }}>불러오는 중...</div>
+      <StudentPageShell title="홈">
+        <div className="stu-muted">불러오는 중...</div>
       </StudentPageShell>
     );
   }
 
   if (isError || !data) {
     return (
-      <StudentPageShell title="홈" description="오늘 해야 할 일을 확인하세요.">
-        <EmptyState title="대시보드를 불러오지 못했습니다." description="백엔드 응답을 확인해주세요." />
+      <StudentPageShell title="홈">
+        <EmptyState
+          title="대시보드를 불러오지 못했습니다."
+          description="네트워크 또는 서버 상태를 확인하세요."
+        />
       </StudentPageShell>
     );
   }
 
   return (
-    <StudentPageShell title="홈" description="오늘 해야 할 일을 확인하세요.">
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <StudentPageShell title="홈">
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <NoticeBanner notices={data.notices} />
         <TodaySessionsCard sessions={data.today_sessions} />
         <QuickActionGrid />
@@ -373,25 +422,219 @@ export async function fetchMyExamResultItems(
 ==========================================================================================
 # FILE: exams/components/ExamActionButton.tsx
 ==========================================================================================
+// PATH: src/student/domains/exams/components/ExamActionButton.tsx
 
+import { Link } from "react-router-dom";
+
+export type ExamActionButtonProps = {
+  to: string;
+  label: string;
+  disabled?: boolean;
+};
+
+export default function ExamActionButton({
+  to,
+  label,
+  disabled,
+}: ExamActionButtonProps) {
+  if (disabled) {
+    return (
+      <div
+        style={{
+          padding: "10px 14px",
+          borderRadius: 12,
+          border: "1px solid var(--stu-border)",
+          background: "var(--stu-surface)",
+          color: "var(--stu-text-muted)",
+          fontWeight: 800,
+          opacity: 0.5,
+        }}
+      >
+        {label}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={to}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 12,
+        border: "1px solid var(--stu-border)",
+        background: "var(--stu-primary, #111)",
+        color: "#fff",
+        fontWeight: 900,
+        textDecoration: "none",
+        display: "inline-block",
+      }}
+    >
+      {label}
+    </Link>
+  );
+}
 
 
 ==========================================================================================
 # FILE: exams/components/ExamCard.tsx
 ==========================================================================================
+// PATH: src/student/domains/exams/components/ExamActionButton.tsx
 
+import { Link } from "react-router-dom";
+
+export type ExamActionButtonProps = {
+  to: string;
+  label: string;
+  disabled?: boolean;
+};
+
+export default function ExamActionButton({
+  to,
+  label,
+  disabled,
+}: ExamActionButtonProps) {
+  if (disabled) {
+    return (
+      <div
+        style={{
+          padding: "10px 14px",
+          borderRadius: 12,
+          border: "1px solid var(--stu-border)",
+          background: "var(--stu-surface)",
+          color: "var(--stu-text-muted)",
+          fontWeight: 800,
+          opacity: 0.5,
+        }}
+      >
+        {label}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={to}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 12,
+        border: "1px solid var(--stu-border)",
+        background: "var(--stu-primary, #111)",
+        color: "#fff",
+        fontWeight: 900,
+        textDecoration: "none",
+        display: "inline-block",
+      }}
+    >
+      {label}
+    </Link>
+  );
+}
 
 
 ==========================================================================================
 # FILE: exams/components/ExamResultItems.tsx
 ==========================================================================================
+// PATH: src/student/domains/exams/components/ExamResultItems.tsx
 
+import { MyExamResultItem } from "../api/results";
+
+export default function ExamResultItems({
+  items,
+}: {
+  items: MyExamResultItem[];
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {items.map((it) => (
+        <div
+          key={`${it.question_id}-${it.question_number}`}
+          style={{
+            border: "1px solid var(--stu-border)",
+            borderRadius: 12,
+            padding: 12,
+            background: "var(--stu-surface)",
+          }}
+        >
+          <div style={{ fontWeight: 900 }}>
+            Q{it.question_number}
+          </div>
+
+          <div
+            style={{
+              fontSize: 13,
+              marginTop: 6,
+              color: it.is_correct ? "#087443" : "#b00020",
+              fontWeight: 800,
+            }}
+          >
+            {it.is_correct ? "정답" : "오답"} · {it.score}/{it.max_score}
+          </div>
+
+          <div
+            style={{
+              fontSize: 12,
+              marginTop: 6,
+              color: "var(--stu-text-muted)",
+            }}
+          >
+            내 답: {it.student_answer ?? "-"} / 정답:{" "}
+            {it.correct_answer ?? "-"}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 
 ==========================================================================================
 # FILE: exams/components/ExamResultSummary.tsx
 ==========================================================================================
+// PATH: src/student/domains/exams/components/ExamResultSummary.tsx
 
+import { MyExamResult } from "../api/results";
+
+export default function ExamResultSummary({
+  result,
+}: {
+  result: MyExamResult;
+}) {
+  const pass = result.is_pass;
+
+  return (
+    <div
+      className="stu-card"
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 22, fontWeight: 900 }}>
+          {result.total_score} / {result.max_score}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--stu-text-muted)" }}>
+          attempt #{result.attempt_id}
+        </div>
+      </div>
+
+      <div
+        style={{
+          padding: "6px 12px",
+          borderRadius: 999,
+          fontWeight: 900,
+          fontSize: 13,
+          background: pass ? "#e7fff1" : "#ffecec",
+          color: pass ? "#087443" : "#b00020",
+        }}
+      >
+        {pass ? "PASS" : "FAIL"}
+      </div>
+    </div>
+  );
+}
 
 
 ==========================================================================================
@@ -626,70 +869,30 @@ const linkBtn: React.CSSProperties = {
 ==========================================================================================
 # FILE: exams/pages/ExamListPage.tsx
 ==========================================================================================
-// src/student/domains/exams/pages/ExamListPage.tsx
-/**
- * ✅ ExamListPage (학생)
- * - 시험 목록
- * - session_id query param 지원 (세션 허브에서 진입 시 유용)
- *
- * 원칙:
- * - OPEN/CLOSED 판단 ❌
- * - 백엔드 필드 그대로 노출 ✅
- */
-
-import { Link, useSearchParams } from "react-router-dom";
-import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
-import EmptyState from "../../../shared/ui/layout/EmptyState";
-import { useStudentExams } from "@/student/domains/exams/hooks/useStudentExams";
-import { formatYmd } from "@/student/shared/utils/date";
+// PATH: src/student/domains/exams/pages/ExamListPage.tsx
+import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
+import { useStudentExams } from "../hooks/useStudentExams";
+import ExamCard from "../components/ExamCard";
 
 export default function ExamListPage() {
-  const [sp] = useSearchParams();
-  const sessionParam = sp.get("session");
-  const sessionId = sessionParam ? Number(sessionParam) : undefined;
-
-  const { data, isLoading, isError } = useStudentExams(
-    sessionId ? { session_id: sessionId } : undefined
-  );
-
+  const { data, isLoading, isError } = useStudentExams();
   const items = data?.items ?? [];
 
   return (
-    <StudentPageShell
-      title="시험"
-      description={sessionId ? `세션(${sessionId}) 기준 시험 목록` : "전체 시험 목록"}
-    >
-      {isLoading && <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>}
+    <StudentPageShell title="시험">
+      {isLoading && <div>불러오는 중…</div>}
+      {isError && <EmptyState title="시험 목록 오류" />}
 
-      {(isError || !data) && <EmptyState title="시험 목록을 불러오지 못했습니다." />}
-
-      {data && items.length === 0 && (
-        <EmptyState title="시험이 없습니다." description="등록된 시험이 없거나 접근 권한이 없습니다." />
+      {items.length === 0 && (
+        <EmptyState title="시험이 없습니다." />
       )}
 
-      {items.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {items.map((e) => (
-            <Link
-              key={e.id}
-              to={`/student/exams/${e.id}`}
-              style={{
-                textDecoration: "none",
-                border: "1px solid #eee",
-                borderRadius: 10,
-                padding: 12,
-                background: "#fff",
-                color: "#111",
-              }}
-            >
-              <div style={{ fontWeight: 900 }}>{e.title}</div>
-              <div style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
-                open: {formatYmd(e.open_at)} · close: {formatYmd(e.close_at)}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {items.map((e) => (
+          <ExamCard key={e.id} exam={e} />
+        ))}
+      </div>
     </StudentPageShell>
   );
 }

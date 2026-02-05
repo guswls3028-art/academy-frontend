@@ -1,7 +1,9 @@
-// src/student/shared/components/EmptyState.tsx
+// PATH: src/student/shared/ui/layout/EmptyState.tsx
 /**
- * ✅ EmptyState
- * - 빈 상태 표준 컴포넌트
+ * ✅ EmptyState (LOCK v2)
+ * - base.css 디자인 시스템 흡수
+ * - inline style 제거
+ * - 테마 변경 시 자동 반응
  */
 
 export default function EmptyState({
@@ -12,19 +14,11 @@ export default function EmptyState({
   description?: string;
 }) {
   return (
-    <div
-      style={{
-        padding: "18px 14px",
-        border: "1px dashed #ddd",
-        borderRadius: 10,
-        color: "#666",
-        background: "#fafafa",
-      }}
-    >
-      <div style={{ fontWeight: 800, color: "#444" }}>{title}</div>
-      {description && (
-        <div style={{ marginTop: 6, fontSize: 13 }}>{description}</div>
-      )}
+    <div className="stu-card stu-card--soft">
+      <div className="stu-stack" style={{ gap: "var(--stu-space-4)" }}>
+        <div className="stu-h3">{title}</div>
+        {description && <div className="stu-muted">{description}</div>}
+      </div>
     </div>
   );
 }

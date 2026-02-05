@@ -1,11 +1,7 @@
-// src/student/domains/dashboard/hooks/useStudentDashboard.ts
-/**
- * ✅ useStudentDashboard
- * - Dashboard 단일 쿼리
- */
+// PATH: src/student/domains/dashboard/hooks/useStudentDashboard.ts
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchStudentDashboard } from "@/student/domains/dashboard/api/dashboard";
+import { fetchStudentDashboard } from "../api/dashboard";
 
 export function useStudentDashboard() {
   return useQuery({

@@ -199,7 +199,8 @@ export default function LimglishLoginPage() {
         {/* ===== Temporary Hint ===== */}
         <div style={styles.hint}>
           <div>
-            학생계정은 학생탭에서 학생추가하기
+            학생 계정은 학생탭에서 학생추가하기
+            학생 페이지 디자인 진행중. 로그인해서 확인하세요. 
           </div>
           <div>
             

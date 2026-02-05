@@ -417,3 +417,95 @@ a {
   }
 }
 
+/* ======================================================
+   10) Card – Advanced Interaction (LOCK v2)
+   ====================================================== */
+
+/* 기본 카드 hover 깊이 강화 */
+.stu-card--pressable {
+  position: relative;
+  will-change: transform, box-shadow;
+}
+
+/* 다크 네온 REAL 전용: 은은한 glow */
+@media (prefers-color-scheme: dark) {
+  .stu-card--pressable:hover {
+    box-shadow: var(--stu-shadow-2),
+      var(--stu-glow-primary, 0 0 0 transparent);
+  }
+}
+
+/* 카드 포커스 접근성 */
+.stu-card--pressable:focus-within {
+  box-shadow: var(--stu-shadow-2),
+    0 0 0 4px color-mix(in srgb, var(--stu-primary) 22%, transparent);
+}
+
+/* ======================================================
+   11) Button – Production Interaction (LOCK v2)
+   ====================================================== */
+
+.stu-btn {
+  position: relative;
+  will-change: transform, box-shadow;
+}
+
+/* Primary 버튼 고급화 */
+.stu-btn--primary {
+  box-shadow: var(--stu-shadow-1);
+}
+
+.stu-btn--primary:hover {
+  box-shadow: var(--stu-shadow-2);
+}
+
+@media (prefers-color-scheme: dark) {
+  .stu-btn--primary {
+    box-shadow: var(--stu-shadow-1),
+      var(--stu-glow-primary, 0 0 0 transparent);
+  }
+
+  .stu-btn--primary:hover {
+    box-shadow: var(--stu-shadow-2),
+      var(--stu-glow-primary, 0 0 14px rgba(79, 124, 255, 0.45));
+  }
+}
+
+/* Ghost 버튼 – 네온 포커스 */
+.stu-btn--ghost:focus-visible {
+  box-shadow: 0 0 0 4px
+    color-mix(in srgb, var(--stu-primary) 28%, transparent);
+}
+
+/* Danger 버튼 – 색 안정화 */
+.stu-btn--danger {
+  box-shadow: var(--stu-shadow-1);
+}
+
+.stu-btn--danger:hover {
+  box-shadow: var(--stu-shadow-2);
+}
+
+/* ======================================================
+   12) TabBar Active Accent (보조)
+   ====================================================== */
+
+.stu-tabbar a[aria-current="page"] {
+  box-shadow: inset 0 -2px 0
+    color-mix(in srgb, var(--stu-primary) 65%, transparent);
+}
+
+/* ======================================================
+   13) Subtle Motion (전역)
+   ====================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  .stu-card--pressable,
+  .stu-btn {
+    transition:
+      transform 120ms ease,
+      box-shadow 160ms ease,
+      background-color 120ms ease,
+      border-color 120ms ease;
+  }
+}

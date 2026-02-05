@@ -1,0 +1,32 @@
+/* PATH: src/student/shared/ui/presets/dark-navy.css */
+/**
+ * THEME: Dark Navy (LOCK v1)
+ *
+ * 성격:
+ * - 세련된 다크 서비스 테마
+ * - 눈 피로 적음
+ * - 학생/관리자 공용 가능
+ *
+ * (기존 dark-neon.css의 "정체성 명확화 버전")
+ */
+
+:root {
+  --stu-bg: #0b0f19;
+  --stu-surface: #0f1629;
+  --stu-surface-soft: #111a33;
+  --stu-border: rgba(255, 255, 255, 0.12);
+
+  --stu-text: rgba(255, 255, 255, 0.92);
+  --stu-text-muted: rgba(255, 255, 255, 0.65);
+  --stu-text-subtle: rgba(255, 255, 255, 0.45);
+
+  /* Navy Accent */
+  --stu-primary: #4cc9f0;
+  --stu-primary-hover: #22b8e6;
+  --stu-primary-contrast: #020617;
+
+  /* States */
+  --stu-success: #22c55e;
+  --stu-warn: #facc15;
+  --stu-danger: #f43f5e;
+}

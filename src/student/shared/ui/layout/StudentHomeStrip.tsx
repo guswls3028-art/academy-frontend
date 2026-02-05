@@ -22,17 +22,17 @@ export default function StudentHomeStrip() {
         <div className="stu-between" style={{ alignItems: "flex-start" }}>
           <div style={{ minWidth: 0 }}>
             <div className="stu-h3" style={{ fontSize: 16, marginBottom: 6 }}>
-              📣 공지
+              📣 공지사항
             </div>
             <div className="stu-muted">
-              공지사항은 대시보드에서 확인합니다.
+              
             </div>
           </div>
           <span className="stu-badge stu-badge--neutral">보기</span>
         </div>
 
         <div style={{ marginTop: "var(--stu-space-8)" }} className="stu-caption">
-          ※ 상단 공지 영역 (전역)
+          ※ 디자인 표본입니다. (전역)
         </div>
       </Link>
 
@@ -44,14 +44,14 @@ export default function StudentHomeStrip() {
               🗓️ 오늘 일정
             </div>
             <div className="stu-muted">
-              오늘 학습할 차시/과제를 확인하세요.
+              
             </div>
           </div>
           <span className="stu-badge stu-badge--neutral">차시</span>
         </div>
 
         <div style={{ marginTop: "var(--stu-space-8)" }} className="stu-caption">
-          ※ 중앙 상단 일정 영역 (전역)
+          ※ 중앙 상단 일정 제공 (전역)
         </div>
       </Link>
     </div>

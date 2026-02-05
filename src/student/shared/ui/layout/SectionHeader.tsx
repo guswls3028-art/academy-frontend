@@ -1,7 +1,8 @@
-// src/student/shared/components/SectionHeader.tsx
+// PATH: src/student/shared/ui/layout/SectionHeader.tsx
 /**
- * ✅ SectionHeader
- * - 카드/섹션 상단 제목용
+ * ✅ SectionHeader (LOCK v2)
+ * - 타이포/간격을 typography + base.css로 통일
+ * - 페이지/카드 어디서든 일관된 헤더
  */
 
 import { ReactNode } from "react";
@@ -14,15 +15,8 @@ export default function SectionHeader({
   right?: ReactNode;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 10,
-      }}
-    >
-      <div style={{ fontWeight: 800 }}>{title}</div>
+    <div className="stu-between" style={{ marginBottom: "var(--stu-space-6)" }}>
+      <div className="stu-h3">{title}</div>
       {right && <div>{right}</div>}
     </div>
   );

@@ -2,14 +2,15 @@
 /*
  * 사용 가능한 테마 preset 목록:
  *
- * @import "../presets/light-blue.css";      // 기본 (화이트+블루)
- * @import "../presets/light-neutral.css";   // 관리자형
- * @import "../presets/dark-neon.css";       // 다크/터미널
- * @import "../presets/purple-yellow.css";   // 보라+노랑 (브랜드/CTA)
+ * @import "../presets/light-blue.css";       // 기본 학생용 (화이트+블루)
+ * @import "../presets/light-neutral.css";    // 관리자/중립
+ * @import "../presets/purple-yellow.css";    // 브랜드 / CTA 강조
+ * @import "../presets/dark-navy.css";        // 다크 네이비 (세련된 서비스)
+ * @import "../presets/dark-neon.css";   // 🔥 리얼 IDE 네온
  */
 
-/* ✅ 1. 컬러 프리셋 (단 하나만) */
-@import "../presets/purple-yellow.css";
+/* ✅ 1. 컬러 프리셋 (단 하나만 활성화) */
+@import "../presets/dark-neon.css";
 
 /* ✅ 2. 색상 외 전역 토큰 */
 @import "../theme/typography.css";
