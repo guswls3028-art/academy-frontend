@@ -1,42 +1,188 @@
 // PATH: src/student/domains/media/pages/MediaPlayerPage.tsx
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import StudentPageShell from "@/student/shared/components/StudentPageShell";
 import EmptyState from "@/student/shared/components/EmptyState";
+import studentApi from "@/student/shared/api/studentApi";
 
-/**
- * ✅ MediaPlayerPage (DUMMY / LOCK)
- *
- * 목적:
- * - 라우팅 자리 확보
- * - 빌드 안정성 확보
- * - 추후 media/playback 도메인 이식 예정
- *
- * 원칙:
- * - API 호출 ❌
- * - 플레이어 로직 ❌
- * - 정책 판단 ❌
- */
+import StudentVideoPlayer, {
+  PlaybackBootstrap,
+  VideoMetaLite,
+} from "../playback/player/StudentVideoPlayer";
+import { safeParseInt, getOrCreateDeviceId } from "../playback/player/design/utils";
+
+function useQuery() {
+  const { search } = useLocation();
+  return useMemo(() => new URLSearchParams(search), [search]);
+}
+
+async function fetchVideo(videoId: number): Promise<VideoMetaLite> {
+  // ✅ backend: apps/support/video/urls.py router videos -> /api/v1/videos/videos/{id}/
+  const res = await studentApi.get(`/api/v1/videos/videos/${videoId}/`);
+  const v = res?.data || {};
+  return {
+    id: Number(v.id),
+    title: String(v.title ?? "영상"),
+    duration: v.duration == null ? null : Number(v.duration),
+    status: String(v.status ?? ""),
+    thumbnail_url: v.thumbnail_url ?? null,
+    hls_url: v.hls_url ?? null,
+  };
+}
+
+async function startPlayback(params: {
+  videoId: number;
+  enrollmentId: number;
+  deviceId: string;
+}): Promise<PlaybackBootstrap> {
+  const res = await studentApi.post(`/api/v1/videos/playback/start/`, {
+    video_id: params.videoId,
+    enrollment_id: params.enrollmentId,
+    device_id: params.deviceId,
+  });
+  const d = res?.data || {};
+  return {
+    token: String(d.token || ""),
+    session_id: String(d.session_id || ""),
+    expires_at: Number(d.expires_at || 0),
+    policy: d.policy || {},
+    play_url: String(d.play_url || ""),
+  };
+}
 
 export default function MediaPlayerPage() {
-  const [sp] = useSearchParams();
-  const sessionId = sp.get("session");
+  const nav = useNavigate();
+  const q = useQuery();
+  const params = useParams();
+
+  const videoId =
+    safeParseInt(params.videoId) ??
+    safeParseInt(q.get("video")) ??
+    safeParseInt(q.get("video_id"));
+
+  const enrollmentId =
+    safeParseInt(q.get("enrollment")) ??
+    safeParseInt(q.get("enrollment_id")) ??
+    safeParseInt(params.enrollmentId);
+
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [video, setVideo] = useState<VideoMetaLite | null>(null);
+  const [boot, setBoot] = useState<PlaybackBootstrap | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function run() {
+      setLoading(true);
+      setErr(null);
+
+      if (!videoId || !enrollmentId) {
+        setLoading(false);
+        setErr("video_id / enrollment_id 가 필요합니다.");
+        return;
+      }
+
+      try {
+        const deviceId = getOrCreateDeviceId();
+        const [v, b] = await Promise.all([
+          fetchVideo(videoId),
+          startPlayback({ videoId, enrollmentId, deviceId }),
+        ]);
+
+        if (!alive) return;
+
+        if (!b.token || !b.play_url) {
+          setErr("재생 세션 생성 실패");
+          setLoading(false);
+          return;
+        }
+
+        setVideo(v);
+        setBoot(b);
+        setLoading(false);
+      } catch (e: any) {
+        if (!alive) return;
+        const msg =
+          e?.response?.data?.detail ||
+          e?.message ||
+          "재생 페이지 로드에 실패했습니다.";
+        setErr(String(msg));
+        setLoading(false);
+      }
+    }
+
+    run();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId, enrollmentId]);
 
   return (
     <StudentPageShell
-      title="영상"
-      description={sessionId ? `session: ${sessionId}` : "영상 플레이어"}
+      title={video?.title || "미디어"}
+      description={
+        loading
+          ? "불러오는 중..."
+          : err
+            ? "재생 세션 생성 실패"
+            : "편하게 시청하세요."
+      }
+      actions={
+        <button
+          type="button"
+          onClick={() => nav(-1)}
+          style={{
+            padding: "9px 12px",
+            borderRadius: 10,
+            border: "1px solid #e5e5e5",
+            background: "#fff",
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+        >
+          ← 뒤로
+        </button>
+      }
     >
-      <EmptyState
-        title="영상 플레이어 준비 중"
-        description={
-          <>
-            이 페이지는 <b>미디어 도메인 연결 전 더미 페이지</b>입니다.
-            <br />
-            추후 영상 목록 / 재생 / 정책 로직이 이식될 예정입니다.
-          </>
-        }
-      />
+      {loading ? (
+        <div style={{ padding: 8 }}>
+          <div
+            style={{
+              height: 520,
+              borderRadius: 14,
+              border: "1px solid #eee",
+              background:
+                "linear-gradient(90deg, #f3f3f3, #fafafa, #f3f3f3)",
+              backgroundSize: "200% 100%",
+              animation: "mediaShimmer 1.1s ease-in-out infinite",
+            }}
+          />
+          <style>{`
+            @keyframes mediaShimmer {
+              0% { background-position: 200% 0; }
+              100% { background-position: -200% 0; }
+            }
+          `}</style>
+        </div>
+      ) : err ? (
+        <EmptyState
+          title="재생을 시작할 수 없습니다"
+          description={err}
+        />
+      ) : video && boot ? (
+        <StudentVideoPlayer
+          video={video}
+          bootstrap={boot}
+          enrollmentId={Number(enrollmentId)}
+          onFatal={(reason) => setErr(reason)}
+        />
+      ) : (
+        <EmptyState title="데이터가 없습니다" description="다시 시도해주세요." />
+      )}
     </StudentPageShell>
   );
 }
