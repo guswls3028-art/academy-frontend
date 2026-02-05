@@ -1,0 +1,106 @@
+/* PATH: src/student/domains/clinic-idcard/styles/idcard.css */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.idcard-root {
+  min-height: 100vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+  animation: fadeIn 0.3s ease;
+}
+
+.idcard-root.fail {
+  background: #7f1d1d;
+  animation: shake 0.4s ease;
+}
+
+.idcard-root.success {
+  background: #14532d;
+}
+
+.idcard-name {
+  font-size: 28px;
+  font-weight: 900;
+  margin: 12px 0;
+}
+
+.result-banner {
+  font-size: 64px;
+  font-weight: 900;
+  margin: 24px 0;
+  letter-spacing: 2px;
+}
+
+.result-banner.fail {
+  color: #fecaca;
+}
+
+.result-banner.success {
+  color: #bbf7d0;
+}
+
+.live-stamp {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  margin-right: 6px;
+  animation: pulse 1s infinite;
+}
+
+.history-strip {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.history-item {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.history-item.success {
+  background: #16a34a;
+}
+
+.history-item.fail {
+  background: #dc2626;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

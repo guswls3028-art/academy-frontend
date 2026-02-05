@@ -32,6 +32,9 @@ import QnaPage from "@/student/domains/qna/pages/QnaPage";
 // ✅ Media
 import MediaPlayerPage from "@/student/domains/media/pages/MediaPlayerPage";
 
+import ClinicIDCardPage from "@/student/domains/clinic-idcard/pages/ClinicIDCardPage";
+
+
 export default function StudentRouter() {
   return (
     <Routes>
@@ -59,6 +62,9 @@ export default function StudentRouter() {
 
         {/* ✅ QnA */}
         <Route path="qna" element={<QnaPage />} />
+
+        {/* ✅ Clinic ID Card (하원 체크 전용) */}
+        <Route path="idcard" element={<ClinicIDCardPage />} />
       </Route>
 
       {/* fallback */}

@@ -2,23 +2,22 @@
 
 import api from "@/student/shared/api/studentApi";
 
-export type DashboardNotice = {
-  id: number;
-  title: string;
-  created_at?: string | null;
-};
+/**
+ * ✅ Student Dashboard API (HOME 전용)
+ *
+ * 원칙:
+ * - 홈에서는 "행동 유도 정보"만 사용
+ * - 공지 / 일정 상세는 각 도메인에서만 노출
+ */
 
-export type DashboardSession = {
-  id: number;
-  title: string;
-  date?: string | null;
-  status?: string | null;
+export type StudentDashboardBadges = {
+  clinic_upcoming?: boolean;
+  counseling_upcoming?: boolean;
+  [key: string]: any;
 };
 
 export type StudentDashboardResponse = {
-  notices: DashboardNotice[];
-  today_sessions: DashboardSession[];
-  badges: Record<string, any>;
+  badges: StudentDashboardBadges;
 };
 
 export async function fetchStudentDashboard(): Promise<StudentDashboardResponse> {
@@ -26,10 +25,9 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
   const data = res.data ?? {};
 
   return {
-    notices: Array.isArray(data.notices) ? data.notices : [],
-    today_sessions: Array.isArray(data.today_sessions)
-      ? data.today_sessions
-      : [],
-    badges: typeof data.badges === "object" && data.badges ? data.badges : {},
+    badges:
+      typeof data.badges === "object" && data.badges
+        ? data.badges
+        : {},
   };
 }
