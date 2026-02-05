@@ -1,6 +1,6 @@
 // PATH: src/student/domains/clinic-idcard/pages/ClinicIDCardPage.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Result = "SUCCESS" | "FAIL";
 
@@ -19,14 +19,19 @@ export default function ClinicIDCardPage() {
 
   const studentName = "홍길동";
 
-  const histories: History[] = [
+  /** ✅ 히스토리: 클릭으로 상태 변경 */
+  const [histories, setHistories] = useState<History[]>([
     { index: 1, result: "SUCCESS" },
     { index: 2, result: "SUCCESS" },
     { index: 3, result: "FAIL" },
     { index: 4, result: "SUCCESS" },
-  ];
+  ]);
 
-  const hasFail = histories.some((h) => h.result === "FAIL");
+  /** ✅ 하나라도 FAIL이면 클리닉 대상자 */
+  const hasFail = useMemo(
+    () => histories.some((h) => h.result === "FAIL"),
+    [histories]
+  );
 
   const dateText = now.toLocaleDateString("ko-KR", {
     year: "numeric",
@@ -34,6 +39,19 @@ export default function ClinicIDCardPage() {
     day: "numeric",
     weekday: "long",
   });
+
+  function toggleHistory(index: number) {
+    setHistories((prev) =>
+      prev.map((h) =>
+        h.index === index
+          ? {
+              ...h,
+              result: h.result === "SUCCESS" ? "FAIL" : "SUCCESS",
+            }
+          : h
+      )
+    );
+  }
 
   return (
     <div
@@ -47,7 +65,7 @@ export default function ClinicIDCardPage() {
         paddingTop: 32,
       }}
     >
-      {/* 📅 날짜 (대형, 최상단) */}
+      {/* 📅 날짜 */}
       <div
         style={{
           fontSize: 30,
@@ -61,7 +79,7 @@ export default function ClinicIDCardPage() {
         {dateText}
       </div>
 
-      {/* ⏰ 시간 (움직임) */}
+      {/* ⏰ 시간 */}
       <div
         style={{
           fontSize: 36,
@@ -84,8 +102,9 @@ export default function ClinicIDCardPage() {
         {studentName}
       </div>
 
-      {/* ✅ 합/불 메인 */}
+      {/* ✅ 합 / ❌ 클리닉 */}
       <div
+        key={hasFail ? "fail" : "success"} // 🔥 상태 바뀔 때 애니메이션 재실행
         style={{
           width: "90%",
           maxWidth: 420,
@@ -99,13 +118,15 @@ export default function ClinicIDCardPage() {
             ? "linear-gradient(135deg, #ff3b3b, #b40000)"
             : "linear-gradient(135deg, #00ff9c, #00b36b)",
           color: "#000",
-          animation: "pulse 1.2s infinite",
+          animation: hasFail
+            ? "failPulse 0.9s ease-in-out"
+            : "successPop 0.6s ease-out",
         }}
       >
         {hasFail ? "❌ 클리닉 대상자" : "✅ 합격"}
       </div>
 
-      {/* 📊 차시 히스토리 */}
+      {/* 📊 차시 히스토리 (클릭 가능) */}
       <div
         style={{
           display: "grid",
@@ -118,6 +139,7 @@ export default function ClinicIDCardPage() {
         {histories.map((h) => (
           <div
             key={h.index}
+            onClick={() => toggleHistory(h.index)}
             style={{
               padding: "16px 0",
               borderRadius: 14,
@@ -127,6 +149,9 @@ export default function ClinicIDCardPage() {
               background:
                 h.result === "SUCCESS" ? "#0aff9d" : "#ff2e2e",
               color: "#000",
+              cursor: "pointer",
+              userSelect: "none",
+              transition: "transform 120ms ease",
             }}
           >
             {h.index}차시
@@ -153,9 +178,15 @@ export default function ClinicIDCardPage() {
 
       <style>
         {`
-          @keyframes pulse {
+          @keyframes failPulse {
             0% { transform: scale(1); }
-            50% { transform: scale(1.035); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+          }
+
+          @keyframes successPop {
+            0% { transform: scale(0.96); }
+            70% { transform: scale(1.04); }
             100% { transform: scale(1); }
           }
         `}
