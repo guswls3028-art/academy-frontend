@@ -4,8 +4,8 @@
  * - Q&A 목록/작성은 추후 연결
  */
 
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 
 export default function QnaPage() {
   return (

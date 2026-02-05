@@ -1,0 +1,64 @@
+/* PATH: src/student/shared/ui/theme/presets/purple-yellow.css */
+/**
+ * ✅ THEME: Purple + Yellow (LOCK v1)
+ *
+ * 포지션:
+ * - 하이엔드 / 크리에이티브 / Z세대 친화
+ * - 보라 = 집중 / 브랜딩
+ * - 노랑 = 행동 유도 / CTA
+ *
+ * 사용 시나리오:
+ * - 학생 메인 앱
+ * - 인증/출결/행동 버튼 강조
+ * - “눈에 띄는 서비스” 감성
+ */
+
+:root {
+  /* =========================
+     Background / Surface
+     ========================= */
+  --stu-bg: #f7f5fb;              /* 아주 연한 퍼플 */
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f1edfa;
+  --stu-border: rgba(88, 28, 135, 0.12);
+
+  /* =========================
+     Text
+     ========================= */
+  --stu-text: #2e1065;            /* deep purple */
+  --stu-text-muted: rgba(46, 16, 101, 0.65);
+  --stu-text-subtle: rgba(46, 16, 101, 0.45);
+
+  /* =========================
+     Primary (Purple)
+     ========================= */
+  --stu-primary: #7c3aed;         /* violet-600 */
+  --stu-primary-hover: #6d28d9;
+  --stu-primary-contrast: #ffffff;
+
+  /* =========================
+     Accent / CTA (Yellow)
+     ========================= */
+  --stu-accent: #facc15;          /* yellow-400 */
+  --stu-accent-hover: #eab308;
+  --stu-accent-contrast: #422006;
+
+  /* =========================
+     States
+     ========================= */
+  --stu-success: #22c55e;
+  --stu-warn: #facc15;
+  --stu-danger: #ef4444;
+
+  --stu-success-bg: color-mix(in srgb, var(--stu-success) 14%, #ffffff);
+  --stu-success-border: color-mix(in srgb, var(--stu-success) 26%, #ffffff);
+  --stu-success-text: color-mix(in srgb, var(--stu-success) 92%, #000000);
+
+  --stu-warn-bg: color-mix(in srgb, var(--stu-warn) 22%, #ffffff);
+  --stu-warn-border: color-mix(in srgb, var(--stu-warn) 38%, #ffffff);
+  --stu-warn-text: #422006;
+
+  --stu-danger-bg: color-mix(in srgb, var(--stu-danger) 14%, #ffffff);
+  --stu-danger-border: color-mix(in srgb, var(--stu-danger) 26%, #ffffff);
+  --stu-danger-text: color-mix(in srgb, var(--stu-danger) 92%, #000000);
+}

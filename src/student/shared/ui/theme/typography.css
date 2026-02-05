@@ -1,0 +1,76 @@
+/* PATH: src/student/shared/ui/theme/typography.css */
+/**
+ * ✅ Student Typography (LOCK v1)
+ * - 모바일/프로덕션 기준 폰트 스택 + 스케일
+ */
+
+:root {
+  /* Font stack */
+  --stu-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, "Apple SD Gothic Neo",
+    "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif;
+
+  /* Font sizes */
+  --stu-font-size-12: 12px;
+  --stu-font-size-13: 13px;
+  --stu-font-size-14: 14px;
+  --stu-font-size-15: 15px;
+  --stu-font-size-16: 16px;
+  --stu-font-size-18: 18px;
+  --stu-font-size-20: 20px;
+  --stu-font-size-22: 22px;
+
+  /* Line heights */
+  --stu-line-16: 16px;
+  --stu-line-18: 18px;
+  --stu-line-20: 20px;
+  --stu-line-22: 22px;
+  --stu-line-24: 24px;
+  --stu-line-28: 28px;
+
+  /* Weights (semantic) */
+  --stu-w-regular: 500;
+  --stu-w-medium: 600;
+  --stu-w-bold: 800;
+  --stu-w-black: 900;
+}
+
+/* Type utility classes (optional) */
+.stu-h1 {
+  font-size: var(--stu-font-size-22);
+  line-height: var(--stu-line-28);
+  font-weight: var(--stu-w-black);
+  letter-spacing: -0.3px;
+}
+
+.stu-h2 {
+  font-size: var(--stu-font-size-20);
+  line-height: var(--stu-line-24);
+  font-weight: var(--stu-w-black);
+  letter-spacing: -0.25px;
+}
+
+.stu-h3 {
+  font-size: var(--stu-font-size-18);
+  line-height: var(--stu-line-22);
+  font-weight: var(--stu-w-bold);
+  letter-spacing: -0.2px;
+}
+
+.stu-body {
+  font-size: var(--stu-font-size-14);
+  line-height: var(--stu-line-20);
+  font-weight: var(--stu-w-regular);
+}
+
+.stu-body-strong {
+  font-size: var(--stu-font-size-14);
+  line-height: var(--stu-line-20);
+  font-weight: var(--stu-w-bold);
+}
+
+.stu-caption {
+  font-size: var(--stu-font-size-12);
+  line-height: var(--stu-line-16);
+  font-weight: var(--stu-w-bold);
+}

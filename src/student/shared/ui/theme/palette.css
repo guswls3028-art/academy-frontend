@@ -1,0 +1,90 @@
+/* PATH: src/student/shared/ui/theme/palette.css */
+/**
+ * ✅ Student Color System (LOCK v1)
+ * - "의미 기반" 팔레트 (대기업 정석)
+ * - 컴포넌트는 특정 HEX가 아니라 의미 토큰을 사용한다.
+ *
+ * 포함:
+ * - Light 기본
+ * - Dark 확장 (prefers-color-scheme)
+ */
+
+:root {
+  /* =========================
+     Brand / Primary
+     ========================= */
+  --stu-primary: #2f6bff;
+  --stu-primary-hover: #275de0;
+  --stu-primary-contrast: #ffffff;
+
+  /* =========================
+     Background / Surface
+     ========================= */
+  --stu-bg: #f6f7fb;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f3f5fb;
+
+  /* =========================
+     Borders
+     ========================= */
+  --stu-border: rgba(17, 17, 17, 0.08);
+
+  /* =========================
+     Text
+     ========================= */
+  --stu-text: #111111;
+  --stu-text-muted: rgba(17, 17, 17, 0.62);
+  --stu-text-subtle: rgba(17, 17, 17, 0.42);
+
+  /* =========================
+     State Colors (semantic)
+     ========================= */
+  --stu-success: #16a34a;
+  --stu-warn: #f59e0b;
+  --stu-danger: #ef4444;
+
+  --stu-success-hover: #12803b;
+  --stu-danger-hover: #dc2626;
+
+  --stu-success-bg: color-mix(in srgb, var(--stu-success) 12%, #ffffff);
+  --stu-success-border: color-mix(in srgb, var(--stu-success) 22%, #ffffff);
+  --stu-success-text: color-mix(in srgb, var(--stu-success) 92%, #000000);
+
+  --stu-warn-bg: color-mix(in srgb, var(--stu-warn) 14%, #ffffff);
+  --stu-warn-border: color-mix(in srgb, var(--stu-warn) 26%, #ffffff);
+  --stu-warn-text: color-mix(in srgb, var(--stu-warn) 92%, #000000);
+
+  --stu-danger-bg: color-mix(in srgb, var(--stu-danger) 12%, #ffffff);
+  --stu-danger-border: color-mix(in srgb, var(--stu-danger) 22%, #ffffff);
+  --stu-danger-text: color-mix(in srgb, var(--stu-danger) 92%, #000000);
+
+  /* =========================
+     Overlay / Backdrop
+     ========================= */
+  --stu-backdrop: rgba(0, 0, 0, 0.35);
+  --stu-glass: rgba(255, 255, 255, 0.72);
+  --stu-glass-border: rgba(255, 255, 255, 0.55);
+}
+
+/* Dark mode (auto) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --stu-primary: #5b8cff;
+    --stu-primary-hover: #4a79e6;
+    --stu-primary-contrast: #0b0d12;
+
+    --stu-bg: #0b0d12;
+    --stu-surface: #121626;
+    --stu-surface-soft: #0f1422;
+
+    --stu-border: rgba(255, 255, 255, 0.12);
+
+    --stu-text: rgba(255, 255, 255, 0.92);
+    --stu-text-muted: rgba(255, 255, 255, 0.66);
+    --stu-text-subtle: rgba(255, 255, 255, 0.46);
+
+    --stu-backdrop: rgba(0, 0, 0, 0.55);
+    --stu-glass: rgba(18, 22, 38, 0.72);
+    --stu-glass-border: rgba(255, 255, 255, 0.12);
+  }
+}

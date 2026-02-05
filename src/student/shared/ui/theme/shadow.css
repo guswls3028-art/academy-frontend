@@ -1,0 +1,36 @@
+/* PATH: src/student/shared/ui/theme/shadow.css */
+/**
+ * ✅ Student Elevation / Shadow (LOCK v1)
+ * - iOS/Material 혼합 스타일의 "카드/시트/탭바" 음영 기준
+ */
+
+:root {
+  --stu-shadow-0: none;
+
+  /* card */
+  --stu-shadow-1: 0 1px 0 rgba(0, 0, 0, 0.03),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+
+  --stu-shadow-2: 0 1px 0 rgba(0, 0, 0, 0.03),
+    0 14px 38px rgba(0, 0, 0, 0.10);
+
+  /* floating sheet / tabbar */
+  --stu-shadow-3: 0 1px 0 rgba(0, 0, 0, 0.04),
+    0 18px 60px rgba(0, 0, 0, 0.18);
+
+  --stu-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Dark mode: shadows soften */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --stu-shadow-1: 0 1px 0 rgba(0, 0, 0, 0.35),
+      0 10px 28px rgba(0, 0, 0, 0.55);
+
+    --stu-shadow-2: 0 1px 0 rgba(0, 0, 0, 0.40),
+      0 16px 44px rgba(0, 0, 0, 0.62);
+
+    --stu-shadow-3: 0 1px 0 rgba(0, 0, 0, 0.45),
+      0 22px 72px rgba(0, 0, 0, 0.72);
+  }
+}

@@ -1,0 +1,19 @@
+/* PATH: src/student/shared/ui/theme/presets/light-blue.css */
+:root {
+  --stu-bg: #f6f7fb;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f2f5ff;
+  --stu-border: rgba(15, 23, 42, 0.08);
+
+  --stu-text: #0f172a;
+  --stu-text-muted: rgba(15, 23, 42, 0.65);
+  --stu-text-subtle: rgba(15, 23, 42, 0.45);
+
+  --stu-primary: #2563eb;
+  --stu-primary-hover: #1d4ed8;
+  --stu-primary-contrast: #ffffff;
+
+  --stu-success: #16a34a;
+  --stu-warn: #f59e0b;
+  --stu-danger: #ef4444;
+}

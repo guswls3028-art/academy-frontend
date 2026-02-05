@@ -34,7 +34,7 @@ export async function fetchStudentDashboard() {
  * - 판단/필터링 ❌
  */
 
-import EmptyState from "@/student/shared/components/EmptyState";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { DashboardNotice } from "@/student/domains/dashboard/api/dashboard";
 import { formatYmd } from "@/student/shared/utils/date";
 
@@ -142,8 +142,8 @@ export default function QuickActionGrid() {
  */
 
 import { Link } from "react-router-dom";
-import EmptyState from "@/student/shared/components/EmptyState";
-import SectionHeader from "@/student/shared/components/SectionHeader";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
+import SectionHeader from "../../../shared/ui/layout/SectionHeader";
 import { DashboardSession } from "@/student/domains/dashboard/api/dashboard";
 import { formatYmd } from "@/student/shared/utils/date";
 
@@ -224,12 +224,12 @@ export function useStudentDashboard() {
  * - 백엔드 응답 그대로 렌더링 ✅
  */
 
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import { useStudentDashboard } from "@/student/domains/dashboard/hooks/useStudentDashboard";
 import NoticeBanner from "@/student/domains/dashboard/components/NoticeBanner";
 import TodaySessionsCard from "@/student/domains/dashboard/components/TodaySessionsCard";
 import QuickActionGrid from "@/student/domains/dashboard/components/QuickActionGrid";
-import EmptyState from "@/student/shared/components/EmptyState";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 
 export default function DashboardPage() {
   const { data, isLoading, isError } = useStudentDashboard();
@@ -484,8 +484,8 @@ export function useStudentExam(examId?: number) {
  */
 
 import { Link, useParams } from "react-router-dom";
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useStudentExam } from "@/student/domains/exams/hooks/useStudentExams";
 import { useMyExamResult } from "@/student/domains/exams/hooks/useMyExamResult";
 import { useQuery } from "@tanstack/react-query";
@@ -638,8 +638,8 @@ const linkBtn: React.CSSProperties = {
  */
 
 import { Link, useSearchParams } from "react-router-dom";
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useStudentExams } from "@/student/domains/exams/hooks/useStudentExams";
 import { formatYmd } from "@/student/shared/utils/date";
 
@@ -707,8 +707,8 @@ export default function ExamListPage() {
  */
 
 import { Link, useParams } from "react-router-dom";
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useMyExamResult } from "@/student/domains/exams/hooks/useMyExamResult";
 import { useMyExamResultItems } from "@/student/domains/exams/hooks/useMyExamResultItems";
 
@@ -873,8 +873,8 @@ const linkBtn: React.CSSProperties = {
  */
 
 import { Link, useNavigate, useParams } from "react-router-dom";
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 
 export default function ExamSubmitPage() {
   const { examId } = useParams();
@@ -1003,8 +1003,8 @@ const btnStyle: React.CSSProperties = {
  * - 상세/집계는 백엔드가 내려주는 값만 렌더링 (추후 API 연결)
  */
 
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 
 export default function GradesPage() {
   return (
@@ -1086,8 +1086,8 @@ export async function fetchStudentVideoPlayback(
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import studentApi from "@/student/shared/api/studentApi";
 
 import StudentVideoPlayer, {
@@ -3177,8 +3177,8 @@ export function getOrCreateDeviceId() {
  * - Q&A 목록/작성은 추후 연결
  */
 
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 
 export default function QnaPage() {
   return (
@@ -3289,8 +3289,8 @@ export function useSessionDetail(sessionId?: number) {
  */
 
 import { Link, useParams } from "react-router-dom";
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useSessionDetail } from "@/student/domains/sessions/hooks/useStudentSessions";
 import { formatYmd } from "@/student/shared/utils/date";
 
@@ -3409,8 +3409,8 @@ const btnStyle: React.CSSProperties = {
  */
 
 import { Link } from "react-router-dom";
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
 import { formatYmd } from "@/student/shared/utils/date";
 

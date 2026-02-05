@@ -9,12 +9,12 @@
  * - 백엔드 응답 그대로 렌더링 ✅
  */
 
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import { useStudentDashboard } from "@/student/domains/dashboard/hooks/useStudentDashboard";
 import NoticeBanner from "@/student/domains/dashboard/components/NoticeBanner";
 import TodaySessionsCard from "@/student/domains/dashboard/components/TodaySessionsCard";
 import QuickActionGrid from "@/student/domains/dashboard/components/QuickActionGrid";
-import EmptyState from "@/student/shared/components/EmptyState";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 
 export default function DashboardPage() {
   const { data, isLoading, isError } = useStudentDashboard();

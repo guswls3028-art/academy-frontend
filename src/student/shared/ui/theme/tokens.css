@@ -1,0 +1,74 @@
+/* PATH: src/student/shared/ui/theme/tokens.css */
+/*
+ * 사용 가능한 테마 preset 목록:
+ *
+ * @import "../presets/light-blue.css";      // 기본 (화이트+블루)
+ * @import "../presets/light-neutral.css";   // 관리자형
+ * @import "../presets/dark-neon.css";       // 다크/터미널
+ * @import "../presets/purple-yellow.css";   // 보라+노랑 (브랜드/CTA)
+ */
+
+/* ✅ 1. 컬러 프리셋 (단 하나만) */
+@import "../presets/purple-yellow.css";
+
+/* ✅ 2. 색상 외 전역 토큰 */
+@import "../theme/typography.css";
+@import "../theme/shadow.css";
+@import "../css/base.css";
+
+:root {
+  /* ===============================
+   * Layout Size
+   * =============================== */
+  --stu-header-h: 56px;
+  --stu-tabbar-h: 64px;
+
+  /* ===============================
+   * Page Width
+   * =============================== */
+  --stu-page-max-w: 980px;
+
+  /* ===============================
+   * Spacing Rhythm
+   * =============================== */
+  --stu-space-1: 2px;
+  --stu-space-2: 4px;
+  --stu-space-3: 6px;
+  --stu-space-4: 8px;
+  --stu-space-5: 10px;
+  --stu-space-6: 12px;
+  --stu-space-7: 14px;
+  --stu-space-8: 16px;
+  --stu-space-9: 18px;
+  --stu-space-10: 20px;
+  --stu-space-12: 24px;
+  --stu-space-14: 28px;
+  --stu-space-16: 32px;
+
+  /* ===============================
+   * Radius
+   * =============================== */
+  --stu-radius-sm: 10px;
+  --stu-radius-md: 12px;
+  --stu-radius-lg: 16px;
+  --stu-radius-xl: 20px;
+
+  /* ===============================
+   * Z-index
+   * =============================== */
+  --stu-z-header: 200;
+  --stu-z-tabbar: 220;
+  --stu-z-modal: 500;
+  --stu-z-toast: 650;
+
+  /* ===============================
+   * Safe Areas
+   * =============================== */
+  --stu-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --stu-safe-top: env(safe-area-inset-top, 0px);
+
+  /* ===============================
+   * Touch Targets
+   * =============================== */
+  --stu-touch: 44px;
+}

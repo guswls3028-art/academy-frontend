@@ -6,8 +6,8 @@
  */
 
 import { Link } from "react-router-dom";
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
 import { formatYmd } from "@/student/shared/utils/date";
 

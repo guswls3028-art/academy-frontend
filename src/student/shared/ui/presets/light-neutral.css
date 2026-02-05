@@ -1,0 +1,19 @@
+/* PATH: src/student/shared/ui/theme/presets/light-neutral.css */
+:root {
+  --stu-bg: #f7f7f8;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f1f1f3;
+  --stu-border: rgba(0, 0, 0, 0.08);
+
+  --stu-text: #111111;
+  --stu-text-muted: rgba(0, 0, 0, 0.6);
+  --stu-text-subtle: rgba(0, 0, 0, 0.4);
+
+  --stu-primary: #4b5563; /* gray-600 */
+  --stu-primary-hover: #374151;
+  --stu-primary-contrast: #ffffff;
+
+  --stu-success: #15803d;
+  --stu-warn: #ca8a04;
+  --stu-danger: #dc2626;
+}

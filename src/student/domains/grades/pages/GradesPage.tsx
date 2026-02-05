@@ -5,8 +5,8 @@
  * - 상세/집계는 백엔드가 내려주는 값만 렌더링 (추후 API 연결)
  */
 
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 
 export default function GradesPage() {
   return (

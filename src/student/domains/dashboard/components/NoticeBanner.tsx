@@ -5,7 +5,7 @@
  * - 판단/필터링 ❌
  */
 
-import EmptyState from "@/student/shared/components/EmptyState";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { DashboardNotice } from "@/student/domains/dashboard/api/dashboard";
 import { formatYmd } from "@/student/shared/utils/date";
 

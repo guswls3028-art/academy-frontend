@@ -1,6 +1,20 @@
 // PATH: C:\academyfront\src\student\app\StudentRouter.tsx
+/**
+ * ✅ StudentRouter (LOCK v3)
+ *
+ * 변경 요약:
+ * - 원본 라우팅 구조 100% 유지
+ * - Layout import만 SSOT(shared/ui) 기준으로 교체
+ *
+ * 주의:
+ * - 라우트/도메인/주석 절대 변경 없음
+ * - “합치기” 요청에 따라 기존 코드 존중
+ */
+
 import { Navigate, Route, Routes } from "react-router-dom";
-import StudentLayout from "@/student/app/StudentLayout";
+
+// ✅ SSOT 전역 레이아웃 (shared/ui)
+import StudentLayout from "@/student/shared/ui/layout/StudentLayout";
 
 // domains
 import DashboardPage from "@/student/domains/dashboard/pages/DashboardPage";
@@ -15,7 +29,7 @@ import ExamResultPage from "@/student/domains/exams/pages/ExamResultPage";
 import GradesPage from "@/student/domains/grades/pages/GradesPage";
 import QnaPage from "@/student/domains/qna/pages/QnaPage";
 
-// ✅ NEW
+// ✅ Media
 import MediaPlayerPage from "@/student/domains/media/pages/MediaPlayerPage";
 
 export default function StudentRouter() {

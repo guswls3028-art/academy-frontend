@@ -6,8 +6,8 @@
  */
 
 import { Link } from "react-router-dom";
-import EmptyState from "@/student/shared/components/EmptyState";
-import SectionHeader from "@/student/shared/components/SectionHeader";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
+import SectionHeader from "../../../shared/ui/layout/SectionHeader";
 import { DashboardSession } from "@/student/domains/dashboard/api/dashboard";
 import { formatYmd } from "@/student/shared/utils/date";
 

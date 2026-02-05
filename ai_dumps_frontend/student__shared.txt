@@ -24,7 +24,13 @@ export default api;
 
 
 ==========================================================================================
-# FILE: components/EmptyState.tsx
+# FILE: ui/css/base.css
+==========================================================================================
+
+
+
+==========================================================================================
+# FILE: ui/layout/EmptyState.tsx
 ==========================================================================================
 // src/student/shared/components/EmptyState.tsx
 /**
@@ -59,7 +65,7 @@ export default function EmptyState({
 
 
 ==========================================================================================
-# FILE: components/SectionHeader.tsx
+# FILE: ui/layout/SectionHeader.tsx
 ==========================================================================================
 // src/student/shared/components/SectionHeader.tsx
 /**
@@ -93,15 +99,56 @@ export default function SectionHeader({
 
 
 ==========================================================================================
-# FILE: components/StudentPageShell.tsx
+# FILE: ui/layout/StudentLayout.tsx
 ==========================================================================================
-// src/student/shared/components/StudentPageShell.tsx
+// src/student/shared/ui/layout/StudentLayout.tsx
 /**
- * ✅ StudentPageShell
- * - 상용 SaaS에서 흔히 쓰는 "페이지 프레임"
- * - 제목/설명/액션 영역만 제공
- * - UI는 최소화 (CSS 분리 예정)
+ * ✅ StudentLayout (LOCK v1)
+ *
+ * 책임:
+ * - 학생앱 전역 레이아웃 디자인 관리
+ * - 배경 / 여백 / 페이지 폭 기준 제공
+ *
+ * 원칙:
+ * - 도메인/페이지 로직 ❌
+ * - 하단탭 "존재만" 고려 (정책/디자인 ❌)
+ * - 전역 토큰은 여기서 1회 로딩
  */
+
+import { Outlet } from "react-router-dom";
+import "../theme/tokens.css";
+
+export default function StudentLayout() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--stu-bg)",
+        color: "var(--stu-text)",
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
+      {/* 실제 페이지 영역 */}
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "var(--stu-page-max-w)",
+          padding: "var(--stu-space-8)",
+          paddingBottom: `calc(var(--stu-space-8) + var(--stu-tabbar-h))`,
+        }}
+      >
+        <Outlet />
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/pages/StudentPageShell.tsx
+==========================================================================================
+// PATH: src/student/shared/components/StudentPageShell.tsx
 
 import { ReactNode } from "react";
 
@@ -117,7 +164,7 @@ export default function StudentPageShell({
   children: ReactNode;
 }) {
   return (
-    <div style={{ maxWidth: 980, margin: "0 auto" }}>
+    <div>
       <div
         style={{
           display: "flex",
@@ -130,7 +177,7 @@ export default function StudentPageShell({
         <div>
           <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
           {description && (
-            <div style={{ marginTop: 4, fontSize: 13, color: "#666" }}>
+            <div className="student-muted" style={{ marginTop: 4 }}>
               {description}
             </div>
           )}
@@ -138,18 +185,62 @@ export default function StudentPageShell({
         {actions && <div>{actions}</div>}
       </div>
 
-      <div
-        style={{
-          border: "1px solid #eee",
-          borderRadius: 10,
-          background: "#fff",
-          padding: 16,
-        }}
-      >
-        {children}
-      </div>
+      <div className="student-card">{children}</div>
     </div>
   );
+}
+
+
+==========================================================================================
+# FILE: ui/theme/tokens.css
+==========================================================================================
+/**
+ * ✅ Student Global UI Tokens (LOCK v1)
+ * 목적:
+ * - 레이아웃/여백/배경 기준만 고정
+ * - 컴포넌트 디자인은 막지 않음
+ */
+
+:root {
+  /* ===============================
+   * Layout Base
+   * =============================== */
+  --stu-bg: #fafafa;
+  --stu-surface: #ffffff;
+  --stu-border: #eaeaea;
+
+  /* ===============================
+   * Text
+   * =============================== */
+  --stu-text: #111111;
+  --stu-text-muted: #6b6b6b;
+
+  /* ===============================
+   * Layout Size (중요)
+   * =============================== */
+  --stu-header-h: 56px;
+  --stu-tabbar-h: 56px;
+
+  /* ===============================
+   * Page Width
+   * =============================== */
+  --stu-page-max-w: 980px;
+
+  /* ===============================
+   * Spacing Rhythm
+   * =============================== */
+  --stu-space-2: 4px;
+  --stu-space-4: 8px;
+  --stu-space-6: 12px;
+  --stu-space-8: 16px;
+  --stu-space-10: 20px;
+
+  /* ===============================
+   * Radius (기준만 제공)
+   * =============================== */
+  --stu-radius-sm: 8px;
+  --stu-radius-md: 10px;
+  --stu-radius-lg: 14px;
 }
 
 

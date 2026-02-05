@@ -14,8 +14,8 @@
  */
 
 import { Link, useNavigate, useParams } from "react-router-dom";
-import StudentPageShell from "@/student/shared/components/StudentPageShell";
-import EmptyState from "@/student/shared/components/EmptyState";
+import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
+import EmptyState from "../../../shared/ui/layout/EmptyState";
 
 export default function ExamSubmitPage() {
   const { examId } = useParams();
