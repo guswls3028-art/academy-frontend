@@ -5,29 +5,432 @@
 
 
 ==========================================================================================
+# FILE: clinic-idcard/api/idcard.ts
+==========================================================================================
+// PATH: src/student/domains/clinic-idcard/api/idcard.ts
+
+import api from "@/student/shared/api/studentApi";
+import { ClinicIdCardData } from "../pages/ClinicIDCardPage";
+
+/**
+ * ✅ Clinic ID Card API
+ * - Read-only
+ * - 판단 로직 ❌
+ */
+export async function fetchClinicIdCard(): Promise<ClinicIdCardData> {
+  const res = await api.get("/clinic/idcard/");
+  const data = res.data;
+
+  return {
+    studentName: data.student_name,
+    currentResult: data.current_result, // SUCCESS | FAIL
+    histories: (data.histories || []).slice(0, 9),
+  };
+}
+
+
+==========================================================================================
+# FILE: clinic-idcard/components/HistoryStrip.tsx
+==========================================================================================
+// PATH: src/student/domains/clinic-idcard/components/HistoryStrip.tsx
+
+import { ClinicHistoryItem } from "../pages/ClinicIDCardPage";
+
+export default function HistoryStrip({
+  histories,
+}: {
+  histories: ClinicHistoryItem[];
+}) {
+  return (
+    <div className="history-strip">
+      {histories.map((h, idx) => (
+        <div
+          key={idx}
+          className={`history-item ${h.result.toLowerCase()}`}
+        >
+          {h.week}차
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: clinic-idcard/components/LiveStamp.tsx
+==========================================================================================
+// PATH: src/student/domains/clinic-idcard/components/LiveStamp.tsx
+
+import { useEffect, useState } from "react";
+
+export default function LiveStamp() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div className="live-stamp">
+      <span className="live-dot" />
+      {now.toLocaleDateString()} {now.toLocaleTimeString()}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: clinic-idcard/components/ResultBanner.tsx
+==========================================================================================
+// PATH: src/student/domains/clinic-idcard/components/ResultBanner.tsx
+
+import { ClinicResult } from "../pages/ClinicIDCardPage";
+
+export default function ResultBanner({ result }: { result: ClinicResult }) {
+  return (
+    <div className={`result-banner ${result.toLowerCase()}`}>
+      {result === "SUCCESS" ? "합격" : "클리닉 대상"}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: clinic-idcard/pages/ClinicIDCardPage.tsx
+==========================================================================================
+// PATH: src/student/domains/clinic-idcard/pages/ClinicIDCardPage.tsx
+
+import { useEffect, useMemo, useState } from "react";
+
+type Result = "SUCCESS" | "FAIL";
+
+type History = {
+  index: number;
+  result: Result;
+};
+
+export default function ClinicIDCardPage() {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const studentName = "홍길동";
+
+  /** ✅ 히스토리: 클릭으로 상태 변경 */
+  const [histories, setHistories] = useState<History[]>([
+    { index: 1, result: "SUCCESS" },
+    { index: 2, result: "SUCCESS" },
+    { index: 3, result: "FAIL" },
+    { index: 4, result: "SUCCESS" },
+  ]);
+
+  /** ✅ 하나라도 FAIL이면 클리닉 대상자 */
+  const hasFail = useMemo(
+    () => histories.some((h) => h.result === "FAIL"),
+    [histories]
+  );
+
+  const dateText = now.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
+
+  function toggleHistory(index: number) {
+    setHistories((prev) =>
+      prev.map((h) =>
+        h.index === index
+          ? {
+              ...h,
+              result: h.result === "SUCCESS" ? "FAIL" : "SUCCESS",
+            }
+          : h
+      )
+    );
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#000",
+        color: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        paddingTop: 32,
+      }}
+    >
+      {/* 📅 날짜 */}
+      <div
+        style={{
+          fontSize: 30,
+          fontWeight: 900,
+          letterSpacing: "-0.5px",
+          marginBottom: 25,
+          color: "#b2e5e9ff",
+          textShadow: "0 0 12px rgba(0,255,208,0.35)",
+        }}
+      >
+        {dateText}
+      </div>
+
+      {/* ⏰ 시간 */}
+      <div
+        style={{
+          fontSize: 36,
+          fontWeight: 900,
+          letterSpacing: 1,
+          marginBottom: 28,
+        }}
+      >
+        {now.toLocaleTimeString()}
+      </div>
+
+      {/* 👤 학생 이름 */}
+      <div
+        style={{
+          fontSize: 38,
+          fontWeight: 900,
+          marginBottom: 22,
+        }}
+      >
+        {studentName}
+      </div>
+
+      {/* ✅ 합 / ❌ 클리닉 */}
+      <div
+        key={hasFail ? "fail" : "success"} // 🔥 상태 바뀔 때 애니메이션 재실행
+        style={{
+          width: "90%",
+          maxWidth: 420,
+          padding: "30px 20px",
+          borderRadius: 22,
+          textAlign: "center",
+          fontSize: 42,
+          fontWeight: 900,
+          marginBottom: 30,
+          background: hasFail
+            ? "linear-gradient(135deg, #ff3b3b, #b40000)"
+            : "linear-gradient(135deg, #00ff9c, #00b36b)",
+          color: "#000",
+          animation: hasFail
+            ? "failPulse 0.9s ease-in-out"
+            : "successPop 0.6s ease-out",
+        }}
+      >
+        {hasFail ? "❌ 클리닉 대상자" : "✅ 합격"}
+      </div>
+
+      {/* 📊 차시 히스토리 (클릭 가능) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 12,
+          width: "90%",
+          maxWidth: 420,
+        }}
+      >
+        {histories.map((h) => (
+          <div
+            key={h.index}
+            onClick={() => toggleHistory(h.index)}
+            style={{
+              padding: "16px 0",
+              borderRadius: 14,
+              textAlign: "center",
+              fontWeight: 900,
+              fontSize: 16,
+              background:
+                h.result === "SUCCESS" ? "#0aff9d" : "#ff2e2e",
+              color: "#000",
+              cursor: "pointer",
+              userSelect: "none",
+              transition: "transform 120ms ease",
+            }}
+          >
+            {h.index}차시
+            <div style={{ marginTop: 6 }}>
+              {h.result === "SUCCESS" ? "합격" : "불합격"}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {hasFail && (
+        <div
+          style={{
+            marginTop: 28,
+            color: "#ff5555",
+            fontSize: 18,
+            fontWeight: 900,
+            textAlign: "center",
+          }}
+        >
+          ❗ 클리닉 대상자 — 즉시 조치 필요
+        </div>
+      )}
+
+      <style>
+        {`
+          @keyframes failPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+          }
+
+          @keyframes successPop {
+            0% { transform: scale(0.96); }
+            70% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+          }
+        `}
+      </style>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: clinic-idcard/styles/idcard.css
+==========================================================================================
+/* PATH: src/student/domains/clinic-idcard/styles/idcard.css */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.idcard-root {
+  min-height: 100vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+  color: #fff;
+  animation: fadeIn 0.3s ease;
+}
+
+.idcard-root.fail {
+  background: #7f1d1d;
+  animation: shake 0.4s ease;
+}
+
+.idcard-root.success {
+  background: #14532d;
+}
+
+.idcard-name {
+  font-size: 28px;
+  font-weight: 900;
+  margin: 12px 0;
+}
+
+.result-banner {
+  font-size: 64px;
+  font-weight: 900;
+  margin: 24px 0;
+  letter-spacing: 2px;
+}
+
+.result-banner.fail {
+  color: #fecaca;
+}
+
+.result-banner.success {
+  color: #bbf7d0;
+}
+
+.live-stamp {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  margin-right: 6px;
+  animation: pulse 1s infinite;
+}
+
+.history-strip {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.history-item {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.history-item.success {
+  background: #16a34a;
+}
+
+.history-item.fail {
+  background: #dc2626;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+
+==========================================================================================
 # FILE: dashboard/api/dashboard.ts
 ==========================================================================================
 // PATH: src/student/domains/dashboard/api/dashboard.ts
 
 import api from "@/student/shared/api/studentApi";
 
-export type DashboardNotice = {
-  id: number;
-  title: string;
-  created_at?: string | null;
-};
+/**
+ * ✅ Student Dashboard API (HOME 전용)
+ *
+ * 원칙:
+ * - 홈에서는 "행동 유도 정보"만 사용
+ * - 공지 / 일정 상세는 각 도메인에서만 노출
+ */
 
-export type DashboardSession = {
-  id: number;
-  title: string;
-  date?: string | null;
-  status?: string | null;
+export type StudentDashboardBadges = {
+  clinic_upcoming?: boolean;
+  counseling_upcoming?: boolean;
+  [key: string]: any;
 };
 
 export type StudentDashboardResponse = {
-  notices: DashboardNotice[];
-  today_sessions: DashboardSession[];
-  badges: Record<string, any>;
+  badges: StudentDashboardBadges;
 };
 
 export async function fetchStudentDashboard(): Promise<StudentDashboardResponse> {
@@ -35,11 +438,10 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
   const data = res.data ?? {};
 
   return {
-    notices: Array.isArray(data.notices) ? data.notices : [],
-    today_sessions: Array.isArray(data.today_sessions)
-      ? data.today_sessions
-      : [],
-    badges: typeof data.badges === "object" && data.badges ? data.badges : {},
+    badges:
+      typeof data.badges === "object" && data.badges
+        ? data.badges
+        : {},
   };
 }
 
@@ -272,10 +674,8 @@ export function useStudentDashboard() {
 
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
-import NoticeBanner from "../components/NoticeBanner";
-import TodaySessionsCard from "../components/TodaySessionsCard";
-import QuickActionGrid from "../components/QuickActionGrid";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
+import { Link } from "react-router-dom";
 
 export default function DashboardPage() {
   const { data, isLoading, isError } = useStudentDashboard();
@@ -292,21 +692,105 @@ export default function DashboardPage() {
     return (
       <StudentPageShell title="홈">
         <EmptyState
-          title="대시보드를 불러오지 못했습니다."
-          description="네트워크 또는 서버 상태를 확인하세요."
+          title="홈 정보를 불러오지 못했습니다."
+          description="잠시 후 다시 시도해주세요."
         />
       </StudentPageShell>
     );
   }
 
+  const badges = data.badges || {};
+  const hasClinic = !!badges.clinic_upcoming;
+  const hasCounseling = !!badges.counseling_upcoming;
+
   return (
     <StudentPageShell title="홈">
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <NoticeBanner notices={data.notices} />
-        <TodaySessionsCard sessions={data.today_sessions} />
-        <QuickActionGrid />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* ===============================
+         * 학습 바로가기
+         * =============================== */}
+        <div className="stu-card">
+          <div style={{ fontWeight: 900, marginBottom: 12 }}>학습</div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+            }}
+          >
+            <HomeAction to="/student/assignments" label="과제 제출" />
+            <HomeAction to="/student/materials" label="자료실" />
+            <HomeAction to="/student/exams" label="시험" />
+            <HomeAction to="/student/grades" label="성적" />
+          </div>
+        </div>
+
+        {/* ===============================
+         * 클리닉
+         * =============================== */}
+        <div className="stu-card">
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>클리닉</div>
+          <div className="stu-muted" style={{ marginBottom: 12 }}>
+            {hasClinic
+              ? "예정된 클리닉이 있습니다."
+              : "예정된 클리닉이 없습니다."}
+          </div>
+
+          <Link
+            to="/student/clinic"
+            className="stu-btn-primary"
+          >
+            클리닉 예약하기
+          </Link>
+        </div>
+
+        {/* ===============================
+         * 상담
+         * =============================== */}
+        <div className="stu-card">
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>상담</div>
+          <div className="stu-muted" style={{ marginBottom: 12 }}>
+            {hasCounseling
+              ? "예정된 상담이 있습니다."
+              : "예정된 상담이 없습니다."}
+          </div>
+
+          <Link
+            to="/student/counseling"
+            className="stu-btn-primary"
+          >
+            상담 예약하기
+          </Link>
+        </div>
       </div>
     </StudentPageShell>
+  );
+}
+
+function HomeAction({
+  to,
+  label,
+}: {
+  to: string;
+  label: string;
+}) {
+  return (
+    <Link
+      to={to}
+      style={{
+        textDecoration: "none",
+        borderRadius: 14,
+        padding: "18px 14px",
+        border: "1px solid var(--stu-border)",
+        background: "var(--stu-surface)",
+        color: "var(--stu-text)",
+        fontWeight: 900,
+        textAlign: "center",
+      }}
+    >
+      {label}
+    </Link>
   );
 }
 

@@ -1027,7 +1027,7 @@ export default function StaffDeleteButton({
 # FILE: components/StaffHeader.tsx
 ==========================================================================================
 // PATH: src/features/staff/components/StaffHeader.tsx
-import { PageToolbar } from "@/shared/ui/page";
+import { PageToolbar } from "@/shared/ui/ds";
 import { StaffFilters } from "../hooks/useStaffDomain";
 
 export default function StaffHeader({
@@ -1196,7 +1196,8 @@ function Item({ label, value }: { label: string; value: string }) {
 # FILE: components/StaffKpiCard.tsx
 ==========================================================================================
 // PATH: src/features/staff/components/StaffKpiCard.tsx
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 
 export default function StaffKpiCard({
   staffCount,
@@ -1250,7 +1251,8 @@ function Item({
 # FILE: components/StaffSummaryCard.tsx
 ==========================================================================================
 // src/features/staff/components/StaffSummaryCard.tsx
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 import { StaffSummary } from "../api/staff.api";
 
 export default function StaffSummaryCard({
@@ -1997,8 +1999,9 @@ export function useStaffDomain() {
 // PATH: src/features/staff/pages/AdminPayrollListPage.tsx
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Page, PageHeader, PageSection } from "@/shared/ui/page";
-import { Card, CardBody } from "@/shared/ui/card";
+import { Page, PageHeader, Section } from "@/shared/ui/ds";
+import { Panel } from "@/shared/ui/ds";
+
 
 import {
   fetchPayrollSnapshots,
@@ -2066,7 +2069,7 @@ export default function AdminPayrollListPage() {
         }
       />
 
-      <PageSection>
+      <Section>
         <div className="flex items-center gap-2 mb-4">
           <select
             value={ym.year}
@@ -2140,7 +2143,7 @@ export default function AdminPayrollListPage() {
             {totals.totalAmount.toLocaleString()}원
           </div>
         )}
-      </PageSection>
+      </Section>
     </Page>
   );
 }
@@ -2241,7 +2244,7 @@ export default function StaffDetailPage() {
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Page, PageHeader, PageSection } from "@/shared/ui/page";
+import { Page, PageHeader, Section } from "@/shared/ui/ds";
 
 import StaffHeader from "../components/StaffHeader";
 import StaffKpiCard from "../components/StaffKpiCard";
@@ -2311,11 +2314,11 @@ export default function StaffPage() {
     return (
       <Page>
         <PageHeader title="직원 근무 · 급여 관리" description="불러오기에 실패했습니다." />
-        <PageSection>
+        <Section>
           <div className="text-sm text-[var(--text-muted)]">
             직원 목록을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.
           </div>
-        </PageSection>
+        </Section>
       </Page>
     );
   }
@@ -2347,7 +2350,7 @@ export default function StaffPage() {
         onCreate={() => setCreateOpen(true)}
       />
 
-      <PageSection>
+      <Section>
         {/* ✅ KPI: “이번달 운영” 지표 */}
         <StaffKpiCard
           staffCount={kpis.staffCount}
@@ -2379,9 +2382,9 @@ export default function StaffPage() {
             <div className="mt-1 text-lg font-semibold">{derived.lockedCount.toLocaleString()}</div>
           </div>
         </div>
-      </PageSection>
+      </Section>
 
-      <PageSection>
+      <Section>
         {/* ✅ 핵심: StaffPage에서 대부분 작업 끝내기 */}
         <StaffTable
           staffs={rows as any[]}
@@ -2392,7 +2395,7 @@ export default function StaffPage() {
             await ensureSummaries();
           }}
         />
-      </PageSection>
+      </Section>
 
       <StaffCreateModal
         open={createOpen}
@@ -2413,7 +2416,8 @@ export default function StaffPage() {
 // PATH: src/features/staff/tabs/AdminWorkMonthLockHistoryTab.tsx
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 import { fetchWorkMonthLocks, WorkMonthLock } from "../api/staffWorkMonthLock.api";
 
 /* =========================
@@ -2544,7 +2548,7 @@ export default function AdminWorkMonthLockHistoryTab() {
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 
 import {
   fetchExpenses,
@@ -3057,8 +3061,9 @@ export default function StaffExpensesTab() {
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@/shared/ui/card";
-import { EmptyState } from "@/shared/ui/feedback";
+import { Panel } from "@/shared/ui/ds";
+
+import { EmptyState } from "@/shared/ui/ds";
 
 import {
   fetchPayrollSnapshots,
@@ -3354,7 +3359,8 @@ function Kpi({
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 
 import {
   fetchPayrollSnapshots,
@@ -3707,7 +3713,8 @@ function Field({
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
 import { exportStaffReportXlsx } from "../api/staffReport.api";
@@ -3847,7 +3854,8 @@ function Item({
 // PATH: src/features/staff/tabs/StaffSummaryTab.tsx
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
 import {
@@ -4003,7 +4011,7 @@ import {
   StaffWorkType,
   WorkType,
 } from "../api/staffWorkType.api";
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 
 export default function StaffWagesTab() {
   const { staffId } = useParams();
@@ -4164,7 +4172,7 @@ export default function StaffWagesTab() {
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 
 import { fetchStaffMe } from "../api/staffMe.api";
 

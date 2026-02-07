@@ -1,17 +1,24 @@
-// src/features/community/pages/CommunityPage.tsx
-  
-import { Page, PageHeader, PageSection } from "@/shared/ui/page";
+// PATH: src/features/community/pages/CommunityPage.tsx
+
+import { PageHeader, Section } from "@/shared/ui/ds";
 import BoardTabs from "../components/BoardTabs";
 import { Outlet } from "react-router-dom";
 
 export default function CommunityPage() {
   return (
-    <Page title="">
+    <div className="space-y-6">
+      {/* Header */}
       <PageHeader title="커뮤니티" />
 
-      <BoardTabs />
+      {/* Tabs */}
+      <Section>
+        <BoardTabs />
+      </Section>
 
-      <Outlet />
-    </Page>
+      {/* Content */}
+      <Section>
+        <Outlet />
+      </Section>
+    </div>
   );
 }

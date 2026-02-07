@@ -5,10 +5,36 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import InlineExamItemsRow from "./InlineExamItemsRow";
-import { StatusBadge } from "@/shared/ui/feedback";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import HomeworkQuickInput from "./HomeworkQuickInput";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
+
+/* ===============================
+   Status 표시 (LOCAL / SSOT)
+   - Status System: success / warning / error / info
+   - 공용 컴포넌트 ❌
+================================ */
+
+function StatusCell({ status }: { status: "success" | "error" | "info" }) {
+  return (
+    <span
+      className={[
+        "inline-flex rounded px-2 py-0.5 text-xs font-semibold",
+        status === "success" && "status-success",
+        status === "error" && "status-error",
+        status === "info" && "status-info",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {status === "success"
+        ? "PASS"
+        : status === "error"
+        ? "FAIL"
+        : "-"}
+    </span>
+  );
+}
 
 function clinicText(row: SessionScoreRow, currentHomeworkId: number | null) {
   const examRequired = !!row.exams?.[0]?.block?.clinic_required;
@@ -27,11 +53,15 @@ function clinicText(row: SessionScoreRow, currentHomeworkId: number | null) {
 }
 
 function toStatus(passed: boolean | null | undefined) {
-  if (passed == null) return "pending";
-  return passed ? "pass" : "fail";
+  if (passed == null) return "info";
+  return passed ? "success" : "error";
 }
 
-function HomeworkStateBadge({ status }: { status: "UNSET" | "NOT_SUBMITTED" | "ZERO" | "SCORED" }) {
+function HomeworkStateBadge({
+  status,
+}: {
+  status: "UNSET" | "NOT_SUBMITTED" | "ZERO" | "SCORED";
+}) {
   if (status === "NOT_SUBMITTED") {
     return (
       <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">
@@ -127,83 +157,22 @@ export default function ScoresTable({
     <div
       className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)]"
       tabIndex={0}
-      onKeyDown={(e) => {
-        if (rows.length === 0) return;
-
-        const baseIndex = selectedIndex >= 0 ? selectedIndex : 0;
-
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          moveSelection(Math.max(0, baseIndex - 1));
-        }
-
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          moveSelection(Math.min(rows.length - 1, baseIndex + 1));
-        }
-
-        if (e.key === "Enter") {
-          e.preventDefault();
-          const row = rows[baseIndex];
-          if (row) focusHomeworkInput(row.enrollment_id);
-        }
-      }}
     >
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <div className={`border-b ${grid}`}>
         <div className={thBase}>학생</div>
-
-        <div
-          className={[
-            thBase,
-            activeColumn === "exam" ? thActive : "",
-          ].join(" ")}
-        >
+        <div className={[thBase, activeColumn === "exam" ? thActive : ""].join(" ")}>
           시험
-          {examOptions.length > 1 && (
-            <select
-              className="mt-1 w-full rounded-md border border-[var(--border-default)] bg-white px-2 py-1 text-sm font-medium text-black shadow-sm focus:ring-2 focus:ring-[var(--color-primary)]"
-              value={currentExamId ?? ""}
-              onChange={(e) => onChangeExam(Number(e.target.value))}
-            >
-              {examOptions.map((e) => (
-                <option key={e.exam_id} value={e.exam_id}>
-                  {e.title}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
-
         <div className={thBase}>판정</div>
-
-        <div
-          className={[
-            thBase,
-            activeColumn === "homework" ? thActive : "",
-          ].join(" ")}
-        >
+        <div className={[thBase, activeColumn === "homework" ? thActive : ""].join(" ")}>
           과제
-          {homeworkOptions.length > 1 && (
-            <select
-              className="mt-1 w-full rounded-md border border-[var(--border-default)] bg-white px-2 py-1 text-sm font-medium text-black shadow-sm focus:ring-2 focus:ring-[var(--color-primary)]"
-              value={currentHomeworkId ?? ""}
-              onChange={(e) => onChangeHomework(Number(e.target.value))}
-            >
-              {homeworkOptions.map((h) => (
-                <option key={h.homework_id} value={h.homework_id}>
-                  {h.title}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
-
         <div className={thBase}>판정</div>
         <div className={thBase}>클리닉</div>
       </div>
 
-      {/* ================= BODY ================= */}
+      {/* BODY */}
       {rows.map((row) => {
         const selected = selectedEnrollmentId === row.enrollment_id;
 
@@ -220,10 +189,6 @@ export default function ScoresTable({
           score: homeworkEntry?.block?.score,
           metaStatus: homeworkEntry?.block?.meta?.status ?? null,
         });
-
-        const hwLocked = !!homeworkEntry?.block?.is_locked;
-        const hwNotSubmitted = hwStatus === "NOT_SUBMITTED";
-        const hwDisabled = hwLocked || hwNotSubmitted;
 
         return (
           <Fragment key={row.enrollment_id}>
@@ -250,7 +215,7 @@ export default function ScoresTable({
               </div>
 
               <div className={tdBase}>
-                <StatusBadge status={toStatus(examEntry?.block?.passed)} />
+                <StatusCell status={toStatus(examEntry?.block?.passed)} />
               </div>
 
               <div className={tdBase}>
@@ -262,22 +227,12 @@ export default function ScoresTable({
                       }}
                       defaultValue={homeworkEntry.block.score}
                       maxScore={homeworkEntry.block.max_score}
-                      disabled={hwDisabled}
-                      disabledReason={
-                        hwLocked
-                          ? homeworkEntry.block.lock_reason ?? ""
-                          : hwNotSubmitted
-                          ? "미제출 처리됨 (/ + Enter 해제는 빈 값 + Enter)"
-                          : ""
-                      }
                       onSubmitScore={async (score) => {
                         await patchHomeworkQuick({
                           sessionId,
                           enrollmentId: row.enrollment_id,
                           homeworkId: homeworkEntry.homework_id,
                           score,
-                          maxScore: homeworkEntry.block.max_score ?? null,
-                          metaStatus: null,
                         });
                         qc.invalidateQueries({
                           queryKey: ["session-scores", sessionId],
@@ -289,21 +244,7 @@ export default function ScoresTable({
                           enrollmentId: row.enrollment_id,
                           homeworkId: homeworkEntry.homework_id,
                           score: null,
-                          maxScore: homeworkEntry.block.max_score ?? null,
                           metaStatus: "NOT_SUBMITTED",
-                        });
-                        qc.invalidateQueries({
-                          queryKey: ["session-scores", sessionId],
-                        });
-                      }}
-                      onClearStatus={async () => {
-                        await patchHomeworkQuick({
-                          sessionId,
-                          enrollmentId: row.enrollment_id,
-                          homeworkId: homeworkEntry.homework_id,
-                          score: null,
-                          maxScore: homeworkEntry.block.max_score ?? null,
-                          metaStatus: null,
                         });
                         qc.invalidateQueries({
                           queryKey: ["session-scores", sessionId],
@@ -318,11 +259,7 @@ export default function ScoresTable({
               </div>
 
               <div className={tdBase}>
-                {hwStatus === "NOT_SUBMITTED" ? (
-                  <StatusBadge status="fail" />
-                ) : (
-                  <StatusBadge status={toStatus(homeworkEntry?.block?.passed)} />
-                )}
+                <StatusCell status={toStatus(homeworkEntry?.block?.passed)} />
               </div>
 
               <div className={`${tdBase} text-sm text-[var(--text-secondary)]`}>

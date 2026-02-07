@@ -1,0 +1,15 @@
+/* PATH: src/styles/design-system/patterns/tree.css */
+/* Sidebar / Tree */
+
+.tree-item {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+}
+.tree-item:hover {
+  background: var(--state-hover-bg);
+}
+.tree-item.active {
+  background: var(--state-selected-bg);
+  color: var(--color-text-primary);
+}

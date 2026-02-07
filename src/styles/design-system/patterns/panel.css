@@ -1,0 +1,16 @@
+/* PATH: src/styles/design-system/patterns/panel.css */
+/* Standard Panel */
+
+.panel {
+  background: var(--surface-panel-bg);
+  border: 1px solid var(--surface-panel-border);
+  border-radius: var(--radius-xl);
+}
+.panel-header {
+  height: var(--panel-header);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--surface-panel-border);
+}
+.panel-body {
+  padding: var(--space-5);
+}

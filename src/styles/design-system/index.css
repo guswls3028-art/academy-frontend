@@ -1,0 +1,14 @@
+/* PATH: src/styles/design-system/index.css */
+/* Admin Design System - Single Entry (SSOT) */
+
+@import "./colors/index.css";
+
+@import "./density/index.css";
+@import "./typography/index.css";
+@import "./surface/index.css";
+
+@import "./state/index.css";
+@import "./patterns/index.css";
+@import "./antd/index.css";
+
+@import "./state/status-map.css";

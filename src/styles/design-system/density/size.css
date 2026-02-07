@@ -1,0 +1,15 @@
+/* PATH: src/styles/design-system/density/size.css */
+/* Height / Size Tokens */
+
+:root {
+  /* controls */
+  --control-sm: 28px;
+  --control-md: 32px;
+  --control-lg: 40px;
+
+  /* sidebar */
+  --sidebar-width: 240px;
+
+  /* panel */
+  --panel-header: 56px;
+}

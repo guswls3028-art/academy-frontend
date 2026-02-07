@@ -1,0 +1,7 @@
+/* PATH: src/styles/design-system/state/selection.css */
+/* Selected */
+
+:root {
+  --state-selected-bg: var(--color-bg-accent-subtle);
+  --state-selected-border: var(--color-border-selected);
+}

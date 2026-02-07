@@ -1,0 +1,6 @@
+/* PATH: src/styles/design-system/density/index.css */
+/* Density SSOT Entry (Admin Only) */
+
+@import "./spacing.css";
+@import "./radius.css";
+@import "./size.css";

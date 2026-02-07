@@ -1,11 +1,11 @@
 // PATH: src/features/profile/layout/ProfileLayout.tsx
 import { Outlet } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { Page, PageHeader, PageTabs } from "@/shared/ui/page";
+import { PageHeader } from "@/shared/ui/ds";
 
 export type DateRange = {
-  from: string; // YYYY-MM-DD
-  to: string;   // YYYY-MM-DD
+  from: string;
+  to: string;
 };
 
 export type ProfileOutletContext = {
@@ -17,7 +17,6 @@ export type ProfileOutletContext = {
   setRangeFrom: (v: string) => void;
   setRangeTo: (v: string) => void;
 
-  /** 월 기준으로 기간을 전체(1일~말일)로 리셋 */
   resetRangeToMonth: (m?: string) => void;
 };
 
@@ -33,43 +32,27 @@ function getMonthBounds(month: string): DateRange {
   return { from: first, to: last };
 }
 
-function clampRange(r: DateRange): DateRange {
-  if (!r.from) return r;
-  if (!r.to) return r;
-  return r.from <= r.to ? r : { from: r.to, to: r.from };
-}
-
 export default function ProfileLayout() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [range, setRangeState] = useState<DateRange>(() =>
+  const [range, setRange] = useState<DateRange>(() =>
     getMonthBounds(month)
   );
 
   const resetRangeToMonth = (m?: string) => {
-    const mm = m ?? month;
-    setRangeState(getMonthBounds(mm));
+    setRange(getMonthBounds(m ?? month));
   };
 
   useEffect(() => {
-    setRangeState(getMonthBounds(month));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setRange(getMonthBounds(month));
   }, [month]);
 
-  const setRange = (r: DateRange) => {
-    const next = clampRange(r);
+  const setRangeFrom = (v: string) =>
+    setRange({ from: v, to: range.to });
 
-    if (next.from?.slice(0, 7) && next.from.slice(0, 7) !== month) {
-      setMonth(next.from.slice(0, 7));
-      setRangeState(next);
-      return;
-    }
-    setRangeState(next);
-  };
+  const setRangeTo = (v: string) =>
+    setRange({ from: range.from, to: v });
 
-  const setRangeFrom = (v: string) => setRange({ from: v, to: range.to });
-  const setRangeTo = (v: string) => setRange({ from: range.from, to: v });
-
-  const ctx = useMemo<ProfileOutletContext>(
+  const ctx = useMemo(
     () => ({
       month,
       setMonth,
@@ -83,40 +66,12 @@ export default function ProfileLayout() {
   );
 
   return (
-    <Page>
-      <PageHeader
-        title="사용자 정보"
-        description="내 정보 / 근태 / 지출을 관리합니다."
-      />
+    <>
+      <PageHeader title="사용자 정보" />
 
-      <PageTabs
-        tabs={[
-          { label: "내 정보", to: "account", end: true },
-          { label: "근태", to: "attendance" },
-          { label: "지출", to: "expense" },
-        ]}
-      />
-
-      {/* ✅ Profile 전용 작업 영역 */}
-      <div className="profile-page-wrap">
+      <div className="max-w-[1100px] px-6">
         <Outlet context={ctx} />
       </div>
-
-      {/* ✅ 레이아웃 핵심: 페이지 폭 제어 */}
-      <style>{`
-        .profile-page-wrap {
-          max-width: 1100px;
-          padding-right: 24px;
-          padding-left: 0;
-        }
-
-        @media (max-width: 1280px) {
-          .profile-page-wrap {
-            max-width: 100%;
-            padding-right: 16px;
-          }
-        }
-      `}</style>
-    </Page>
+    </>
   );
 }

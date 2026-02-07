@@ -1,0 +1,6 @@
+/* PATH: src/styles/design-system/antd/select.css */
+/* AntD Select */
+
+.ant-select-selector {
+  border-radius: var(--radius-md);
+}

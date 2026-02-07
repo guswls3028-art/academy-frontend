@@ -1,0 +1,12 @@
+/* PATH: src/styles/design-system/patterns/index.css */
+/* Admin Patterns */
+
+@import "./panel.css";
+@import "./kpi.css";
+@import "./tree.css";
+@import "./board.css";
+@import "./empty.css";
+@import "./loading.css";
+
+/* 레가시 호환 및 사이드바 전용 */
+@import "./layout.css";

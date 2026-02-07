@@ -1,0 +1,10 @@
+/* PATH: src/styles/design-system/antd/index.css */
+/* AntD Control Layer */
+
+@import "./button.css";
+@import "./tabs.css";
+@import "./table.css";
+@import "./tag.css";
+@import "./select.css";
+@import "./datepicker.css";
+@import "./modal.css";

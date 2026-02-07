@@ -1,5 +1,6 @@
 // PATH: src/features/staff/components/StaffKpiCard.tsx
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 
 export default function StaffKpiCard({
   staffCount,

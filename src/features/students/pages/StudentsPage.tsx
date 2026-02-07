@@ -10,7 +10,7 @@ import StudentFormModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
 import { deleteStudent } from "../api/students";
 
-import { Page, PageHeader, PageSection, PageToolbar } from "@/shared/ui/page";
+import { PageHeader, Section, Panel } from "@/shared/ui/ds";
 
 export default function StudentsPage() {
   const navigate = useNavigate();
@@ -21,7 +21,7 @@ export default function StudentsPage() {
   const [filters, setFilters] = useState<any>({});
   const [showModal, setShowModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [sort, setSort] = useState<"date" | "name">("date");
+  const [sort, setSort] = useState<any>("date");
 
   const hasFilter = Object.keys(filters || {}).length > 0;
 
@@ -32,7 +32,7 @@ export default function StudentsPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data, isLoading, isFetching } = useStudentsQuery(search, filters, sort);
+  const { data, isFetching } = useStudentsQuery(search, filters, sort);
 
   async function handleDelete(id: number) {
     if (!confirm("삭제하시겠습니까?")) return;
@@ -41,10 +41,9 @@ export default function StudentsPage() {
   }
 
   return (
-    <Page>
+    <>
       <PageHeader
         title="학생 관리"
-        description="학생 계정 및 기본 정보를 관리합니다."
         actions={
           <button
             onClick={() => setShowModal(true)}
@@ -57,9 +56,13 @@ export default function StudentsPage() {
         }
       />
 
-      <PageSection className="bg-[var(--bg-surface-soft)] border rounded-xl">
-        <PageToolbar>
-          <div className="flex items-center gap-3">
+      <div className="mt-1 mb-4 text-sm text-[var(--text-muted)]">
+        학생 계정 및 기본 정보를 관리합니다.
+      </div>
+
+      <Section>
+        <Panel>
+          <div className="panel-body flex items-center gap-3">
             <div className="relative">
               <input
                 className="w-64 py-2 px-3 text-sm rounded-md
@@ -70,8 +73,10 @@ export default function StudentsPage() {
                 onChange={(e) => setSearchInput(e.target.value)}
               />
               {isFetching && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2
-                  w-3 h-3 rounded-full border-2 border-t-transparent animate-spin" />
+                <span
+                  className="absolute right-3 top-1/2 -translate-y-1/2
+                  w-3 h-3 rounded-full border-2 border-t-transparent animate-spin"
+                />
               )}
             </div>
 
@@ -94,19 +99,23 @@ export default function StudentsPage() {
               )}
             </button>
           </div>
-        </PageToolbar>
-      </PageSection>
+        </Panel>
+      </Section>
 
-      <PageSection className="border rounded-xl overflow-hidden">
-        <StudentsTable
-          data={data || []}
-          search={search}
-          sort={sort}
-          onSortChange={(v) => setSort(v as any)}
-          onDelete={handleDelete}
-          onRowClick={(id) => navigate(String(id))}
-        />
-      </PageSection>
+      <Section>
+        <Panel>
+          <div className="panel-body p-0">
+            <StudentsTable
+              data={data || []}
+              search={search}
+              sort={sort}
+              onSortChange={(v) => setSort(v as any)}
+              onDelete={handleDelete}
+              onRowClick={(id) => navigate(String(id))}
+            />
+          </div>
+        </Panel>
+      </Section>
 
       {showModal && (
         <StudentFormModal
@@ -127,6 +136,6 @@ export default function StudentsPage() {
           setShowFilter(false);
         }}
       />
-    </Page>
+    </>
   );
 }

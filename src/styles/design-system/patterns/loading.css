@@ -1,0 +1,16 @@
+/* PATH: src/styles/design-system/patterns/loading.css */
+/* Skeleton */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base),
+    var(--color-skeleton-highlight),
+    var(--color-skeleton-base)
+  );
+  background-size: 200% 100%;
+  animation: skeleton 1.4s ease infinite;
+}
+@keyframes skeleton {
+  to { background-position: -200% 0; }
+}

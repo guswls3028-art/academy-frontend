@@ -1,4 +1,4 @@
-// src/features/lectures/pages/materials/MaterialsPage.tsx
+// PATH: src/features/lectures/pages/materials/MaterialsPage.tsx
 
 import { useState } from "react";
 import { useParams } from "react-router-dom";
@@ -14,8 +14,7 @@ import {
 import MaterialCategoryModal from "../../components/MaterialCategoryModal";
 import MaterialUploadModal from "../../components/MaterialUploadModal";
 
-import { PageSection } from "@/shared/ui/page";
-import { EmptyState } from "@/shared/ui/feedback";
+import { PageHeader, Section, Panel, EmptyState } from "@/shared/ui/ds";
 
 export default function MaterialsPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
@@ -47,128 +46,118 @@ export default function MaterialsPage() {
       : categories.find((c) => c.id === selectedCategory)?.name ?? "전체 자료";
 
   return (
-    <PageSection
-      title="강의 자료실"
-      actions={
-        <button
-          onClick={() => setShowUploadModal(true)}
-          className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
-        >
-          자료 추가
-        </button>
-      }
-    >
-      <div className="flex gap-6">
-        {/* LEFT */}
-        <div
-          className="
-            w-60 shrink-0
-            rounded-xl border border-[var(--border-divider)]
-            bg-[var(--bg-surface)]
-            p-4 text-sm
-          "
-        >
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-semibold text-[var(--text-muted)]">
-              자료 분류
-            </span>
-            <button
-              onClick={() => setShowCategoryModal(true)}
-              className="text-xs font-medium text-[var(--color-primary)] hover:underline"
-            >
-              + 추가
-            </button>
-          </div>
+    <Section>
+      <PageHeader
+        title="강의 자료실"
+        actions={
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
+          >
+            자료 추가
+          </button>
+        }
+      />
 
-          <ul className="space-y-1">
-            <li>
+      <Panel>
+        <div className="flex gap-6">
+          {/* LEFT */}
+          <div className="w-60 shrink-0 rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 text-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-semibold text-[var(--text-muted)]">
+                자료 분류
+              </span>
               <button
-                onClick={() => setSelectedCategory(null)}
-                className={`w-full rounded-md px-3 py-2 text-left ${
-                  selectedCategory === null
-                    ? "bg-[var(--bg-surface-soft)] font-semibold text-[var(--text-primary)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
-                }`}
+                onClick={() => setShowCategoryModal(true)}
+                className="text-xs font-medium text-[var(--color-primary)] hover:underline"
               >
-                전체 자료
+                + 추가
               </button>
-            </li>
+            </div>
 
-            {categories.map((cat) => (
-              <li key={cat.id}>
+            <ul className="space-y-1">
+              <li>
                 <button
-                  onClick={() => setSelectedCategory(cat.id)}
+                  onClick={() => setSelectedCategory(null)}
                   className={`w-full rounded-md px-3 py-2 text-left ${
-                    selectedCategory === cat.id
+                    selectedCategory === null
                       ? "bg-[var(--bg-surface-soft)] font-semibold text-[var(--text-primary)]"
                       : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
                   }`}
                 >
-                  {cat.name}
+                  전체 자료
                 </button>
               </li>
-            ))}
-          </ul>
-        </div>
 
-        {/* RIGHT */}
-        <div
-          className="
-            flex-1
-            rounded-xl border border-[var(--border-divider)]
-            bg-[var(--bg-surface)]
-            p-6
-          "
-        >
-          <div className="mb-4 text-sm font-semibold text-[var(--text-primary)]">
-            {currentCategoryName}
+              {categories.map((cat) => (
+                <li key={cat.id}>
+                  <button
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`w-full rounded-md px-3 py-2 text-left ${
+                      selectedCategory === cat.id
+                        ? "bg-[var(--bg-surface-soft)] font-semibold text-[var(--text-primary)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {materials.length === 0 ? (
-            <EmptyState
-              title="등록된 자료가 없습니다."
-              description="자료를 업로드하면 여기에 표시됩니다."
-            />
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-[var(--border-divider)]">
-              <table className="w-full text-sm">
-                <thead className="bg-[var(--bg-surface-soft)]">
-                  <tr>
-                    <th className="px-4 py-2 text-left">제목</th>
-                    <th className="px-4 py-2 text-left">등록자</th>
-                    <th className="px-4 py-2 text-left">등록일</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materials.map((m) => (
-                    <tr
-                      key={m.id}
-                      className="border-t border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
-                    >
-                      <td className="px-4 py-2">
-                        <a
-                          href={m.file || m.url || "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-medium text-[var(--color-primary)] hover:underline"
-                        >
-                          {m.title}
-                        </a>
-                      </td>
-                      <td className="px-4 py-2">
-                        {m.uploader_name || "-"}
-                      </td>
-                      <td className="px-4 py-2">
-                        {m.created_at?.slice(0, 10)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* RIGHT */}
+          <div className="flex-1 rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-6">
+            <div className="mb-4 text-sm font-semibold text-[var(--text-primary)]">
+              {currentCategoryName}
             </div>
-          )}
+
+            {materials.length === 0 ? (
+              <EmptyState
+                title="등록된 자료가 없습니다."
+                description="자료를 업로드하면 여기에 표시됩니다."
+              />
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-[var(--border-divider)]">
+                <table className="w-full text-sm">
+                  <thead className="bg-[var(--bg-surface-soft)]">
+                    <tr>
+                      <th className="px-4 py-2 text-left">제목</th>
+                      <th className="px-4 py-2 text-left">등록자</th>
+                      <th className="px-4 py-2 text-left">등록일</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {materials.map((m) => (
+                      <tr
+                        key={m.id}
+                        className="border-t border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                      >
+                        <td className="px-4 py-2">
+                          <a
+                            href={m.file || m.url || "#"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-medium text-[var(--color-primary)] hover:underline"
+                          >
+                            {m.title}
+                          </a>
+                        </td>
+                        <td className="px-4 py-2">
+                          {m.uploader_name || "-"}
+                        </td>
+                        <td className="px-4 py-2">
+                          {m.created_at?.slice(0, 10)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </Panel>
 
       {showCategoryModal && (
         <MaterialCategoryModal
@@ -184,6 +173,6 @@ export default function MaterialsPage() {
           onClose={() => setShowUploadModal(false)}
         />
       )}
-    </PageSection>
+    </Section>
   );
 }

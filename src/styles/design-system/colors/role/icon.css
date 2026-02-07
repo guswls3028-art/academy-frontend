@@ -1,0 +1,8 @@
+/* PATH: src/styles/design-system/colors/role/icon.css */
+/* Icon Role Tokens (FIXED) */
+
+:root {
+  --color-icon-primary:  var(--scale-Neutral700);
+  --color-icon-muted:    var(--scale-Neutral500);
+  --color-icon-disabled: var(--scale-Neutral400);
+}

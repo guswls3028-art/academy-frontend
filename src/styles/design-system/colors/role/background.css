@@ -1,0 +1,16 @@
+/* PATH: src/styles/design-system/colors/role/background.css */
+/* Background Role Tokens (FIXED)
+   - Neutral0 / Neutral900 처럼 테마에서 scale 값이 바뀌며 자동 대응
+*/
+
+:root {
+  --color-bg-canvas:        var(--scale-Neutral0);
+  --color-bg-surface:       var(--scale-Neutral50);
+  --color-bg-surface-hover: var(--scale-Neutral100);
+
+  --color-bg-overlay:       var(--scale-Neutral900);
+  --color-bg-inverse:       var(--scale-Neutral900);
+
+  --color-bg-accent-subtle: var(--scale-Primary50);
+  --color-bg-disabled:      var(--scale-Neutral100);
+}

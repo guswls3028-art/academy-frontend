@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 
 import { fetchStaffMe } from "../api/staffMe.api";
 

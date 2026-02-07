@@ -1,0 +1,71 @@
+/* PATH: src/styles/design-system/colors/themes/index.css */
+/* Theme Scale Overrides
+   - 여기서는 "Scale Token 값만" 바꾼다 (Role/매핑 불변)
+   - 기본 테마는 :root 값(= White Clean)로 동작
+*/
+
+/* Dark Modern Blue */
+[data-theme="dark-modern-blue"] {
+  --scale-Neutral0:   #0b1020;
+  --scale-Neutral50:  #0f172a;
+  --scale-Neutral100: #111c33;
+  --scale-Neutral200: #1f2a44;
+  --scale-Neutral300: #2b3857;
+  --scale-Neutral400: #475569;
+  --scale-Neutral500: #94a3b8;
+  --scale-Neutral600: #cbd5e1;
+  --scale-Neutral700: #e2e8f0;
+  --scale-Neutral800: #f1f5f9;
+  --scale-Neutral900: #ffffff;
+
+  /* 배경/텍스트 대비를 위해 Primary도 살짝 네온감 */
+  --scale-Primary500: #4f8cff;
+  --scale-Primary600: #2f6fff;
+  --scale-Primary700: #1f56e6;
+  --scale-Primary100: rgba(79, 140, 255, 0.18);
+  --scale-Primary50:  rgba(79, 140, 255, 0.10);
+}
+
+/* Dark Navy */
+[data-theme="dark-navy"] {
+  --scale-Neutral0:   #070b14;
+  --scale-Neutral50:  #0b1120;
+  --scale-Neutral100: #0f172a;
+  --scale-Neutral200: #16213a;
+  --scale-Neutral300: #1e2a44;
+  --scale-Neutral400: #334155;
+  --scale-Neutral500: #94a3b8;
+  --scale-Neutral600: #cbd5e1;
+  --scale-Neutral700: #e2e8f0;
+  --scale-Neutral800: #f1f5f9;
+  --scale-Neutral900: #ffffff;
+
+  --scale-Primary500: #2563eb;
+  --scale-Primary600: #1d4ed8;
+  --scale-Primary700: #1e40af;
+  --scale-Primary100: rgba(37, 99, 235, 0.18);
+  --scale-Primary50:  rgba(37, 99, 235, 0.10);
+}
+
+/* White Clean (Samsung-style) */
+[data-theme="white-clean"] {
+  /* 기본(:root)과 동일 유지 가능 — 필요시만 오버라이드 */
+}
+
+/* White Kakao (Yellow/Brown) */
+[data-theme="white-kakao"] {
+  --scale-Primary500: #3b2400;
+  --scale-Primary600: #2a1a00;
+  --scale-Primary700: #1f1300;
+  --scale-Primary100: rgba(59, 36, 0, 0.12);
+  --scale-Primary50:  rgba(59, 36, 0, 0.08);
+}
+
+/* White Naver (Green) */
+[data-theme="white-naver"] {
+  --scale-Primary500: #16a34a;
+  --scale-Primary600: #15803d;
+  --scale-Primary700: #166534;
+  --scale-Primary100: rgba(22, 163, 74, 0.14);
+  --scale-Primary50:  rgba(22, 163, 74, 0.08);
+}

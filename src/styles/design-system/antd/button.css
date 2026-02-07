@@ -1,0 +1,10 @@
+/* PATH: src/styles/design-system/antd/button.css */
+/* AntD Button */
+
+.ant-btn {
+  border-radius: var(--radius-md);
+}
+.ant-btn-primary {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+}

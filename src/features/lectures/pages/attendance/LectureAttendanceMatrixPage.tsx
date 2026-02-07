@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { PageSection } from "@/shared/ui/page";
+import { PageHeader, Section, Panel } from "@/shared/ui/ds";
 import { useLectureParams } from "@/features/lectures/hooks/useLectureParams";
 
 import {
@@ -80,76 +80,80 @@ export default function LectureAttendanceMatrixPage() {
   });
 
   return (
-    <PageSection
-      title="출결 매트릭스"
-      actions={
-        <button
-          className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
-          onClick={() => downloadAttendanceExcel(lectureId)}
-        >
-          엑셀 다운로드
-        </button>
-      }
-    >
-      {isLoading || !data ? (
-        <div className="py-12 text-center text-sm text-[var(--text-muted)]">
-          출결 데이터를 불러오는 중입니다.
-        </div>
-      ) : (
-        <div className="overflow-auto rounded border border-[var(--border-divider)]">
-          <table className="attendance-table">
-            <thead className="attendance-sticky-header">
-              <tr>
-                <th className="attendance-sticky-student">학생</th>
-                {data.sessions.map((s: any) => (
-                  <th key={s.id}>{s.order}차시</th>
-                ))}
-              </tr>
-            </thead>
+    <Section>
+      <PageHeader
+        title="출결 매트릭스"
+        actions={
+          <button
+            className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
+            onClick={() => downloadAttendanceExcel(lectureId)}
+          >
+            엑셀 다운로드
+          </button>
+        }
+      />
 
-            <tbody>
-              {data.students.map((st: any) => (
-                <tr key={st.student_id} className="attendance-row">
-                  <td className="attendance-sticky-student">
-                    {st.name}
-                  </td>
-
-                  {data.sessions.map((s: any) => {
-                    const cell = st.attendance[String(s.id)];
-                    if (!cell) return <td key={s.id}>-</td>;
-
-                    const isUpdating =
-                      updatingId === cell.attendance_id;
-                    const disabled = cell.status === "SECESSION";
-
-                    return (
-                      <td
-                        key={s.id}
-                        className={[
-                          "attendance-cell",
-                          statusClass(cell.status),
-                          disabled ? "disabled" : "",
-                          isUpdating ? "updating" : "",
-                        ].join(" ")}
-                        title={STATUS_LABEL[cell.status]}
-                        onClick={() => {
-                          if (disabled || isUpdating) return;
-                          mutation.mutate({
-                            attendanceId: cell.attendance_id,
-                            status: nextStatus(cell.status),
-                          });
-                        }}
-                      >
-                        {STATUS_LABEL[cell.status]}
-                      </td>
-                    );
-                  })}
+      <Panel>
+        {isLoading || !data ? (
+          <div className="py-12 text-center text-sm text-[var(--text-muted)]">
+            출결 데이터를 불러오는 중입니다.
+          </div>
+        ) : (
+          <div className="overflow-auto rounded border border-[var(--border-divider)]">
+            <table className="attendance-table">
+              <thead className="attendance-sticky-header">
+                <tr>
+                  <th className="attendance-sticky-student">학생</th>
+                  {data.sessions.map((s: any) => (
+                    <th key={s.id}>{s.order}차시</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </PageSection>
+              </thead>
+
+              <tbody>
+                {data.students.map((st: any) => (
+                  <tr key={st.student_id} className="attendance-row">
+                    <td className="attendance-sticky-student">
+                      {st.name}
+                    </td>
+
+                    {data.sessions.map((s: any) => {
+                      const cell = st.attendance[String(s.id)];
+                      if (!cell) return <td key={s.id}>-</td>;
+
+                      const isUpdating =
+                        updatingId === cell.attendance_id;
+                      const disabled = cell.status === "SECESSION";
+
+                      return (
+                        <td
+                          key={s.id}
+                          className={[
+                            "attendance-cell",
+                            statusClass(cell.status),
+                            disabled ? "disabled" : "",
+                            isUpdating ? "updating" : "",
+                          ].join(" ")}
+                          title={STATUS_LABEL[cell.status]}
+                          onClick={() => {
+                            if (disabled || isUpdating) return;
+                            mutation.mutate({
+                              attendanceId: cell.attendance_id,
+                              status: nextStatus(cell.status),
+                            });
+                          }}
+                        >
+                          {STATUS_LABEL[cell.status]}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </Section>
   );
 }

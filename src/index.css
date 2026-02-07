@@ -1,7 +1,4 @@
 /* src/index.css */
-/* --------------------------------------------------
-   App Global Style Entry
-   - styles/index.css 를 단일 진입점으로 사용
--------------------------------------------------- */
+/* 🔒 SINGLE ENTRY – Admin Design System SSOT */
 
-@import "./styles/index.css";
+@import "./styles/design-system/index.css";

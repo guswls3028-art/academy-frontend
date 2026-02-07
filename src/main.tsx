@@ -1,11 +1,10 @@
 // PATH: src/main.tsx
 // --------------------------------------------------
-// App Entry Point
+// App Entry Point (FINAL)
 //
-// - 전역 CSS 엔트리를 styles/index.css 로 통합
-// - Tailwind + tokens + base + layout + components
-//   전부 여기서 한 번만 로드됨
-// - legacy globals.css 사용 중단
+// - Global CSS는 src/index.css 단일 진입
+// - Design System SSOT 기반
+// - legacy styles / globals.css 완전 제거
 // --------------------------------------------------
 
 import React from "react";
@@ -18,11 +17,11 @@ import { AuthProvider } from "@/features/auth/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 
 /**
- * ✅ Global Style Entry
- * - src/styles/index.css 가 단일 진입점
- * - tokens / base / layout / components / animations 포함
+ * ✅ Global Style Entry (SSOT)
+ * - src/index.css
+ * - 내부에서 design-system/index.css 로 연결됨
  */
-import "@/styles/index.css";
+import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

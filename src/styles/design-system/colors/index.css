@@ -1,0 +1,50 @@
+/* PATH: src/styles/design-system/colors/index.css */
+/* Colors SSOT Entry */
+
+@import "./scale/index.css";
+@import "./themes/index.css";
+@import "./role/index.css";
+
+/* -------------------------------------------------
+   Legacy Alias Layer (기존 코드 호환용)
+   - 기존 var(--bg-surface) 같은 이름을 "Role Token"에 연결
+   - 이후 점진적으로 기존 이름 제거 가능
+------------------------------------------------- */
+:root {
+  /* Background */
+  --bg-app: var(--color-bg-canvas);
+  --bg-surface: var(--color-bg-surface);
+  --bg-surface-soft: var(--color-bg-surface-hover);
+  --bg-surface-muted: var(--color-bg-disabled);
+
+  /* Text */
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --text-disabled: var(--color-text-disabled);
+  --text-on-primary: var(--color-text-inverse);
+
+  /* Brand */
+  --color-primary: var(--color-brand-primary);
+  --color-primary-soft: var(--color-brand-primary-subtle);
+
+  /* Border */
+  --border-divider: var(--color-border-divider);
+
+  /* Semantic */
+  --color-success: var(--color-success);
+  --color-danger: var(--color-error);
+
+  /* Sidebar (관리자 전용 기본값: role 기반으로만 구성) */
+  --sidebar-bg: var(--color-bg-surface);
+  --sidebar-text-primary: var(--color-text-primary);
+  --sidebar-text-secondary: var(--color-text-secondary);
+  --sidebar-hover-bg: var(--color-bg-surface-hover);
+  --sidebar-active-bg: var(--color-brand-primary);
+  --sidebar-active-text: var(--color-text-inverse);
+
+  /* Widget (레거시) */
+  --widget-bg: var(--color-bg-surface);
+  --widget-hover: var(--color-bg-surface-hover);
+  --widget-text: var(--color-text-primary);
+}

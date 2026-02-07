@@ -1,0 +1,21 @@
+/* Domain-agnostic Status Mapping */
+
+.status-success {
+  background: var(--state-success-bg);
+  color: var(--color-success);
+}
+
+.status-warning {
+  background: var(--state-warning-bg);
+  color: var(--color-warning);
+}
+
+.status-error {
+  background: var(--state-error-bg);
+  color: var(--color-error);
+}
+
+.status-info {
+  background: var(--state-info-bg);
+  color: var(--color-info);
+}

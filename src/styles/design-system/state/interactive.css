@@ -1,0 +1,8 @@
+/* PATH: src/styles/design-system/state/interactive.css */
+/* Hover / Active / Focus */
+
+:root {
+  --state-hover-bg: var(--color-bg-surface-hover);
+  --state-active-bg: var(--color-bg-accent-subtle);
+  --state-focus-ring: 0 0 0 2px var(--color-border-focus);
+}

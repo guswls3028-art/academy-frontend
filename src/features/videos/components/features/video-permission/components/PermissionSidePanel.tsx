@@ -1,6 +1,6 @@
 // PATH: src/features/videos/components/features/video-permission/components/PermissionSidePanel.tsx
 
-import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+// import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
 import { RULE_COLORS, RULE_LABELS } from "../permission.constants";
 
 function cx(...xs: Array<string | false | null | undefined>) {

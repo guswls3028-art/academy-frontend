@@ -1,5 +1,7 @@
+// PATH: src/features/profile/attendance/components/AttendanceTable.tsx
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { Attendance } from "../../api/profile.api";
+import { Panel } from "@/shared/ui/ds";
 
 interface Props {
   rows: Attendance[];
@@ -27,7 +29,7 @@ export default function AttendanceTable({
   if (!rows.length) return null;
 
   return (
-    <div className="card overflow-hidden">
+    <Panel>
       {/* ===== Header ===== */}
       <div className="px-4 py-2 bg-[var(--bg-surface-soft)] text-xs text-[var(--text-muted)]">
         <div className={GRID}>
@@ -102,6 +104,6 @@ export default function AttendanceTable({
           </div>
         );
       })}
-    </div>
+    </Panel>
   );
 }

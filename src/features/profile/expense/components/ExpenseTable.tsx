@@ -1,6 +1,7 @@
+// PATH: src/features/profile/expense/components/ExpenseTable.tsx
 import { Expense } from "../../api/profile.api";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
-import { Card } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
 
 /**
  * 메모도 1fr 금지 → minmax로 제한
@@ -18,7 +19,7 @@ export default function ExpenseTable({
   onDelete: (r: Expense) => void;
 }) {
   return (
-    <Card className="overflow-hidden">
+    <Panel>
       {/* ===== Header ===== */}
       <div
         className={`${GRID} px-4 py-2 bg-[var(--bg-surface-soft)] text-xs font-medium text-[var(--text-muted)]`}
@@ -94,6 +95,6 @@ export default function ExpenseTable({
           background: rgba(239,68,68,0.08);
         }
       `}</style>
-    </Card>
+    </Panel>
   );
 }

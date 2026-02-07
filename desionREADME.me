@@ -1,0 +1,377 @@
+📘 Design System Color Architecture
+SSOT Final Specification (Enterprise / Platform Grade / Expanded)
+0. 문서 성격 (확정)
+
+본 문서는 디자인·프론트·백엔드 공통 SSOT이다.
+
+본 문서에 정의되지 않은 색상 사용은 비표준으로 간주한다.
+
+이후 작업은 본 문서를 수정하지 않고 확장만 허용한다.
+
+본 문서는 앱 단위 / 페이지 단위 / 컴포넌트 단위 모두를 포괄한다.
+
+1. 전체 구조 (최종 확정)
+1.1 Color Token Architecture
+[Scale Tokens] → [Role Tokens] → [Components]
+
+Scale Token
+
+색상 팔레트 정의용
+
+테마별로만 변경 가능
+
+컴포넌트 직접 사용 ❌
+
+Role Token
+
+의미 기반 색상
+
+컴포넌트는 Role Token만 참조
+
+모든 테마 공통
+
+도메인/페이지/컴포넌트 이름 포함 ❌
+
+2. 사용 규칙 (강제)
+2.1 금지 규칙
+
+Scale Token을 컴포넌트에서 직접 사용 ❌
+
+색상 이름에 UI 목적 포함 ❌
+(blueButton, calendarBg, clinicPrimary 등)
+
+Semantic Color를 Brand 목적에 사용 ❌
+
+도메인 상태를 색상 이름으로 직접 정의 ❌
+
+2.2 허용 규칙
+
+모든 UI 색상은 Role Token → Scale Token 매핑을 통해서만 사용
+
+테마 확장은 Scale Token 추가로만 수행
+
+도메인 상태 색상은 Semantic 확장 또는 State Token으로만 표현
+
+3. Role Token (최종 확정 · 확장본)
+3.1 Brand
+
+color-brand-primary
+
+color-brand-primary-hover
+
+color-brand-primary-active
+
+color-brand-primary-subtle
+
+3.2 Semantic (의미 색상)
+
+color-success
+
+color-warning
+
+color-error
+
+color-info
+
+3.3 Text
+
+color-text-primary
+
+color-text-secondary
+
+color-text-tertiary
+
+color-text-muted
+
+color-text-disabled
+
+color-text-inverse
+
+color-text-link
+
+color-text-link-hover
+
+color-text-strong (KPI / 핵심 수치용)
+
+3.4 Background
+
+color-bg-canvas
+
+color-bg-surface
+
+color-bg-surface-hover
+
+color-bg-overlay
+
+color-bg-inverse
+
+color-bg-accent-subtle (선택/오늘/강조 배경)
+
+color-bg-disabled (비활성 영역)
+
+3.5 Border
+
+color-border-default
+
+color-border-strong
+
+color-border-subtle
+
+color-border-focus
+
+color-border-error
+
+color-border-divider
+
+color-border-selected (선택 상태 강조)
+
+3.6 Overlay / State
+
+color-overlay-dim
+
+color-overlay-scrim
+
+color-skeleton-base
+
+color-skeleton-highlight
+
+3.7 Icon (명시적 분리)
+
+color-icon-primary
+
+color-icon-muted
+
+color-icon-disabled
+
+4. Scale Token (풀확장 기준 · 고정)
+4.1 Brand Scale
+
+Primary50
+
+Primary100
+
+Primary200
+
+Primary300
+
+Primary400
+
+Primary500
+
+Primary600
+
+Primary700
+
+4.2 Secondary Scale
+
+Secondary100
+
+Secondary300
+
+Secondary500
+
+4.3 Semantic Scale
+
+Success100 / 500 / 700
+
+Warning100 / 500 / 700
+
+Error100 / 500 / 700
+
+Info100 / 500 / 700
+
+4.4 Neutral / Gray Scale
+
+Neutral 계열은 Text / Background / Border 전용
+
+Neutral0 ~ Neutral900 범위 권장
+
+테마별 자유 정의 가능
+
+5. Role ↔ Scale 매핑 규칙 (고정)
+5.1 Brand
+Role Token	Scale Token
+color-brand-primary	Primary500
+color-brand-primary-hover	Primary600
+color-brand-primary-active	Primary700
+color-brand-primary-subtle	Primary100
+5.2 Text
+Role Token	Scale Token
+color-text-primary	Neutral900
+color-text-secondary	Neutral700
+color-text-tertiary	Neutral600
+color-text-muted	Neutral500
+color-text-disabled	Neutral400
+color-text-inverse	Neutral0
+color-text-link	Primary500
+color-text-link-hover	Primary600
+color-text-strong	Neutral900
+5.3 Background
+Role Token	Scale Token
+color-bg-canvas	Neutral0 / Neutral900
+color-bg-surface	Neutral50 / Neutral800
+color-bg-surface-hover	Neutral100 / Neutral700
+color-bg-overlay	Neutral900
+color-bg-inverse	Neutral900 / Neutral0
+color-bg-accent-subtle	Primary50
+color-bg-disabled	Neutral100 / Neutral800
+5.4 Border
+Role Token	Scale Token
+color-border-default	Neutral300
+color-border-strong	Neutral500
+color-border-subtle	Neutral200
+color-border-focus	Primary500
+color-border-error	Error500
+color-border-divider	Neutral200
+color-border-selected	Primary500
+5.5 Semantic
+Role Token	Scale Token
+color-success	Success500
+color-warning	Warning500
+color-error	Error500
+color-info	Info500
+5.6 Icon
+Role Token	Scale Token
+color-icon-primary	Neutral700
+color-icon-muted	Neutral500
+color-icon-disabled	Neutral400
+6. 접근성 기준 (확정)
+
+기본 기준: WCAG 2.1 AA
+
+Text / Background 대비는 항상 AA 충족
+
+AAA는 확장 문서에서만 허용
+
+7. 테마 전략 (확정)
+7.1 지원 테마 유형
+
+Dark Neon (IDE)
+
+Dark Modern Blue
+
+Dark Navy
+
+White Clean (Samsung style)
+
+White Yellow/Brown (Kakao style)
+
+White Green (Naver style)
+
+White Purple
+
+Purple + Yellow (Accent type)
+
+7.2 테마 차이 범위
+
+Scale Token 값만 변경
+
+Role Token / 매핑 / 구조 변경 ❌
+
+8. 구현 규칙 (프론트)
+
+CSS / Tailwind / Styled Components 동일 규칙
+
+컴포넌트는 Role Token만 참조
+
+테마 전환은 Root Attribute (data-theme) 기준
+
+9. 변경 정책 (봉인 규칙)
+허용
+
+Scale Token 추가
+
+Theme 추가
+
+Semantic Scale 확장
+
+금지
+
+Role Token 의미 변경
+
+Role ↔ Scale 매핑 변경
+
+도메인 전용 색상 토큰 추가
+
+10. 최종 선언 (확정)
+
+본 문서는
+디자인 시스템 컬러 구조의 최종 확정본(SSOT) 이며
+내페이지 / 운영 / 관리자 / 향후 확장 도메인까지 포괄한다.
+
+이후 모든 UI/UX/프론트 구현은
+본 문서를 기준으로만 수행한다.
+
+
+src/styles/design-system/
+├─ index.css                        # 전체 DS 단일 엔트리
+│
+├─ colors/                          # 🔒 Color SSOT (네 문서 1:1 구현)
+│  ├─ scale/
+│  │  ├─ brand.css
+│  │  ├─ semantic.css
+│  │  ├─ neutral.css
+│  │  └─ index.css
+│  │
+│  ├─ role/
+│  │  ├─ brand.css
+│  │  ├─ text.css
+│  │  ├─ background.css
+│  │  ├─ border.css
+│  │  ├─ semantic.css
+│  │  ├─ icon.css
+│  │  └─ index.css
+│  │
+│  ├─ themes/
+│  │  ├─ dark-modern-blue.css
+│  │  ├─ dark-navy.css
+│  │  ├─ white-clean.css
+│  │  ├─ white-kakao.css
+│  │  ├─ white-naver.css
+│  │  └─ index.css
+│  │
+│  └─ index.css
+│
+├─ density/                         # 📏 관리자 전용 밀도 SSOT
+│  ├─ spacing.css                  # padding / gap / inset
+│  ├─ radius.css                   # border-radius 단계
+│  ├─ size.css                     # height / min-height 규격
+│  └─ index.css
+│
+├─ typography/                      # 🔤 Admin 텍스트 스케일
+│  ├─ scale.css                    # h1~caption
+│  ├─ weight.css
+│  └─ index.css
+│
+├─ surface/                         # 🧱 Surface / Elevation
+│  ├─ canvas.css
+│  ├─ panel.css
+│  ├─ card.css
+│  ├─ overlay.css
+│  └─ index.css
+│
+├─ state/                           # 🎯 상태 레이어 (색+배경+border)
+│  ├─ interactive.css              # hover / active / focus
+│  ├─ disabled.css
+│  ├─ selection.css
+│  ├─ semantic-state.css           # success / warning / error
+│  └─ index.css
+│
+├─ patterns/                        # 🧩 관리자 패턴 표준
+│  ├─ panel.css                    # 생성패널 / 설정패널
+│  ├─ kpi.css                      # KPI 카드
+│  ├─ tree.css                     # 좌측 트리
+│  ├─ board.css                    # 주간/월간 보드
+│  ├─ empty.css                    # Empty / No Data
+│  ├─ loading.css                  # Skeleton / Loading
+│  └─ index.css
+│
+└─ antd/                            # 🧷 AntD 통제 레이어
+   ├─ button.css
+   ├─ tabs.css
+   ├─ table.css
+   ├─ tag.css
+   ├─ select.css
+   ├─ datepicker.css
+   ├─ modal.css
+   └─ index.css

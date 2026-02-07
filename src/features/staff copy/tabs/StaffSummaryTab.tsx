@@ -1,7 +1,8 @@
 // PATH: src/features/staff/tabs/StaffSummaryTab.tsx
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 
 import { fetchStaffSummaryByRange } from "../api/staff.detail.api";
 import {

@@ -1,0 +1,24 @@
+/* PATH: src/styles/design-system/colors/scale/semantic.css */
+/* Semantic Scale Tokens (names fixed) */
+
+:root {
+  /* Success */
+  --scale-Success100: #dcfce7;
+  --scale-Success500: #22c55e;
+  --scale-Success700: #15803d;
+
+  /* Warning */
+  --scale-Warning100: #fef9c3;
+  --scale-Warning500: #eab308;
+  --scale-Warning700: #a16207;
+
+  /* Error */
+  --scale-Error100: #fee2e2;
+  --scale-Error500: #ef4444;
+  --scale-Error700: #b91c1c;
+
+  /* Info */
+  --scale-Info100: #cffafe;
+  --scale-Info500: #06b6d4;
+  --scale-Info700: #0e7490;
+}

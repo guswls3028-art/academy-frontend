@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import {
   listExamSubmissionsApi,

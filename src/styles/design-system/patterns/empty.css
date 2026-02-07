@@ -1,0 +1,8 @@
+/* PATH: src/styles/design-system/patterns/empty.css */
+/* Empty State */
+
+.empty {
+  padding: var(--space-7);
+  text-align: center;
+  color: var(--color-text-muted);
+}

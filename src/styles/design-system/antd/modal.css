@@ -1,0 +1,6 @@
+/* PATH: src/styles/design-system/antd/modal.css */
+/* AntD Modal */
+
+.ant-modal-content {
+  border-radius: var(--radius-xl);
+}

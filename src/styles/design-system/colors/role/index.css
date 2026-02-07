@@ -1,0 +1,9 @@
+/* PATH: src/styles/design-system/colors/role/index.css */
+/* Role Tokens Entry (컴포넌트는 이것만 참조) */
+
+@import "./brand.css";
+@import "./semantic.css";
+@import "./text.css";
+@import "./background.css";
+@import "./border.css";
+@import "./icon.css";

@@ -1,5 +1,6 @@
 // src/features/staff/components/StaffSummaryCard.tsx
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 import { StaffSummary } from "../api/staff.api";
 
 export default function StaffSummaryCard({

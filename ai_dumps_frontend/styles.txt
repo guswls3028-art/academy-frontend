@@ -5,621 +5,904 @@
 
 
 ==========================================================================================
-# FILE: animations.css
+# FILE: design-system/index.css
 ==========================================================================================
-/* src/styles/animations.css */
+/* PATH: src/styles/design-system/index.css */
+/* Admin Design System - Single Entry (SSOT) */
 
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+@import "./colors/index.css";
 
-@keyframes dropdownUp {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+@import "./density/index.css";
+@import "./typography/index.css";
+@import "./surface/index.css";
+
+@import "./state/index.css";
+@import "./patterns/index.css";
+@import "./antd/index.css";
+
+@import "./state/status-map.css";
 
 
 ==========================================================================================
-# FILE: base.css
+# FILE: design-system/antd/button.css
 ==========================================================================================
-/* src/styles/base.css */
-/* ------------------------------------------------------
-   Global Base Styles
------------------------------------------------------- */
+/* PATH: src/styles/design-system/antd/button.css */
+/* AntD Button */
 
-html,
-body {
-  background-color: var(--bg-app);
-  color: var(--text-primary);
+.ant-btn {
+  border-radius: var(--radius-md);
 }
-
-/* 🔥 Ant Design 루트 봉인 */
-.ant-app {
-  background-color: var(--bg-app);
-  color: var(--text-primary);
-}
-
-/* ❌ span, div 전역 색상 제거 (antd / 상태 UI 충돌 원인) */
-p,
-td {
-  color: var(--text-primary);
-}
-
-label,
-th,
-dt {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-small,
-.caption {
-  color: var(--text-muted);
-}
-
-::placeholder {
-  color: var(--text-muted);
-  opacity: 0.8;
-}
-
-* {
-  border-color: var(--border-divider);
-}
-
-button {
-  cursor: pointer;
+.ant-btn-primary {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
 }
 
 
 ==========================================================================================
-# FILE: components.css
+# FILE: design-system/antd/datepicker.css
 ==========================================================================================
-/* PATH: src/styles/components.css */
+/* PATH: src/styles/design-system/antd/datepicker.css */
+/* AntD DatePicker */
 
-/* ================= NAV ================= */
+.ant-picker {
+  border-radius: var(--radius-md);
+}
 
+
+==========================================================================================
+# FILE: design-system/antd/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/antd/index.css */
+/* AntD Control Layer */
+
+@import "./button.css";
+@import "./tabs.css";
+@import "./table.css";
+@import "./tag.css";
+@import "./select.css";
+@import "./datepicker.css";
+@import "./modal.css";
+
+
+==========================================================================================
+# FILE: design-system/antd/modal.css
+==========================================================================================
+/* PATH: src/styles/design-system/antd/modal.css */
+/* AntD Modal */
+
+.ant-modal-content {
+  border-radius: var(--radius-xl);
+}
+
+
+==========================================================================================
+# FILE: design-system/antd/select.css
+==========================================================================================
+/* PATH: src/styles/design-system/antd/select.css */
+/* AntD Select */
+
+.ant-select-selector {
+  border-radius: var(--radius-md);
+}
+
+
+==========================================================================================
+# FILE: design-system/antd/table.css
+==========================================================================================
+/* PATH: src/styles/design-system/antd/table.css */
+/* AntD Table */
+
+.ant-table {
+  background: transparent;
+}
+.ant-table-thead > tr > th {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-secondary);
+}
+
+
+==========================================================================================
+# FILE: design-system/antd/tabs.css
+==========================================================================================
+/* PATH: src/styles/design-system/antd/tabs.css */
+/* AntD Tabs */
+
+.ant-tabs-tab {
+  color: var(--color-text-secondary);
+}
+.ant-tabs-tab-active {
+  color: var(--color-text-primary);
+}
+
+
+==========================================================================================
+# FILE: design-system/antd/tag.css
+==========================================================================================
+/* PATH: src/styles/design-system/antd/tag.css */
+/* AntD Tag */
+
+.ant-tag {
+  border-radius: var(--radius-sm);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/index.css */
+/* Colors SSOT Entry */
+
+@import "./scale/index.css";
+@import "./themes/index.css";
+@import "./role/index.css";
+
+/* -------------------------------------------------
+   Legacy Alias Layer (기존 코드 호환용)
+   - 기존 var(--bg-surface) 같은 이름을 "Role Token"에 연결
+   - 이후 점진적으로 기존 이름 제거 가능
+------------------------------------------------- */
+:root {
+  /* Background */
+  --bg-app: var(--color-bg-canvas);
+  --bg-surface: var(--color-bg-surface);
+  --bg-surface-soft: var(--color-bg-surface-hover);
+  --bg-surface-muted: var(--color-bg-disabled);
+
+  /* Text */
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --text-disabled: var(--color-text-disabled);
+  --text-on-primary: var(--color-text-inverse);
+
+  /* Brand */
+  --color-primary: var(--color-brand-primary);
+  --color-primary-soft: var(--color-brand-primary-subtle);
+
+  /* Border */
+  --border-divider: var(--color-border-divider);
+
+  /* Semantic */
+  --color-success: var(--color-success);
+  --color-danger: var(--color-error);
+
+  /* Sidebar (관리자 전용 기본값: role 기반으로만 구성) */
+  --sidebar-bg: var(--color-bg-surface);
+  --sidebar-text-primary: var(--color-text-primary);
+  --sidebar-text-secondary: var(--color-text-secondary);
+  --sidebar-hover-bg: var(--color-bg-surface-hover);
+  --sidebar-active-bg: var(--color-brand-primary);
+  --sidebar-active-text: var(--color-text-inverse);
+
+  /* Widget (레거시) */
+  --widget-bg: var(--color-bg-surface);
+  --widget-hover: var(--color-bg-surface-hover);
+  --widget-text: var(--color-text-primary);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/role/background.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/role/background.css */
+/* Background Role Tokens (FIXED)
+   - Neutral0 / Neutral900 처럼 테마에서 scale 값이 바뀌며 자동 대응
+*/
+
+:root {
+  --color-bg-canvas:        var(--scale-Neutral0);
+  --color-bg-surface:       var(--scale-Neutral50);
+  --color-bg-surface-hover: var(--scale-Neutral100);
+
+  --color-bg-overlay:       var(--scale-Neutral900);
+  --color-bg-inverse:       var(--scale-Neutral900);
+
+  --color-bg-accent-subtle: var(--scale-Primary50);
+  --color-bg-disabled:      var(--scale-Neutral100);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/role/border.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/role/border.css */
+/* Border Role Tokens (FIXED) */
+
+:root {
+  --color-border-default:  var(--scale-Neutral300);
+  --color-border-strong:   var(--scale-Neutral500);
+  --color-border-subtle:   var(--scale-Neutral200);
+
+  --color-border-focus:    var(--scale-Primary500);
+  --color-border-error:    var(--scale-Error500);
+
+  --color-border-divider:  var(--scale-Neutral200);
+  --color-border-selected: var(--scale-Primary500);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/role/brand.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/role/brand.css */
+/* Role ↔ Scale Mapping (FIXED) */
+
+:root {
+  --color-brand-primary:        var(--scale-Primary500);
+  --color-brand-primary-hover:  var(--scale-Primary600);
+  --color-brand-primary-active: var(--scale-Primary700);
+  --color-brand-primary-subtle: var(--scale-Primary100);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/role/icon.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/role/icon.css */
+/* Icon Role Tokens (FIXED) */
+
+:root {
+  --color-icon-primary:  var(--scale-Neutral700);
+  --color-icon-muted:    var(--scale-Neutral500);
+  --color-icon-disabled: var(--scale-Neutral400);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/role/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/role/index.css */
+/* Role Tokens Entry (컴포넌트는 이것만 참조) */
+
+@import "./brand.css";
+@import "./semantic.css";
+@import "./text.css";
+@import "./background.css";
+@import "./border.css";
+@import "./icon.css";
+
+
+==========================================================================================
+# FILE: design-system/colors/role/semantic.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/role/semantic.css */
+/* Semantic Role Tokens (FIXED) */
+
+:root {
+  --color-success: var(--scale-Success500);
+  --color-warning: var(--scale-Warning500);
+  --color-error:   var(--scale-Error500);
+  --color-info:    var(--scale-Info500);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/role/text.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/role/text.css */
+/* Text Role Tokens (FIXED) */
+
+:root {
+  --color-text-primary:    var(--scale-Neutral900);
+  --color-text-secondary:  var(--scale-Neutral700);
+  --color-text-tertiary:   var(--scale-Neutral600);
+  --color-text-muted:      var(--scale-Neutral500);
+  --color-text-disabled:   var(--scale-Neutral400);
+  --color-text-inverse:    var(--scale-Neutral0);
+
+  --color-text-link:       var(--scale-Primary500);
+  --color-text-link-hover: var(--scale-Primary600);
+
+  --color-text-strong:     var(--scale-Neutral900);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/scale/brand.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/scale/brand.css */
+/* Brand Scale Tokens (names fixed) */
+
+:root {
+  /* Primary */
+  --scale-Primary50:  #eff6ff;
+  --scale-Primary100: #dbeafe;
+  --scale-Primary200: #bfdbfe;
+  --scale-Primary300: #93c5fd;
+  --scale-Primary400: #60a5fa;
+  --scale-Primary500: #3b82f6;
+  --scale-Primary600: #2563eb;
+  --scale-Primary700: #1d4ed8;
+
+  /* Secondary */
+  --scale-Secondary100: #e0e7ff;
+  --scale-Secondary300: #a5b4fc;
+  --scale-Secondary500: #6366f1;
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/scale/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/scale/index.css */
+/* Scale Tokens Entry
+   - 컴포넌트 직접 사용 금지
+   - 테마 파일에서만 값이 바뀜
+*/
+@import "./brand.css";
+@import "./semantic.css";
+@import "./neutral.css";
+
+
+==========================================================================================
+# FILE: design-system/colors/scale/neutral.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/scale/neutral.css */
+/* Neutral / Gray Scale (Text/Background/Border 전용) */
+
+:root {
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f8fafc;
+  --scale-Neutral100: #f1f5f9;
+  --scale-Neutral200: #e2e8f0;
+  --scale-Neutral300: #cbd5e1;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #475569;
+  --scale-Neutral700: #334155;
+  --scale-Neutral800: #1f2937;
+  --scale-Neutral900: #0f172a;
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/scale/semantic.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/scale/semantic.css */
+/* Semantic Scale Tokens (names fixed) */
+
+:root {
+  /* Success */
+  --scale-Success100: #dcfce7;
+  --scale-Success500: #22c55e;
+  --scale-Success700: #15803d;
+
+  /* Warning */
+  --scale-Warning100: #fef9c3;
+  --scale-Warning500: #eab308;
+  --scale-Warning700: #a16207;
+
+  /* Error */
+  --scale-Error100: #fee2e2;
+  --scale-Error500: #ef4444;
+  --scale-Error700: #b91c1c;
+
+  /* Info */
+  --scale-Info100: #cffafe;
+  --scale-Info500: #06b6d4;
+  --scale-Info700: #0e7490;
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/themes/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/colors/themes/index.css */
+/* Theme Scale Overrides
+   - 여기서는 "Scale Token 값만" 바꾼다 (Role/매핑 불변)
+   - 기본 테마는 :root 값(= White Clean)로 동작
+*/
+
+/* Dark Modern Blue */
+[data-theme="dark-modern-blue"] {
+  --scale-Neutral0:   #0b1020;
+  --scale-Neutral50:  #0f172a;
+  --scale-Neutral100: #111c33;
+  --scale-Neutral200: #1f2a44;
+  --scale-Neutral300: #2b3857;
+  --scale-Neutral400: #475569;
+  --scale-Neutral500: #94a3b8;
+  --scale-Neutral600: #cbd5e1;
+  --scale-Neutral700: #e2e8f0;
+  --scale-Neutral800: #f1f5f9;
+  --scale-Neutral900: #ffffff;
+
+  /* 배경/텍스트 대비를 위해 Primary도 살짝 네온감 */
+  --scale-Primary500: #4f8cff;
+  --scale-Primary600: #2f6fff;
+  --scale-Primary700: #1f56e6;
+  --scale-Primary100: rgba(79, 140, 255, 0.18);
+  --scale-Primary50:  rgba(79, 140, 255, 0.10);
+}
+
+/* Dark Navy */
+[data-theme="dark-navy"] {
+  --scale-Neutral0:   #070b14;
+  --scale-Neutral50:  #0b1120;
+  --scale-Neutral100: #0f172a;
+  --scale-Neutral200: #16213a;
+  --scale-Neutral300: #1e2a44;
+  --scale-Neutral400: #334155;
+  --scale-Neutral500: #94a3b8;
+  --scale-Neutral600: #cbd5e1;
+  --scale-Neutral700: #e2e8f0;
+  --scale-Neutral800: #f1f5f9;
+  --scale-Neutral900: #ffffff;
+
+  --scale-Primary500: #2563eb;
+  --scale-Primary600: #1d4ed8;
+  --scale-Primary700: #1e40af;
+  --scale-Primary100: rgba(37, 99, 235, 0.18);
+  --scale-Primary50:  rgba(37, 99, 235, 0.10);
+}
+
+/* White Clean (Samsung-style) */
+[data-theme="white-clean"] {
+  /* 기본(:root)과 동일 유지 가능 — 필요시만 오버라이드 */
+}
+
+/* White Kakao (Yellow/Brown) */
+[data-theme="white-kakao"] {
+  --scale-Primary500: #3b2400;
+  --scale-Primary600: #2a1a00;
+  --scale-Primary700: #1f1300;
+  --scale-Primary100: rgba(59, 36, 0, 0.12);
+  --scale-Primary50:  rgba(59, 36, 0, 0.08);
+}
+
+/* White Naver (Green) */
+[data-theme="white-naver"] {
+  --scale-Primary500: #16a34a;
+  --scale-Primary600: #15803d;
+  --scale-Primary700: #166534;
+  --scale-Primary100: rgba(22, 163, 74, 0.14);
+  --scale-Primary50:  rgba(22, 163, 74, 0.08);
+}
+
+
+==========================================================================================
+# FILE: design-system/density/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/density/index.css */
+/* Density SSOT Entry (Admin Only) */
+
+@import "./spacing.css";
+@import "./radius.css";
+@import "./size.css";
+
+
+==========================================================================================
+# FILE: design-system/density/radius.css
+==========================================================================================
+/* PATH: src/styles/design-system/density/radius.css */
+/* Radius Scale — 카드/패널 통일 */
+
+:root {
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+}
+
+
+==========================================================================================
+# FILE: design-system/density/size.css
+==========================================================================================
+/* PATH: src/styles/design-system/density/size.css */
+/* Height / Size Tokens */
+
+:root {
+  /* controls */
+  --control-sm: 28px;
+  --control-md: 32px;
+  --control-lg: 40px;
+
+  /* sidebar */
+  --sidebar-width: 240px;
+
+  /* panel */
+  --panel-header: 56px;
+}
+
+
+==========================================================================================
+# FILE: design-system/density/spacing.css
+==========================================================================================
+/* PATH: src/styles/design-system/density/spacing.css */
+/* Spacing Scale — 관리자 고밀도 기준 (FIXED) */
+
+:root {
+  /* micro */
+  --space-1: 4px;
+  --space-2: 8px;
+
+  /* base */
+  --space-3: 12px;
+  --space-4: 16px;
+
+  /* panel */
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* section */
+  --space-7: 32px;
+  --space-8: 40px;
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/board.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/board.css */
+/* Weekly / Monthly Board */
+
+.board-cell {
+  border: 1px solid var(--color-border-divider);
+  background: var(--surface-card-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/empty.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/empty.css */
+/* Empty State */
+
+.empty {
+  padding: var(--space-7);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/index.css */
+/* Admin Patterns */
+
+@import "./panel.css";
+@import "./kpi.css";
+@import "./tree.css";
+@import "./board.css";
+@import "./empty.css";
+@import "./loading.css";
+
+/* 레가시 호환 및 사이드바 전용 */
+@import "./layout.css";
+
+
+==========================================================================================
+# FILE: design-system/patterns/kpi.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/kpi.css */
+/* KPI Card */
+
+.kpi {
+  background: var(--surface-card-soft-bg);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+.kpi-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.kpi-value {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/layout.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/layout.css */
+/* Admin Layout Patterns (SSOT) */
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text-primary);
+  border-right: 1px solid var(--color-border-divider);
+}
+
+/* Header */
+.header {
+  height: var(--panel-header);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+/* Navigation */
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  margin-top: 1rem;
+  gap: 4px;
+  margin-top: var(--space-3);
 }
 
 .nav-item {
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
   color: var(--sidebar-text-secondary);
-  background-color: transparent;
-
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .nav-item:hover {
-  background-color: var(--sidebar-hover-bg);
+  background: var(--sidebar-hover-bg);
   color: var(--sidebar-text-primary);
 }
 
 .nav-item.active {
-  background-color: var(--sidebar-active-bg);
+  background: var(--sidebar-active-bg);
   color: var(--sidebar-active-text);
 }
 
-/* ================= BUTTON ================= */
-
-.btn {
-  background-color: var(--color-primary);
-  color: #fff;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: opacity 0.15s;
-}
-
-.btn:hover {
-  opacity: 0.9;
-}
-
-/* ================= CARD ================= */
-
-.card {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--border-divider);
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-}
-
-/* ================= SURFACE ================= */
-
-.surface {
-  background-color: var(--bg-surface-soft);
-  border-radius: 0.625rem;
-}
-
-.surface-muted {
-  background-color: var(--bg-surface-muted);
-  border-radius: 0.625rem;
-}
-
-.surface-strong {
-  background-color: var(--bg-app);
-  border-radius: 0.625rem;
-}
-
-/* ================= DIVIDER ================= */
-
+/* Divider */
 .divider {
-  border-bottom: 1px solid var(--border-divider);
+  border-bottom: 1px solid var(--color-border-divider);
 }
 
-.divider-soft {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-/* ================= TABLE ================= */
-/* 🔥 여기서 검은 헤더를 확실히 죽인다 */
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-  background-color: transparent;
-}
-
-/* THEAD 강제 */
-.table thead {
-  background-color: var(--bg-surface-soft) !important;
-}
-
-.table thead th {
-  background-color: var(--bg-surface-soft) !important;
-  color: var(--text-secondary) !important;
-  font-weight: 600;
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border-divider);
-}
-
-/* 🔥 AntD Table 헤더 split line 봉인 */
-.ant-table-thead > tr > th::before {
-  background-color: var(--border-divider) !important;
-}
-
-/* TBODY */
-.table td {
-  padding: 0.75rem;
-  color: var(--text-primary);
-  border-top: 1px solid var(--border-divider);
-  background-color: transparent;
-}
-
-.table tr:hover td {
-  background-color: rgba(59, 130, 246, 0.06);
-}
-
-/* ================= AntD OVERLAY 봉인 ================= */
-/* Dropdown / Popover / Modal / Tooltip 기본색 차단 */
-
-.ant-dropdown-menu,
-.ant-popover-inner,
-.ant-modal-content {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-.ant-dropdown-menu-item:hover {
-  background-color: var(--bg-surface-soft);
-}
-
-.ant-tooltip-inner {
-  background-color: var(--bg-surface-muted);
-  color: var(--text-primary);
-}
-
-/* ================= AntD SELECT DROPDOWN 봉인 ================= */
-/* body 포털 렌더링 영역 */
-
-.ant-select-dropdown {
-  background-color: var(--bg-surface) !important;
-  color: var(--text-primary);
-  border: 1px solid var(--border-divider);
-}
-
-/* 옵션 기본 */
-.ant-select-item-option {
-  color: var(--text-primary);
-}
-
-/* Hover */
-.ant-select-item-option-active,
-.ant-select-item-option:hover {
-  background-color: var(--bg-surface-soft) !important;
-}
-
-/* Selected */
-.ant-select-item-option-selected {
-  background-color: var(--bg-surface-soft) !important;
-  color: var(--text-primary) !important;
-  font-weight: 600;
-}
-
-/* Disabled */
-.ant-select-item-option-disabled {
-  color: var(--text-disabled);
-}
-
-
-==========================================================================================
-# FILE: design-rules.css
-==========================================================================================
-/* =================================================
-   SURFACE
-================================================= */
+/* Surface (Popup / Dropdown) */
 .surface {
-  @apply rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)];
-}
-
-.surface-soft {
-  @apply rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)];
-}
-
-/* =================================================
-   FORM
-================================================= */
-.form-input {
-  @apply w-full rounded-md px-3 py-2 text-sm
-    border border-[var(--border-divider)]
-    bg-[var(--bg-app)]
-    text-[var(--text-primary)]
-    placeholder:text-[var(--text-muted)]
-    focus:outline-none
-    focus:ring-1
-    focus:ring-[var(--color-primary)];
-}
-
-/* =================================================
-   BUTTON
-================================================= */
-.btn-primary {
-  @apply rounded-md px-4 py-2 text-sm font-medium
-    bg-[var(--color-primary)] text-white hover:opacity-90;
-}
-
-.btn-secondary {
-  @apply rounded-md px-4 py-2 text-sm
-    border border-[var(--border-divider)]
-    bg-[var(--bg-surface)]
-    text-[var(--text-primary)]
-    hover:bg-[var(--bg-surface-soft)];
-}
-
-.btn-danger {
-  @apply rounded-md px-4 py-2 text-sm
-    bg-[var(--color-danger)] text-white;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
 }
 
 
 ==========================================================================================
-# FILE: index.css
+# FILE: design-system/patterns/loading.css
 ==========================================================================================
-/* src/styles/index.css 
- → 테마는 tokens.css + data-theme 단일 진실로 관리*/
-@import "tailwindcss";
+/* PATH: src/styles/design-system/patterns/loading.css */
+/* Skeleton */
 
-@import "./tokens.css";
-@import "./base.css";
-@import "./layout.css";
-@import "./components.css";
-@import "./theme-switcher.css";
-@import "./animations.css";
-
-
-==========================================================================================
-# FILE: layout.css
-==========================================================================================
-/* src/styles/layout.css */
-
-.sidebar {
-  width: 11rem;
-  background-color: var(--sidebar-bg);
-  color: var(--sidebar-text-primary);
-  border-right: 1px solid var(--border-divider);
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-skeleton-base),
+    var(--color-skeleton-highlight),
+    var(--color-skeleton-base)
+  );
+  background-size: 200% 100%;
+  animation: skeleton 1.4s ease infinite;
 }
-
-.header {
-  height: 3.5rem;
-  background-color: var(--bg-surface);
-  border-bottom: 1px solid var(--border-divider);
+@keyframes skeleton {
+  to { background-position: -200% 0; }
 }
 
 
 ==========================================================================================
-# FILE: theme-switcher.css
+# FILE: design-system/patterns/panel.css
 ==========================================================================================
-/* src/styles/theme-switcher.css */
+/* PATH: src/styles/design-system/patterns/panel.css */
+/* Standard Panel */
 
-.theme-box {
-  border: 1px solid var(--border-divider);
-  border-radius: 0.5rem;
-  background-color: var(--widget-bg);
-  color: var(--widget-text);
-
-  padding: 0.4rem;
-  margin-top: 0.75rem;
-
-  transition: all 0.18s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+.panel {
+  background: var(--surface-panel-bg);
+  border: 1px solid var(--surface-panel-border);
+  border-radius: var(--radius-xl);
 }
-
-.theme-box:hover {
-  background-color: var(--widget-hover);
-  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.35);
+.panel-header {
+  height: var(--panel-header);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--surface-panel-border);
+}
+.panel-body {
+  padding: var(--space-5);
 }
 
 
 ==========================================================================================
-# FILE: tokens.css
+# FILE: design-system/patterns/tree.css
 ==========================================================================================
-/* PATH: src/styles/tokens.css */
-/* ======================================================
-   THEME TOKENS (SINGLE SOURCE OF TRUTH)
-   - :root        → Light / Neutral Base (기본)
-   - data-theme   → 명시적 테마만 덮어씀
-====================================================== */
+/* PATH: src/styles/design-system/patterns/tree.css */
+/* Sidebar / Tree */
+
+.tree-item {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+}
+.tree-item:hover {
+  background: var(--state-hover-bg);
+}
+.tree-item.active {
+  background: var(--state-selected-bg);
+  color: var(--color-text-primary);
+}
 
 
-/* ======================================================
-   DEFAULT (Light / Neutral Base)
-====================================================== */
+==========================================================================================
+# FILE: design-system/state/disabled.css
+==========================================================================================
+/* PATH: src/styles/design-system/state/disabled.css */
+/* Disabled */
 
 :root {
-  /* ===== Background ===== */
-  --bg-app: #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-surface-soft: #f1f5f9;
-  --bg-surface-muted: #e5e7eb;
-
-  /* ===== Text ===== */
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-disabled: #94a3b8;
-
-  /* 🔥 상태 UI 전용 (추가) */
-  --text-on-primary: #ffffff;
-
-  /* ===== Sidebar ===== */
-  --sidebar-bg: #ffffff;
-  --sidebar-text-primary: #0f172a;
-  --sidebar-text-secondary: #475569;
-  --sidebar-hover-bg: #f1f5f9;
-  --sidebar-active-bg: #3b82f6;
-  --sidebar-active-text: #ffffff;
-
-  /* ===== Brand ===== */
-  --color-primary: #3b82f6;
-  --color-primary-soft: rgba(59, 130, 246, 0.14);
-
-  /* ===== Border ===== */
-  --border-divider: #e5e7eb;
-
-  /* ===== Widget ===== */
-  --widget-bg: #ffffff;
-  --widget-hover: #f1f5f9;
-  --widget-text: #0f172a;
-
-  /* ===== Semantic ===== */
-  --color-success: #22c55e;
-  --color-success-soft: rgba(34, 197, 94, 0.16);
-  --color-danger: #ef4444;
-  --color-danger-soft: rgba(239, 68, 68, 0.16);
+  --state-disabled-bg: var(--color-bg-disabled);
+  --state-disabled-text: var(--color-text-disabled);
 }
 
-/* ======================================================
-   MODERN (Dark)
-====================================================== */
 
-[data-theme="modern"] {
-  --bg-app: #0e1117;
-  --bg-surface: #161b22;
-  --bg-surface-soft: #1c2230;
-  --bg-surface-muted: #232a3a;
+==========================================================================================
+# FILE: design-system/state/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/state/index.css */
+/* State Entry */
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-disabled: #64748b;
+@import "./interactive.css";
+@import "./disabled.css";
+@import "./selection.css";
+@import "./semantic-state.css";
 
-  --sidebar-bg: #161a21;
-  --sidebar-text-primary: #f8fafc;
-  --sidebar-text-secondary: #cbd5e1;
-  --sidebar-hover-bg: #202634;
-  --sidebar-active-bg: #3b82f6;
-  --sidebar-active-text: #ffffff;
 
-  --color-primary: #3b82f6;
-  --color-primary-soft: rgba(59, 130, 246, 0.14);
+==========================================================================================
+# FILE: design-system/state/interactive.css
+==========================================================================================
+/* PATH: src/styles/design-system/state/interactive.css */
+/* Hover / Active / Focus */
 
-  --border-divider: #30363d;
-
-  --widget-bg: #1f2533;
-  --widget-hover: #2b3245;
-  --widget-text: #f8fafc;
+:root {
+  --state-hover-bg: var(--color-bg-surface-hover);
+  --state-active-bg: var(--color-bg-accent-subtle);
+  --state-focus-ring: 0 0 0 2px var(--color-border-focus);
 }
 
-/* ======================================================
-   MODERN (Dark)
-====================================================== */
 
-[data-theme="modern"] {
-  --bg-app: #0e1117;
-  --bg-surface: #161b22;
-  --bg-surface-soft: #1c2230;
-  --bg-surface-muted: #232a3a;
+==========================================================================================
+# FILE: design-system/state/selection.css
+==========================================================================================
+/* PATH: src/styles/design-system/state/selection.css */
+/* Selected */
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-disabled: #64748b;
-
-  --sidebar-bg: #161a21;
-  --sidebar-text-primary: #f8fafc;
-  --sidebar-text-secondary: #cbd5e1;
-  --sidebar-hover-bg: #202634;
-  --sidebar-active-bg: #3b82f6;
-  --sidebar-active-text: #ffffff;
-
-  --color-primary: #3b82f6;
-  --color-primary-soft: rgba(59, 130, 246, 0.14);
-
-  --border-divider: #30363d;
-
-  --widget-bg: #1f2533;
-  --widget-hover: #2b3245;
-  --widget-text: #f8fafc;
+:root {
+  --state-selected-bg: var(--color-bg-accent-subtle);
+  --state-selected-border: var(--color-border-selected);
 }
 
-/* ======================================================
-   NAVY
-====================================================== */
 
-[data-theme="navy"] {
-  --bg-app: #0b1120;
-  --bg-surface: #111a2c;
-  --bg-surface-soft: #16213a;
-  --bg-surface-muted: #1e2a44;
+==========================================================================================
+# FILE: design-system/state/semantic-state.css
+==========================================================================================
+/* PATH: src/styles/design-system/state/semantic-state.css */
+/* Semantic States */
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #c7d2fe;
-  --text-muted: #94a3b8;
-  --text-disabled: #64748b;
-
-  --sidebar-bg: #0f172a;
-  --sidebar-text-primary: #f1f5f9;
-  --sidebar-text-secondary: #c7d2fe;
-  --sidebar-hover-bg: #1e293b;
-  --sidebar-active-bg: #2563eb;
-  --sidebar-active-text: #ffffff;
-
-  --color-primary: #2563eb;
-  --color-primary-soft: rgba(37, 99, 235, 0.14);
-
-  --border-divider: #1e293b;
-
-  --widget-bg: #1e293b;
-  --widget-hover: #243b63;
-  --widget-text: #f1f5f9;
+:root {
+  --state-success-bg: var(--scale-Success100);
+  --state-warning-bg: var(--scale-Warning100);
+  --state-error-bg:   var(--scale-Error100);
+  --state-info-bg:    var(--scale-Info100);
 }
 
-/* ======================================================
-   KAKAO
-====================================================== */
 
-[data-theme="kakao"] {
-  --bg-app: #fffdf2;
-  --bg-surface: #ffffff;
-  --bg-surface-soft: #fef3c7;
-  --bg-surface-muted: #fde68a;
+==========================================================================================
+# FILE: design-system/state/status-map.css
+==========================================================================================
+/* Domain-agnostic Status Mapping */
 
-  --text-primary: #1f2937;
-  --text-secondary: #374151;
-  --text-muted: #6b7280;
-  --text-disabled: #9ca3af;
-
-  --sidebar-bg: #facc15;
-  --sidebar-text-primary: #1f2937;
-  --sidebar-text-secondary: #374151;
-  --sidebar-hover-bg: #fde047;
-  --sidebar-active-bg: #3b2400;
-  --sidebar-active-text: #ffffff;
-
-  --color-primary: #3b2400;
-  --color-primary-soft: rgba(59, 36, 0, 0.12);
-
-  --border-divider: #f1d44a;
-
-  --widget-bg: #fde68a;
-  --widget-hover: #fcd34d;
-  --widget-text: #1f2937;
+.status-success {
+  background: var(--state-success-bg);
+  color: var(--color-success);
 }
 
-/* ======================================================
-   NAVER
-====================================================== */
-
-[data-theme="naver"] {
-  --bg-app: #f6fdf8;
-  --bg-surface: #ffffff;
-  --bg-surface-soft: #ecfdf5;
-  --bg-surface-muted: #d1fae5;
-
-  --text-primary: #064e3b;
-  --text-secondary: #065f46;
-  --text-muted: #6b7280;
-  --text-disabled: #9ca3af;
-
-  --sidebar-bg: #14532d;
-  --sidebar-text-primary: #ecfdf5;
-  --sidebar-text-secondary: #bbf7d0;
-  --sidebar-hover-bg: #166534;
-  --sidebar-active-bg: #16a34a;
-  --sidebar-active-text: #ffffff;
-
-  --color-primary: #16a34a;
-  --color-primary-soft: rgba(22, 163, 74, 0.14);
-
-  --border-divider: #a7f3d0;
-
-  --widget-bg: #d1fae5;
-  --widget-hover: #a7f3d0;
-  --widget-text: #064e3b;
+.status-warning {
+  background: var(--state-warning-bg);
+  color: var(--color-warning);
 }
 
-/* ======================================================
-   PURPLE
-====================================================== */
+.status-error {
+  background: var(--state-error-bg);
+  color: var(--color-error);
+}
 
-[data-theme="purple"] {
-  --bg-app: #faf9ff;
-  --bg-surface: #ffffff;
-  --bg-surface-soft: #f3f1ff;
-  --bg-surface-muted: #ede9fe;
+.status-info {
+  background: var(--state-info-bg);
+  color: var(--color-info);
+}
 
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
-  --text-disabled: #9ca3af;
 
-  --sidebar-bg: #4c1d95;
-  --sidebar-text-primary: #f9fafb;
-  --sidebar-text-secondary: #e0d9ff;
-  --sidebar-hover-bg: #5b21b6;
-  --sidebar-active-bg: #8b5cf6;
-  --sidebar-active-text: #ffffff;
+==========================================================================================
+# FILE: design-system/surface/canvas.css
+==========================================================================================
+/* PATH: src/styles/design-system/surface/canvas.css */
+/* App Canvas */
 
-  --color-primary: #8b5cf6;
-  --color-primary-soft: rgba(139, 92, 246, 0.14);
+:root {
+  --surface-canvas-bg: var(--color-bg-canvas);
+}
 
-  --border-divider: #ddd6fe;
 
-  --widget-bg: #ede9fe;
-  --widget-hover: #ddd6fe;
-  --widget-text: #111827;
+==========================================================================================
+# FILE: design-system/surface/card.css
+==========================================================================================
+/* PATH: src/styles/design-system/surface/card.css */
+/* Card Surface — KPI / List / Board */
+
+:root {
+  --surface-card-bg: var(--color-bg-surface);
+  --surface-card-soft-bg: var(--color-bg-surface-hover);
+}
+
+
+==========================================================================================
+# FILE: design-system/surface/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/surface/index.css */
+/* Surface / Elevation Entry */
+
+@import "./canvas.css";
+@import "./panel.css";
+@import "./card.css";
+@import "./overlay.css";
+
+
+==========================================================================================
+# FILE: design-system/surface/overlay.css
+==========================================================================================
+/* PATH: src/styles/design-system/surface/overlay.css */
+/* Overlay / Modal */
+
+:root {
+  --surface-overlay-bg: var(--color-bg-overlay);
+  --overlay-dim: rgba(0, 0, 0, 0.4);
+}
+
+
+==========================================================================================
+# FILE: design-system/surface/panel.css
+==========================================================================================
+/* PATH: src/styles/design-system/surface/panel.css */
+/* Panel Surface — 생성/설정/사이드 */
+
+:root {
+  --surface-panel-bg: var(--color-bg-surface);
+  --surface-panel-border: var(--color-border-divider);
+}
+
+
+==========================================================================================
+# FILE: design-system/typography/index.css
+==========================================================================================
+/* PATH: src/styles/design-system/typography/index.css */
+/* Typography Entry */
+
+@import "./scale.css";
+@import "./weight.css";
+
+
+==========================================================================================
+# FILE: design-system/typography/scale.css
+==========================================================================================
+/* PATH: src/styles/design-system/typography/scale.css */
+/* Text Scale — Admin Dashboard */
+
+:root {
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 14px;
+  --text-lg: 16px;
+
+  --text-xl: 18px;
+  --text-2xl: 22px;
+}
+
+
+==========================================================================================
+# FILE: design-system/typography/weight.css
+==========================================================================================
+/* PATH: src/styles/design-system/typography/weight.css */
+/* Font Weight */
+
+:root {
+  --font-regular: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
 }

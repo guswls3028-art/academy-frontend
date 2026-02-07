@@ -1,7 +1,7 @@
 // PATH: src/features/videos/components/features/video-detail/components/StudentWatchPanel.tsx
 
 import { useMemo } from "react";
-import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+// import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
 import {
   RULE_COLORS,
   RULE_LABELS,

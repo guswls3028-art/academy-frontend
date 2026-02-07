@@ -1,3 +1,4 @@
+// PATH: src/features/profile/attendance/components/AttendanceChartCard.tsx
 import {
   LineChart,
   Line,
@@ -6,7 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Card, CardBody, CardHeader } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
 
 export default function AttendanceChartCard({
   data,
@@ -16,12 +17,17 @@ export default function AttendanceChartCard({
   if (!data.length) return null;
 
   return (
-    <Card>
-      <CardHeader
-        title="근무 시간 추이"
-        description="날짜별 근무 시간을 선 그래프로 표시합니다."
-      />
-      <CardBody className="h-[260px]">
+    <Panel>
+      <div className="panel-header">
+        <div className="text-sm font-semibold text-[var(--text-primary)]">
+          근무 시간 추이
+        </div>
+        <div className="mt-1 text-xs text-[var(--text-muted)]">
+          날짜별 근무 시간을 선 그래프로 표시합니다.
+        </div>
+      </div>
+
+      <div className="panel-body h-[260px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <XAxis dataKey="date" tick={{ fontSize: 12 }} />
@@ -36,7 +42,7 @@ export default function AttendanceChartCard({
             />
           </LineChart>
         </ResponsiveContainer>
-      </CardBody>
-    </Card>
+      </div>
+    </Panel>
   );
 }

@@ -1,0 +1,16 @@
+/* PATH: src/styles/design-system/colors/role/text.css */
+/* Text Role Tokens (FIXED) */
+
+:root {
+  --color-text-primary:    var(--scale-Neutral900);
+  --color-text-secondary:  var(--scale-Neutral700);
+  --color-text-tertiary:   var(--scale-Neutral600);
+  --color-text-muted:      var(--scale-Neutral500);
+  --color-text-disabled:   var(--scale-Neutral400);
+  --color-text-inverse:    var(--scale-Neutral0);
+
+  --color-text-link:       var(--scale-Primary500);
+  --color-text-link-hover: var(--scale-Primary600);
+
+  --color-text-strong:     var(--scale-Neutral900);
+}

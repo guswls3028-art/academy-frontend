@@ -1,5 +1,5 @@
 // PATH: src/features/profile/expense/components/ExpenseInsightCard.tsx
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
 
 export default function ExpenseInsightCard({
   maxDay,
@@ -16,11 +16,15 @@ export default function ExpenseInsightCard({
 
   return (
     <div className="max-w-[980px]">
-      <Card className="bg-[var(--bg-surface)]">
-        <CardBody className="space-y-4">
+      <Panel>
+        <div className="panel-body space-y-4">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-[var(--text-primary)]">인사이트</div>
-            <div className="text-xs text-[var(--text-muted)]">해당 기간 기준</div>
+            <div className="text-sm font-semibold text-[var(--text-primary)]">
+              인사이트
+            </div>
+            <div className="text-xs text-[var(--text-muted)]">
+              해당 기간 기준
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -30,8 +34,16 @@ export default function ExpenseInsightCard({
               sub={`${maxDay.amount.toLocaleString()} 원`}
               tone="danger"
             />
-            <Kpi label="일 평균 지출" value={`${avgPerDay.toLocaleString()} 원`} sub="일자별 합계 기준" />
-            <Kpi label="평균 초과 일수" value={`${overAvgDays} 일`} sub="지출이 많은 날" />
+            <Kpi
+              label="일 평균 지출"
+              value={`${avgPerDay.toLocaleString()} 원`}
+              sub="일자별 합계 기준"
+            />
+            <Kpi
+              label="평균 초과 일수"
+              value={`${overAvgDays} 일`}
+              sub="지출이 많은 날"
+            />
           </div>
 
           {top3.length > 0 && (
@@ -48,7 +60,9 @@ export default function ExpenseInsightCard({
                     ].join(" ")}
                     title={`${t.amount.toLocaleString()} 원`}
                   >
-                    <span className="font-medium text-[var(--text-primary)]">{t.title}</span>
+                    <span className="font-medium text-[var(--text-primary)]">
+                      {t.title}
+                    </span>
                     <span className="text-[var(--text-muted)]">
                       {t.amount.toLocaleString()}원
                     </span>
@@ -57,8 +71,8 @@ export default function ExpenseInsightCard({
               </div>
             </div>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      </Panel>
     </div>
   );
 }
@@ -80,7 +94,9 @@ function Kpi({
       <div
         className={[
           "mt-1 text-xl font-semibold",
-          tone === "danger" ? "text-[var(--color-danger)]" : "text-[var(--text-primary)]",
+          tone === "danger"
+            ? "text-[var(--color-danger)]"
+            : "text-[var(--text-primary)]",
         ].join(" ")}
       >
         {value}

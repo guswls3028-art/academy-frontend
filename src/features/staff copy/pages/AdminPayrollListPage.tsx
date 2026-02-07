@@ -1,8 +1,9 @@
 // PATH: src/features/staff/pages/AdminPayrollListPage.tsx
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Page, PageHeader, PageSection } from "@/shared/ui/page";
-import { Card, CardBody } from "@/shared/ui/card";
+import { Page, PageHeader, Section } from "@/shared/ui/ds";
+import { Panel } from "@/shared/ui/ds";
+
 
 import {
   fetchPayrollSnapshots,
@@ -70,7 +71,7 @@ export default function AdminPayrollListPage() {
         }
       />
 
-      <PageSection>
+      <Section>
         <div className="flex items-center gap-2 mb-4">
           <select
             value={ym.year}
@@ -144,7 +145,7 @@ export default function AdminPayrollListPage() {
             {totals.totalAmount.toLocaleString()}원
           </div>
         )}
-      </PageSection>
+      </Section>
     </Page>
   );
 }

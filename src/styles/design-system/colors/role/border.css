@@ -1,0 +1,14 @@
+/* PATH: src/styles/design-system/colors/role/border.css */
+/* Border Role Tokens (FIXED) */
+
+:root {
+  --color-border-default:  var(--scale-Neutral300);
+  --color-border-strong:   var(--scale-Neutral500);
+  --color-border-subtle:   var(--scale-Neutral200);
+
+  --color-border-focus:    var(--scale-Primary500);
+  --color-border-error:    var(--scale-Error500);
+
+  --color-border-divider:  var(--scale-Neutral200);
+  --color-border-selected: var(--scale-Primary500);
+}

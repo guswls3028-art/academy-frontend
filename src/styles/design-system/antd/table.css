@@ -1,0 +1,10 @@
+/* PATH: src/styles/design-system/antd/table.css */
+/* AntD Table */
+
+.ant-table {
+  background: transparent;
+}
+.ant-table-thead > tr > th {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-secondary);
+}

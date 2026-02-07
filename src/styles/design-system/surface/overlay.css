@@ -1,0 +1,7 @@
+/* PATH: src/styles/design-system/surface/overlay.css */
+/* Overlay / Modal */
+
+:root {
+  --surface-overlay-bg: var(--color-bg-overlay);
+  --overlay-dim: rgba(0, 0, 0, 0.4);
+}

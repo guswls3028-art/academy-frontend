@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Page, PageHeader, PageSection } from "@/shared/ui/page";
+import { Page, PageHeader, Section } from "@/shared/ui/ds";
 
 import StaffHeader from "../components/StaffHeader";
 import StaffKpiCard from "../components/StaffKpiCard";
@@ -73,11 +73,11 @@ export default function StaffPage() {
     return (
       <Page>
         <PageHeader title="직원 근무 · 급여 관리" description="불러오기에 실패했습니다." />
-        <PageSection>
+        <Section>
           <div className="text-sm text-[var(--text-muted)]">
             직원 목록을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.
           </div>
-        </PageSection>
+        </Section>
       </Page>
     );
   }
@@ -109,7 +109,7 @@ export default function StaffPage() {
         onCreate={() => setCreateOpen(true)}
       />
 
-      <PageSection>
+      <Section>
         {/* ✅ KPI: “이번달 운영” 지표 */}
         <StaffKpiCard
           staffCount={kpis.staffCount}
@@ -141,9 +141,9 @@ export default function StaffPage() {
             <div className="mt-1 text-lg font-semibold">{derived.lockedCount.toLocaleString()}</div>
           </div>
         </div>
-      </PageSection>
+      </Section>
 
-      <PageSection>
+      <Section>
         {/* ✅ 핵심: StaffPage에서 대부분 작업 끝내기 */}
         <StaffTable
           staffs={rows as any[]}
@@ -154,7 +154,7 @@ export default function StaffPage() {
             await ensureSummaries();
           }}
         />
-      </PageSection>
+      </Section>
 
       <StaffCreateModal
         open={createOpen}

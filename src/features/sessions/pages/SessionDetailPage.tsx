@@ -16,8 +16,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
   
-import { Page, PageHeader, PageSection } from "@/shared/ui/page";
-import EmptyState from "@/shared/ui/feedback/EmptyState";
+import { Page, PageHeader, Section } from "@/shared/ui/ds";
+import EmptyState from "@/shared/ui/ds";
 
 import api from "@/shared/api/axios";
 

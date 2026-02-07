@@ -1,0 +1,6 @@
+/* PATH: src/styles/design-system/antd/tag.css */
+/* AntD Tag */
+
+.ant-tag {
+  border-radius: var(--radius-sm);
+}

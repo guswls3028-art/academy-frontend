@@ -1,0 +1,19 @@
+/* PATH: src/styles/design-system/colors/scale/brand.css */
+/* Brand Scale Tokens (names fixed) */
+
+:root {
+  /* Primary */
+  --scale-Primary50:  #eff6ff;
+  --scale-Primary100: #dbeafe;
+  --scale-Primary200: #bfdbfe;
+  --scale-Primary300: #93c5fd;
+  --scale-Primary400: #60a5fa;
+  --scale-Primary500: #3b82f6;
+  --scale-Primary600: #2563eb;
+  --scale-Primary700: #1d4ed8;
+
+  /* Secondary */
+  --scale-Secondary100: #e0e7ff;
+  --scale-Secondary300: #a5b4fc;
+  --scale-Secondary500: #6366f1;
+}

@@ -1,5 +1,5 @@
 // PATH: src/features/profile/expense/components/ExpenseSummaryCard.tsx
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
 
 export default function ExpenseSummaryCard({
   total,
@@ -11,15 +11,13 @@ export default function ExpenseSummaryCard({
   const avgPerItem = count ? Math.round(total / count) : 0;
 
   return (
-    <div className="max-w-[980px]">
-      <Card className="bg-[var(--bg-surface)]">
-        <CardBody className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Item label="총 지출" value={`${total.toLocaleString()} 원`} tone="danger" big />
-          <Item label="지출 건수" value={`${count.toLocaleString()} 건`} />
-          <Item label="건당 평균" value={`${avgPerItem.toLocaleString()} 원`} />
-        </CardBody>
-      </Card>
-    </div>
+    <Panel>
+      <div className="panel-body grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Item label="총 지출" value={`${total.toLocaleString()} 원`} tone="danger" big />
+        <Item label="지출 건수" value={`${count.toLocaleString()} 건`} />
+        <Item label="건당 평균" value={`${avgPerItem.toLocaleString()} 원`} />
+      </div>
+    </Panel>
   );
 }
 
@@ -41,7 +39,9 @@ function Item({
         className={[
           "mt-1 font-semibold",
           big ? "text-2xl" : "text-xl",
-          tone === "danger" ? "text-[var(--color-danger)]" : "text-[var(--text-primary)]",
+          tone === "danger"
+            ? "text-[var(--color-danger)]"
+            : "text-[var(--text-primary)]",
         ].join(" ")}
       >
         {value}

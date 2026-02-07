@@ -425,7 +425,7 @@ export function TemplateMaterialEditorModal({ open, onClose }: Props) {
 ==========================================================================================
 // PATH: src/features/materials/layout/MaterialsLayout.tsx
 import { Outlet } from "react-router-dom";
-import { Page, PageHeader, PageTabs } from "@/shared/ui/page";
+import { Page, PageHeader, PageTabs } from "@/shared/ui/ds";
 
 export default function MaterialsLayout() {
   return (
@@ -448,7 +448,7 @@ export default function MaterialsLayout() {
 # FILE: messages/MessagesPage.tsx
 ==========================================================================================
 // PATH: src/features/materials/messages/MessagesPage.tsx
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 
 export default function MessagesPage() {
   return (
@@ -466,7 +466,7 @@ export default function MessagesPage() {
 # FILE: reports/ReportsPage.tsx
 ==========================================================================================
 // PATH: src/features/materials/reports/ReportsPage.tsx
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 
 export default function ReportsPage() {
   return (
@@ -488,8 +488,8 @@ export default function ReportsPage() {
 // ======================================================================================
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PageSection } from "@/shared/ui/page";
-import { EmptyState } from "@/shared/ui/feedback";
+import { Section } from "@/shared/ui/ds";
+import { EmptyState } from "@/shared/ui/ds";
 import { listSheetsApi, type SheetEntity } from "./sheets.api";
 import { SheetsEditorModal } from "./components/editor/SheetsEditorModal";
 import { SheetsCreateModal } from "./components/SheetsCreateModal";
@@ -507,7 +507,7 @@ export default function SheetsListPage() {
   const items = useMemo(() => sheetsQ.data ?? [], [sheetsQ.data]);
 
   return (
-    <PageSection
+    <Section
       title="시험지"
       description="시험 전에 미리 제작되는 시험지 상품 목록 (template exam)"
       right={
@@ -566,7 +566,7 @@ export default function SheetsListPage() {
           onClose={() => setEditingId(null)}
         />
       )}
-    </PageSection>
+    </Section>
   );
 }
 
@@ -1246,7 +1246,7 @@ export function MetaPreviewTab() {
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 import {
   getSheetApi,
   getSheetQuestionsApi,
@@ -1609,7 +1609,7 @@ export function SheetsEditorModal({
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import {
   listExamSubmissionsApi,

@@ -2,8 +2,9 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@/shared/ui/card";
-import { EmptyState } from "@/shared/ui/feedback";
+import { Panel } from "@/shared/ui/ds";
+
+import { EmptyState } from "@/shared/ui/ds";
 
 import {
   fetchPayrollSnapshots,

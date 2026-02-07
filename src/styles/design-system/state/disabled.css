@@ -1,0 +1,7 @@
+/* PATH: src/styles/design-system/state/disabled.css */
+/* Disabled */
+
+:root {
+  --state-disabled-bg: var(--color-bg-disabled);
+  --state-disabled-text: var(--color-text-disabled);
+}

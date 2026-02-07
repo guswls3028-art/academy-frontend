@@ -15,8 +15,7 @@ import {
 
 import StudentFormModal from "../components/EditStudentModal";
 
-import { Page, PageHeader, PageSection } from "@/shared/ui/page";
-import EmptyState from "@/shared/ui/feedback/EmptyState";
+import { PageHeader, Section, Panel, EmptyState } from "@/shared/ui/ds";
 
 /* ================= constants ================= */
 
@@ -52,25 +51,24 @@ export default function StudentsDetailPage() {
 
   const addTag = useMutation({
     mutationFn: (tagId: number) => attachStudentTag(id, tagId),
-    onSuccess: () => qc.invalidateQueries(["student", id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
   });
 
   const removeTag = useMutation({
     mutationFn: (tagId: number) => detachStudentTag(id, tagId),
-    onSuccess: () => qc.invalidateQueries(["student", id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
   });
 
   const updateMemo = useMutation({
     mutationFn: (memo: string) => createMemo(id, memo),
-    onSuccess: () => qc.invalidateQueries(["student", id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
   });
 
   async function handleDelete() {
     if (!confirm("이 학생을 삭제하시겠습니까?")) return;
     await deleteStudent(id);
 
-    // ✅ 목록 반영 (최소 추가)
-    qc.invalidateQueries(["students"]);
+    qc.invalidateQueries({ queryKey: ["students"] });
 
     navigate(-1);
   }
@@ -80,19 +78,20 @@ export default function StudentsDetailPage() {
   return (
     <>
       {/* Overlay Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/50" onClick={() => navigate(-1)} />
+      <div
+        className="fixed inset-0 z-40 bg-black/50"
+        onClick={() => navigate(-1)}
+      />
 
       {/* Overlay Card */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
         <div className="w-full max-w-[1100px] max-h-[90vh] overflow-auto rounded-2xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)]">
-          <Page>
+          {/* Header Area (SSOT PageHeader: title string only) */}
+          <div className="px-6 pt-6">
             <PageHeader
-              title={
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-semibold text-[var(--text-primary)]">
-                    {student.name}
-                  </span>
-
+              title={student.name}
+              actions={
+                <div className="flex items-center gap-2">
                   {/* Status Badge */}
                   <span
                     className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -103,10 +102,7 @@ export default function StudentsDetailPage() {
                   >
                     {student.active ? "활성" : "비활성"}
                   </span>
-                </div>
-              }
-              actions={
-                <div className="flex items-center gap-2">
+
                   <button
                     onClick={() => setEditOpen(true)}
                     className="px-3 py-1.5 text-sm rounded-md
@@ -141,119 +137,142 @@ export default function StudentsDetailPage() {
                 </div>
               }
             />
+          </div>
 
-            {/* ================= Layout ================= */}
-            <div className="flex gap-6">
-              {/* LEFT */}
-              <div className="w-[340px] shrink-0 space-y-4">
-                <PageSection
-                  className="
-                    rounded-2xl border border-[var(--border-divider)]
-                    bg-[var(--bg-surface)]
-                    overflow-hidden
-                  "
-                >
-                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">
-                      기본 정보
-                    </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      계정 · 연락처 · 학교
-                    </div>
-                  </div>
+          <div className="px-6 pb-6">
+            <Section>
+              {/* ================= Layout ================= */}
+              <div className="flex gap-6">
+                {/* LEFT */}
+                <div className="w-[340px] shrink-0 space-y-4">
+                  <Panel>
+                    <div
+                      className="
+                        rounded-2xl border border-[var(--border-divider)]
+                        bg-[var(--bg-surface)]
+                        overflow-hidden
+                      "
+                    >
+                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          기본 정보
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          계정 · 연락처 · 학교
+                        </div>
+                      </div>
 
-                  <div className="p-4 space-y-2 text-sm">
-                    <InfoItem label="아이디(PS)" value={student.psNumber} strong />
-                    <InfoItem
-                      label="학생 전화번호/식별자"
-                      value={
-                        student.studentPhone && String(student.studentPhone).length === 8
-                          ? `식별자 ${student.studentPhone}`
-                          : student.studentPhone
-                      }
-                      strong
-                    />
-                    <InfoItem label="학부모 전화번호" value={student.parentPhone} strong />
-                    <InfoItem label="성별" value={student.gender} />
-                    <InfoItem label="학교" value={student.school} />
-                    <InfoItem label="학년" value={student.grade ? `${student.grade}학년` : null} />
-                    <InfoItem label="반" value={student.schoolClass} />
-                    <InfoItem label="계열" value={student.major} />
-                    <InfoItem label="등록일" value={student.registeredAt?.slice(0, 10)} />
-                  </div>
-                </PageSection>
-
-                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">
-                      태그
+                      <div className="p-4 space-y-2 text-sm">
+                        <InfoItem
+                          label="아이디(PS)"
+                          value={student.psNumber}
+                          strong
+                        />
+                        <InfoItem
+                          label="학생 전화번호/식별자"
+                          value={
+                            student.studentPhone &&
+                            String(student.studentPhone).length === 8
+                              ? `식별자 ${student.studentPhone}`
+                              : student.studentPhone
+                          }
+                          strong
+                        />
+                        <InfoItem
+                          label="학부모 전화번호"
+                          value={student.parentPhone}
+                          strong
+                        />
+                        <InfoItem label="성별" value={student.gender} />
+                        <InfoItem label="학교" value={student.school} />
+                        <InfoItem
+                          label="학년"
+                          value={student.grade ? `${student.grade}학년` : null}
+                        />
+                        <InfoItem label="반" value={student.schoolClass} />
+                        <InfoItem label="계열" value={student.major} />
+                        <InfoItem
+                          label="등록일"
+                          value={student.registeredAt?.slice(0, 10)}
+                        />
+                      </div>
                     </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      분류/관리용 라벨
-                    </div>
-                  </div>
+                  </Panel>
 
-                  <div className="p-4">
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {student.tags?.length ? (
-                        student.tags.map((t: any) => (
-                          <div
-                            key={t.id}
-                            className="group flex items-center gap-1
+                  <Panel>
+                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          태그
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          분류/관리용 라벨
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {student.tags?.length ? (
+                            student.tags.map((t: any) => (
+                              <div
+                                key={t.id}
+                                className="group flex items-center gap-1
                             px-2 py-1 rounded-full text-xs font-semibold
                             shadow-sm text-white"
-                            style={{ backgroundColor: t.color }}
-                          >
-                            <span>{t.name}</span>
-                            <button
-                              onClick={() => removeTag.mutate(t.id)}
-                              className="hidden group-hover:inline text-white/80 hover:text-white"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <EmptyState size="sm" message="태그 없음" />
-                      )}
-                    </div>
+                                style={{ backgroundColor: t.color }}
+                              >
+                                <span>{t.name}</span>
+                                <button
+                                  onClick={() => removeTag.mutate(t.id)}
+                                  className="hidden group-hover:inline text-white/80 hover:text-white"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <EmptyState title="태그 없음" />
+                          )}
+                        </div>
 
-                    <select
-                      className="w-full rounded-md px-2 py-2 text-sm
+                        <select
+                          className="w-full rounded-md px-2 py-2 text-sm
                       border border-[var(--border-divider)]
                       bg-[var(--bg-app)]
                       text-[var(--text-primary)]
                       focus:outline-none
                       focus:ring-1
                       focus:ring-[var(--color-primary)]"
-                      onChange={(e) => {
-                        const tagId = Number(e.target.value);
-                        if (tagId) addTag.mutate(tagId);
-                      }}
-                    >
-                      <option value="">태그 목록</option>
-                      {tags?.map((tag: any) => (
-                        <option key={tag.id} value={tag.id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </PageSection>
-
-                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">
-                      메모
+                          onChange={(e) => {
+                            const tagId = Number(e.target.value);
+                            if (tagId) addTag.mutate(tagId);
+                          }}
+                        >
+                          <option value="">태그 목록</option>
+                          {tags?.map((tag: any) => (
+                            <option key={tag.id} value={tag.id}>
+                              {tag.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      포커스 아웃 시 저장
-                    </div>
-                  </div>
+                  </Panel>
 
-                  <div className="p-4">
-                    <textarea
-                      className="w-full h-32 rounded-md p-3 text-sm resize-none
+                  <Panel>
+                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          메모
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          포커스 아웃 시 저장
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <textarea
+                          className="w-full h-32 rounded-md p-3 text-sm resize-none
                       border border-[var(--border-divider)]
                       bg-[var(--bg-app)]
                       text-[var(--text-primary)]
@@ -261,28 +280,30 @@ export default function StudentsDetailPage() {
                       focus:outline-none
                       focus:ring-1
                       focus:ring-[var(--color-primary)]"
-                      defaultValue={student.memo}
-                      placeholder="메모 작성..."
-                      onBlur={(e) => updateMemo.mutate(e.target.value)}
-                    />
-                  </div>
-                </PageSection>
-              </div>
+                          defaultValue={student.memo}
+                          placeholder="메모 작성..."
+                          onBlur={(e) => updateMemo.mutate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </Panel>
+                </div>
 
-              {/* RIGHT */}
-              <div className="flex-1">
-                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="px-4 pt-4">
-                    <div className="relative mb-4">
-                      <div className="flex gap-2 border-b border-[var(--border-divider)]">
-                        {TABS.map((t) => {
-                          const active = tab === t.key;
+                {/* RIGHT */}
+                <div className="flex-1">
+                  <Panel>
+                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+                      <div className="px-4 pt-4">
+                        <div className="relative mb-4">
+                          <div className="flex gap-2 border-b border-[var(--border-divider)]">
+                            {TABS.map((t) => {
+                              const active = tab === t.key;
 
-                          return (
-                            <button
-                              key={t.key}
-                              onClick={() => setTab(t.key)}
-                              className={`
+                              return (
+                                <button
+                                  key={t.key}
+                                  onClick={() => setTab(t.key)}
+                                  className={`
                               relative px-4 py-2 text-sm font-semibold rounded-t-md
                               transition-all duration-200
                               ${
@@ -297,26 +318,26 @@ export default function StudentsDetailPage() {
                                   `
                               }
                             `}
-                            >
-                              {t.label}
+                                >
+                                  {t.label}
 
-                              {active && (
-                                <span
-                                  className="
+                                  {active && (
+                                    <span
+                                      className="
                                   absolute left-0 right-0 -bottom-[1px]
                                   h-[2px]
                                   bg-[var(--color-primary)]
                                   rounded-full
                                 "
-                                />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                                    />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
 
-                      <div
-                        className="
+                          <div
+                            className="
                         h-[3px]
                         w-full
                         bg-gradient-to-r
@@ -324,23 +345,27 @@ export default function StudentsDetailPage() {
                         via-transparent
                         to-transparent
                       "
-                      />
-                    </div>
-                  </div>
+                          />
+                        </div>
+                      </div>
 
-                  <div className="px-4 pb-4">
-                    <div className="min-h-[300px]">
-                      {tab === "enroll" ? (
-                        <EnrollmentsTab enrollments={student.enrollments} />
-                      ) : (
-                        <EmptyState message="데이터가 없습니다." />
-                      )}
+                      <div className="px-4 pb-4">
+                        <div className="min-h-[300px]">
+                          {tab === "enroll" ? (
+                            <EnrollmentsTab
+                              enrollments={student.enrollments}
+                            />
+                          ) : (
+                            <EmptyState title="데이터가 없습니다." />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </PageSection>
+                  </Panel>
+                </div>
               </div>
-            </div>
-          </Page>
+            </Section>
+          </div>
         </div>
       </div>
 
@@ -351,7 +376,7 @@ export default function StudentsDetailPage() {
           onClose={() => setEditOpen(false)}
           onSuccess={() => {
             setEditOpen(false);
-            qc.invalidateQueries(["student", id]);
+            qc.invalidateQueries({ queryKey: ["student", id] });
           }}
         />
       )}
@@ -375,7 +400,9 @@ function InfoItem({
       <span className="text-xs text-[var(--text-muted)]">{label}</span>
       <span
         className={`text-sm text-right ${
-          strong ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-primary)]"
+          strong
+            ? "font-semibold text-[var(--text-primary)]"
+            : "text-[var(--text-primary)]"
         }`}
       >
         {value || "-"}
@@ -386,7 +413,7 @@ function InfoItem({
 
 function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
   if (!enrollments?.length) {
-    return <EmptyState message="수강 이력이 없습니다." />;
+    return <EmptyState title="수강 이력이 없습니다." />;
   }
 
   return (

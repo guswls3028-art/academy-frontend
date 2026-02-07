@@ -1,6 +1,6 @@
 // PATH: src/features/students/components/StudentsTable.tsx
 
-import EmptyState from "@/shared/ui/feedback/EmptyState";
+import { EmptyState } from "@/shared/ui/ds";
 import { toggleStudentActive } from "../api/students";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -36,7 +36,7 @@ export default function StudentsTable({
   const qc = useQueryClient();
 
   if (!data.length) {
-    return <EmptyState message="학생 정보가 없습니다." />;
+    return <EmptyState title="학생 정보가 없습니다." />;
   }
 
   async function toggle(id: number, active: boolean) {
@@ -47,8 +47,6 @@ export default function StudentsTable({
   function sortHeader(key: string, label: string) {
     const isAsc = sort === key;
     const isDesc = sort === `-${key}`;
-
-    // ✅ 3단 클릭: ASC -> DESC -> 해제
     const next = isAsc ? `-${key}` : isDesc ? "" : key;
 
     return (
@@ -59,7 +57,6 @@ export default function StudentsTable({
           text-[13px]
         "
         onClick={() => onSortChange(next)}
-        title="클릭하여 정렬"
       >
         <span className="inline-flex items-center gap-1">
           {label}

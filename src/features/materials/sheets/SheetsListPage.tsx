@@ -1,10 +1,7 @@
-// ======================================================================================
-// FILE: src/features/materials/sheets/SheetsListPage.tsx
-// ======================================================================================
+// PATH: src/features/materials/sheets/SheetsListPage.tsx
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PageSection } from "@/shared/ui/page";
-import { EmptyState } from "@/shared/ui/feedback";
+import { Section, Panel, EmptyState } from "@/shared/ui/ds";
 import { listSheetsApi, type SheetEntity } from "./sheets.api";
 import { SheetsEditorModal } from "./components/editor/SheetsEditorModal";
 import { SheetsCreateModal } from "./components/SheetsCreateModal";
@@ -22,47 +19,62 @@ export default function SheetsListPage() {
   const items = useMemo(() => sheetsQ.data ?? [], [sheetsQ.data]);
 
   return (
-    <PageSection
-      title="시험지"
-      description="시험 전에 미리 제작되는 시험지 상품 목록 (template exam)"
-      right={
-        <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-          + 시험지 생성
-        </button>
-      }
-    >
-      <div className="surface p-4">
-        {items.length === 0 && !sheetsQ.isLoading && (
-          <EmptyState title="시험지가 없습니다" message="시험지를 먼저 생성하세요." />
-        )}
+    <Section>
+      <Panel>
+        <div className="panel-body space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold">시험지</div>
+              <div className="text-xs text-[var(--text-muted)]">
+                시험 전에 제작되는 템플릿 시험지 목록
+              </div>
+            </div>
 
-        {items.length > 0 && (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>시험지 이름</th>
-                <th>편집</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((s: SheetEntity) => (
-                <tr key={s.id}>
-                  <td>#{s.id}</td>
-                  <td>{s.title}</td>
-                  <td>
-                    <button className="btn" onClick={() => setEditingId(s.id)}>
-                      편집
-                    </button>
-                  </td>
+            <button
+              className="btn-primary"
+              onClick={() => setCreateOpen(true)}
+            >
+              + 시험지 생성
+            </button>
+          </div>
+
+          {items.length === 0 && !sheetsQ.isLoading && (
+            <EmptyState
+              title="시험지가 없습니다"
+              description="시험지를 먼저 생성하세요."
+            />
+          )}
+
+          {items.length > 0 && (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>시험지 이름</th>
+                  <th>편집</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {items.map((s: SheetEntity) => (
+                  <tr key={s.id}>
+                    <td>#{s.id}</td>
+                    <td>{s.title}</td>
+                    <td>
+                      <button
+                        className="btn"
+                        onClick={() => setEditingId(s.id)}
+                      >
+                        편집
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Panel>
 
-      {/* ✅ 생성 모달 */}
       <SheetsCreateModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
@@ -73,7 +85,6 @@ export default function SheetsListPage() {
         }}
       />
 
-      {/* ✅ 편집 모달 */}
       {editingId !== null && (
         <SheetsEditorModal
           open
@@ -81,6 +92,6 @@ export default function SheetsListPage() {
           onClose={() => setEditingId(null)}
         />
       )}
-    </PageSection>
+    </Section>
   );
 }

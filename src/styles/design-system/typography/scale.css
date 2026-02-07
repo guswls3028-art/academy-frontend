@@ -1,0 +1,12 @@
+/* PATH: src/styles/design-system/typography/scale.css */
+/* Text Scale — Admin Dashboard */
+
+:root {
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 14px;
+  --text-lg: 16px;
+
+  --text-xl: 18px;
+  --text-2xl: 22px;
+}

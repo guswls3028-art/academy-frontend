@@ -618,11 +618,19 @@ export default function EditStudentModal({
 
 import { useState } from "react";
 import { createStudent } from "../api/students";
+// tailwind safelist (admin students modal)
+const __TW_SAFE__ = `
+bg-blue-500 border-blue-500 text-white
+bg-pink-500 border-pink-500
+bg-[var(--color-primary)]
+transition-all
+`;
 
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
 }
+
 
 export default function StudentCreateModal({ onClose, onSuccess }: Props) {
   const [noPhone, setNoPhone] = useState(false);
@@ -908,6 +916,258 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
 }
 
 
+
+
+// // PATH: src/features/students/components/StudentCreateModal.tsx
+
+// import { useState } from "react";
+// import { createStudent } from "../api/students";
+
+// /** * ✅ v4 팁: 
+//  * bg-primary 처럼 쓰려면 index.css의 @theme에 --color-primary가 정의되어 있어야 합니다.
+//  * 정의가 안 되어 있다면 아래 코드의 primary는 CSS 변수값을 그대로 추적합니다.
+//  */
+
+// interface Props {
+//   onClose: () => void;
+//   onSuccess: () => void;
+// }
+
+// export default function StudentCreateModal({ onClose, onSuccess }: Props) {
+//   const [noPhone, setNoPhone] = useState(false);
+//   const [form, setForm] = useState({
+//     name: "",
+//     gender: "",
+//     psNumber: "",
+//     initialPassword: "",
+//     studentPhone: "",
+//     omrCode: "",
+//     parentPhone: "",
+//     schoolType: "HIGH",
+//     school: "",
+//     grade: "",
+//     schoolClass: "",
+//     major: "",
+//     address: "",
+//     memo: "",
+//     active: true,
+//   });
+
+//   // v4 스타일 가이드에 맞춘 변수 정리
+//   const inputBase = "w-full rounded-md px-3 py-2 text-sm border bg-app transition-all";
+//   const inputRequired = "border-primary/70 focus:outline-hidden focus:ring-1 focus:ring-primary";
+//   const inputNormal = "border-divider focus:outline-hidden focus:ring-1 focus:ring-primary";
+
+//   function handleChange(e: any) {
+//     const { name, value, type, checked } = e.target;
+//     setForm((prev) => ({
+//       ...prev,
+//       [name]: type === "checkbox" ? checked : value,
+//     }));
+//   }
+
+//   async function handleSubmit() {
+//     if (!form.name.trim()) return alert("이름은 필수입니다.");
+//     if (!form.psNumber.trim()) return alert("PS 번호는 필수입니다.");
+//     if (!form.initialPassword || form.initialPassword.trim().length < 4) return alert("비밀번호는 4자 이상 필수입니다.");
+
+//     if (noPhone) {
+//       if (!/^\d{8}$/.test(form.omrCode)) return alert("식별자는 숫자 8자리입니다.");
+//     } else {
+//       if (!/^010\d{8}$/.test(form.studentPhone)) return alert("학생 전화번호는 010XXXXXXXX 형식입니다.");
+//     }
+//     if (!/^010\d{8}$/.test(form.parentPhone)) return alert("학부모 전화번호는 010XXXXXXXX 형식입니다.");
+
+//     try {
+//       await createStudent({ ...form, noPhone });
+//       onSuccess();
+//       onClose();
+//     } catch (e) {
+//       console.error(e);
+//       alert("오류가 발생했습니다.");
+//     }
+//   }
+
+//   return (
+//     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+//       <div className="w-[520px] rounded-xl bg-surface shadow-2xl border border-divider overflow-hidden animate-in fade-in zoom-in duration-200">
+        
+//         {/* Header */}
+//         <div className="border-b border-divider px-5 py-4 bg-surface-soft">
+//           <h2 className="text-sm font-semibold text-primary-text">학생 등록</h2>
+//         </div>
+
+//         {/* Body */}
+//         <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
+//           <div className="flex gap-2">
+//             <input
+//               name="name"
+//               placeholder="이름"
+//               value={form.name}
+//               onChange={handleChange}
+//               className={`flex-1 ${inputBase} ${inputRequired}`}
+//             />
+//             <div className="flex gap-1">
+//               <button
+//                 type="button"
+//                 onClick={() => setForm((p) => ({ ...p, gender: "M" }))}
+//                 className={`px-3 py-2 text-sm rounded-md border transition-colors ${
+//                   form.gender === "M" ? "bg-blue-500 text-white border-blue-500" : "border-divider hover:bg-surface-soft"
+//                 }`}
+//               >
+//                 남자
+//               </button>
+//               <button
+//                 type="button"
+//                 onClick={() => setForm((p) => ({ ...p, gender: "F" }))}
+//                 className={`px-3 py-2 text-sm rounded-md border transition-colors ${
+//                   form.gender === "F" ? "bg-pink-500 text-white border-pink-500" : "border-divider hover:bg-surface-soft"
+//                 }`}
+//               >
+//                 여자
+//               </button>
+//             </div>
+//           </div>
+
+//           <input
+//             name="psNumber"
+//             placeholder="아이디"
+//             value={form.psNumber}
+//             onChange={handleChange}
+//             className={`${inputBase} ${inputRequired}`}
+//           />
+
+//           <input
+//             name="initialPassword"
+//             type="password"
+//             placeholder="비밀번호"
+//             value={form.initialPassword}
+//             onChange={handleChange}
+//             className={`${inputBase} ${inputRequired}`}
+//           />
+
+//           <div className="flex gap-2 items-center">
+//             <input
+//               name={noPhone ? "omrCode" : "studentPhone"}
+//               placeholder={noPhone ? "식별자 (8자리)" : "학생 전화번호 (010XXXXXXXX)"}
+//               value={noPhone ? form.omrCode : form.studentPhone}
+//               onChange={handleChange}
+//               className={`flex-1 ${inputBase} ${inputRequired}`}
+//             />
+//             <button
+//               type="button"
+//               onClick={() => setNoPhone((v) => !v)}
+//               className={`px-3 py-2 text-sm rounded-md border transition-all ${
+//                 noPhone ? "bg-primary text-white border-primary" : "border-divider hover:bg-surface-soft"
+//               }`}
+//             >
+//               없음(식별자)
+//             </button>
+//           </div>
+
+//           <input
+//             name="parentPhone"
+//             placeholder="학부모 전화번호 (010XXXXXXXX)"
+//             value={form.parentPhone}
+//             onChange={handleChange}
+//             className={`${inputBase} ${inputRequired}`}
+//           />
+
+//           <div className="flex gap-2">
+//             {["HIGH", "MIDDLE"].map((t) => (
+//               <button
+//                 key={t}
+//                 type="button"
+//                 onClick={() => setForm((p) => ({ ...p, schoolType: t }))}
+//                 className={`flex-1 px-3 py-2 text-sm rounded-md border transition-all ${
+//                   form.schoolType === t ? "bg-primary text-white border-primary" : "border-divider hover:bg-surface-soft"
+//                 }`}
+//               >
+//                 {t === "HIGH" ? "고등학교" : "중학교"}
+//               </button>
+//             ))}
+//           </div>
+
+//           <div className="flex gap-2">
+//             <input
+//               name="school"
+//               placeholder="학교명"
+//               value={form.school}
+//               onChange={handleChange}
+//               className={`flex-1 ${inputBase} ${inputNormal}`}
+//             />
+//             <div className="flex gap-1">
+//               {["1", "2", "3"].map((g) => (
+//                 <button
+//                   key={g}
+//                   type="button"
+//                   onClick={() => setForm((p) => ({ ...p, grade: g }))}
+//                   className={`px-3 py-2 text-sm rounded-md border transition-all ${
+//                     form.grade === g ? "bg-primary text-white border-primary" : "border-divider hover:bg-surface-soft"
+//                   }`}
+//                 >
+//                   {g}학년
+//                 </button>
+//               ))}
+//             </div>
+//           </div>
+
+//           <div className="flex gap-2">
+//             <input
+//               name="schoolClass"
+//               placeholder="반"
+//               value={form.schoolClass}
+//               onChange={handleChange}
+//               className={`flex-1 ${inputBase} ${inputNormal}`}
+//             />
+//             <input
+//               name="major"
+//               placeholder="계열"
+//               value={form.major}
+//               onChange={handleChange}
+//               className={`flex-1 ${inputBase} ${inputNormal}`}
+//             />
+//           </div>
+
+//           <input
+//             name="address"
+//             placeholder="주소"
+//             value={form.address}
+//             onChange={handleChange}
+//             className={`${inputBase} ${inputNormal}`}
+//           />
+
+//           <textarea
+//             name="memo"
+//             placeholder="메모"
+//             rows={3}
+//             value={form.memo}
+//             onChange={handleChange}
+//             className={`${inputBase} ${inputNormal} resize-none`}
+//           />
+//         </div>
+
+//         {/* Footer */}
+//         <div className="flex justify-end gap-2 px-5 py-3 border-t border-divider">
+//           <button
+//             onClick={onClose}
+//             className="px-4 py-2 text-sm rounded-md border border-divider hover:bg-surface-soft transition-colors"
+//           >
+//             취소
+//           </button>
+//           <button
+//             onClick={handleSubmit}
+//             className="px-4 py-2 text-sm rounded-md bg-primary text-white hover:opacity-90 transition-opacity"
+//           >
+//             등록
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+
 ==========================================================================================
 # FILE: components/StudentFilterModal.tsx
 ==========================================================================================
@@ -1095,7 +1355,7 @@ export default function StudentFilterModal({
 ==========================================================================================
 // PATH: src/features/students/components/StudentsTable.tsx
 
-import EmptyState from "@/shared/ui/feedback/EmptyState";
+import { EmptyState } from "@/shared/ui/ds";
 import { toggleStudentActive } from "../api/students";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -1131,7 +1391,7 @@ export default function StudentsTable({
   const qc = useQueryClient();
 
   if (!data.length) {
-    return <EmptyState message="학생 정보가 없습니다." />;
+    return <EmptyState title="학생 정보가 없습니다." />;
   }
 
   async function toggle(id: number, active: boolean) {
@@ -1142,8 +1402,6 @@ export default function StudentsTable({
   function sortHeader(key: string, label: string) {
     const isAsc = sort === key;
     const isDesc = sort === `-${key}`;
-
-    // ✅ 3단 클릭: ASC -> DESC -> 해제
     const next = isAsc ? `-${key}` : isDesc ? "" : key;
 
     return (
@@ -1154,7 +1412,6 @@ export default function StudentsTable({
           text-[13px]
         "
         onClick={() => onSortChange(next)}
-        title="클릭하여 정렬"
       >
         <span className="inline-flex items-center gap-1">
           {label}
@@ -1322,8 +1579,7 @@ import {
 
 import StudentFormModal from "../components/EditStudentModal";
 
-import { Page, PageHeader, PageSection } from "@/shared/ui/page";
-import EmptyState from "@/shared/ui/feedback/EmptyState";
+import { PageHeader, Section, Panel, EmptyState } from "@/shared/ui/ds";
 
 /* ================= constants ================= */
 
@@ -1359,25 +1615,24 @@ export default function StudentsDetailPage() {
 
   const addTag = useMutation({
     mutationFn: (tagId: number) => attachStudentTag(id, tagId),
-    onSuccess: () => qc.invalidateQueries(["student", id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
   });
 
   const removeTag = useMutation({
     mutationFn: (tagId: number) => detachStudentTag(id, tagId),
-    onSuccess: () => qc.invalidateQueries(["student", id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
   });
 
   const updateMemo = useMutation({
     mutationFn: (memo: string) => createMemo(id, memo),
-    onSuccess: () => qc.invalidateQueries(["student", id]),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
   });
 
   async function handleDelete() {
     if (!confirm("이 학생을 삭제하시겠습니까?")) return;
     await deleteStudent(id);
 
-    // ✅ 목록 반영 (최소 추가)
-    qc.invalidateQueries(["students"]);
+    qc.invalidateQueries({ queryKey: ["students"] });
 
     navigate(-1);
   }
@@ -1387,19 +1642,20 @@ export default function StudentsDetailPage() {
   return (
     <>
       {/* Overlay Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/50" onClick={() => navigate(-1)} />
+      <div
+        className="fixed inset-0 z-40 bg-black/50"
+        onClick={() => navigate(-1)}
+      />
 
       {/* Overlay Card */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
         <div className="w-full max-w-[1100px] max-h-[90vh] overflow-auto rounded-2xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)]">
-          <Page>
+          {/* Header Area (SSOT PageHeader: title string only) */}
+          <div className="px-6 pt-6">
             <PageHeader
-              title={
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-semibold text-[var(--text-primary)]">
-                    {student.name}
-                  </span>
-
+              title={student.name}
+              actions={
+                <div className="flex items-center gap-2">
                   {/* Status Badge */}
                   <span
                     className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -1410,10 +1666,7 @@ export default function StudentsDetailPage() {
                   >
                     {student.active ? "활성" : "비활성"}
                   </span>
-                </div>
-              }
-              actions={
-                <div className="flex items-center gap-2">
+
                   <button
                     onClick={() => setEditOpen(true)}
                     className="px-3 py-1.5 text-sm rounded-md
@@ -1448,119 +1701,142 @@ export default function StudentsDetailPage() {
                 </div>
               }
             />
+          </div>
 
-            {/* ================= Layout ================= */}
-            <div className="flex gap-6">
-              {/* LEFT */}
-              <div className="w-[340px] shrink-0 space-y-4">
-                <PageSection
-                  className="
-                    rounded-2xl border border-[var(--border-divider)]
-                    bg-[var(--bg-surface)]
-                    overflow-hidden
-                  "
-                >
-                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">
-                      기본 정보
-                    </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      계정 · 연락처 · 학교
-                    </div>
-                  </div>
+          <div className="px-6 pb-6">
+            <Section>
+              {/* ================= Layout ================= */}
+              <div className="flex gap-6">
+                {/* LEFT */}
+                <div className="w-[340px] shrink-0 space-y-4">
+                  <Panel>
+                    <div
+                      className="
+                        rounded-2xl border border-[var(--border-divider)]
+                        bg-[var(--bg-surface)]
+                        overflow-hidden
+                      "
+                    >
+                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          기본 정보
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          계정 · 연락처 · 학교
+                        </div>
+                      </div>
 
-                  <div className="p-4 space-y-2 text-sm">
-                    <InfoItem label="아이디(PS)" value={student.psNumber} strong />
-                    <InfoItem
-                      label="학생 전화번호/식별자"
-                      value={
-                        student.studentPhone && String(student.studentPhone).length === 8
-                          ? `식별자 ${student.studentPhone}`
-                          : student.studentPhone
-                      }
-                      strong
-                    />
-                    <InfoItem label="학부모 전화번호" value={student.parentPhone} strong />
-                    <InfoItem label="성별" value={student.gender} />
-                    <InfoItem label="학교" value={student.school} />
-                    <InfoItem label="학년" value={student.grade ? `${student.grade}학년` : null} />
-                    <InfoItem label="반" value={student.schoolClass} />
-                    <InfoItem label="계열" value={student.major} />
-                    <InfoItem label="등록일" value={student.registeredAt?.slice(0, 10)} />
-                  </div>
-                </PageSection>
-
-                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">
-                      태그
+                      <div className="p-4 space-y-2 text-sm">
+                        <InfoItem
+                          label="아이디(PS)"
+                          value={student.psNumber}
+                          strong
+                        />
+                        <InfoItem
+                          label="학생 전화번호/식별자"
+                          value={
+                            student.studentPhone &&
+                            String(student.studentPhone).length === 8
+                              ? `식별자 ${student.studentPhone}`
+                              : student.studentPhone
+                          }
+                          strong
+                        />
+                        <InfoItem
+                          label="학부모 전화번호"
+                          value={student.parentPhone}
+                          strong
+                        />
+                        <InfoItem label="성별" value={student.gender} />
+                        <InfoItem label="학교" value={student.school} />
+                        <InfoItem
+                          label="학년"
+                          value={student.grade ? `${student.grade}학년` : null}
+                        />
+                        <InfoItem label="반" value={student.schoolClass} />
+                        <InfoItem label="계열" value={student.major} />
+                        <InfoItem
+                          label="등록일"
+                          value={student.registeredAt?.slice(0, 10)}
+                        />
+                      </div>
                     </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      분류/관리용 라벨
-                    </div>
-                  </div>
+                  </Panel>
 
-                  <div className="p-4">
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {student.tags?.length ? (
-                        student.tags.map((t: any) => (
-                          <div
-                            key={t.id}
-                            className="group flex items-center gap-1
+                  <Panel>
+                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          태그
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          분류/관리용 라벨
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {student.tags?.length ? (
+                            student.tags.map((t: any) => (
+                              <div
+                                key={t.id}
+                                className="group flex items-center gap-1
                             px-2 py-1 rounded-full text-xs font-semibold
                             shadow-sm text-white"
-                            style={{ backgroundColor: t.color }}
-                          >
-                            <span>{t.name}</span>
-                            <button
-                              onClick={() => removeTag.mutate(t.id)}
-                              className="hidden group-hover:inline text-white/80 hover:text-white"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <EmptyState size="sm" message="태그 없음" />
-                      )}
-                    </div>
+                                style={{ backgroundColor: t.color }}
+                              >
+                                <span>{t.name}</span>
+                                <button
+                                  onClick={() => removeTag.mutate(t.id)}
+                                  className="hidden group-hover:inline text-white/80 hover:text-white"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))
+                          ) : (
+                            <EmptyState title="태그 없음" />
+                          )}
+                        </div>
 
-                    <select
-                      className="w-full rounded-md px-2 py-2 text-sm
+                        <select
+                          className="w-full rounded-md px-2 py-2 text-sm
                       border border-[var(--border-divider)]
                       bg-[var(--bg-app)]
                       text-[var(--text-primary)]
                       focus:outline-none
                       focus:ring-1
                       focus:ring-[var(--color-primary)]"
-                      onChange={(e) => {
-                        const tagId = Number(e.target.value);
-                        if (tagId) addTag.mutate(tagId);
-                      }}
-                    >
-                      <option value="">태그 목록</option>
-                      {tags?.map((tag: any) => (
-                        <option key={tag.id} value={tag.id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </PageSection>
-
-                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                    <div className="text-sm font-semibold text-[var(--text-primary)]">
-                      메모
+                          onChange={(e) => {
+                            const tagId = Number(e.target.value);
+                            if (tagId) addTag.mutate(tagId);
+                          }}
+                        >
+                          <option value="">태그 목록</option>
+                          {tags?.map((tag: any) => (
+                            <option key={tag.id} value={tag.id}>
+                              {tag.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      포커스 아웃 시 저장
-                    </div>
-                  </div>
+                  </Panel>
 
-                  <div className="p-4">
-                    <textarea
-                      className="w-full h-32 rounded-md p-3 text-sm resize-none
+                  <Panel>
+                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                          메모
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          포커스 아웃 시 저장
+                        </div>
+                      </div>
+
+                      <div className="p-4">
+                        <textarea
+                          className="w-full h-32 rounded-md p-3 text-sm resize-none
                       border border-[var(--border-divider)]
                       bg-[var(--bg-app)]
                       text-[var(--text-primary)]
@@ -1568,28 +1844,30 @@ export default function StudentsDetailPage() {
                       focus:outline-none
                       focus:ring-1
                       focus:ring-[var(--color-primary)]"
-                      defaultValue={student.memo}
-                      placeholder="메모 작성..."
-                      onBlur={(e) => updateMemo.mutate(e.target.value)}
-                    />
-                  </div>
-                </PageSection>
-              </div>
+                          defaultValue={student.memo}
+                          placeholder="메모 작성..."
+                          onBlur={(e) => updateMemo.mutate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </Panel>
+                </div>
 
-              {/* RIGHT */}
-              <div className="flex-1">
-                <PageSection className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="px-4 pt-4">
-                    <div className="relative mb-4">
-                      <div className="flex gap-2 border-b border-[var(--border-divider)]">
-                        {TABS.map((t) => {
-                          const active = tab === t.key;
+                {/* RIGHT */}
+                <div className="flex-1">
+                  <Panel>
+                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+                      <div className="px-4 pt-4">
+                        <div className="relative mb-4">
+                          <div className="flex gap-2 border-b border-[var(--border-divider)]">
+                            {TABS.map((t) => {
+                              const active = tab === t.key;
 
-                          return (
-                            <button
-                              key={t.key}
-                              onClick={() => setTab(t.key)}
-                              className={`
+                              return (
+                                <button
+                                  key={t.key}
+                                  onClick={() => setTab(t.key)}
+                                  className={`
                               relative px-4 py-2 text-sm font-semibold rounded-t-md
                               transition-all duration-200
                               ${
@@ -1604,26 +1882,26 @@ export default function StudentsDetailPage() {
                                   `
                               }
                             `}
-                            >
-                              {t.label}
+                                >
+                                  {t.label}
 
-                              {active && (
-                                <span
-                                  className="
+                                  {active && (
+                                    <span
+                                      className="
                                   absolute left-0 right-0 -bottom-[1px]
                                   h-[2px]
                                   bg-[var(--color-primary)]
                                   rounded-full
                                 "
-                                />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                                    />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
 
-                      <div
-                        className="
+                          <div
+                            className="
                         h-[3px]
                         w-full
                         bg-gradient-to-r
@@ -1631,23 +1909,27 @@ export default function StudentsDetailPage() {
                         via-transparent
                         to-transparent
                       "
-                      />
-                    </div>
-                  </div>
+                          />
+                        </div>
+                      </div>
 
-                  <div className="px-4 pb-4">
-                    <div className="min-h-[300px]">
-                      {tab === "enroll" ? (
-                        <EnrollmentsTab enrollments={student.enrollments} />
-                      ) : (
-                        <EmptyState message="데이터가 없습니다." />
-                      )}
+                      <div className="px-4 pb-4">
+                        <div className="min-h-[300px]">
+                          {tab === "enroll" ? (
+                            <EnrollmentsTab
+                              enrollments={student.enrollments}
+                            />
+                          ) : (
+                            <EmptyState title="데이터가 없습니다." />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </PageSection>
+                  </Panel>
+                </div>
               </div>
-            </div>
-          </Page>
+            </Section>
+          </div>
         </div>
       </div>
 
@@ -1658,7 +1940,7 @@ export default function StudentsDetailPage() {
           onClose={() => setEditOpen(false)}
           onSuccess={() => {
             setEditOpen(false);
-            qc.invalidateQueries(["student", id]);
+            qc.invalidateQueries({ queryKey: ["student", id] });
           }}
         />
       )}
@@ -1682,7 +1964,9 @@ function InfoItem({
       <span className="text-xs text-[var(--text-muted)]">{label}</span>
       <span
         className={`text-sm text-right ${
-          strong ? "font-semibold text-[var(--text-primary)]" : "text-[var(--text-primary)]"
+          strong
+            ? "font-semibold text-[var(--text-primary)]"
+            : "text-[var(--text-primary)]"
         }`}
       >
         {value || "-"}
@@ -1693,7 +1977,7 @@ function InfoItem({
 
 function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
   if (!enrollments?.length) {
-    return <EmptyState message="수강 이력이 없습니다." />;
+    return <EmptyState title="수강 이력이 없습니다." />;
   }
 
   return (
@@ -1732,7 +2016,7 @@ import StudentFormModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
 import { deleteStudent } from "../api/students";
 
-import { Page, PageHeader, PageSection, PageToolbar } from "@/shared/ui/page";
+import { PageHeader, Section, Panel } from "@/shared/ui/ds";
 
 export default function StudentsPage() {
   const navigate = useNavigate();
@@ -1743,7 +2027,7 @@ export default function StudentsPage() {
   const [filters, setFilters] = useState<any>({});
   const [showModal, setShowModal] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [sort, setSort] = useState<"date" | "name">("date");
+  const [sort, setSort] = useState<any>("date");
 
   const hasFilter = Object.keys(filters || {}).length > 0;
 
@@ -1754,7 +2038,7 @@ export default function StudentsPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data, isLoading, isFetching } = useStudentsQuery(search, filters, sort);
+  const { data, isFetching } = useStudentsQuery(search, filters, sort);
 
   async function handleDelete(id: number) {
     if (!confirm("삭제하시겠습니까?")) return;
@@ -1763,10 +2047,9 @@ export default function StudentsPage() {
   }
 
   return (
-    <Page>
+    <>
       <PageHeader
         title="학생 관리"
-        description="학생 계정 및 기본 정보를 관리합니다."
         actions={
           <button
             onClick={() => setShowModal(true)}
@@ -1779,9 +2062,13 @@ export default function StudentsPage() {
         }
       />
 
-      <PageSection className="bg-[var(--bg-surface-soft)] border rounded-xl">
-        <PageToolbar>
-          <div className="flex items-center gap-3">
+      <div className="mt-1 mb-4 text-sm text-[var(--text-muted)]">
+        학생 계정 및 기본 정보를 관리합니다.
+      </div>
+
+      <Section>
+        <Panel>
+          <div className="panel-body flex items-center gap-3">
             <div className="relative">
               <input
                 className="w-64 py-2 px-3 text-sm rounded-md
@@ -1792,8 +2079,10 @@ export default function StudentsPage() {
                 onChange={(e) => setSearchInput(e.target.value)}
               />
               {isFetching && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2
-                  w-3 h-3 rounded-full border-2 border-t-transparent animate-spin" />
+                <span
+                  className="absolute right-3 top-1/2 -translate-y-1/2
+                  w-3 h-3 rounded-full border-2 border-t-transparent animate-spin"
+                />
               )}
             </div>
 
@@ -1816,19 +2105,23 @@ export default function StudentsPage() {
               )}
             </button>
           </div>
-        </PageToolbar>
-      </PageSection>
+        </Panel>
+      </Section>
 
-      <PageSection className="border rounded-xl overflow-hidden">
-        <StudentsTable
-          data={data || []}
-          search={search}
-          sort={sort}
-          onSortChange={(v) => setSort(v as any)}
-          onDelete={handleDelete}
-          onRowClick={(id) => navigate(String(id))}
-        />
-      </PageSection>
+      <Section>
+        <Panel>
+          <div className="panel-body p-0">
+            <StudentsTable
+              data={data || []}
+              search={search}
+              sort={sort}
+              onSortChange={(v) => setSort(v as any)}
+              onDelete={handleDelete}
+              onRowClick={(id) => navigate(String(id))}
+            />
+          </div>
+        </Panel>
+      </Section>
 
       {showModal && (
         <StudentFormModal
@@ -1849,6 +2142,6 @@ export default function StudentsPage() {
           setShowFilter(false);
         }}
       />
-    </Page>
+    </>
   );
 }

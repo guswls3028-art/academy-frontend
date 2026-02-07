@@ -1,0 +1,7 @@
+/* PATH: src/styles/design-system/surface/panel.css */
+/* Panel Surface — 생성/설정/사이드 */
+
+:root {
+  --surface-panel-bg: var(--color-bg-surface);
+  --surface-panel-border: var(--color-border-divider);
+}

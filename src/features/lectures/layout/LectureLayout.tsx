@@ -1,10 +1,10 @@
-// src/features/lectures/layout/LectureLayout.tsx
+// PATH: src/features/lectures/layout/LectureLayout.tsx
 
 import { Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
-import { Page, PageHeader } from "@/shared/ui/page";
+import { PageHeader, Section, Panel } from "@/shared/ui/ds";
 
 import SessionBar from "../components/SessionBar";
 import LectureTabs from "../components/LectureTabs";
@@ -14,7 +14,11 @@ export default function LectureLayout() {
   const { lectureId, sessionId } = useLectureParams();
 
   if (!Number.isFinite(lectureId)) {
-    return <Page>잘못된 강의 ID</Page>;
+    return (
+      <div className="p-6 text-sm text-red-500">
+        잘못된 강의 ID
+      </div>
+    );
   }
 
   const { data: lecture, isLoading } = useQuery({
@@ -25,19 +29,23 @@ export default function LectureLayout() {
   });
 
   if (isLoading || !lecture) {
-    return <Page>로딩중...</Page>;
+    return (
+      <div className="p-6 text-sm text-[var(--text-muted)]">
+        로딩중...
+      </div>
+    );
   }
 
   const isSessionDetail = Number.isFinite(sessionId);
 
   return (
-    <Page>
+    <Section>
       {isSessionDetail ? (
         <>
           <button
             onClick={() => window.history.back()}
             className="
-              mb-4 inline-flex items-center gap-1
+              inline-flex items-center gap-1
               rounded-md border border-[var(--border-divider)]
               bg-[var(--bg-surface)]
               px-3 py-1.5 text-sm font-medium
@@ -54,25 +62,17 @@ export default function LectureLayout() {
         <>
           <PageHeader
             title={lecture.title}
-            description={`${lecture.subject ?? "-"} · 강사 ${lecture.name ?? "-"}`}
+            actions={null}
           />
 
           <SessionBar />
-
           <LectureTabs />
 
-          <div
-            className="
-              rounded-b-2xl
-              border border-t-0 border-[var(--border-divider)]
-              bg-[var(--bg-surface)]
-              p-6
-            "
-          >
+          <Panel>
             <Outlet />
-          </div>
+          </Panel>
         </>
       )}
-    </Page>
+    </Section>
   );
 }

@@ -1,0 +1,16 @@
+/* PATH: src/styles/design-system/colors/scale/neutral.css */
+/* Neutral / Gray Scale (Text/Background/Border 전용) */
+
+:root {
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f8fafc;
+  --scale-Neutral100: #f1f5f9;
+  --scale-Neutral200: #e2e8f0;
+  --scale-Neutral300: #cbd5e1;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #475569;
+  --scale-Neutral700: #334155;
+  --scale-Neutral800: #1f2937;
+  --scale-Neutral900: #0f172a;
+}

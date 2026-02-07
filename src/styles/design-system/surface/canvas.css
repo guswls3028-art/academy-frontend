@@ -1,0 +1,6 @@
+/* PATH: src/styles/design-system/surface/canvas.css */
+/* App Canvas */
+
+:root {
+  --surface-canvas-bg: var(--color-bg-canvas);
+}

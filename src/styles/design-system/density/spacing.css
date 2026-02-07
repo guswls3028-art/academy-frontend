@@ -1,0 +1,20 @@
+/* PATH: src/styles/design-system/density/spacing.css */
+/* Spacing Scale — 관리자 고밀도 기준 (FIXED) */
+
+:root {
+  /* micro */
+  --space-1: 4px;
+  --space-2: 8px;
+
+  /* base */
+  --space-3: 12px;
+  --space-4: 16px;
+
+  /* panel */
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* section */
+  --space-7: 32px;
+  --space-8: 40px;
+}

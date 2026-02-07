@@ -1,70 +1,68 @@
+// PATH: src/features/lectures/pages/lectures/LectureStudentsPage.tsx
+
 import { useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
-import StudentsTable from "@/features/students/components/StudentsTable";
-import api from "@/shared/api/axios";
-
-import { fetchLectureEnrollments } from "@/features/lectures/api/enrollments";
-import { PageSection } from "@/shared/ui/page";
-import { EmptyState } from "@/shared/ui/feedback";
+import { PageHeader, Section, Panel, EmptyState } from "@/shared/ui/ds";
+import {
+  fetchLectureStudents,
+  type LectureStudent,
+} from "@/features/lectures/api/students";
 
 export default function LectureStudentsPage() {
-  const { lectureId } = useParams<{ lectureId?: string }>();
+  const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
-  const qc = useQueryClient();
 
-  const { data: enrollments = [], isLoading } = useQuery({
-    queryKey: ["lecture-enrollments", lectureIdNum],
-    queryFn: () => fetchLectureEnrollments(lectureIdNum),
+  const { data: students = [], isLoading } = useQuery<LectureStudent[]>({
+    queryKey: ["lecture-students", lectureIdNum],
+    queryFn: () => fetchLectureStudents(lectureIdNum),
     enabled: Number.isFinite(lectureIdNum),
   });
 
-  if (isLoading) {
-    return (
-      <PageSection title="수강생 목록">
-        <div className="text-sm text-[var(--text-muted)]">
-          로딩중...
-        </div>
-      </PageSection>
-    );
-  }
-
-  const studentList = enrollments.map((en: any) => {
-    const st = en.student;
-    return {
-      id: en.id,
-      name: st?.name,
-      studentPhone: st?.phone,
-      parentPhone: st?.parent_phone,
-      school: st?.high_school,
-      schoolClass: st?.high_school_class,
-      major: st?.major,
-      grade: st?.grade,
-      gender: st?.gender ?? "-",
-      registeredAt: en.enrolled_at,
-      active: en.status === "ACTIVE",
-    };
-  });
-
   return (
-    <PageSection title={`수강생 목록 (${studentList.length})`}>
-      {studentList.length === 0 ? (
-        <EmptyState
-          title="수강 중인 학생이 없습니다."
-          description="학생을 등록하면 이곳에 표시됩니다."
-        />
-      ) : (
-        <StudentsTable
-          data={studentList}
-          onDelete={async (enrollmentId: number) => {
-            await api.delete(`/enrollments/${enrollmentId}/`);
-            qc.invalidateQueries({
-              queryKey: ["lecture-enrollments", lectureIdNum],
-            });
-          }}
-          onRowClick={() => {}}
-        />
-      )}
-    </PageSection>
+    <Section>
+      <PageHeader title="수강 학생" />
+
+      <Panel>
+        {isLoading ? (
+          <div className="py-12 text-center text-sm text-[var(--text-muted)]">
+            불러오는 중…
+          </div>
+        ) : students.length === 0 ? (
+          <EmptyState
+            title="수강 중인 학생이 없습니다."
+            description="학생이 등록되면 여기에 표시됩니다."
+          />
+        ) : (
+          <div className="overflow-hidden rounded border border-[var(--border-divider)]">
+            <table className="w-full text-sm">
+              <thead className="bg-[var(--bg-surface-soft)]">
+                <tr>
+                  <th className="px-4 py-2 text-left">이름</th>
+                  <th className="px-4 py-2 text-left">학년</th>
+                  <th className="px-4 py-2 text-left">학교</th>
+                  <th className="px-4 py-2 text-left">상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="border-t border-[var(--border-divider)]"
+                  >
+                    <td className="px-4 py-2 font-medium">{s.name}</td>
+                    <td className="px-4 py-2">{s.grade}</td>
+                    <td className="px-4 py-2">{s.school}</td>
+                    <td className="px-4 py-2 text-[var(--text-muted)]">
+                      {s.status_label}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </Section>
   );
 }

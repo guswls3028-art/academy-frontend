@@ -5,12 +5,6 @@
 
 
 ==========================================================================================
-# FILE: index.ts
-==========================================================================================
-
-
-
-==========================================================================================
 # FILE: api/axios.ts
 ==========================================================================================
 // PATH: src/shared/api/axios.ts
@@ -148,370 +142,643 @@ export function resolveTenantCode(): TenantCode {
 
 
 ==========================================================================================
-# FILE: ui/index.ts
+# FILE: docs/AI_DEV_SSOT_LOCKED.md
 ==========================================================================================
-// PATH: src/shared/ui/index.ts
-export * from "./layout";
-export * from "./page";
-export * from "./card";
+아래 AI Development SSOT를 기준으로 작업한다.
+
+출력물 내에서 다음 표현은 절대 사용 금지:
+
+“이하 동일”
+
+“생략”
+
+“중략”
+
+“변경 없음”
+
+“기존과 동일”
+
+“동일”
+
+“…” 또는 의미상 생략을 암시하는 모든 표현
+
+위 표현이 1회라도 포함될 경우 출력은 실패로 간주한다.
+
+📘 AI Development SSOT – Architecture & Output Rules (LOCKED)
+
+문서 성격
+
+본 문서는 AI 협업 개발용 SSOT(단일 진실 원천) 이다.
+
+본 문서에 위배되는 모든 제안·코드·출력은 무효로 간주한다.
+
+본 문서는 수정 불가, 확장만 허용된다.
+
+컴파일 성공 여부보다 아키텍처 일관성을 우선한다.
+
+────────────────────────────────
+1️⃣ 임시 추상화 생성 금지 (CRITICAL)
+────────────────────────────────
+
+기존에 존재하지 않던 추상 컴포넌트 / 레이어를
+기존 코드 호환 또는 컴파일 에러 해결을 이유로 생성하는 행위 금지
+
+의미 없는 래퍼(Page, Wrapper, Container 등) 추가 전면 금지
+
+에러 회피 목적의 구조 추가는 어떠한 경우에도 허용되지 않는다
+
+────────────────────────────────
+2️⃣ SSOT 우선 규칙
+────────────────────────────────
+
+SSOT는 문제의 원인이 아니라 기준이다
+
+기존 코드가 SSOT와 불일치할 경우:
+
+❌ SSOT 확장 금지
+✅ 기존 코드를 SSOT에 맞게 수정만 허용
+
+“SSOT가 부족하다”는 판단은 허용되지 않는다
+
+────────────────────────────────
+3️⃣ 역할 정의 없는 컴포넌트 금지
+────────────────────────────────
+
+아래 항목이 문서로 명확히 정의되지 않은 컴포넌트는 추가 금지
+
+언제 사용하는가
+
+무엇을 대체하는가
+
+다른 컴포넌트와의 관계
+
+역할 정의 없는 Page / Layout / Wrapper / Base 컴포넌트는 즉시 위반
+
+────────────────────────────────
+4️⃣ 땜질 해결책 제안 금지
+────────────────────────────────
+
+“일단 돌아가게 하기 위한 최소 변경”이라는 이유의 해결책 전면 금지
+
+단기 해결보다 장기 구조 일관성을 우선한다
+
+에러 제거 목적의 구조 훼손은 허용되지 않는다
+
+────────────────────────────────
+5️⃣ 제안 전 질문 의무화
+────────────────────────────────
+
+아래 행위는 반드시 사전 질문 후에만 가능
+
+SSOT 확장
+
+새로운 개념 / 레이어 / 컴포넌트 도입
+
+기존 구조를 유지한 채 우회하는 설계
+
+질문 없이 진행된 제안은 자동 무효
+
+────────────────────────────────
+6️⃣ 삭제 / 축소 / 정리 목적 리팩토링 금지
+────────────────────────────────
+
+기능 제거 / 축소 금지
+
+정리 목적의 리팩토링 금지
+
+요구사항 반영을 위한 최소 변경만 허용
+
+기존 동작은 반드시 보존
+
+────────────────────────────────
+7️⃣ 출력 계약 (OUTPUT CONTRACT)
+────────────────────────────────
+
+수정 대상 파일은 항상 완전한 파일 전문으로만 출력
+
+❌ diff(+/-) 금지
+❌ 요약 설명으로 대체 금지
+
+문구 / 문자열 / 주석 / 공백 / 위치 / 간격 모두 데이터
+
+1바이트라도 누락 시 출력 실패
+
+────────────────────────────────
+8️⃣ 레이아웃 동일성 보존 규칙 (LAYOUT PRESERVATION RULE)
+────────────────────────────────
+
+컴포넌트 제거, 교체, 구조 변경 작업 시
+“동일 레이아웃 유지”가 요구사항에 포함된 경우 다음을 절대 기준으로 한다.
+
+동일성의 기준:
+
+동일성 판단 기준은 시각적 결과(DOM 렌더링 결과) 이다
+
+컴포넌트 이름, JSX 구조 단순화 여부는 기준이 아니다
+
+여백, 정렬, 계층, grid/flex 관계, wrapper depth는
+결과적으로 기존과 동일해야 한다
+
+허용되는 행위:
+
+제거된 컴포넌트(Page 등)가 수행하던 역할을
+기존 HTML/CSS 구조로 명시적으로 대체하는 행위
+
+금지되는 행위:
+
+레이아웃 단순화, 구조 축소, JSX 병합
+
+“불필요해 보인다”는 판단에 의한 코드 축약
+
+새로운 Wrapper / Layout / Container 생성
+
+동일성 보장이 불확실한 상태에서의 임의 진행
+
+불확실성 규칙:
+
+레이아웃 동일성 유지 여부가 불명확할 경우
+작업을 진행하지 말고 반드시 사전 질문한다
+
+────────────────────────────────
+9️⃣ 최종 원칙
+────────────────────────────────
+
+본 문서는 AI의 자의적 판단을 제한하기 위한 규칙이다
+
+AI는 편의·속도·추측보다 규칙 준수를 최우선으로 한다
+
+본 문서에 반하는 모든 판단은 즉시 폐기
+
+────────────────────────────────
+🔟 출력 안정성 규칙 (OUTPUT STABILITY RULES)
+────────────────────────────────
+
+본 항목은 기존 SSOT를 변경하지 않는다.
+대용량 코드 출력 시 렌더링 파손 방지를 위한 보조 규칙이다.
+
+10.1 파일 단위 코드 블록 원칙
+
+파일 1개는 코드 블록 1개로만 출력한다
+
+하나의 파일을 여러 코드 블록으로 나누어 출력하는 행위는 허용되지 않는다
+
+여러 파일을 하나의 코드 블록에 합쳐 출력하는 행위는 허용되지 않는다
+
+10.2 코드 블록 필수 형식
+
+모든 파일 출력은 다음 형식을 따른다.
+
+// PATH: 실제/파일/경로
+파일 전체 내용
+
+
+코드 블록 시작 시 언어 식별자를 반드시 명시한다
+
+파일 경로는 코드 블록 내부 주석으로만 표기한다
+
+코드 블록 외부에 파일 내용이 노출되는 출력은 허용되지 않는다
+
+10.3 코드 블록 파손 금지 규칙
+
+다음 행위는 즉시 출력 실패로 간주한다.
+
+코드 블록을 연 상태에서 출력이 종료되는 경우
+
+코드 블록 내부에 또 다른 코드 블록 구문을 삽입하는 경우
+
+코드 블록 내부에 UI 렌더링용 특수 구문을 삽입하는 경우
+
+10.4 길이 제한 사전 차단 규칙
+
+다음 상황이 예상될 경우 출력 전에 반드시 질문한다.
+
+단일 파일이 매우 커서 출력 중단 가능성이 있는 경우
+
+다수의 파일을 연속 출력해야 하는 경우
+
+질문 없이 출력을 시작하여 중단되는 경우 출력은 실패로 간주한다.
+
+10.5 메시지 분할 규칙
+
+메시지 분할은 파일 단위로만 허용된다
+
+하나의 파일은 하나의 메시지 안에서 완결되어야 한다
+
+10.6 출력 실패 기준 추가
+
+아래 상황 중 하나라도 발생하면 출력 실패로 간주한다.
+
+코드 블록이 일반 텍스트로 렌더링되는 경우
+
+파일 일부가 코드 블록 외부로 노출되는 경우
+
+복사·붙여넣기가 정상적으로 불가능한 출력 상태
+
+────────────────────────────────
+🔒 상태
+────────────────────────────────
+
+LOCKED – AI Development SSOT
+
+본 문서는 AI Development SSOT로 사용된다.
+
+이 대화 이후 모든 작업은 본 SSOT를 절대 기준으로 한다.
+
+위반 시 작업은 즉시 중단된다.
 
 
 ==========================================================================================
-# FILE: ui/attendance/AttendanceBadge.tsx
+# FILE: docs/DESIGN_SYSTEM.md
 ==========================================================================================
-// PATH: src/shared/ui/attendance/AttendanceBadge.tsx
+# Admin Design System (SSOT)
 
-import {
-  ATTENDANCE_COLORS,
-  ATTENDANCE_LABELS,
-  AttendanceStatus,
-} from "./attendanceTokens";
-import { AttendanceIcon } from "./AttendanceIcon";
+- Color / Density / Typography / State 단일 진실
+- 컴포넌트는 Role Token만 사용
+- 테마는 Scale Token만 변경
 
-export default function AttendanceBadge({
-  status,
-}: {
-  status: AttendanceStatus;
-}) {
-  return (
-    <div
-      className={[
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
-        ATTENDANCE_COLORS[status],
-      ].join(" ")}
-    >
-      <AttendanceIcon status={status} />
-      {ATTENDANCE_LABELS[status]}
+
+==========================================================================================
+# FILE: docs/STATUS_SYSTEM.md
+==========================================================================================
+# Status System
+
+- 상태는 의미다 (색상 아님)
+- success / warning / error / info 4종만 허용
+- 도메인 상태는 이 중 하나로 매핑
+
+
+==========================================================================================
+# FILE: docs/THEME_GUIDE.md
+==========================================================================================
+# Theme Extension Guide
+
+- 테마 추가 시 scale token만 수정
+- role / component / class 변경 금지
+
+
+==========================================================================================
+# FILE: docs/UI Design System SSOT — Panel Only Architecture.md
+==========================================================================================
+🔒 UI Design System SSOT
+Panel Only Architecture (Final)
+0. 문서 성격 (Immutable)
+
+본 문서는 HakwonPlus 신규 UI 시스템의 단일 진실(SSOT) 이다.
+
+본 문서에 위배되는 UI 개념·컴포넌트·네이밍 사용은 비표준으로 간주한다.
+
+레거시 디자인과의 호환을 목표로 하지 않는다.
+
+신규 UI 시스템의 질서·확장성·일관성을 최우선으로 한다.
+
+본 문서는 수정이 아닌 확장만 허용된다.
+
+1. 핵심 선언 (Immutable Rules)
+❌ Card 개념은 존재하지 않는다
+
+Card, Tile, Box, Widget 등
+의미 없는 박스형 UI 개념은 전면 금지
+
+레거시에서 사용되던 Card 네이밍은 복원하지 않는다.
+
+신규 코드에서 Card라는 단어 사용 금지
+
+✅ 모든 박스형 UI는 Panel이다
+
+시각적으로 “박스처럼 보이는 모든 요소”는 Panel
+
+Panel은 컨테이너 역할만 수행
+
+의미는 Panel이 아니라 내부 구성으로 표현
+
+<Panel>
+  {/* 의미는 여기서 만들어진다 */}
+</Panel>
+
+2. 의미 표현 원칙 (Core Principle)
+❌ 컴포넌트 이름으로 의미를 표현하지 않는다
+// ❌ 금지
+<SummaryCard />
+<UserCard />
+<StatusCard />
+
+✅ 구성 + 토큰으로 의미를 표현한다
+<Panel>
+  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+    요약
+  </h3>
+
+  <div className="grid grid-cols-3 gap-3">
+    <div className="text-xl font-bold text-[var(--color-primary)]">
+      92점
     </div>
-  );
-}
+  </div>
+</Panel>
+
+
+의미는 JSX 구조를 읽으면 드러나야 한다
+
+이름이 아닌 위계·배치·토큰이 의미를 만든다
+
+3. Panel의 역할 정의
+Panel이 담당하는 것
+
+경계 (Boundary)
+
+배경 (Background)
+
+패딩 / 라운딩
+
+섹션 구분
+
+Panel이 담당하지 않는 것
+
+상태 (Success / Error / Warning 등)
+
+의미 (Summary / Info / Status 등)
+
+데이터 해석
+
+비즈니스 로직
+
+👉 Panel은 무색(Neutral) 컨테이너다
+
+4. 상태 표현 규칙
+❌ 상태 전용 박스 컴포넌트 금지
+// ❌ 금지
+<SuccessCard />
+<ErrorCard />
+<WarningBox />
+
+✅ 토큰 + 텍스트로 상태 표현
+<span className="text-xs font-semibold text-[var(--color-danger)]">
+  오류 발생
+</span>
+
+<div className="bg-[var(--color-success)]/10 text-[var(--color-success)]">
+  정상 처리됨
+</div>
+
+
+상태는 색상 토큰 + 텍스트로만 표현
+
+컨테이너 이름으로 상태를 봉인하지 않는다
+
+5. 권장 표준 패턴 (Standard Patterns)
+5.1 Summary / KPI 패턴
+<Panel>
+  <div className="text-xs text-[var(--text-muted)]">
+    총 근무 시간
+  </div>
+  <div className="text-2xl font-semibold text-[var(--text-primary)]">
+    124 h
+  </div>
+</Panel>
+
+5.2 Table / List Wrapper 패턴
+<Panel>
+  <div className="text-sm font-semibold mb-2">
+    근태 기록
+  </div>
+  <table>
+    ...
+  </table>
+</Panel>
+
+6. 네이밍 규칙 (Enforced)
+허용
+
+Panel
+
+Section
+
+Page
+
+PageHeader
+
+PageToolbar
+
+금지
+
+Card
+
+StatusCard
+
+InfoCard
+
+SummaryCard
+
+BadgeCard
+
+XxxBox
+
+XxxWidget
+
+❗ 신규 코드에서 Card라는 단어 사용 금지
+
+7. 레거시 처리 원칙
+
+레거시 컴포넌트는 존재할 수 있다
+
+신규 파일에서 레거시 개념을 참조하지 않는다
+
+리팩토링 시:
+
+레거시 컴포넌트 제거
+
+Panel 구조로 흡수
+
+의미는 내부 구성으로 재표현
+
+❌ 레거시 개념을 신규 DS로 승격 금지
+
+8. 코드 리뷰 / 운영 기준 (Binding)
+
+다음 중 하나라도 해당 시 반려 사유 성립:
+
+신규 파일에 Card 네이밍 등장
+
+의미를 가진 박스형 컴포넌트 생성
+
+상태를 컨테이너 컴포넌트 이름으로 표현
+
+Panel에 의미 props 부여
+(<Panel variant="success"> ❌)
+
+9. Design Philosophy (결론)
+
+UI는 컴포넌트 이름이 아니라
+구성과 위계로 의미를 말해야 한다.
+
+Panel은 그 의미를 담는 그릇일 뿐이다.
 
 
 ==========================================================================================
-# FILE: ui/attendance/AttendanceIcon.tsx
+# FILE: docs/UI_PATTERNS.md
 ==========================================================================================
-// PATH: src/shared/ui/attendance/AttendanceIcon.tsx
+# UI Pattern Usage Guide (Admin)
 
-import {
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Clock,
-  LogOut,
-  Stethoscope,
-  Video,
-  HelpCircle,
-} from "lucide-react";
+본 문서는 Admin UI 패턴의 **단일 진실(SSOT)** 이다.  
+컴포넌트 사용 시 본 문서를 기준으로 판단한다.
 
-import type { AttendanceStatus } from "./attendanceTokens";
+---
 
-export function AttendanceIcon({
-  status,
-  className = "w-4 h-4",
-}: {
-  status: AttendanceStatus;
-  className?: string;
-}) {
-  switch (status) {
-    case "PRESENT":
-      return <CheckCircle className={className} />;
-    case "ABSENT":
-      return <XCircle className={className} />;
-    case "LATE":
-      return <Clock className={className} />;
-    case "EARLY_LEAVE":
-      return <LogOut className={className} />;
-    case "EXCUSED":
-      return <AlertTriangle className={className} />;
-    case "SICK":
-      return <Stethoscope className={className} />;
-    case "ONLINE":
-      return <Video className={className} />;
-    default:
-      return <HelpCircle className={className} />;
-  }
-}
+## Panel
+- 생성 / 설정 / 상세 / 필터 영역
+- 페이지의 “의미 단위 컨테이너”
+- 시각적 카드 개념이 아니라 **구조적 컨테이너**
+
+사용 컴포넌트:
+- `Panel`
+- `Section`
+
+---
+
+## Section
+- Panel을 감싸는 레이아웃 단위
+- 페이지 리듬 유지 목적
+- Section 내부에 Panel / Table / List 배치
+
+---
+
+## PageHeader
+- 모든 페이지 최상단
+- title + actions 만 허용
+- 페이지당 **1개만 존재**
+
+사용 컴포넌트:
+- `PageHeader`
+
+---
 
 
-==========================================================================================
-# FILE: ui/attendance/attendanceTokens.ts
-==========================================================================================
-// PATH: src/shared/ui/attendance/attendanceTokens.ts
+## KPI
+- 핵심 수치만 표시
+- 비교 / 증감은 아이콘 or 보조 텍스트로 표현
+- KPI 내부에 버튼 / 링크 금지
 
-export type AttendanceStatus =
-  | "PRESENT"
-  | "ABSENT"
-  | "LATE"
-  | "EARLY_LEAVE"
-  | "EXCUSED"
-  | "SICK"
-  | "ONLINE"
-  | "UNKNOWN";
+사용 컴포넌트:
+- `KPI`
 
-export const ATTENDANCE_COLORS: Record<AttendanceStatus, string> = {
-  PRESENT: "bg-emerald-100 text-emerald-700",
-  ABSENT: "bg-red-100 text-red-700",
-  LATE: "bg-amber-100 text-amber-700",
-  EARLY_LEAVE: "bg-orange-100 text-orange-700",
-  EXCUSED: "bg-sky-100 text-sky-700",
-  SICK: "bg-pink-100 text-pink-700",
-  ONLINE: "bg-indigo-100 text-indigo-700",
-  UNKNOWN: "bg-gray-100 text-gray-500",
-};
+---
 
-export const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
-  PRESENT: "출석",
-  ABSENT: "결석",
-  LATE: "지각",
-  EARLY_LEAVE: "조퇴",
-  EXCUSED: "공결",
-  SICK: "병결",
-  ONLINE: "온라인",
-  UNKNOWN: "미정",
-};
+## EmptyState
+- 데이터 없음 / 권한 없음 / 초기 상태
+- **문장 + 행동 1개까지만 허용**
+- 테이블 / 리스트 / 패널 내부에서 사용
+
+### ✅ 사용 컴포넌트
+- `EmptyState`
+
+### ✅ Import 규칙 (고정)
+```ts
+import { EmptyState } from "@/shared/ui/ds";
 
 
 ==========================================================================================
-# FILE: ui/card/Card.tsx
+# FILE: ui/ds/EmptyState.tsx
 ==========================================================================================
-// PATH: src/shared/ui/card/Card.tsx
-/**
- * Card
- *
- * ✅ 전역 공용 카드 컨테이너
- * - 배경 / 테두리 / 라운드 / 텍스트 색상은 CSS Variable 단일 진실
- * - theme 변경 시 자동 반영
- *
- * ❌ 레이아웃 책임 없음
- * ❌ padding 강제 없음 (Body가 담당)
- */
-
-export default function Card({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={[
-        "card", // ← styles/components.css 기준
-        className,
-      ].join(" ")}
-    >
-      {children}
-    </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/card/CardBody.tsx
-==========================================================================================
-// PATH: src/shared/ui/card/CardBody.tsx
-/**
- * CardBody
- *
- * 책임:
- * - 카드 내부 padding 표준
- * - 콘텐츠 영역만 담당
- */
-
-export default function CardBody({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={[
-        "p-4", // ✅ 전역 카드 padding 기준
-        className,
-      ].join(" ")}
-    >
-      {children}
-    </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/card/CardHeader.tsx
-==========================================================================================
-// PATH: src/shared/ui/card/CardHeader.tsx
-/**
- * CardHeader
- *
- * 책임:
- * - 카드 상단 제목 / 액션 영역
- * - border / spacing 표준화
- *
- * 규칙:
- * - title 없으면 header 렌더 ❌
- */
-
-export default function CardHeader({
-  title,
-  actions,
-}: {
-  title?: string;
-  actions?: React.ReactNode;
-}) {
-  if (!title && !actions) return null;
-
-  return (
-    <div className="flex items-center justify-between border-b px-4 py-3">
-      {title && (
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-          {title}
-        </h3>
-      )}
-
-      {actions && <div className="shrink-0">{actions}</div>}
-    </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/card/index.ts
-==========================================================================================
-// PATH: src/shared/ui/card/index.ts
-
-export { default as Card } from "./Card";
-export { default as CardHeader } from "./CardHeader";
-export { default as CardBody } from "./CardBody";
-
-
-==========================================================================================
-# FILE: ui/feedback/EmptyState.tsx
-==========================================================================================
-// src/shared/ui/feedback/EmptyState.tsx
-
-interface EmptyStateProps {
-  title?: string;
-  message: string;
-  size?: "sm" | "md";
-}
+// PATH: src/shared/ui/ds/EmptyState.tsx
+import type { ReactNode } from "react";
 
 export default function EmptyState({
   title,
-  message,
-  size = "md",
-}: EmptyStateProps) {
+  description,
+  action,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+}) {
   return (
-    <div
-      className={[
-        "rounded-lg border border-dashed",
-        "border-[var(--border-divider)]",
-        "bg-[var(--bg-surface-soft)]",
-        size === "sm" ? "px-3 py-2 text-sm" : "px-4 py-3 text-sm",
-        "text-[var(--text-secondary)]",
-      ].join(" ")}
-    >
-      {title && (
-        <div className="mb-1 font-semibold text-[var(--text-primary)]">
-          {title}
+    <div className="empty">
+      <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+        {title}
+      </div>
+      {description ? (
+        <div className="mt-1 text-xs text-[var(--color-text-muted)]">
+          {description}
         </div>
-      )}
-      <div>{message}</div>
+      ) : null}
+
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }
 
 
 ==========================================================================================
-# FILE: ui/feedback/StatusBadge.tsx
+# FILE: ui/ds/KPI.tsx
 ==========================================================================================
-// PATH: src/shared/ui/feedback/StatusBadge.tsx
-
-type Status =
-  | "pass"
-  | "fail"
-  | "pending"
-  | "clinic-exam"
-  | "clinic-homework"
-  | "clinic-both";
-
-export default function StatusBadge({
-  status,
+export function KPI({
+  label,
+  value,
 }: {
-  status: Status;
+  label: string;
+  value: React.ReactNode;
 }) {
-  const base =
-    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold";
-
-  const map: Record<Status, { label: string; cls: string }> = {
-    pass: {
-      label: "PASS",
-      cls: `
-        border-[var(--color-success)]
-        bg-[var(--color-success-soft)]
-        text-[var(--color-success)]
-      `,
-    },
-    fail: {
-      label: "FAIL",
-      cls: `
-        border-[var(--color-danger)]
-        bg-[var(--color-danger-soft)]
-        text-[var(--color-danger)]
-      `,
-    },
-    pending: {
-      label: "-",
-      cls: `
-        border-[var(--border-divider)]
-        bg-[var(--bg-surface-soft)]
-        text-[var(--text-muted)]
-      `,
-    },
-    "clinic-exam": {
-      label: "시험",
-      cls: `
-        border-[var(--border-divider)]
-        bg-[var(--bg-surface-soft)]
-        text-[var(--text-secondary)]
-      `,
-    },
-    "clinic-homework": {
-      label: "과제",
-      cls: `
-        border-[var(--border-divider)]
-        bg-[var(--bg-surface-soft)]
-        text-[var(--text-secondary)]
-      `,
-    },
-    "clinic-both": {
-      label: "시험+과제",
-      cls: `
-        border-[var(--color-danger)]
-        bg-[var(--color-danger-soft)]
-        text-[var(--color-danger)]
-      `,
-    },
-  };
-
-  const item = map[status];
-
-  return <span className={`${base} ${item.cls}`}>{item.label}</span>;
+  return (
+    <div className="kpi">
+      <div className="kpi-label">{label}</div>
+      <div className="kpi-value">{value}</div>
+    </div>
+  );
 }
 
 
 ==========================================================================================
-# FILE: ui/feedback/index.ts
+# FILE: ui/ds/PageHeader.tsx
 ==========================================================================================
-// src/shared/ui/feedback/index.ts
+export function PageHeader({
+  title,
+  actions,
+}: {
+  title: string;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between mb-4">
+      <h1 className="text-lg font-semibold">{title}</h1>
+      {actions}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/ds/Panel.tsx
+==========================================================================================
+export function Panel({ children }: { children: React.ReactNode }) {
+  return <div className="panel">{children}</div>;
+}
+
+
+==========================================================================================
+# FILE: ui/ds/Section.tsx
+==========================================================================================
+export function Section({ children }: { children: React.ReactNode }) {
+  return <section className="mb-6">{children}</section>;
+}
+
+
+==========================================================================================
+# FILE: ui/ds/index.ts
+==========================================================================================
+// PATH: src/shared/ui/ds/index.ts
+
+export * from "./Panel";
+export * from "./Section";
+export * from "./PageHeader";
+export * from "./KPI";
+
 export { default as EmptyState } from "./EmptyState";
-export { default as StatusBadge } from "./StatusBadge";
 
 
 ==========================================================================================
 # FILE: ui/layout/AppLayout.tsx
 ==========================================================================================
+// PATH: src/shared/ui/layout/AppLayout.tsx
+
 import { Outlet } from "react-router-dom";
 import { ConfigProvider } from "antd";
 import Sidebar from "./Sidebar";
@@ -519,71 +786,71 @@ import Header from "./Header";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function AppLayout() {
-  const { theme } = useTheme();
+  useTheme(); // theme 값 자체는 data-theme 트리거용
 
   return (
     <ConfigProvider
       theme={{
-        /** 🔥 algorithm 완전 차단 (단일 진실 유지 핵심) */
+        /** 🔒 AntD algorithm 완전 차단 */
         algorithm: false,
 
         token: {
           /* ===== Brand ===== */
-          colorPrimary: "var(--color-primary)",
+          colorPrimary: "var(--color-brand-primary)",
 
           /* ===== Background ===== */
-          colorBgBase: "var(--bg-app)",
-          colorBgLayout: "var(--bg-app)",
-          colorBgContainer: "var(--bg-surface)",
-          colorBgElevated: "var(--bg-surface)",
+          colorBgBase: "var(--color-bg-canvas)",
+          colorBgLayout: "var(--color-bg-canvas)",
+          colorBgContainer: "var(--color-bg-surface)",
+          colorBgElevated: "var(--color-bg-surface)",
 
           /* ===== Border ===== */
-          colorBorder: "var(--border-divider)",
+          colorBorder: "var(--color-border-divider)",
 
           /* ===== Text ===== */
-          colorText: "var(--text-primary)",
-          colorTextSecondary: "var(--text-secondary)",
-          colorTextTertiary: "var(--text-muted)",
-          colorTextQuaternary: "var(--text-disabled)",
-          colorTextPlaceholder: "var(--text-muted)",
+          colorText: "var(--color-text-primary)",
+          colorTextSecondary: "var(--color-text-secondary)",
+          colorTextTertiary: "var(--color-text-muted)",
+          colorTextQuaternary: "var(--color-text-disabled)",
+          colorTextPlaceholder: "var(--color-text-muted)",
 
           /* ===== Fill (hover / active) ===== */
-          colorFillSecondary: "var(--bg-surface-soft)",
-          colorFillTertiary: "var(--bg-surface-soft)",
+          colorFillSecondary: "var(--color-bg-surface-hover)",
+          colorFillTertiary: "var(--color-bg-surface-hover)",
         },
 
         components: {
           Segmented: {
-            itemColor: "var(--text-secondary)",
-            itemHoverColor: "var(--text-primary)",
-            itemSelectedColor: "var(--text-on-primary)",
-            itemSelectedBg: "var(--color-primary)",
-            trackBg: "var(--bg-surface-soft)",
+            itemColor: "var(--color-text-secondary)",
+            itemHoverColor: "var(--color-text-primary)",
+            itemSelectedColor: "var(--color-text-inverse)",
+            itemSelectedBg: "var(--color-brand-primary)",
+            trackBg: "var(--color-bg-surface-hover)",
             borderRadius: 8,
           },
 
           Button: {
-            colorPrimary: "var(--color-primary)",
-            colorTextLightSolid: "var(--text-on-primary)",
+            colorPrimary: "var(--color-brand-primary)",
+            colorTextLightSolid: "var(--color-text-inverse)",
             borderRadius: 8,
           },
 
           Checkbox: {
-            colorPrimary: "var(--color-primary)",
+            colorPrimary: "var(--color-brand-primary)",
           },
 
-          /** 🔥 Table 기본 헤더 침범 완전 차단 */
+          /** 🔒 Table 헤더 침범 완전 차단 */
           Table: {
-            headerBg: "var(--bg-surface-soft)",
-            headerColor: "var(--text-secondary)",
-            headerSplitColor: "var(--border-divider)",
-            rowHoverBg: "var(--bg-surface-soft)",
-            borderColor: "var(--border-divider)",
+            headerBg: "var(--color-bg-surface-hover)",
+            headerColor: "var(--color-text-secondary)",
+            headerSplitColor: "var(--color-border-divider)",
+            rowHoverBg: "var(--color-bg-surface-hover)",
+            borderColor: "var(--color-border-divider)",
           },
         },
       }}
     >
-      <div className="flex min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)]">
+      <div className="flex min-h-screen bg-[var(--color-bg-canvas)] text-[var(--color-text-primary)]">
         <Sidebar />
         <div className="flex flex-1 flex-col">
           <Header />
@@ -600,18 +867,10 @@ export default function AppLayout() {
 ==========================================================================================
 # FILE: ui/layout/Header.tsx
 ==========================================================================================
-// PATH: src/shared/ui/layout/Header.tsx
-// --------------------------------------------------
-// Header
-// - 글로벌 상단 영역
-// - 페이지 제목은 포함하지 않는다 (PageHeader 전담)
-// --------------------------------------------------
-
 export default function Header() {
   return (
-    <header className="h-14 flex items-center px-6 border-b border-[var(--border-divider)] bg-[var(--bg-surface)]">
-      {/* 글로벌 액션 / 로고 / 알림 영역용 (현재는 비워둠) */}
-      개발자 : 우선 관리자 화면만 구경하세요... 오늘은 진짜 끝납니다.
+    <header className="header flex items-center px-6">
+      학생앱 구경은 | Id : gochul | PS : 0000 |
     </header>
   );
 }
@@ -620,11 +879,9 @@ export default function Header() {
 ==========================================================================================
 # FILE: ui/layout/Sidebar.tsx
 ==========================================================================================
-// PATH: src/shared/ui/layout/Sidebar.tsx
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { FiUser } from "react-icons/fi";
-
 import { useTheme } from "@/context/ThemeContext";
 
 const menu = [
@@ -655,8 +912,7 @@ export default function Sidebar() {
   const [themeOpen, setThemeOpen] = useState(false);
 
   return (
-    <aside className="sidebar w-40 flex flex-col py-4">
-      {/* ================= Top Menu ================= */}
+    <aside className="sidebar flex flex-col py-4">
       <nav className="nav px-3">
         {menu.map((item) => (
           <NavLink
@@ -669,17 +925,12 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-4 mb-3 mx-3 h-px bg-[var(--border-divider)] opacity-60" />
+      <div className="mt-4 mb-3 mx-3 h-px opacity-60 divider" />
 
-      {/* ================= User Action ================= */}
+      {/* User */}
       <div className="relative px-3 mb-2">
         <button
-          className="
-            nav-item w-full
-            flex items-center gap-2
-            text-[var(--sidebar-text-secondary)]
-            hover:text-[var(--sidebar-text-primary)]
-          "
+          className="nav-item w-full flex items-center gap-2"
           onClick={() => {
             setUserOpen((p) => !p);
             setThemeOpen(false);
@@ -690,24 +941,9 @@ export default function Sidebar() {
         </button>
 
         {userOpen && (
-          <div
-            className="
-              absolute left-[calc(100%+6px)] top-1/2 -translate-y-1/2
-              min-w-[160px]
-              rounded-md
-              border border-[var(--border-divider)]
-              bg-[var(--bg-surface)]
-              shadow-md
-              overflow-hidden
-              z-50
-            "
-          >
+          <div className="absolute left-[calc(100%+6px)] top-1/2 -translate-y-1/2 min-w-[160px] surface shadow-md z-50">
             <button
-              className="
-                block w-full px-3 py-2 text-left text-sm
-                text-[var(--text-primary)]
-                hover:bg-[var(--sidebar-hover-bg)]
-              "
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--sidebar-hover-bg)]"
               onClick={() => {
                 setUserOpen(false);
                 navigate("/admin/profile/account");
@@ -717,11 +953,7 @@ export default function Sidebar() {
             </button>
 
             <button
-              className="
-                block w-full px-3 py-2 text-left text-sm
-                text-[var(--text-primary)]
-                hover:bg-[var(--sidebar-hover-bg)]
-              "
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--sidebar-hover-bg)]"
               onClick={() => {
                 setUserOpen(false);
                 navigate("/admin/profile/expense");
@@ -730,18 +962,11 @@ export default function Sidebar() {
               근태 기록
             </button>
 
-            <div className="h-px bg-[var(--border-divider)]" />
+            <div className="divider" />
 
             <button
-              className="
-                block w-full px-3 py-2 text-left text-sm
-                text-red-400
-                hover:bg-[var(--sidebar-hover-bg)]
-              "
-              onClick={() => {
-                setUserOpen(false);
-                console.log("logout");
-              }}
+              className="block w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-[var(--sidebar-hover-bg)]"
+              onClick={() => setUserOpen(false)}
             >
               로그아웃
             </button>
@@ -749,15 +974,10 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* ================= Theme Action ================= */}
+      {/* Theme */}
       <div className="relative px-3">
         <button
-          className="
-            nav-item w-full
-            flex items-center
-            text-[var(--sidebar-text-secondary)]
-            hover:text-[var(--sidebar-text-primary)]
-          "
+          className="nav-item w-full"
           onClick={() => {
             setThemeOpen((p) => !p);
             setUserOpen(false);
@@ -767,29 +987,15 @@ export default function Sidebar() {
         </button>
 
         {themeOpen && (
-          <div
-            className="
-              absolute left-[calc(100%+6px)] top-1/2 -translate-y-1/2
-              min-w-[160px]
-              rounded-md
-              border border-[var(--border-divider)]
-              bg-[var(--bg-surface)]
-              shadow-md
-              overflow-hidden
-              z-50
-            "
-          >
+          <div className="absolute left-[calc(100%+6px)] top-1/2 -translate-y-1/2 min-w-[160px] surface shadow-md z-50">
             {themes.map((t) => (
               <button
                 key={t.key}
-                className={`
-                  block w-full px-3 py-2 text-left text-sm
-                  ${
-                    theme === t.key
-                      ? "text-[var(--color-primary)] bg-[var(--sidebar-hover-bg)]"
-                      : "text-[var(--text-primary)] hover:bg-[var(--sidebar-hover-bg)]"
-                  }
-                `}
+                className={`block w-full px-3 py-2 text-left text-sm ${
+                  theme === t.key
+                    ? "text-[var(--color-primary)]"
+                    : ""
+                } hover:bg-[var(--sidebar-hover-bg)]`}
                 onClick={() => {
                   setTheme(t.key);
                   setThemeOpen(false);
@@ -813,336 +1019,6 @@ export default function Sidebar() {
 export { default as AppLayout } from "./AppLayout";
 export { default as Sidebar } from "./Sidebar";
 export { default as Header } from "./Header";
-
-
-==========================================================================================
-# FILE: ui/page/OverlayPage.tsx
-==========================================================================================
-// PATH: src/shared/ui/page/OverlayPage.tsx
-// --------------------------------------------------
-// OverlayPage
-//
-// - 관리자 페이지용 공용 Overlay 컨테이너
-// - 중앙 카드 형태의 "페이지"를 Overlay로 표현
-//
-// 기능:
-// - Dim background
-// - ESC 키로 닫기
-// - 모바일(md 이하)에서는 full-screen 전환
-//
-// 규칙:
-// - 내부에서는 반드시 Page 계열 컴포넌트 사용
-// --------------------------------------------------
-
-import { ReactNode, useEffect } from "react";
-
-type Props = {
-  children: ReactNode;
-  onClose: () => void;
-};
-
-export default function OverlayPage({ children, onClose }: Props) {
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/60"
-        onClick={onClose}
-      />
-
-      <div
-        className="
-          relative z-10
-          w-full max-w-[1200px]
-          h-full md:h-auto
-          md:rounded-xl
-          bg-[var(--bg-app)]
-          shadow-xl
-          overflow-auto
-        "
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/page/Page.tsx
-==========================================================================================
-// PATH: src/shared/ui/page/Page.tsx
-// --------------------------------------------------
-// 페이지 단위 레이아웃 래퍼
-//
-// - padding / max-width / 기본 텍스트 색상 책임
-// - AppLayout 내부에서 반드시 이 컴포넌트를 통해 페이지를 구성한다
-// --------------------------------------------------
-
-import { ReactNode } from "react";
-
-type Props = {
-  children: ReactNode;
-  className?: string;
-};
-
-export default function Page({ children, className }: Props) {
-  return (
-    <div className={`px-6 py-6 text-[var(--text-primary)] ${className ?? ""}`}>
-      <div className="mx-auto w-full max-w-[1400px] space-y-5">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/page/PageHeader.tsx
-==========================================================================================
-// src/shared/ui/page/PageHeader.tsx
-import { ReactNode } from "react";
-
-interface PageHeaderProps {
-  title: string;
-  description?: string;
-  actions?: ReactNode;
-}
-
-export default function PageHeader({
-  title,
-  description,
-  actions,
-}: PageHeaderProps) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div>
-        <h1 className="text-lg font-semibold text-[var(--text-primary)]">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            {description}
-          </p>
-        )}
-      </div>
-
-      {actions && (
-        <div className="flex items-center gap-2">
-          {actions}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/page/PageSection.tsx
-==========================================================================================
-// src/shared/ui/page/PageSection.tsx
-import { ReactNode } from "react";
-
-interface PageSectionProps {
-  title?: string;
-  description?: string;
-  right?: ReactNode;
-  children: ReactNode;
-  className?: string;
-}
-
-export default function PageSection({
-  title,
-  description,
-  right,
-  children,
-  className = "",
-}: PageSectionProps) {
-  return (
-    <section className={`space-y-4 ${className}`}>
-      {(title || right) && (
-        <div className="flex items-start justify-between">
-          <div>
-            {title && (
-              <div className="text-sm font-semibold text-[var(--text-primary)]">
-                {title}
-              </div>
-            )}
-            {description && (
-              <div className="text-xs text-[var(--text-secondary)]">
-                {description}
-              </div>
-            )}
-          </div>
-          {right}
-        </div>
-      )}
-
-      {children}
-    </section>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/page/PageTabs.tsx
-==========================================================================================
-// src/shared/ui/page/PageTabs.tsx
-import { NavLink } from "react-router-dom";
-
-interface TabItem {
-  label: string;
-  to: string;
-  end?: boolean;
-}
-
-interface PageTabsProps {
-  tabs: TabItem[];
-}
-
-export default function PageTabs({ tabs }: PageTabsProps) {
-  return (
-    <div className="flex gap-6 border-b border-[var(--border-divider)]">
-      {tabs.map((tab) => (
-        <NavLink
-          key={tab.to}
-          to={tab.to}
-          end={tab.end}
-          className={({ isActive }) =>
-            `pb-2 text-sm font-medium transition-colors border-b-2 ${
-              isActive
-                ? "border-[var(--color-primary)] text-[var(--text-primary)]"
-                : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-            }`
-          }
-        >
-          {tab.label}
-        </NavLink>
-      ))}
-    </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/page/PageToolbar.tsx
-==========================================================================================
-// src/shared/ui/layout/PageToolbar.tsx
-import { ReactNode } from "react";
-
-interface PageToolbarProps {
-  children: ReactNode;
-}
-
-export default function PageToolbar({ children }: PageToolbarProps) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      {children}
-    </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: ui/page/README.md
-==========================================================================================
-# Page UI 규약 (Admin Frontend)
-
-이 문서는 관리자 프론트엔드의
-모든 Page / Layout / Section UI 규칙을 정의합니다.
-
----
-
-## 1️⃣ 핵심 원칙
-
-### ✅ Page는 "화면"의 최소 단위다
-
-- padding
-- max-width
-- 배경
-- 기본 레이아웃
-
-👉 전부 Page가 책임진다.
-
----
-
-## 2️⃣ 사용 컴포넌트
-
-### Page
-
-```tsx
-<Page>
-  ...
-</Page>
-
-
-==========================================================================================
-# FILE: ui/page/index.ts
-==========================================================================================
-// PATH: src/shared/ui/page/index.ts
-export { default as Page } from "./Page";
-export { default as PageHeader } from "./PageHeader";
-export { default as PageSection } from "./PageSection";
-export { default as PageToolbar } from "./PageToolbar";
-export { default as OverlayPage } from "./OverlayPage";
-export { default as PageTabs } from "./PageTabs";
-
-
-==========================================================================================
-# FILE: ui/theme/ThemeSwitcher.tsx
-==========================================================================================
-// PATH: src/shared/ui/theme/ThemeSwitcher.tsx
-import { useTheme } from "@/context/ThemeContext";
-import { useState } from "react";
-
-const themes = [
-  { key: "modern", label: "모던" },
-  { key: "navy", label: "네이비" },
-  { key: "kakao", label: "카카오" },
-  { key: "naver", label: "네이버" },
-  { key: "purple", label: "퍼플" },
-] as const;
-
-export default function ThemeSwitcher() {
-  const { theme, setTheme } = useTheme();
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="ts-container">
-      <button
-        className="ts-trigger"
-        onClick={() => setOpen((p) => !p)}
-      >
-        테마 변경
-      </button>
-
-      {open && (
-        <div className="ts-dropdown">
-          {themes.map((t) => (
-            <button
-              key={t.key}
-              className={`ts-option ${theme === t.key ? "active" : ""}`}
-              onClick={() => {
-                setTheme(t.key);
-                setOpen(false);
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 ==========================================================================================

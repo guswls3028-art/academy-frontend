@@ -1,0 +1,9 @@
+/* PATH: src/styles/design-system/patterns/board.css */
+/* Weekly / Monthly Board */
+
+.board-cell {
+  border: 1px solid var(--color-border-divider);
+  background: var(--surface-card-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}

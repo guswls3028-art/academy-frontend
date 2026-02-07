@@ -1,0 +1,9 @@
+/* PATH: src/styles/design-system/colors/role/brand.css */
+/* Role ↔ Scale Mapping (FIXED) */
+
+:root {
+  --color-brand-primary:        var(--scale-Primary500);
+  --color-brand-primary-hover:  var(--scale-Primary600);
+  --color-brand-primary-active: var(--scale-Primary700);
+  --color-brand-primary-subtle: var(--scale-Primary100);
+}

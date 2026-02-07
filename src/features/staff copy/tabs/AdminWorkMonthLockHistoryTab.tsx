@@ -1,7 +1,8 @@
 // PATH: src/features/staff/tabs/AdminWorkMonthLockHistoryTab.tsx
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardBody } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
+
 import { fetchWorkMonthLocks, WorkMonthLock } from "../api/staffWorkMonthLock.api";
 
 /* =========================

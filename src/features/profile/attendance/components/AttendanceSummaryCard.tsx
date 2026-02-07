@@ -1,4 +1,5 @@
-import { Card, CardBody } from "@/shared/ui/card";
+// PATH: src/features/profile/attendance/components/AttendanceSummaryCard.tsx
+import { Panel } from "@/shared/ui/ds";
 import { AttendanceSummary } from "../../api/profile.api";
 
 export default function AttendanceSummaryCard({
@@ -9,8 +10,8 @@ export default function AttendanceSummaryCard({
   if (!summary) return null;
 
   return (
-    <Card>
-      <CardBody className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <Panel>
+      <div className="panel-body grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Item label="총 근무 시간" value={`${summary.total_hours} h`} />
         <Item
           label="총 급여"
@@ -21,8 +22,8 @@ export default function AttendanceSummaryCard({
           value={`${summary.total_after_tax.toLocaleString()} 원`}
           tone="primary"
         />
-      </CardBody>
-    </Card>
+      </div>
+    </Panel>
   );
 }
 

@@ -19,7 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import api from "@/shared/api/axios";
-import { Page } from "@/shared/ui/page";
+import { PageHeader, Section, Panel } from "@/shared/ui/ds";
 
 import { useSessionParams } from "../hooks/useSessionParams";
 import SessionAssessmentSidePanel from "../components/SessionAssessmentSidePanel";

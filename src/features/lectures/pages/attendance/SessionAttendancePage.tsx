@@ -5,7 +5,7 @@ import {
   fetchAttendance,
   updateAttendance,
 } from "@/features/lectures/api/attendance";
-import { PageSection } from "@/shared/ui/page";
+import { PageHeader, Section, Panel } from "@/shared/ui/ds";
 
 /* ================= 출결 상수 (색상 통일 HARD CODE) ================= */
 
@@ -109,108 +109,104 @@ export default function SessionAttendancePage({
     },
   });
 
-  if (!attendance) {
-    return (
-      <PageSection title="출결 관리">
-        <div className="text-sm text-[var(--text-muted)]">로딩중...</div>
-      </PageSection>
-    );
-  }
-
   return (
-    <PageSection title="출결 관리">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-[var(--border-divider)] text-[var(--text-secondary)]">
-            <tr>
-              <th className="px-3 py-2 text-left">이름</th>
-              <th className="px-3 py-2 text-left">현재 상태</th>
-              <th className="px-3 py-2 text-left">출결 변경</th>
-              <th className="px-3 py-2 text-left">메모</th>
-            </tr>
-          </thead>
+    <Section>
+      <PageHeader title="출결 관리" />
 
-          <tbody>
-            {attendance.map((att: any) => {
-              const style = STATUS_STYLE_MAP[att.status];
-
-              return (
-                <tr
-                  key={att.id}
-                  className="border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
-                >
-                  {/* 이름 */}
-                  <td className="px-3 py-2 font-medium text-[var(--text-primary)]">
-                    {att.name}
-                  </td>
-
-                  {/* 현재 상태 (색상 반영) */}
-                  <td className="px-3 py-2">
-                    {style ? (
-                      <span
-                        className={[
-                          "inline-flex rounded-full border px-2 py-1 text-xs font-semibold",
-                          style.active,
-                        ].join(" ")}
-                      >
-                        {style.label}
-                      </span>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-
-                  {/* 출결 변경 */}
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1">
-                      {STATUS_BUTTONS.map((btn) => {
-                        const active = att.status === btn.code;
-
-                        return (
-                          <button
-                            key={btn.code}
-                            type="button"
-                            className={[
-                              "rounded border px-2 py-1 text-xs font-semibold transition",
-                              active ? btn.active : btn.idle,
-                              !active &&
-                                "hover:bg-[var(--bg-surface-soft)]",
-                            ].join(" ")}
-                            onClick={() => {
-                              if (active) return;
-                              mutationStatus.mutate({
-                                id: att.id,
-                                status: btn.code,
-                              });
-                            }}
-                          >
-                            {btn.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </td>
-
-                  {/* 메모 */}
-                  <td className="px-3 py-2">
-                    <input
-                      defaultValue={att.memo}
-                      placeholder="메모 입력"
-                      className="w-full rounded-md border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-                      onBlur={(e) =>
-                        mutationMemo.mutate({
-                          id: att.id,
-                          memo: e.target.value,
-                        })
-                      }
-                    />
-                  </td>
+      <Panel>
+        {!attendance ? (
+          <div className="text-sm text-[var(--text-muted)]">로딩중...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-[var(--border-divider)] text-[var(--text-secondary)]">
+                <tr>
+                  <th className="px-3 py-2 text-left">이름</th>
+                  <th className="px-3 py-2 text-left">현재 상태</th>
+                  <th className="px-3 py-2 text-left">출결 변경</th>
+                  <th className="px-3 py-2 text-left">메모</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </PageSection>
+              </thead>
+
+              <tbody>
+                {attendance.map((att: any) => {
+                  const style = STATUS_STYLE_MAP[att.status];
+
+                  return (
+                    <tr
+                      key={att.id}
+                      className="border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                    >
+                      <td className="px-3 py-2 font-medium text-[var(--text-primary)]">
+                        {att.name}
+                      </td>
+
+                      <td className="px-3 py-2">
+                        {style ? (
+                          <span
+                            className={[
+                              "inline-flex rounded-full border px-2 py-1 text-xs font-semibold",
+                              style.active,
+                            ].join(" ")}
+                          >
+                            {style.label}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {STATUS_BUTTONS.map((btn) => {
+                            const active = att.status === btn.code;
+
+                            return (
+                              <button
+                                key={btn.code}
+                                type="button"
+                                className={[
+                                  "rounded border px-2 py-1 text-xs font-semibold transition",
+                                  active ? btn.active : btn.idle,
+                                  !active &&
+                                    "hover:bg-[var(--bg-surface-soft)]",
+                                ].join(" ")}
+                                onClick={() => {
+                                  if (active) return;
+                                  mutationStatus.mutate({
+                                    id: att.id,
+                                    status: btn.code,
+                                  });
+                                }}
+                              >
+                                {btn.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </td>
+
+                      <td className="px-3 py-2">
+                        <input
+                          defaultValue={att.memo}
+                          placeholder="메모 입력"
+                          className="w-full rounded-md border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                          onBlur={(e) =>
+                            mutationMemo.mutate({
+                              id: att.id,
+                              memo: e.target.value,
+                            })
+                          }
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </Section>
   );
 }

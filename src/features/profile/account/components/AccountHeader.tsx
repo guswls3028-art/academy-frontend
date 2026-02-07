@@ -1,10 +1,6 @@
-import { PageHeader } from "@/shared/ui/page";
+// PATH: src/features/profile/account/components/AccountHeader.tsx
+import { PageHeader } from "@/shared/ui/ds";
 
 export default function AccountHeader() {
-  return (
-    <PageHeader
-      title="계정 설정"
-      description="내 계정 정보와 보안 설정을 관리합니다."
-    />
-  );
+  return <PageHeader title="계정 설정" />;
 }

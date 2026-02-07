@@ -1,0 +1,9 @@
+/* PATH: src/styles/design-system/state/semantic-state.css */
+/* Semantic States */
+
+:root {
+  --state-success-bg: var(--scale-Success100);
+  --state-warning-bg: var(--scale-Warning100);
+  --state-error-bg:   var(--scale-Error100);
+  --state-info-bg:    var(--scale-Info100);
+}

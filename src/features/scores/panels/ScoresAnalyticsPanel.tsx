@@ -10,7 +10,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchSessionScoreSummary } from "@/features/sessions/api/sessionScoreSummary";
-import { PageSection } from "@/shared/ui/page";
+import { Section, Panel } from "@/shared/ui/ds";
 
 export default function ScoresAnalyticsPanel({
   sessionId,
@@ -23,28 +23,34 @@ export default function ScoresAnalyticsPanel({
   });
 
   return (
-    <PageSection title="성적 분석">
-      {/* Loading */}
-      {isLoading && (
-        <div className="text-sm text-muted">분석 불러오는 중...</div>
-      )}
-
-      {/* Error */}
-      {isError && (
-        <div className="text-sm text-red-500">
-          분석 데이터를 불러오지 못했습니다.
+    <Section>
+      <Panel>
+        <div className="mb-4">
+          <h3 className="text-base font-semibold">성적 분석</h3>
         </div>
-      )}
 
-      {/* Content */}
-      {!isLoading && !isError && data && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <AnalyticsCard title="전체" data={data.total} />
-          <AnalyticsCard title="오프라인" data={data.offline} />
-          <AnalyticsCard title="온라인" data={data.online} />
-        </div>
-      )}
-    </PageSection>
+        {/* Loading */}
+        {isLoading && (
+          <div className="text-sm text-muted">분석 불러오는 중...</div>
+        )}
+
+        {/* Error */}
+        {isError && (
+          <div className="text-sm text-red-500">
+            분석 데이터를 불러오지 못했습니다.
+          </div>
+        )}
+
+        {/* Content */}
+        {!isLoading && !isError && data && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <AnalyticsCard title="전체" data={data.total} />
+            <AnalyticsCard title="오프라인" data={data.offline} />
+            <AnalyticsCard title="온라인" data={data.online} />
+          </div>
+        )}
+      </Panel>
+    </Section>
   );
 }
 

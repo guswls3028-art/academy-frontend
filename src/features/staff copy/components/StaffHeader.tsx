@@ -1,5 +1,5 @@
 // PATH: src/features/staff/components/StaffHeader.tsx
-import { PageToolbar } from "@/shared/ui/page";
+import { PageToolbar } from "@/shared/ui/ds";
 import { StaffFilters } from "../hooks/useStaffDomain";
 
 export default function StaffHeader({

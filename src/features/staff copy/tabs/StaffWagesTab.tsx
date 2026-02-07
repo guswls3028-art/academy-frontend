@@ -11,7 +11,7 @@ import {
   StaffWorkType,
   WorkType,
 } from "../api/staffWorkType.api";
-import { EmptyState } from "@/shared/ui/feedback";
+import { EmptyState } from "@/shared/ui/ds";
 
 export default function StaffWagesTab() {
   const { staffId } = useParams();

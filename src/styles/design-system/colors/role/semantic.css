@@ -1,0 +1,9 @@
+/* PATH: src/styles/design-system/colors/role/semantic.css */
+/* Semantic Role Tokens (FIXED) */
+
+:root {
+  --color-success: var(--scale-Success500);
+  --color-warning: var(--scale-Warning500);
+  --color-error:   var(--scale-Error500);
+  --color-info:    var(--scale-Info500);
+}

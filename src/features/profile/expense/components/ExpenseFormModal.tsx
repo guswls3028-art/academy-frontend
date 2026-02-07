@@ -1,5 +1,6 @@
+// PATH: src/features/profile/expense/components/ExpenseFormModal.tsx
 import { useEffect, useMemo, useState } from "react";
-import { Card, CardBody, CardHeader } from "@/shared/ui/card";
+import { Panel } from "@/shared/ui/ds";
 import { Expense } from "../../api/profile.api";
 
 type Form = {
@@ -89,10 +90,14 @@ export default function ExpenseFormModal({
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
       <div className="relative w-full max-w-[560px]">
-        <Card className="overflow-hidden rounded-xl">
-          <CardHeader title={isEdit ? "지출 수정" : "지출 등록"} />
+        <Panel>
+          <div className="panel-header">
+            <div className="text-sm font-semibold text-[var(--text-primary)]">
+              {isEdit ? "지출 수정" : "지출 등록"}
+            </div>
+          </div>
 
-          <CardBody className="space-y-4 text-sm">
+          <div className="panel-body space-y-4 text-sm">
             {/* 안내 */}
             <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
               <div className="text-xs text-[var(--text-muted)]">
@@ -184,8 +189,8 @@ export default function ExpenseFormModal({
                   : "저장"}
               </button>
             </div>
-          </CardBody>
-        </Card>
+          </div>
+        </Panel>
       </div>
     </div>
   );
