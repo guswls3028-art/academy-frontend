@@ -1,159 +1,81 @@
-// src/features/lectures/pages/attendance/LectureAttendanceMatrixPage.tsx
+// PATH: src/features/lectures/pages/attendance/LectureAttendanceMatrixPage.tsx
+import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAttendanceMatrix, type AttendanceMatrixRow } from "@/features/lectures/api/attendance";
+import { EmptyState } from "@/shared/ui/ds";
 
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
-import { PageHeader, Section, Panel } from "@/shared/ui/ds";
-import { useLectureParams } from "@/features/lectures/hooks/useLectureParams";
-
-import {
-  fetchAttendanceMatrix,
-  updateAttendance,
-  downloadAttendanceExcel,
-} from "../../api/attendance";
-
-import "./attendanceMatrix.css";
-
-const STATUS_ORDER = [
-  "PRESENT",
-  "LATE",
-  "ONLINE",
-  "SUPPLEMENT",
-  "EARLY_LEAVE",
-  "ABSENT",
-  "RUNAWAY",
-  "MATERIAL",
-  "INACTIVE",
-  "SECESSION",
-];
-
-const STATUS_LABEL: Record<string, string> = {
-  PRESENT: "출석",
-  LATE: "지각",
-  ONLINE: "온라인",
-  SUPPLEMENT: "보강",
-  EARLY_LEAVE: "조퇴",
-  ABSENT: "결석",
-  RUNAWAY: "출튀",
-  MATERIAL: "자료",
-  INACTIVE: "부재",
-  SECESSION: "탈퇴",
+const TH_STYLE = {
+  background:
+    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
+  color:
+    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
 };
 
-function nextStatus(current: string) {
-  const idx = STATUS_ORDER.indexOf(current);
-  return idx === -1
-    ? STATUS_ORDER[0]
-    : STATUS_ORDER[(idx + 1) % STATUS_ORDER.length];
-}
-
-function statusClass(status: string) {
-  return `status-${status.toLowerCase().replace("_", "-")}`;
-}
-
 export default function LectureAttendanceMatrixPage() {
-  const { lectureId } = useLectureParams();
-  const qc = useQueryClient();
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const { lectureId } = useParams<{ lectureId: string }>();
+  const lectureIdNum = Number(lectureId);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["attendance-matrix", lectureId],
-    queryFn: () => fetchAttendanceMatrix(lectureId),
-    enabled: Number.isFinite(lectureId),
+  const { data, isLoading } = useQuery<AttendanceMatrixRow[]>({
+    queryKey: ["attendance-matrix", lectureIdNum],
+    queryFn: () => fetchAttendanceMatrix(lectureIdNum),
+    enabled: Number.isFinite(lectureIdNum),
   });
 
-  const mutation = useMutation({
-    mutationFn: ({
-      attendanceId,
-      status,
-    }: {
-      attendanceId: number;
-      status: string;
-    }) => {
-      setUpdatingId(attendanceId);
-      return updateAttendance(attendanceId, { status });
-    },
-    onSettled: () => {
-      setUpdatingId(null);
-      qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
-    },
-  });
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (!data || data.length === 0)
+    return (
+      <EmptyState
+        scope="panel"
+        title="출결 데이터가 없습니다."
+        description="차시 또는 출결 데이터가 아직 없습니다."
+      />
+    );
 
   return (
-    <Section>
-      <PageHeader
-        title="출결 매트릭스"
-        actions={
-          <button
-            className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-sm text-white"
-            onClick={() => downloadAttendanceExcel(lectureId)}
-          >
-            엑셀 다운로드
-          </button>
-        }
-      />
+    <div style={{ overflowX: "auto" }}>
+      <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--color-border-divider)" }}>
+        <table className="w-full" style={{ tableLayout: "fixed" }}>
+          <thead>
+            <tr>
+              <th
+                className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
+                style={{ textAlign: "left", whiteSpace: "nowrap", ...TH_STYLE }}
+              >
+                학생
+              </th>
 
-      <Panel>
-        {isLoading || !data ? (
-          <div className="py-12 text-center text-sm text-[var(--text-muted)]">
-            출결 데이터를 불러오는 중입니다.
-          </div>
-        ) : (
-          <div className="overflow-auto rounded border border-[var(--border-divider)]">
-            <table className="attendance-table">
-              <thead className="attendance-sticky-header">
-                <tr>
-                  <th className="attendance-sticky-student">학생</th>
-                  {data.sessions.map((s: any) => (
-                    <th key={s.id}>{s.order}차시</th>
-                  ))}
-                </tr>
-              </thead>
+              {data[0].sessions.map((s) => (
+                <th
+                  key={s.session_id}
+                  className="px-3 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
+                  style={{ textAlign: "center", whiteSpace: "nowrap", ...TH_STYLE }}
+                >
+                  {s.title}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-              <tbody>
-                {data.students.map((st: any) => (
-                  <tr key={st.student_id} className="attendance-row">
-                    <td className="attendance-sticky-student">
-                      {st.name}
-                    </td>
+          <tbody className="divide-y divide-[var(--color-border-divider)]">
+            {data.map((row) => (
+              <tr key={row.student_id} className="hover:bg-[var(--color-bg-surface-soft)]">
+                <td className="px-4 py-3 text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
+                  {row.student_name}
+                </td>
 
-                    {data.sessions.map((s: any) => {
-                      const cell = st.attendance[String(s.id)];
-                      if (!cell) return <td key={s.id}>-</td>;
-
-                      const isUpdating =
-                        updatingId === cell.attendance_id;
-                      const disabled = cell.status === "SECESSION";
-
-                      return (
-                        <td
-                          key={s.id}
-                          className={[
-                            "attendance-cell",
-                            statusClass(cell.status),
-                            disabled ? "disabled" : "",
-                            isUpdating ? "updating" : "",
-                          ].join(" ")}
-                          title={STATUS_LABEL[cell.status]}
-                          onClick={() => {
-                            if (disabled || isUpdating) return;
-                            mutation.mutate({
-                              attendanceId: cell.attendance_id,
-                              status: nextStatus(cell.status),
-                            });
-                          }}
-                        >
-                          {STATUS_LABEL[cell.status]}
-                        </td>
-                      );
-                    })}
-                  </tr>
+                {row.sessions.map((s) => (
+                  <td
+                    key={s.session_id}
+                    className="px-3 py-3 text-center text-[13px] font-semibold text-[var(--color-text-secondary)]"
+                  >
+                    {s.status_label ?? "-"}
+                  </td>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
-    </Section>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

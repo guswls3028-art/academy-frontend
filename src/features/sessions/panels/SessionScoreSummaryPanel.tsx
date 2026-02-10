@@ -1,22 +1,10 @@
-/**
- * PATH: src/features/sessions/panels/SessionScoreSummaryPanel.tsx
- *
- * ✅ SessionScoreSummaryPanel (UX 개선 FINAL)
- *
- * 개선 사항:
- * - 합격률을 "전체 학생 수 대비" 명확히 표시
- * - 퍼센트 + n/m 명 병기
- *
- * 설계 계약:
- * - count / pass_count는 backend 단일 진실
- * - 프론트는 계산 ❌ (표현용 비율만 계산)
- */
-
+// PATH: src/features/sessions/panels/SessionScoreSummaryPanel.tsx
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchSessionScoreSummary,
   ScoreGroupSummary,
 } from "../api/sessionScoreSummary";
+import { Panel } from "@/shared/ui/ds";
 
 export default function SessionScoreSummaryPanel({
   sessionId,
@@ -31,26 +19,27 @@ export default function SessionScoreSummaryPanel({
 
   if (isLoading || !data) {
     return (
-      <div className="text-sm text-gray-500">
-        통계 불러오는 중...
+      <div
+        className="text-sm"
+        style={{ color: "var(--color-text-muted)" }}
+      >
+        통계 불러오는 중…
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 rounded border bg-white p-4">
-      <div className="text-sm font-semibold">
+    <Panel>
+      <div className="mb-4 text-sm font-semibold">
         시험 성적 통계 (전체 학생 대비)
       </div>
 
       <StatBlock title="전체" data={data.total} />
       <StatBlock title="오프라인 응시" data={data.offline} />
       <StatBlock title="온라인 응시" data={data.online} muted />
-    </div>
+    </Panel>
   );
 }
-
-/* ===================== UI ===================== */
 
 function StatBlock({
   title,
@@ -71,16 +60,20 @@ function StatBlock({
 
   return (
     <div
-      className={[
-        "rounded border p-3 text-sm",
-        muted ? "bg-gray-50" : "bg-white",
-      ].join(" ")}
+      className="mb-3 rounded border p-3 text-sm"
+      style={{
+        borderColor: "var(--color-border-divider)",
+        background: muted
+          ? "var(--color-bg-surface-soft)"
+          : "var(--color-bg-surface)",
+      }}
     >
-      <div className="mb-2 font-medium">
-        {title}
-      </div>
+      <div className="mb-2 font-medium">{title}</div>
 
-      <div className="grid grid-cols-2 gap-y-1 text-xs text-gray-700">
+      <div
+        className="grid grid-cols-2 gap-y-1 text-xs"
+        style={{ color: "var(--color-text-secondary)" }}
+      >
         <div>응시자 수</div>
         <div>{total}</div>
 
@@ -92,7 +85,10 @@ function StatBlock({
           {passRate !== "-" ? (
             <>
               {passRate}%
-              <span className="ml-1 text-gray-500">
+              <span
+                className="ml-1"
+                style={{ color: "var(--color-text-muted)" }}
+              >
                 ({passed}/{total} 명)
               </span>
             </>

@@ -1,6 +1,10 @@
-import { useState } from "react";
+// PATH: src/features/lectures/components/DdayModal.tsx
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createDday } from "../api/ddays";
+
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 
 interface Props {
   lectureId: number;
@@ -10,14 +14,22 @@ interface Props {
 export default function DdayModal({ lectureId, onClose }: Props) {
   const qc = useQueryClient();
 
-  const [title, setTitle] = useState("");
+  const [titleInput, setTitleInput] = useState("");
   const [date, setDate] = useState<string>("");
   const [time, setTime] = useState<string>("12:00");
+  const [busy, setBusy] = useState(false);
 
-  const { mutate, isLoading } = useMutation({
-    mutationFn: () => {
-      const iso = date && time ? `${date}T${time}:00` : `${date}T00:00:00`;
-      return createDday({ lecture: lectureId, title, date: iso });
+  const title = useMemo(() => "D-Day 추가", []);
+
+  const { mutate } = useMutation({
+    mutationFn: async () => {
+      setBusy(true);
+      try {
+        const iso = date && time ? `${date}T${time}:00` : `${date}T00:00:00`;
+        return await createDday({ lecture: lectureId, title: titleInput, date: iso });
+      } finally {
+        setBusy(false);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ddays", lectureId] });
@@ -25,74 +37,82 @@ export default function DdayModal({ lectureId, onClose }: Props) {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !date) return;
-    mutate();
-  };
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        if (!busy && titleInput.trim() && date) mutate();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, titleInput, date, time]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg bg-[var(--bg-surface)] p-6 shadow-lg">
-        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
-          D-Day 추가
-        </h2>
+    <AdminModal open={true} onClose={onClose} type="action" width={720}>
+      <ModalHeader type="action" title={title} description="⌘/Ctrl + Enter 로 저장" />
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
-          <div>
-            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
-              제목
-            </label>
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <input
+            className="ds-input"
+            placeholder="제목"
+            value={titleInput}
+            onChange={(e) => setTitleInput(e.target.value)}
+            disabled={busy}
+            data-invalid={!titleInput.trim() ? "true" : "false"}
+            autoFocus
+          />
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 10 }}>
             <input
-              className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              type="date"
+              className="ds-input"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              disabled={busy}
+              data-invalid={!date ? "true" : "false"}
+            />
+            <input
+              type="time"
+              className="ds-input"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              disabled={busy}
             />
           </div>
 
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="mb-1 block font-medium text-[var(--text-secondary)]">
-                날짜
-              </label>
-              <input
-                type="date"
-                className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-            <div className="w-32">
-              <label className="mb-1 block font-medium text-[var(--text-secondary)]">
-                시간
-              </label>
-              <input
-                type="time"
-                className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
-            </div>
+          <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            날짜는 필수입니다.
           </div>
+        </div>
+      </ModalBody>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-[var(--border-divider)] px-3 py-2 text-[var(--text-secondary)]"
-            >
+      <ModalFooter
+        left={
+          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            ESC 로 닫기 · ⌘/Ctrl + Enter 저장
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
               취소
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-white disabled:opacity-60"
+            </Button>
+            <Button
+              intent="primary"
+              onClick={() => {
+                if (!titleInput.trim() || !date) return;
+                mutate();
+              }}
+              disabled={busy || !titleInput.trim() || !date}
             >
-              {isLoading ? "저장 중..." : "추가"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              {busy ? "저장 중…" : "추가"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }

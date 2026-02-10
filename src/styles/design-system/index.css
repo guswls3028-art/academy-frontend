@@ -1,14 +1,27 @@
-/* PATH: src/styles/design-system/index.css */
-/* Admin Design System - Single Entry (SSOT) */
+@import "./base/element-lock.css";
 
 @import "./colors/index.css";
-
 @import "./density/index.css";
 @import "./typography/index.css";
-@import "./surface/index.css";
 
-@import "./state/index.css";
+/* ===============================
+   Surface SSOT (FINAL)
+   =============================== */
+@import "./surface/layers.css";
+@import "./surface/slots.css";
+@import "./surface/areas.css";
+
+/* ===============================
+   Component patterns
+   =============================== */
 @import "./patterns/index.css";
+
+/* ===============================
+   AntD skin (slot only)
+   =============================== */
 @import "./antd/index.css";
 
-@import "./state/status-map.css";
+/* ===============================
+   States
+   =============================== */
+@import "./state/index.css";

@@ -1,10 +1,49 @@
 /* PATH: src/styles/design-system/antd/button.css */
-/* AntD Button */
+/* AntD Button — UI CONTROL SLOT WIRED (FINAL) */
 
 .ant-btn {
   border-radius: var(--radius-md);
 }
+
+/* Default buttons follow CONTROL slot */
+.ant-btn,
+.ant-btn-default {
+  background: var(--ui-control-bg);
+  border-color: var(--ui-control-border);
+  color: var(--ui-control-text);
+  box-shadow: var(--ui-control-shadow);
+}
+
+.ant-btn:hover,
+.ant-btn-default:hover {
+  background: var(--ui-control-bg-hover);
+  border-color: var(--ui-control-border-hover);
+  color: var(--ui-control-text);
+}
+
+/* Primary buttons follow CONTROL-PRIMARY slot */
 .ant-btn-primary {
-  background: var(--color-brand-primary);
-  border-color: var(--color-brand-primary);
+  background: var(--ui-control-primary-bg);
+  border-color: var(--ui-control-primary-bg);
+  color: var(--ui-control-primary-text);
+}
+
+.ant-btn-primary:hover {
+  background: var(--ui-control-primary-bg-hover);
+  border-color: var(--ui-control-primary-bg-hover);
+  color: var(--ui-control-primary-text);
+}
+
+.ant-btn-primary:active {
+  background: var(--ui-control-primary-bg-active);
+  border-color: var(--ui-control-primary-bg-active);
+  color: var(--ui-control-primary-text);
+}
+
+/* Focus ring (slot) */
+.ant-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--ui-control-bg),
+    0 0 0 4px color-mix(in srgb, var(--ui-control-border-focus) 60%, transparent);
 }

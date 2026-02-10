@@ -1,4 +1,4 @@
-// src/features/lectures/api/attendance.ts
+// PATH: src/features/lectures/api/attendance.ts
 import api from "@/shared/api/axios";
 
 /* =========================================================
@@ -47,6 +47,20 @@ export async function bulkCreateAttendance(
  * 4️⃣ 강의 × 차시 출결 매트릭스
  * GET /api/v1/lectures/attendance/matrix/?lecture={id}
  * ======================================================= */
+
+export type AttendanceMatrixSessionCell = {
+  session_id: number;
+  title: string;
+  status?: string | null;
+  status_label?: string | null;
+};
+
+export type AttendanceMatrixRow = {
+  student_id: number;
+  student_name: string;
+  sessions: AttendanceMatrixSessionCell[];
+};
+
 export async function fetchAttendanceMatrix(lectureId: number) {
   const res = await api.get("/lectures/attendance/matrix/", {
     params: { lecture: lectureId },
@@ -58,6 +72,5 @@ export async function fetchAttendanceMatrix(lectureId: number) {
  * 5️⃣ 출결 엑셀 다운로드
  * ======================================================= */
 export function downloadAttendanceExcel(lectureId: number) {
-  window.location.href =
-    `/api/v1/lectures/attendance/excel/?lecture=${lectureId}`;
+  window.location.href = `/api/v1/lectures/attendance/excel/?lecture=${lectureId}`;
 }

@@ -1,62 +1,78 @@
 // PATH: src/app/router/AppRouter.tsx
-// --------------------------------------------------
-// AppRouter
-// - AppLayout은 각 Router(Admin/Student) 내부에서만 사용
-// - 여기서는 절대 AppLayout으로 감싸지 않는다 (❗ 중요)
-// --------------------------------------------------
-
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import ProtectedRoute from "./ProtectedRoute";
 
-import LoginPage from "@/features/auth/pages/LoginPage";
 import AdminRouter from "./AdminRouter";
 import StudentRouter from "@/student/app/StudentRouter";
+import AuthRouter from "./AuthRouter";
+
+import TenantRequiredPage from "@/features/auth/pages/TenantRequiredPage";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { useProgram } from "@/shared/program";
 
 function RootRedirect() {
   const { user, isLoading } = useAuth();
+  const { program, isLoading: programLoading } = useProgram();
+  const navigate = useNavigate();
 
-  if (isLoading) {
-    return <div>loading...</div>;
+  const redirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (programLoading) return;
+    if (!program) return;
+
+    if (isLoading) return;
+    if (redirectedRef.current) return;
+
+    redirectedRef.current = true;
+
+    // ✅ 핵심 수정: 비로그인 상태 명시 처리
+    if (!user) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    const role = user.tenantRole;
+
+    if (role && ["owner", "admin", "teacher", "staff"].includes(role)) {
+      navigate("/admin", { replace: true });
+      return;
+    }
+
+    if (role && ["student", "parent"].includes(role)) {
+      navigate("/student", { replace: true });
+      return;
+    }
+
+    navigate("/login", { replace: true });
+  }, [programLoading, program, isLoading, user, navigate]);
+
+  if (programLoading) return null;
+
+  if (!program) {
+    return <Navigate to="/error/tenant-required" replace />;
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const role = user.tenantRole;
-
-  // 관리자 계열 → admin
-  if (["owner", "admin", "teacher", "staff"].includes(role)) {
-    return <Navigate to="/admin" replace />;
-  }
-
-  // 학생 / 부모 → student
-  if (["student", "parent"].includes(role)) {
-    return <Navigate to="/student" replace />;
-  }
-
-  // 이론상 도달 불가 (안전 가드)
-  return <Navigate to="/login" replace />;
+  return null;
 }
 
 export default function AppRouter() {
   return (
     <Routes>
-      {/* ================= Public ================= */}
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/*" element={<AuthRouter />} />
+
+      <Route
+        path="/error/tenant-required"
+        element={<TenantRequiredPage />}
+      />
+
       <Route path="/" element={<RootRedirect />} />
 
-      {/* ================= Student ================= */}
-      <Route
-        element={
-          <ProtectedRoute allow={["student", "parent"]} />
-        }
-      >
+      <Route element={<ProtectedRoute allow={["student", "parent"]} />}>
         <Route path="/student/*" element={<StudentRouter />} />
       </Route>
 
-      {/* ================= Admin ================= */}
       <Route
         element={
           <ProtectedRoute allow={["owner", "admin", "teacher", "staff"]} />
@@ -65,7 +81,6 @@ export default function AppRouter() {
         <Route path="/admin/*" element={<AdminRouter />} />
       </Route>
 
-      {/* ================= Fallback ================= */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

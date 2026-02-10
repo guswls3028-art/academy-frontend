@@ -1,0 +1,70 @@
+/* PATH: src/styles/design-system/patterns/modal.css */
+/* ============================================================================
+ * DS MODAL — overlay / dialog shell
+ * - consistent backdrop, elevation, spacing
+ * - used by Students modals
+ * ============================================================================ */
+
+.ds-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: var(--space-6);
+
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.ds-dialog {
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-divider);
+
+  background: var(--bg-surface);
+  box-shadow: 0 28px 56px rgba(0, 0, 0, 0.35);
+}
+
+.ds-dialog[data-size="sm"] { max-width: 420px; }
+.ds-dialog[data-size="md"] { max-width: 560px; }
+.ds-dialog[data-size="lg"] { max-width: 1100px; }
+
+.ds-dialog__header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-divider);
+  background: var(--bg-surface-soft);
+}
+
+.ds-dialog__title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ds-dialog__desc {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.ds-dialog__body {
+  padding: var(--space-5);
+  overflow: auto;
+  max-height: calc(90vh - 140px);
+}
+
+.ds-dialog__footer {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

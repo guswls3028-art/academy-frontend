@@ -5,15 +5,369 @@
 
 
 ==========================================================================================
+# FILE: STUDENTS DOMAIN UI SSOT.md
+==========================================================================================
+📐 STUDENTS DOMAIN UI SSOT
+
+Students UI Design Single Source of Truth
+
+이 문서는 features/students 영역의 레이아웃, 탭, 카드, 테이블, 오버레이 패턴을
+고정된 디자인 규칙(SSOT) 으로 정의한다.
+
+이 문서에 명시되지 않은 UI 변형은 금지하며,
+다른 도메인(staff, lectures, exams 등)도 동일 규칙을 그대로 따른다.
+
+1. 최상위 레이아웃 규칙 (Domain Layout)
+1.1 Domain Layout 구조
+
+모든 도메인 페이지는 반드시 다음 구조를 따른다.
+
+[ Domain Header ]
+ ├─ Accent Bar (Primary Color)
+ ├─ Title (text-2xl / bold)
+ ├─ Description (text-base / muted)
+ └─ Domain Tabs (ds-tabs)
+
+[ Domain Content ]
+ └─ Rounded Card (radius-2xl, border)
+    └─ Outlet
+
+1.2 StudentsLayout.tsx 책임
+
+도메인 타이틀, 설명, 탭 UI를 전담
+
+실제 페이지 내용은 절대 포함하지 않는다
+
+내부 페이지는 반드시 <Outlet />으로 렌더링
+
+✔ 허용
+
+탭 잠금 (disabled, pointer-events-none)
+
+설명 문구 변경
+
+❌ 금지
+
+테이블 / 카드 직접 포함
+
+API / 상태 로직 포함
+
+2. 도메인 탭 규칙 (Tabs)
+2.1 탭 기본 원칙
+
+모든 도메인은 ds-tabs + ds-tab 사용
+
+텍스트 크기: text-[15px] font-semibold
+
+활성 상태: is-active 클래스
+
+2.2 잠금 탭 규칙 (LOCKED TAB)
+
+아직 구현되지 않은 기능은 노출은 하되 클릭 불가 처리한다.
+
+필수 조건
+
+disabled
+
+pointer-events-none
+
+opacity-40
+
+tooltip(title) 제공
+
+const lockedTabClass =
+  "opacity-40 cursor-not-allowed pointer-events-none";
+
+
+❗ 라우팅은 살아 있어도 UI에서 접근 불가해야 한다
+
+3. Domain Content 카드 규칙
+3.1 공통 카드 스타일
+
+모든 도메인 페이지는 다음 카드 스타일을 사용한다.
+
+border-radius: rounded-2xl
+
+background: var(--bg-surface)
+
+border: var(--border-divider)
+
+내부 패딩은 페이지에서 제어
+
+<div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
+  <Outlet />
+</div>
+
+
+❌ 카드 안에 또 카드 중첩 금지
+❌ radius/색상 임의 변경 금지
+
+4. 리스트 페이지 규칙 (Home Page)
+4.1 HomePage 책임 분리
+
+StudentsHomePage.tsx는 다음만 담당한다:
+
+검색 입력
+
+필터 모달 제어
+
+생성/삭제 모달 제어
+
+테이블 렌더링
+
+라우팅 연결
+
+❌ 금지
+
+테이블 row 상세 구현
+
+모달 내부 UI 구현
+
+5. 테이블 규칙 (StudentsTable)
+5.1 테이블 헤더
+
+컬럼 헤더 배경:
+
+color-mix(
+  var(--color-brand-primary) 6%,
+  var(--color-bg-surface-hover)
+)
+
+
+컬럼 헤더 텍스트:
+
+color-mix(
+  var(--color-brand-primary) 55%,
+  var(--color-text-secondary)
+)
+
+5.2 텍스트 크기 규칙
+영역	크기
+이름	15px / bold
+전화/학교	14px
+등록일	13px
+상태 뱃지	12px
+
+👉 전화번호/식별자 포함, 전부 가독성 우선
+
+6. 상세 페이지 규칙 (Overlay Pattern)
+6.1 접근 방식
+
+리스트 → /admin/students/:id
+
+페이지 이동이 아니라 오버레이
+
+backdrop 클릭 시 navigate(-1)
+
+<div className="fixed inset-0 z-40 bg-black/60" />
+
+6.2 Overlay 구조
+[ Backdrop ]
+[ Centered Overlay Panel ]
+ ├─ Gradient Header
+ ├─ Left Info Panel
+ └─ Right Tabs Panel
+
+
+max-width: 1120px
+
+radius: 22px
+
+box-shadow 필수
+
+7. 정보 행(Row) 규칙 (InfoRow)
+
+label: muted / font-weight 800
+
+value: primary / font-weight 950
+
+accent 행은 brand-primary 10% mix 사용
+
+❌ 임의 아이콘, 컬러 추가 금지
+
+8. 모달 규칙 (Create / Edit / Delete)
+8.1 공통 원칙
+
+반드시 AdminModal 사용
+
+단축키 지원:
+
+ESC → 닫기
+
+⌘/Ctrl + Enter → 저장/등록
+
+width 고정 (520 / 720)
+
+8.2 입력 스타일
+
+ds-input, ds-textarea, ds-select만 사용
+
+height, padding 변경 금지
+
+9. 다른 도메인 적용 규칙 (MANDATORY)
+
+이 SSOT는 다음 도메인에 그대로 복사 적용한다.
+
+features/staff
+
+features/lectures
+
+features/exams
+
+features/clinics
+
+✔ 이름/문구만 변경 가능
+❌ 구조/패턴 변경 불가
+
+10. 변경 정책 (LOCK)
+
+이 문서 변경 = 디자인 기준 변경
+
+변경 시:
+
+SSOT 문서 수정
+
+모든 도메인 동시 반영
+
+부분 적용 금지
+
+
+==========================================================================================
+# FILE: StudentsLayout.tsx
+==========================================================================================
+// PATH: src/features/students/StudentsLayout.tsx
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+
+export default function StudentsLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const activeKey = location.pathname.includes("/history")
+    ? "history"
+    : location.pathname.includes("/scores")
+    ? "scores"
+    : "home";
+
+  const lockedTabClass =
+    "opacity-40 cursor-not-allowed pointer-events-none";
+
+  return (
+    <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
+      {/* ===============================
+          DOMAIN HEADER
+      =============================== */}
+      <div className="border-b border-[var(--border-divider)] bg-[var(--bg-surface)]">
+        <div className="px-6 pt-6 pb-4">
+          <div className="relative">
+            <div className="absolute left-0 top-1 h-6 w-1 rounded-full bg-[var(--color-primary)]" />
+
+            <div className="pl-4">
+              <div className="text-2xl font-bold tracking-tight">
+                학생 관리
+              </div>
+              <div className="text-base text-[var(--text-muted)] mt-1">
+                학생 추가 · 학교 성적 · 상담
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6">
+          <div className="ds-tabs">
+            {/* 홈 */}
+            <button
+              className={`ds-tab text-[15px] font-semibold ${
+                activeKey === "home" ? "is-active" : ""
+              }`}
+              onClick={() => navigate("/admin/students/home")}
+            >
+              홈
+            </button>
+
+            {/* 학교 성적 (잠금) */}
+            <button
+              className={`ds-tab text-[15px] font-semibold ${lockedTabClass}`}
+              title="준비 중인 기능입니다"
+              disabled
+            >
+              학교 성적
+            </button>
+
+            {/* 상담 이력 (잠금) */}
+            <button
+              className={`ds-tab text-[15px] font-semibold ${lockedTabClass}`}
+              title="준비 중인 기능입니다"
+              disabled
+            >
+              상담 이력
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===============================
+          DOMAIN CONTENT
+      =============================== */}
+      <div className="px-6 py-6">
+        <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
+          <Outlet />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: StudentsRoutes.tsx
+==========================================================================================
+// PATH: src/features/students/StudentsRoutes.tsx
+import { Routes, Route, Navigate } from "react-router-dom";
+
+import StudentsLayout from "./StudentsLayout";
+
+import StudentsHomePage from "./pages/StudentsHomePage";
+import StudentsHistoryPage from "./pages/StudentsHistoryPage";
+import StudentsScoresPage from "./pages/StudentsScoresPage";
+import StudentDetailOverlay from "./overlays/StudentDetailOverlay";
+
+export default function StudentsRoutes() {
+  return (
+    <Routes>
+      <Route element={<StudentsLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<StudentsHomePage />} />
+        <Route path="history" element={<StudentsHistoryPage />} />
+        <Route path="scores" element={<StudentsScoresPage />} />
+      </Route>
+
+      {/* 학생 상세는 Overlay (직원과 동일 패턴) */}
+      <Route path=":studentId/*" element={<StudentDetailOverlay />} />
+    </Routes>
+  );
+}
+
+
+==========================================================================================
 # FILE: api/students.ts
 ==========================================================================================
-// src/features/students/api/students.ts
-
+// PATH: src/features/students/api/students.ts
 import api from "@/shared/api/axios";
 
 /* ===============================
  * Types
  * =============================== */
+
+export interface ClientStudentTag {
+  id: number;
+  name: string;
+  color: string;
+}
+
+export interface ClientEnrollmentLite {
+  id: number;
+  lectureName: string | null;
+}
 
 export interface ClientStudent {
   id: number;
@@ -38,79 +392,119 @@ export interface ClientStudent {
 
   schoolType: "MIDDLE" | "HIGH" | null;
 
-  tags: {
-    id: number;
-    name: string;
-    color: string;
-  }[];
+  tags: ClientStudentTag[];
+  enrollments: ClientEnrollmentLite[];
+}
 
-  enrollments: {
-    id: number;
-    lectureName: string | null;
-  }[];
+export interface StudentTag {
+  id: number;
+  name: string;
+  color: string;
 }
 
 /* ===============================
  * Mapper
  * =============================== */
 
-function mapStudent(item: any): ClientStudent {
-  const phone = item.phone ?? null;
-  const omrCode = item.omr_code ?? "";
+function safeStr(v: any): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
 
-  const displayPhone =
-    phone && phone.startsWith("010") && phone.slice(3) === omrCode
-      ? omrCode
-      : phone;
+function mapStudent(item: any): ClientStudent {
+  const phone = item?.phone ?? null;
+  const omrCode = item?.omr_code ?? "";
+
+  // 🔧 변경: UI에는 항상 phone만 전달
+  const displayPhone = phone ?? null;
 
   const schoolType: "MIDDLE" | "HIGH" | null =
-    item.school_type ??
-    (item.middle_school ? "MIDDLE" : item.high_school ? "HIGH" : null);
+    item?.school_type ??
+    (item?.middle_school ? "MIDDLE" : item?.high_school ? "HIGH" : null);
 
   return {
-    id: item.id,
-    name: item.name,
+    id: Number(item?.id),
+    name: safeStr(item?.name),
 
-    psNumber: item.ps_number,
-    omrCode,
+    psNumber: safeStr(item?.ps_number),
+    omrCode: safeStr(omrCode),
 
-    studentPhone: displayPhone,
-    parentPhone: item.parent_phone ?? null,
+    studentPhone: displayPhone ?? null,
+    parentPhone: item?.parent_phone ?? null,
 
-    school: item.high_school ?? item.middle_school ?? null,
-    schoolClass: item.high_school_class ?? null,
-    major: item.major ?? null,
+    school: item?.high_school ?? item?.middle_school ?? null,
+    schoolClass: item?.high_school_class ?? null,
+    major: item?.major ?? null,
 
-    grade: item.grade ?? null,
-    gender: item.gender ?? null,
+    grade: item?.grade ?? null,
+    gender: item?.gender ?? null,
 
-    registeredAt: item.created_at ?? null,
-    active: item.is_managed ?? false,
-    memo: item.memo ?? null,
+    registeredAt: item?.created_at ?? null,
+    active: item?.is_managed ?? false,
+    memo: item?.memo ?? null,
 
     schoolType,
 
-    tags: (item.tags ?? []).map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      color: t.color,
-    })),
+    tags: Array.isArray(item?.tags)
+      ? item.tags.map((t: any) => ({
+          id: Number(t?.id),
+          name: safeStr(t?.name),
+          color: safeStr(t?.color),
+        }))
+      : [],
 
-    enrollments: (item.enrollments ?? []).map((en: any) => ({
-      id: en.id,
-      lectureName: en.lecture_name ?? null,
-    })),
+    enrollments: Array.isArray(item?.enrollments)
+      ? item.enrollments.map((en: any) => ({
+          id: Number(en?.id),
+          lectureName: en?.lecture_name ?? null,
+        }))
+      : [],
   };
+}
+
+/* ===============================
+ * Ordering (server-side friendly)
+ * =============================== */
+
+const ORDERING_MAP: Record<string, string> = {
+  name: "name",
+  registeredAt: "created_at",
+  active: "is_managed",
+  psNumber: "ps_number",
+  studentPhone: "phone",
+  parentPhone: "parent_phone",
+  school: "high_school",
+  schoolClass: "high_school_class",
+  grade: "grade",
+  gender: "gender",
+};
+
+function buildOrdering(sort: string): string | undefined {
+  if (!sort) return undefined;
+
+  const isDesc = sort.startsWith("-");
+  const key = isDesc ? sort.slice(1) : sort;
+
+  const mapped = ORDERING_MAP[key];
+  if (!mapped) return undefined;
+
+  return isDesc ? `-${mapped}` : mapped;
 }
 
 /* ===============================
  * List / Detail
  * =============================== */
 
-export async function fetchStudents(search: string, filters: any = {}) {
-  const params = {
+export async function fetchStudents(
+  search: string,
+  filters: any = {},
+  sort: string = ""
+) {
+  const ordering = buildOrdering(sort);
+
+  const params: any = {
     search: search || undefined,
     ...filters,
+    ordering: ordering || undefined,
   };
 
   const res = await api.get("/students/", { params });
@@ -134,34 +528,38 @@ export async function getStudentDetail(id: number) {
  * =============================== */
 
 export async function createStudent(form: any) {
-  const phone =
-    form.noPhone === true
-      ? `010${form.omrCode}`
-      : String(form.studentPhone).trim();
+  const name = safeStr(form?.name).trim();
+  const psNumber = safeStr(form?.psNumber).trim();
+  const initialPassword = safeStr(form?.initialPassword).trim();
+
+  const omrCodeInput = safeStr(form?.omrCode).trim();
+  const studentPhoneInput = safeStr(form?.studentPhone).trim();
+  const parentPhoneInput = safeStr(form?.parentPhone).trim();
+
+  const phone = form?.noPhone === true ? `010${omrCodeInput}` : studentPhoneInput;
 
   const payload = {
-    name: form.name,
-    ps_number: form.psNumber,
+    name,
+    ps_number: psNumber,
     phone,
-    omr_code: phone.slice(-8),
-    initial_password: form.initialPassword,
+    omr_code: safeStr(phone).slice(-8),
+    initial_password: initialPassword,
 
-    parent_phone: form.parentPhone,
+    parent_phone: parentPhoneInput,
 
-    school_type: form.schoolType,
-    high_school: form.schoolType === "HIGH" ? form.school || null : null,
-    middle_school: form.schoolType === "MIDDLE" ? form.school || null : null,
+    school_type: form?.schoolType,
+    high_school: form?.schoolType === "HIGH" ? form?.school || null : null,
+    middle_school: form?.schoolType === "MIDDLE" ? form?.school || null : null,
 
-    high_school_class:
-      form.schoolType === "HIGH" ? form.schoolClass || null : null,
+    high_school_class: form?.schoolType === "HIGH" ? form?.schoolClass || null : null,
 
-    major: form.schoolType === "HIGH" ? form.major || null : null,
+    major: form?.schoolType === "HIGH" ? form?.major || null : null,
 
-    grade: form.grade ? Number(form.grade) : null,
-    gender: form.gender || null,
-    memo: form.memo || null,
+    grade: form?.grade ? Number(form.grade) : null,
+    gender: form?.gender || null,
+    memo: form?.memo || null,
 
-    is_managed: !!form.active,
+    is_managed: !!form?.active,
   };
 
   const res = await api.post("/students/", payload);
@@ -169,43 +567,44 @@ export async function createStudent(form: any) {
 }
 
 /* ===============================
- * UPDATE  (✅ 최소 수정)
+ * UPDATE
  * =============================== */
 
 export async function updateStudent(id: number, form: any) {
-  const phone =
-    form.noPhone === true
-      ? `010${form.omrCode}`
-      : form.studentPhone
-      ? String(form.studentPhone).trim()
-      : undefined;
-
   const payload: any = {
-    grade: form.grade ? Number(form.grade) : null,
-    gender: form.gender ?? null,
-    parent_phone: form.parentPhone ?? null,
-    memo: form.memo ?? null,
-    is_managed: !!form.active,
+    grade: form?.grade ? Number(form.grade) : null,
+    gender: form?.gender ?? null,
+    memo: form?.memo ?? null,
+    is_managed: !!form?.active,
   };
+
+  if (form?.parentPhone !== undefined) {
+    payload.parent_phone = safeStr(form?.parentPhone).trim();
+  }
+
+  const phone =
+    form?.noPhone === true
+      ? `010${safeStr(form?.omrCode).trim()}`
+      : form?.studentPhone
+      ? safeStr(form?.studentPhone).trim()
+      : undefined;
 
   if (phone) {
     payload.phone = phone;
-    payload.omr_code = phone.slice(-8);
+    payload.omr_code = safeStr(phone).slice(-8);
   }
 
-  if (form.psNumber !== undefined) {
-    payload.ps_number = form.psNumber;
+  if (form?.psNumber !== undefined) {
+    payload.ps_number = safeStr(form?.psNumber).trim();
   }
 
-  if (form.schoolType) {
+  if (form?.schoolType) {
     payload.school_type = form.schoolType;
-    payload.high_school =
-      form.schoolType === "HIGH" ? form.school || null : null;
-    payload.middle_school =
-      form.schoolType === "MIDDLE" ? form.school || null : null;
+    payload.high_school = form.schoolType === "HIGH" ? form?.school || null : null;
+    payload.middle_school = form.schoolType === "MIDDLE" ? form?.school || null : null;
     payload.high_school_class =
-      form.schoolType === "HIGH" ? form.schoolClass || null : null;
-    payload.major = form.schoolType === "HIGH" ? form.major || null : null;
+      form.schoolType === "HIGH" ? form?.schoolClass || null : null;
+    payload.major = form.schoolType === "HIGH" ? form?.major || null : null;
   }
 
   const res = await api.patch(`/students/${id}/`, payload);
@@ -236,9 +635,18 @@ export async function deleteStudent(id: number) {
  * TAG
  * =============================== */
 
-export async function getTags() {
+export async function getTags(): Promise<StudentTag[]> {
   const res = await api.get(`/students/tags/`);
-  return res.data;
+  const items = Array.isArray(res.data?.results)
+    ? res.data.results
+    : Array.isArray(res.data)
+    ? res.data
+    : [];
+  return items.map((t: any) => ({
+    id: Number(t?.id),
+    name: safeStr(t?.name),
+    color: safeStr(t?.color),
+  }));
 }
 
 export async function attachStudentTag(studentId: number, tagId: number) {
@@ -254,7 +662,7 @@ export async function detachStudentTag(studentId: number, tagId: number) {
  * =============================== */
 
 export async function createMemo(studentId: number, content: string) {
-  await api.patch(`/students/${studentId}/`, { memo: content });
+  await api.patch(`/students/${studentId}/`, { memo: String(content ?? "") });
 }
 
 
@@ -262,63 +670,109 @@ export async function createMemo(studentId: number, content: string) {
 # FILE: components/DeleteConfirmModal.tsx
 ==========================================================================================
 // PATH: src/features/students/components/DeleteConfirmModal.tsx
-
+import { useEffect, useMemo, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 import { deleteStudent } from "../api/students";
 
 export default function DeleteConfirmModal({
+  open,
   id,
   onClose,
   onSuccess,
 }: {
+  open: boolean;
   id: number;
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const [busy, setBusy] = useState(false);
+
+  const title = useMemo(() => "학생 삭제", []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    if (open) window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   async function handleDelete() {
-    await deleteStudent(id);
-    onSuccess();
+    if (busy) return;
+    setBusy(true);
+    try {
+      await deleteStudent(id);
+      onSuccess();
+      onClose();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[320px] rounded-lg bg-[var(--bg-surface)] shadow-xl border border-[var(--border-divider)] overflow-hidden">
-        <div className="border-b border-[var(--border-divider)] px-4 py-3 bg-[var(--bg-surface-soft)]">
-          <div className="text-sm font-semibold text-[var(--text-primary)]">
-            학생 삭제
-          </div>
-          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-            되돌릴 수 없습니다
-          </div>
-        </div>
+    <AdminModal open={open} onClose={onClose} type="confirm" width={520}>
+      <ModalHeader
+        type="confirm"
+        title={title}
+        description="삭제된 데이터는 복구할 수 없습니다."
+      />
 
-        <div className="px-4 py-4 text-sm text-[var(--text-secondary)]">
+      <ModalBody>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 850,
+            color: "var(--color-text-secondary)",
+            lineHeight: 1.6,
+          }}
+        >
           해당 학생을 정말 삭제하시겠습니까?
         </div>
 
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface)]">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-md
-              border border-[var(--border-divider)]
-              bg-[var(--bg-surface)]
-              text-[var(--text-secondary)]
-              hover:bg-[var(--bg-surface-soft)]"
-          >
-            취소
-          </button>
-
-          <button
-            onClick={handleDelete}
-            className="px-3 py-1.5 text-sm rounded-md
-              bg-[var(--color-danger)]
-              text-white
-              hover:opacity-90"
-          >
-            삭제
-          </button>
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            borderRadius: 12,
+            border:
+              "1px solid color-mix(in srgb, var(--color-error) 22%, var(--color-border-divider))",
+            background:
+              "color-mix(in srgb, var(--color-error) 6%, var(--color-bg-surface))",
+            color: "var(--color-text-secondary)",
+            fontSize: 12,
+            fontWeight: 850,
+            letterSpacing: "-0.12px",
+          }}
+        >
+          삭제 후에는 학생 정보/태그/메모/연결된 이력이 복구되지 않습니다.
         </div>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 850,
+              color: "var(--color-text-muted)",
+            }}
+          >
+            ESC 로 닫기
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
+            <Button intent="danger" onClick={handleDelete} disabled={busy}>
+              {busy ? "삭제 중…" : "삭제"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -327,180 +781,229 @@ export default function DeleteConfirmModal({
 # FILE: components/EditStudentModal.tsx
 ==========================================================================================
 // PATH: src/features/students/components/EditStudentModal.tsx
-
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 import { updateStudent } from "../api/students";
 
 interface Props {
+  open: boolean;
   initialValue: any;
   onClose: () => void;
   onSuccess: () => void;
 }
 
+function is8Digits(v: any) {
+  return /^\d{8}$/.test(String(v ?? ""));
+}
+
 export default function EditStudentModal({
+  open,
   initialValue,
   onClose,
   onSuccess,
 }: Props) {
-  const [noPhone, setNoPhone] = useState(
-    initialValue.studentPhone && /^\d{8}$/.test(initialValue.studentPhone)
-  );
+  const initialNoPhone = useMemo(() => {
+    return initialValue.studentPhone && is8Digits(initialValue.studentPhone);
+  }, [initialValue.studentPhone]);
+
+  const [noPhone, setNoPhone] = useState(initialNoPhone);
+  const [busy, setBusy] = useState(false);
 
   const [form, setForm] = useState({
     name: initialValue.name || "",
     gender: initialValue.gender || "",
-
     psNumber: initialValue.psNumber || "",
-    initialPassword: "",
-
-    studentPhone: noPhone ? "" : initialValue.studentPhone || "",
-    omrCode: noPhone ? initialValue.studentPhone || "" : "",
-
+    studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
+    omrCode: initialNoPhone ? initialValue.studentPhone || "" : "",
     parentPhone: initialValue.parentPhone || "",
-
     schoolType: initialValue.schoolType || "HIGH",
     school: initialValue.school || "",
     grade: initialValue.grade ? String(initialValue.grade) : "",
     schoolClass: initialValue.schoolClass || "",
     major: initialValue.major || "",
-
-    address: initialValue.address || "",
     memo: initialValue.memo || "",
     active: !!initialValue.active,
   });
 
-  const inputBase =
-    "w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)]";
-  const inputRequired =
-    "border-2 border-[var(--color-primary)]/70 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
-  const inputNormal =
-    "border border-[var(--border-divider)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose, form, noPhone, busy]);
+
+  useEffect(() => {
+    if (!open) return;
+    setNoPhone(initialNoPhone);
+    setBusy(false);
+    setForm({
+      name: initialValue.name || "",
+      gender: initialValue.gender || "",
+      psNumber: initialValue.psNumber || "",
+      studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
+      omrCode: initialNoPhone ? initialValue.studentPhone || "" : "",
+      parentPhone: initialValue.parentPhone || "",
+      schoolType: initialValue.schoolType || "HIGH",
+      school: initialValue.school || "",
+      grade: initialValue.grade ? String(initialValue.grade) : "",
+      schoolClass: initialValue.schoolClass || "",
+      major: initialValue.major || "",
+      memo: initialValue.memo || "",
+      active: !!initialValue.active,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialValue?.id]);
 
   function handleChange(e: any) {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  }
+
+  function validate(): string | null {
+    if (!String(form.name || "").trim()) return "이름은 필수입니다.";
+    if (!String(form.psNumber || "").trim()) return "PS 번호는 필수입니다.";
+
+    if (noPhone) {
+      const code = String(form.omrCode || "").trim();
+      if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
+    } else {
+      const phone = String(form.studentPhone || "").trim();
+      if (!phone) return "학생 전화번호를 입력하세요.";
+      if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+    }
+
+    const parent = String(form.parentPhone || "").trim();
+    if (!parent) return "학부모 전화번호는 필수입니다.";
+    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+
+    return null;
   }
 
   async function handleSubmit() {
-    if (!form.name.trim()) {
-      alert("이름은 필수입니다.");
-      return;
-    }
+    if (busy) return;
 
-    if (!form.psNumber.trim()) {
-      alert("PS 번호는 필수입니다.");
-      return;
-    }
+    const err = validate();
+    if (err) return alert(err);
 
-    if (noPhone) {
-      if (!/^\d{8}$/.test(form.omrCode)) {
-        alert("식별자는 숫자 8자리입니다.");
-        return;
-      }
-    } else {
-      if (!/^010\d{8}$/.test(form.studentPhone)) {
-        alert("학생 전화번호는 010XXXXXXXX 형식입니다.");
-        return;
-      }
-    }
-
-    if (!/^010\d{8}$/.test(form.parentPhone)) {
-      alert("학부모 전화번호는 010XXXXXXXX 형식입니다.");
-      return;
-    }
-
+    setBusy(true);
     try {
-      await updateStudent(initialValue.id, {
-        ...form,
-        noPhone,
-      });
-
+      await updateStudent(initialValue.id, { ...form, noPhone });
       onSuccess();
       onClose();
-    } catch (e) {
-      console.error(e);
-      alert("오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[520px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            학생 수정
-          </h2>
-        </div>
+    <AdminModal open={open} onClose={onClose} type="action" width={720}>
+      <ModalHeader
+        type="action"
+        title="학생 수정"
+        description="⌘/Ctrl + Enter 로 저장"
+      />
 
-        {/* Body */}
-        <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
-          {/* 이름 / 성별 */}
-          <div className="flex gap-2">
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name="name"
               placeholder="이름"
               value={form.name}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputRequired}`}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.name || "").trim() ? "true" : "false"}
+              disabled={busy}
+              autoFocus
             />
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, gender: "M" }))}
-                className={`px-3 py-2 text-sm rounded-md border ${
-                  form.gender === "M"
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                남자
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, gender: "F" }))}
-                className={`px-3 py-2 text-sm rounded-md border ${
-                  form.gender === "F"
-                    ? "bg-pink-500 text-white border-pink-500"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                여자
-              </button>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                <Button
+                  key={g.key}
+                  intent={form.gender === g.key ? "secondary" : "ghost"}
+                  aria-pressed={form.gender === g.key}
+                  onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                  disabled={busy}
+                >
+                  {g.label}
+                </Button>
+              ))}
             </div>
           </div>
 
-          <input
-            name="psNumber"
-            placeholder="아이디"
-            value={form.psNumber}
-            onChange={handleChange}
-            className={`${inputBase} ${inputRequired}`}
-          />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              name="psNumber"
+              placeholder="아이디(PS 번호)"
+              value={form.psNumber}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
+              disabled={busy}
+            />
 
-          {/* 전화번호 / 식별자 */}
-          <div className="flex gap-2 items-center">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "0 12px",
+                borderRadius: 12,
+                border: "1px solid var(--color-border-divider)",
+                background: "var(--color-bg-surface-soft)",
+                height: 44,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 900,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                상태
+              </span>
+              <Button
+                intent={form.active ? "secondary" : "ghost"}
+                size="sm"
+                aria-pressed={form.active}
+                onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
+                disabled={busy}
+              >
+                {form.active ? "활성" : "비활성"}
+              </Button>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name={noPhone ? "omrCode" : "studentPhone"}
               placeholder={noPhone ? "식별자 (XXXXXXXX)" : "학생 전화번호 (010XXXXXXXX)"}
               value={noPhone ? form.omrCode : form.studentPhone}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputRequired}`}
+              className="ds-input"
+              data-required="true"
+              disabled={busy}
             />
-            <button
-              type="button"
-              onClick={() => setNoPhone((v) => !v)}
-              className={`px-3 py-2 text-sm rounded-md border ${
-                noPhone
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "border-[var(--border-divider)]"
-              }`}
+            <Button
+              intent={noPhone ? "secondary" : "ghost"}
+              onClick={() => {
+                setNoPhone((v) => !v);
+                setForm((p) => ({ ...p, studentPhone: "", omrCode: "" }));
+              }}
+              disabled={busy}
             >
-              없음(식별자로 대체)
-            </button>
+              {noPhone ? "전화번호 입력" : "없음(식별자사용)"}
+            </Button>
           </div>
 
           <input
@@ -508,105 +1011,108 @@ export default function EditStudentModal({
             placeholder="학부모 전화번호 (010XXXXXXXX)"
             value={form.parentPhone}
             onChange={handleChange}
-            className={`${inputBase} ${inputRequired}`}
+            className="ds-input"
+            data-required="true"
+            disabled={busy}
           />
 
-          {/* 학교 */}
-          <div className="flex gap-2">
-            {["HIGH", "MIDDLE"].map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, schoolType: t }))}
-                className={`flex-1 px-3 py-2 text-sm rounded-md border ${
-                  form.schoolType === t
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                {t === "HIGH" ? "고등학교" : "중학교"}
-              </button>
-            ))}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
+              (t) => (
+                <Button
+                  key={t.key}
+                  intent={form.schoolType === t.key ? "secondary" : "ghost"}
+                  aria-pressed={form.schoolType === t.key}
+                  onClick={() =>
+                    setForm((p) => ({
+                      ...p,
+                      schoolType: t.key,
+                      school: "",
+                      schoolClass: "",
+                      major: "",
+                    }))
+                  }
+                  disabled={busy}
+                >
+                  {t.label}
+                </Button>
+              )
+            )}
           </div>
 
-          <div className="flex gap-2">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name="school"
               placeholder="학교명"
               value={form.school}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
-            <div className="flex gap-1">
+            <div style={{ display: "flex", gap: 8 }}>
               {["1", "2", "3"].map((g) => (
-                <button
+                <Button
                   key={g}
-                  type="button"
+                  intent={form.grade === g ? "secondary" : "ghost"}
+                  aria-pressed={form.grade === g}
                   onClick={() => setForm((p) => ({ ...p, grade: g }))}
-                  className={`px-3 py-2 text-sm rounded-md border ${
-                    form.grade === g
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "border-[var(--border-divider)]"
-                  }`}
+                  disabled={busy}
                 >
                   {g}학년
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <input
               name="schoolClass"
               placeholder="반"
               value={form.schoolClass}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
             <input
               name="major"
-              placeholder="계열"
+              placeholder="계열(고등만)"
               value={form.major}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
           </div>
 
-          <input
-            name="address"
-            placeholder="주소"
-            value={form.address}
-            onChange={handleChange}
-            className={`${inputBase} ${inputNormal}`}
-          />
-
           <textarea
             name="memo"
+            rows={4}
             placeholder="메모"
-            rows={3}
             value={form.memo}
             onChange={handleChange}
-            className={`w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)] resize-none ${inputNormal}`}
+            className="ds-textarea"
+            disabled={busy}
           />
         </div>
+      </ModalBody>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)]">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-md border border-[var(--border-divider)]"
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-3 py-1.5 text-sm rounded-md bg-[var(--color-primary)] text-white"
-          >
-            수정
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter
+        left={
+          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            ⌘/Ctrl + Enter 저장
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
+            <Button intent="primary" onClick={handleSubmit} disabled={busy}>
+              {busy ? "저장 중…" : "저장"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -615,197 +1121,196 @@ export default function EditStudentModal({
 # FILE: components/StudentCreateModal.tsx
 ==========================================================================================
 // PATH: src/features/students/components/StudentCreateModal.tsx
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 import { createStudent } from "../api/students";
-// tailwind safelist (admin students modal)
-const __TW_SAFE__ = `
-bg-blue-500 border-blue-500 text-white
-bg-pink-500 border-pink-500
-bg-[var(--color-primary)]
-transition-all
-`;
 
 interface Props {
+  open: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-
-export default function StudentCreateModal({ onClose, onSuccess }: Props) {
+export default function StudentCreateModal({ open, onClose, onSuccess }: Props) {
   const [noPhone, setNoPhone] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
     gender: "",
-
     psNumber: "",
     initialPassword: "",
-
     studentPhone: "",
     omrCode: "",
-
     parentPhone: "",
-
     schoolType: "HIGH",
     school: "",
     grade: "",
     schoolClass: "",
     major: "",
-
-    address: "",
     memo: "",
     active: true,
   });
 
-  const inputBase =
-    "w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)]";
-  const inputRequired =
-    "border-2 border-[var(--color-primary)]/70 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
-  const inputNormal =
-    "border border-[var(--border-divider)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose, form, noPhone, busy]);
+
+  useEffect(() => {
+    if (!open) return;
+    setNoPhone(false);
+    setBusy(false);
+    setForm({
+      name: "",
+      gender: "",
+      psNumber: "",
+      initialPassword: "",
+      studentPhone: "",
+      omrCode: "",
+      parentPhone: "",
+      schoolType: "HIGH",
+      school: "",
+      grade: "",
+      schoolClass: "",
+      major: "",
+      memo: "",
+      active: true,
+    });
+  }, [open]);
 
   function handleChange(e: any) {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  }
+
+  function validate(): string | null {
+    if (!String(form.name || "").trim()) return "이름은 필수입니다.";
+    if (!String(form.psNumber || "").trim()) return "아이디는 필수입니다.";
+    if (!String(form.initialPassword || "").trim()) return "비밀번호는 필수입니다.";
+
+    if (noPhone) {
+      const code = String(form.omrCode || "").trim();
+      if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
+    } else {
+      const phone = String(form.studentPhone || "").trim();
+      if (!phone) return "학생 전화번호를 입력하세요.";
+      if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+    }
+
+    const parent = String(form.parentPhone || "").trim();
+    if (!parent) return "학부모 전화번호는 필수입니다.";
+    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+
+    return null;
   }
 
   async function handleSubmit() {
-    if (!form.name.trim()) {
-      alert("이름은 필수입니다.");
-      return;
-    }
+    if (busy) return;
 
-    if (!form.psNumber.trim()) {
-      alert("PS 번호는 필수입니다.");
-      return;
-    }
+    const err = validate();
+    if (err) return alert(err);
 
-    if (!form.initialPassword || form.initialPassword.trim().length < 4) {
-      alert("비밀번호는 4자 이상 필수입니다.");
-      return;
-    }
-
-    if (noPhone) {
-      if (!/^\d{8}$/.test(form.omrCode)) {
-        alert("식별자는 숫자 8자리입니다.");
-        return;
-      }
-    } else {
-      if (!/^010\d{8}$/.test(form.studentPhone)) {
-        alert("학생 전화번호는 010XXXXXXXX 형식입니다.");
-        return;
-      }
-    }
-
-    if (!/^010\d{8}$/.test(form.parentPhone)) {
-      alert("학부모 전화번호는 010XXXXXXXX 형식입니다.");
-      return;
-    }
-
+    setBusy(true);
     try {
-      await createStudent({
-        ...form,
-        noPhone,
-      });
-
+      await createStudent({ ...form, noPhone });
       onSuccess();
       onClose();
-    } catch (e) {
-      console.error(e);
-      alert("오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[520px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            학생 등록
-          </h2>
-        </div>
+    <AdminModal open={open} onClose={onClose} type="action" width={720}>
+      <ModalHeader
+        type="action"
+        title="학생 등록"
+        description="⌘/Ctrl + Enter 로 등록"
+      />
 
-        {/* Body */}
-        <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
-          {/* 이름 / 성별 */}
-          <div className="flex gap-2">
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name="name"
               placeholder="이름"
               value={form.name}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputRequired}`}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.name || "").trim() ? "true" : "false"}
+              disabled={busy}
+              autoFocus
             />
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, gender: "M" }))}
-                className={`px-3 py-2 text-sm rounded-md border ${
-                  form.gender === "M"
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                남자
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, gender: "F" }))}
-                className={`px-3 py-2 text-sm rounded-md border ${
-                  form.gender === "F"
-                    ? "bg-pink-500 text-white border-pink-500"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                여자
-              </button>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                <Button
+                  key={g.key}
+                  intent={form.gender === g.key ? "secondary" : "ghost"}
+                  aria-pressed={form.gender === g.key}
+                  onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                  disabled={busy}
+                >
+                  {g.label}
+                </Button>
+              ))}
             </div>
           </div>
 
-          <input
-            name="psNumber"
-            placeholder="아이디"
-            value={form.psNumber}
-            onChange={handleChange}
-            className={`${inputBase} ${inputRequired}`}
-          />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              name="psNumber"
+              placeholder="로그인 아이디"
+              value={form.psNumber}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
+              disabled={busy}
+            />
+            <input
+              name="initialPassword"
+              type="password"
+              placeholder="초기 비밀번호"
+              value={form.initialPassword}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
+              disabled={busy}
+            />
+          </div>
 
-          <input
-            name="initialPassword"
-            type="password"
-            placeholder="비밀번호"
-            value={form.initialPassword}
-            onChange={handleChange}
-            className={`${inputBase} ${inputRequired}`}
-          />
-
-          {/* 전화번호 / 식별자 */}
-          <div className="flex gap-2 items-center">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name={noPhone ? "omrCode" : "studentPhone"}
-              placeholder={
-                noPhone ? "식별자 (8자리)" : "학생 전화번호 (010XXXXXXXX)"
-              }
+              placeholder={noPhone ? "식별자 (XXXXXXXX)" : "학생 전화번호 (010XXXXXXXX)"}
               value={noPhone ? form.omrCode : form.studentPhone}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputRequired}`}
+              className="ds-input"
+              data-required="true"
+              disabled={busy}
             />
-            <button
-              type="button"
-              onClick={() => setNoPhone((v) => !v)}
-              className={`px-3 py-2 text-sm rounded-md border ${
-                noPhone
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "border-[var(--border-divider)]"
-              }`}
+            <Button
+              intent={noPhone ? "secondary" : "ghost"}
+              onClick={() => {
+                setNoPhone((v) => !v);
+                setForm((p) => ({ ...p, studentPhone: "", omrCode: "" }));
+              }}
+              disabled={busy}
             >
-              없음(식별자)
-            </button>
+              {noPhone ? "전화번호 입력" : "없음(식별자사용)"}
+            </Button>
           </div>
 
           <input
@@ -813,373 +1318,180 @@ export default function StudentCreateModal({ onClose, onSuccess }: Props) {
             placeholder="학부모 전화번호 (010XXXXXXXX)"
             value={form.parentPhone}
             onChange={handleChange}
-            className={`${inputBase} ${inputRequired}`}
+            className="ds-input"
+            data-required="true"
+            disabled={busy}
           />
 
-          {/* 학교 */}
-          <div className="flex gap-2">
-            {["HIGH", "MIDDLE"].map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, schoolType: t }))}
-                className={`flex-1 px-3 py-2 text-sm rounded-md border ${
-                  form.schoolType === t
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                {t === "HIGH" ? "고등학교" : "중학교"}
-              </button>
-            ))}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
+              (t) => (
+                <Button
+                  key={t.key}
+                  intent={form.schoolType === t.key ? "secondary" : "ghost"}
+                  aria-pressed={form.schoolType === t.key}
+                  onClick={() =>
+                    setForm((p) => ({
+                      ...p,
+                      schoolType: t.key,
+                      school: "",
+                      schoolClass: "",
+                      major: "",
+                    }))
+                  }
+                  disabled={busy}
+                >
+                  {t.label}
+                </Button>
+              )
+            )}
           </div>
 
-          <div className="flex gap-2">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name="school"
               placeholder="학교명"
               value={form.school}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
-            <div className="flex gap-1">
+            <div style={{ display: "flex", gap: 8 }}>
               {["1", "2", "3"].map((g) => (
-                <button
+                <Button
                   key={g}
-                  type="button"
+                  intent={form.grade === g ? "secondary" : "ghost"}
+                  aria-pressed={form.grade === g}
                   onClick={() => setForm((p) => ({ ...p, grade: g }))}
-                  className={`px-3 py-2 text-sm rounded-md border ${
-                    form.grade === g
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "border-[var(--border-divider)]"
-                  }`}
+                  disabled={busy}
                 >
                   {g}학년
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <input
               name="schoolClass"
               placeholder="반"
               value={form.schoolClass}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
             <input
               name="major"
-              placeholder="계열"
+              placeholder="계열(고등만)"
               value={form.major}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
           </div>
 
-          <input
-            name="address"
-            placeholder="주소"
-            value={form.address}
-            onChange={handleChange}
-            className={`${inputBase} ${inputNormal}`}
-          />
-
           <textarea
             name="memo"
+            rows={4}
             placeholder="메모"
-            rows={3}
             value={form.memo}
             onChange={handleChange}
-            className={`w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)] resize-none ${inputNormal}`}
+            className="ds-textarea"
+            disabled={busy}
           />
-        </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)]">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-md border border-[var(--border-divider)]"
+          <div
+            style={{
+              marginTop: 2,
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              gap: 10,
+              alignItems: "center",
+            }}
           >
-            취소
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-3 py-1.5 text-sm rounded-md bg-[var(--color-primary)] text-white"
-          >
-            등록
-          </button>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 850,
+                color: "var(--color-text-muted)",
+              }}
+            >
+              등록 후 상세 화면에서 태그/메모/상태를 추가로 관리할 수 있습니다.
+            </div>
+
+            <Button
+              intent={form.active ? "secondary" : "ghost"}
+              size="sm"
+              aria-pressed={form.active}
+              onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
+              disabled={busy}
+            >
+              {form.active ? "활성" : "비활성"}
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            ⌘/Ctrl + Enter 등록
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
+            <Button intent="primary" onClick={handleSubmit} disabled={busy}>
+              {busy ? "등록 중…" : "등록"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
-
-
-
-
-// // PATH: src/features/students/components/StudentCreateModal.tsx
-
-// import { useState } from "react";
-// import { createStudent } from "../api/students";
-
-// /** * ✅ v4 팁: 
-//  * bg-primary 처럼 쓰려면 index.css의 @theme에 --color-primary가 정의되어 있어야 합니다.
-//  * 정의가 안 되어 있다면 아래 코드의 primary는 CSS 변수값을 그대로 추적합니다.
-//  */
-
-// interface Props {
-//   onClose: () => void;
-//   onSuccess: () => void;
-// }
-
-// export default function StudentCreateModal({ onClose, onSuccess }: Props) {
-//   const [noPhone, setNoPhone] = useState(false);
-//   const [form, setForm] = useState({
-//     name: "",
-//     gender: "",
-//     psNumber: "",
-//     initialPassword: "",
-//     studentPhone: "",
-//     omrCode: "",
-//     parentPhone: "",
-//     schoolType: "HIGH",
-//     school: "",
-//     grade: "",
-//     schoolClass: "",
-//     major: "",
-//     address: "",
-//     memo: "",
-//     active: true,
-//   });
-
-//   // v4 스타일 가이드에 맞춘 변수 정리
-//   const inputBase = "w-full rounded-md px-3 py-2 text-sm border bg-app transition-all";
-//   const inputRequired = "border-primary/70 focus:outline-hidden focus:ring-1 focus:ring-primary";
-//   const inputNormal = "border-divider focus:outline-hidden focus:ring-1 focus:ring-primary";
-
-//   function handleChange(e: any) {
-//     const { name, value, type, checked } = e.target;
-//     setForm((prev) => ({
-//       ...prev,
-//       [name]: type === "checkbox" ? checked : value,
-//     }));
-//   }
-
-//   async function handleSubmit() {
-//     if (!form.name.trim()) return alert("이름은 필수입니다.");
-//     if (!form.psNumber.trim()) return alert("PS 번호는 필수입니다.");
-//     if (!form.initialPassword || form.initialPassword.trim().length < 4) return alert("비밀번호는 4자 이상 필수입니다.");
-
-//     if (noPhone) {
-//       if (!/^\d{8}$/.test(form.omrCode)) return alert("식별자는 숫자 8자리입니다.");
-//     } else {
-//       if (!/^010\d{8}$/.test(form.studentPhone)) return alert("학생 전화번호는 010XXXXXXXX 형식입니다.");
-//     }
-//     if (!/^010\d{8}$/.test(form.parentPhone)) return alert("학부모 전화번호는 010XXXXXXXX 형식입니다.");
-
-//     try {
-//       await createStudent({ ...form, noPhone });
-//       onSuccess();
-//       onClose();
-//     } catch (e) {
-//       console.error(e);
-//       alert("오류가 발생했습니다.");
-//     }
-//   }
-
-//   return (
-//     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-//       <div className="w-[520px] rounded-xl bg-surface shadow-2xl border border-divider overflow-hidden animate-in fade-in zoom-in duration-200">
-        
-//         {/* Header */}
-//         <div className="border-b border-divider px-5 py-4 bg-surface-soft">
-//           <h2 className="text-sm font-semibold text-primary-text">학생 등록</h2>
-//         </div>
-
-//         {/* Body */}
-//         <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
-//           <div className="flex gap-2">
-//             <input
-//               name="name"
-//               placeholder="이름"
-//               value={form.name}
-//               onChange={handleChange}
-//               className={`flex-1 ${inputBase} ${inputRequired}`}
-//             />
-//             <div className="flex gap-1">
-//               <button
-//                 type="button"
-//                 onClick={() => setForm((p) => ({ ...p, gender: "M" }))}
-//                 className={`px-3 py-2 text-sm rounded-md border transition-colors ${
-//                   form.gender === "M" ? "bg-blue-500 text-white border-blue-500" : "border-divider hover:bg-surface-soft"
-//                 }`}
-//               >
-//                 남자
-//               </button>
-//               <button
-//                 type="button"
-//                 onClick={() => setForm((p) => ({ ...p, gender: "F" }))}
-//                 className={`px-3 py-2 text-sm rounded-md border transition-colors ${
-//                   form.gender === "F" ? "bg-pink-500 text-white border-pink-500" : "border-divider hover:bg-surface-soft"
-//                 }`}
-//               >
-//                 여자
-//               </button>
-//             </div>
-//           </div>
-
-//           <input
-//             name="psNumber"
-//             placeholder="아이디"
-//             value={form.psNumber}
-//             onChange={handleChange}
-//             className={`${inputBase} ${inputRequired}`}
-//           />
-
-//           <input
-//             name="initialPassword"
-//             type="password"
-//             placeholder="비밀번호"
-//             value={form.initialPassword}
-//             onChange={handleChange}
-//             className={`${inputBase} ${inputRequired}`}
-//           />
-
-//           <div className="flex gap-2 items-center">
-//             <input
-//               name={noPhone ? "omrCode" : "studentPhone"}
-//               placeholder={noPhone ? "식별자 (8자리)" : "학생 전화번호 (010XXXXXXXX)"}
-//               value={noPhone ? form.omrCode : form.studentPhone}
-//               onChange={handleChange}
-//               className={`flex-1 ${inputBase} ${inputRequired}`}
-//             />
-//             <button
-//               type="button"
-//               onClick={() => setNoPhone((v) => !v)}
-//               className={`px-3 py-2 text-sm rounded-md border transition-all ${
-//                 noPhone ? "bg-primary text-white border-primary" : "border-divider hover:bg-surface-soft"
-//               }`}
-//             >
-//               없음(식별자)
-//             </button>
-//           </div>
-
-//           <input
-//             name="parentPhone"
-//             placeholder="학부모 전화번호 (010XXXXXXXX)"
-//             value={form.parentPhone}
-//             onChange={handleChange}
-//             className={`${inputBase} ${inputRequired}`}
-//           />
-
-//           <div className="flex gap-2">
-//             {["HIGH", "MIDDLE"].map((t) => (
-//               <button
-//                 key={t}
-//                 type="button"
-//                 onClick={() => setForm((p) => ({ ...p, schoolType: t }))}
-//                 className={`flex-1 px-3 py-2 text-sm rounded-md border transition-all ${
-//                   form.schoolType === t ? "bg-primary text-white border-primary" : "border-divider hover:bg-surface-soft"
-//                 }`}
-//               >
-//                 {t === "HIGH" ? "고등학교" : "중학교"}
-//               </button>
-//             ))}
-//           </div>
-
-//           <div className="flex gap-2">
-//             <input
-//               name="school"
-//               placeholder="학교명"
-//               value={form.school}
-//               onChange={handleChange}
-//               className={`flex-1 ${inputBase} ${inputNormal}`}
-//             />
-//             <div className="flex gap-1">
-//               {["1", "2", "3"].map((g) => (
-//                 <button
-//                   key={g}
-//                   type="button"
-//                   onClick={() => setForm((p) => ({ ...p, grade: g }))}
-//                   className={`px-3 py-2 text-sm rounded-md border transition-all ${
-//                     form.grade === g ? "bg-primary text-white border-primary" : "border-divider hover:bg-surface-soft"
-//                   }`}
-//                 >
-//                   {g}학년
-//                 </button>
-//               ))}
-//             </div>
-//           </div>
-
-//           <div className="flex gap-2">
-//             <input
-//               name="schoolClass"
-//               placeholder="반"
-//               value={form.schoolClass}
-//               onChange={handleChange}
-//               className={`flex-1 ${inputBase} ${inputNormal}`}
-//             />
-//             <input
-//               name="major"
-//               placeholder="계열"
-//               value={form.major}
-//               onChange={handleChange}
-//               className={`flex-1 ${inputBase} ${inputNormal}`}
-//             />
-//           </div>
-
-//           <input
-//             name="address"
-//             placeholder="주소"
-//             value={form.address}
-//             onChange={handleChange}
-//             className={`${inputBase} ${inputNormal}`}
-//           />
-
-//           <textarea
-//             name="memo"
-//             placeholder="메모"
-//             rows={3}
-//             value={form.memo}
-//             onChange={handleChange}
-//             className={`${inputBase} ${inputNormal} resize-none`}
-//           />
-//         </div>
-
-//         {/* Footer */}
-//         <div className="flex justify-end gap-2 px-5 py-3 border-t border-divider">
-//           <button
-//             onClick={onClose}
-//             className="px-4 py-2 text-sm rounded-md border border-divider hover:bg-surface-soft transition-colors"
-//           >
-//             취소
-//           </button>
-//           <button
-//             onClick={handleSubmit}
-//             className="px-4 py-2 text-sm rounded-md bg-primary text-white hover:opacity-90 transition-opacity"
-//           >
-//             등록
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
 
 
 ==========================================================================================
 # FILE: components/StudentFilterModal.tsx
 ==========================================================================================
 // PATH: src/features/students/components/StudentFilterModal.tsx
-
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   filters: any;
   onApply: (next: any) => void;
+}
+
+function normalize(next: any) {
+  Object.keys(next).forEach((k) => {
+    const v = next[k];
+    if (v === "" || v == null) delete next[k];
+  });
+
+  if (typeof next.is_managed === "string") {
+    if (next.is_managed === "true") next.is_managed = true;
+    else if (next.is_managed === "false") next.is_managed = false;
+    else delete next.is_managed;
+  }
+
+  if (typeof next.grade === "string" && next.grade.trim()) {
+    const n = Number(next.grade);
+    if (Number.isFinite(n)) next.grade = n;
+    else delete next.grade;
+  }
+
+  if (typeof next.school_type === "string" && !next.school_type.trim()) {
+    delete next.school_type;
+  }
+
+  return next;
 }
 
 export default function StudentFilterModal({
@@ -1189,129 +1501,57 @@ export default function StudentFilterModal({
   onApply,
 }: Props) {
   const [local, setLocal] = useState<any>(filters || {});
+  const title = useMemo(() => "고급 필터", []);
 
   useEffect(() => {
+    if (!open) return;
     setLocal(filters || {});
-  }, [filters]);
+  }, [open, filters]);
 
-  if (!open) return null;
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    if (open) window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
 
-  function update(key: string, value: string) {
-    setLocal((prev: any) => ({
-      ...prev,
-      [key]: value,
-    }));
+  function update(key: string, value: any) {
+    setLocal((prev: any) => ({ ...prev, [key]: value }));
   }
 
   function apply() {
-    const next = { ...local };
-
-    // ✅ 최소 정리: 빈 값은 params에서 제거(운영에서 필수)
-    Object.keys(next).forEach((k) => {
-      const v = next[k];
-      if (v === "" || v == null) delete next[k];
-    });
-
+    const next = normalize({ ...local });
     onApply(next);
   }
 
+  function reset() {
+    setLocal({});
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[520px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            고급 필터
-          </h2>
-          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-            조건에 맞는 학생만 조회
-          </div>
-        </div>
+    <AdminModal open={open} onClose={onClose} type="action" width={720}>
+      <ModalHeader
+        type="action"
+        title={title}
+        description="조건에 맞는 학생만 조회합니다."
+      />
 
-        {/* Body */}
-        <div className="px-5 py-4 space-y-3">
-          <input
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            placeholder="학부모 전화번호"
-            value={local.parent_phone || ""}
-            onChange={(e) => update("parent_phone", e.target.value)}
-          />
-
-          <input
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            placeholder="학생 전화번호/식별자"
-            value={local.student_phone || ""}
-            onChange={(e) => update("student_phone", e.target.value)}
-          />
-
-          <input
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            placeholder="학교 이름"
-            value={local.school || ""}
-            onChange={(e) => update("school", e.target.value)}
-          />
-
-          <input
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            placeholder="반"
-            value={local.school_class || ""}
-            onChange={(e) => update("school_class", e.target.value)}
-          />
-
-          <div className="flex gap-2">
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <select
-              className="flex-1 rounded-md px-3 py-2 text-sm
-                border border-[var(--border-divider)]
-                bg-[var(--bg-app)]
-                text-[var(--text-primary)]
-                focus:outline-none
-                focus:ring-1
-                focus:ring-[var(--color-primary)]"
-              value={local.gender || ""}
-              onChange={(e) => update("gender", e.target.value)}
+              className="ds-select"
+              value={local.school_type ?? ""}
+              onChange={(e) => update("school_type", e.target.value)}
             >
-              <option value="">성별 전체</option>
-              <option value="M">남</option>
-              <option value="F">여</option>
+              <option value="">학교급 전체</option>
+              <option value="HIGH">고등</option>
+              <option value="MIDDLE">중등</option>
             </select>
 
-            {/* ✅ 상태 필터 추가(정렬과 공존) */}
             <select
-              className="flex-1 rounded-md px-3 py-2 text-sm
-                border border-[var(--border-divider)]
-                bg-[var(--bg-app)]
-                text-[var(--text-primary)]
-                focus:outline-none
-                focus:ring-1
-                focus:ring-[var(--color-primary)]"
+              className="ds-select"
               value={local.is_managed ?? ""}
               onChange={(e) => update("is_managed", e.target.value)}
             >
@@ -1320,32 +1560,107 @@ export default function StudentFilterModal({
               <option value="false">비활성</option>
             </select>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface)]">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-md
-              border border-[var(--border-divider)]
-              text-[var(--text-secondary)]
-              hover:bg-[var(--bg-surface-soft)]"
-          >
-            취소
-          </button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              className="ds-input"
+              placeholder="아이디"
+              value={local.ps_number || ""}
+              onChange={(e) => update("ps_number", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="OMR 식별자 (8자리)"
+              value={local.omr_code || ""}
+              onChange={(e) => update("omr_code", e.target.value)}
+            />
+          </div>
 
-          <button
-            onClick={apply}
-            className="px-3 py-1.5 text-sm rounded-md
-              bg-[var(--color-primary)]
-              text-white
-              hover:opacity-90"
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              className="ds-input"
+              placeholder="이름"
+              value={local.name || ""}
+              onChange={(e) => update("name", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="계열(major)"
+              value={local.major || ""}
+              onChange={(e) => update("major", e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              className="ds-input"
+              placeholder="고등학교"
+              value={local.high_school || ""}
+              onChange={(e) => update("high_school", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="중학교"
+              value={local.middle_school || ""}
+              onChange={(e) => update("middle_school", e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <select
+              className="ds-select"
+              value={local.gender || ""}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">성별 전체</option>
+              <option value="M">남</option>
+              <option value="F">여</option>
+            </select>
+
+            <select
+              className="ds-select"
+              value={local.grade ?? ""}
+              onChange={(e) => update("grade", e.target.value)}
+            >
+              <option value="">학년 전체</option>
+              <option value="1">1학년</option>
+              <option value="2">2학년</option>
+              <option value="3">3학년</option>
+            </select>
+          </div>
+
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 11,
+              fontWeight: 850,
+              color: "var(--color-text-muted)",
+              lineHeight: 1.6,
+            }}
           >
-            적용
-          </button>
+            팁: 필터는 서버 조회에 반영됩니다. 불필요한 빈 값은 자동 제거됩니다.
+          </div>
         </div>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <Button intent="ghost" onClick={reset}>
+            초기화
+          </Button>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose}>
+              취소
+            </Button>
+            <Button intent="primary" onClick={apply}>
+              적용
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -1354,23 +1669,42 @@ export default function StudentFilterModal({
 # FILE: components/StudentsTable.tsx
 ==========================================================================================
 // PATH: src/features/students/components/StudentsTable.tsx
-
-import { EmptyState } from "@/shared/ui/ds";
+import { useMemo } from "react";
+import { EmptyState, Button } from "@/shared/ui/ds";
 import { toggleStudentActive } from "../api/students";
 import { useQueryClient } from "@tanstack/react-query";
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function highlight(text: string, keyword: string) {
   if (!keyword) return text;
-  const parts = text.split(new RegExp(`(${keyword})`, "gi"));
+  const k = keyword.trim();
+  if (!k) return text;
+
+  const parts = String(text).split(new RegExp(`(${escapeRegExp(k)})`, "gi"));
   return parts.map((p, i) =>
-    p.toLowerCase() === keyword.toLowerCase() ? (
-      <mark key={i} className="bg-yellow-300/40 px-0.5 rounded">
+    p.toLowerCase() === k.toLowerCase() ? (
+      <mark
+        key={i}
+        className="px-0.5 rounded"
+        style={{
+          backgroundColor: "var(--state-selected-bg)",
+          color: "inherit",
+        }}
+      >
         {p}
       </mark>
     ) : (
       p
     )
   );
+}
+
+function formatPhone(v: any) {
+  if (!v) return "-";
+  return String(v);
 }
 
 export default function StudentsTable({
@@ -1380,6 +1714,7 @@ export default function StudentsTable({
   onSortChange,
   onDelete,
   onRowClick,
+  onEditClick,
 }: {
   data: any[];
   search: string;
@@ -1387,16 +1722,37 @@ export default function StudentsTable({
   onSortChange: (v: string) => void;
   onDelete: (id: number) => void;
   onRowClick: (id: number) => void;
+  onEditClick: (id: number) => void;
 }) {
   const qc = useQueryClient();
 
+  const columns = useMemo(
+    () => [
+      { key: "name", label: "이름", w: 140 },
+      { key: "studentPhone", label: "학생 전화/식별자", w: 190 },
+      { key: "parentPhone", label: "학부모 전화", w: 170 },
+      { key: "school", label: "학교", w: 160 },
+      { key: "schoolClass", label: "반", w: 80 },
+      { key: "registeredAt", label: "등록일", w: 120 },
+      { key: "active", label: "상태", w: 110 },
+    ],
+    []
+  );
+
   if (!data.length) {
-    return <EmptyState title="학생 정보가 없습니다." />;
+    return (
+      <EmptyState
+        title="학생 정보가 없습니다."
+        description="검색/필터 조건을 확인하거나, 새 학생을 등록해 주세요."
+        scope="panel"
+      />
+    );
   }
 
   async function toggle(id: number, active: boolean) {
     await toggleStudentActive(id, !active);
     qc.invalidateQueries({ queryKey: ["students"] });
+    qc.invalidateQueries({ queryKey: ["student", id] });
   }
 
   function sortHeader(key: string, label: string) {
@@ -1406,103 +1762,143 @@ export default function StudentsTable({
 
     return (
       <th
-        className="
-          px-3 py-2 font-semibold cursor-pointer text-center select-none
-          border-b-2 border-[var(--border-divider)]
-          text-[13px]
-        "
         onClick={() => onSortChange(next)}
+        className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)] cursor-pointer select-none"
+        style={{
+          textAlign: "center",
+          whiteSpace: "nowrap",
+          background:
+            "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
+          color:
+            "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+        }}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        scope="col"
       >
-        <span className="inline-flex items-center gap-1">
+        <span className="inline-flex items-center gap-2">
           {label}
-          {isAsc && <span className="text-[11px]">▲</span>}
-          {isDesc && <span className="text-[11px]">▼</span>}
+          <span
+            aria-hidden
+            style={{
+              fontSize: 11,
+              opacity: isAsc || isDesc ? 1 : 0.35,
+              color: "var(--color-brand-primary)",
+            }}
+          >
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
         </span>
       </th>
     );
   }
 
   return (
-    <table className="w-full text-sm border border-[var(--border-divider)] rounded-md overflow-hidden">
-      <thead className="bg-[var(--bg-surface-soft)] text-[var(--text-secondary)]">
-        <tr>
-          {sortHeader("name", "이름")}
-          {sortHeader("studentPhone", "학생 전화번호(식별자)")}
-          {sortHeader("parentPhone", "학부모 전화번호")}
-          {sortHeader("school", "학교")}
-          {sortHeader("schoolClass", "반")}
-          {sortHeader("registeredAt", "등록일")}
-          {sortHeader("active", "상태")}
-          <th className="px-3 py-2 text-center border-b-2 border-[var(--border-divider)] text-[13px]">
-            관리
-          </th>
-        </tr>
-      </thead>
+    <div style={{ overflow: "hidden" }}>
+      <table className="w-full" style={{ tableLayout: "fixed" }}>
+        <colgroup>
+          {columns.map((c) => (
+            <col key={c.key} style={{ width: c.w }} />
+          ))}
+          <col style={{ width: 160 }} />
+        </colgroup>
 
-      <tbody className="divide-y divide-[var(--border-divider)]">
-        {data.map((s) => (
-          <tr
-            key={s.id}
-            onClick={() => onRowClick(s.id)}
-            className="hover:bg-[var(--bg-surface-soft)] cursor-pointer transition"
-          >
-            <td className="px-3 py-2 font-semibold text-center text-[var(--text-primary)]">
-              {highlight(s.name || "-", search)}
-            </td>
-
-            <td className="px-3 py-2 text-center">
-              {s.studentPhone && String(s.studentPhone).length === 8 ? (
-                <span className="text-[var(--text-muted)]">
-                  식별자 {highlight(String(s.studentPhone), search)}
-                </span>
-              ) : (
-                highlight(s.studentPhone || "-", search)
-              )}
-            </td>
-
-            <td className="px-3 py-2 text-center">
-              {highlight(s.parentPhone || "-", search)}
-            </td>
-
-            <td className="px-3 py-2 text-center">{s.school || "-"}</td>
-            <td className="px-3 py-2 text-center">{s.schoolClass || "-"}</td>
-
-            <td className="px-3 py-2 text-center text-xs text-[var(--text-secondary)]">
-              {s.registeredAt?.slice(0, 10) || "-"}
-            </td>
-
-            <td
-              className="px-3 py-2 text-center"
-              onClick={(e) => e.stopPropagation()}
+        <thead>
+          <tr>
+            {columns.map((c) => sortHeader(c.key, c.label))}
+            <th
+              className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
+              style={{
+                textAlign: "center",
+                whiteSpace: "nowrap",
+                background:
+                  "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
+                color:
+                  "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+              }}
+              scope="col"
             >
-              <button
-                onClick={() => toggle(s.id, s.active)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition
-                  ${
-                    s.active
-                      ? "bg-[var(--color-success)]/15 text-[var(--color-success)]"
-                      : "bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
-                  }`}
-              >
-                {s.active ? "활성" : "비활성"}
-              </button>
-            </td>
-
-            <td
-              className="px-3 py-2 text-center"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                className="text-xs text-[var(--color-danger)] hover:underline"
-                onClick={() => onDelete(s.id)}
-              >
-                삭제
-              </button>
-            </td>
+              작업
+            </th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+
+        <tbody className="divide-y divide-[var(--color-border-divider)]">
+          {data.map((s) => (
+            <tr
+              key={s.id}
+              onClick={() => onRowClick(s.id)}
+              tabIndex={0}
+              role="button"
+              className="group cursor-pointer hover:bg-[var(--color-bg-surface-soft)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
+            >
+              {/* 이름 */}
+              <td className="px-4 py-3 text-center text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+                {highlight(s.name || "-", search)}
+              </td>
+
+              {/* 학생 전화 */}
+              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(formatPhone(s.studentPhone), search)}
+              </td>
+
+              {/* 학부모 전화 */}
+              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(s.parentPhone || "-", search)}
+              </td>
+
+              {/* 학교 */}
+              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {s.school || "-"}
+              </td>
+
+              {/* 반 */}
+              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {s.schoolClass || "-"}
+              </td>
+
+              {/* 등록일 */}
+              <td className="px-4 py-3 text-center text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
+                {s.registeredAt?.slice(0, 10) || "-"}
+              </td>
+
+              {/* 상태 */}
+              <td
+                className="px-4 py-3 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span
+                  style={{
+                    padding: "5px 12px",
+                    borderRadius: 999,
+                    fontWeight: 800,
+                    fontSize: 12,
+                    color: "white",
+                    backgroundColor: s.active ? "#22c55e" : "#ef4444",
+                  }}
+                >
+                  {s.active ? "활성" : "비활성"}
+                </span>
+              </td>
+
+              {/* 작업 */}
+              <td
+                className="px-4 py-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Button intent="primary" size="sm" onClick={() => onEditClick(s.id)}>
+                    수정
+                  </Button>
+                  <Button intent="danger" size="sm" onClick={() => onDelete(s.id)}>
+                    삭제
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -1511,7 +1907,6 @@ export default function StudentsTable({
 # FILE: hooks/useStudentsQuery.ts
 ==========================================================================================
 // PATH: src/features/students/hooks/useStudentsQuery.ts
-
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudents } from "../api/students";
 
@@ -1544,7 +1939,7 @@ export function useStudentsQuery(search: string, filters: any, sort: string) {
   return useQuery({
     queryKey: ["students", search, filters, sort],
     queryFn: async () => {
-      const data = await fetchStudents(search, filters);
+      const data = await fetchStudents(search, filters, sort);
 
       if (!sort) return data;
 
@@ -1567,6 +1962,7 @@ export function useStudentsQuery(search: string, filters: any, sort: string) {
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createPortal } from "react-dom";
 
 import {
   getStudentDetail,
@@ -1578,8 +1974,7 @@ import {
 } from "../api/students";
 
 import StudentFormModal from "../components/EditStudentModal";
-
-import { PageHeader, Section, Panel, EmptyState } from "@/shared/ui/ds";
+import { PageHeader, Section, EmptyState, Button } from "@/shared/ui/ds";
 
 /* ================= constants ================= */
 
@@ -1631,9 +2026,7 @@ export default function StudentsDetailPage() {
   async function handleDelete() {
     if (!confirm("이 학생을 삭제하시겠습니까?")) return;
     await deleteStudent(id);
-
     qc.invalidateQueries({ queryKey: ["students"] });
-
     navigate(-1);
   }
 
@@ -1641,291 +2034,233 @@ export default function StudentsDetailPage() {
 
   return (
     <>
-      {/* Overlay Backdrop */}
-      <div
-        className="fixed inset-0 z-40 bg-black/50"
-        onClick={() => navigate(-1)}
-      />
+      {/* backdrop */}
+      <div className="fixed inset-0 z-40 bg-black/60" onClick={() => navigate(-1)} />
 
-      {/* Overlay Card */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-        <div className="w-full max-w-[1100px] max-h-[90vh] overflow-auto rounded-2xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)]">
-          {/* Header Area (SSOT PageHeader: title string only) */}
-          <div className="px-6 pt-6">
+      {/* overlay wrapper */}
+      <div
+        className="fixed inset-0 z-50 flex justify-center overflow-auto"
+        style={{
+          paddingTop: "calc(var(--panel-header, 64px) + 24px)",
+          paddingBottom: 32,
+        }}
+      >
+        <div
+          className="w-full max-w-[1120px]"
+          style={{
+            borderRadius: 22,
+            background: "var(--layout-page-bg)",
+            border: "1px solid var(--color-border-divider)",
+            boxShadow: "0 40px 120px rgba(0,0,0,0.55)",
+          }}
+        >
+          {/* HEADER (GRADIENT) */}
+          <div
+            style={{
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
+              background:
+                "linear-gradient(135deg, var(--color-brand-primary), var(--scale-Primary700))",
+              color: "white",
+            }}
+          >
             <PageHeader
-              title={student.name}
+              title={
+                <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: "-0.3px" }}>
+                  {student.name}
+                </div>
+              }
+              description={<span style={{ opacity: 0.85 }}>아이디 · {student.psNumber}</span>}
               actions={
                 <div className="flex items-center gap-2">
-                  {/* Status Badge */}
                   <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      student.active
-                        ? "border border-[var(--color-success)] bg-[var(--color-success)]/10 text-[var(--color-success)]"
-                        : "border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
-                    }`}
+                    style={{
+                      padding: "4px 12px",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      borderRadius: 999,
+                      color: "white",
+                      backgroundColor: student.active ? "#22c55e" : "#ef4444", // 초록/빨강
+                    }}
                   >
                     {student.active ? "활성" : "비활성"}
                   </span>
-
-                  <button
-                    onClick={() => setEditOpen(true)}
-                    className="px-3 py-1.5 text-sm rounded-md
-                      border border-[var(--border-divider)]
-                      bg-[var(--bg-surface)]
-                      text-[var(--text-primary)]
-                      hover:bg-[var(--bg-surface-soft)]"
-                  >
+                  <Button intent="secondary" size="sm" onClick={() => setEditOpen(true)}>
                     수정
-                  </button>
-
-                  <button
-                    onClick={handleDelete}
-                    className="px-3 py-1.5 text-sm rounded-md
-                      border border-[var(--color-danger)]
-                      text-[var(--color-danger)]
-                      hover:bg-[var(--color-danger)]/10"
-                  >
+                  </Button>
+                  <Button intent="danger" size="sm" onClick={handleDelete}>
                     삭제
-                  </button>
-
-                  <button
-                    onClick={() => navigate(-1)}
-                    className="px-3 py-1.5 text-sm rounded-md
-                      border border-[var(--border-divider)]
-                      bg-[var(--bg-app)]
-                      text-[var(--text-primary)]
-                      hover:bg-[var(--bg-surface-soft)]"
-                  >
+                  </Button>
+                  <Button intent="ghost" size="sm" onClick={() => navigate(-1)}>
                     닫기
-                  </button>
+                  </Button>
                 </div>
               }
             />
           </div>
 
-          <div className="px-6 pb-6">
+          {/* BODY */}
+          <div className="px-6 py-6">
             <Section>
-              {/* ================= Layout ================= */}
-              <div className="flex gap-6">
-                {/* LEFT */}
-                <div className="w-[340px] shrink-0 space-y-4">
-                  <Panel>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "300px 1fr",
+                  gap: 20,
+                }}
+              >
+                {/* LEFT PANEL */}
+                <div
+                  style={{
+                    borderRadius: 18,
+                    padding: 16,
+                    background:
+                      "linear-gradient(180deg, var(--color-bg-surface-soft), var(--color-bg-surface))",
+                    border: "1px solid var(--color-border-divider)",
+                  }}
+                >
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <InfoRow label="학생 전화/식별자" value={student.studentPhone} accent />
+                    <InfoRow label="학부모 전화" value={student.parentPhone} />
+                    <InfoRow label="성별" value={student.gender} />
+                    <InfoRow label="학교" value={student.school} />
+                    <InfoRow
+                      label="학년"
+                      value={student.grade ? `${student.grade}학년` : "-"}
+                    />
+                    <InfoRow label="반" value={student.schoolClass} />
+                    <InfoRow label="계열" value={student.major} />
+                  </div>
+
+                  {/* TAG */}
+                  <div style={{ marginTop: 18 }}>
                     <div
-                      className="
-                        rounded-2xl border border-[var(--border-divider)]
-                        bg-[var(--bg-surface)]
-                        overflow-hidden
-                      "
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 900,
+                        marginBottom: 6,
+                        color: "var(--color-text-muted)",
+                      }}
                     >
-                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                        <div className="text-sm font-semibold text-[var(--text-primary)]">
-                          기본 정보
-                        </div>
-                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                          계정 · 연락처 · 학교
-                        </div>
-                      </div>
-
-                      <div className="p-4 space-y-2 text-sm">
-                        <InfoItem
-                          label="아이디(PS)"
-                          value={student.psNumber}
-                          strong
-                        />
-                        <InfoItem
-                          label="학생 전화번호/식별자"
-                          value={
-                            student.studentPhone &&
-                            String(student.studentPhone).length === 8
-                              ? `식별자 ${student.studentPhone}`
-                              : student.studentPhone
-                          }
-                          strong
-                        />
-                        <InfoItem
-                          label="학부모 전화번호"
-                          value={student.parentPhone}
-                          strong
-                        />
-                        <InfoItem label="성별" value={student.gender} />
-                        <InfoItem label="학교" value={student.school} />
-                        <InfoItem
-                          label="학년"
-                          value={student.grade ? `${student.grade}학년` : null}
-                        />
-                        <InfoItem label="반" value={student.schoolClass} />
-                        <InfoItem label="계열" value={student.major} />
-                        <InfoItem
-                          label="등록일"
-                          value={student.registeredAt?.slice(0, 10)}
-                        />
-                      </div>
+                      태그
                     </div>
-                  </Panel>
 
-                  <Panel>
-                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                        <div className="text-sm font-semibold text-[var(--text-primary)]">
-                          태그
-                        </div>
-                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                          분류/관리용 라벨
-                        </div>
-                      </div>
-
-                      <div className="p-4">
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {student.tags?.length ? (
-                            student.tags.map((t: any) => (
-                              <div
-                                key={t.id}
-                                className="group flex items-center gap-1
-                            px-2 py-1 rounded-full text-xs font-semibold
-                            shadow-sm text-white"
-                                style={{ backgroundColor: t.color }}
-                              >
-                                <span>{t.name}</span>
-                                <button
-                                  onClick={() => removeTag.mutate(t.id)}
-                                  className="hidden group-hover:inline text-white/80 hover:text-white"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))
-                          ) : (
-                            <EmptyState title="태그 없음" />
-                          )}
-                        </div>
-
-                        <select
-                          className="w-full rounded-md px-2 py-2 text-sm
-                      border border-[var(--border-divider)]
-                      bg-[var(--bg-app)]
-                      text-[var(--text-primary)]
-                      focus:outline-none
-                      focus:ring-1
-                      focus:ring-[var(--color-primary)]"
-                          onChange={(e) => {
-                            const tagId = Number(e.target.value);
-                            if (tagId) addTag.mutate(tagId);
-                          }}
-                        >
-                          <option value="">태그 목록</option>
-                          {tags?.map((tag: any) => (
-                            <option key={tag.id} value={tag.id}>
-                              {tag.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {student.tags?.length ? (
+                        student.tags.map((t: any) => (
+                          <span
+                            key={t.id}
+                            style={{
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              fontSize: 11,
+                              fontWeight: 900,
+                              background: `color-mix(in srgb, ${t.color} 22%, var(--color-bg-surface))`,
+                              color: t.color,
+                              border: `1px solid ${t.color}`,
+                            }}
+                          >
+                            {t.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                          태그 없음
+                        </span>
+                      )}
                     </div>
-                  </Panel>
 
-                  <Panel>
-                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                      <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-                        <div className="text-sm font-semibold text-[var(--text-primary)]">
-                          메모
-                        </div>
-                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                          포커스 아웃 시 저장
-                        </div>
-                      </div>
+                    <select
+                      className="ds-input"
+                      onChange={(e) => {
+                        const tagId = Number(e.target.value);
+                        if (tagId) addTag.mutate(tagId);
+                        e.currentTarget.value = "";
+                      }}
+                    >
+                      <option value="">태그 추가…</option>
+                      {tags?.map((tag: any) => (
+                        <option key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                      <div className="p-4">
-                        <textarea
-                          className="w-full h-32 rounded-md p-3 text-sm resize-none
-                      border border-[var(--border-divider)]
-                      bg-[var(--bg-app)]
-                      text-[var(--text-primary)]
-                      placeholder:text-[var(--text-muted)]
-                      focus:outline-none
-                      focus:ring-1
-                      focus:ring-[var(--color-primary)]"
-                          defaultValue={student.memo}
-                          placeholder="메모 작성..."
-                          onBlur={(e) => updateMemo.mutate(e.target.value)}
-                        />
-                      </div>
+                  {/* MEMO */}
+                  <div style={{ marginTop: 18 }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 900,
+                        marginBottom: 6,
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      메모
                     </div>
-                  </Panel>
+                    <textarea
+                      className="ds-textarea"
+                      rows={4}
+                      defaultValue={student.memo}
+                      placeholder="메모..."
+                      onBlur={(e) => updateMemo.mutate(e.target.value)}
+                    />
+                  </div>
                 </div>
 
-                {/* RIGHT */}
-                <div className="flex-1">
-                  <Panel>
-                    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-                      <div className="px-4 pt-4">
-                        <div className="relative mb-4">
-                          <div className="flex gap-2 border-b border-[var(--border-divider)]">
-                            {TABS.map((t) => {
-                              const active = tab === t.key;
+                {/* RIGHT PANEL */}
+                <div
+                  style={{
+                    borderRadius: 18,
+                    padding: 16,
+                    background:
+                      "linear-gradient(180deg, color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface)), var(--color-bg-surface))",
+                    border: "1px solid var(--color-border-divider)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      padding: 6,
+                      marginBottom: 14,
+                      borderRadius: 14,
+                      background: "var(--color-bg-surface-soft)",
+                      border: "1px solid var(--color-border-divider)",
+                    }}
+                  >
+                    {TABS.map((t) => {
+                      const active = tab === t.key;
+                      return (
+                        <button
+                          key={t.key}
+                          onClick={() => setTab(t.key)}
+                          style={{
+                            padding: "8px 14px",
+                            borderRadius: 12,
+                            fontSize: 13,
+                            fontWeight: 900,
+                            color: active ? "white" : "var(--color-text-secondary)",
+                            background: active
+                              ? "linear-gradient(135deg, var(--color-brand-primary), var(--scale-Primary600))"
+                              : "transparent",
+                            boxShadow: active ? "0 6px 18px rgba(0,0,0,0.35)" : "none",
+                          }}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                              return (
-                                <button
-                                  key={t.key}
-                                  onClick={() => setTab(t.key)}
-                                  className={`
-                              relative px-4 py-2 text-sm font-semibold rounded-t-md
-                              transition-all duration-200
-                              ${
-                                active
-                                  ? `
-                                    bg-[var(--bg-surface-soft)]
-                                    text-[var(--text-primary)]
-                                  `
-                                  : `
-                                    text-[var(--text-secondary)]
-                                    hover:text-[var(--text-primary)]
-                                  `
-                              }
-                            `}
-                                >
-                                  {t.label}
-
-                                  {active && (
-                                    <span
-                                      className="
-                                  absolute left-0 right-0 -bottom-[1px]
-                                  h-[2px]
-                                  bg-[var(--color-primary)]
-                                  rounded-full
-                                "
-                                    />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          <div
-                            className="
-                        h-[3px]
-                        w-full
-                        bg-gradient-to-r
-                        from-[var(--color-primary)]/40
-                        via-transparent
-                        to-transparent
-                      "
-                          />
-                        </div>
-                      </div>
-
-                      <div className="px-4 pb-4">
-                        <div className="min-h-[300px]">
-                          {tab === "enroll" ? (
-                            <EnrollmentsTab
-                              enrollments={student.enrollments}
-                            />
-                          ) : (
-                            <EmptyState title="데이터가 없습니다." />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Panel>
+                  <div style={{ minHeight: 260 }}>
+                    {tab === "enroll" ? (
+                      <EnrollmentsTab enrollments={student.enrollments} />
+                    ) : (
+                      <EmptyState title="데이터가 없습니다." />
+                    )}
+                  </div>
                 </div>
               </div>
             </Section>
@@ -1933,65 +2268,72 @@ export default function StudentsDetailPage() {
         </div>
       </div>
 
-      {/* Edit Modal */}
-      {editOpen && (
-        <StudentFormModal
-          initialValue={student}
-          onClose={() => setEditOpen(false)}
-          onSuccess={() => {
-            setEditOpen(false);
-            qc.invalidateQueries({ queryKey: ["student", id] });
-          }}
-        />
-      )}
+      {/* 🔧 수정 버튼 모달 포탈 */}
+      {editOpen &&
+        createPortal(
+          <StudentFormModal
+            open={true}
+            initialValue={student}
+            onClose={() => setEditOpen(false)}
+            onSuccess={() => {
+              setEditOpen(false);
+              qc.invalidateQueries({ queryKey: ["student", id] });
+            }}
+          />,
+          document.body
+        )}
     </>
   );
 }
 
 /* ================= sub ================= */
 
-function InfoItem({
+function InfoRow({
   label,
   value,
-  strong,
+  accent,
 }: {
   label: string;
   value: any;
-  strong?: boolean;
+  accent?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-3">
-      <span className="text-xs text-[var(--text-muted)]">{label}</span>
-      <span
-        className={`text-sm text-right ${
-          strong
-            ? "font-semibold text-[var(--text-primary)]"
-            : "text-[var(--text-primary)]"
-        }`}
-      >
-        {value || "-"}
-      </span>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        alignItems: "center",
+        padding: "8px 10px",
+        borderRadius: 12,
+        background: accent
+          ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
+          : "var(--color-bg-surface)",
+        border: "1px solid var(--color-border-divider)",
+        fontSize: 12,
+      }}
+    >
+      <span style={{ fontWeight: 800, color: "var(--color-text-muted)" }}>{label}</span>
+      <span style={{ fontWeight: 950, color: "var(--color-text-primary)" }}>{value || "-"}</span>
     </div>
   );
 }
 
 function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
-  if (!enrollments?.length) {
-    return <EmptyState title="수강 이력이 없습니다." />;
-  }
+  if (!enrollments?.length) return <EmptyState title="수강 이력이 없습니다." />;
 
   return (
-    <div className="space-y-2">
+    <div style={{ display: "grid", gap: 10 }}>
       {enrollments.map((en: any) => (
         <div
           key={en.id}
-          className="rounded-md px-3 py-2 text-sm cursor-pointer
-            border border-[var(--border-divider)]
-            bg-[var(--bg-app)]
-            text-[var(--text-primary)]
-            hover:bg-[var(--bg-surface-soft)]
-            hover:border-[var(--color-primary)]/40
-            transition"
+          style={{
+            padding: "12px 14px",
+            borderRadius: 14,
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border-divider)",
+            fontSize: 13,
+            fontWeight: 900,
+          }}
         >
           {en.lectureName || "-"}
         </div>
@@ -2002,136 +2344,114 @@ function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
 
 
 ==========================================================================================
-# FILE: pages/StudentsPage.tsx
+# FILE: pages/StudentsHomePage.tsx
 ==========================================================================================
-// PATH: src/features/students/pages/StudentsPage.tsx
-
-import { useState, useEffect } from "react";
+// PATH: src/features/students/pages/StudentsHomePage.tsx
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useStudentsQuery } from "../hooks/useStudentsQuery";
 import StudentsTable from "../components/StudentsTable";
-import StudentFormModal from "../components/StudentCreateModal";
+import StudentCreateModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
-import { deleteStudent } from "../api/students";
+import DeleteConfirmModal from "../components/DeleteConfirmModal";
 
-import { PageHeader, Section, Panel } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
-export default function StudentsPage() {
+export default function StudentsHomePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<any>({});
-  const [showModal, setShowModal] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [sort, setSort] = useState<any>("date");
-
-  const hasFilter = Object.keys(filters || {}).length > 0;
+  const [sort, setSort] = useState("-registeredAt");
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(searchInput);
-    }, 300);
+    const t = setTimeout(() => setSearch(searchInput), 250);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data, isFetching } = useStudentsQuery(search, filters, sort);
-
-  async function handleDelete(id: number) {
-    if (!confirm("삭제하시겠습니까?")) return;
-    await deleteStudent(id);
-    qc.invalidateQueries({ queryKey: ["students"] });
-  }
+  const { data, isLoading } = useStudentsQuery(search, filters, sort);
+  const activeFilterCount = useMemo(
+    () => Object.keys(filters || {}).length,
+    [filters]
+  );
 
   return (
     <>
-      <PageHeader
-        title="학생 관리"
-        actions={
-          <button
-            onClick={() => setShowModal(true)}
-            className="px-4 py-2 rounded-md text-sm font-semibold
-              bg-[var(--color-primary)]
-              text-white"
-          >
-            학생 추가
-          </button>
-        }
-      />
-
-      <div className="mt-1 mb-4 text-sm text-[var(--text-muted)]">
-        학생 계정 및 기본 정보를 관리합니다.
-      </div>
-
-      <Section>
-        <Panel>
-          <div className="panel-body flex items-center gap-3">
-            <div className="relative">
-              <input
-                className="w-64 py-2 px-3 text-sm rounded-md
-                  border border-[var(--border-divider)]
-                  bg-[var(--bg-app)]"
-                placeholder="이름으로 학생 검색"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-              {isFetching && (
-                <span
-                  className="absolute right-3 top-1/2 -translate-y-1/2
-                  w-3 h-3 rounded-full border-2 border-t-transparent animate-spin"
-                />
-              )}
-            </div>
-
-            <button
-              onClick={() => setSearch(searchInput)}
-              className="px-3 py-2 text-sm rounded-md
-                border border-[var(--border-divider)]
-                hover:bg-[var(--bg-surface)]"
-            >
-              검색
-            </button>
-
-            <button
-              onClick={() => setShowFilter(true)}
-              className="relative px-3 py-2 text-sm text-[var(--text-secondary)]"
-            >
-              고급 필터
-              {hasFilter && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[var(--color-primary)]" />
-              )}
-            </button>
+      <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
+        {/* CARD HEADER */}
+        <div className="px-5 py-4 border-b border-[var(--border-divider)]">
+          <div className="text-base font-semibold mb-2">
+            학생 관리
           </div>
-        </Panel>
-      </Section>
 
-      <Section>
-        <Panel>
-          <div className="panel-body p-0">
+          <input
+            className="ds-input"
+            placeholder="이름 / 아이디 / 전화번호 / 학교 검색"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            style={{ maxWidth: 360 }}
+          />
+        </div>
+
+        {/* CARD ACTIONS */}
+        <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border-divider)]">
+          <Button intent="secondary" onClick={() => setShowFilter(true)}>
+            고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
+          </Button>
+          <Button intent="primary" onClick={() => setShowCreate(true)}>
+            학생 추가
+          </Button>
+
+          <span className="ml-auto text-sm font-semibold text-[var(--color-text-muted)]">
+            {isLoading ? "불러오는 중…" : `${data?.length ?? 0}명`}
+          </span>
+        </div>
+
+        {/* CARD BODY */}
+        <div className="p-4">
+          {isLoading ? (
+            <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : data?.length ? (
             <StudentsTable
-              data={data || []}
+              data={data}
               search={search}
               sort={sort}
-              onSortChange={(v) => setSort(v as any)}
-              onDelete={handleDelete}
-              onRowClick={(id) => navigate(String(id))}
+              onSortChange={setSort}
+              onDelete={(id) => setDeleteId(id)}
+              onRowClick={(id) => navigate(`/admin/students/${id}`)}
             />
-          </div>
-        </Panel>
-      </Section>
+          ) : (
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="학생이 없습니다"
+              description="학생을 등록하면 목록/검색/이력 관리가 가능합니다."
+              actions={
+                <Button intent="primary" onClick={() => setShowCreate(true)}>
+                  학생 추가
+                </Button>
+              }
+            />
+          )}
+        </div>
+      </div>
 
-      {showModal && (
-        <StudentFormModal
-          onClose={() => setShowModal(false)}
-          onSuccess={() => {
-            setShowModal(false);
-            qc.invalidateQueries({ queryKey: ["students"] });
-          }}
-        />
-      )}
+      {/* MODALS */}
+      <StudentCreateModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onSuccess={() => {
+          setShowCreate(false);
+          qc.invalidateQueries({ queryKey: ["students"] });
+        }}
+      />
 
       <StudentFilterModal
         open={showFilter}
@@ -2142,6 +2462,18 @@ export default function StudentsPage() {
           setShowFilter(false);
         }}
       />
+
+      {deleteId != null && (
+        <DeleteConfirmModal
+          open
+          id={deleteId}
+          onClose={() => setDeleteId(null)}
+          onSuccess={() => {
+            setDeleteId(null);
+            qc.invalidateQueries({ queryKey: ["students"] });
+          }}
+        />
+      )}
     </>
   );
 }

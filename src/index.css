@@ -1,4 +1,5 @@
-/* src/index.css */
+/* PATH: src/index.css */
 /* 🔒 SINGLE ENTRY – Admin Design System SSOT */
 
+@import "tailwindcss";
 @import "./styles/design-system/index.css";

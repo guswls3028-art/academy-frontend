@@ -1,10 +1,39 @@
 /* PATH: src/styles/design-system/antd/table.css */
-/* AntD Table */
+/* ============================================================================
+ * AntD Table — WORK SURFACE FIX (SLOT WIRED, FINAL)
+ * - 테이블은 "작업 면(work)" 슬롯을 반드시 사용
+ * - header/hover도 work 계열에서 파생
+ * ============================================================================ */
 
 .ant-table {
-  background: transparent;
+  background: var(--ui-work-bg);
+  border: 1px solid var(--ui-work-border);
+  border-radius: 12px;
+  overflow: hidden;
 }
+
+.ant-table-container {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Header */
 .ant-table-thead > tr > th {
-  background: var(--color-bg-surface-hover);
+  background: var(--ui-work-header-bg);
   color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--ui-work-border);
+}
+
+/* Body row hover */
+.ant-table-tbody > tr:hover > td {
+  background: color-mix(in srgb, var(--ui-work-header-bg) 72%, transparent);
+}
+
+/* Cell borders */
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--ui-work-border);
+}
+
+.ant-table-tbody > tr:last-child > td {
+  border-bottom: 0;
 }

@@ -1,78 +1,74 @@
-import { useState } from "react";
+// src/features/lectures/components/BoardCategoryModal.tsx
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createBoardCategory } from "../api/board";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 
 interface Props {
   lectureId: number;
+  isOpen: boolean;
   onClose: () => void;
 }
 
-export default function BoardCategoryModal({ lectureId, onClose }: Props) {
+export default function BoardCategoryModal({ lectureId, isOpen, onClose }: Props) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const { mutate, isLoading } = useMutation({
-    mutationFn: () => createBoardCategory({ lecture: lectureId, name }),
+  const title = useMemo(() => "게시판 카테고리 추가", []);
+
+  const { mutate } = useMutation({
+    mutationFn: async () => {
+      setBusy(true);
+      try {
+        return await createBoardCategory({ lecture: lectureId, name });
+      } finally {
+        setBusy(false);
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["board-categories", lectureId] });
       onClose();
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    mutate();
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        if (!busy && name.trim()) mutate();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, busy, name]);
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-sm rounded-lg bg-[var(--bg-surface)] p-5 shadow-lg">
-        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
-          게시판 카테고리 추가
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            className="
-              w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-            "
-            placeholder="예: 오탈자 및 정정사항"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-
-          <div className="flex justify-end gap-2 text-sm">
-            <button
-              type="button"
-              onClick={onClose}
-              className="
-                rounded-md px-3 py-2
-                border border-[var(--border-divider)]
-                text-[var(--text-secondary)]
-                hover:bg-[var(--bg-surface-soft)]
-              "
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="
-                rounded-md px-3 py-2
-                bg-[var(--color-primary)]
-                text-white
-                disabled:opacity-60
-              "
-            >
-              {isLoading ? "저장 중..." : "추가"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <AdminModal open={true} onClose={onClose} type="action" width={560}>
+      <ModalHeader type="action" title={title} description="⌘/Ctrl + Enter 저장" />
+      <ModalBody>
+        <input
+          className="ds-input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={busy}
+          autoFocus
+        />
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose}>취소</Button>
+            <Button intent="primary" onClick={() => name.trim() && mutate()} disabled={!name.trim() || busy}>
+              추가
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }

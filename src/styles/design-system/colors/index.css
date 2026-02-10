@@ -7,8 +7,8 @@
 
 /* -------------------------------------------------
    Legacy Alias Layer (기존 코드 호환용)
-   - 기존 var(--bg-surface) 같은 이름을 "Role Token"에 연결
-   - 이후 점진적으로 기존 이름 제거 가능
+   ⚠️ Sidebar / Header 같은 layout token은
+   ⚠️ 여기서 절대 정의하지 않는다 (테마 전용)
 ------------------------------------------------- */
 :root {
   /* Background */
@@ -35,16 +35,5 @@
   --color-success: var(--color-success);
   --color-danger: var(--color-error);
 
-  /* Sidebar (관리자 전용 기본값: role 기반으로만 구성) */
-  --sidebar-bg: var(--color-bg-surface);
-  --sidebar-text-primary: var(--color-text-primary);
-  --sidebar-text-secondary: var(--color-text-secondary);
-  --sidebar-hover-bg: var(--color-bg-surface-hover);
-  --sidebar-active-bg: var(--color-brand-primary);
-  --sidebar-active-text: var(--color-text-inverse);
-
-  /* Widget (레거시) */
-  --widget-bg: var(--color-bg-surface);
-  --widget-hover: var(--color-bg-surface-hover);
-  --widget-text: var(--color-text-primary);
+  /* ❌ sidebar-* 정의 제거됨 */
 }

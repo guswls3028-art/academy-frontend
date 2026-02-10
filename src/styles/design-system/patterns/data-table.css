@@ -1,0 +1,71 @@
+/* ===============================
+ * Data Table – Enterprise Skin (SSOT)
+ * =============================== */
+
+[data-app="admin"] table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-divider);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Header */
+[data-app="admin"] thead th {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-surface-soft);
+  border-bottom: 1px solid var(--border-divider);
+  white-space: nowrap;
+}
+
+/* Body */
+[data-app="admin"] tbody td {
+  padding: 14px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+[data-app="admin"] tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Hover */
+[data-app="admin"] tbody tr {
+  transition: background 120ms ease;
+}
+[data-app="admin"] tbody tr:hover {
+  background: var(--bg-surface-soft);
+}
+
+/* Dense variant */
+[data-app="admin"] table[data-density="compact"] td {
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+/* Status badge */
+[data-app="admin"] .table-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid var(--border-divider);
+  background: var(--bg-surface-soft);
+  color: var(--text-secondary);
+}
+
+[data-app="admin"] .table-badge[data-state="active"] {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+}

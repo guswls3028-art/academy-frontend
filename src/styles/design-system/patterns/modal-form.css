@@ -1,0 +1,20 @@
+/* PATH: src/styles/design-system/patterns/modal-form.css */
+/* Modal Form Vertical Rhythm (SSOT) */
+
+[data-app="admin"] .modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4); /* ✅ 16px 고정 */
+}
+
+/* AntD FormItem reset */
+[data-app="admin"] .modal-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+/* 한 줄(row) 안 정렬 */
+[data-app="admin"] .modal-form-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3); /* 12px */
+}

@@ -7,10 +7,12 @@ import { AppLayout } from "@/shared/ui/layout";
 import DashboardPage from "@/features/dashboard/pages/DashboardPage";
 
 /* ================= Students ================= */
-import StudentsPage from "@/features/students/pages/StudentsPage";
+import StudentsLayout from "@/features/students/StudentsLayout";
+import StudentsHomePage from "@/features/students/pages/StudentsHomePage";
 import StudentsDetailPage from "@/features/students/pages/StudentsDetailPage";
 
 /* ================= Lectures ================= */
+import LecturesLayout from "@/features/lectures/layout/LecturesLayout";
 import LecturesPage from "@/features/lectures/pages/lectures/LecturesPage";
 import LectureLayout from "@/features/lectures/layout/LectureLayout";
 import LectureStudentsPage from "@/features/lectures/pages/lectures/LectureStudentsPage";
@@ -52,8 +54,11 @@ import {
 /* ================= Staff ================= */
 import StaffRoutes from "@/features/staff/StaffRoutes";
 
-/* ================= Materials (NEW) ================= */
+/* ================= Materials ================= */
 import { MaterialsRoutes } from "@/features/materials";
+
+/* ================= Settings ================= */
+import SettingsPage from "@/features/settings/pages/SettingsPage";
 
 /* ================= Placeholder ================= */
 const CounselPage = () => <div className="p-6">상담 페이지</div>;
@@ -65,13 +70,23 @@ export default function AdminRouter() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
-
         <Route path="dashboard" element={<DashboardPage />} />
 
-        <Route path="students" element={<StudentsPage />} />
+        {/* ================= Students (SSOT) ================= */}
+        <Route path="students" element={<StudentsLayout />}>
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<StudentsHomePage />} />
+        </Route>
+
+        {/* 학생 상세 (Overlay / Layout 밖) */}
         <Route path="students/:studentId" element={<StudentsDetailPage />} />
 
-        <Route path="lectures" element={<LecturesPage />} />
+        {/* ================= Lectures (SSOT 동일 구조) ================= */}
+        <Route path="lectures" element={<LecturesLayout />}>
+          <Route index element={<LecturesPage />} />
+        </Route>
+
+        {/* 강의 상세 */}
         <Route path="lectures/:lectureId" element={<LectureLayout />}>
           <Route index element={<LectureStudentsPage />} />
           <Route path="materials" element={<MaterialsPage />} />
@@ -82,6 +97,7 @@ export default function AdminRouter() {
           <Route path="sessions" element={<LectureSessionsPage />} />
         </Route>
 
+        {/* ================= Sessions ================= */}
         <Route
           path="lectures/:lectureId/sessions/:sessionId/*"
           element={<SessionLayout />}
@@ -95,16 +111,17 @@ export default function AdminRouter() {
           <Route path="videos/:videoId" element={<VideoDetailPage />} />
         </Route>
 
-        {/* ================= Materials (NEW) ================= */}
+        {/* ================= Materials ================= */}
         <Route path="materials/*" element={<MaterialsRoutes />} />
 
-        {/* ✅ 여기 핵심 */}
+        {/* ================= Clinic ================= */}
         <Route path="clinic/*" element={<ClinicRoutes />} />
 
         <Route path="counsel" element={<CounselPage />} />
         <Route path="notice" element={<NoticePage />} />
         <Route path="message" element={<MessagePage />} />
 
+        {/* ================= Community ================= */}
         <Route path="community" element={<CommunityPage />}>
           <Route index element={<NoticeBoardPage />} />
           <Route path="notice" element={<NoticeBoardPage />} />
@@ -112,8 +129,13 @@ export default function AdminRouter() {
           <Route path="review" element={<ReviewBoardPage />} />
         </Route>
 
+        {/* ================= Staff ================= */}
         <Route path="staff/*" element={<StaffRoutes />} />
 
+        {/* ================= Settings ================= */}
+        <Route path="settings" element={<SettingsPage />} />
+
+        {/* ================= Profile ================= */}
         <Route path="profile" element={<ProfileLayout />}>
           <Route index element={<Navigate to="account" replace />} />
           <Route path="account" element={<ProfileAccountPage />} />

@@ -1,5 +1,4 @@
 // PATH: src/features/lectures/api/students.ts
-
 import api from "@/shared/api/axios";
 
 /**
@@ -9,29 +8,16 @@ import api from "@/shared/api/axios";
  * - GET /api/v1/enrollments/?lecture={lectureId}
  */
 
-/* ===============================
- * Types
- * =============================== */
-
 export type LectureStudent = {
-  id: number;              // Student ID
+  id: number; // Student ID
   name: string;
   grade: number | null;
   school: string | null;
-  status: string;          // enrollment.status (raw)
-  status_label: string;    // enrollment.status_display (serializer 기반)
+  status: string; // enrollment.status (raw)
+  status_label: string; // enrollment.status_display (serializer 기반)
 };
 
-/* ===============================
- * API
- * =============================== */
-
-/**
- * 강의 수강 학생 목록 조회
- */
-export async function fetchLectureStudents(
-  lectureId: number
-): Promise<LectureStudent[]> {
+export async function fetchLectureStudents(lectureId: number): Promise<LectureStudent[]> {
   const res = await api.get("/enrollments/", {
     params: {
       lecture: lectureId,
@@ -44,22 +30,13 @@ export async function fetchLectureStudents(
     ? res.data
     : [];
 
-  /**
-   * Enrollment → Student 평탄화
-   * (프론트 페이지 책임 범위 내 변환)
-   */
   return list.map((enrollment: any) => ({
     id: enrollment.student.id,
     name: enrollment.student.name,
     grade: enrollment.student.grade ?? null,
-    school:
-      enrollment.student.high_school ??
-      enrollment.student.middle_school ??
-      null,
+    school: enrollment.student.high_school ?? enrollment.student.middle_school ?? null,
     status: enrollment.status,
     status_label:
-      enrollment.status_label ??
-      enrollment.status_display ??
-      enrollment.status,
+      enrollment.status_label ?? enrollment.status_display ?? enrollment.status,
   }));
 }

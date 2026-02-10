@@ -1,7 +1,7 @@
 // PATH: src/app/router/ProtectedRoute.tsx
-
 import { Navigate, Outlet } from "react-router-dom";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { useProgram } from "@/shared/program";
 
 export type Role =
   | "owner"
@@ -14,31 +14,30 @@ export type Role =
 const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
 
-export default function ProtectedRoute({
-  allow,
-}: {
-  allow: Role[];
-}) {
+export default function ProtectedRoute({ allow }: { allow: Role[] }) {
   const { user, isLoading } = useAuth();
+  const { program, isLoading: programLoading } = useProgram();
 
-  // 🔄 auth 로딩 중
+  if (programLoading) return null;
+
+  if (!program) {
+    return <Navigate to="/error/tenant-required" replace />;
+  }
+
   if (isLoading) {
     return null;
   }
 
-  // 🔒 비로그인
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  const role: Role | undefined = user.tenantRole;
+  const role: Role | undefined = user.tenantRole ?? undefined;
 
-  // ❌ tenantRole 자체가 없으면 운영 사고 → 강제 로그아웃
   if (!role) {
     return <Navigate to="/login" replace />;
   }
 
-  // ❌ 허용되지 않은 role
   if (!allow.includes(role)) {
     if (ADMIN_ROLES.includes(role)) {
       return <Navigate to="/admin" replace />;
@@ -48,10 +47,8 @@ export default function ProtectedRoute({
       return <Navigate to="/student" replace />;
     }
 
-    // 미래 role 대비 안전 가드
     return <Navigate to="/login" replace />;
   }
 
-  // ✅ 통과
   return <Outlet />;
 }

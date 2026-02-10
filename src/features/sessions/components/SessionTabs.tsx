@@ -1,5 +1,4 @@
-// src/features/sessions/components/SessionTabs.tsx
-
+// PATH: src/features/sessions/components/SessionTabs.tsx
 type SessionTab =
   | "attendance"
   | "scores"
@@ -25,7 +24,7 @@ export default function SessionTabs({
   onChange: (tab: SessionTab) => void;
 }) {
   return (
-    <div className="mb-6 border-b">
+    <div className="mb-6 border-b border-[var(--color-border-divider)]">
       <div className="flex gap-2">
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
@@ -34,12 +33,15 @@ export default function SessionTabs({
               key={tab.id}
               type="button"
               onClick={() => onChange(tab.id)}
-              className={
-                "border-b-2 px-4 py-2 text-sm " +
-                (active
-                  ? "border-blue-600 font-semibold text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-800")
-              }
+              className="px-4 py-2 text-sm font-medium border-b-2"
+              style={{
+                borderColor: active
+                  ? "var(--color-primary)"
+                  : "transparent",
+                color: active
+                  ? "var(--color-text-primary)"
+                  : "var(--color-text-muted)",
+              }}
             >
               {tab.label}
             </button>

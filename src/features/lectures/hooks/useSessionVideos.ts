@@ -1,5 +1,4 @@
-// src/features/lectures/hooks/useSessionVideos.ts
-
+// PATH: src/features/lectures/hooks/useSessionVideos.ts
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
@@ -26,13 +25,9 @@ export function useSessionVideos(sessionId: number) {
       if (!videos || videos.length === 0) return false;
 
       const hasProcessing = videos.some(
-        (v) =>
-          v.status === "PENDING" ||
-          v.status === "UPLOADED" ||
-          v.status === "PROCESSING"
+        (v) => v.status === "PENDING" || v.status === "UPLOADED" || v.status === "PROCESSING"
       );
 
-      // 아직 처리중이면 polling 유지
       return hasProcessing ? 2000 : false;
     },
   });

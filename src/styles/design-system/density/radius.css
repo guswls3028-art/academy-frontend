@@ -6,4 +6,7 @@
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
+
+  /* ✅ pill / badge / status */
+  --radius-full: 999px;
 }

@@ -1,4 +1,4 @@
-// src/features/lectures/api/board.ts
+// PATH: src/features/lectures/api/board.ts
 import api from "@/shared/api/axios";
 
 /**
@@ -82,9 +82,7 @@ export async function fetchBoardPosts(params: {
   return unwrap<BoardPost>(res.data);
 }
 
-export async function createBoardPost(
-  formData: FormData
-): Promise<BoardPost> {
+export async function createBoardPost(formData: FormData): Promise<BoardPost> {
   const res = await api.post(`${PREFIX}/board-posts/`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });

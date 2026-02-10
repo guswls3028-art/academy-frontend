@@ -7,39 +7,26 @@
 ==========================================================================================
 # FILE: App.tsx
 ==========================================================================================
-// src/app/App.tsx  (경로가 app/App.tsx 인 걸로 보여서 그 기준)
+// PATH: src/app/App.tsx
 import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AppRouter from "./router/AppRouter";
 import { AuthProvider } from "@/features/auth/context/AuthContext";
-
-const queryClient = new QueryClient();
+import QueryProvider from "./providers/QueryProvider";
+import { ProgramProvider } from "@/shared/program";
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryProvider>
       <BrowserRouter>
-        <AuthProvider>
-          <AppRouter />
-        </AuthProvider>
+        <ProgramProvider>
+          <AuthProvider>
+            <AppRouter />
+          </AuthProvider>
+        </ProgramProvider>
       </BrowserRouter>
-    </QueryClientProvider>
+    </QueryProvider>
   );
 }
-
-
-==========================================================================================
-# FILE: api/index.ts
-==========================================================================================
-// src/app/api/index.ts
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  withCredentials: true, // 🔥 쿠키 인증 필수
-});
-
-export default api;
 
 
 ==========================================================================================
@@ -79,10 +66,12 @@ import { AppLayout } from "@/shared/ui/layout";
 import DashboardPage from "@/features/dashboard/pages/DashboardPage";
 
 /* ================= Students ================= */
-import StudentsPage from "@/features/students/pages/StudentsPage";
+import StudentsLayout from "@/features/students/StudentsLayout";
+import StudentsHomePage from "@/features/students/pages/StudentsHomePage";
 import StudentsDetailPage from "@/features/students/pages/StudentsDetailPage";
 
 /* ================= Lectures ================= */
+import LecturesLayout from "@/features/lectures/layout/LecturesLayout";
 import LecturesPage from "@/features/lectures/pages/lectures/LecturesPage";
 import LectureLayout from "@/features/lectures/layout/LectureLayout";
 import LectureStudentsPage from "@/features/lectures/pages/lectures/LectureStudentsPage";
@@ -124,8 +113,11 @@ import {
 /* ================= Staff ================= */
 import StaffRoutes from "@/features/staff/StaffRoutes";
 
-/* ================= Materials (NEW) ================= */
+/* ================= Materials ================= */
 import { MaterialsRoutes } from "@/features/materials";
+
+/* ================= Settings ================= */
+import SettingsPage from "@/features/settings/pages/SettingsPage";
 
 /* ================= Placeholder ================= */
 const CounselPage = () => <div className="p-6">상담 페이지</div>;
@@ -137,13 +129,23 @@ export default function AdminRouter() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
-
         <Route path="dashboard" element={<DashboardPage />} />
 
-        <Route path="students" element={<StudentsPage />} />
+        {/* ================= Students (SSOT) ================= */}
+        <Route path="students" element={<StudentsLayout />}>
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<StudentsHomePage />} />
+        </Route>
+
+        {/* 학생 상세 (Overlay / Layout 밖) */}
         <Route path="students/:studentId" element={<StudentsDetailPage />} />
 
-        <Route path="lectures" element={<LecturesPage />} />
+        {/* ================= Lectures (SSOT 동일 구조) ================= */}
+        <Route path="lectures" element={<LecturesLayout />}>
+          <Route index element={<LecturesPage />} />
+        </Route>
+
+        {/* 강의 상세 */}
         <Route path="lectures/:lectureId" element={<LectureLayout />}>
           <Route index element={<LectureStudentsPage />} />
           <Route path="materials" element={<MaterialsPage />} />
@@ -154,6 +156,7 @@ export default function AdminRouter() {
           <Route path="sessions" element={<LectureSessionsPage />} />
         </Route>
 
+        {/* ================= Sessions ================= */}
         <Route
           path="lectures/:lectureId/sessions/:sessionId/*"
           element={<SessionLayout />}
@@ -167,16 +170,17 @@ export default function AdminRouter() {
           <Route path="videos/:videoId" element={<VideoDetailPage />} />
         </Route>
 
-        {/* ================= Materials (NEW) ================= */}
+        {/* ================= Materials ================= */}
         <Route path="materials/*" element={<MaterialsRoutes />} />
 
-        {/* ✅ 여기 핵심 */}
+        {/* ================= Clinic ================= */}
         <Route path="clinic/*" element={<ClinicRoutes />} />
 
         <Route path="counsel" element={<CounselPage />} />
         <Route path="notice" element={<NoticePage />} />
         <Route path="message" element={<MessagePage />} />
 
+        {/* ================= Community ================= */}
         <Route path="community" element={<CommunityPage />}>
           <Route index element={<NoticeBoardPage />} />
           <Route path="notice" element={<NoticeBoardPage />} />
@@ -184,8 +188,13 @@ export default function AdminRouter() {
           <Route path="review" element={<ReviewBoardPage />} />
         </Route>
 
+        {/* ================= Staff ================= */}
         <Route path="staff/*" element={<StaffRoutes />} />
 
+        {/* ================= Settings ================= */}
+        <Route path="settings" element={<SettingsPage />} />
+
+        {/* ================= Profile ================= */}
         <Route path="profile" element={<ProfileLayout />}>
           <Route index element={<Navigate to="account" replace />} />
           <Route path="account" element={<ProfileAccountPage />} />
@@ -202,64 +211,80 @@ export default function AdminRouter() {
 # FILE: router/AppRouter.tsx
 ==========================================================================================
 // PATH: src/app/router/AppRouter.tsx
-// --------------------------------------------------
-// AppRouter
-// - AppLayout은 각 Router(Admin/Student) 내부에서만 사용
-// - 여기서는 절대 AppLayout으로 감싸지 않는다 (❗ 중요)
-// --------------------------------------------------
-
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import ProtectedRoute from "./ProtectedRoute";
 
-import LoginPage from "@/features/auth/pages/LoginPage";
 import AdminRouter from "./AdminRouter";
 import StudentRouter from "@/student/app/StudentRouter";
+import AuthRouter from "./AuthRouter";
+
+import TenantRequiredPage from "@/features/auth/pages/TenantRequiredPage";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { useProgram } from "@/shared/program";
 
 function RootRedirect() {
   const { user, isLoading } = useAuth();
+  const { program, isLoading: programLoading } = useProgram();
+  const navigate = useNavigate();
 
-  if (isLoading) {
-    return <div>loading...</div>;
+  const redirectedRef = useRef(false);
+
+  useEffect(() => {
+    if (programLoading) return;
+    if (!program) return;
+
+    if (isLoading) return;
+    if (redirectedRef.current) return;
+
+    redirectedRef.current = true;
+
+    // ✅ 핵심 수정: 비로그인 상태 명시 처리
+    if (!user) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    const role = user.tenantRole;
+
+    if (role && ["owner", "admin", "teacher", "staff"].includes(role)) {
+      navigate("/admin", { replace: true });
+      return;
+    }
+
+    if (role && ["student", "parent"].includes(role)) {
+      navigate("/student", { replace: true });
+      return;
+    }
+
+    navigate("/login", { replace: true });
+  }, [programLoading, program, isLoading, user, navigate]);
+
+  if (programLoading) return null;
+
+  if (!program) {
+    return <Navigate to="/error/tenant-required" replace />;
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const role = user.tenantRole;
-
-  // 관리자 계열 → admin
-  if (["owner", "admin", "teacher", "staff"].includes(role)) {
-    return <Navigate to="/admin" replace />;
-  }
-
-  // 학생 / 부모 → student
-  if (["student", "parent"].includes(role)) {
-    return <Navigate to="/student" replace />;
-  }
-
-  // 이론상 도달 불가 (안전 가드)
-  return <Navigate to="/login" replace />;
+  return null;
 }
 
 export default function AppRouter() {
   return (
     <Routes>
-      {/* ================= Public ================= */}
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/*" element={<AuthRouter />} />
+
+      <Route
+        path="/error/tenant-required"
+        element={<TenantRequiredPage />}
+      />
+
       <Route path="/" element={<RootRedirect />} />
 
-      {/* ================= Student ================= */}
-      <Route
-        element={
-          <ProtectedRoute allow={["student", "parent"]} />
-        }
-      >
+      <Route element={<ProtectedRoute allow={["student", "parent"]} />}>
         <Route path="/student/*" element={<StudentRouter />} />
       </Route>
 
-      {/* ================= Admin ================= */}
       <Route
         element={
           <ProtectedRoute allow={["owner", "admin", "teacher", "staff"]} />
@@ -268,8 +293,28 @@ export default function AppRouter() {
         <Route path="/admin/*" element={<AdminRouter />} />
       </Route>
 
-      {/* ================= Fallback ================= */}
       <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: router/AuthRouter.tsx
+==========================================================================================
+// PATH: src/app/router/AuthRouter.tsx
+import { Routes, Route, Navigate } from "react-router-dom";
+import LoginEntry from "@/features/auth/pages/login/LoginEntry";
+import HakwonPlusLoginPage from "@/features/auth/pages/login/HakwonPlusLoginPage";
+import CustomLoginPage from "@/features/auth/pages/login/CustomLoginPage";
+
+export default function AuthRouter() {
+  return (
+    <Routes>
+      <Route index element={<LoginEntry />} />
+      <Route path="hakwonplus" element={<HakwonPlusLoginPage />} />
+      <Route path="custom" element={<CustomLoginPage />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
@@ -279,9 +324,9 @@ export default function AppRouter() {
 # FILE: router/ProtectedRoute.tsx
 ==========================================================================================
 // PATH: src/app/router/ProtectedRoute.tsx
-
 import { Navigate, Outlet } from "react-router-dom";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { useProgram } from "@/shared/program";
 
 export type Role =
   | "owner"
@@ -294,31 +339,30 @@ export type Role =
 const ADMIN_ROLES: Role[] = ["owner", "admin", "teacher", "staff"];
 const STUDENT_ROLES: Role[] = ["student", "parent"];
 
-export default function ProtectedRoute({
-  allow,
-}: {
-  allow: Role[];
-}) {
+export default function ProtectedRoute({ allow }: { allow: Role[] }) {
   const { user, isLoading } = useAuth();
+  const { program, isLoading: programLoading } = useProgram();
 
-  // 🔄 auth 로딩 중
+  if (programLoading) return null;
+
+  if (!program) {
+    return <Navigate to="/error/tenant-required" replace />;
+  }
+
   if (isLoading) {
     return null;
   }
 
-  // 🔒 비로그인
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  const role: Role | undefined = user.tenantRole;
+  const role: Role | undefined = user.tenantRole ?? undefined;
 
-  // ❌ tenantRole 자체가 없으면 운영 사고 → 강제 로그아웃
   if (!role) {
     return <Navigate to="/login" replace />;
   }
 
-  // ❌ 허용되지 않은 role
   if (!allow.includes(role)) {
     if (ADMIN_ROLES.includes(role)) {
       return <Navigate to="/admin" replace />;
@@ -328,27 +372,11 @@ export default function ProtectedRoute({
       return <Navigate to="/student" replace />;
     }
 
-    // 미래 role 대비 안전 가드
     return <Navigate to="/login" replace />;
   }
 
-  // ✅ 통과
   return <Outlet />;
 }
-
-
-==========================================================================================
-# FILE: router/routes.tsx
-==========================================================================================
-// src/app/router/routes.tsx
-
-import StudentsPage from "@/features/students/pages/StudentsPage";
-import StudentsDetailPage from "@/features/students/pages/StudentsDetailPage";
-
-export const routes = [
-  { path: "/students", element: <StudentsPage /> },
-  { path: "/students/:id", element: <StudentsDetailPage /> },
-];
 
 
 ==========================================================================================

@@ -1,16 +1,33 @@
 /* PATH: src/styles/design-system/patterns/panel.css */
-/* Standard Panel */
+/* =====================================================================
+ * Panel Pattern — FINAL / SINGLE OWNER
+ * - 구조만 담당
+ * - 배경/색상 소유권 없음
+ * ===================================================================== */
 
 .panel {
-  background: var(--surface-panel-bg);
-  border: 1px solid var(--surface-panel-border);
   border-radius: var(--radius-xl);
 }
+
 .panel-header {
   height: var(--panel-header);
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--surface-panel-border);
+  border-bottom: 1px solid var(--color-border-divider);
 }
+
 .panel-body {
   padding: var(--space-5);
+}
+
+/* Emphasis (visual only) */
+.panel--focus {
+  box-shadow:
+    0 28px 56px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.panel--card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6),
+    0 10px 24px rgba(0, 0, 0, 0.08);
 }

@@ -1,0 +1,21 @@
+/* PATH: src/styles/design-system/patterns/sidebar.css */
+/* Sidebar Pattern — SINGLE SOURCE */
+
+.sidebar-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+}
+
+.sidebar-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar-toggle {
+  transition:
+    background-color var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) ease;
+}

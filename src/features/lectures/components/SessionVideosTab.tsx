@@ -9,6 +9,7 @@ import VideoThumbnail from "@/features/videos/ui/VideoThumbnail";
 import VideoStatusBadge from "@/features/videos/ui/VideoStatusBadge";
 
 import { useSessionVideos } from "../hooks/useSessionVideos";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
 /**
  * media 도메인 기준 Video 타입 (관리자 목록용)
@@ -46,14 +47,8 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
 
-  // --------------------------------------------------
-  // FETCH
-  // --------------------------------------------------
   const { data: videos = [], isLoading } = useSessionVideos(sessionId);
 
-  // --------------------------------------------------
-  // DELETE
-  // --------------------------------------------------
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
       await api.delete(`/media/videos/${id}/`);
@@ -63,9 +58,6 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     },
   });
 
-  // --------------------------------------------------
-  // RETRY (FAILED → 재처리)
-  // --------------------------------------------------
   const retryMutation = useMutation({
     mutationFn: async (id: number) => {
       await api.post(`/media/videos/${id}/retry/`);
@@ -76,178 +68,177 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   });
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="text-base font-medium text-[var(--text-secondary)]">
+    <div style={{ display: "grid", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>
           해당 차시에 등록된 영상 목록입니다.
         </div>
 
-        <button
-          className="btn"
-          onClick={() => setShowModal(true)}
-        >
+        <Button intent="primary" onClick={() => setShowModal(true)}>
           영상 추가
-        </button>
+        </Button>
       </div>
 
-      {/* List */}
-      <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4 shadow-sm">
-        {isLoading && (
-          <div className="p-3 text-base text-[var(--text-muted)]">
-            로딩중...
-          </div>
-        )}
+      <div
+        style={{
+          borderRadius: 14,
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+          padding: 12,
+        }}
+      >
+        {isLoading ? (
+          <EmptyState mode="embedded" scope="panel" tone="loading" title="불러오는 중…" />
+        ) : videos.length === 0 ? (
+          <EmptyState mode="embedded" scope="panel" title="등록된 영상이 없습니다." />
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {videos.map((video: MediaVideo) => {
+              const fileSize =
+                video.file_size && video.file_size > 0 ? `${(video.file_size / 1024 / 1024).toFixed(2)}MB` : "-";
 
-        {!isLoading && videos.length === 0 && (
-          <div className="p-3 text-base text-[var(--text-muted)]">
-            등록된 영상이 없습니다.
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {videos.map((video: MediaVideo) => {
-            const fileSize =
-              video.file_size && video.file_size > 0
-                ? `${(video.file_size / 1024 / 1024).toFixed(2)}MB`
+              const uploadDate = video.created_at
+                ? new Date(video.created_at).toLocaleString("ko-KR", {
+                    year: "2-digit",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  })
                 : "-";
 
-            const uploadDate = video.created_at
-              ? new Date(video.created_at).toLocaleString("ko-KR", {
-                  year: "2-digit",
-                  month: "2-digit",
-                  day: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                })
-              : "-";
+              return (
+                <div
+                  key={video.id}
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid var(--color-border-divider)",
+                    background: "var(--color-bg-app)",
+                    padding: 12,
+                    transition: "background 120ms ease",
+                  }}
+                >
+                  <Link to={`${video.id}`} style={{ textDecoration: "none" }}>
+                    <VideoThumbnail
+                      title={video.title}
+                      status={video.status ?? "PENDING"}
+                      thumbnail_url={video.thumbnail_url}
+                    />
+                  </Link>
 
-            return (
-              <div
-                key={video.id}
-                className="group rounded-lg border border-[var(--border-divider)] bg-[var(--bg-app)] p-3 shadow-sm transition hover:bg-[var(--bg-surface-soft)]"
-              >
-                {/* Thumbnail → Detail */}
-                <Link to={`${video.id}`}>
-                  <VideoThumbnail
-                    title={video.title}
-                    status={video.status ?? "PENDING"}
-                    thumbnail_url={video.thumbnail_url}
-                  />
-                </Link>
+                  <div style={{ marginTop: 10, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 950,
+                          color: "var(--color-text-primary)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {video.title}
+                      </div>
 
-                {/* Title + Status */}
-                <div className="mt-3 flex items-start justify-between gap-2">
-                  <div className="text-sm leading-tight text-[var(--text-primary)]">
-                    <div className="text-base font-semibold">
-                      {video.title}
+                      {fileSize !== "-" && (
+                        <div style={{ marginTop: 2, fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+                          {fileSize} · {uploadDate}
+                        </div>
+                      )}
                     </div>
 
-                    {fileSize !== "-" && (
-                      <div className="text-sm text-[var(--text-muted)]">
-                        {fileSize} · {uploadDate}
-                      </div>
-                    )}
+                    <div style={{ flex: "0 0 auto" }}>
+                      <VideoStatusBadge status={video.status} />
+                    </div>
                   </div>
 
-                  <VideoStatusBadge status={video.status} />
-                </div>
-
-                {/* Policy summary */}
-                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
-                  <span>
-                    워터마크:{" "}
-                    <span
-                      className={
-                        video.show_watermark
-                          ? "font-semibold text-[var(--color-primary)]"
-                          : "font-semibold text-[var(--text-muted)]"
-                      }
-                    >
-                      {video.show_watermark ? "표시" : "숨김"}
+                  <div
+                    style={{
+                      marginTop: 8,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 11,
+                      fontWeight: 850,
+                      color: "var(--color-text-secondary)",
+                    }}
+                  >
+                    <span>
+                      워터마크:{" "}
+                      <span style={{ fontWeight: 950, color: video.show_watermark ? "var(--color-primary)" : "var(--color-text-muted)" }}>
+                        {video.show_watermark ? "표시" : "숨김"}
+                      </span>
                     </span>
-                  </span>
 
-                  <span className="text-[var(--text-muted)]">|</span>
+                    <span style={{ color: "var(--color-text-muted)" }}>·</span>
 
-                  <span>
-                    건너뛰기:{" "}
-                    <span
-                      className={
-                        video.allow_skip
-                          ? "font-semibold text-[var(--text-muted)]"
-                          : "font-semibold text-[var(--color-primary)]"
-                      }
-                    >
-                      {video.allow_skip ? "허용" : "금지"}
+                    <span>
+                      건너뛰기:{" "}
+                      <span style={{ fontWeight: 950, color: video.allow_skip ? "var(--color-text-muted)" : "var(--color-primary)" }}>
+                        {video.allow_skip ? "허용" : "금지"}
+                      </span>
                     </span>
-                  </span>
 
-                  <span className="text-[var(--text-muted)]">|</span>
+                    <span style={{ color: "var(--color-text-muted)" }}>·</span>
 
-                  <span>
-                    배속:{" "}
-                    <span
-                      className={
-                        video.max_speed > 1.0
-                          ? "font-semibold text-[var(--text-muted)]"
-                          : "font-semibold text-[var(--color-primary)]"
-                      }
-                    >
-                      {video.max_speed.toFixed(2)}x
+                    <span>
+                      배속:{" "}
+                      <span style={{ fontWeight: 950, color: video.max_speed > 1.0 ? "var(--color-text-muted)" : "var(--color-primary)" }}>
+                        {video.max_speed.toFixed(2)}x
+                      </span>
                     </span>
-                  </span>
-                </div>
+                  </div>
 
-                {/* FAILED → Retry */}
-                {video.status === "FAILED" && (
-                  <div className="mt-3 flex justify-end">
-                    <button
-                      className="rounded bg-[var(--color-primary)] px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
-                      disabled={retryMutation.isPending}
+                  <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                    {video.status === "FAILED" && (
+                      <Button
+                        intent="primary"
+                        size="sm"
+                        disabled={retryMutation.isPending}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (window.confirm("영상 처리를 다시 시도할까요?")) {
+                            retryMutation.mutate(video.id);
+                          }
+                        }}
+                      >
+                        재처리
+                      </Button>
+                    )}
+
+                    <Button
+                      intent="ghost"
+                      size="sm"
+                      disabled={deleteMutation.isPending}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-
-                        if (window.confirm("영상 처리를 다시 시도할까요?")) {
-                          retryMutation.mutate(video.id);
+                        if (window.confirm("정말 삭제하시겠습니까?")) {
+                          deleteMutation.mutate(video.id);
                         }
                       }}
                     >
-                      재처리
-                    </button>
+                      삭제
+                    </Button>
                   </div>
-                )}
-
-                {/* Delete */}
-                <div className="mt-2 flex justify-end">
-                  <button
-                    className="text-sm text-[var(--text-muted)] hover:underline"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-
-                      if (window.confirm("정말 삭제하시겠습니까?")) {
-                        deleteMutation.mutate(video.id);
-                      }
-                    }}
-                  >
-                    삭제
-                  </button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Upload Modal */}
-      <VideoUploadModal
-        sessionId={sessionId}
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-      />
+      <VideoUploadModal sessionId={sessionId} isOpen={showModal} onClose={() => setShowModal(false)} />
     </div>
   );
 }

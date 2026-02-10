@@ -1,0 +1,51 @@
+/* PATH: src/styles/design-system/antd/input.css */
+/* AntD Input — UI CONTROL SLOT WIRED (FINAL) */
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-input-number-input,
+.ant-input-textarea textarea {
+  border-radius: var(--radius-md) !important;
+
+  border-color: var(--ui-control-border) !important;
+  background: var(--ui-control-bg) !important;
+  color: var(--ui-control-text) !important;
+
+  box-shadow: var(--ui-control-shadow) !important;
+}
+
+.ant-input::placeholder,
+.ant-input-affix-wrapper input::placeholder,
+.ant-input-textarea textarea::placeholder {
+  color: var(--ui-control-placeholder) !important;
+}
+
+.ant-input-affix-wrapper {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  height: var(--control-lg) !important;
+}
+
+.ant-input {
+  height: var(--control-lg) !important;
+}
+
+/* Focus */
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-input:focus,
+.ant-input-focused {
+  border-color: var(--ui-control-border-focus) !important;
+  box-shadow:
+    0 0 0 2px var(--ui-control-bg),
+    0 0 0 4px color-mix(in srgb, var(--ui-control-border-focus) 55%, transparent) !important;
+}
+
+/* Hover */
+.ant-input-affix-wrapper:hover,
+.ant-input:hover,
+.ant-input-number:hover,
+.ant-input-textarea textarea:hover {
+  border-color: var(--ui-control-border-hover) !important;
+}

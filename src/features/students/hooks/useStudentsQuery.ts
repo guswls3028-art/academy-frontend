@@ -1,5 +1,4 @@
 // PATH: src/features/students/hooks/useStudentsQuery.ts
-
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudents } from "../api/students";
 
@@ -32,7 +31,7 @@ export function useStudentsQuery(search: string, filters: any, sort: string) {
   return useQuery({
     queryKey: ["students", search, filters, sort],
     queryFn: async () => {
-      const data = await fetchStudents(search, filters);
+      const data = await fetchStudents(search, filters, sort);
 
       if (!sort) return data;
 

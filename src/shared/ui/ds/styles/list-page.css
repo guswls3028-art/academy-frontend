@@ -1,0 +1,8 @@
+/* PATH: src/shared/ui/ds/styles/list-page.css */
+
+/* 필터 / 컨트롤 영역 */
+.ui-control {
+  background: var(--ui-control-bg);
+  border: 1px solid var(--ui-control-border);
+  border-radius: var(--radius-xl);
+}

@@ -1,19 +1,20 @@
-// src/app/App.tsx  (경로가 app/App.tsx 인 걸로 보여서 그 기준)
+// PATH: src/app/App.tsx
 import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import AppRouter from "./router/AppRouter";
 import { AuthProvider } from "@/features/auth/context/AuthContext";
-
-const queryClient = new QueryClient();
+import QueryProvider from "./providers/QueryProvider";
+import { ProgramProvider } from "@/shared/program";
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryProvider>
       <BrowserRouter>
-        <AuthProvider>
-          <AppRouter />
-        </AuthProvider>
+        <ProgramProvider>
+          <AuthProvider>
+            <AppRouter />
+          </AuthProvider>
+        </ProgramProvider>
       </BrowserRouter>
-    </QueryClientProvider>
+    </QueryProvider>
   );
 }

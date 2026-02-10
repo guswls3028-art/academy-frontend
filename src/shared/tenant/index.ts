@@ -1,28 +1,40 @@
 // PATH: src/shared/tenant/index.ts
 /**
- * Tenant Resolution SSOT (Enterprise)
+ * Tenant Resolution SSOT (Enterprise / Backend-First)
  *
- * Backend contract:
- * - X-Tenant-Code header is required for most API endpoints (including /core/me)
- * - Tenant may be resolved via:
- *   1) Local override (localStorage)
- *   2) Hostname/subdomain convention
- *   3) Environment default (dev/bootstrap)
+ * ✅ Backend SSOT:
+ * - Tenant is resolved by request host (request.get_host()).
+ * - Tenant.code must match host (normalized, without port).
+ * - No backend fallback resolver.
  *
- * NOTE:
- * - Do not "guess" tenant at API layer if it is ambiguous.
- * - If tenant is not resolved, UI must route user to tenant-select or show blocking screen.
+ * ✅ Frontend SSOT:
+ * - Do NOT invent tenant codes (no aliases like "default", "2_limglish").
+ * - Canonical tenant code in production = current hostname (normalized).
+ *
+ * Allowed explicit overrides (dev/bootstrap only):
+ * - Local storage override (TENANT_STORAGE_KEY)
+ * - VITE_TENANT_CODE (explicit dev override)
+ *
+ * Notes:
+ * - Even if backend ignores X-Tenant-Code (host-based resolution), sending it is harmless
+ *   and helps transitional tooling / diagnostics.
  */
 
 export const TENANT_STORAGE_KEY = "tenant_code";
 
 export type TenantResolveResult =
-  | { ok: true; code: string; source: "storage" | "hostname" | "env" }
-  | { ok: false; reason: "missing" | "ambiguous" | "invalid_host" };
+  | { ok: true; code: string; source: "storage" | "env" | "hostname" }
+  | { ok: false; reason: "missing" | "invalid_host" };
 
-function safeGetHost(): string {
+function normalizeHost(host: string): string {
+  const v = String(host || "").trim().toLowerCase();
+  if (!v) return "";
+  return v.split(":")[0].trim();
+}
+
+function safeGetHostname(): string {
   try {
-    return window.location.hostname || "";
+    return normalizeHost(window.location.hostname || "");
   } catch {
     return "";
   }
@@ -31,7 +43,7 @@ function safeGetHost(): string {
 export function getTenantCodeFromStorage(): string | null {
   try {
     const v = localStorage.getItem(TENANT_STORAGE_KEY);
-    const code = (v || "").trim();
+    const code = String(v || "").trim();
     return code ? code : null;
   } catch {
     return null;
@@ -39,7 +51,7 @@ export function getTenantCodeFromStorage(): string | null {
 }
 
 export function setTenantCodeToStorage(code: string) {
-  const v = (code || "").trim();
+  const v = String(code || "").trim();
   if (!v) return;
   try {
     localStorage.setItem(TENANT_STORAGE_KEY, v);
@@ -56,69 +68,63 @@ export function clearTenantCodeFromStorage() {
   }
 }
 
-/**
- * Hostname convention:
- * - hakwonplus.com / www.hakwonplus.com => do not infer from hostname
- * - {tenant}.hakwonplus.com => infer tenant=subdomain
- * - limglish.kr / www.limglish.kr => use env mapping if provided
- */
-export function getTenantCodeFromHostname(hostname?: string): TenantResolveResult {
-  const host = (hostname ?? safeGetHost()).trim().toLowerCase();
-  if (!host) return { ok: false, reason: "invalid_host" };
-
-  // limglish mapping
-  if (host === "limglish.kr" || host === "www.limglish.kr") {
-    const code = String(import.meta.env.VITE_TENANT_CODE_LIMGLISH || "").trim();
-    if (code) return { ok: true, code, source: "env" };
-    return { ok: false, reason: "missing" };
-  }
-
-  // hakwonplus base domains: don't infer from hostname (ambiguous)
-  if (
-    host === "hakwonplus.com" ||
-    host === "www.hakwonplus.com" ||
-    host === "api.hakwonplus.com" ||
-    host.endsWith(".pages.dev")
-  ) {
-    return { ok: false, reason: "ambiguous" };
-  }
-
-  // subdomain inference: {tenant}.hakwonplus.com
-  const suffix = ".hakwonplus.com";
-  if (host.endsWith(suffix)) {
-    const sub = host.slice(0, -suffix.length);
-    // Reject common subdomains
-    if (!sub || sub === "www" || sub === "api") {
-      return { ok: false, reason: "ambiguous" };
-    }
-    return { ok: true, code: sub, source: "hostname" };
-  }
-
-  // local/dev hosts: do not infer from hostname
-  if (host === "localhost" || host === "127.0.0.1") {
-    return { ok: false, reason: "ambiguous" };
-  }
-
-  return { ok: false, reason: "ambiguous" };
-}
-
 export function getTenantCodeFromEnv(): string | null {
   const code = String(import.meta.env.VITE_TENANT_CODE || "").trim();
   return code ? code : null;
 }
 
 /**
- * Resolve tenant in deterministic priority order.
+ * Canonical hostname contract (prod):
+ * - If hostname exists and is not local/dev-like: tenant code == hostname.
+ * - For localhost/dev preview domains: require explicit override (storage/env).
+ */
+export function getTenantCodeFromHostname(hostname?: string): TenantResolveResult {
+  const host = normalizeHost(hostname ?? safeGetHostname());
+  if (!host) return { ok: false, reason: "invalid_host" };
+
+  // Local/dev hosts: require explicit override (avoid guessing).
+  if (host === "localhost" || host === "127.0.0.1") {
+    return { ok: false, reason: "missing" };
+  }
+
+  // Preview/temporary domains: require explicit override unless you truly use them as tenant codes.
+  if (host.endsWith(".pages.dev") || host.endsWith(".trycloudflare.com")) {
+    return { ok: false, reason: "missing" };
+  }
+
+  return { ok: true, code: host, source: "hostname" };
+}
+
+/**
+ * Resolve tenant in deterministic priority order:
+ * 1) storage (operator choice)
+ * 2) env (explicit dev setting)
+ * 3) hostname (prod canonical)
  */
 export function resolveTenantCode(): TenantResolveResult {
   const stored = getTenantCodeFromStorage();
   if (stored) return { ok: true, code: stored, source: "storage" };
 
-  const fromHost = getTenantCodeFromHostname();
-  if (fromHost.ok) return fromHost;
-
   const env = getTenantCodeFromEnv();
   if (env) return { ok: true, code: env, source: "env" };
 
+  const fromHost = getTenantCodeFromHostname();
+  if (fromHost.ok) return fromHost;
+
   return { ok: false, reason: "missing" };
+}
+
+/**
+ * Header helper (API layer use):
+ * - Must be deterministic and non-magical.
+ * - Prefer explicit sources; do not infer from hostname here.
+ */
+export function getTenantCodeForHeader(): string | null {
+  const stored = getTenantCodeFromStorage();
+  if (stored) return stored;
+
+  const env = getTenantCodeFromEnv();
+  if (env) return env;
+
+  return null;
 }

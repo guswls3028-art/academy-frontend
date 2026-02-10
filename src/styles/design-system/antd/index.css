@@ -8,3 +8,6 @@
 @import "./select.css";
 @import "./datepicker.css";
 @import "./modal.css";
+
+/* ✅ 핵심: Input 룩 통일 */
+@import "./input.css";

@@ -1,85 +1,139 @@
 // PATH: src/shared/ui/layout/AppLayout.tsx
-
 import { Outlet } from "react-router-dom";
 import { ConfigProvider } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-import { useTheme } from "@/context/ThemeContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { ProgramProvider } from "@/shared/program";
+import { NoticeProvider } from "@/features/notice/context/NoticeContext";
 
 export default function AppLayout() {
-  useTheme(); // theme 값 자체는 data-theme 트리거용
-
   return (
-    <ConfigProvider
-      theme={{
-        /** 🔒 AntD algorithm 완전 차단 */
-        algorithm: false,
+    <ThemeProvider>
+      <ProgramProvider>
+        <NoticeProvider>
+          <ConfigProvider
+            theme={{
+              algorithm: false,
+              token: {
+                colorPrimary: "var(--color-brand-primary)",
 
-        token: {
-          /* ===== Brand ===== */
-          colorPrimary: "var(--color-brand-primary)",
+                colorBgBase: "var(--layout-canvas-bg)",
+                colorBgLayout: "var(--layout-page-bg)",
+                colorBgContainer: "var(--color-bg-surface)",
+                colorBgElevated: "var(--color-bg-surface)",
 
-          /* ===== Background ===== */
-          colorBgBase: "var(--color-bg-canvas)",
-          colorBgLayout: "var(--color-bg-canvas)",
-          colorBgContainer: "var(--color-bg-surface)",
-          colorBgElevated: "var(--color-bg-surface)",
+                colorBorder: "var(--color-border-divider)",
 
-          /* ===== Border ===== */
-          colorBorder: "var(--color-border-divider)",
+                colorText: "var(--color-text-primary)",
+                colorTextSecondary: "var(--color-text-secondary)",
+                colorTextTertiary: "var(--color-text-muted)",
+                colorTextQuaternary: "var(--color-text-disabled)",
+                colorTextPlaceholder: "var(--color-text-muted)",
 
-          /* ===== Text ===== */
-          colorText: "var(--color-text-primary)",
-          colorTextSecondary: "var(--color-text-secondary)",
-          colorTextTertiary: "var(--color-text-muted)",
-          colorTextQuaternary: "var(--color-text-disabled)",
-          colorTextPlaceholder: "var(--color-text-muted)",
+                colorFillSecondary: "var(--color-bg-surface-hover)",
+                colorFillTertiary: "var(--color-bg-surface-hover)",
+              },
+              components: {
+                Segmented: {
+                  itemColor: "var(--color-text-secondary)",
+                  itemHoverColor: "var(--color-text-primary)",
+                  itemSelectedColor: "var(--color-text-inverse)",
+                  itemSelectedBg: "var(--color-brand-primary)",
+                  trackBg: "var(--color-bg-surface-hover)",
+                  borderRadius: 10,
+                },
+                Button: {
+                  colorPrimary: "var(--color-brand-primary)",
+                  colorTextLightSolid: "var(--color-text-inverse)",
+                  borderRadius: 10,
+                },
+                Checkbox: {
+                  colorPrimary: "var(--color-brand-primary)",
+                },
+                Table: {
+                  headerBg: "var(--color-bg-surface-hover)",
+                  headerColor: "var(--color-text-secondary)",
+                  headerSplitColor: "var(--color-border-divider)",
+                  rowHoverBg: "var(--color-bg-surface-hover)",
+                  borderColor: "var(--color-border-divider)",
+                },
+              },
+            }}
+          >
+            <div
+              data-app="admin"
+              style={{
+                minHeight: "100vh",
+                background: "var(--layout-canvas-bg)",
+                color: "var(--color-text-primary)",
+              }}
+            >
+              {/* ===== ROOT GRID ===== */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "var(--sidebar-width) 1fr",
+                  gridTemplateRows: "auto 1fr",
+                  minHeight: "100vh",
+                }}
+              >
+                {/* ===== HEADER (GLOBAL / FULL WIDTH) ===== */}
+                <header
+                  style={{
+                    gridColumn: "1 / -1",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 80,
+                    background:
+                      "color-mix(in srgb, var(--layout-header-bg) 92%, transparent)",
+                    backdropFilter: "blur(14px)",
+                    WebkitBackdropFilter: "blur(14px)",
+                  }}
+                >
+                  <Header />
+                </header>
 
-          /* ===== Fill (hover / active) ===== */
-          colorFillSecondary: "var(--color-bg-surface-hover)",
-          colorFillTertiary: "var(--color-bg-surface-hover)",
-        },
+                {/* ===== SIDEBAR ===== */}
+                <aside
+                  className="sidebar"
+                  style={{
+                    gridRow: "2",
+                    position: "sticky",
+                    top: "var(--panel-header)",
+                    height: "calc(100vh - var(--panel-header))",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Sidebar />
+                </aside>
 
-        components: {
-          Segmented: {
-            itemColor: "var(--color-text-secondary)",
-            itemHoverColor: "var(--color-text-primary)",
-            itemSelectedColor: "var(--color-text-inverse)",
-            itemSelectedBg: "var(--color-brand-primary)",
-            trackBg: "var(--color-bg-surface-hover)",
-            borderRadius: 8,
-          },
-
-          Button: {
-            colorPrimary: "var(--color-brand-primary)",
-            colorTextLightSolid: "var(--color-text-inverse)",
-            borderRadius: 8,
-          },
-
-          Checkbox: {
-            colorPrimary: "var(--color-brand-primary)",
-          },
-
-          /** 🔒 Table 헤더 침범 완전 차단 */
-          Table: {
-            headerBg: "var(--color-bg-surface-hover)",
-            headerColor: "var(--color-text-secondary)",
-            headerSplitColor: "var(--color-border-divider)",
-            rowHoverBg: "var(--color-bg-surface-hover)",
-            borderColor: "var(--color-border-divider)",
-          },
-        },
-      }}
-    >
-      <div className="flex min-h-screen bg-[var(--color-bg-canvas)] text-[var(--color-text-primary)]">
-        <Sidebar />
-        <div className="flex flex-1 flex-col">
-          <Header />
-          <main className="flex-1 overflow-auto">
-            <Outlet />
-          </main>
-        </div>
-      </div>
-    </ConfigProvider>
+                {/* ===== MAIN ===== */}
+                <main
+                  style={{
+                    gridRow: "2",
+                    minWidth: 0,
+                    minHeight: 0,
+                    overflow: "auto",
+                    overscrollBehavior: "contain",
+                    background: "var(--layout-page-bg)",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "var(--space-6)",
+                      maxWidth: 1520,
+                      margin: "0 auto",
+                    }}
+                  >
+                    <Outlet />
+                  </div>
+                </main>
+              </div>
+            </div>
+          </ConfigProvider>
+        </NoticeProvider>
+      </ProgramProvider>
+    </ThemeProvider>
   );
 }

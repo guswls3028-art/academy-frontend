@@ -1,0 +1,161 @@
+/* =========================================================
+   PREVIEW THEME TOKENS (SAFE / ISOLATED)
+   - :root / SSOT / role / surface 미사용
+   - 모든 테마에서 panel 색 명시
+========================================================= */
+
+.theme-preview {
+  /* canvas / page / panel */
+  --pv-canvas: #ffffff;
+  --pv-page: #f8fafc;
+  --pv-panel: #ffffff;
+
+  /* sidebar */
+  --pv-sidebar-bg: #ffffff;
+  --pv-sidebar-text: #111827;
+  --pv-sidebar-muted: #6b7280;
+  --pv-sidebar-active-bg: #e5e7eb;
+
+  /* brand */
+  --pv-primary: #2563eb;
+
+  /* misc */
+  --pv-border: rgba(0, 0, 0, 0.08);
+}
+
+/* ================= WHITE ================= */
+
+.theme-preview[data-theme="modern-white"] {
+  --pv-page: #f6f8fc;
+  --pv-panel: #ffffff;
+  --pv-sidebar-bg: #ffffff;
+  --pv-primary: #2563eb;
+}
+
+.theme-preview[data-theme="navy-pro"] {
+  --pv-page: #f3f6fb;
+  --pv-panel: #ffffff;
+  --pv-sidebar-bg: #f2f6ff;
+  --pv-primary: #3b82f6;
+}
+
+.theme-preview[data-theme="ivory-office"] {
+  --pv-page: #fbfaf7;
+  --pv-panel: #ffffff;
+  --pv-sidebar-bg: #f6f2ea;
+  --pv-primary: #b45309;
+}
+
+.theme-preview[data-theme="minimal-mono"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+  --pv-sidebar-bg: #ffffff;
+  --pv-sidebar-text: #0a0a0a;
+  --pv-sidebar-muted: #525252;
+  --pv-sidebar-active-bg: #0a0a0a;
+  --pv-primary: #0a0a0a;
+}
+
+/* ================= DARK ================= */
+
+.theme-preview[data-theme="modern-dark"] {
+  --pv-canvas: #0d1117;
+  --pv-page: #0d1117;
+  --pv-panel: #161f2c;
+
+  --pv-sidebar-bg: #0f1520;
+  --pv-sidebar-text: #e5e7eb;
+  --pv-sidebar-muted: #9ca3af;
+  --pv-sidebar-active-bg: #1f4e8c;
+
+  --pv-primary: #60a5fa;
+}
+
+.theme-preview[data-theme="dark-navy"] {
+  --pv-canvas: #071024;
+  --pv-page: #071024;
+  --pv-panel: #102044;
+
+  --pv-sidebar-bg: #06102a;
+  --pv-sidebar-text: #e5efff;
+  --pv-sidebar-muted: #9fb4d6;
+  --pv-sidebar-active-bg: #1e4b92;
+
+  --pv-primary: #3b82f6;
+}
+
+.theme-preview[data-theme="youtube-studio"] {
+  --pv-canvas: #0b0b0c;
+  --pv-page: #0b0b0c;
+  --pv-panel: #17171a;
+
+  --pv-sidebar-bg: #0f0f10;
+  --pv-sidebar-text: #f9fafb;
+  --pv-sidebar-muted: #9ca3af;
+  --pv-sidebar-active-bg: #3a0d0d;
+
+  --pv-primary: #ff0000;
+}
+
+.theme-preview[data-theme="terminal-neon"] {
+  --pv-canvas: #030407;
+  --pv-page: #030407;
+  --pv-panel: #0a0c11;
+
+  --pv-sidebar-bg: #050507;
+  --pv-sidebar-text: #d8e6ff;
+  --pv-sidebar-muted: #7aa0c7;
+  --pv-sidebar-active-bg: #003a45;
+
+  --pv-primary: #00ffcc;
+}
+
+/* ================= BRAND ================= */
+
+.theme-preview[data-theme="kakao-business"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+
+  --pv-sidebar-bg: #FBE300;
+  --pv-sidebar-text: #3B1E1E;
+  --pv-sidebar-muted: #6b4a4a;
+  --pv-sidebar-active-bg: #3B1E1E;
+
+  --pv-primary: #3B1E1E;
+}
+
+.theme-preview[data-theme="naver-works"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+
+  --pv-sidebar-bg: #14532d;
+  --pv-sidebar-text: #f4fff8;
+  --pv-sidebar-muted: #cde8d6;
+  --pv-sidebar-active-bg: #ffffff;
+
+  --pv-primary: #14532d;
+}
+
+.theme-preview[data-theme="samsung-admin"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+
+  --pv-sidebar-bg: #0057d9;
+  --pv-sidebar-text: #ffffff;
+  --pv-sidebar-muted: #c7d9ff;
+  --pv-sidebar-active-bg: #e6efff;
+
+  --pv-primary: #0057d9;
+}
+
+.theme-preview[data-theme="purple-insight"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+
+  --pv-sidebar-bg: #4c1d95;
+  --pv-sidebar-text: #f5f3ff;
+  --pv-sidebar-muted: #d8ccff;
+  --pv-sidebar-active-bg: #ede9fe;
+
+  --pv-primary: #7c3aed;
+}

@@ -1,212 +1,155 @@
-// src/features/lectures/pages/attendance/SessionAttendancePage.tsx
-
+// PATH: src/features/lectures/pages/attendance/SessionAttendancePage.tsx
+import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  fetchAttendance,
-  updateAttendance,
-} from "@/features/lectures/api/attendance";
-import { PageHeader, Section, Panel } from "@/shared/ui/ds";
+import { fetchAttendance, updateAttendance } from "@/features/lectures/api/attendance";
+import { EmptyState } from "@/shared/ui/ds";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 
-/* ================= 출결 상수 (색상 통일 HARD CODE) ================= */
+const STATUS_LIST = [
+  "PRESENT",
+  "LATE",
+  "ONLINE",
+  "SUPPLEMENT",
+  "EARLY_LEAVE",
+  "ABSENT",
+  "RUNAWAY",
+  "MATERIAL",
+] as const;
 
-const STATUS_BUTTONS = [
-  {
-    code: "PRESENT",
-    label: "현장",
-    active: "bg-[var(--color-primary)] text-white border-[var(--color-primary)]",
-    idle: "text-[var(--color-primary)] border-[var(--color-primary)]/40",
-  },
-  {
-    code: "LATE",
-    label: "지각",
-    active: "bg-yellow-500 text-white border-yellow-500",
-    idle: "text-yellow-600 border-yellow-400/40",
-  },
-  {
-    code: "ONLINE",
-    label: "영상",
-    active: "bg-sky-500 text-white border-sky-500",
-    idle: "text-sky-600 border-sky-400/40",
-  },
-  {
-    code: "SUPPLEMENT",
-    label: "보강",
-    active: "bg-violet-500 text-white border-violet-500",
-    idle: "text-violet-600 border-violet-400/40",
-  },
-  {
-    code: "EARLY_LEAVE",
-    label: "조퇴",
-    active: "bg-amber-500 text-white border-amber-500",
-    idle: "text-amber-600 border-amber-400/40",
-  },
-  {
-    code: "ABSENT",
-    label: "결석",
-    active: "bg-red-500 text-white border-red-500",
-    idle: "text-red-600 border-red-400/40",
-  },
-  {
-    code: "RUNAWAY",
-    label: "출튀",
-    active: "bg-rose-500 text-white border-rose-500",
-    idle: "text-rose-600 border-rose-400/40",
-  },
-  {
-    code: "MATERIAL",
-    label: "자료",
-    active: "bg-slate-500 text-white border-slate-500",
-    idle: "text-slate-600 border-slate-400/40",
-  },
-  {
-    code: "INACTIVE",
-    label: "부재",
-    active: "bg-gray-400 text-white border-gray-400",
-    idle: "text-gray-500 border-gray-300",
-  },
-  {
-    code: "SECESSION",
-    label: "퇴원",
-    active: "bg-gray-700 text-white border-gray-700",
-    idle: "text-gray-600 border-gray-500/40",
-  },
-];
+type AttendanceStatus = (typeof STATUS_LIST)[number];
 
-const STATUS_STYLE_MAP = Object.fromEntries(
-  STATUS_BUTTONS.map((b) => [
-    b.code,
-    { active: b.active, idle: b.idle, label: b.label },
-  ])
-);
+const TH_STYLE = {
+  background:
+    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
+  color:
+    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+};
 
-export default function SessionAttendancePage({
-  sessionId,
-}: {
-  sessionId: number;
-}) {
+function formatPhone(v?: string | null) {
+  if (!v) return "-";
+  const d = v.replace(/\D/g, "");
+  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  return v;
+}
+
+export default function SessionAttendancePage({ sessionId }: { sessionId: number }) {
   const qc = useQueryClient();
-  const safeSessionId = Number(sessionId);
 
-  const { data: attendance } = useQuery({
-    queryKey: ["attendance", safeSessionId],
-    queryFn: () => fetchAttendance(safeSessionId),
-    enabled: Number.isFinite(safeSessionId),
+  const { data: attendance, isLoading } = useQuery({
+    queryKey: ["attendance", sessionId],
+    queryFn: () => fetchAttendance(sessionId),
+    enabled: Number.isFinite(sessionId),
   });
 
-  const mutationStatus = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) =>
+  const updateStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: AttendanceStatus }) =>
       updateAttendance(id, { status }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["attendance", safeSessionId] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
   });
 
-  const mutationMemo = useMutation({
+  const updateMemo = useMutation({
     mutationFn: ({ id, memo }: { id: number; memo: string }) =>
       updateAttendance(id, { memo }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["attendance", safeSessionId] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance", sessionId] }),
   });
 
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  if (!attendance || attendance.length === 0) return <EmptyState scope="panel" title="출결 데이터 없음" />;
+
   return (
-    <Section>
-      <PageHeader title="출결 관리" />
+    <div style={{ overflowX: "auto" }}>
+      <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--color-border-divider)" }}>
+        <table className="w-full" style={{ borderCollapse: "collapse", minWidth: 980 }}>
+          <thead>
+            <tr>
+              {[
+                { label: "이름", align: "left", width: 140 },
+                { label: "학생 전화번호", align: "left", width: 180 },
+                { label: "학부모 전화번호", align: "left", width: 180 },
+                { label: "현재 상태", align: "left", width: 140 },
+                { label: "출결 변경", align: "left" },
+                { label: "메모", align: "left", width: 260 },
+              ].map((h) => (
+                <th
+                  key={h.label}
+                  className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
+                  style={{
+                    textAlign: h.align as any,
+                    whiteSpace: "nowrap",
+                    width: h.width as any,
+                    ...TH_STYLE,
+                  }}
+                >
+                  {h.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-      <Panel>
-        {!attendance ? (
-          <div className="text-sm text-[var(--text-muted)]">로딩중...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-[var(--border-divider)] text-[var(--text-secondary)]">
-                <tr>
-                  <th className="px-3 py-2 text-left">이름</th>
-                  <th className="px-3 py-2 text-left">현재 상태</th>
-                  <th className="px-3 py-2 text-left">출결 변경</th>
-                  <th className="px-3 py-2 text-left">메모</th>
-                </tr>
-              </thead>
+          <tbody className="divide-y divide-[var(--color-border-divider)]">
+            {attendance.map((att: any) => (
+              <tr key={att.id} className="hover:bg-[var(--color-bg-surface-soft)]">
+                <td className="px-4 py-3 text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
+                  {att.name}
+                </td>
 
-              <tbody>
-                {attendance.map((att: any) => {
-                  const style = STATUS_STYLE_MAP[att.status];
+                <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-secondary)]">
+                  {formatPhone(att.student_phone)}
+                </td>
 
-                  return (
-                    <tr
-                      key={att.id}
-                      className="border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
-                    >
-                      <td className="px-3 py-2 font-medium text-[var(--text-primary)]">
-                        {att.name}
-                      </td>
+                <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-muted)]">
+                  {formatPhone(att.parent_phone)}
+                </td>
 
-                      <td className="px-3 py-2">
-                        {style ? (
-                          <span
-                            className={[
-                              "inline-flex rounded-full border px-2 py-1 text-xs font-semibold",
-                              style.active,
-                            ].join(" ")}
-                          >
-                            {style.label}
-                          </span>
-                        ) : (
-                          "-"
-                        )}
-                      </td>
+                <td className="px-4 py-3">
+                  <AttendanceStatusBadge status={att.status} />
+                </td>
 
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-1">
-                          {STATUS_BUTTONS.map((btn) => {
-                            const active = att.status === btn.code;
-
-                            return (
-                              <button
-                                key={btn.code}
-                                type="button"
-                                className={[
-                                  "rounded border px-2 py-1 text-xs font-semibold transition",
-                                  active ? btn.active : btn.idle,
-                                  !active &&
-                                    "hover:bg-[var(--bg-surface-soft)]",
-                                ].join(" ")}
-                                onClick={() => {
-                                  if (active) return;
-                                  mutationStatus.mutate({
-                                    id: att.id,
-                                    status: btn.code,
-                                  });
-                                }}
-                              >
-                                {btn.label}
-                              </button>
-                            );
-                          })}
+                <td className="px-4 py-3">
+                  <div style={{ display: "flex", gap: 10, overflowX: "auto", whiteSpace: "nowrap", paddingBottom: 2 }}>
+                    {STATUS_LIST.map((code) => {
+                      const active = att.status === code;
+                      return (
+                        <div
+                          key={code}
+                          role="button"
+                          aria-pressed={active}
+                          onClick={() => {
+                            if (active) return;
+                            updateStatus.mutate({ id: att.id, status: code });
+                          }}
+                          style={{
+                            cursor: active ? "default" : "pointer",
+                            opacity: active ? 1 : 0.7,
+                            transition: "opacity 120ms ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "1";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!active) (e.currentTarget as HTMLDivElement).style.opacity = "0.7";
+                          }}
+                        >
+                          <AttendanceStatusBadge status={code} />
                         </div>
-                      </td>
+                      );
+                    })}
+                  </div>
+                </td>
 
-                      <td className="px-3 py-2">
-                        <input
-                          defaultValue={att.memo}
-                          placeholder="메모 입력"
-                          className="w-full rounded-md border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
-                          onBlur={(e) =>
-                            mutationMemo.mutate({
-                              id: att.id,
-                              memo: e.target.value,
-                            })
-                          }
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
-    </Section>
+                <td className="px-4 py-3">
+                  <input
+                    defaultValue={att.memo || ""}
+                    placeholder="메모 입력"
+                    className="ds-input w-full"
+                    onBlur={(e) => updateMemo.mutate({ id: att.id, memo: e.target.value })}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

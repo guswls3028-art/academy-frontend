@@ -7,8 +7,8 @@
 ==========================================================================================
 # FILE: StaffLayout.tsx
 ==========================================================================================
+// PATH: src/features/staff/StaffLayout.tsx
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { Tabs } from "antd";
 
 export default function StaffLayout() {
   const navigate = useNavigate();
@@ -21,25 +21,64 @@ export default function StaffLayout() {
     : "home";
 
   return (
-    <div className="p-6 space-y-4">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <div className="text-xl font-semibold">직원 관리</div>
+    <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
+      {/* ===============================
+          DOMAIN HEADER
+      =============================== */}
+      <div className="border-b border-[var(--border-divider)] bg-[var(--bg-surface)]">
+        <div className="px-6 pt-6 pb-4">
+          <div className="relative">
+            {/* accent line */}
+            <div className="absolute left-0 top-1 h-6 w-1 rounded-full bg-[var(--color-primary)]" />
+
+            <div className="pl-4">
+              <div className="text-2xl font-bold tracking-tight">
+                직원 관리
+              </div>
+              <div className="text-sm text-[var(--text-muted)] mt-0.5">
+                직원 정보 · 근무 · 비용 · 급여 관리
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ===============================
+            SUB NAV — DS TABS
+        =============================== */}
+        <div className="px-6">
+          <div className="ds-tabs">
+            <button
+              className={`ds-tab ${activeKey === "home" ? "is-active" : ""}`}
+              onClick={() => navigate("/admin/staff/home")}
+            >
+              홈
+            </button>
+
+            <button
+              className={`ds-tab ${activeKey === "operations" ? "is-active" : ""}`}
+              onClick={() => navigate("/admin/staff/operations")}
+            >
+              작업
+            </button>
+
+            <button
+              className={`ds-tab ${activeKey === "reports" ? "is-active" : ""}`}
+              onClick={() => navigate("/admin/staff/reports")}
+            >
+              리포트
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* 로컬 네비게이션 */}
-      <Tabs
-        activeKey={activeKey}
-        onChange={(key) => navigate(`/admin/staff/${key}`)}
-        items={[
-          { key: "home", label: "홈" },
-          { key: "operations", label: "작업" },
-          { key: "reports", label: "리포트" },
-        ]}
-      />
-
-      {/* 페이지 */}
-      <Outlet />
+      {/* ===============================
+          DOMAIN CONTENT
+      =============================== */}
+      <div className="px-6 py-6">
+        <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
+          <Outlet />
+        </div>
+      </div>
     </div>
   );
 }
@@ -339,12 +378,12 @@ export async function fetchStaffs(params?: {
  * POST /staffs/
  * 🔒 생성 스펙 단일진실
  *
- * permission_role:
+ * backend expects: role
  * - ASSISTANT : 일반 직원
  * - TEACHER   : 강사
  * - ADMIN     : 관리자 (승인/마감 가능)
  *
- * ⚠️ OWNER는 백엔드 전용이며 프론트에서 지정 불가
+ * ⚠️ OWNER는 백엔드 전용이며 프론트에서 지정 불가(전송 금지)
  * ⚠️ is_manager / is_payroll_manager 변환 책임은 백엔드
  */
 export async function createStaff(payload: {
@@ -352,9 +391,16 @@ export async function createStaff(payload: {
   password: string;
   name: string;
   phone?: string;
-  permission_role: "ADMIN" | "TEACHER" | "ASSISTANT";
+  role: "ADMIN" | "TEACHER" | "ASSISTANT";
 }) {
-  const res = await api.post("/staffs/", payload);
+  const res = await api.post("/staffs/", {
+    username: payload.username,
+    password: payload.password,
+    name: payload.name,
+    phone: payload.phone || undefined,
+    role: payload.role,
+  });
+
   return res.data as Staff;
 }
 
@@ -2582,11 +2628,17 @@ export default function HomePage() {
 # FILE: pages/HomePage/StaffCreateModal.tsx
 ==========================================================================================
 // PATH: src/features/staff/pages/HomePage/StaffCreateModal.tsx
-
-import { Modal } from "antd";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+
+import {
+  AdminModal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/shared/ui/modal";
+import { ActionButton } from "@/shared/ui/ds";
 
 type Props = {
   open: boolean;
@@ -2608,11 +2660,6 @@ export default function StaffCreateModal({ open, onClose }: Props) {
 
   const createM = useMutation({
     mutationFn: async () => {
-      /**
-       * 🔒 스펙 단일진실
-       * - backend는 role 필드만 인식
-       * - OWNER는 프론트에서 전송 금지
-       */
       const role =
         form.permission_role === "OWNER"
           ? undefined
@@ -2623,7 +2670,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
         password: form.password,
         name: form.name,
         phone: form.phone || undefined,
-        role, // ✅ 핵심 수정
+        role,
       });
 
       return res.data;
@@ -2649,98 +2696,117 @@ export default function StaffCreateModal({ open, onClose }: Props) {
     },
   });
 
+  const invalidUsername = !String(form.username || "").trim();
+  const invalidPassword = !String(form.password || "").trim();
+  const invalidName = !String(form.name || "").trim();
+
   return (
-    <Modal
-      title="직원 등록"
-      open={open}
-      onCancel={onClose}
-      onOk={() => {
-        if (
-          !form.username.trim() ||
-          !form.password.trim() ||
-          !form.name.trim() ||
-          !form.permission_role
-        ) {
-          alert("필수 항목을 모두 입력하세요.");
-          return;
-        }
-        createM.mutate();
-      }}
-      okText="등록"
-      cancelText="취소"
-      confirmLoading={createM.isPending}
-    >
-      <div className="space-y-3">
-        <Field label="로그인 아이디 *">
-          <input
-            className="input"
-            value={form.username}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, username: e.target.value }))
-            }
-            placeholder="로그인에 사용됩니다"
-          />
-        </Field>
+    <AdminModal open={open} onClose={onClose} type="action">
+      <ModalHeader
+        title="직원 등록"
+        description="로그인 계정을 포함한 직원 정보를 등록합니다."
+        type="action"
+      />
 
-        <Field label="비밀번호 *">
-          <input
-            type="password"
-            className="input"
-            value={form.password}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, password: e.target.value }))
-            }
-          />
-        </Field>
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <Field label="로그인 아이디 *">
+            <input
+              className="ds-input"
+              value={form.username}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, username: e.target.value }))
+              }
+              data-required="true"
+              data-invalid={invalidUsername ? "true" : "false"}
+              autoFocus
+            />
+          </Field>
 
-        <Field label="이름 *">
-          <input
-            className="input"
-            value={form.name}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, name: e.target.value }))
-            }
-          />
-        </Field>
+          <Field label="비밀번호 *">
+            <input
+              type="password"
+              className="ds-input"
+              value={form.password}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, password: e.target.value }))
+              }
+              data-required="true"
+              data-invalid={invalidPassword ? "true" : "false"}
+            />
+          </Field>
 
-        <Field label="전화번호">
-          <input
-            className="input"
-            value={form.phone}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, phone: e.target.value }))
-            }
-          />
-        </Field>
+          <Field label="이름 *">
+            <input
+              className="ds-input"
+              value={form.name}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, name: e.target.value }))
+              }
+              data-required="true"
+              data-invalid={invalidName ? "true" : "false"}
+            />
+          </Field>
 
-        <Field label="권한 *">
-          <select
-            className="input"
-            value={form.permission_role}
-            onChange={(e) =>
-              setForm((p) => ({
-                ...p,
-                permission_role: e.target.value as PermissionRole,
-              }))
-            }
-          >
-            <option value="ASSISTANT">조교 (일반 직원)</option>
-            <option value="TEACHER">강사</option>
-            <option value="ADMIN">관리자</option>
-            <option value="OWNER" disabled>
-              오너 (백엔드 지정)
-            </option>
-          </select>
-        </Field>
+          <Field label="전화번호">
+            <input
+              className="ds-input"
+              value={form.phone}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, phone: e.target.value }))
+              }
+              placeholder="010XXXXXXXX"
+            />
+          </Field>
 
-        <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-          • <b>관리자</b>: 직원 관리 · 승인 · 마감 가능<br />
-          • <b>강사</b>: 강의 담당 (권한은 백엔드 정책에 따름)<br />
-          • <b>조교</b>: 일반 직원<br />
-          • <b>오너</b>: 시스템 전용 (프론트에서 지정 불가)
+          <Field label="권한 *">
+            <select
+              className="ds-input"
+              value={form.permission_role}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  permission_role: e.target.value as PermissionRole,
+                }))
+              }
+              data-required="true"
+            >
+              <option value="ASSISTANT">조교 (일반 직원)</option>
+              <option value="TEACHER">강사</option>
+              <option value="ADMIN">관리자</option>
+              <option value="OWNER" disabled>
+                오너 (백엔드 지정)
+              </option>
+            </select>
+          </Field>
         </div>
-      </div>
-    </Modal>
+      </ModalBody>
+
+      <ModalFooter
+        right={
+          <>
+            <ActionButton
+              action="close"
+              onClick={onClose}
+              disabled={createM.isPending}
+            />
+            <ActionButton
+              action="create"
+              loading={createM.isPending}
+              onClick={() => {
+                if (invalidUsername || invalidPassword || invalidName) {
+                  alert("필수 항목을 모두 입력하세요.");
+                  return;
+                }
+                createM.mutate();
+              }}
+            >
+              등록
+            </ActionButton>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -2752,8 +2818,14 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-[var(--text-muted)]">
+    <div style={{ display: "grid", gap: 4 }}>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 800,
+          color: "var(--color-text-muted)",
+        }}
+      >
         {label}
       </div>
       {children}
@@ -2896,10 +2968,17 @@ export function StaffHomeTable({ staffs, onOperate, onDetail, canManage }: Props
 # FILE: pages/HomePage/WorkTypeCreateModal.tsx
 ==========================================================================================
 // PATH: src/features/staff/pages/HomePage/WorkTypeCreateModal.tsx
-import { Modal } from "antd";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+
+import {
+  AdminModal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/shared/ui/modal";
+import { ActionButton } from "@/shared/ui/ds";
 
 export default function WorkTypeCreateModal({
   open,
@@ -2948,78 +3027,83 @@ export default function WorkTypeCreateModal({
   });
 
   return (
-    <Modal
-      title="근무유형 생성"
-      open={open}
-      onCancel={onClose}
-      okText="생성"
-      cancelText="취소"
-      confirmLoading={createM.isPending}
-      onOk={() => {
-        if (!form.name.trim()) {
-          alert("근무유형 이름은 필수입니다.");
-          return;
-        }
-        if (form.base_hourly_wage <= 0) {
-          alert("기본 시급은 0보다 커야 합니다.");
-          return;
-        }
-        createM.mutate();
-      }}
-    >
-      <div className="space-y-3">
-        <Field label="근무유형명 *">
-          <input
-            className="input"
-            value={form.name}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, name: e.target.value }))
-            }
-            placeholder="예: 강의, 상담, 보조업무"
-          />
-        </Field>
+    <AdminModal open={open} onClose={onClose} type="action">
+      <ModalHeader
+        title="근무유형 생성"
+        description="직원 근무 기록에 사용될 근무유형을 추가합니다."
+        type="action"
+      />
 
-        <Field label="기본 시급(원) *">
-          <input
-            type="number"
-            className="input"
-            min={0}
-            value={form.base_hourly_wage}
-            onChange={(e) =>
-              setForm((p) => ({
-                ...p,
-                base_hourly_wage: Number(e.target.value),
-              }))
-            }
-          />
-        </Field>
+      <ModalBody>
+        <div className="grid gap-3">
+          <Field label="근무유형명 *">
+            <input
+              className="ds-input"
+              value={form.name}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, name: e.target.value }))
+              }
+            />
+          </Field>
 
-        <Field label="색상">
-          <input
-            type="color"
-            value={form.color}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, color: e.target.value }))
-            }
-          />
-        </Field>
+          <Field label="기본 시급(원) *">
+            <input
+              type="number"
+              className="ds-input"
+              value={form.base_hourly_wage}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  base_hourly_wage: Number(e.target.value),
+                }))
+              }
+            />
+          </Field>
 
-        <Field label="설명">
-          <textarea
-            className="input"
-            rows={2}
-            value={form.description}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, description: e.target.value }))
-            }
-          />
-        </Field>
+          <Field label="색상">
+            <input
+              type="color"
+              value={form.color}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, color: e.target.value }))
+              }
+            />
+          </Field>
 
-        <div className="text-xs text-[var(--text-muted)]">
-          * 생성 즉시 직원 근무유형/근무기록에서 사용 가능합니다.
+          <Field label="설명">
+            <textarea
+              className="ds-input"
+              rows={2}
+              value={form.description}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, description: e.target.value }))
+              }
+            />
+          </Field>
         </div>
-      </div>
-    </Modal>
+      </ModalBody>
+
+      <ModalFooter
+        right={
+          <>
+            <ActionButton action="close" onClick={onClose} />
+            <ActionButton
+              action="create"
+              loading={createM.isPending}
+              onClick={() => {
+                if (!form.name.trim() || form.base_hourly_wage <= 0) {
+                  alert("필수 항목을 입력하세요.");
+                  return;
+                }
+                createM.mutate();
+              }}
+            >
+              생성
+            </ActionButton>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -3031,8 +3115,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-[var(--text-muted)]">
+    <div className="grid gap-1">
+      <div className="text-xs font-semibold text-[var(--text-muted)]">
         {label}
       </div>
       {children}
@@ -3045,10 +3129,17 @@ function Field({
 # FILE: pages/OperationsPage/CreateExpenseModal.tsx
 ==========================================================================================
 // PATH: src/features/staff/pages/OperationsPage/CreateExpenseModal.tsx
-import { Modal } from "antd";
 import { useEffect, useState } from "react";
 import { useWorkMonth } from "../../operations/context/WorkMonthContext";
 import { useExpenses } from "../../hooks/useExpenses";
+
+import {
+  AdminModal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/shared/ui/modal";
+import { ActionButton } from "@/shared/ui/ds";
 
 export default function CreateExpenseModal({
   open,
@@ -3073,109 +3164,111 @@ export default function CreateExpenseModal({
   });
 
   useEffect(() => {
-    if (!open) return;
-    setForm((p) => ({ ...p, date: range.from }));
+    if (open) {
+      setForm((p) => ({ ...p, date: range.from }));
+    }
   }, [open, range.from]);
 
-  // 🔒 마감 월이면 모달 자체를 안 띄움 (UX: “추가 버튼 비활성 + 사유”로 이미 안내됨)
   if (locked) return null;
 
   return (
-    <Modal
-      title="비용 추가"
-      open={open}
-      onCancel={onClose}
-      onOk={() => {
-        if (!form.title.trim() || !form.amount || form.amount <= 0) {
-          alert("항목과 금액(0보다 큼)을 입력하세요.");
-          return;
-        }
+    <AdminModal open={open} onClose={onClose} type="action">
+      <ModalHeader
+        title="비용 추가"
+        description="직원의 비용 항목을 추가합니다."
+        type="action"
+      />
 
-        createM.mutate(
-          {
-            staff: staffId,
-            date: form.date,
-            title: form.title.trim(),
-            amount: Number(form.amount),
-            memo: form.memo ?? "",
-          },
-          {
-            onSuccess: () => {
-              onClose();
-              setForm({
-                date: range.from,
-                title: "",
-                amount: 0,
-                memo: "",
-              });
-            },
-            onError: (e: any) => {
-              const msg =
-                e?.response?.data?.detail ||
-                e?.response?.data?.message ||
-                "비용 추가에 실패했습니다.";
-              alert(msg);
-            },
-          }
-        );
-      }}
-      okText="추가"
-      cancelText="취소"
-      confirmLoading={createM.isPending}
-    >
-      <div className="space-y-3">
-        <Field label="날짜">
-          <input
-            type="date"
-            className="input"
-            value={form.date}
-            onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-          />
-        </Field>
+      <ModalBody>
+        <div className="grid gap-3">
+          <Field label="날짜">
+            <input
+              type="date"
+              className="ds-input"
+              value={form.date}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, date: e.target.value }))
+              }
+            />
+          </Field>
 
-        <Field label="항목 *">
-          <input
-            className="input"
-            value={form.title}
-            onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            placeholder="예: 교재비, 교통비"
-          />
-        </Field>
+          <Field label="항목 *">
+            <input
+              className="ds-input"
+              value={form.title}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, title: e.target.value }))
+              }
+            />
+          </Field>
 
-        <Field label="금액(원) *">
-          <input
-            type="number"
-            className="input"
-            value={form.amount}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, amount: Number(e.target.value) }))
-            }
-            min={0}
-          />
-        </Field>
+          <Field label="금액(원) *">
+            <input
+              type="number"
+              className="ds-input"
+              value={form.amount}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  amount: Number(e.target.value),
+                }))
+              }
+            />
+          </Field>
 
-        <Field label="메모">
-          <textarea
-            className="input"
-            value={form.memo}
-            onChange={(e) => setForm((p) => ({ ...p, memo: e.target.value }))}
-            placeholder="선택"
-            rows={3}
-          />
-        </Field>
-
-        <div className="text-xs text-[var(--text-muted)]">
-          * 금액/상태/승인은 서버 기준입니다.
+          <Field label="메모">
+            <textarea
+              className="ds-input"
+              rows={3}
+              value={form.memo}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, memo: e.target.value }))
+              }
+            />
+          </Field>
         </div>
-      </div>
-    </Modal>
+      </ModalBody>
+
+      <ModalFooter
+        right={
+          <>
+            <ActionButton action="close" onClick={onClose} />
+            <ActionButton
+              action="create"
+              loading={createM.isPending}
+              onClick={() => {
+                if (!form.title.trim() || form.amount <= 0) {
+                  alert("항목과 금액을 입력하세요.");
+                  return;
+                }
+
+                createM.mutate(
+                  {
+                    staff: staffId,
+                    date: form.date,
+                    title: form.title,
+                    amount: form.amount,
+                    memo: form.memo,
+                  },
+                  { onSuccess: onClose }
+                );
+              }}
+            >
+              추가
+            </ActionButton>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
+    <div className="grid gap-1">
+      <div className="text-xs font-semibold text-[var(--text-muted)]">
+        {label}
+      </div>
       {children}
     </div>
   );
@@ -3186,21 +3279,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 # FILE: pages/OperationsPage/CreateWorkRecordModal.tsx
 ==========================================================================================
 // PATH: src/features/staff/pages/OperationsPage/CreateWorkRecordModal.tsx
-import { Modal } from "antd";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useWorkMonth } from "../../operations/context/WorkMonthContext";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
-import { useQuery } from "@tanstack/react-query";
 import { fetchStaffWorkTypes } from "../../api/staffWorkType.api";
-import ActionButton from "../../components/ActionButton";
 
-export default function CreateWorkRecordModal({
-  open,
-  onClose,
-}: {
+import {
+  AdminModal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/shared/ui/modal";
+import { ActionButton } from "@/shared/ui/ds";
+
+type Props = {
   open: boolean;
   onClose: () => void;
-}) {
+};
+
+export default function CreateWorkRecordModal({ open, onClose }: Props) {
   const { staffId, range, locked } = useWorkMonth();
 
   const { createM } = useWorkRecords({
@@ -3216,7 +3314,6 @@ export default function CreateWorkRecordModal({
   });
 
   const staffWorkTypes = workTypesQ.data ?? [];
-  const hasWorkTypes = staffWorkTypes.length > 0;
 
   const [form, setForm] = useState({
     date: range.from,
@@ -3228,155 +3325,157 @@ export default function CreateWorkRecordModal({
   });
 
   useEffect(() => {
-    if (!open) return;
-    setForm((p) => ({ ...p, date: range.from, work_type: undefined }));
+    if (open) {
+      setForm((p) => ({ ...p, date: range.from, work_type: undefined }));
+    }
   }, [open, range.from]);
 
   if (locked) return null;
 
   return (
-    <Modal
-      title="근무 기록 추가"
-      open={open}
-      onCancel={onClose}
-      okText="추가"
-      cancelText="취소"
-      confirmLoading={createM.isPending}
-      onOk={() => {
-        if (!hasWorkTypes) {
-          alert("먼저 직원에게 근무유형을 등록하세요.");
-          return;
-        }
-        if (!form.work_type) {
-          alert("근무유형을 선택하세요.");
-          return;
-        }
-        if (!form.start_time || !form.end_time) {
-          alert("시작/종료 시간을 입력하세요.");
-          return;
-        }
+    <AdminModal open={open} onClose={onClose} type="action">
+      <ModalHeader
+        title="근무 기록 추가"
+        description="직원의 근무 기록을 등록합니다."
+        type="action"
+      />
 
-        createM.mutate(
-          {
-            staff: staffId,
-            work_type: form.work_type,
-            date: form.date,
-            start_time: form.start_time,
-            end_time: form.end_time,
-            break_minutes: form.break_minutes,
-            memo: form.memo,
-          },
-          {
-            onSuccess: () => {
-              onClose();
-              setForm({
-                date: range.from,
-                work_type: undefined,
-                start_time: "",
-                end_time: "",
-                break_minutes: 0,
-                memo: "",
-              });
-            },
-          }
-        );
-      }}
-    >
-      <div className="space-y-3">
-        <Field label="날짜">
-          <input
-            type="date"
-            className="input"
-            value={form.date}
-            onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))}
-          />
-        </Field>
-
-        <Field label="근무유형 *">
-          <select
-            className="input"
-            disabled={!hasWorkTypes}
-            value={form.work_type ?? ""}
-            onChange={(e) =>
-              setForm((p) => ({
-                ...p,
-                work_type: e.target.value ? Number(e.target.value) : undefined,
-              }))
-            }
-          >
-            <option value="">
-              {hasWorkTypes ? "선택" : "등록된 근무유형 없음"}
-            </option>
-            {staffWorkTypes.map((st) => (
-              <option key={st.id} value={st.work_type.id}>
-                {st.work_type.name}
-              </option>
-            ))}
-          </select>
-
-          {!hasWorkTypes && (
-            <div className="text-xs text-[var(--color-danger)] mt-1">
-              * 근무기록을 추가하려면 먼저 <b>시급·근무유형</b> 탭에서 근무유형을
-              등록하세요.
-            </div>
-          )}
-        </Field>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="시작 시간 *">
+      <ModalBody>
+        <div className="grid gap-3">
+          <Field label="날짜">
             <input
-              type="time"
-              className="input"
-              value={form.start_time}
+              type="date"
+              className="ds-input"
+              value={form.date}
               onChange={(e) =>
-                setForm((p) => ({ ...p, start_time: e.target.value }))
+                setForm((p) => ({ ...p, date: e.target.value }))
               }
             />
           </Field>
 
-          <Field label="종료 시간 *">
-            <input
-              type="time"
-              className="input"
-              value={form.end_time}
+          <Field label="근무유형 *">
+            <select
+              className="ds-input"
+              value={form.work_type ?? ""}
               onChange={(e) =>
-                setForm((p) => ({ ...p, end_time: e.target.value }))
+                setForm((p) => ({
+                  ...p,
+                  work_type: e.target.value
+                    ? Number(e.target.value)
+                    : undefined,
+                }))
+              }
+            >
+              <option value="">선택</option>
+              {staffWorkTypes.map((st) => (
+                <option key={st.id} value={st.work_type.id}>
+                  {st.work_type.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="시작 시간 *">
+              <input
+                type="time"
+                className="ds-input"
+                value={form.start_time}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, start_time: e.target.value }))
+                }
+              />
+            </Field>
+
+            <Field label="종료 시간 *">
+              <input
+                type="time"
+                className="ds-input"
+                value={form.end_time}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, end_time: e.target.value }))
+                }
+              />
+            </Field>
+          </div>
+
+          <Field label="휴게시간(분)">
+            <input
+              type="number"
+              className="ds-input"
+              min={0}
+              value={form.break_minutes}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  break_minutes: Number(e.target.value),
+                }))
+              }
+            />
+          </Field>
+
+          <Field label="메모">
+            <textarea
+              className="ds-input"
+              rows={3}
+              value={form.memo}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, memo: e.target.value }))
               }
             />
           </Field>
         </div>
+      </ModalBody>
 
-        <Field label="휴게시간(분)">
-          <input
-            type="number"
-            className="input"
-            min={0}
-            value={form.break_minutes}
-            onChange={(e) =>
-              setForm((p) => ({
-                ...p,
-                break_minutes: Number(e.target.value),
-              }))
-            }
-          />
-        </Field>
+      <ModalFooter
+        right={
+          <>
+            <ActionButton action="close" onClick={onClose} />
+            <ActionButton
+              action="create"
+              loading={createM.isPending}
+              onClick={() => {
+                if (
+                  !form.work_type ||
+                  !form.start_time ||
+                  !form.end_time
+                ) {
+                  alert("필수 항목을 입력하세요.");
+                  return;
+                }
 
-        <Field label="메모">
-          <textarea
-            className="input"
-            rows={3}
-            value={form.memo}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, memo: e.target.value }))
-            }
-          />
-        </Field>
-
-        <div className="text-xs text-[var(--text-muted)]">
-          * 근무시간·금액은 서버에서 자동 계산됩니다.
-        </div>
-      </div>
-    </Modal>
+                createM.mutate(
+                  {
+                    staff: staffId,
+                    work_type: form.work_type,
+                    date: form.date,
+                    start_time: form.start_time,
+                    end_time: form.end_time,
+                    break_minutes: form.break_minutes,
+                    memo: form.memo,
+                  },
+                  {
+                    onSuccess: () => {
+                      onClose();
+                      setForm({
+                        date: range.from,
+                        work_type: undefined,
+                        start_time: "",
+                        end_time: "",
+                        break_minutes: 0,
+                        memo: "",
+                      });
+                    },
+                  }
+                );
+              }}
+            >
+              추가
+            </ActionButton>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -3388,8 +3487,10 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-[var(--text-muted)]">{label}</div>
+    <div className="grid gap-1">
+      <div className="text-xs font-semibold text-[var(--text-muted)]">
+        {label}
+      </div>
       {children}
     </div>
   );
@@ -4264,7 +4365,7 @@ import {
   fetchPayrollSnapshots,
   exportPayrollSnapshotExcel,
 } from "../../api/payrollSnapshots.api";
-import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
 import ActionButton from "../../components/ActionButton";
 
 function ymLabel(y: number, m: number) {
@@ -4323,16 +4424,12 @@ export default function PayrollHistoryTable() {
             <div className="font-semibold">{ymLabel(r.year, r.month)}</div>
             <div className="text-xs text-[var(--text-muted)]">
               생성:{" "}
-              {r.created_at
-                ? new Date(r.created_at).toLocaleString()
-                : "-"}
+              {r.created_at ? new Date(r.created_at).toLocaleString() : "-"}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="font-semibold">
-              {r.total_amount.toLocaleString()}원
-            </div>
+            <div className="font-semibold">{r.total_amount.toLocaleString()}원</div>
 
             <ActionButton
               variant="outline"
@@ -4381,7 +4478,7 @@ import {
   fetchPayrollSnapshots,
   exportPayrollSnapshotExcel,
 } from "../../api/payrollSnapshots.api";
-import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
 import ActionButton from "../../components/ActionButton";
 
 export default function PayrollSnapshotList({
@@ -4438,10 +4535,7 @@ export default function PayrollSnapshotList({
                 {r.year}-{String(r.month).padStart(2, "0")} 급여
               </div>
               <div className="text-xs text-[var(--text-muted)]">
-                생성일:{" "}
-                {r.created_at
-                  ? new Date(r.created_at).toLocaleString()
-                  : "-"}
+                생성일: {r.created_at ? new Date(r.created_at).toLocaleString() : "-"}
               </div>
               {!!r.generated_by_name && (
                 <div className="text-xs text-[var(--text-muted)]">
@@ -4451,9 +4545,7 @@ export default function PayrollSnapshotList({
             </div>
 
             <div className="text-right space-y-2">
-              <div className="text-lg font-semibold">
-                {r.total_amount.toLocaleString()}원
-              </div>
+              <div className="text-lg font-semibold">{r.total_amount.toLocaleString()}원</div>
 
               <div className="flex gap-2 justify-end">
                 <ActionButton

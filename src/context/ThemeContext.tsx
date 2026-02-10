@@ -1,50 +1,40 @@
 // PATH: src/context/ThemeContext.tsx
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import type { ThemeKey } from "@/features/settings/constants/themes";
 
-type ThemeKey = "modern" | "navy" | "kakao" | "naver" | "purple";
-
-interface ThemeContextValue {
+type ThemeContextState = {
   theme: ThemeKey;
-  setTheme: (theme: ThemeKey) => void;
-}
+  setTheme: (key: ThemeKey) => void;
+};
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+const ThemeContext = createContext<ThemeContextState | null>(null);
 
-const STORAGE_KEY = "app-theme";
-const DEFAULT_THEME: ThemeKey = "modern";
+const STORAGE_KEY = "admin_theme";
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeKey>(DEFAULT_THEME);
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<ThemeKey>("modern-white");
 
-  // 초기 테마 복원
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as ThemeKey | null;
-
-    // ❗ legacy dark class가 혹시 붙어있다면 제거 (화이트/다크 강제 아님)
-    document.documentElement.classList.remove("dark");
-
-    if (saved) {
-      setThemeState(saved);
-      document.documentElement.dataset.theme = saved;
-    } else {
-      document.documentElement.dataset.theme = DEFAULT_THEME;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY) as ThemeKey | null;
+      if (saved) setThemeState(saved);
+    } catch {
+      // ignore
     }
   }, []);
 
-  const setTheme = (next: ThemeKey) => {
-    // ❗ theme 변경 시에도 legacy dark 제거만 수행
-    document.documentElement.classList.remove("dark");
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      localStorage.setItem(STORAGE_KEY, theme);
+    } catch {
+      // ignore
+    }
+  }, [theme]);
 
-    setThemeState(next);
-    localStorage.setItem(STORAGE_KEY, next);
-    document.documentElement.dataset.theme = next;
-  };
+  function setTheme(key: ThemeKey) {
+    setThemeState(key);
+  }
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>

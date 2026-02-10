@@ -1,4 +1,4 @@
-// src/features/lectures/api/ddays.ts
+// PATH: src/features/lectures/api/ddays.ts
 /**
  * ⚠️ D-DAY API
  * - 현재 backend 미구현

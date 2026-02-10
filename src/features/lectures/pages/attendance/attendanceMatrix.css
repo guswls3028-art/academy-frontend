@@ -1,4 +1,9 @@
-/* src/features/lectures/pages/attendance/attendanceMatrix.css */
+/* PATH: src/features/lectures/pages/attendance/attendanceMatrix.css */
+/**
+ * ⚠️ Legacy CSS (유지)
+ * - 기능 로직 영향 없음
+ * - 하드코딩 색상 제거 → 전역 디자인 토큰 기반으로 정합성 통일
+ */
 
 /* ===== 테이블 기본 ===== */
 .attendance-table {
@@ -9,81 +14,103 @@
 
 .attendance-table th,
 .attendance-table td {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border-divider);
   padding: 0.5rem 0.75rem;
   text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.attendance-table th {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-secondary);
+  font-weight: 900;
 }
 
 /* ===== Sticky ===== */
 .attendance-sticky-header {
   position: sticky;
   top: 0;
-  background: #f9fafb;
+  background: var(--color-bg-surface-hover);
   z-index: 10;
 }
 
 .attendance-sticky-student {
   position: sticky;
   left: 0;
-  background: white;
+  background: var(--color-bg-surface);
   z-index: 20;
-  font-weight: 600;
+  font-weight: 900;
+  color: var(--color-text-primary);
 }
 
 /* ===== Hover ===== */
 .attendance-row:hover {
-  background: #f9fafb;
+  background: var(--color-bg-surface-soft);
 }
 
-/* ===== Status Colors ===== */
+/* ===== Status Tokens (시각만 담당, 의미/코드 변경 없음) ===== */
+/* NOTE:
+ * 실제 상태 컬러는 "status pills / buttons"에서 이미 정의될 수 있음.
+ * 여기 CSS는 매트릭스/레거시 테이블용 기본 톤만 제공.
+ */
 .status-present {
-  background: #dcfce7;
-  color: #15803d;
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
+  color: var(--color-primary);
+  font-weight: 900;
 }
 
 .status-late {
-  background: #fef9c3;
-  color: #a16207;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+  font-weight: 900;
 }
 
 .status-online {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+  font-weight: 900;
 }
 
 .status-supplement {
-  background: #ede9fe;
-  color: #6d28d9;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+  font-weight: 900;
 }
 
 .status-early-leave {
-  background: #ffedd5;
-  color: #c2410c;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+  font-weight: 900;
 }
 
 .status-absent {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-bg-surface));
+  color: var(--color-error);
+  font-weight: 900;
 }
 
 .status-runaway {
-  background: #fecaca;
-  color: #7f1d1d;
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
+  color: var(--color-error);
+  font-weight: 900;
 }
 
 .status-material {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+  font-weight: 900;
 }
 
 .status-inactive {
-  background: #e5e7eb;
-  color: #4b5563;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-weight: 900;
 }
 
 .status-secession {
-  background: #d1d5db;
-  color: #6b7280;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-weight: 900;
   text-decoration: line-through;
 }
 

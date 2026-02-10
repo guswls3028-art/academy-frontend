@@ -1,56 +1,194 @@
 /* PATH: src/styles/design-system/patterns/layout.css */
-/* Admin Layout Patterns (SSOT) */
+/* Admin Layout Patterns (SSOT)
+   - Sidebar/Header are "layout areas"
+   - Their color identity is controlled by layout tokens (sidebar-*)
+*/
 
-/* Sidebar */
+/* ======================================================
+   Layout shell areas
+====================================================== */
 .sidebar {
   width: var(--sidebar-width);
   background: var(--sidebar-bg);
-  color: var(--sidebar-text-primary);
-  border-right: 1px solid var(--color-border-divider);
+  color: var(--sidebar-text);
+  border-right: 1px solid var(--sidebar-border);
 }
 
-/* Header */
 .header {
   height: var(--panel-header);
   background: var(--color-bg-surface);
   border-bottom: 1px solid var(--color-border-divider);
 }
 
-/* Navigation */
+/* ======================================================
+   Sidebar structure
+====================================================== */
+.sidebar-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ▶ Header Slot (Brand Area) */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--sidebar-header-border);
+  background: var(--sidebar-header-bg);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.sidebar-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sidebar-title {
+  min-width: 0;
+}
+
+.sidebar-title .name {
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-title .sub {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--sidebar-group-title);
+}
+
+/* Collapsed behavior */
+[data-sidebar="collapsed"] .sidebar-title,
+[data-sidebar="collapsed"] .sidebar-group-title,
+[data-sidebar="collapsed"] .nav-item span.label {
+  display: none;
+}
+
+/* ======================================================
+   Sidebar navigation
+====================================================== */
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: var(--space-3);
+  gap: 10px;
+  margin-top: 16px;
 }
 
+.sidebar-group {
+  margin-bottom: 18px;
+}
+
+.sidebar-group-title {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--sidebar-group-title);
+  padding: 6px 10px;
+  letter-spacing: -0.1px;
+  text-transform: none;
+}
+
+/* ▶ Nav Item (Enterprise-grade) */
 .nav-item {
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--sidebar-text-secondary);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 4px;
+  text-decoration: none;
+  color: var(--sidebar-muted);
+  font-weight: 900;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.12s ease;
 }
 
 .nav-item:hover {
-  background: var(--sidebar-hover-bg);
-  color: var(--sidebar-text-primary);
+  background: var(--sidebar-item-hover-bg);
+  color: var(--sidebar-text);
 }
 
+/* ✅ Location clarity: active state must be readable in 1 second */
 .nav-item.active {
-  background: var(--sidebar-active-bg);
-  color: var(--sidebar-active-text);
+  background: var(--sidebar-item-active-bg);
+  color: var(--sidebar-item-active-text);
 }
 
-/* Divider */
-.divider {
-  border-bottom: 1px solid var(--color-border-divider);
+/* ✅ Active indicator bar (works for collapsed too) */
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--color-brand-primary);
+  opacity: 0.95;
 }
 
-/* Surface (Popup / Dropdown) */
-.surface {
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-md);
+/* Minor depth cue (subtle, non-noisy) */
+.nav-item.active {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+}
+
+.nav-item svg {
+  flex: 0 0 auto;
+}
+
+.nav-item span.label {
+  font-size: 14px;
+  letter-spacing: -0.15px;
+}
+
+/* ======================================================
+   Sidebar footer toggle
+====================================================== */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 12px 14px 12px;
+}
+
+.sidebar-toggle {
+  width: 100%;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--sidebar-header-border);
+  background: var(--sidebar-header-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.12s ease;
+}
+
+.sidebar-toggle:hover {
+  background: color-mix(in srgb, var(--sidebar-header-bg) 92%, transparent);
 }

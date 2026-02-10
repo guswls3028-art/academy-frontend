@@ -1,0 +1,23 @@
+.theme-scope {
+  /* layout */
+  --layout-canvas-bg: var(--preview-canvas-bg, #ffffff);
+  --layout-page-bg: var(--preview-page-bg, #ffffff);
+  --layout-header-bg: var(--preview-header-bg, #ffffff);
+
+  /* sidebar */
+  --sidebar-bg: var(--preview-sidebar-bg, #ffffff);
+  --sidebar-border: var(--preview-sidebar-border, #e5e7eb);
+  --sidebar-header-bg: var(--preview-sidebar-header-bg, #ffffff);
+  --sidebar-header-border: var(--preview-sidebar-header-border, #e5e7eb);
+
+  --sidebar-text: var(--preview-sidebar-text, #111827);
+  --sidebar-muted: var(--preview-sidebar-muted, #6b7280);
+  --sidebar-group-title: var(--preview-sidebar-group-title, #9ca3af);
+
+  --sidebar-item-hover-bg: var(--preview-sidebar-item-hover-bg, #f3f4f6);
+  --sidebar-item-active-bg: var(--preview-sidebar-item-active-bg, #e5e7eb);
+  --sidebar-item-active-text: var(--preview-sidebar-item-active-text, #2563eb);
+
+  /* surface */
+  --color-bg-surface: var(--preview-page-bg, #ffffff);
+}

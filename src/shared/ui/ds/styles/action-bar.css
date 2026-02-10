@@ -1,0 +1,15 @@
+/* PATH: src/shared/ui/ds/styles/action-bar.css */
+
+.ds-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-action-bar[data-align="right"] {
+  justify-content: flex-end;
+}
+
+.ds-action-bar[data-align="left"] {
+  justify-content: flex-start;
+}

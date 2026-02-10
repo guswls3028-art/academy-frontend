@@ -1,0 +1,55 @@
+/* PATH: src/styles/design-system/patterns/badge.css */
+/* ============================================================================
+ * DS BADGE — TAG / CHIP
+ * - uses CSS vars: --badge-bg, --badge-text
+ * - safe remove button / hover / focus
+ * ============================================================================ */
+
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  line-height: 1;
+
+  background: var(--badge-bg, var(--bg-surface-soft));
+  color: var(--badge-text, var(--text-primary));
+
+  border: 1px solid color-mix(in srgb, var(--badge-bg, var(--bg-surface-soft)) 78%, black 22%);
+}
+
+.ds-badge__remove {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+
+  display: inline-grid;
+  place-items: center;
+
+  opacity: 0.75;
+  transition: opacity var(--motion-base) var(--ease-out), background-color var(--motion-base) var(--ease-out);
+}
+
+.ds-badge__remove:hover {
+  opacity: 1;
+  background: color-mix(in srgb, white 18%, transparent);
+}
+
+.ds-badge__remove:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-surface),
+    0 0 0 4px color-mix(in srgb, var(--color-border-focus) 55%, transparent);
+}

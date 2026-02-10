@@ -4,5 +4,10 @@
 :root {
   --state-hover-bg: var(--color-bg-surface-hover);
   --state-active-bg: var(--color-bg-accent-subtle);
+
+  /* Focus ring (SSOT) */
   --state-focus-ring: 0 0 0 2px var(--color-border-focus);
+
+  /* ✅ legacy alias (used by some antd overrides / existing code) */
+  --focus-ring: var(--state-focus-ring);
 }

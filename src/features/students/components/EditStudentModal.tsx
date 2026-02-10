@@ -1,178 +1,227 @@
 // PATH: src/features/students/components/EditStudentModal.tsx
-
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 import { updateStudent } from "../api/students";
 
 interface Props {
+  open: boolean;
   initialValue: any;
   onClose: () => void;
   onSuccess: () => void;
 }
 
+function is8Digits(v: any) {
+  return /^\d{8}$/.test(String(v ?? ""));
+}
+
 export default function EditStudentModal({
+  open,
   initialValue,
   onClose,
   onSuccess,
 }: Props) {
-  const [noPhone, setNoPhone] = useState(
-    initialValue.studentPhone && /^\d{8}$/.test(initialValue.studentPhone)
-  );
+  const initialNoPhone = useMemo(() => {
+    return initialValue.studentPhone && is8Digits(initialValue.studentPhone);
+  }, [initialValue.studentPhone]);
+
+  const [noPhone, setNoPhone] = useState(initialNoPhone);
+  const [busy, setBusy] = useState(false);
 
   const [form, setForm] = useState({
     name: initialValue.name || "",
     gender: initialValue.gender || "",
-
     psNumber: initialValue.psNumber || "",
-    initialPassword: "",
-
-    studentPhone: noPhone ? "" : initialValue.studentPhone || "",
-    omrCode: noPhone ? initialValue.studentPhone || "" : "",
-
+    studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
+    omrCode: initialNoPhone ? initialValue.studentPhone || "" : "",
     parentPhone: initialValue.parentPhone || "",
-
     schoolType: initialValue.schoolType || "HIGH",
     school: initialValue.school || "",
     grade: initialValue.grade ? String(initialValue.grade) : "",
     schoolClass: initialValue.schoolClass || "",
     major: initialValue.major || "",
-
-    address: initialValue.address || "",
     memo: initialValue.memo || "",
     active: !!initialValue.active,
   });
 
-  const inputBase =
-    "w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)]";
-  const inputRequired =
-    "border-2 border-[var(--color-primary)]/70 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
-  const inputNormal =
-    "border border-[var(--border-divider)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]";
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose, form, noPhone, busy]);
+
+  useEffect(() => {
+    if (!open) return;
+    setNoPhone(initialNoPhone);
+    setBusy(false);
+    setForm({
+      name: initialValue.name || "",
+      gender: initialValue.gender || "",
+      psNumber: initialValue.psNumber || "",
+      studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
+      omrCode: initialNoPhone ? initialValue.studentPhone || "" : "",
+      parentPhone: initialValue.parentPhone || "",
+      schoolType: initialValue.schoolType || "HIGH",
+      school: initialValue.school || "",
+      grade: initialValue.grade ? String(initialValue.grade) : "",
+      schoolClass: initialValue.schoolClass || "",
+      major: initialValue.major || "",
+      memo: initialValue.memo || "",
+      active: !!initialValue.active,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialValue?.id]);
 
   function handleChange(e: any) {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  }
+
+  function validate(): string | null {
+    if (!String(form.name || "").trim()) return "이름은 필수입니다.";
+    if (!String(form.psNumber || "").trim()) return "PS 번호는 필수입니다.";
+
+    if (noPhone) {
+      const code = String(form.omrCode || "").trim();
+      if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
+    } else {
+      const phone = String(form.studentPhone || "").trim();
+      if (!phone) return "학생 전화번호를 입력하세요.";
+      if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+    }
+
+    const parent = String(form.parentPhone || "").trim();
+    if (!parent) return "학부모 전화번호는 필수입니다.";
+    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+
+    return null;
   }
 
   async function handleSubmit() {
-    if (!form.name.trim()) {
-      alert("이름은 필수입니다.");
-      return;
-    }
+    if (busy) return;
 
-    if (!form.psNumber.trim()) {
-      alert("PS 번호는 필수입니다.");
-      return;
-    }
+    const err = validate();
+    if (err) return alert(err);
 
-    if (noPhone) {
-      if (!/^\d{8}$/.test(form.omrCode)) {
-        alert("식별자는 숫자 8자리입니다.");
-        return;
-      }
-    } else {
-      if (!/^010\d{8}$/.test(form.studentPhone)) {
-        alert("학생 전화번호는 010XXXXXXXX 형식입니다.");
-        return;
-      }
-    }
-
-    if (!/^010\d{8}$/.test(form.parentPhone)) {
-      alert("학부모 전화번호는 010XXXXXXXX 형식입니다.");
-      return;
-    }
-
+    setBusy(true);
     try {
-      await updateStudent(initialValue.id, {
-        ...form,
-        noPhone,
-      });
-
+      await updateStudent(initialValue.id, { ...form, noPhone });
       onSuccess();
       onClose();
-    } catch (e) {
-      console.error(e);
-      alert("오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[520px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            학생 수정
-          </h2>
-        </div>
+    <AdminModal open={open} onClose={onClose} type="action" width={720}>
+      <ModalHeader
+        type="action"
+        title="학생 수정"
+        description="⌘/Ctrl + Enter 로 저장"
+      />
 
-        {/* Body */}
-        <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
-          {/* 이름 / 성별 */}
-          <div className="flex gap-2">
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name="name"
               placeholder="이름"
               value={form.name}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputRequired}`}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.name || "").trim() ? "true" : "false"}
+              disabled={busy}
+              autoFocus
             />
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, gender: "M" }))}
-                className={`px-3 py-2 text-sm rounded-md border ${
-                  form.gender === "M"
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                남자
-              </button>
-              <button
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, gender: "F" }))}
-                className={`px-3 py-2 text-sm rounded-md border ${
-                  form.gender === "F"
-                    ? "bg-pink-500 text-white border-pink-500"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                여자
-              </button>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                <Button
+                  key={g.key}
+                  intent={form.gender === g.key ? "secondary" : "ghost"}
+                  aria-pressed={form.gender === g.key}
+                  onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                  disabled={busy}
+                >
+                  {g.label}
+                </Button>
+              ))}
             </div>
           </div>
 
-          <input
-            name="psNumber"
-            placeholder="아이디"
-            value={form.psNumber}
-            onChange={handleChange}
-            className={`${inputBase} ${inputRequired}`}
-          />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              name="psNumber"
+              placeholder="아이디(PS 번호)"
+              value={form.psNumber}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
+              disabled={busy}
+            />
 
-          {/* 전화번호 / 식별자 */}
-          <div className="flex gap-2 items-center">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "0 12px",
+                borderRadius: 12,
+                border: "1px solid var(--color-border-divider)",
+                background: "var(--color-bg-surface-soft)",
+                height: 44,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 900,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                상태
+              </span>
+              <Button
+                intent={form.active ? "secondary" : "ghost"}
+                size="sm"
+                aria-pressed={form.active}
+                onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
+                disabled={busy}
+              >
+                {form.active ? "활성" : "비활성"}
+              </Button>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name={noPhone ? "omrCode" : "studentPhone"}
               placeholder={noPhone ? "식별자 (XXXXXXXX)" : "학생 전화번호 (010XXXXXXXX)"}
               value={noPhone ? form.omrCode : form.studentPhone}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputRequired}`}
+              className="ds-input"
+              data-required="true"
+              disabled={busy}
             />
-            <button
-              type="button"
-              onClick={() => setNoPhone((v) => !v)}
-              className={`px-3 py-2 text-sm rounded-md border ${
-                noPhone
-                  ? "bg-[var(--color-primary)] text-white"
-                  : "border-[var(--border-divider)]"
-              }`}
+            <Button
+              intent={noPhone ? "secondary" : "ghost"}
+              onClick={() => {
+                setNoPhone((v) => !v);
+                setForm((p) => ({ ...p, studentPhone: "", omrCode: "" }));
+              }}
+              disabled={busy}
             >
-              없음(식별자로 대체)
-            </button>
+              {noPhone ? "전화번호 입력" : "없음(식별자사용)"}
+            </Button>
           </div>
 
           <input
@@ -180,104 +229,107 @@ export default function EditStudentModal({
             placeholder="학부모 전화번호 (010XXXXXXXX)"
             value={form.parentPhone}
             onChange={handleChange}
-            className={`${inputBase} ${inputRequired}`}
+            className="ds-input"
+            data-required="true"
+            disabled={busy}
           />
 
-          {/* 학교 */}
-          <div className="flex gap-2">
-            {["HIGH", "MIDDLE"].map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, schoolType: t }))}
-                className={`flex-1 px-3 py-2 text-sm rounded-md border ${
-                  form.schoolType === t
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "border-[var(--border-divider)]"
-                }`}
-              >
-                {t === "HIGH" ? "고등학교" : "중학교"}
-              </button>
-            ))}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
+              (t) => (
+                <Button
+                  key={t.key}
+                  intent={form.schoolType === t.key ? "secondary" : "ghost"}
+                  aria-pressed={form.schoolType === t.key}
+                  onClick={() =>
+                    setForm((p) => ({
+                      ...p,
+                      schoolType: t.key,
+                      school: "",
+                      schoolClass: "",
+                      major: "",
+                    }))
+                  }
+                  disabled={busy}
+                >
+                  {t.label}
+                </Button>
+              )
+            )}
           </div>
 
-          <div className="flex gap-2">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
               name="school"
               placeholder="학교명"
               value={form.school}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
-            <div className="flex gap-1">
+            <div style={{ display: "flex", gap: 8 }}>
               {["1", "2", "3"].map((g) => (
-                <button
+                <Button
                   key={g}
-                  type="button"
+                  intent={form.grade === g ? "secondary" : "ghost"}
+                  aria-pressed={form.grade === g}
                   onClick={() => setForm((p) => ({ ...p, grade: g }))}
-                  className={`px-3 py-2 text-sm rounded-md border ${
-                    form.grade === g
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "border-[var(--border-divider)]"
-                  }`}
+                  disabled={busy}
                 >
                   {g}학년
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <input
               name="schoolClass"
               placeholder="반"
               value={form.schoolClass}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
             <input
               name="major"
-              placeholder="계열"
+              placeholder="계열(고등만)"
               value={form.major}
               onChange={handleChange}
-              className={`flex-1 ${inputBase} ${inputNormal}`}
+              className="ds-input"
+              disabled={busy}
             />
           </div>
 
-          <input
-            name="address"
-            placeholder="주소"
-            value={form.address}
-            onChange={handleChange}
-            className={`${inputBase} ${inputNormal}`}
-          />
-
           <textarea
             name="memo"
+            rows={4}
             placeholder="메모"
-            rows={3}
             value={form.memo}
             onChange={handleChange}
-            className={`w-full rounded-md px-3 py-2 text-sm border bg-[var(--bg-app)] resize-none ${inputNormal}`}
+            className="ds-textarea"
+            disabled={busy}
           />
         </div>
+      </ModalBody>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)]">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-md border border-[var(--border-divider)]"
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-3 py-1.5 text-sm rounded-md bg-[var(--color-primary)] text-white"
-          >
-            수정
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter
+        left={
+          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            ⌘/Ctrl + Enter 저장
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
+            <Button intent="primary" onClick={handleSubmit} disabled={busy}>
+              {busy ? "저장 중…" : "저장"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }

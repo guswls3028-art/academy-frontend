@@ -8,7 +8,8 @@
   --control-lg: 40px;
 
   /* sidebar */
-  --sidebar-width: 240px;
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 76px;
 
   /* panel */
   --panel-header: 56px;

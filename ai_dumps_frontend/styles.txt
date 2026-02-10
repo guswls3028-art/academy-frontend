@@ -5,36 +5,108 @@
 
 
 ==========================================================================================
+# FILE: design-system/README.md
+==========================================================================================
+## UI Color Slot Rules (LOCKED)
+
+- 컴포넌트는 색상을 직접 사용하지 않는다
+- 모든 배경 / 영역 색은 ui-slot을 통해서만 사용한다
+
+### Allowed Slots
+- --ui-page-*
+- --ui-hero-*
+- --ui-control-*
+- --ui-work-*
+- --ui-meta-*
+
+### Forbidden
+- 직접 scale / brand 색 사용
+- JSX inline background / border 색상 지정
+
+
+==========================================================================================
 # FILE: design-system/index.css
 ==========================================================================================
-/* PATH: src/styles/design-system/index.css */
-/* Admin Design System - Single Entry (SSOT) */
+@import "./base/element-lock.css";
 
 @import "./colors/index.css";
-
 @import "./density/index.css";
 @import "./typography/index.css";
-@import "./surface/index.css";
 
-@import "./state/index.css";
+/* ===============================
+   Surface SSOT (FINAL)
+   =============================== */
+@import "./surface/layers.css";
+@import "./surface/slots.css";
+@import "./surface/areas.css";
+
+/* ===============================
+   Component patterns
+   =============================== */
 @import "./patterns/index.css";
+
+/* ===============================
+   AntD skin (slot only)
+   =============================== */
 @import "./antd/index.css";
 
-@import "./state/status-map.css";
+/* ===============================
+   States
+   =============================== */
+@import "./state/index.css";
 
 
 ==========================================================================================
 # FILE: design-system/antd/button.css
 ==========================================================================================
 /* PATH: src/styles/design-system/antd/button.css */
-/* AntD Button */
+/* AntD Button — UI CONTROL SLOT WIRED (FINAL) */
 
 .ant-btn {
   border-radius: var(--radius-md);
 }
+
+/* Default buttons follow CONTROL slot */
+.ant-btn,
+.ant-btn-default {
+  background: var(--ui-control-bg);
+  border-color: var(--ui-control-border);
+  color: var(--ui-control-text);
+  box-shadow: var(--ui-control-shadow);
+}
+
+.ant-btn:hover,
+.ant-btn-default:hover {
+  background: var(--ui-control-bg-hover);
+  border-color: var(--ui-control-border-hover);
+  color: var(--ui-control-text);
+}
+
+/* Primary buttons follow CONTROL-PRIMARY slot */
 .ant-btn-primary {
-  background: var(--color-brand-primary);
-  border-color: var(--color-brand-primary);
+  background: var(--ui-control-primary-bg);
+  border-color: var(--ui-control-primary-bg);
+  color: var(--ui-control-primary-text);
+}
+
+.ant-btn-primary:hover {
+  background: var(--ui-control-primary-bg-hover);
+  border-color: var(--ui-control-primary-bg-hover);
+  color: var(--ui-control-primary-text);
+}
+
+.ant-btn-primary:active {
+  background: var(--ui-control-primary-bg-active);
+  border-color: var(--ui-control-primary-bg-active);
+  color: var(--ui-control-primary-text);
+}
+
+/* Focus ring (slot) */
+.ant-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--ui-control-bg),
+    0 0 0 4px color-mix(in srgb, var(--ui-control-border-focus) 60%, transparent);
 }
 
 
@@ -63,6 +135,65 @@
 @import "./datepicker.css";
 @import "./modal.css";
 
+/* ✅ 핵심: Input 룩 통일 */
+@import "./input.css";
+
+
+==========================================================================================
+# FILE: design-system/antd/input.css
+==========================================================================================
+/* PATH: src/styles/design-system/antd/input.css */
+/* AntD Input — UI CONTROL SLOT WIRED (FINAL) */
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-input-number-input,
+.ant-input-textarea textarea {
+  border-radius: var(--radius-md) !important;
+
+  border-color: var(--ui-control-border) !important;
+  background: var(--ui-control-bg) !important;
+  color: var(--ui-control-text) !important;
+
+  box-shadow: var(--ui-control-shadow) !important;
+}
+
+.ant-input::placeholder,
+.ant-input-affix-wrapper input::placeholder,
+.ant-input-textarea textarea::placeholder {
+  color: var(--ui-control-placeholder) !important;
+}
+
+.ant-input-affix-wrapper {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  height: var(--control-lg) !important;
+}
+
+.ant-input {
+  height: var(--control-lg) !important;
+}
+
+/* Focus */
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-input:focus,
+.ant-input-focused {
+  border-color: var(--ui-control-border-focus) !important;
+  box-shadow:
+    0 0 0 2px var(--ui-control-bg),
+    0 0 0 4px color-mix(in srgb, var(--ui-control-border-focus) 55%, transparent) !important;
+}
+
+/* Hover */
+.ant-input-affix-wrapper:hover,
+.ant-input:hover,
+.ant-input-number:hover,
+.ant-input-textarea textarea:hover {
+  border-color: var(--ui-control-border-hover) !important;
+}
+
 
 ==========================================================================================
 # FILE: design-system/antd/modal.css
@@ -90,14 +221,43 @@
 # FILE: design-system/antd/table.css
 ==========================================================================================
 /* PATH: src/styles/design-system/antd/table.css */
-/* AntD Table */
+/* ============================================================================
+ * AntD Table — WORK SURFACE FIX (SLOT WIRED, FINAL)
+ * - 테이블은 "작업 면(work)" 슬롯을 반드시 사용
+ * - header/hover도 work 계열에서 파생
+ * ============================================================================ */
 
 .ant-table {
-  background: transparent;
+  background: var(--ui-work-bg);
+  border: 1px solid var(--ui-work-border);
+  border-radius: 12px;
+  overflow: hidden;
 }
+
+.ant-table-container {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Header */
 .ant-table-thead > tr > th {
-  background: var(--color-bg-surface-hover);
+  background: var(--ui-work-header-bg);
   color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--ui-work-border);
+}
+
+/* Body row hover */
+.ant-table-tbody > tr:hover > td {
+  background: color-mix(in srgb, var(--ui-work-header-bg) 72%, transparent);
+}
+
+/* Cell borders */
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--ui-work-border);
+}
+
+.ant-table-tbody > tr:last-child > td {
+  border-bottom: 0;
 }
 
 
@@ -105,13 +265,17 @@
 # FILE: design-system/antd/tabs.css
 ==========================================================================================
 /* PATH: src/styles/design-system/antd/tabs.css */
-/* AntD Tabs */
+/* AntD Tabs — WRAPPER ONLY (NO STYLE OWNERSHIP) */
 
-.ant-tabs-tab {
-  color: var(--color-text-secondary);
+.ant-tabs,
+.ant-tabs-nav,
+.ant-tabs-tab,
+.ant-tabs-ink-bar {
+  all: unset;
 }
-.ant-tabs-tab-active {
-  color: var(--color-text-primary);
+
+.ant-tabs {
+  display: block;
 }
 
 
@@ -127,6 +291,77 @@
 
 
 ==========================================================================================
+# FILE: design-system/base/element-lock.css
+==========================================================================================
+/* ============================================================================
+ * PATH: src/styles/design-system/base/element-lock.css
+ * FINAL / LOCKED
+ * ============================================================================
+ */
+
+[data-app="admin"] :where(
+  button,
+  input,
+  textarea,
+  select
+) {
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+}
+
+/* ===============================
+ * Native button baseline
+ * =============================== */
+
+[data-app="admin"] button {
+  appearance: none;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  user-select: none;
+
+  /* 🔒 baseline affordance */
+  background: var(--bg-surface);
+  border: 1px solid var(--border-divider);
+  border-radius: var(--radius-md);
+
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 80ms ease;
+}
+
+/* Disabled */
+[data-app="admin"] button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ===============================
+ * Baseline interaction
+ * =============================== */
+
+[data-app="admin"] button:hover {
+  background: var(--state-hover-bg);
+}
+
+[data-app="admin"] button:active {
+  background: var(--state-active-bg);
+  transform: translateY(0.5px);
+}
+
+[data-app="admin"] button:focus-visible {
+  outline: none;
+  box-shadow: var(--state-focus-ring);
+}
+
+
+==========================================================================================
 # FILE: design-system/colors/index.css
 ==========================================================================================
 /* PATH: src/styles/design-system/colors/index.css */
@@ -138,8 +373,8 @@
 
 /* -------------------------------------------------
    Legacy Alias Layer (기존 코드 호환용)
-   - 기존 var(--bg-surface) 같은 이름을 "Role Token"에 연결
-   - 이후 점진적으로 기존 이름 제거 가능
+   ⚠️ Sidebar / Header 같은 layout token은
+   ⚠️ 여기서 절대 정의하지 않는다 (테마 전용)
 ------------------------------------------------- */
 :root {
   /* Background */
@@ -166,18 +401,201 @@
   --color-success: var(--color-success);
   --color-danger: var(--color-error);
 
-  /* Sidebar (관리자 전용 기본값: role 기반으로만 구성) */
-  --sidebar-bg: var(--color-bg-surface);
-  --sidebar-text-primary: var(--color-text-primary);
-  --sidebar-text-secondary: var(--color-text-secondary);
-  --sidebar-hover-bg: var(--color-bg-surface-hover);
-  --sidebar-active-bg: var(--color-brand-primary);
-  --sidebar-active-text: var(--color-text-inverse);
+  /* ❌ sidebar-* 정의 제거됨 */
+}
 
-  /* Widget (레거시) */
-  --widget-bg: var(--color-bg-surface);
-  --widget-hover: var(--color-bg-surface-hover);
-  --widget-text: var(--color-text-primary);
+
+==========================================================================================
+# FILE: design-system/colors/preview-scope.css
+==========================================================================================
+.theme-scope {
+  /* layout */
+  --layout-canvas-bg: var(--preview-canvas-bg, #ffffff);
+  --layout-page-bg: var(--preview-page-bg, #ffffff);
+  --layout-header-bg: var(--preview-header-bg, #ffffff);
+
+  /* sidebar */
+  --sidebar-bg: var(--preview-sidebar-bg, #ffffff);
+  --sidebar-border: var(--preview-sidebar-border, #e5e7eb);
+  --sidebar-header-bg: var(--preview-sidebar-header-bg, #ffffff);
+  --sidebar-header-border: var(--preview-sidebar-header-border, #e5e7eb);
+
+  --sidebar-text: var(--preview-sidebar-text, #111827);
+  --sidebar-muted: var(--preview-sidebar-muted, #6b7280);
+  --sidebar-group-title: var(--preview-sidebar-group-title, #9ca3af);
+
+  --sidebar-item-hover-bg: var(--preview-sidebar-item-hover-bg, #f3f4f6);
+  --sidebar-item-active-bg: var(--preview-sidebar-item-active-bg, #e5e7eb);
+  --sidebar-item-active-text: var(--preview-sidebar-item-active-text, #2563eb);
+
+  /* surface */
+  --color-bg-surface: var(--preview-page-bg, #ffffff);
+}
+
+
+==========================================================================================
+# FILE: design-system/colors/preview-theme.css
+==========================================================================================
+/* =========================================================
+   PREVIEW THEME TOKENS (SAFE / ISOLATED)
+   - :root / SSOT / role / surface 미사용
+   - 모든 테마에서 panel 색 명시
+========================================================= */
+
+.theme-preview {
+  /* canvas / page / panel */
+  --pv-canvas: #ffffff;
+  --pv-page: #f8fafc;
+  --pv-panel: #ffffff;
+
+  /* sidebar */
+  --pv-sidebar-bg: #ffffff;
+  --pv-sidebar-text: #111827;
+  --pv-sidebar-muted: #6b7280;
+  --pv-sidebar-active-bg: #e5e7eb;
+
+  /* brand */
+  --pv-primary: #2563eb;
+
+  /* misc */
+  --pv-border: rgba(0, 0, 0, 0.08);
+}
+
+/* ================= WHITE ================= */
+
+.theme-preview[data-theme="modern-white"] {
+  --pv-page: #f6f8fc;
+  --pv-panel: #ffffff;
+  --pv-sidebar-bg: #ffffff;
+  --pv-primary: #2563eb;
+}
+
+.theme-preview[data-theme="navy-pro"] {
+  --pv-page: #f3f6fb;
+  --pv-panel: #ffffff;
+  --pv-sidebar-bg: #f2f6ff;
+  --pv-primary: #3b82f6;
+}
+
+.theme-preview[data-theme="ivory-office"] {
+  --pv-page: #fbfaf7;
+  --pv-panel: #ffffff;
+  --pv-sidebar-bg: #f6f2ea;
+  --pv-primary: #b45309;
+}
+
+.theme-preview[data-theme="minimal-mono"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+  --pv-sidebar-bg: #ffffff;
+  --pv-sidebar-text: #0a0a0a;
+  --pv-sidebar-muted: #525252;
+  --pv-sidebar-active-bg: #0a0a0a;
+  --pv-primary: #0a0a0a;
+}
+
+/* ================= DARK ================= */
+
+.theme-preview[data-theme="modern-dark"] {
+  --pv-canvas: #0d1117;
+  --pv-page: #0d1117;
+  --pv-panel: #161f2c;
+
+  --pv-sidebar-bg: #0f1520;
+  --pv-sidebar-text: #e5e7eb;
+  --pv-sidebar-muted: #9ca3af;
+  --pv-sidebar-active-bg: #1f4e8c;
+
+  --pv-primary: #60a5fa;
+}
+
+.theme-preview[data-theme="dark-navy"] {
+  --pv-canvas: #071024;
+  --pv-page: #071024;
+  --pv-panel: #102044;
+
+  --pv-sidebar-bg: #06102a;
+  --pv-sidebar-text: #e5efff;
+  --pv-sidebar-muted: #9fb4d6;
+  --pv-sidebar-active-bg: #1e4b92;
+
+  --pv-primary: #3b82f6;
+}
+
+.theme-preview[data-theme="youtube-studio"] {
+  --pv-canvas: #0b0b0c;
+  --pv-page: #0b0b0c;
+  --pv-panel: #17171a;
+
+  --pv-sidebar-bg: #0f0f10;
+  --pv-sidebar-text: #f9fafb;
+  --pv-sidebar-muted: #9ca3af;
+  --pv-sidebar-active-bg: #3a0d0d;
+
+  --pv-primary: #ff0000;
+}
+
+.theme-preview[data-theme="terminal-neon"] {
+  --pv-canvas: #030407;
+  --pv-page: #030407;
+  --pv-panel: #0a0c11;
+
+  --pv-sidebar-bg: #050507;
+  --pv-sidebar-text: #d8e6ff;
+  --pv-sidebar-muted: #7aa0c7;
+  --pv-sidebar-active-bg: #003a45;
+
+  --pv-primary: #00ffcc;
+}
+
+/* ================= BRAND ================= */
+
+.theme-preview[data-theme="kakao-business"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+
+  --pv-sidebar-bg: #FBE300;
+  --pv-sidebar-text: #3B1E1E;
+  --pv-sidebar-muted: #6b4a4a;
+  --pv-sidebar-active-bg: #3B1E1E;
+
+  --pv-primary: #3B1E1E;
+}
+
+.theme-preview[data-theme="naver-works"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+
+  --pv-sidebar-bg: #14532d;
+  --pv-sidebar-text: #f4fff8;
+  --pv-sidebar-muted: #cde8d6;
+  --pv-sidebar-active-bg: #ffffff;
+
+  --pv-primary: #14532d;
+}
+
+.theme-preview[data-theme="samsung-admin"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+
+  --pv-sidebar-bg: #0057d9;
+  --pv-sidebar-text: #ffffff;
+  --pv-sidebar-muted: #c7d9ff;
+  --pv-sidebar-active-bg: #e6efff;
+
+  --pv-primary: #0057d9;
+}
+
+.theme-preview[data-theme="purple-insight"] {
+  --pv-page: #ffffff;
+  --pv-panel: #ffffff;
+
+  --pv-sidebar-bg: #4c1d95;
+  --pv-sidebar-text: #f5f3ff;
+  --pv-sidebar-muted: #d8ccff;
+  --pv-sidebar-active-bg: #ede9fe;
+
+  --pv-primary: #7c3aed;
 }
 
 
@@ -193,6 +611,9 @@
   --color-bg-canvas:        var(--scale-Neutral0);
   --color-bg-surface:       var(--scale-Neutral50);
   --color-bg-surface-hover: var(--scale-Neutral100);
+
+  /* ✅ active surface (used by native element lock / patterns) */
+  --color-bg-surface-active: var(--scale-Neutral200);
 
   --color-bg-overlay:       var(--scale-Neutral900);
   --color-bg-inverse:       var(--scale-Neutral900);
@@ -388,75 +809,537 @@
 # FILE: design-system/colors/themes/index.css
 ==========================================================================================
 /* PATH: src/styles/design-system/colors/themes/index.css */
-/* Theme Scale Overrides
-   - 여기서는 "Scale Token 값만" 바꾼다 (Role/매핑 불변)
-   - 기본 테마는 :root 값(= White Clean)로 동작
-*/
+/* =========================================================
+   HakwonPlus Design System - Theme Definitions (SSOT)
+   - Theme must shape "space": canvas/page/panel/header/sidebar
+   - Sidebar variables must match layout.css expectations
+   ========================================================= */
 
-/* Dark Modern Blue */
-[data-theme="dark-modern-blue"] {
-  --scale-Neutral0:   #0b1020;
-  --scale-Neutral50:  #0f172a;
-  --scale-Neutral100: #111c33;
-  --scale-Neutral200: #1f2a44;
-  --scale-Neutral300: #2b3857;
-  --scale-Neutral400: #475569;
-  --scale-Neutral500: #94a3b8;
-  --scale-Neutral600: #cbd5e1;
-  --scale-Neutral700: #e2e8f0;
-  --scale-Neutral800: #f1f5f9;
-  --scale-Neutral900: #ffffff;
+/* ---------------------------------------------------------
+   Base mapping (fallback)
+--------------------------------------------------------- */
+:root {
+  /* Layout Area */
+  --layout-canvas-bg: var(--color-bg-canvas);
+  --layout-page-bg: color-mix(in srgb, var(--color-bg-canvas) 92%, var(--color-bg-surface));
+  --layout-header-bg: color-mix(in srgb, var(--color-bg-surface) 86%, transparent);
 
-  /* 배경/텍스트 대비를 위해 Primary도 살짝 네온감 */
-  --scale-Primary500: #4f8cff;
-  --scale-Primary600: #2f6fff;
-  --scale-Primary700: #1f56e6;
-  --scale-Primary100: rgba(79, 140, 255, 0.18);
-  --scale-Primary50:  rgba(79, 140, 255, 0.10);
+  /* Sidebar defaults (neutral) */
+  --sidebar-bg: var(--color-bg-surface);
+  --sidebar-border: var(--color-border-divider);
+
+  --sidebar-header-bg: color-mix(in srgb, var(--color-bg-surface) 86%, transparent);
+  --sidebar-header-border: var(--color-border-divider);
+
+  --sidebar-text: var(--color-text-primary);
+  --sidebar-muted: var(--color-text-secondary);
+  --sidebar-group-title: var(--color-text-muted);
+
+  --sidebar-item-hover-bg: var(--color-bg-surface-hover);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
 }
 
-/* Dark Navy */
-[data-theme="dark-navy"] {
-  --scale-Neutral0:   #070b14;
-  --scale-Neutral50:  #0b1120;
-  --scale-Neutral100: #0f172a;
-  --scale-Neutral200: #16213a;
-  --scale-Neutral300: #1e2a44;
-  --scale-Neutral400: #334155;
-  --scale-Neutral500: #94a3b8;
-  --scale-Neutral600: #cbd5e1;
-  --scale-Neutral700: #e2e8f0;
-  --scale-Neutral800: #f1f5f9;
-  --scale-Neutral900: #ffffff;
+/* =========================================================
+   WHITE THEMES (4)
+========================================================= */
 
+/* 1) Modern White */
+[data-theme="modern-white"] {
+  /* Scale (light base) */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f8fafc;
+  --scale-Neutral100: #f1f5f9;
+  --scale-Neutral200: #e2e8f0;
+  --scale-Neutral300: #cbd5e1;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #475569;
+  --scale-Neutral700: #334155;
+  --scale-Neutral800: #1f2937;
+  --scale-Neutral900: #0f172a;
+
+  --scale-Primary50:  #eff6ff;
+  --scale-Primary100: #dbeafe;
+  --scale-Primary200: #bfdbfe;
+  --scale-Primary300: #93c5fd;
+  --scale-Primary400: #60a5fa;
   --scale-Primary500: #2563eb;
   --scale-Primary600: #1d4ed8;
   --scale-Primary700: #1e40af;
-  --scale-Primary100: rgba(37, 99, 235, 0.18);
-  --scale-Primary50:  rgba(37, 99, 235, 0.10);
+
+  /* Space */
+  --layout-page-bg: #f6f8fc;
+  --layout-header-bg: color-mix(in srgb, #ffffff 86%, transparent);
+
+  /* Sidebar (clean) */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: var(--color-border-divider);
+  --sidebar-header-bg: color-mix(in srgb, #ffffff 78%, var(--color-bg-surface-hover));
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
 }
 
-/* White Clean (Samsung-style) */
-[data-theme="white-clean"] {
-  /* 기본(:root)과 동일 유지 가능 — 필요시만 오버라이드 */
+/* 2) Navy Pro (cool enterprise light) */
+[data-theme="navy-pro"] {
+  /* Scale (cool ink) */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f6f8fb;
+  --scale-Neutral100: #edf2f7;
+  --scale-Neutral200: #dbe4ef;
+  --scale-Neutral300: #c7d3e3;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #46556c;
+  --scale-Neutral700: #2c3a55;
+  --scale-Neutral800: #1b2740;
+  --scale-Neutral900: #0b1730;
+
+  --scale-Primary50:  #eef2ff;
+  --scale-Primary100: #e0e7ff;
+  --scale-Primary200: #c7d2fe;
+  --scale-Primary300: #a5b4fc;
+  --scale-Primary400: #818cf8;
+  --scale-Primary500: #3b82f6;
+  --scale-Primary600: #2563eb;
+  --scale-Primary700: #1d4ed8;
+
+  /* Space */
+  --layout-page-bg: #f3f6fb;
+  --layout-header-bg: color-mix(in srgb, #ffffff 84%, transparent);
+
+  /* Sidebar (slight ink tint, not loud) */
+  --sidebar-bg: #f2f6ff;
+  --sidebar-border: color-mix(in srgb, var(--color-border-divider) 92%, #8aa4d6);
+  --sidebar-header-bg: color-mix(in srgb, #f2f6ff 82%, #dbe8ff);
+  --sidebar-item-hover-bg: color-mix(in srgb, #dbe8ff 56%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
 }
 
-/* White Kakao (Yellow/Brown) */
-[data-theme="white-kakao"] {
-  --scale-Primary500: #3b2400;
-  --scale-Primary600: #2a1a00;
-  --scale-Primary700: #1f1300;
-  --scale-Primary100: rgba(59, 36, 0, 0.12);
-  --scale-Primary50:  rgba(59, 36, 0, 0.08);
+/* 3) Ivory Office */
+[data-theme="ivory-office"] {
+  /* Scale (warm neutral) */
+  --scale-Neutral0:   #fffdf8;
+  --scale-Neutral50:  #fbf7f0;
+  --scale-Neutral100: #f4efe6;
+  --scale-Neutral200: #e7dfd3;
+  --scale-Neutral300: #d8cfbf;
+  --scale-Neutral400: #a8a29e;
+  --scale-Neutral500: #78716c;
+  --scale-Neutral600: #57534e;
+  --scale-Neutral700: #44403c;
+  --scale-Neutral800: #292524;
+  --scale-Neutral900: #1c1917;
+
+  --scale-Primary50:  #fff7ed;
+  --scale-Primary100: #ffedd5;
+  --scale-Primary200: #fed7aa;
+  --scale-Primary300: #fdba74;
+  --scale-Primary400: #fb923c;
+  --scale-Primary500: #b45309;
+  --scale-Primary600: #92400e;
+  --scale-Primary700: #78350f;
+
+  /* Space */
+  --layout-page-bg: #fbfaf7;
+  --layout-header-bg: color-mix(in srgb, #faf7f2 86%, transparent);
+
+  /* Sidebar */
+  --sidebar-bg: #f6f2ea;
+  --sidebar-border: color-mix(in srgb, var(--color-border-divider) 92%, #d8cfbf);
+  --sidebar-header-bg: color-mix(in srgb, #f6f2ea 82%, #ffffff);
+  --sidebar-item-hover-bg: color-mix(in srgb, #e7dfd3 72%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
 }
 
-/* White Naver (Green) */
-[data-theme="white-naver"] {
-  --scale-Primary500: #16a34a;
-  --scale-Primary600: #15803d;
-  --scale-Primary700: #166534;
-  --scale-Primary100: rgba(22, 163, 74, 0.14);
-  --scale-Primary50:  rgba(22, 163, 74, 0.08);
+/* 4) Minimal Mono */
+[data-theme="minimal-mono"] {
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #fafafa;
+  --scale-Neutral100: #f5f5f5;
+  --scale-Neutral200: #e5e5e5;
+  --scale-Neutral300: #d4d4d4;
+  --scale-Neutral400: #a3a3a3;
+  --scale-Neutral500: #737373;
+  --scale-Neutral600: #525252;
+  --scale-Neutral700: #404040;
+  --scale-Neutral800: #262626;
+  --scale-Neutral900: #0a0a0a;
+
+  /* Primary becomes pure ink */
+  --scale-Primary50:  #f5f5f5;
+  --scale-Primary100: #e5e5e5;
+  --scale-Primary200: #d4d4d4;
+  --scale-Primary300: #a3a3a3;
+  --scale-Primary400: #737373;
+  --scale-Primary500: #0a0a0a;
+  --scale-Primary600: #0a0a0a;
+  --scale-Primary700: #0a0a0a;
+
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: color-mix(in srgb, #ffffff 92%, transparent);
+
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e5e5;
+  --sidebar-header-bg: #ffffff;
+
+  --sidebar-text: #0a0a0a;
+  --sidebar-muted: #262626;
+  --sidebar-group-title: #525252;
+
+  --sidebar-item-hover-bg: #f5f5f5;
+  --sidebar-item-active-bg: #0a0a0a;
+  --sidebar-item-active-text: #ffffff;
+}
+
+/* =========================================================
+   DARK THEMES (4)
+========================================================= */
+
+/* 5) Modern Dark (gray premium) */
+[data-theme="modern-dark"] {
+  /* Scale (dark base, low glare) */
+  --scale-Neutral0:   #0d1117; /* canvas */
+  --scale-Neutral50:  #111827; /* surface */
+  --scale-Neutral100: #161f2c; /* hover */
+  --scale-Neutral200: #243244; /* divider */
+  --scale-Neutral300: #334155;
+  --scale-Neutral400: #475569;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #94a3b8;
+  --scale-Neutral700: #cbd5e1;
+  --scale-Neutral800: #e2e8f0;
+  --scale-Neutral900: #f8fafc;
+
+  --scale-Primary50:  #0b1324;
+  --scale-Primary100: #0f1b33;
+  --scale-Primary200: #173055;
+  --scale-Primary300: #1f4e8c;
+  --scale-Primary400: #2a6fda;
+  --scale-Primary500: #60a5fa;
+  --scale-Primary600: #7dd3fc;
+  --scale-Primary700: #93c5fd;
+
+  --layout-page-bg: color-mix(in srgb, #0d1117 92%, #111827);
+  --layout-header-bg: color-mix(in srgb, #111827 78%, transparent);
+
+  --sidebar-bg: #0f1520;
+  --sidebar-border: #243244;
+  --sidebar-header-bg: color-mix(in srgb, #0f1520 82%, #161f2c);
+  --sidebar-header-border: #243244;
+
+  --sidebar-text: #e2e8f0;
+  --sidebar-muted: #cbd5e1;
+  --sidebar-group-title: #94a3b8;
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #161f2c 88%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
+}
+
+/* 6) Dark Navy (premium navy) */
+[data-theme="dark-navy"] {
+  --scale-Neutral0:   #071024;
+  --scale-Neutral50:  #0b1730;
+  --scale-Neutral100: #102044;
+  --scale-Neutral200: #1a2d57;
+  --scale-Neutral300: #29406f;
+  --scale-Neutral400: #3b5687;
+  --scale-Neutral500: #5b74a3;
+  --scale-Neutral600: #9fb4d6;
+  --scale-Neutral700: #cfe0ff;
+  --scale-Neutral800: #e5efff;
+  --scale-Neutral900: #f8fbff;
+
+  --scale-Primary50:  #0b142a;
+  --scale-Primary100: #0f1f3f;
+  --scale-Primary200: #15325f;
+  --scale-Primary300: #1e4b92;
+  --scale-Primary400: #2b6df0;
+  --scale-Primary500: #3b82f6;
+  --scale-Primary600: #60a5fa;
+  --scale-Primary700: #93c5fd;
+
+  --layout-page-bg: color-mix(in srgb, #071024 92%, #0b1730);
+  --layout-header-bg: color-mix(in srgb, #0b1730 78%, transparent);
+
+  --sidebar-bg: #06102a;
+  --sidebar-border: #1a2d57;
+  --sidebar-header-bg: color-mix(in srgb, #06102a 82%, #102044);
+  --sidebar-header-border: #1a2d57;
+
+  --sidebar-text: #e5efff;
+  --sidebar-muted: #cfe0ff;
+  --sidebar-group-title: #9fb4d6;
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #102044 86%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
+}
+
+/* 7) YouTube Studio (charcoal studio, NOT gray-active) */
+[data-theme="youtube-studio"] {
+  --scale-Neutral0:   #0b0b0c;
+  --scale-Neutral50:  #111113;
+  --scale-Neutral100: #17171a;
+  --scale-Neutral200: #232328;
+  --scale-Neutral300: #2f2f36;
+  --scale-Neutral400: #3f3f46;
+  --scale-Neutral500: #6b7280;
+  --scale-Neutral600: #9ca3af;
+  --scale-Neutral700: #d1d5db;
+  --scale-Neutral800: #e5e7eb;
+  --scale-Neutral900: #f9fafb;
+
+  /* Primary = YouTube red (high visibility), but used with restraint */
+  --scale-Primary50:  #2a0b0b;
+  --scale-Primary100: #3a0d0d;
+  --scale-Primary200: #5a1111;
+  --scale-Primary300: #7a1414;
+  --scale-Primary400: #c81e1e;
+  --scale-Primary500: #ff0000;
+  --scale-Primary600: #ff3b3b;
+  --scale-Primary700: #ff6b6b;
+
+  --layout-page-bg: color-mix(in srgb, #0b0b0c 92%, #111113);
+  --layout-header-bg: color-mix(in srgb, #111113 78%, transparent);
+
+  --sidebar-bg: #0f0f10;
+  --sidebar-border: #232328;
+  --sidebar-header-bg: color-mix(in srgb, #0f0f10 82%, #17171a);
+  --sidebar-header-border: #232328;
+
+  --sidebar-text: #f9fafb;
+  --sidebar-muted: #d1d5db;
+  --sidebar-group-title: #9ca3af;
+
+  /* 핵심: active가 회색으로 죽지 않게, 레드 톤 “면”으로 강조 */
+  --sidebar-item-hover-bg: color-mix(in srgb, #17171a 92%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  --sidebar-item-active-text: #ff6b6b;
+}
+
+/* 8) Terminal Neon (developer neon dark) */
+[data-theme="terminal-neon"] {
+  --scale-Neutral0:   #030407;
+  --scale-Neutral50:  #050507;
+  --scale-Neutral100: #0a0c11;
+  --scale-Neutral200: #111827;
+  --scale-Neutral300: #1f2937;
+  --scale-Neutral400: #334155;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #a3b8d6;
+  --scale-Neutral700: #d8e6ff;
+  --scale-Neutral800: #ebf4ff;
+  --scale-Neutral900: #f8fbff;
+
+  /* Primary = neon cyan */
+  --scale-Primary50:  #001318;
+  --scale-Primary100: #00242c;
+  --scale-Primary200: #003a45;
+  --scale-Primary300: #005c6b;
+  --scale-Primary400: #00a3b8;
+  --scale-Primary500: #00ffcc;
+  --scale-Primary600: #22d3ee;
+  --scale-Primary700: #7dd3fc;
+
+  --layout-page-bg: color-mix(in srgb, #030407 92%, #050507);
+  --layout-header-bg: color-mix(in srgb, #050507 78%, transparent);
+
+  --sidebar-bg: #050507;
+  --sidebar-border: #111827;
+  --sidebar-header-bg: color-mix(in srgb, #050507 84%, #0a0c11);
+  --sidebar-header-border: #111827;
+
+  --sidebar-text: #d8e6ff;
+  --sidebar-muted: #a3b8d6;
+  --sidebar-group-title: #7aa0c7;
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #0a0c11 92%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
+}
+/* =========================================================
+   BRAND / PREMIUM THEMES (4)
+   - Sidebar background MUST be brand fill for Samsung/Naver/Kakao
+========================================================= */
+/* 9) Kakao Business (FIXED RULE: yellow bg + brown accent) */
+[data-theme="kakao-business"] {
+  /* Keep app readable: warm light canvas */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #fffdf2;
+  --scale-Neutral100: #fff9d6;
+  --scale-Neutral200: #fff3b0;
+  --scale-Neutral300: #f5df73;
+  --scale-Neutral400: #c9ab3a;
+  --scale-Neutral500: #7c4a2d;
+  --scale-Neutral600: #5b3a24;
+  --scale-Neutral700: #3a1d1d;
+  --scale-Neutral800: #2b1414;
+  --scale-Neutral900: #1a0d0d;
+
+  /* Primary fixed to Kakao brown (role brand) */
+  --scale-Primary50:  #f5e6e6;
+  --scale-Primary100: #e8caca;
+  --scale-Primary200: #d2a1a1;
+  --scale-Primary300: #b87373;
+  --scale-Primary400: #8a3f3f;
+  --scale-Primary500: #3B1E1E;
+  --scale-Primary600: #2b1414;
+  --scale-Primary700: #1a0d0d;
+
+  /* Page: 완전 무채, 필터감 제거 */
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: #ffffff;
+
+  /* Sidebar: Kakao solid yellow (no milky mix) */
+  --sidebar-bg: #FBE300;
+  --sidebar-border: color-mix(in srgb, #3B1E1E 18%, #FBE300);
+
+  --sidebar-header-bg: #FBE300;
+  --sidebar-header-border: color-mix(in srgb, #3B1E1E 22%, #FBE300);
+
+  --sidebar-text: #3B1E1E;
+  --sidebar-muted: color-mix(in srgb, #3B1E1E 68%, #FBE300);
+  --sidebar-group-title: color-mix(in srgb, #3B1E1E 54%, #FBE300);
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #3B1E1E 6%, #FBE300);
+  --sidebar-item-active-bg: #3B1E1E;
+  --sidebar-item-active-text: #ffffff;
+}
+
+
+/* 10) Naver Works (brand fill green → darker mung bean) */
+[data-theme="naver-works"] {
+  --scale-Neutral0:   #f4fff8;
+  --scale-Neutral50:  #ecfff4;
+  --scale-Neutral100: #e0ffef;
+  --scale-Neutral200: #c7f9df;
+  --scale-Neutral300: #9beec4;
+  --scale-Neutral400: #62d89a;
+  --scale-Neutral500: #16a34a;
+  --scale-Neutral600: #15803d;
+  --scale-Neutral700: #14532d;
+  --scale-Neutral800: #0f3d21;
+  --scale-Neutral900: #0b2b17;
+
+  /* Primary = Naver green (kept for accents, darker) */
+  --scale-Primary50:  #e9fff2;
+  --scale-Primary100: #93b991;
+  --scale-Primary200: #9ef7bf;
+  --scale-Primary300: #5ee79a;
+  --scale-Primary400: #2da15d;
+  --scale-Primary500: #013619;
+  --scale-Primary600: #14532d;
+  --scale-Primary700: #0b2b17;
+
+  /* 👉 필터 제거 */
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+
+  /* Sidebar brand fill (녹두톤, 더 어둡게) */
+  --sidebar-bg: color-mix(in srgb, #14532d 68%, #0b2b17);
+  --sidebar-border: color-mix(in srgb, #0b2b17 36%, #14532d);
+
+  --sidebar-header-bg: color-mix(in srgb, #14532d 60%, #0b2b17);
+  --sidebar-header-border: color-mix(in srgb, #0b2b17 32%, #14532d);
+
+  --sidebar-text: #f4fff8;
+  --sidebar-muted: color-mix(in srgb, #f4fff8 68%, #14532d);
+  --sidebar-group-title: color-mix(in srgb, #f4fff8 54%, #14532d);
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #0b2b17 22%, #14532d);
+  --sidebar-item-active-bg: #ffffff;
+  --sidebar-item-active-text: #14532d;
+}
+
+/* 11) Samsung Admin (brand fill samsung blue) */
+[data-theme="samsung-admin"] {
+  --scale-Neutral0:   #f6f9ff;
+  --scale-Neutral50:  #f0f6ff;
+  --scale-Neutral100: #e6efff;
+  --scale-Neutral200: #d7e4ff;
+  --scale-Neutral300: #b8ccff;
+  --scale-Neutral400: #7ea6ff;
+  --scale-Neutral500: #2b6df0;
+  --scale-Neutral600: #1e40af;
+  --scale-Neutral700: #142b73;
+  --scale-Neutral800: #0f204f;
+  --scale-Neutral900: #0b1533;
+
+  /* Primary = Samsung blue */
+  --scale-Primary50:  #e6efff;
+  --scale-Primary100: #d7e4ff;
+  --scale-Primary200: #b8ccff;
+  --scale-Primary300: #7ea6ff;
+  --scale-Primary400: #2b6df0;
+  --scale-Primary500: #0057d9;
+  --scale-Primary600: #0046b3;
+  --scale-Primary700: #003ea8;
+
+  /* 👉 필터 제거 */
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+
+  /* Sidebar brand fill (Samsung blue restrained) */
+  --sidebar-bg: color-mix(in srgb, #0057d9 54%, #0b1533);
+  --sidebar-border: color-mix(in srgb, #0b1533 32%, #0057d9);
+
+  --sidebar-header-bg: color-mix(in srgb, #0057d9 48%, #0b1533);
+  --sidebar-header-border: color-mix(in srgb, #0b1533 28%, #0057d9);
+
+  --sidebar-text: #ffffff;
+  --sidebar-muted: color-mix(in srgb, #ffffff 66%, #0057d9);
+  --sidebar-group-title: color-mix(in srgb, #ffffff 52%, #0057d9);
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #0b1533 14%, #0057d9);
+  --sidebar-item-active-bg: #e6efff;
+  --sidebar-item-active-text: #003ea8;
+}
+
+/* 12) Purple Insight (premium) */
+[data-theme="purple-insight"] {
+  --scale-Neutral0:   #faf7ff;
+  --scale-Neutral50:  #f5f3ff;
+  --scale-Neutral100: #ede9fe;
+  --scale-Neutral200: #ddd6fe;
+  --scale-Neutral300: #c4b5fd;
+  --scale-Neutral400: #a78bfa;
+  --scale-Neutral500: #7c3aed;
+  --scale-Neutral600: #6d28d9;
+  --scale-Neutral700: #5b21b6;
+  --scale-Neutral800: #3b0f7a;
+  --scale-Neutral900: #24074f;
+
+  --scale-Primary50:  #f5f3ff;
+  --scale-Primary100: #ede9fe;
+  --scale-Primary200: #ddd6fe;
+  --scale-Primary300: #c4b5fd;
+  --scale-Primary400: #a78bfa;
+  --scale-Primary500: #7c3aed;
+  --scale-Primary600: #6d28d9;
+  --scale-Primary700: #5b21b6;
+
+  /* 👉 필터 제거 */
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+
+  /* Sidebar: lighter royal plum */
+  --sidebar-bg: color-mix(in srgb, #4c1d95 56%, #24074f);
+  --sidebar-border: color-mix(in srgb, #24074f 36%, #4c1d95);
+
+  --sidebar-header-bg: color-mix(in srgb, #4c1d95 48%, #24074f);
+  --sidebar-header-border: color-mix(in srgb, #24074f 30%, #4c1d95);
+
+  --sidebar-text: #f5f3ff;
+  --sidebar-muted: color-mix(in srgb, #f5f3ff 70%, #24074f);
+  --sidebar-group-title: color-mix(in srgb, #f5f3ff 56%, #24074f);
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #24074f 18%, #4c1d95);
+  --sidebar-item-active-bg: #ede9fe;
+  --sidebar-item-active-text: #5b21b6;
 }
 
 
@@ -482,6 +1365,9 @@
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
+
+  /* ✅ pill / badge / status */
+  --radius-full: 999px;
 }
 
 
@@ -498,7 +1384,8 @@
   --control-lg: 40px;
 
   /* sidebar */
-  --sidebar-width: 240px;
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 76px;
 
   /* panel */
   --panel-header: 56px;
@@ -531,6 +1418,66 @@
 
 
 ==========================================================================================
+# FILE: design-system/patterns/badge.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/badge.css */
+/* ============================================================================
+ * DS BADGE — TAG / CHIP
+ * - uses CSS vars: --badge-bg, --badge-text
+ * - safe remove button / hover / focus
+ * ============================================================================ */
+
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  line-height: 1;
+
+  background: var(--badge-bg, var(--bg-surface-soft));
+  color: var(--badge-text, var(--text-primary));
+
+  border: 1px solid color-mix(in srgb, var(--badge-bg, var(--bg-surface-soft)) 78%, black 22%);
+}
+
+.ds-badge__remove {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+
+  display: inline-grid;
+  place-items: center;
+
+  opacity: 0.75;
+  transition: opacity var(--motion-base) var(--ease-out), background-color var(--motion-base) var(--ease-out);
+}
+
+.ds-badge__remove:hover {
+  opacity: 1;
+  background: color-mix(in srgb, white 18%, transparent);
+}
+
+.ds-badge__remove:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-surface),
+    0 0 0 4px color-mix(in srgb, var(--color-border-focus) 55%, transparent);
+}
+
+
+==========================================================================================
 # FILE: design-system/patterns/board.css
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/board.css */
@@ -541,6 +1488,277 @@
   background: var(--surface-card-bg);
   border-radius: var(--radius-md);
   padding: var(--space-3);
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/button.css
+==========================================================================================
+/* ============================================================================
+ * DS BUTTON — ENTERPRISE SSOT (FINAL)
+ * - intent / size / state 완전 정의
+ * - TS 스펙과 1:1 대응
+ * - Light / Dark / Brand 안전
+ * ============================================================================ */
+
+/* ======================================================
+ * Base
+ * ====================================================== */
+
+.ds-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: var(--control-md);
+  padding: 0 14px;
+
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-divider);
+
+  background: var(--bg-surface);
+  color: var(--text-primary);
+
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  transition:
+    background-color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out),
+    color var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) ease;
+}
+
+/* ======================================================
+ * Size
+ * ====================================================== */
+
+.ds-button[data-size="sm"] {
+  min-height: var(--control-sm);
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.ds-button[data-size="md"] {
+  min-height: var(--control-md);
+}
+
+.ds-button[data-size="lg"] {
+  min-height: var(--control-lg);
+  padding: 0 18px;
+  font-size: 14px;
+}
+
+/* ======================================================
+ * Intent
+ * ====================================================== */
+
+/* Primary — 명시적 CTA */
+.ds-button[data-intent="primary"] {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: var(--text-on-primary);
+}
+
+.ds-button[data-intent="primary"]:hover {
+  background: var(--color-brand-primary-hover);
+}
+
+/* Secondary — 기본 작업 */
+.ds-button[data-intent="secondary"] {
+  background: var(--bg-surface);
+  border-color: var(--border-divider);
+  color: var(--text-primary);
+}
+
+.ds-button[data-intent="secondary"]:hover {
+  background: var(--bg-surface-soft);
+}
+
+/* Ghost — 파괴적/보조 아님, 저강도 액션 */
+.ds-button[data-intent="ghost"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.ds-button[data-intent="ghost"]:hover {
+  background: var(--bg-surface-soft);
+  color: var(--text-primary);
+}
+
+/* Danger — 파괴적 액션 */
+.ds-button[data-intent="danger"] {
+  background: color-mix(in srgb, var(--color-error) 10%, var(--bg-surface));
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.ds-button[data-intent="danger"]:hover {
+  background: color-mix(in srgb, var(--color-error) 18%, var(--bg-surface));
+}
+
+/* ======================================================
+ * Selection / Toggle (ARIA)
+ * ====================================================== */
+
+.ds-button[aria-pressed="true"] {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: var(--text-on-primary);
+
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.ds-button[aria-pressed="true"]:hover {
+  background: var(--color-brand-primary-hover);
+}
+
+/* ======================================================
+ * Focus (Accessibility SSOT)
+ * ====================================================== */
+
+.ds-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-surface),
+    0 0 0 4px color-mix(in srgb, var(--color-brand-primary) 60%, transparent);
+}
+
+/* ======================================================
+ * Icon-only
+ * ====================================================== */
+
+.ds-button[data-icon-only="true"] {
+  padding: 0;
+  width: var(--control-md);
+}
+
+.ds-button[data-icon-only="true"][data-size="lg"] {
+  width: var(--control-lg);
+}
+
+.ds-button[data-icon-only="true"][data-size="sm"] {
+  width: var(--control-sm);
+}
+
+/* ======================================================
+ * Loading
+ * ====================================================== */
+
+.ds-button[data-loading="true"] {
+  pointer-events: none;
+}
+
+.ds-button__spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  animation: ds-spin 0.9s linear infinite;
+}
+
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ======================================================
+ * Disabled
+ * ====================================================== */
+
+.ds-button:disabled,
+.ds-button[data-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/data-table.css
+==========================================================================================
+/* ===============================
+ * Data Table – Enterprise Skin (SSOT)
+ * =============================== */
+
+[data-app="admin"] table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-divider);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Header */
+[data-app="admin"] thead th {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-surface-soft);
+  border-bottom: 1px solid var(--border-divider);
+  white-space: nowrap;
+}
+
+/* Body */
+[data-app="admin"] tbody td {
+  padding: 14px;
+  font-size: 13px;
+  text-align: center;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+[data-app="admin"] tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Hover */
+[data-app="admin"] tbody tr {
+  transition: background 120ms ease;
+}
+[data-app="admin"] tbody tr:hover {
+  background: var(--bg-surface-soft);
+}
+
+/* Dense variant */
+[data-app="admin"] table[data-density="compact"] td {
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+/* Status badge */
+[data-app="admin"] .table-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid var(--border-divider);
+  background: var(--bg-surface-soft);
+  color: var(--text-secondary);
+}
+
+[data-app="admin"] .table-badge[data-state="active"] {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
 }
 
 
@@ -558,10 +1776,136 @@
 
 
 ==========================================================================================
+# FILE: design-system/patterns/header.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/header.css */
+/* App Header Pattern (SSOT)
+   - colors are role/layout tokens only
+   - layout uses CSS, not inline color styling
+*/
+
+[data-app="admin"] .app-header {
+  height: var(--panel-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 var(--space-6);
+
+  border-bottom: 1px solid var(--color-border-divider);
+
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--layout-header-bg) 88%, transparent),
+    color-mix(in srgb, var(--layout-header-bg) 72%, transparent)
+  );
+}
+
+[data-app="admin"] .app-header__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+[data-app="admin"] .app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+[data-app="admin"] .app-header__brandMark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+}
+
+[data-app="admin"] .app-header__brandMark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+[data-app="admin"] .app-header__brandName {
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: -0.12px;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+[data-app="admin"] .app-header__crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: 8px;
+}
+
+[data-app="admin"] .app-header__crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 13px;
+  letter-spacing: -0.15px;
+}
+
+[data-app="admin"] .app-header__crumb--active {
+  color: var(--color-text-primary);
+  font-weight: 950;
+}
+
+[data-app="admin"] .app-header__crumb--muted {
+  color: var(--color-text-muted);
+  font-weight: 850;
+}
+
+[data-app="admin"] .app-header__crumbSep {
+  color: var(--color-text-disabled);
+}
+
+[data-app="admin"] .app-header__center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+[data-app="admin"] .app-header__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+[data-app="admin"] .app-header__iconBtn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+[data-app="admin"] .app-header__menuBtn {
+  height: 40px;
+  border-radius: 999px;
+}
+
+
+==========================================================================================
 # FILE: design-system/patterns/index.css
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/index.css */
-/* Admin Patterns */
+/* Admin Patterns — SSOT FINAL */
 
 @import "./panel.css";
 @import "./kpi.css";
@@ -569,30 +1913,53 @@
 @import "./board.css";
 @import "./empty.css";
 @import "./loading.css";
+@import "./button.css";
+@import "./header.css";
+@import "./modal-form.css";
+@import "./tabs.css";
 
-/* 레가시 호환 및 사이드바 전용 */
+/* ✅ Enterprise primitives */
+@import "./controls.css";
+@import "./badge.css";
+@import "./status.css";
+@import "./modal.css";
+@import "./table.css";
+
+/* Layout / Sidebar (admin only) */
 @import "./layout.css";
+@import "./sidebar.css";
 
 
 ==========================================================================================
 # FILE: design-system/patterns/kpi.css
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/kpi.css */
-/* KPI Card */
+/* ============================================================================
+ * KPI Pattern — STRUCTURE ONLY (FINAL / LOCKED)
+ * - ❗ KPI는 배경색을 소유하지 않는다.
+ * - KPI의 배경/테두리 색은 UI Slot(SSOT)에서만 결정된다.
+ * ============================================================================ */
 
 .kpi {
-  background: var(--surface-card-soft-bg);
+  background: transparent; /* ✅ 배경 소유권 제거 */
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
 }
+
 .kpi-label {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+  font-weight: 900;
+  letter-spacing: -0.12px;
 }
+
 .kpi-value {
+  margin-top: 6px;
   font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
+  font-weight: 950;
+  letter-spacing: -0.4px;
+  color: var(--color-text-primary);
 }
 
 
@@ -600,60 +1967,198 @@
 # FILE: design-system/patterns/layout.css
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/layout.css */
-/* Admin Layout Patterns (SSOT) */
+/* Admin Layout Patterns (SSOT)
+   - Sidebar/Header are "layout areas"
+   - Their color identity is controlled by layout tokens (sidebar-*)
+*/
 
-/* Sidebar */
+/* ======================================================
+   Layout shell areas
+====================================================== */
 .sidebar {
   width: var(--sidebar-width);
   background: var(--sidebar-bg);
-  color: var(--sidebar-text-primary);
-  border-right: 1px solid var(--color-border-divider);
+  color: var(--sidebar-text);
+  border-right: 1px solid var(--sidebar-border);
 }
 
-/* Header */
 .header {
   height: var(--panel-header);
   background: var(--color-bg-surface);
   border-bottom: 1px solid var(--color-border-divider);
 }
 
-/* Navigation */
+/* ======================================================
+   Sidebar structure
+====================================================== */
+.sidebar-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ▶ Header Slot (Brand Area) */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--sidebar-header-border);
+  background: var(--sidebar-header-bg);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.sidebar-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sidebar-title {
+  min-width: 0;
+}
+
+.sidebar-title .name {
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-title .sub {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--sidebar-group-title);
+}
+
+/* Collapsed behavior */
+[data-sidebar="collapsed"] .sidebar-title,
+[data-sidebar="collapsed"] .sidebar-group-title,
+[data-sidebar="collapsed"] .nav-item span.label {
+  display: none;
+}
+
+/* ======================================================
+   Sidebar navigation
+====================================================== */
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-top: var(--space-3);
+  gap: 10px;
+  margin-top: 16px;
 }
 
+.sidebar-group {
+  margin-bottom: 18px;
+}
+
+.sidebar-group-title {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--sidebar-group-title);
+  padding: 6px 10px;
+  letter-spacing: -0.1px;
+  text-transform: none;
+}
+
+/* ▶ Nav Item (Enterprise-grade) */
 .nav-item {
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--sidebar-text-secondary);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 4px;
+  text-decoration: none;
+  color: var(--sidebar-muted);
+  font-weight: 900;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.12s ease;
 }
 
 .nav-item:hover {
-  background: var(--sidebar-hover-bg);
-  color: var(--sidebar-text-primary);
+  background: var(--sidebar-item-hover-bg);
+  color: var(--sidebar-text);
 }
 
+/* ✅ Location clarity: active state must be readable in 1 second */
 .nav-item.active {
-  background: var(--sidebar-active-bg);
-  color: var(--sidebar-active-text);
+  background: var(--sidebar-item-active-bg);
+  color: var(--sidebar-item-active-text);
 }
 
-/* Divider */
-.divider {
-  border-bottom: 1px solid var(--color-border-divider);
+/* ✅ Active indicator bar (works for collapsed too) */
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 4px;
+  background: var(--color-brand-primary);
+  opacity: 0.95;
 }
 
-/* Surface (Popup / Dropdown) */
-.surface {
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-md);
+/* Minor depth cue (subtle, non-noisy) */
+.nav-item.active {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+}
+
+.nav-item svg {
+  flex: 0 0 auto;
+}
+
+.nav-item span.label {
+  font-size: 14px;
+  letter-spacing: -0.15px;
+}
+
+/* ======================================================
+   Sidebar footer toggle
+====================================================== */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 12px 14px 12px;
+}
+
+.sidebar-toggle {
+  width: 100%;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--sidebar-header-border);
+  background: var(--sidebar-header-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.12s ease;
+}
+
+.sidebar-toggle:hover {
+  background: color-mix(in srgb, var(--sidebar-header-bg) 92%, transparent);
 }
 
 
@@ -679,23 +2184,297 @@
 
 
 ==========================================================================================
+# FILE: design-system/patterns/modal-form.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/modal-form.css */
+/* Modal Form Vertical Rhythm (SSOT) */
+
+[data-app="admin"] .modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4); /* ✅ 16px 고정 */
+}
+
+/* AntD FormItem reset */
+[data-app="admin"] .modal-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+/* 한 줄(row) 안 정렬 */
+[data-app="admin"] .modal-form-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3); /* 12px */
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/modal.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/modal.css */
+/* ============================================================================
+ * DS MODAL — overlay / dialog shell
+ * - consistent backdrop, elevation, spacing
+ * - used by Students modals
+ * ============================================================================ */
+
+.ds-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: var(--space-6);
+
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.ds-dialog {
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-divider);
+
+  background: var(--bg-surface);
+  box-shadow: 0 28px 56px rgba(0, 0, 0, 0.35);
+}
+
+.ds-dialog[data-size="sm"] { max-width: 420px; }
+.ds-dialog[data-size="md"] { max-width: 560px; }
+.ds-dialog[data-size="lg"] { max-width: 1100px; }
+
+.ds-dialog__header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-divider);
+  background: var(--bg-surface-soft);
+}
+
+.ds-dialog__title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ds-dialog__desc {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.ds-dialog__body {
+  padding: var(--space-5);
+  overflow: auto;
+  max-height: calc(90vh - 140px);
+}
+
+.ds-dialog__footer {
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+
+==========================================================================================
 # FILE: design-system/patterns/panel.css
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/panel.css */
-/* Standard Panel */
+/* =====================================================================
+ * Panel Pattern — FINAL / SINGLE OWNER
+ * - 구조만 담당
+ * - 배경/색상 소유권 없음
+ * ===================================================================== */
 
 .panel {
-  background: var(--surface-panel-bg);
-  border: 1px solid var(--surface-panel-border);
   border-radius: var(--radius-xl);
 }
+
 .panel-header {
   height: var(--panel-header);
   padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--surface-panel-border);
+  border-bottom: 1px solid var(--color-border-divider);
 }
+
 .panel-body {
   padding: var(--space-5);
+}
+
+/* Emphasis (visual only) */
+.panel--focus {
+  box-shadow:
+    0 28px 56px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.panel--card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6),
+    0 10px 24px rgba(0, 0, 0, 0.08);
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/sidebar.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/sidebar.css */
+/* Sidebar Pattern — SINGLE SOURCE */
+
+.sidebar-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+}
+
+.sidebar-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar-toggle {
+  transition:
+    background-color var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) ease;
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/status.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/status.css */
+/* ============================================================================
+ * DS STATUS PILL — enterprise mapping
+ * - uses data-state: active|inactive (extensible)
+ * - no inline colors in components
+ * ============================================================================ */
+
+.ds-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.1px;
+
+  border: 1px solid var(--border-divider);
+  background: var(--bg-surface-soft);
+  color: var(--text-primary);
+
+  transition:
+    background-color var(--motion-base) var(--ease-out),
+    color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out);
+}
+
+.ds-status[data-state="inactive"] {
+  background: var(--color-bg-disabled);
+  color: var(--text-muted);
+}
+
+.ds-status[data-interactive="true"] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ds-status[data-interactive="true"]:hover {
+  border-color: color-mix(in srgb, var(--border-divider) 72%, var(--text-muted));
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/table.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/table.css */
+/* ============================================================================
+ * DS TABLE — enterprise skin (generic)
+ * - Use .ds-table-wrap + table.ds-table
+ * - Sorting headers / hover / focus row
+ * ============================================================================ */
+
+.ds-table-wrap {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+table.ds-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.ds-table thead th {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+
+  color: var(--text-muted);
+  background: var(--bg-surface-soft);
+
+  border-bottom: 1px solid var(--border-divider);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ds-table tbody td {
+  padding: 14px;
+  text-align: center;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.ds-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ds-table tbody tr {
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+
+.ds-table tbody tr:hover {
+  background: color-mix(in srgb, var(--bg-surface-soft) 72%, transparent);
+}
+
+.ds-row-btn {
+  cursor: pointer;
+}
+
+.ds-row-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--color-border-focus) 40%, transparent);
+}
+
+/* Sorting indicator */
+.ds-th-sort {
+  cursor: pointer;
+}
+
+.ds-th-sort__inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ds-th-sort__arrow {
+  font-size: 10px;
+  opacity: 0.8;
 }
 
 
@@ -737,6 +2516,7 @@
 /* PATH: src/styles/design-system/state/index.css */
 /* State Entry */
 
+@import "./motion.css";
 @import "./interactive.css";
 @import "./disabled.css";
 @import "./selection.css";
@@ -752,7 +2532,30 @@
 :root {
   --state-hover-bg: var(--color-bg-surface-hover);
   --state-active-bg: var(--color-bg-accent-subtle);
+
+  /* Focus ring (SSOT) */
   --state-focus-ring: 0 0 0 2px var(--color-border-focus);
+
+  /* ✅ legacy alias (used by some antd overrides / existing code) */
+  --focus-ring: var(--state-focus-ring);
+}
+
+
+==========================================================================================
+# FILE: design-system/state/motion.css
+==========================================================================================
+/* PATH: src/styles/design-system/state/motion.css */
+/* Motion / Interaction Tokens (ENTERPRISE SSOT) */
+
+:root {
+  /* duration */
+  --motion-fast: 80ms;
+  --motion-base: 140ms;
+  --motion-slow: 220ms;
+
+  /* easing */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 
@@ -832,18 +2635,6 @@
 
 
 ==========================================================================================
-# FILE: design-system/surface/index.css
-==========================================================================================
-/* PATH: src/styles/design-system/surface/index.css */
-/* Surface / Elevation Entry */
-
-@import "./canvas.css";
-@import "./panel.css";
-@import "./card.css";
-@import "./overlay.css";
-
-
-==========================================================================================
 # FILE: design-system/surface/overlay.css
 ==========================================================================================
 /* PATH: src/styles/design-system/surface/overlay.css */
@@ -868,10 +2659,60 @@
 
 
 ==========================================================================================
+# FILE: design-system/surface/slots.css
+==========================================================================================
+:root {
+  /* PAGE */
+  --ui-page-bg: var(--layer-page-bg);
+
+  /* WORK */
+  --ui-work-bg:     var(--layer-panel-bg);
+  --ui-work-border: var(--color-border-divider);
+
+  /* META */
+  --ui-meta-bg:     var(--layer-card-bg);
+  --ui-meta-border: var(--color-border-divider);
+
+  /* KPI */
+  --ui-kpi-bg:     var(--layer-focus-bg);
+  --ui-kpi-border: var(--color-border-selected);
+
+  /* CONTROL */
+  --ui-control-bg:           var(--color-bg-surface);
+  --ui-control-bg-hover:     var(--color-bg-surface-hover);
+  --ui-control-text:         var(--color-text-primary);
+  --ui-control-placeholder:  var(--color-text-muted);
+  --ui-control-border:       var(--color-border-divider);
+  --ui-control-border-hover: var(--color-border-focus);
+  --ui-control-border-focus: var(--color-border-focus);
+}
+
+
+==========================================================================================
 # FILE: design-system/typography/index.css
 ==========================================================================================
 /* PATH: src/styles/design-system/typography/index.css */
-/* Typography Entry */
+/* Typography Entry (ENTERPRISE) */
+
+:root {
+  --font-sans:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Noto Sans KR",
+    "Apple SD Gothic Neo",
+    Arial,
+    sans-serif;
+
+  --letter-tight: -0.25px;
+  --letter-base: -0.15px;
+}
+
+[data-app="admin"] {
+  font-family: var(--font-sans);
+  letter-spacing: var(--letter-base);
+}
 
 @import "./scale.css";
 @import "./weight.css";

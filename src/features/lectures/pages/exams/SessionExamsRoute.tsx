@@ -1,9 +1,4 @@
-// src/features/lectures/pages/exams/SessionExamsRoute.tsx
-// --------------------------------------------------
-// Route adapter
-// - URL param(sessionId) → SessionExamsPage props로 전달
-// --------------------------------------------------
-
+// PATH: src/features/lectures/pages/exams/SessionExamsRoute.tsx
 import { useParams } from "react-router-dom";
 import SessionExamsPage from "./SessionExamsPage";
 
@@ -12,7 +7,7 @@ export default function SessionExamsRoute() {
   const sid = Number(sessionId);
 
   if (!Number.isFinite(sid)) {
-    return <div className="p-4 text-sm text-red-600">잘못된 sessionId</div>;
+    return <div className="p-4 text-sm" style={{ color: "var(--color-error)" }}>잘못된 sessionId</div>;
   }
 
   return <SessionExamsPage sessionId={sid} />;

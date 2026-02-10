@@ -1,0 +1,22 @@
+.ds-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--color-bg-surface-soft);
+  border-radius: var(--radius-lg);
+}
+
+.ds-tab {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--color-text-muted);
+  border-radius: 12px;
+  transition: all 120ms ease;
+}
+
+.ds-tab.is-active {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.08);
+}

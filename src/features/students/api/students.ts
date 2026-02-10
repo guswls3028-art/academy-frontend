@@ -1,10 +1,20 @@
-// src/features/students/api/students.ts
-
+// PATH: src/features/students/api/students.ts
 import api from "@/shared/api/axios";
 
 /* ===============================
  * Types
  * =============================== */
+
+export interface ClientStudentTag {
+  id: number;
+  name: string;
+  color: string;
+}
+
+export interface ClientEnrollmentLite {
+  id: number;
+  lectureName: string | null;
+}
 
 export interface ClientStudent {
   id: number;
@@ -29,79 +39,119 @@ export interface ClientStudent {
 
   schoolType: "MIDDLE" | "HIGH" | null;
 
-  tags: {
-    id: number;
-    name: string;
-    color: string;
-  }[];
+  tags: ClientStudentTag[];
+  enrollments: ClientEnrollmentLite[];
+}
 
-  enrollments: {
-    id: number;
-    lectureName: string | null;
-  }[];
+export interface StudentTag {
+  id: number;
+  name: string;
+  color: string;
 }
 
 /* ===============================
  * Mapper
  * =============================== */
 
-function mapStudent(item: any): ClientStudent {
-  const phone = item.phone ?? null;
-  const omrCode = item.omr_code ?? "";
+function safeStr(v: any): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
 
-  const displayPhone =
-    phone && phone.startsWith("010") && phone.slice(3) === omrCode
-      ? omrCode
-      : phone;
+function mapStudent(item: any): ClientStudent {
+  const phone = item?.phone ?? null;
+  const omrCode = item?.omr_code ?? "";
+
+  // 🔧 변경: UI에는 항상 phone만 전달
+  const displayPhone = phone ?? null;
 
   const schoolType: "MIDDLE" | "HIGH" | null =
-    item.school_type ??
-    (item.middle_school ? "MIDDLE" : item.high_school ? "HIGH" : null);
+    item?.school_type ??
+    (item?.middle_school ? "MIDDLE" : item?.high_school ? "HIGH" : null);
 
   return {
-    id: item.id,
-    name: item.name,
+    id: Number(item?.id),
+    name: safeStr(item?.name),
 
-    psNumber: item.ps_number,
-    omrCode,
+    psNumber: safeStr(item?.ps_number),
+    omrCode: safeStr(omrCode),
 
-    studentPhone: displayPhone,
-    parentPhone: item.parent_phone ?? null,
+    studentPhone: displayPhone ?? null,
+    parentPhone: item?.parent_phone ?? null,
 
-    school: item.high_school ?? item.middle_school ?? null,
-    schoolClass: item.high_school_class ?? null,
-    major: item.major ?? null,
+    school: item?.high_school ?? item?.middle_school ?? null,
+    schoolClass: item?.high_school_class ?? null,
+    major: item?.major ?? null,
 
-    grade: item.grade ?? null,
-    gender: item.gender ?? null,
+    grade: item?.grade ?? null,
+    gender: item?.gender ?? null,
 
-    registeredAt: item.created_at ?? null,
-    active: item.is_managed ?? false,
-    memo: item.memo ?? null,
+    registeredAt: item?.created_at ?? null,
+    active: item?.is_managed ?? false,
+    memo: item?.memo ?? null,
 
     schoolType,
 
-    tags: (item.tags ?? []).map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      color: t.color,
-    })),
+    tags: Array.isArray(item?.tags)
+      ? item.tags.map((t: any) => ({
+          id: Number(t?.id),
+          name: safeStr(t?.name),
+          color: safeStr(t?.color),
+        }))
+      : [],
 
-    enrollments: (item.enrollments ?? []).map((en: any) => ({
-      id: en.id,
-      lectureName: en.lecture_name ?? null,
-    })),
+    enrollments: Array.isArray(item?.enrollments)
+      ? item.enrollments.map((en: any) => ({
+          id: Number(en?.id),
+          lectureName: en?.lecture_name ?? null,
+        }))
+      : [],
   };
+}
+
+/* ===============================
+ * Ordering (server-side friendly)
+ * =============================== */
+
+const ORDERING_MAP: Record<string, string> = {
+  name: "name",
+  registeredAt: "created_at",
+  active: "is_managed",
+  psNumber: "ps_number",
+  studentPhone: "phone",
+  parentPhone: "parent_phone",
+  school: "high_school",
+  schoolClass: "high_school_class",
+  grade: "grade",
+  gender: "gender",
+};
+
+function buildOrdering(sort: string): string | undefined {
+  if (!sort) return undefined;
+
+  const isDesc = sort.startsWith("-");
+  const key = isDesc ? sort.slice(1) : sort;
+
+  const mapped = ORDERING_MAP[key];
+  if (!mapped) return undefined;
+
+  return isDesc ? `-${mapped}` : mapped;
 }
 
 /* ===============================
  * List / Detail
  * =============================== */
 
-export async function fetchStudents(search: string, filters: any = {}) {
-  const params = {
+export async function fetchStudents(
+  search: string,
+  filters: any = {},
+  sort: string = ""
+) {
+  const ordering = buildOrdering(sort);
+
+  const params: any = {
     search: search || undefined,
     ...filters,
+    ordering: ordering || undefined,
   };
 
   const res = await api.get("/students/", { params });
@@ -125,34 +175,38 @@ export async function getStudentDetail(id: number) {
  * =============================== */
 
 export async function createStudent(form: any) {
-  const phone =
-    form.noPhone === true
-      ? `010${form.omrCode}`
-      : String(form.studentPhone).trim();
+  const name = safeStr(form?.name).trim();
+  const psNumber = safeStr(form?.psNumber).trim();
+  const initialPassword = safeStr(form?.initialPassword).trim();
+
+  const omrCodeInput = safeStr(form?.omrCode).trim();
+  const studentPhoneInput = safeStr(form?.studentPhone).trim();
+  const parentPhoneInput = safeStr(form?.parentPhone).trim();
+
+  const phone = form?.noPhone === true ? `010${omrCodeInput}` : studentPhoneInput;
 
   const payload = {
-    name: form.name,
-    ps_number: form.psNumber,
+    name,
+    ps_number: psNumber,
     phone,
-    omr_code: phone.slice(-8),
-    initial_password: form.initialPassword,
+    omr_code: safeStr(phone).slice(-8),
+    initial_password: initialPassword,
 
-    parent_phone: form.parentPhone,
+    parent_phone: parentPhoneInput,
 
-    school_type: form.schoolType,
-    high_school: form.schoolType === "HIGH" ? form.school || null : null,
-    middle_school: form.schoolType === "MIDDLE" ? form.school || null : null,
+    school_type: form?.schoolType,
+    high_school: form?.schoolType === "HIGH" ? form?.school || null : null,
+    middle_school: form?.schoolType === "MIDDLE" ? form?.school || null : null,
 
-    high_school_class:
-      form.schoolType === "HIGH" ? form.schoolClass || null : null,
+    high_school_class: form?.schoolType === "HIGH" ? form?.schoolClass || null : null,
 
-    major: form.schoolType === "HIGH" ? form.major || null : null,
+    major: form?.schoolType === "HIGH" ? form?.major || null : null,
 
-    grade: form.grade ? Number(form.grade) : null,
-    gender: form.gender || null,
-    memo: form.memo || null,
+    grade: form?.grade ? Number(form.grade) : null,
+    gender: form?.gender || null,
+    memo: form?.memo || null,
 
-    is_managed: !!form.active,
+    is_managed: !!form?.active,
   };
 
   const res = await api.post("/students/", payload);
@@ -160,43 +214,44 @@ export async function createStudent(form: any) {
 }
 
 /* ===============================
- * UPDATE  (✅ 최소 수정)
+ * UPDATE
  * =============================== */
 
 export async function updateStudent(id: number, form: any) {
-  const phone =
-    form.noPhone === true
-      ? `010${form.omrCode}`
-      : form.studentPhone
-      ? String(form.studentPhone).trim()
-      : undefined;
-
   const payload: any = {
-    grade: form.grade ? Number(form.grade) : null,
-    gender: form.gender ?? null,
-    parent_phone: form.parentPhone ?? null,
-    memo: form.memo ?? null,
-    is_managed: !!form.active,
+    grade: form?.grade ? Number(form.grade) : null,
+    gender: form?.gender ?? null,
+    memo: form?.memo ?? null,
+    is_managed: !!form?.active,
   };
+
+  if (form?.parentPhone !== undefined) {
+    payload.parent_phone = safeStr(form?.parentPhone).trim();
+  }
+
+  const phone =
+    form?.noPhone === true
+      ? `010${safeStr(form?.omrCode).trim()}`
+      : form?.studentPhone
+      ? safeStr(form?.studentPhone).trim()
+      : undefined;
 
   if (phone) {
     payload.phone = phone;
-    payload.omr_code = phone.slice(-8);
+    payload.omr_code = safeStr(phone).slice(-8);
   }
 
-  if (form.psNumber !== undefined) {
-    payload.ps_number = form.psNumber;
+  if (form?.psNumber !== undefined) {
+    payload.ps_number = safeStr(form?.psNumber).trim();
   }
 
-  if (form.schoolType) {
+  if (form?.schoolType) {
     payload.school_type = form.schoolType;
-    payload.high_school =
-      form.schoolType === "HIGH" ? form.school || null : null;
-    payload.middle_school =
-      form.schoolType === "MIDDLE" ? form.school || null : null;
+    payload.high_school = form.schoolType === "HIGH" ? form?.school || null : null;
+    payload.middle_school = form.schoolType === "MIDDLE" ? form?.school || null : null;
     payload.high_school_class =
-      form.schoolType === "HIGH" ? form.schoolClass || null : null;
-    payload.major = form.schoolType === "HIGH" ? form.major || null : null;
+      form.schoolType === "HIGH" ? form?.schoolClass || null : null;
+    payload.major = form.schoolType === "HIGH" ? form?.major || null : null;
   }
 
   const res = await api.patch(`/students/${id}/`, payload);
@@ -227,9 +282,18 @@ export async function deleteStudent(id: number) {
  * TAG
  * =============================== */
 
-export async function getTags() {
+export async function getTags(): Promise<StudentTag[]> {
   const res = await api.get(`/students/tags/`);
-  return res.data;
+  const items = Array.isArray(res.data?.results)
+    ? res.data.results
+    : Array.isArray(res.data)
+    ? res.data
+    : [];
+  return items.map((t: any) => ({
+    id: Number(t?.id),
+    name: safeStr(t?.name),
+    color: safeStr(t?.color),
+  }));
 }
 
 export async function attachStudentTag(studentId: number, tagId: number) {
@@ -245,5 +309,5 @@ export async function detachStudentTag(studentId: number, tagId: number) {
  * =============================== */
 
 export async function createMemo(studentId: number, content: string) {
-  await api.patch(`/students/${studentId}/`, { memo: content });
+  await api.patch(`/students/${studentId}/`, { memo: String(content ?? "") });
 }

@@ -1,17 +1,28 @@
 /* PATH: src/styles/design-system/patterns/kpi.css */
-/* KPI Card */
+/* ============================================================================
+ * KPI Pattern — STRUCTURE ONLY (FINAL / LOCKED)
+ * - ❗ KPI는 배경색을 소유하지 않는다.
+ * - KPI의 배경/테두리 색은 UI Slot(SSOT)에서만 결정된다.
+ * ============================================================================ */
 
 .kpi {
-  background: var(--surface-card-soft-bg);
+  background: transparent; /* ✅ 배경 소유권 제거 */
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
 }
+
 .kpi-label {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
+  font-weight: 900;
+  letter-spacing: -0.12px;
 }
+
 .kpi-value {
+  margin-top: 6px;
   font-size: var(--text-2xl);
-  font-weight: var(--font-bold);
+  font-weight: 950;
+  letter-spacing: -0.4px;
+  color: var(--color-text-primary);
 }

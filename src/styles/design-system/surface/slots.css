@@ -1,0 +1,25 @@
+:root {
+  /* PAGE */
+  --ui-page-bg: var(--layer-page-bg);
+
+  /* WORK */
+  --ui-work-bg:     var(--layer-panel-bg);
+  --ui-work-border: var(--color-border-divider);
+
+  /* META */
+  --ui-meta-bg:     var(--layer-card-bg);
+  --ui-meta-border: var(--color-border-divider);
+
+  /* KPI */
+  --ui-kpi-bg:     var(--layer-focus-bg);
+  --ui-kpi-border: var(--color-border-selected);
+
+  /* CONTROL */
+  --ui-control-bg:           var(--color-bg-surface);
+  --ui-control-bg-hover:     var(--color-bg-surface-hover);
+  --ui-control-text:         var(--color-text-primary);
+  --ui-control-placeholder:  var(--color-text-muted);
+  --ui-control-border:       var(--color-border-divider);
+  --ui-control-border-hover: var(--color-border-focus);
+  --ui-control-border-focus: var(--color-border-focus);
+}

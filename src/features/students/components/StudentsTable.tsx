@@ -1,21 +1,40 @@
 // PATH: src/features/students/components/StudentsTable.tsx
-
-import { EmptyState } from "@/shared/ui/ds";
+import { useMemo } from "react";
+import { EmptyState, Button } from "@/shared/ui/ds";
 import { toggleStudentActive } from "../api/students";
 import { useQueryClient } from "@tanstack/react-query";
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function highlight(text: string, keyword: string) {
   if (!keyword) return text;
-  const parts = text.split(new RegExp(`(${keyword})`, "gi"));
+  const k = keyword.trim();
+  if (!k) return text;
+
+  const parts = String(text).split(new RegExp(`(${escapeRegExp(k)})`, "gi"));
   return parts.map((p, i) =>
-    p.toLowerCase() === keyword.toLowerCase() ? (
-      <mark key={i} className="bg-yellow-300/40 px-0.5 rounded">
+    p.toLowerCase() === k.toLowerCase() ? (
+      <mark
+        key={i}
+        className="px-0.5 rounded"
+        style={{
+          backgroundColor: "var(--state-selected-bg)",
+          color: "inherit",
+        }}
+      >
         {p}
       </mark>
     ) : (
       p
     )
   );
+}
+
+function formatPhone(v: any) {
+  if (!v) return "-";
+  return String(v);
 }
 
 export default function StudentsTable({
@@ -25,6 +44,7 @@ export default function StudentsTable({
   onSortChange,
   onDelete,
   onRowClick,
+  onEditClick,
 }: {
   data: any[];
   search: string;
@@ -32,16 +52,37 @@ export default function StudentsTable({
   onSortChange: (v: string) => void;
   onDelete: (id: number) => void;
   onRowClick: (id: number) => void;
+  onEditClick: (id: number) => void;
 }) {
   const qc = useQueryClient();
 
+  const columns = useMemo(
+    () => [
+      { key: "name", label: "이름", w: 140 },
+      { key: "studentPhone", label: "학생 전화/식별자", w: 190 },
+      { key: "parentPhone", label: "학부모 전화", w: 170 },
+      { key: "school", label: "학교", w: 160 },
+      { key: "schoolClass", label: "반", w: 80 },
+      { key: "registeredAt", label: "등록일", w: 120 },
+      { key: "active", label: "상태", w: 110 },
+    ],
+    []
+  );
+
   if (!data.length) {
-    return <EmptyState title="학생 정보가 없습니다." />;
+    return (
+      <EmptyState
+        title="학생 정보가 없습니다."
+        description="검색/필터 조건을 확인하거나, 새 학생을 등록해 주세요."
+        scope="panel"
+      />
+    );
   }
 
   async function toggle(id: number, active: boolean) {
     await toggleStudentActive(id, !active);
     qc.invalidateQueries({ queryKey: ["students"] });
+    qc.invalidateQueries({ queryKey: ["student", id] });
   }
 
   function sortHeader(key: string, label: string) {
@@ -51,102 +92,142 @@ export default function StudentsTable({
 
     return (
       <th
-        className="
-          px-3 py-2 font-semibold cursor-pointer text-center select-none
-          border-b-2 border-[var(--border-divider)]
-          text-[13px]
-        "
         onClick={() => onSortChange(next)}
+        className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)] cursor-pointer select-none"
+        style={{
+          textAlign: "center",
+          whiteSpace: "nowrap",
+          background:
+            "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
+          color:
+            "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+        }}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        scope="col"
       >
-        <span className="inline-flex items-center gap-1">
+        <span className="inline-flex items-center gap-2">
           {label}
-          {isAsc && <span className="text-[11px]">▲</span>}
-          {isDesc && <span className="text-[11px]">▼</span>}
+          <span
+            aria-hidden
+            style={{
+              fontSize: 11,
+              opacity: isAsc || isDesc ? 1 : 0.35,
+              color: "var(--color-brand-primary)",
+            }}
+          >
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
         </span>
       </th>
     );
   }
 
   return (
-    <table className="w-full text-sm border border-[var(--border-divider)] rounded-md overflow-hidden">
-      <thead className="bg-[var(--bg-surface-soft)] text-[var(--text-secondary)]">
-        <tr>
-          {sortHeader("name", "이름")}
-          {sortHeader("studentPhone", "학생 전화번호(식별자)")}
-          {sortHeader("parentPhone", "학부모 전화번호")}
-          {sortHeader("school", "학교")}
-          {sortHeader("schoolClass", "반")}
-          {sortHeader("registeredAt", "등록일")}
-          {sortHeader("active", "상태")}
-          <th className="px-3 py-2 text-center border-b-2 border-[var(--border-divider)] text-[13px]">
-            관리
-          </th>
-        </tr>
-      </thead>
+    <div style={{ overflow: "hidden" }}>
+      <table className="w-full" style={{ tableLayout: "fixed" }}>
+        <colgroup>
+          {columns.map((c) => (
+            <col key={c.key} style={{ width: c.w }} />
+          ))}
+          <col style={{ width: 160 }} />
+        </colgroup>
 
-      <tbody className="divide-y divide-[var(--border-divider)]">
-        {data.map((s) => (
-          <tr
-            key={s.id}
-            onClick={() => onRowClick(s.id)}
-            className="hover:bg-[var(--bg-surface-soft)] cursor-pointer transition"
-          >
-            <td className="px-3 py-2 font-semibold text-center text-[var(--text-primary)]">
-              {highlight(s.name || "-", search)}
-            </td>
-
-            <td className="px-3 py-2 text-center">
-              {s.studentPhone && String(s.studentPhone).length === 8 ? (
-                <span className="text-[var(--text-muted)]">
-                  식별자 {highlight(String(s.studentPhone), search)}
-                </span>
-              ) : (
-                highlight(s.studentPhone || "-", search)
-              )}
-            </td>
-
-            <td className="px-3 py-2 text-center">
-              {highlight(s.parentPhone || "-", search)}
-            </td>
-
-            <td className="px-3 py-2 text-center">{s.school || "-"}</td>
-            <td className="px-3 py-2 text-center">{s.schoolClass || "-"}</td>
-
-            <td className="px-3 py-2 text-center text-xs text-[var(--text-secondary)]">
-              {s.registeredAt?.slice(0, 10) || "-"}
-            </td>
-
-            <td
-              className="px-3 py-2 text-center"
-              onClick={(e) => e.stopPropagation()}
+        <thead>
+          <tr>
+            {columns.map((c) => sortHeader(c.key, c.label))}
+            <th
+              className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
+              style={{
+                textAlign: "center",
+                whiteSpace: "nowrap",
+                background:
+                  "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
+                color:
+                  "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+              }}
+              scope="col"
             >
-              <button
-                onClick={() => toggle(s.id, s.active)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition
-                  ${
-                    s.active
-                      ? "bg-[var(--color-success)]/15 text-[var(--color-success)]"
-                      : "bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
-                  }`}
-              >
-                {s.active ? "활성" : "비활성"}
-              </button>
-            </td>
-
-            <td
-              className="px-3 py-2 text-center"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                className="text-xs text-[var(--color-danger)] hover:underline"
-                onClick={() => onDelete(s.id)}
-              >
-                삭제
-              </button>
-            </td>
+              작업
+            </th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+
+        <tbody className="divide-y divide-[var(--color-border-divider)]">
+          {data.map((s) => (
+            <tr
+              key={s.id}
+              onClick={() => onRowClick(s.id)}
+              tabIndex={0}
+              role="button"
+              className="group cursor-pointer hover:bg-[var(--color-bg-surface-soft)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
+            >
+              {/* 이름 */}
+              <td className="px-4 py-3 text-center text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+                {highlight(s.name || "-", search)}
+              </td>
+
+              {/* 학생 전화 */}
+              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(formatPhone(s.studentPhone), search)}
+              </td>
+
+              {/* 학부모 전화 */}
+              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(s.parentPhone || "-", search)}
+              </td>
+
+              {/* 학교 */}
+              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {s.school || "-"}
+              </td>
+
+              {/* 반 */}
+              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {s.schoolClass || "-"}
+              </td>
+
+              {/* 등록일 */}
+              <td className="px-4 py-3 text-center text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
+                {s.registeredAt?.slice(0, 10) || "-"}
+              </td>
+
+              {/* 상태 */}
+              <td
+                className="px-4 py-3 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span
+                  style={{
+                    padding: "5px 12px",
+                    borderRadius: 999,
+                    fontWeight: 800,
+                    fontSize: 12,
+                    color: "white",
+                    backgroundColor: s.active ? "#22c55e" : "#ef4444",
+                  }}
+                >
+                  {s.active ? "활성" : "비활성"}
+                </span>
+              </td>
+
+              {/* 작업 */}
+              <td
+                className="px-4 py-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Button intent="primary" size="sm" onClick={() => onEditClick(s.id)}>
+                    수정
+                  </Button>
+                  <Button intent="danger" size="sm" onClick={() => onDelete(s.id)}>
+                    삭제
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

@@ -1,11 +1,11 @@
-// src/features/lectures/components/SessionBar.tsx
-
+// PATH: src/features/lectures/components/SessionBar.tsx
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import SessionCreateModal from "./SessionCreateModal";
 import { useLectureParams } from "../hooks/useLectureParams";
+import { Button } from "@/shared/ui/ds";
 
 export default function SessionBar() {
   const { lectureId } = useLectureParams();
@@ -24,12 +24,14 @@ export default function SessionBar() {
   });
 
   return (
-    <div className="mb-6">
+    <div style={{ marginBottom: 14 }}>
       <div
-        className="
-          flex gap-3 overflow-x-auto pb-2
-          scrollbar-thin scrollbar-thumb-gray-300
-        "
+        style={{
+          display: "flex",
+          gap: 10,
+          overflowX: "auto",
+          paddingBottom: 6,
+        }}
       >
         {sessions.map((s: any) => {
           const active = location.pathname.includes(`/sessions/${s.id}`);
@@ -38,62 +40,61 @@ export default function SessionBar() {
             <Link
               key={s.id}
               to={`sessions/${s.id}`}
-              className={[
-                "min-w-[150px] rounded-full px-5 py-3 text-sm transition-all",
-                "border",
-                active
-                  ? `
-                    border-[var(--color-primary)]
-                    bg-[var(--color-primary)]
-                    text-white
-                    shadow-sm
-                  `
-                  : `
-                    border-[var(--border-divider)]
-                    bg-[var(--bg-surface-soft)]
-                    text-[var(--text-primary)]
-                    hover:bg-[var(--bg-surface)]
-                  `,
-              ].join(" ")}
+              style={{
+                flex: "0 0 auto",
+                minWidth: 168,
+                borderRadius: 999,
+                border: active ? "1px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
+                background: active ? "var(--color-primary)" : "var(--color-bg-surface)",
+                padding: "10px 14px",
+                textDecoration: "none",
+                boxShadow: active ? "0 1px 0 rgba(0,0,0,0.06)" : "none",
+              }}
             >
-              <div className="font-semibold">
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 950,
+                  color: active ? "#fff" : "var(--color-text-primary)",
+                  lineHeight: 1.1,
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {s.order ?? "?"}차시
               </div>
 
-              {s.date && (
-                <div
-                  className={[
-                    "mt-0.5 text-xs",
-                    active ? "text-white/80" : "text-[var(--text-muted)]",
-                  ].join(" ")}
-                >
-                  {s.date}
-                </div>
-              )}
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 11,
+                  fontWeight: 850,
+                  color: active ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {s.date || "-"}
+              </div>
             </Link>
           );
         })}
 
-        <button
-          type="button"
+        <Button
+          intent="ghost"
           onClick={() => setShowModal(true)}
-          className="
-            min-w-[150px]
-            rounded-full
-            border-2 border-dashed
-            border-[var(--border-divider)]
-            px-5 py-3
-            text-sm font-medium
-            text-[var(--text-muted)]
-            bg-[var(--bg-surface)]
-            hover:border-[var(--color-primary)]
-            hover:text-[var(--color-primary)]
-            hover:bg-[var(--bg-surface-soft)]
-            transition
-          "
+          style={{
+            flex: "0 0 auto",
+            minWidth: 168,
+            borderRadius: 999,
+            border: "1px dashed var(--color-border-divider)",
+            background: "var(--color-bg-surface)",
+            color: "var(--color-text-muted)",
+            fontWeight: 900,
+          }}
         >
           + 차시 추가
-        </button>
+        </Button>
       </div>
 
       {showModal && (

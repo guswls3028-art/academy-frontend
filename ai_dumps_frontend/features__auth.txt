@@ -10,22 +10,30 @@
 // PATH: src/features/auth/api/auth.ts
 import api from "@/shared/api/axios";
 
-// ⚠️ 구조/로직 유지
-// ⚠️ axios 직접 사용만 제거
-export const login = async (username: string, password: string) => {
-  const res = await api.post(
-    "/token/",
-    { username, password }
-  );
+export type LoginResponse = {
+  access: string;
+  refresh: string;
+};
 
-  localStorage.setItem("access", res.data.access);
-  localStorage.setItem("refresh", res.data.refresh);
+export const login = async (username: string, password: string) => {
+  const res = await api.post<LoginResponse>("/token/", { username, password });
+
+  const access = String(res.data?.access || "").trim();
+  const refresh = String(res.data?.refresh || "").trim();
+
+  if (!access || !refresh) {
+    throw new Error("Invalid token response");
+  }
+
+  localStorage.setItem("access", access);
+  localStorage.setItem("refresh", refresh);
 
   return res.data;
 };
 
 export const logout = () => {
-  localStorage.clear();
+  localStorage.removeItem("access");
+  localStorage.removeItem("refresh");
   window.location.href = "/login";
 };
 
@@ -33,9 +41,7 @@ export const logout = () => {
 ==========================================================================================
 # FILE: context/AuthContext.tsx
 ==========================================================================================
-// ====================================================================================================
 // PATH: src/features/auth/context/AuthContext.tsx
-// ====================================================================================================
 import React, {
   createContext,
   useContext,
@@ -45,15 +51,25 @@ import React, {
 } from "react";
 import api from "@/shared/api/axios";
 
+export type TenantRole =
+  | "owner"
+  | "admin"
+  | "teacher"
+  | "staff"
+  | "student"
+  | "parent";
+
 export interface User {
   id: number;
   username: string;
-  email?: string;
-  is_staff: boolean;
-  is_superuser?: boolean;
 
-  // ✅ 멀티테넌트 역할 (ProtectedRoute에서 사용)
-  tenantRole?: "owner" | "admin" | "teacher" | "staff" | "student" | "parent";
+  name: string | null;
+  phone: string | null;
+
+  is_staff: boolean;
+  is_superuser: boolean;
+
+  tenantRole: TenantRole | null;
 }
 
 type AuthState = {
@@ -64,6 +80,14 @@ type AuthState = {
 };
 
 const AuthContext = createContext<AuthState | null>(null);
+
+function getAccessToken(): string | null {
+  try {
+    return localStorage.getItem("access");
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -76,9 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshMe = async () => {
-    const access = localStorage.getItem("access");
-
-    // ✅ access 토큰만 체크 (tenant는 interceptor에서 처리)
+    const access = getAccessToken();
     if (!access) {
       setUser(null);
       return;
@@ -86,26 +108,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const res = await api.get<User>("/core/me/");
-      setUser(res.data);
+      setUser(res.data ?? null);
     } catch (err: any) {
       const status = err?.response?.status;
-      if (status === 401 || status === 403) {
+      if (status === 401 || status === 403 || status === 404) {
         clearAuth();
       }
       throw err;
     }
   };
 
-  // ✅ 앱 시작 시 1회 실행
   useEffect(() => {
     (async () => {
       try {
-        await refreshMe();
+        const access = getAccessToken();
+        if (!access) {
+          setUser(null);
+          return;
+        }
+
+        const res = await api.get<User>("/core/me/");
+        setUser(res.data ?? null);
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 401 || status === 403 || status === 404) {
+          clearAuth();
+        } else {
+          setUser(null);
+        }
       } finally {
         setIsLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo<AuthState>(
@@ -150,9 +184,232 @@ export default function useAuth() {
 
 
 ==========================================================================================
-# FILE: pages/2_Limglish_LoginPage.tsx
+# FILE: pages/TenantRequiredPage.tsx
 ==========================================================================================
-// PATH: src/features/auth/pages/2_Limglish_LoginPage.tsx
+// PATH: src/features/auth/pages/TenantRequiredPage.tsx
+import { Link } from "react-router-dom";
+
+export default function TenantRequiredPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#0b0d12]">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <h1 className="text-xl font-black mb-2">접근 불가</h1>
+        <p className="text-sm font-semibold text-gray-700 mb-4">
+          이 서비스는 학원(테넌트) 도메인을 통해서만 접근할 수 있습니다.
+        </p>
+
+        <div className="text-xs text-gray-500 mb-6">
+          올바른 도메인으로 접속했는지 확인해주세요.
+        </div>
+
+        <Link
+          to="/login"
+          className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-white font-semibold"
+        >
+          로그인 페이지로 이동
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/login/CustomLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/CustomLoginPage.tsx
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "@/features/auth/api/auth";
+import useAuth from "@/features/auth/hooks/useAuth";
+import { useProgram } from "@/shared/program";
+
+export default function CustomLoginPage() {
+  const { program } = useProgram();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+
+    setPending(true);
+    setError("");
+
+    try {
+      await login(username, password);
+      await refreshMe();
+      navigate("/", { replace: true });
+    } catch (e: any) {
+      setError(
+        e?.response?.data?.detail ||
+          "아이디 또는 비밀번호를 확인해주세요."
+      );
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="auth-shell flex min-h-screen items-center justify-center bg-[#0b0d12]">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+      >
+        {program?.ui_config?.logo_url && (
+          <img
+            src={program.ui_config.logo_url}
+            alt="logo"
+            className="mb-4 h-10"
+          />
+        )}
+
+        <h1 className="mb-1 text-xl font-bold">
+          {program?.ui_config?.login_title ?? "로그인"}
+        </h1>
+
+        {program?.ui_config?.login_subtitle && (
+          <p className="mb-4 text-sm text-gray-600">
+            {program.ui_config.login_subtitle}
+          </p>
+        )}
+
+        <input
+          className="mb-2 w-full rounded border px-3 py-2"
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+
+        <input
+          className="mb-3 w-full rounded border px-3 py-2"
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="w-full rounded bg-black py-2 text-white font-semibold"
+        >
+          {pending ? "로그인 중..." : "로그인"}
+        </button>
+
+        {error && (
+          <div className="mt-3 text-sm font-semibold text-red-600">
+            {error}
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/login/HakwonPlusLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/HakwonPlusLoginPage.tsx
+// --------------------------------------------------
+// HakwonPlus Admin Login
+// - Auth 전용 화면
+// - Admin / Student 스타일과 완전 분리
+// - 전역(body) 스타일 사용 금지
+// --------------------------------------------------
+
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "@/features/auth/api/auth";
+import useAuth from "@/features/auth/hooks/useAuth";
+
+export default function HakwonPlusLoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+
+    setPending(true);
+    setError("");
+
+    try {
+      await login(username, password);
+      await refreshMe();
+      navigate("/", { replace: true });
+    } catch (e: any) {
+      setError(
+        e?.response?.data?.detail || "아이디 또는 비밀번호를 확인해주세요."
+      );
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="auth-shell flex min-h-screen items-center justify-center bg-[#0b0d12]">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+      >
+        <h1 className="mb-4 text-xl font-bold">
+          HakwonPlus 관리자 로그인
+        </h1>
+
+        <input
+          className="mb-2 w-full rounded border px-3 py-2"
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+
+        <input
+          className="mb-3 w-full rounded border px-3 py-2"
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="w-full rounded bg-black py-2 text-white font-semibold"
+        >
+          {pending ? "로그인 중..." : "로그인"}
+        </button>
+
+        {error && (
+          <div className="mt-3 text-sm font-semibold text-red-600">
+            {error}
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/login/LimglishLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/LimglishLoginPage.tsx
+// --------------------------------------------------
+// Limglish Teacher Login
+// - Auth 전용 화면
+// - Student / Admin 테마와 분리된 독립 UI
+// --------------------------------------------------
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
@@ -188,459 +445,76 @@ export default function LimglishLoginPage() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        {/* ===== Branding ===== */}
-        <div style={styles.header}>
-          <div style={styles.logo}>LIMGLISH</div>
-          <div style={styles.subtitle}>임시 로그인 화면</div>
-        </div>
+    <div className="auth-shell flex min-h-screen items-center justify-center bg-[#0f1115]">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+      >
+        <h1 className="mb-1 text-2xl font-black">LIMGLISH</h1>
+        <p className="mb-4 text-sm font-semibold text-gray-600">
+          선생님 전용 로그인
+        </p>
 
-        {/* ===== Temporary Hint ===== */}
-        <div style={styles.hint}>
-          <div>
+        <input
+          className="mb-2 w-full rounded border px-3 py-2"
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+
+        <input
+          className="mb-3 w-full rounded border px-3 py-2"
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button
+          type="submit"
+          disabled={pending}
+          className="w-full rounded bg-black py-2 text-white font-semibold"
+        >
+          {pending ? "로그인 중..." : "로그인"}
+        </button>
+
+        {error && (
+          <div className="mt-3 text-sm font-semibold text-red-600">
+            {error}
           </div>
-          <div>
-            
-          </div>
-        </div>
-
-        {/* ===== Login Form ===== */}
-        <form onSubmit={onSubmit} style={styles.form}>
-          <input
-            placeholder="아이디"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            style={styles.input}
-          />
-
-          <input
-            placeholder="비밀번호"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={styles.input}
-          />
-
-          <button
-            type="submit"
-            disabled={pending}
-            style={{
-              ...styles.button,
-              opacity: pending ? 0.6 : 1,
-            }}
-          >
-            {pending ? "로그인 중..." : "로그인"}
-          </button>
-        </form>
-
-        {error && <div style={styles.error}>{error}</div>}
-      </div>
+        )}
+      </form>
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    background: "#0f1115",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 380,
-    background: "#ffffff",
-    borderRadius: 18,
-    padding: 28,
-    boxShadow: "0 20px 48px rgba(0,0,0,0.35)",
-  },
-  header: {
-    textAlign: "center",
-    marginBottom: 22,
-  },
-  logo: {
-    fontSize: 30,
-    fontWeight: 900,
-    letterSpacing: -0.6,
-  },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#555",
-  },
-  hint: {
-    background: "#f6f7f9",
-    borderRadius: 12,
-    padding: "10px 12px",
-    fontSize: 13,
-    fontWeight: 600,
-    marginBottom: 18,
-    lineHeight: 1.6,
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  input: {
-    padding: "12px 14px",
-    borderRadius: 12,
-    border: "1px solid #ddd",
-    fontSize: 14,
-    outline: "none",
-  },
-  button: {
-    marginTop: 6,
-    padding: "12px",
-    borderRadius: 12,
-    border: "none",
-    background: "#111",
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: 800,
-    cursor: "pointer",
-  },
-  error: {
-    marginTop: 14,
-    color: "#c00000",
-    fontSize: 13,
-    fontWeight: 700,
-    textAlign: "center",
-  },
-};
-
 
 ==========================================================================================
-# FILE: pages/LoginPage.tsx
+# FILE: pages/login/LoginEntry.tsx
 ==========================================================================================
-// PATH: src/features/auth/pages/LoginPage.tsx
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { login } from "@/features/auth/api/auth";
-import useAuth from "@/features/auth/hooks/useAuth";
+// PATH: src/features/auth/pages/login/LoginEntry.tsx
+import { Navigate } from "react-router-dom";
+import { useProgram } from "@/shared/program";
 
-export default function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
+export default function LoginEntry() {
+  const { program, isLoading } = useProgram();
 
-  const navigate = useNavigate();
-  const { refreshMe } = useAuth();
+  if (isLoading) return null;
 
-  const host = typeof window !== "undefined" ? window.location.hostname : "";
-  const isLimglish = host === "limglish.kr" || host === "www.limglish.kr";
-
-  const brand = useMemo(() => {
-    return isLimglish
-      ? {
-          title: "LIMGLISH",
-          subtitle: "임근혁 영어 임시 로그인 학생계정 생성후 학생페이지 확인가능",
-          accent: "linear-gradient(135deg, #111 0%, #333 55%, #111 100%)",
-          badge: "Teacher",
-        }
-      : {
-          title: "Academy",
-          subtitle: "관리자/개발 로그인",
-          accent: "linear-gradient(135deg, #0b2cff 0%, #1a66ff 55%, #0b2cff 100%)",
-          badge: "Admin",
-        };
-  }, [isLimglish]);
-
-  useEffect(() => {
-    // mobile viewport 느낌 보정 (iOS 주소창 변화 대응)
-    document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
-    const onResize = () => {
-      document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (pending) return;
-
-    setPending(true);
-    setError("");
-
-    try {
-      await login(username, password);
-      await refreshMe();
-      navigate("/", { replace: true });
-    } catch (e: any) {
-      const msg =
-        e?.response?.data?.detail ||
-        e?.response?.data?.message ||
-        "아이디/비밀번호를 확인해주세요.";
-      setError(msg);
-      setPending(false);
-    }
+  if (!program) {
+    return <Navigate to="/error/tenant-required" replace />;
   }
 
-  return (
-    <div style={styles.page}>
-      {/* background glow */}
-      <div style={styles.bgGlow} aria-hidden />
+  const hasCustomLogin =
+    !!program.ui_config?.login_title ||
+    !!program.ui_config?.logo_url;
 
-      <div style={styles.shell}>
-        {/* header card */}
-        <div style={styles.hero}>
-          <div style={{ ...styles.heroTop, background: brand.accent }}>
-            <div style={styles.badge}>{brand.badge}</div>
-            <div style={styles.heroTitle}>{brand.title}</div>
-            <div style={styles.heroSub}>{brand.subtitle}</div>
-          </div>
+  if (hasCustomLogin) {
+    return <Navigate to="/login/custom" replace />;
+  }
 
-          {/* hint box */}
-          <div style={styles.hintBox}>
-            <div style={styles.hintRow}>
-              <span style={styles.hintKey}></span>
-              학생ID : gochul
-              <span style={styles.hintVal}></span>
-            </div>
-            <div style={styles.hintRow}>
-              <span style={styles.hintKey}></span>
-              학생PS : PS: 0000
-              <span style={styles.hintVal}></span>
-            </div>
-          </div>
-
-          {/* form */}
-          <form onSubmit={onSubmit} style={styles.form}>
-            <label style={styles.label}>
-              <span style={styles.labelText}>아이디</span>
-              <input
-                inputMode="text"
-                autoComplete="username"
-                placeholder="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                style={styles.input}
-              />
-            </label>
-
-            <label style={styles.label}>
-              <span style={styles.labelText}>비밀번호</span>
-              <input
-                type="password"
-                autoComplete="current-password"
-                placeholder="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
-              />
-            </label>
-
-            <button
-              type="submit"
-              disabled={pending || !username || !password}
-              style={{
-                ...styles.button,
-                opacity: pending || !username || !password ? 0.6 : 1,
-                cursor: pending || !username || !password ? "not-allowed" : "pointer",
-              }}
-            >
-              {pending ? "로그인 중..." : "로그인"}
-            </button>
-
-            {error && <div style={styles.error}>{error}</div>}
-          </form>
-
-          <div style={styles.footerNote}>
-            {isLimglish ? (
-              <span>※ 선생님 계정으로 로그인하세요.</span>
-            ) : (
-              <span>※ 운영/개발 환경 전용.</span>
-            )}
-          </div>
-        </div>
-
-        {/* tiny footer */}
-        <div style={styles.tiny}>
-          <span style={{ opacity: 0.75 }}>© {new Date().getFullYear()} HakwonPlus</span>
-        </div>
-      </div>
-
-      {/* local keyframes */}
-      <style>
-        {`
-          @keyframes floatIn {
-            from { transform: translateY(8px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-          }
-          @keyframes glowPulse {
-            0% { transform: translate(-30%, -30%) scale(1); opacity: 0.55; }
-            50% { transform: translate(-30%, -30%) scale(1.08); opacity: 0.75; }
-            100% { transform: translate(-30%, -30%) scale(1); opacity: 0.55; }
-          }
-          input::placeholder { color: rgba(0,0,0,0.35); }
-        `}
-      </style>
-    </div>
-  );
+  return <Navigate to="/login/hakwonplus" replace />;
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "calc(var(--vh, 1vh) * 100)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    background: "#0b0d12",
-    position: "relative",
-    overflow: "hidden",
-  },
-  bgGlow: {
-    position: "absolute",
-    inset: 0,
-    background:
-      "radial-gradient(600px 600px at 25% 20%, rgba(255,255,255,0.10), transparent 55%), radial-gradient(700px 700px at 80% 70%, rgba(0,170,255,0.16), transparent 55%)",
-    filter: "blur(0px)",
-    animation: "glowPulse 6s ease-in-out infinite",
-  },
-  shell: {
-    width: "100%",
-    maxWidth: 420,
-    zIndex: 1,
-    animation: "floatIn 0.35s ease-out",
-  },
-  hero: {
-    borderRadius: 22,
-    overflow: "hidden",
-    background: "rgba(255,255,255,0.92)",
-    border: "1px solid rgba(255,255,255,0.18)",
-    boxShadow: "0 18px 55px rgba(0,0,0,0.45)",
-    backdropFilter: "blur(10px)",
-  },
-  heroTop: {
-    padding: "22px 18px 18px",
-    color: "#fff",
-    position: "relative",
-  },
-  badge: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 26,
-    padding: "0 10px",
-    borderRadius: 999,
-    background: "rgba(255,255,255,0.18)",
-    border: "1px solid rgba(255,255,255,0.25)",
-    fontSize: 12,
-    fontWeight: 800,
-    letterSpacing: 0.3,
-    width: "fit-content",
-  },
-  heroTitle: {
-    marginTop: 10,
-    fontSize: 28,
-    fontWeight: 900,
-    letterSpacing: -0.6,
-    lineHeight: 1.05,
-  },
-  heroSub: {
-    marginTop: 8,
-    fontSize: 13,
-    opacity: 0.9,
-    fontWeight: 700,
-  },
-  hintBox: {
-    margin: "14px 16px 0",
-    borderRadius: 16,
-    background: "rgba(0,0,0,0.04)",
-    border: "1px solid rgba(0,0,0,0.06)",
-    padding: "12px 12px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-  },
-  hintRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    fontSize: 13,
-    fontWeight: 800,
-    color: "#111",
-  },
-  hintKey: {
-    opacity: 0.7,
-    fontWeight: 900,
-  },
-  hintVal: {
-    fontFamily:
-      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-    letterSpacing: 0.2,
-  },
-  form: {
-    padding: "14px 16px 16px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  label: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-  },
-  labelText: {
-    fontSize: 12,
-    fontWeight: 900,
-    color: "#111",
-    opacity: 0.75,
-  },
-  input: {
-    width: "100%",
-    padding: "12px 12px",
-    borderRadius: 14,
-    border: "1px solid rgba(0,0,0,0.10)",
-    background: "#fff",
-    fontSize: 14,
-    outline: "none",
-    boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
-  },
-  button: {
-    marginTop: 6,
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 14,
-    border: "none",
-    background: "#111",
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: 900,
-    letterSpacing: -0.2,
-    boxShadow: "0 14px 28px rgba(0,0,0,0.20)",
-  },
-  error: {
-    marginTop: 4,
-    padding: "10px 12px",
-    borderRadius: 14,
-    background: "rgba(255, 0, 0, 0.06)",
-    border: "1px solid rgba(255, 0, 0, 0.12)",
-    color: "#b10000",
-    fontSize: 13,
-    fontWeight: 800,
-    lineHeight: 1.35,
-  },
-  footerNote: {
-    padding: "0 16px 16px",
-    color: "rgba(0,0,0,0.55)",
-    fontSize: 12,
-    fontWeight: 700,
-  },
-  tiny: {
-    marginTop: 12,
-    textAlign: "center",
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 12,
-  },
-};
 
 
 ==========================================================================================

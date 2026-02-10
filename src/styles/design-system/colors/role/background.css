@@ -8,6 +8,9 @@
   --color-bg-surface:       var(--scale-Neutral50);
   --color-bg-surface-hover: var(--scale-Neutral100);
 
+  /* ✅ active surface (used by native element lock / patterns) */
+  --color-bg-surface-active: var(--scale-Neutral200);
+
   --color-bg-overlay:       var(--scale-Neutral900);
   --color-bg-inverse:       var(--scale-Neutral900);
 

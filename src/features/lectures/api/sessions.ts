@@ -1,4 +1,4 @@
-// src/features/lectures/api/sessions.ts
+// PATH: src/features/lectures/api/sessions.ts
 import api from "@/shared/api/axios";
 
 // ----------------------------------------
@@ -20,11 +20,7 @@ export async function fetchSessions(lectureId: number) {
 // ----------------------------------------
 // SESSION 생성 (기존 기능 유지)
 // ----------------------------------------
-export async function createSession(
-  lectureId: number,
-  title: string,
-  date: string
-) {
+export async function createSession(lectureId: number, title: string, date: string) {
   const res = await api.post(`/lectures/sessions/`, {
     lecture: lectureId,
     title,

@@ -1,130 +1,225 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { FiUser } from "react-icons/fi";
-import { useTheme } from "@/context/ThemeContext";
+// PATH: src/shared/ui/layout/Sidebar.tsx
+import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 
-const menu = [
-  { label: "강의", path: "lectures" },
-  { label: "학생", path: "students" },
-  { label: "클리닉", path: "clinic" },
-  { label: "상담", path: "counsel" },
-  { label: "공지", path: "notice" },
-  { label: "메시지", path: "message" },
-  { label: "자료실", path: "materials" },
-  { label: "커뮤니티", path: "community" },
-  { label: "직원관리", path: "staff" },
-];
+const BASE = "/admin";
+const SIDEBAR_STORAGE_KEY = "ui.sidebar.collapsed";
 
-const themes = [
-  { key: "modern", label: "모던" },
-  { key: "navy", label: "네이비" },
-  { key: "kakao", label: "카카오" },
-  { key: "naver", label: "네이버" },
-  { key: "purple", label: "퍼플" },
-] as const;
+type NavItem = {
+  to: string;
+  label: string;
+  icon: React.ReactNode;
+};
+
+type NavGroup = {
+  title?: string;
+  items: NavItem[];
+};
+
+function Icon({ d }: { d: string }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        d={d}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function safeGetCollapsed(): boolean {
+  try {
+    const v = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return v === "1";
+  } catch {
+    return false;
+  }
+}
+
+function safeSetCollapsed(v: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, v ? "1" : "0");
+  } catch {
+    // ignore
+  }
+}
+
+function applySidebarLayout(collapsed: boolean) {
+  const root = document.documentElement;
+  root.setAttribute("data-sidebar", collapsed ? "collapsed" : "expanded");
+  root.style.setProperty(
+    "--sidebar-width",
+    collapsed ? "var(--sidebar-width-collapsed)" : "260px"
+  );
+}
 
 export default function Sidebar() {
-  const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
+  const loc = useLocation();
+  const [collapsed, setCollapsed] = useState<boolean>(() => safeGetCollapsed());
 
-  const [userOpen, setUserOpen] = useState(false);
-  const [themeOpen, setThemeOpen] = useState(false);
+  useEffect(() => {
+    applySidebarLayout(collapsed);
+    safeSetCollapsed(collapsed);
+  }, [collapsed]);
+
+  useEffect(() => {
+    const onToggle = () => setCollapsed((v) => !v);
+    document.addEventListener("ui:sidebar:toggle", onToggle);
+    return () => document.removeEventListener("ui:sidebar:toggle", onToggle);
+  }, []);
+
+  const groups: NavGroup[] = useMemo(
+    () => [
+      {
+        items: [
+          {
+            to: `${BASE}/dashboard`,
+            label: "대시보드",
+            icon: <Icon d="M3 11l9-7 9 7v9H3z" />,
+          },
+          {
+            to: `${BASE}/students`,
+            label: "학생",
+            icon: (
+              <Icon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />
+            ),
+          },
+          {
+            to: `${BASE}/lectures`,
+            label: "강의",
+            icon: <Icon d="M4 4h16v12H4zM8 20h8" />,
+          },
+        ],
+      },
+      {
+        items: [
+          {
+            to: `${BASE}/exams`,
+            label: "시험",
+            icon: <Icon d="M7 3h10v18H7zM9 7h6M9 11h6M9 15h4" />,
+          },
+          {
+            to: `${BASE}/results`,
+            label: "성적",
+            icon: <Icon d="M4 18h16M6 15V9M12 15V5M18 15v-7" />,
+          },
+          {
+            to: `${BASE}/clinic`,
+            label: "클리닉",
+            icon: (
+              <Icon d="M12 21s7-4 7-10a7 7 0 0 0-14 0c0 6 7 10 7 10Z" />
+            ),
+          },
+        ],
+      },
+      {
+        items: [
+          {
+            to: `${BASE}/staff`,
+            label: "직원관리",
+            icon: (
+              <Icon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />
+            ),
+          },
+          {
+            to: `${BASE}/videos`,
+            label: "영상",
+            icon: <Icon d="M3 6h14v12H3zM17 10l4-2v8l-4-2z" />,
+          },
+          {
+            to: `${BASE}/community`,
+            label: "커뮤니티",
+            icon: <Icon d="M4 4h16v12H7l-3 3z" />,
+          },
+          {
+            to: `${BASE}/messages`,
+            label: "메시지",
+            icon: (
+              <Icon d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+            ),
+          },
+        ],
+      },
+      {
+        items: [
+          {
+            to: `${BASE}/settings`,
+            label: "시스템 설정",
+            icon: (
+              <Icon d="M12 15.5a3.5 3.5 0 1 0 0-7M19.4 15a8 8 0 0 0 0-6l2-1-2-4-2.3.5a8 8 0 0 0-3.4-2L11 1h-4l-.7 2.5a8 8 0 0 0-3.4 2L1.6 5l-2 4 2 1a8 8 0 0 0 0 6l-2 1 2 4 2.3-.5a8 8 0 0 0 3.4 2L7 23h4l.7-2.5a8 8 0 0 0 3.4-2l2.3.5 2-4Z" />
+            ),
+          },
+          {
+            to: `${BASE}/profile/account`,
+            label: "내 계정",
+            icon: (
+              <Icon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />
+            ),
+          },
+        ],
+      },
+    ],
+    []
+  );
+
+  const isActive = (to: string) =>
+    loc.pathname === to || loc.pathname.startsWith(to + "/");
 
   return (
-    <aside className="sidebar flex flex-col py-4">
-      <nav className="nav px-3">
-        {menu.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
+    <aside
+      className="sidebar sidebar-shell"
+      style={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        background:
+          "linear-gradient(180deg, var(--sidebar-bg), color-mix(in srgb, var(--sidebar-bg) 78%, var(--layout-canvas-bg)))",
+      }}
+    >
+      <div style={{ flex: 1, overflow: "hidden", padding: "12px" }}>
+        <div className="nav">
+          {groups.map((g, gi) => (
+            <div key={gi} className="sidebar-group">
+              {g.title ? (
+                <div className="sidebar-group-title">{g.title}</div>
+              ) : null}
 
-      <div className="mt-4 mb-3 mx-3 h-px opacity-60 divider" />
+              {g.items.map((it) => {
+                const active = isActive(it.to);
 
-      {/* User */}
-      <div className="relative px-3 mb-2">
-        <button
-          className="nav-item w-full flex items-center gap-2"
-          onClick={() => {
-            setUserOpen((p) => !p);
-            setThemeOpen(false);
-          }}
-        >
-          <FiUser size={14} />
-          사용자 정보
-        </button>
+                return (
+                  <NavLink
+                    key={it.to}
+                    to={it.to}
+                    className={`nav-item ${active ? "active" : ""}`}
+                    title={it.label}
+                  >
+                    <span
+                      style={{
+                        display: "grid",
+                        placeItems: "center",
+                        width: 22,
+                        flex: "0 0 auto",
+                      }}
+                    >
+                      {it.icon}
+                    </span>
 
-        {userOpen && (
-          <div className="absolute left-[calc(100%+6px)] top-1/2 -translate-y-1/2 min-w-[160px] surface shadow-md z-50">
-            <button
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--sidebar-hover-bg)]"
-              onClick={() => {
-                setUserOpen(false);
-                navigate("/admin/profile/account");
-              }}
-            >
-              내 정보
-            </button>
-
-            <button
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-[var(--sidebar-hover-bg)]"
-              onClick={() => {
-                setUserOpen(false);
-                navigate("/admin/profile/expense");
-              }}
-            >
-              근태 기록
-            </button>
-
-            <div className="divider" />
-
-            <button
-              className="block w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-[var(--sidebar-hover-bg)]"
-              onClick={() => setUserOpen(false)}
-            >
-              로그아웃
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Theme */}
-      <div className="relative px-3">
-        <button
-          className="nav-item w-full"
-          onClick={() => {
-            setThemeOpen((p) => !p);
-            setUserOpen(false);
-          }}
-        >
-          테마 변경
-        </button>
-
-        {themeOpen && (
-          <div className="absolute left-[calc(100%+6px)] top-1/2 -translate-y-1/2 min-w-[160px] surface shadow-md z-50">
-            {themes.map((t) => (
-              <button
-                key={t.key}
-                className={`block w-full px-3 py-2 text-left text-sm ${
-                  theme === t.key
-                    ? "text-[var(--color-primary)]"
-                    : ""
-                } hover:bg-[var(--sidebar-hover-bg)]`}
-                onClick={() => {
-                  setTheme(t.key);
-                  setThemeOpen(false);
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
+                    {!collapsed && (
+                      <span className="label" style={{ minWidth: 0 }}>
+                        {it.label}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </aside>
   );

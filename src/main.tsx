@@ -1,10 +1,10 @@
 // PATH: src/main.tsx
 // --------------------------------------------------
-// App Entry Point (FINAL)
+// App Entry Point (FINAL / BACKEND-ALIGNED)
 //
-// - Global CSS는 src/index.css 단일 진입
-// - Design System SSOT 기반
-// - legacy styles / globals.css 완전 제거
+// - Backend Core SSOT compliant
+// - Host-based tenant resolution
+// - Program (/core/program) is the first-class citizen
 // --------------------------------------------------
 
 import React from "react";
@@ -14,23 +14,24 @@ import { BrowserRouter } from "react-router-dom";
 import AppRouter from "@/app/router/AppRouter";
 import QueryProvider from "@/app/providers/QueryProvider";
 import { AuthProvider } from "@/features/auth/context/AuthContext";
+import { ProgramProvider } from "@/shared/program";
 import { ThemeProvider } from "@/context/ThemeContext";
 
-/**
- * ✅ Global Style Entry (SSOT)
- * - src/index.css
- * - 내부에서 design-system/index.css 로 연결됨
- */
-import "./index.css";
+import "./index.css";                 // ✅ Tailwind + DS 단일 진입
+import "antd/dist/reset.css";         // ✅ AntD reset
+// ❌ 여기서 DS css 다시 import 하면 안 됨
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider>
       <BrowserRouter>
         <QueryProvider>
-          <AuthProvider>
-            <AppRouter />
-          </AuthProvider>
+          {/* 🔒 Program is resolved BEFORE auth & routing */}
+          <ProgramProvider>
+            <AuthProvider>
+              <AppRouter />
+            </AuthProvider>
+          </ProgramProvider>
         </QueryProvider>
       </BrowserRouter>
     </ThemeProvider>

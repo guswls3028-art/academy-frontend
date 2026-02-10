@@ -1,19 +1,4 @@
-/**
- * PATH: src/features/sessions/components/ScoresReadonlyTable.tsx
- *
- * ✅ Sessions Readonly Scores Table
- *
- * 책임:
- * - 세션 단위 학생 목록 + 점수 "정보 표시"
- *
- * ❌ 금지:
- * - 합격/불합격 판단 강조
- * - 클리닉 대상 여부 강조
- * - 결과 해석 UX
- *
- * 👉 상세 판단은 results 도메인으로 위임
- */
-
+// PATH: src/features/sessions/components/ScoresReadonlyTable.tsx
 import type { SessionScoreRow } from "../api/sessionScores";
 
 type Props = {
@@ -28,17 +13,34 @@ export default function ScoresReadonlyTable({
   onSelectRow,
 }: Props) {
   return (
-    <div className="overflow-hidden rounded border bg-white">
-      <table className="w-full text-sm">
-        <thead className="border-b bg-gray-50 text-gray-600">
+    <div
+      style={{
+        overflow: "hidden",
+        borderRadius: 14,
+        border: "1px solid var(--color-border-divider)",
+      }}
+    >
+      <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
+        <thead>
           <tr>
-            <th className="px-3 py-2 text-left">학생</th>
-            <th className="px-3 py-2 text-left">점수</th>
-            <th className="px-3 py-2 text-left">비고</th>
+            {["학생", "점수", "비고"].map((h) => (
+              <th
+                key={h}
+                className="px-4 py-3 text-xs font-extrabold"
+                style={{
+                  textAlign: "left",
+                  background: "var(--color-bg-surface-hover)",
+                  color: "var(--color-text-secondary)",
+                  borderBottom: "1px solid var(--color-border-divider)",
+                }}
+              >
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
 
-        <tbody>
+        <tbody className="divide-y divide-[var(--color-border-divider)]">
           {rows.map((row) => {
             const selected =
               selectedEnrollmentId === row.enrollment_id;
@@ -46,24 +48,21 @@ export default function ScoresReadonlyTable({
             return (
               <tr
                 key={row.enrollment_id}
-                className={[
-                  "border-t cursor-pointer",
-                  selected ? "bg-purple-50" : "hover:bg-gray-50",
-                ].join(" ")}
                 onClick={() => onSelectRow(row)}
+                className="cursor-pointer"
+                style={{
+                  background: selected
+                    ? "var(--state-selected-bg)"
+                    : undefined,
+                }}
               >
-                <td className="px-3 py-2 font-medium">
+                <td className="px-4 py-3 font-medium">
                   {row.student_name}
                 </td>
-
-                {/* 🔒 점수는 정보용 표시만 */}
-                <td className="px-3 py-2">
-                  {row.final_score == null
-                    ? "-"
-                    : row.final_score}
+                <td className="px-4 py-3">
+                  {row.final_score ?? "-"}
                 </td>
-
-                <td className="px-3 py-2 text-xs text-gray-400">
+                <td className="px-4 py-3 text-xs text-[var(--color-text-muted)]">
                   결과 상세에서 확인
                 </td>
               </tr>
@@ -74,7 +73,7 @@ export default function ScoresReadonlyTable({
             <tr>
               <td
                 colSpan={3}
-                className="px-3 py-8 text-center text-gray-400"
+                className="px-4 py-10 text-center text-sm text-[var(--color-text-muted)]"
               >
                 성적 데이터가 없습니다.
               </td>

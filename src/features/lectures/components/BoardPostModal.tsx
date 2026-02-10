@@ -1,6 +1,10 @@
-import { useState } from "react";
+// PATH: src/features/lectures/components/BoardPostModal.tsx
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BoardCategory, createBoardPost } from "../api/board";
+
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 
 interface Props {
   lectureId: number;
@@ -11,91 +15,116 @@ interface Props {
 export default function BoardPostModal({ lectureId, category, onClose }: Props) {
   const qc = useQueryClient();
 
-  const [title, setTitle] = useState("");
+  const [titleInput, setTitleInput] = useState("");
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const { mutate, isLoading } = useMutation({
-    mutationFn: () => {
-      const fd = new FormData();
-      fd.append("lecture", String(lectureId));
-      fd.append("category", String(category.id));
-      fd.append("title", title);
-      fd.append("content", content);
-      if (files) {
-        Array.from(files).forEach((file) => fd.append("files", file));
+  const title = useMemo(() => `${category.name} - 글 작성`, [category.name]);
+
+  const { mutate } = useMutation({
+    mutationFn: async () => {
+      setBusy(true);
+      try {
+        const fd = new FormData();
+        fd.append("lecture", String(lectureId));
+        fd.append("category", String(category.id));
+        fd.append("title", titleInput);
+        fd.append("content", content);
+        if (files) Array.from(files).forEach((file) => fd.append("files", file));
+        return await createBoardPost(fd);
+      } finally {
+        setBusy(false);
       }
-      return createBoardPost(fd);
     },
     onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: ["board-posts", lectureId, category.id],
-      });
+      qc.invalidateQueries({ queryKey: ["board-posts", lectureId, category.id] });
       onClose();
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    mutate();
-  };
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        if (!busy && titleInput.trim()) mutate();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, titleInput, content, files]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-3xl rounded-lg bg-[var(--bg-surface)] p-6 shadow-lg">
-        <h2 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
-          {category.name} - 글 작성
-        </h2>
+    <AdminModal open={true} onClose={onClose} type="action" width={980}>
+      <ModalHeader type="action" title={title} description="⌘/Ctrl + Enter 로 등록" />
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-sm">
-          <div>
-            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>
               제목
-            </label>
+            </div>
             <input
-              className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              className="ds-input"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              disabled={busy}
+              data-invalid={!titleInput.trim() ? "true" : "false"}
+              autoFocus
             />
           </div>
 
-          <div>
-            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>
               내용
-            </label>
+            </div>
             <textarea
-              className="h-60 w-full resize-none rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2"
+              className="ds-textarea"
+              rows={14}
+              style={{ resize: "none" }}
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              disabled={busy}
             />
           </div>
 
-          <div>
-            <label className="mb-1 block font-medium text-[var(--text-secondary)]">
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>
               첨부 파일
-            </label>
-            <input type="file" multiple onChange={(e) => setFiles(e.target.files)} />
+            </div>
+            <input type="file" multiple onChange={(e) => setFiles(e.target.files)} disabled={busy} />
+            <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+              파일을 여러 개 선택할 수 있습니다.
+            </div>
           </div>
+        </div>
+      </ModalBody>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-[var(--border-divider)] px-3 py-2 text-[var(--text-secondary)]"
-            >
+      <ModalFooter
+        left={
+          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            ESC 로 닫기 · ⌘/Ctrl + Enter 등록
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
               취소
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="rounded-md bg-[var(--color-primary)] px-4 py-2 text-white disabled:opacity-60"
+            </Button>
+            <Button
+              intent="primary"
+              onClick={() => {
+                if (!titleInput.trim()) return;
+                mutate();
+              }}
+              disabled={busy || !titleInput.trim()}
             >
-              {isLoading ? "저장 중..." : "등록"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+              {busy ? "저장 중…" : "등록"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }

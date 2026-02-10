@@ -53,12 +53,12 @@ export async function fetchStaffs(params?: {
  * POST /staffs/
  * 🔒 생성 스펙 단일진실
  *
- * permission_role:
+ * backend expects: role
  * - ASSISTANT : 일반 직원
  * - TEACHER   : 강사
  * - ADMIN     : 관리자 (승인/마감 가능)
  *
- * ⚠️ OWNER는 백엔드 전용이며 프론트에서 지정 불가
+ * ⚠️ OWNER는 백엔드 전용이며 프론트에서 지정 불가(전송 금지)
  * ⚠️ is_manager / is_payroll_manager 변환 책임은 백엔드
  */
 export async function createStaff(payload: {
@@ -66,9 +66,16 @@ export async function createStaff(payload: {
   password: string;
   name: string;
   phone?: string;
-  permission_role: "ADMIN" | "TEACHER" | "ASSISTANT";
+  role: "ADMIN" | "TEACHER" | "ASSISTANT";
 }) {
-  const res = await api.post("/staffs/", payload);
+  const res = await api.post("/staffs/", {
+    username: payload.username,
+    password: payload.password,
+    name: payload.name,
+    phone: payload.phone || undefined,
+    role: payload.role,
+  });
+
   return res.data as Staff;
 }
 

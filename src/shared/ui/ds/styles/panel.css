@@ -1,0 +1,16 @@
+/* PATH: src/shared/ui/ds/styles/panel.css */
+
+.ds-panel[data-panel-variant="default"] {
+  background: var(--ui-work-bg);
+  border-color: var(--ui-work-border);
+}
+
+.ds-panel[data-panel-variant="subtle"] {
+  background: var(--ui-meta-bg);
+  border-color: var(--ui-meta-border);
+}
+
+.ds-panel[data-panel-variant="primary"] {
+  background: var(--ui-hero-bg);
+  border-color: var(--ui-hero-border);
+}

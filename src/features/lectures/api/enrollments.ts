@@ -1,3 +1,4 @@
+// PATH: src/features/lectures/api/enrollments.ts
 import api from "@/shared/api/axios";
 
 export async function fetchLectureEnrollments(lectureId: number) {

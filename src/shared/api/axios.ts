@@ -1,9 +1,10 @@
 // PATH: src/shared/api/axios.ts
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
-import {
-  resolveTenantCode,
-  getTenantCodeFromStorage,
-} from "@/shared/tenant";
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  AxiosRequestConfig,
+  AxiosResponse,
+} from "axios";
 
 type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
@@ -69,19 +70,8 @@ function flushRefreshQueue(token: string | null) {
   q.forEach((cb) => cb(token));
 }
 
-function buildTenantHeader(): string | null {
-  // Deterministic: storage first (UI can set), then resolver
-  const stored = getTenantCodeFromStorage();
-  if (stored) return stored;
-
-  const r = resolveTenantCode();
-  return r.ok ? r.code : null;
-}
-
 function shouldSkipAuth(url?: string) {
   const u = String(url || "");
-  // backend bypass: /api/v1/token/, /api/v1/token/refresh/
-  // but it's OK to still attach tenant if available; auth header should be omitted if no access exists
   return u.includes("/token/") || u.includes("/token/refresh/");
 }
 
@@ -99,18 +89,12 @@ const api: AxiosInstance = axios.create({
 /**
  * Request interceptor
  * - attach JWT Bearer (if available)
- * - attach tenant header (if resolved)
- * - attach correlation headers (optional operational)
+ * - attach operational headers
+ *
+ * ❌ Tenant header injection removed (Backend resolves tenant by host)
  */
 api.interceptors.request.use((config) => {
   const cfg = config;
-
-  // Attach tenant if resolved
-  const tenantCode = buildTenantHeader();
-  if (tenantCode) {
-    cfg.headers = cfg.headers ?? {};
-    (cfg.headers as any)["X-Tenant-Code"] = tenantCode;
-  }
 
   // Attach Authorization if access exists (JWT)
   if (!shouldSkipAuth(cfg.url)) {
@@ -124,7 +108,9 @@ api.interceptors.request.use((config) => {
   // Optional operational headers
   cfg.headers = cfg.headers ?? {};
   (cfg.headers as any)["X-Client"] = "academyfront";
-  (cfg.headers as any)["X-Client-Version"] = String(import.meta.env.VITE_APP_VERSION || "dev");
+  (cfg.headers as any)["X-Client-Version"] = String(
+    import.meta.env.VITE_APP_VERSION || "dev"
+  );
 
   return cfg;
 });
@@ -142,8 +128,10 @@ async function refreshAccessToken(): Promise<string | null> {
       { refresh },
       { timeout: 20_000, withCredentials: false }
     );
+
     const newAccess = String(res.data?.access || "").trim();
     if (!newAccess) return null;
+
     setAccessToken(newAccess);
     return newAccess;
   } catch {
@@ -154,7 +142,7 @@ async function refreshAccessToken(): Promise<string | null> {
 /**
  * Response interceptor
  * - 401: attempt refresh ONCE, then replay original request
- * - 403: do not refresh (tenant/membership/role), fail-fast
+ * - 403: do not refresh (membership/role), fail-fast
  */
 api.interceptors.response.use(
   (res: AxiosResponse) => res,
@@ -164,19 +152,15 @@ api.interceptors.response.use(
     const status = err.response?.status;
     const original = err.config as RetryConfig | undefined;
 
-    // network or no config
     if (!original) throw err;
 
-    // 403: tenant/membership/permission issue (refresh won't help)
     if (status === 403) {
       throw err;
     }
 
-    // 401: try refresh once
     if (status === 401 && !original._retry && !shouldSkipAuth(original.url)) {
       original._retry = true;
 
-      // If already refreshing: queue and replay when ready
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           enqueueRefresh((token) => {
@@ -196,7 +180,6 @@ api.interceptors.response.use(
       const newAccess = await refreshAccessToken();
       isRefreshing = false;
 
-      // Flush waiting queue
       flushRefreshQueue(newAccess);
 
       if (!newAccess) {
@@ -204,7 +187,6 @@ api.interceptors.response.use(
         throw err;
       }
 
-      // Replay original request with new token
       original.headers = original.headers ?? {};
       (original.headers as any).Authorization = `Bearer ${newAccess}`;
       return api.request(original);

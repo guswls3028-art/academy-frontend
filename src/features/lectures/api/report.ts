@@ -1,4 +1,4 @@
-// src/features/lectures/api/report.ts
+// PATH: src/features/lectures/api/report.ts
 import api from "@/shared/api/axios";
 
 export interface LectureReportStudent {
@@ -39,8 +39,6 @@ export interface LectureReportResponse {
 export async function fetchLectureReport(
   lectureId: number
 ): Promise<LectureReportResponse> {
-  const res = await api.get(
-    `/lectures/lectures/${lectureId}/report/`
-  );
+  const res = await api.get(`/lectures/lectures/${lectureId}/report/`);
   return res.data;
 }

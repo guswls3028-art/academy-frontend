@@ -1,71 +1,533 @@
 /* PATH: src/styles/design-system/colors/themes/index.css */
-/* Theme Scale Overrides
-   - 여기서는 "Scale Token 값만" 바꾼다 (Role/매핑 불변)
-   - 기본 테마는 :root 값(= White Clean)로 동작
-*/
+/* =========================================================
+   HakwonPlus Design System - Theme Definitions (SSOT)
+   - Theme must shape "space": canvas/page/panel/header/sidebar
+   - Sidebar variables must match layout.css expectations
+   ========================================================= */
 
-/* Dark Modern Blue */
-[data-theme="dark-modern-blue"] {
-  --scale-Neutral0:   #0b1020;
-  --scale-Neutral50:  #0f172a;
-  --scale-Neutral100: #111c33;
-  --scale-Neutral200: #1f2a44;
-  --scale-Neutral300: #2b3857;
-  --scale-Neutral400: #475569;
-  --scale-Neutral500: #94a3b8;
-  --scale-Neutral600: #cbd5e1;
-  --scale-Neutral700: #e2e8f0;
-  --scale-Neutral800: #f1f5f9;
-  --scale-Neutral900: #ffffff;
+/* ---------------------------------------------------------
+   Base mapping (fallback)
+--------------------------------------------------------- */
+:root {
+  /* Layout Area */
+  --layout-canvas-bg: var(--color-bg-canvas);
+  --layout-page-bg: color-mix(in srgb, var(--color-bg-canvas) 92%, var(--color-bg-surface));
+  --layout-header-bg: color-mix(in srgb, var(--color-bg-surface) 86%, transparent);
 
-  /* 배경/텍스트 대비를 위해 Primary도 살짝 네온감 */
-  --scale-Primary500: #4f8cff;
-  --scale-Primary600: #2f6fff;
-  --scale-Primary700: #1f56e6;
-  --scale-Primary100: rgba(79, 140, 255, 0.18);
-  --scale-Primary50:  rgba(79, 140, 255, 0.10);
+  /* Sidebar defaults (neutral) */
+  --sidebar-bg: var(--color-bg-surface);
+  --sidebar-border: var(--color-border-divider);
+
+  --sidebar-header-bg: color-mix(in srgb, var(--color-bg-surface) 86%, transparent);
+  --sidebar-header-border: var(--color-border-divider);
+
+  --sidebar-text: var(--color-text-primary);
+  --sidebar-muted: var(--color-text-secondary);
+  --sidebar-group-title: var(--color-text-muted);
+
+  --sidebar-item-hover-bg: var(--color-bg-surface-hover);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
 }
 
-/* Dark Navy */
-[data-theme="dark-navy"] {
-  --scale-Neutral0:   #070b14;
-  --scale-Neutral50:  #0b1120;
-  --scale-Neutral100: #0f172a;
-  --scale-Neutral200: #16213a;
-  --scale-Neutral300: #1e2a44;
-  --scale-Neutral400: #334155;
-  --scale-Neutral500: #94a3b8;
-  --scale-Neutral600: #cbd5e1;
-  --scale-Neutral700: #e2e8f0;
-  --scale-Neutral800: #f1f5f9;
-  --scale-Neutral900: #ffffff;
+/* =========================================================
+   WHITE THEMES (4)
+========================================================= */
 
+/* 1) Modern White */
+[data-theme="modern-white"] {
+  /* Scale (light base) */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f8fafc;
+  --scale-Neutral100: #f1f5f9;
+  --scale-Neutral200: #e2e8f0;
+  --scale-Neutral300: #cbd5e1;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #475569;
+  --scale-Neutral700: #334155;
+  --scale-Neutral800: #1f2937;
+  --scale-Neutral900: #0f172a;
+
+  --scale-Primary50:  #eff6ff;
+  --scale-Primary100: #dbeafe;
+  --scale-Primary200: #bfdbfe;
+  --scale-Primary300: #93c5fd;
+  --scale-Primary400: #60a5fa;
   --scale-Primary500: #2563eb;
   --scale-Primary600: #1d4ed8;
   --scale-Primary700: #1e40af;
-  --scale-Primary100: rgba(37, 99, 235, 0.18);
-  --scale-Primary50:  rgba(37, 99, 235, 0.10);
+
+  /* Space */
+  --layout-page-bg: #f6f8fc;
+  --layout-header-bg: color-mix(in srgb, #ffffff 86%, transparent);
+
+  /* Sidebar (clean) */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: var(--color-border-divider);
+  --sidebar-header-bg: color-mix(in srgb, #ffffff 78%, var(--color-bg-surface-hover));
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
 }
 
-/* White Clean (Samsung-style) */
-[data-theme="white-clean"] {
-  /* 기본(:root)과 동일 유지 가능 — 필요시만 오버라이드 */
+/* 2) Navy Pro (cool enterprise light) */
+[data-theme="navy-pro"] {
+  /* Scale (cool ink) */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #f6f8fb;
+  --scale-Neutral100: #edf2f7;
+  --scale-Neutral200: #dbe4ef;
+  --scale-Neutral300: #c7d3e3;
+  --scale-Neutral400: #94a3b8;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #46556c;
+  --scale-Neutral700: #2c3a55;
+  --scale-Neutral800: #1b2740;
+  --scale-Neutral900: #0b1730;
+
+  --scale-Primary50:  #eef2ff;
+  --scale-Primary100: #e0e7ff;
+  --scale-Primary200: #c7d2fe;
+  --scale-Primary300: #a5b4fc;
+  --scale-Primary400: #818cf8;
+  --scale-Primary500: #3b82f6;
+  --scale-Primary600: #2563eb;
+  --scale-Primary700: #1d4ed8;
+
+  /* Space */
+  --layout-page-bg: #f3f6fb;
+  --layout-header-bg: color-mix(in srgb, #ffffff 84%, transparent);
+
+  /* Sidebar (slight ink tint, not loud) */
+  --sidebar-bg: #f2f6ff;
+  --sidebar-border: color-mix(in srgb, var(--color-border-divider) 92%, #8aa4d6);
+  --sidebar-header-bg: color-mix(in srgb, #f2f6ff 82%, #dbe8ff);
+  --sidebar-item-hover-bg: color-mix(in srgb, #dbe8ff 56%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
 }
 
-/* White Kakao (Yellow/Brown) */
-[data-theme="white-kakao"] {
-  --scale-Primary500: #3b2400;
-  --scale-Primary600: #2a1a00;
-  --scale-Primary700: #1f1300;
-  --scale-Primary100: rgba(59, 36, 0, 0.12);
-  --scale-Primary50:  rgba(59, 36, 0, 0.08);
+/* 3) Ivory Office */
+[data-theme="ivory-office"] {
+  /* Scale (warm neutral) */
+  --scale-Neutral0:   #fffdf8;
+  --scale-Neutral50:  #fbf7f0;
+  --scale-Neutral100: #f4efe6;
+  --scale-Neutral200: #e7dfd3;
+  --scale-Neutral300: #d8cfbf;
+  --scale-Neutral400: #a8a29e;
+  --scale-Neutral500: #78716c;
+  --scale-Neutral600: #57534e;
+  --scale-Neutral700: #44403c;
+  --scale-Neutral800: #292524;
+  --scale-Neutral900: #1c1917;
+
+  --scale-Primary50:  #fff7ed;
+  --scale-Primary100: #ffedd5;
+  --scale-Primary200: #fed7aa;
+  --scale-Primary300: #fdba74;
+  --scale-Primary400: #fb923c;
+  --scale-Primary500: #b45309;
+  --scale-Primary600: #92400e;
+  --scale-Primary700: #78350f;
+
+  /* Space */
+  --layout-page-bg: #fbfaf7;
+  --layout-header-bg: color-mix(in srgb, #faf7f2 86%, transparent);
+
+  /* Sidebar */
+  --sidebar-bg: #f6f2ea;
+  --sidebar-border: color-mix(in srgb, var(--color-border-divider) 92%, #d8cfbf);
+  --sidebar-header-bg: color-mix(in srgb, #f6f2ea 82%, #ffffff);
+  --sidebar-item-hover-bg: color-mix(in srgb, #e7dfd3 72%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
 }
 
-/* White Naver (Green) */
-[data-theme="white-naver"] {
-  --scale-Primary500: #16a34a;
-  --scale-Primary600: #15803d;
-  --scale-Primary700: #166534;
-  --scale-Primary100: rgba(22, 163, 74, 0.14);
-  --scale-Primary50:  rgba(22, 163, 74, 0.08);
+/* 4) Minimal Mono */
+[data-theme="minimal-mono"] {
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #fafafa;
+  --scale-Neutral100: #f5f5f5;
+  --scale-Neutral200: #e5e5e5;
+  --scale-Neutral300: #d4d4d4;
+  --scale-Neutral400: #a3a3a3;
+  --scale-Neutral500: #737373;
+  --scale-Neutral600: #525252;
+  --scale-Neutral700: #404040;
+  --scale-Neutral800: #262626;
+  --scale-Neutral900: #0a0a0a;
+
+  /* Primary becomes pure ink */
+  --scale-Primary50:  #f5f5f5;
+  --scale-Primary100: #e5e5e5;
+  --scale-Primary200: #d4d4d4;
+  --scale-Primary300: #a3a3a3;
+  --scale-Primary400: #737373;
+  --scale-Primary500: #0a0a0a;
+  --scale-Primary600: #0a0a0a;
+  --scale-Primary700: #0a0a0a;
+
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: color-mix(in srgb, #ffffff 92%, transparent);
+
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e5e5;
+  --sidebar-header-bg: #ffffff;
+
+  --sidebar-text: #0a0a0a;
+  --sidebar-muted: #262626;
+  --sidebar-group-title: #525252;
+
+  --sidebar-item-hover-bg: #f5f5f5;
+  --sidebar-item-active-bg: #0a0a0a;
+  --sidebar-item-active-text: #ffffff;
+}
+
+/* =========================================================
+   DARK THEMES (4)
+========================================================= */
+
+/* 5) Modern Dark (gray premium) */
+[data-theme="modern-dark"] {
+  /* Scale (dark base, low glare) */
+  --scale-Neutral0:   #0d1117; /* canvas */
+  --scale-Neutral50:  #111827; /* surface */
+  --scale-Neutral100: #161f2c; /* hover */
+  --scale-Neutral200: #243244; /* divider */
+  --scale-Neutral300: #334155;
+  --scale-Neutral400: #475569;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #94a3b8;
+  --scale-Neutral700: #cbd5e1;
+  --scale-Neutral800: #e2e8f0;
+  --scale-Neutral900: #f8fafc;
+
+  --scale-Primary50:  #0b1324;
+  --scale-Primary100: #0f1b33;
+  --scale-Primary200: #173055;
+  --scale-Primary300: #1f4e8c;
+  --scale-Primary400: #2a6fda;
+  --scale-Primary500: #60a5fa;
+  --scale-Primary600: #7dd3fc;
+  --scale-Primary700: #93c5fd;
+
+  --layout-page-bg: color-mix(in srgb, #0d1117 92%, #111827);
+  --layout-header-bg: color-mix(in srgb, #111827 78%, transparent);
+
+  --sidebar-bg: #0f1520;
+  --sidebar-border: #243244;
+  --sidebar-header-bg: color-mix(in srgb, #0f1520 82%, #161f2c);
+  --sidebar-header-border: #243244;
+
+  --sidebar-text: #e2e8f0;
+  --sidebar-muted: #cbd5e1;
+  --sidebar-group-title: #94a3b8;
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #161f2c 88%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
+}
+
+/* 6) Dark Navy (premium navy) */
+[data-theme="dark-navy"] {
+  --scale-Neutral0:   #071024;
+  --scale-Neutral50:  #0b1730;
+  --scale-Neutral100: #102044;
+  --scale-Neutral200: #1a2d57;
+  --scale-Neutral300: #29406f;
+  --scale-Neutral400: #3b5687;
+  --scale-Neutral500: #5b74a3;
+  --scale-Neutral600: #9fb4d6;
+  --scale-Neutral700: #cfe0ff;
+  --scale-Neutral800: #e5efff;
+  --scale-Neutral900: #f8fbff;
+
+  --scale-Primary50:  #0b142a;
+  --scale-Primary100: #0f1f3f;
+  --scale-Primary200: #15325f;
+  --scale-Primary300: #1e4b92;
+  --scale-Primary400: #2b6df0;
+  --scale-Primary500: #3b82f6;
+  --scale-Primary600: #60a5fa;
+  --scale-Primary700: #93c5fd;
+
+  --layout-page-bg: color-mix(in srgb, #071024 92%, #0b1730);
+  --layout-header-bg: color-mix(in srgb, #0b1730 78%, transparent);
+
+  --sidebar-bg: #06102a;
+  --sidebar-border: #1a2d57;
+  --sidebar-header-bg: color-mix(in srgb, #06102a 82%, #102044);
+  --sidebar-header-border: #1a2d57;
+
+  --sidebar-text: #e5efff;
+  --sidebar-muted: #cfe0ff;
+  --sidebar-group-title: #9fb4d6;
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #102044 86%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
+}
+
+/* 7) YouTube Studio (charcoal studio, NOT gray-active) */
+[data-theme="youtube-studio"] {
+  --scale-Neutral0:   #0b0b0c;
+  --scale-Neutral50:  #111113;
+  --scale-Neutral100: #17171a;
+  --scale-Neutral200: #232328;
+  --scale-Neutral300: #2f2f36;
+  --scale-Neutral400: #3f3f46;
+  --scale-Neutral500: #6b7280;
+  --scale-Neutral600: #9ca3af;
+  --scale-Neutral700: #d1d5db;
+  --scale-Neutral800: #e5e7eb;
+  --scale-Neutral900: #f9fafb;
+
+  /* Primary = YouTube red (high visibility), but used with restraint */
+  --scale-Primary50:  #2a0b0b;
+  --scale-Primary100: #3a0d0d;
+  --scale-Primary200: #5a1111;
+  --scale-Primary300: #7a1414;
+  --scale-Primary400: #c81e1e;
+  --scale-Primary500: #ff0000;
+  --scale-Primary600: #ff3b3b;
+  --scale-Primary700: #ff6b6b;
+
+  --layout-page-bg: color-mix(in srgb, #0b0b0c 92%, #111113);
+  --layout-header-bg: color-mix(in srgb, #111113 78%, transparent);
+
+  --sidebar-bg: #0f0f10;
+  --sidebar-border: #232328;
+  --sidebar-header-bg: color-mix(in srgb, #0f0f10 82%, #17171a);
+  --sidebar-header-border: #232328;
+
+  --sidebar-text: #f9fafb;
+  --sidebar-muted: #d1d5db;
+  --sidebar-group-title: #9ca3af;
+
+  /* 핵심: active가 회색으로 죽지 않게, 레드 톤 “면”으로 강조 */
+  --sidebar-item-hover-bg: color-mix(in srgb, #17171a 92%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
+  --sidebar-item-active-text: #ff6b6b;
+}
+
+/* 8) Terminal Neon (developer neon dark) */
+[data-theme="terminal-neon"] {
+  --scale-Neutral0:   #030407;
+  --scale-Neutral50:  #050507;
+  --scale-Neutral100: #0a0c11;
+  --scale-Neutral200: #111827;
+  --scale-Neutral300: #1f2937;
+  --scale-Neutral400: #334155;
+  --scale-Neutral500: #64748b;
+  --scale-Neutral600: #a3b8d6;
+  --scale-Neutral700: #d8e6ff;
+  --scale-Neutral800: #ebf4ff;
+  --scale-Neutral900: #f8fbff;
+
+  /* Primary = neon cyan */
+  --scale-Primary50:  #001318;
+  --scale-Primary100: #00242c;
+  --scale-Primary200: #003a45;
+  --scale-Primary300: #005c6b;
+  --scale-Primary400: #00a3b8;
+  --scale-Primary500: #00ffcc;
+  --scale-Primary600: #22d3ee;
+  --scale-Primary700: #7dd3fc;
+
+  --layout-page-bg: color-mix(in srgb, #030407 92%, #050507);
+  --layout-header-bg: color-mix(in srgb, #050507 78%, transparent);
+
+  --sidebar-bg: #050507;
+  --sidebar-border: #111827;
+  --sidebar-header-bg: color-mix(in srgb, #050507 84%, #0a0c11);
+  --sidebar-header-border: #111827;
+
+  --sidebar-text: #d8e6ff;
+  --sidebar-muted: #a3b8d6;
+  --sidebar-group-title: #7aa0c7;
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #0a0c11 92%, transparent);
+  --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  --sidebar-item-active-text: var(--color-brand-primary);
+}
+/* =========================================================
+   BRAND / PREMIUM THEMES (4)
+   - Sidebar background MUST be brand fill for Samsung/Naver/Kakao
+========================================================= */
+/* 9) Kakao Business (FIXED RULE: yellow bg + brown accent) */
+[data-theme="kakao-business"] {
+  /* Keep app readable: warm light canvas */
+  --scale-Neutral0:   #ffffff;
+  --scale-Neutral50:  #fffdf2;
+  --scale-Neutral100: #fff9d6;
+  --scale-Neutral200: #fff3b0;
+  --scale-Neutral300: #f5df73;
+  --scale-Neutral400: #c9ab3a;
+  --scale-Neutral500: #7c4a2d;
+  --scale-Neutral600: #5b3a24;
+  --scale-Neutral700: #3a1d1d;
+  --scale-Neutral800: #2b1414;
+  --scale-Neutral900: #1a0d0d;
+
+  /* Primary fixed to Kakao brown (role brand) */
+  --scale-Primary50:  #f5e6e6;
+  --scale-Primary100: #e8caca;
+  --scale-Primary200: #d2a1a1;
+  --scale-Primary300: #b87373;
+  --scale-Primary400: #8a3f3f;
+  --scale-Primary500: #3B1E1E;
+  --scale-Primary600: #2b1414;
+  --scale-Primary700: #1a0d0d;
+
+  /* Page: 완전 무채, 필터감 제거 */
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: #ffffff;
+
+  /* Sidebar: Kakao solid yellow (no milky mix) */
+  --sidebar-bg: #FBE300;
+  --sidebar-border: color-mix(in srgb, #3B1E1E 18%, #FBE300);
+
+  --sidebar-header-bg: #FBE300;
+  --sidebar-header-border: color-mix(in srgb, #3B1E1E 22%, #FBE300);
+
+  --sidebar-text: #3B1E1E;
+  --sidebar-muted: color-mix(in srgb, #3B1E1E 68%, #FBE300);
+  --sidebar-group-title: color-mix(in srgb, #3B1E1E 54%, #FBE300);
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #3B1E1E 6%, #FBE300);
+  --sidebar-item-active-bg: #3B1E1E;
+  --sidebar-item-active-text: #ffffff;
+}
+
+
+/* 10) Naver Works (brand fill green → darker mung bean) */
+[data-theme="naver-works"] {
+  --scale-Neutral0:   #f4fff8;
+  --scale-Neutral50:  #ecfff4;
+  --scale-Neutral100: #e0ffef;
+  --scale-Neutral200: #c7f9df;
+  --scale-Neutral300: #9beec4;
+  --scale-Neutral400: #62d89a;
+  --scale-Neutral500: #16a34a;
+  --scale-Neutral600: #15803d;
+  --scale-Neutral700: #14532d;
+  --scale-Neutral800: #0f3d21;
+  --scale-Neutral900: #0b2b17;
+
+  /* Primary = Naver green (kept for accents, darker) */
+  --scale-Primary50:  #e9fff2;
+  --scale-Primary100: #93b991;
+  --scale-Primary200: #9ef7bf;
+  --scale-Primary300: #5ee79a;
+  --scale-Primary400: #2da15d;
+  --scale-Primary500: #013619;
+  --scale-Primary600: #14532d;
+  --scale-Primary700: #0b2b17;
+
+  /* 👉 필터 제거 */
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+
+  /* Sidebar brand fill (녹두톤, 더 어둡게) */
+  --sidebar-bg: color-mix(in srgb, #14532d 68%, #0b2b17);
+  --sidebar-border: color-mix(in srgb, #0b2b17 36%, #14532d);
+
+  --sidebar-header-bg: color-mix(in srgb, #14532d 60%, #0b2b17);
+  --sidebar-header-border: color-mix(in srgb, #0b2b17 32%, #14532d);
+
+  --sidebar-text: #f4fff8;
+  --sidebar-muted: color-mix(in srgb, #f4fff8 68%, #14532d);
+  --sidebar-group-title: color-mix(in srgb, #f4fff8 54%, #14532d);
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #0b2b17 22%, #14532d);
+  --sidebar-item-active-bg: #ffffff;
+  --sidebar-item-active-text: #14532d;
+}
+
+/* 11) Samsung Admin (brand fill samsung blue) */
+[data-theme="samsung-admin"] {
+  --scale-Neutral0:   #f6f9ff;
+  --scale-Neutral50:  #f0f6ff;
+  --scale-Neutral100: #e6efff;
+  --scale-Neutral200: #d7e4ff;
+  --scale-Neutral300: #b8ccff;
+  --scale-Neutral400: #7ea6ff;
+  --scale-Neutral500: #2b6df0;
+  --scale-Neutral600: #1e40af;
+  --scale-Neutral700: #142b73;
+  --scale-Neutral800: #0f204f;
+  --scale-Neutral900: #0b1533;
+
+  /* Primary = Samsung blue */
+  --scale-Primary50:  #e6efff;
+  --scale-Primary100: #d7e4ff;
+  --scale-Primary200: #b8ccff;
+  --scale-Primary300: #7ea6ff;
+  --scale-Primary400: #2b6df0;
+  --scale-Primary500: #0057d9;
+  --scale-Primary600: #0046b3;
+  --scale-Primary700: #003ea8;
+
+  /* 👉 필터 제거 */
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+
+  /* Sidebar brand fill (Samsung blue restrained) */
+  --sidebar-bg: color-mix(in srgb, #0057d9 54%, #0b1533);
+  --sidebar-border: color-mix(in srgb, #0b1533 32%, #0057d9);
+
+  --sidebar-header-bg: color-mix(in srgb, #0057d9 48%, #0b1533);
+  --sidebar-header-border: color-mix(in srgb, #0b1533 28%, #0057d9);
+
+  --sidebar-text: #ffffff;
+  --sidebar-muted: color-mix(in srgb, #ffffff 66%, #0057d9);
+  --sidebar-group-title: color-mix(in srgb, #ffffff 52%, #0057d9);
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #0b1533 14%, #0057d9);
+  --sidebar-item-active-bg: #e6efff;
+  --sidebar-item-active-text: #003ea8;
+}
+
+/* 12) Purple Insight (premium) */
+[data-theme="purple-insight"] {
+  --scale-Neutral0:   #faf7ff;
+  --scale-Neutral50:  #f5f3ff;
+  --scale-Neutral100: #ede9fe;
+  --scale-Neutral200: #ddd6fe;
+  --scale-Neutral300: #c4b5fd;
+  --scale-Neutral400: #a78bfa;
+  --scale-Neutral500: #7c3aed;
+  --scale-Neutral600: #6d28d9;
+  --scale-Neutral700: #5b21b6;
+  --scale-Neutral800: #3b0f7a;
+  --scale-Neutral900: #24074f;
+
+  --scale-Primary50:  #f5f3ff;
+  --scale-Primary100: #ede9fe;
+  --scale-Primary200: #ddd6fe;
+  --scale-Primary300: #c4b5fd;
+  --scale-Primary400: #a78bfa;
+  --scale-Primary500: #7c3aed;
+  --scale-Primary600: #6d28d9;
+  --scale-Primary700: #5b21b6;
+
+  /* 👉 필터 제거 */
+  --layout-page-bg: #ffffff;
+  --layout-header-bg: color-mix(in srgb, #ffffff 90%, transparent);
+
+  /* Sidebar: lighter royal plum */
+  --sidebar-bg: color-mix(in srgb, #4c1d95 56%, #24074f);
+  --sidebar-border: color-mix(in srgb, #24074f 36%, #4c1d95);
+
+  --sidebar-header-bg: color-mix(in srgb, #4c1d95 48%, #24074f);
+  --sidebar-header-border: color-mix(in srgb, #24074f 30%, #4c1d95);
+
+  --sidebar-text: #f5f3ff;
+  --sidebar-muted: color-mix(in srgb, #f5f3ff 70%, #24074f);
+  --sidebar-group-title: color-mix(in srgb, #f5f3ff 56%, #24074f);
+
+  --sidebar-item-hover-bg: color-mix(in srgb, #24074f 18%, #4c1d95);
+  --sidebar-item-active-bg: #ede9fe;
+  --sidebar-item-active-text: #5b21b6;
 }

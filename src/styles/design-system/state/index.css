@@ -1,6 +1,7 @@
 /* PATH: src/styles/design-system/state/index.css */
 /* State Entry */
 
+@import "./motion.css";
 @import "./interactive.css";
 @import "./disabled.css";
 @import "./selection.css";

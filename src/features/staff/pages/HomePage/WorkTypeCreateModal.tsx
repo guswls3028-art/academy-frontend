@@ -1,8 +1,15 @@
 // PATH: src/features/staff/pages/HomePage/WorkTypeCreateModal.tsx
-import { Modal } from "antd";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+
+import {
+  AdminModal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/shared/ui/modal";
+import { ActionButton } from "@/shared/ui/ds";
 
 export default function WorkTypeCreateModal({
   open,
@@ -51,78 +58,83 @@ export default function WorkTypeCreateModal({
   });
 
   return (
-    <Modal
-      title="근무유형 생성"
-      open={open}
-      onCancel={onClose}
-      okText="생성"
-      cancelText="취소"
-      confirmLoading={createM.isPending}
-      onOk={() => {
-        if (!form.name.trim()) {
-          alert("근무유형 이름은 필수입니다.");
-          return;
-        }
-        if (form.base_hourly_wage <= 0) {
-          alert("기본 시급은 0보다 커야 합니다.");
-          return;
-        }
-        createM.mutate();
-      }}
-    >
-      <div className="space-y-3">
-        <Field label="근무유형명 *">
-          <input
-            className="input"
-            value={form.name}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, name: e.target.value }))
-            }
-            placeholder="예: 강의, 상담, 보조업무"
-          />
-        </Field>
+    <AdminModal open={open} onClose={onClose} type="action">
+      <ModalHeader
+        title="근무유형 생성"
+        description="직원 근무 기록에 사용될 근무유형을 추가합니다."
+        type="action"
+      />
 
-        <Field label="기본 시급(원) *">
-          <input
-            type="number"
-            className="input"
-            min={0}
-            value={form.base_hourly_wage}
-            onChange={(e) =>
-              setForm((p) => ({
-                ...p,
-                base_hourly_wage: Number(e.target.value),
-              }))
-            }
-          />
-        </Field>
+      <ModalBody>
+        <div className="grid gap-3">
+          <Field label="근무유형명 *">
+            <input
+              className="ds-input"
+              value={form.name}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, name: e.target.value }))
+              }
+            />
+          </Field>
 
-        <Field label="색상">
-          <input
-            type="color"
-            value={form.color}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, color: e.target.value }))
-            }
-          />
-        </Field>
+          <Field label="기본 시급(원) *">
+            <input
+              type="number"
+              className="ds-input"
+              value={form.base_hourly_wage}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  base_hourly_wage: Number(e.target.value),
+                }))
+              }
+            />
+          </Field>
 
-        <Field label="설명">
-          <textarea
-            className="input"
-            rows={2}
-            value={form.description}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, description: e.target.value }))
-            }
-          />
-        </Field>
+          <Field label="색상">
+            <input
+              type="color"
+              value={form.color}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, color: e.target.value }))
+              }
+            />
+          </Field>
 
-        <div className="text-xs text-[var(--text-muted)]">
-          * 생성 즉시 직원 근무유형/근무기록에서 사용 가능합니다.
+          <Field label="설명">
+            <textarea
+              className="ds-input"
+              rows={2}
+              value={form.description}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, description: e.target.value }))
+              }
+            />
+          </Field>
         </div>
-      </div>
-    </Modal>
+      </ModalBody>
+
+      <ModalFooter
+        right={
+          <>
+            <ActionButton action="close" onClick={onClose} />
+            <ActionButton
+              action="create"
+              loading={createM.isPending}
+              onClick={() => {
+                if (!form.name.trim() || form.base_hourly_wage <= 0) {
+                  alert("필수 항목을 입력하세요.");
+                  return;
+                }
+                createM.mutate();
+              }}
+            >
+              생성
+            </ActionButton>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -134,8 +146,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-[var(--text-muted)]">
+    <div className="grid gap-1">
+      <div className="text-xs font-semibold text-[var(--text-muted)]">
         {label}
       </div>
       {children}

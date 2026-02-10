@@ -1,0 +1,190 @@
+/* ============================================================================
+ * DS BUTTON — ENTERPRISE SSOT (FINAL)
+ * - intent / size / state 완전 정의
+ * - TS 스펙과 1:1 대응
+ * - Light / Dark / Brand 안전
+ * ============================================================================ */
+
+/* ======================================================
+ * Base
+ * ====================================================== */
+
+.ds-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: var(--control-md);
+  padding: 0 14px;
+
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-divider);
+
+  background: var(--bg-surface);
+  color: var(--text-primary);
+
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  transition:
+    background-color var(--motion-base) var(--ease-out),
+    border-color var(--motion-base) var(--ease-out),
+    color var(--motion-base) var(--ease-out),
+    box-shadow var(--motion-base) var(--ease-out),
+    transform var(--motion-fast) ease;
+}
+
+/* ======================================================
+ * Size
+ * ====================================================== */
+
+.ds-button[data-size="sm"] {
+  min-height: var(--control-sm);
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.ds-button[data-size="md"] {
+  min-height: var(--control-md);
+}
+
+.ds-button[data-size="lg"] {
+  min-height: var(--control-lg);
+  padding: 0 18px;
+  font-size: 14px;
+}
+
+/* ======================================================
+ * Intent
+ * ====================================================== */
+
+/* Primary — 명시적 CTA */
+.ds-button[data-intent="primary"] {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: var(--text-on-primary);
+}
+
+.ds-button[data-intent="primary"]:hover {
+  background: var(--color-brand-primary-hover);
+}
+
+/* Secondary — 기본 작업 */
+.ds-button[data-intent="secondary"] {
+  background: var(--bg-surface);
+  border-color: var(--border-divider);
+  color: var(--text-primary);
+}
+
+.ds-button[data-intent="secondary"]:hover {
+  background: var(--bg-surface-soft);
+}
+
+/* Ghost — 파괴적/보조 아님, 저강도 액션 */
+.ds-button[data-intent="ghost"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.ds-button[data-intent="ghost"]:hover {
+  background: var(--bg-surface-soft);
+  color: var(--text-primary);
+}
+
+/* Danger — 파괴적 액션 */
+.ds-button[data-intent="danger"] {
+  background: color-mix(in srgb, var(--color-error) 10%, var(--bg-surface));
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.ds-button[data-intent="danger"]:hover {
+  background: color-mix(in srgb, var(--color-error) 18%, var(--bg-surface));
+}
+
+/* ======================================================
+ * Selection / Toggle (ARIA)
+ * ====================================================== */
+
+.ds-button[aria-pressed="true"] {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: var(--text-on-primary);
+
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.ds-button[aria-pressed="true"]:hover {
+  background: var(--color-brand-primary-hover);
+}
+
+/* ======================================================
+ * Focus (Accessibility SSOT)
+ * ====================================================== */
+
+.ds-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-surface),
+    0 0 0 4px color-mix(in srgb, var(--color-brand-primary) 60%, transparent);
+}
+
+/* ======================================================
+ * Icon-only
+ * ====================================================== */
+
+.ds-button[data-icon-only="true"] {
+  padding: 0;
+  width: var(--control-md);
+}
+
+.ds-button[data-icon-only="true"][data-size="lg"] {
+  width: var(--control-lg);
+}
+
+.ds-button[data-icon-only="true"][data-size="sm"] {
+  width: var(--control-sm);
+}
+
+/* ======================================================
+ * Loading
+ * ====================================================== */
+
+.ds-button[data-loading="true"] {
+  pointer-events: none;
+}
+
+.ds-button__spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  animation: ds-spin 0.9s linear infinite;
+}
+
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ======================================================
+ * Disabled
+ * ====================================================== */
+
+.ds-button:disabled,
+.ds-button[data-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}

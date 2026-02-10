@@ -1,9 +1,18 @@
-// src/features/lectures/pages/sessions/LectureSessionsPage.tsx
+// PATH: src/features/lectures/pages/sessions/LectureSessionsPage.tsx
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+
 import { fetchSessions } from "../../api/sessions";
 import SessionCreateModal from "../../components/SessionCreateModal";
+import { EmptyState, Button } from "@/shared/ui/ds";
+
+const TH_STYLE = {
+  background:
+    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
+  color:
+    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+};
 
 export default function LectureSessionsPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
@@ -11,50 +20,78 @@ export default function LectureSessionsPage() {
 
   const [open, setOpen] = useState(false);
 
-  const { data: sessions = [] } = useQuery({
+  const { data: sessions = [], isLoading, isError } = useQuery({
     queryKey: ["lecture-sessions", lecId],
     queryFn: () => fetchSessions(lecId),
     enabled: Number.isFinite(lecId),
   });
 
+  if (!Number.isFinite(lecId)) {
+    return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>잘못된 강의 ID</div>;
+  }
+
   return (
-    <div className="p-4">
-      <div className="mb-4 flex justify-between">
-        <h2 className="text-xl font-semibold">차시 목록</h2>
-        <button
-          className="rounded bg-blue-600 px-4 py-2 text-white"
-          onClick={() => setOpen(true)}
-        >
+    <>
+      <div className="flex items-center gap-2 mb-3">
+        <Button intent="primary" onClick={() => setOpen(true)}>
           + 차시 추가
-        </button>
+        </Button>
+        <span className="ml-auto text-sm font-semibold text-[var(--color-text-muted)]">
+          {isLoading ? "불러오는 중…" : `${sessions.length}개`}
+        </span>
       </div>
 
-      <div className="space-y-2">
-        {sessions.map((s: any) => (
-          <Link
-            key={s.id}
-            to={`${s.id}`}   // ✅ 상대경로
-            className="flex justify-between rounded border bg-gray-50 px-4 py-3 hover:bg-gray-100"
-          >
-            <div>
-              <div className="text-lg font-semibold">
-                {s.order}차시 - {s.title}
-              </div>
-              {s.date && (
-                <div className="text-sm text-gray-600">{s.date}</div>
-              )}
-            </div>
-            <div className="text-sm text-gray-500">ID: {s.id}</div>
-          </Link>
-        ))}
-      </div>
+      {isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : isError ? (
+        <EmptyState scope="panel" tone="error" title="차시 데이터를 불러올 수 없습니다." />
+      ) : sessions.length === 0 ? (
+        <EmptyState scope="panel" title="등록된 차시가 없습니다." description="차시를 추가하면 여기에 표시됩니다." />
+      ) : (
+        <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--color-border-divider)" }}>
+          <table className="w-full" style={{ tableLayout: "fixed" }}>
+            <thead>
+              <tr>
+                <th className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]" style={{ textAlign: "left", ...TH_STYLE }}>
+                  차시
+                </th>
+                <th className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]" style={{ textAlign: "left", ...TH_STYLE }}>
+                  제목
+                </th>
+                <th className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]" style={{ textAlign: "center", width: 160, ...TH_STYLE }}>
+                  날짜
+                </th>
+                <th className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]" style={{ textAlign: "center", width: 120, ...TH_STYLE }}>
+                  ID
+                </th>
+              </tr>
+            </thead>
 
-      {open && (
-        <SessionCreateModal
-          lectureId={lecId}
-          onClose={() => setOpen(false)}
-        />
+            <tbody className="divide-y divide-[var(--color-border-divider)]">
+              {sessions.map((s: any) => (
+                <tr key={s.id} className="hover:bg-[var(--color-bg-surface-soft)]">
+                  <td className="px-4 py-3 text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
+                    <Link to={`${s.id}`} style={{ color: "inherit", textDecoration: "none", fontWeight: 950 }}>
+                      {s.order ?? "-"}차시
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-secondary)] truncate">
+                    {s.title || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-center text-[14px] text-[var(--color-text-secondary)] truncate">
+                    {s.date || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-center text-[13px] font-semibold text-[var(--color-text-muted)] truncate">
+                    {s.id}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </div>
+
+      {open && <SessionCreateModal lectureId={lecId} onClose={() => setOpen(false)} />}
+    </>
   );
 }

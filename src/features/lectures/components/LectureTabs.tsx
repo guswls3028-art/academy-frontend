@@ -1,62 +1,46 @@
-// src/features/lectures/components/LectureTabs.tsx
-import { NavLink, useParams } from "react-router-dom";
+// PATH: src/features/lectures/components/LectureTabs.tsx
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 export default function LectureTabs() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { lectureId } = useParams<{ lectureId: string }>();
   if (!lectureId) return null;
 
+  const base = `/admin/lectures/${lectureId}`;
+
+  const activeKey = location.pathname.includes("/materials")
+    ? "materials"
+    : location.pathname.includes("/board")
+    ? "board"
+    : location.pathname.includes("/ddays")
+    ? "ddays"
+    : location.pathname.includes("/attendance")
+    ? "attendance"
+    : location.pathname.includes("/report")
+    ? "report"
+    : "students";
+
   const tabs = [
-    { key: "students", label: "수강생", to: `/admin/lectures/${lectureId}` },
-    { key: "materials", label: "자료실", to: `/admin/lectures/${lectureId}/materials` },
-    { key: "board", label: "게시판", to: `/admin/lectures/${lectureId}/board` },
-    { key: "ddays", label: "디데이", to: `/admin/lectures/${lectureId}/ddays` },
-    { key: "attendance", label: "출결", to: `/admin/lectures/${lectureId}/attendance` },
-    { key: "report", label: "리포트", to: `/admin/lectures/${lectureId}/report` },
+    { key: "students", label: "수강생", to: base },
+    { key: "materials", label: "자료실", to: `${base}/materials` },
+    { key: "board", label: "게시판", to: `${base}/board` },
+    { key: "ddays", label: "디데이", to: `${base}/ddays` },
+    { key: "attendance", label: "출결", to: `${base}/attendance` },
+    { key: "report", label: "리포트", to: `${base}/report` },
   ];
 
   return (
-    <div
-      className="
-        rounded-t-2xl
-        border border-b-0 border-[var(--border-divider)]
-        bg-[var(--bg-surface)]
-        px-4 pt-4
-      "
-    >
-      <div className="flex gap-2 border-b border-[var(--border-divider)]">
-        {tabs.map((tab) => (
-          <NavLink
-            key={tab.key}
-            to={tab.to}
-            end={tab.key === "students"}
-            className={({ isActive }) =>
-              [
-                "relative px-4 py-2 text-sm font-semibold rounded-t-lg",
-                "transition-all duration-200",
-                isActive
-                  ? "bg-[var(--bg-surface)] text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-              ].join(" ")
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {tab.label}
-                {isActive && (
-                  <span
-                    className="
-                      absolute left-0 right-0 -bottom-[1px]
-                      h-[2px]
-                      bg-[var(--color-primary)]
-                      rounded-full
-                    "
-                  />
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </div>
+    <div className="ds-tabs">
+      {tabs.map((t) => (
+        <button
+          key={t.key}
+          className={`ds-tab text-[15px] font-semibold ${activeKey === t.key ? "is-active" : ""}`}
+          onClick={() => navigate(t.to)}
+        >
+          {t.label}
+        </button>
+      ))}
     </div>
   );
 }

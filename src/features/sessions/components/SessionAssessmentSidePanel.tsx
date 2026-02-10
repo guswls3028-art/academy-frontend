@@ -1,5 +1,4 @@
 // PATH: src/features/sessions/components/SessionAssessmentSidePanel.tsx
-
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,16 +6,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
 
-import CreateRegularExamModal
-  from "@/features/exams/components/create/CreateRegularExamModal";
+import CreateRegularExamModal from "@/features/exams/components/create/CreateRegularExamModal";
+import CreateHomeworkModal from "@/features/homework/components/CreateHomeworkModal";
 
-import CreateHomeworkModal
-  from "@/features/homework/components/CreateHomeworkModal";
-
-import { deleteSessionExam }
-  from "@/features/sessions/api/deleteSessionExam";
-import { deleteSessionHomework }
-  from "@/features/sessions/api/deleteSessionHomework";
+import { deleteSessionExam } from "@/features/sessions/api/deleteSessionExam";
+import { deleteSessionHomework } from "@/features/sessions/api/deleteSessionHomework";
 
 type Props = {
   lectureId: number;
@@ -37,9 +31,6 @@ export default function SessionAssessmentSidePanel({
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ===============================
-  // 선택 단일 진실
-  // ===============================
   const examId = useMemo(() => {
     const v = Number(searchParams.get("examId"));
     return Number.isFinite(v) ? v : null;
@@ -58,18 +49,12 @@ export default function SessionAssessmentSidePanel({
     });
   };
 
-  // ===============================
-  // 시험 목록 (results 단일진실)
-  // ===============================
   const { data: exams = [], isLoading: examsLoading } = useQuery({
     queryKey: ["admin-session-exams", sessionId],
     queryFn: () => fetchAdminSessionExams(sessionId),
     enabled: !!sessionId,
   });
 
-  // ===============================
-  // 과제 목록
-  // ===============================
   const { data: homeworks = [], isLoading: hwLoading } = useQuery({
     queryKey: ["session-homeworks", sessionId],
     queryFn: async (): Promise<HomeworkItem[]> => {
@@ -92,9 +77,6 @@ export default function SessionAssessmentSidePanel({
     enabled: !!sessionId,
   });
 
-  // ===============================
-  // 생성 모달 상태
-  // ===============================
   const [openCreateExam, setOpenCreateExam] = useState(false);
   const [openCreateHomework, setOpenCreateHomework] = useState(false);
 
@@ -133,12 +115,22 @@ export default function SessionAssessmentSidePanel({
   };
 
   return (
-    <aside className="w-[220px] shrink-0 space-y-4 rounded border bg-white p-3">
-
-      {/* ================= Exams ================= */}
-      <Section title="시험" onAdd={() => setOpenCreateExam(true)}>
-
-        {examsLoading && <Empty>불러오는 중...</Empty>}
+    <aside
+      style={{
+        width: 220,
+        borderRadius: 14,
+        border: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface)",
+        padding: 12,
+        display: "grid",
+        gap: 16,
+      }}
+    >
+      <PanelSection
+        title="시험"
+        onAdd={() => setOpenCreateExam(true)}
+      >
+        {examsLoading && <Empty>불러오는 중…</Empty>}
         {!examsLoading && exams.length === 0 && <Empty>시험 없음</Empty>}
 
         {exams.map((exam: any) => {
@@ -157,12 +149,13 @@ export default function SessionAssessmentSidePanel({
             />
           );
         })}
-      </Section>
+      </PanelSection>
 
-      {/* ================= Homework ================= */}
-      <Section title="과제" onAdd={() => setOpenCreateHomework(true)}>
-
-        {hwLoading && <Empty>불러오는 중...</Empty>}
+      <PanelSection
+        title="과제"
+        onAdd={() => setOpenCreateHomework(true)}
+      >
+        {hwLoading && <Empty>불러오는 중…</Empty>}
         {!hwLoading && homeworks.length === 0 && <Empty>과제 없음</Empty>}
 
         {homeworks.map((hw) => {
@@ -179,9 +172,7 @@ export default function SessionAssessmentSidePanel({
             />
           );
         })}
-      </Section>
-
-      {/* ================= Modals ================= */}
+      </PanelSection>
 
       <CreateRegularExamModal
         open={openCreateExam}
@@ -208,27 +199,36 @@ export default function SessionAssessmentSidePanel({
 
 /* ================= UI ================= */
 
-function Section({
+function PanelSection({
   title,
   onAdd,
   children,
-}: any) {
+}: {
+  title: string;
+  onAdd: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <div className="mb-2 flex justify-between">
-        <div className="text-xs font-semibold text-gray-500">
+      <div className="mb-2 flex items-center justify-between">
+        <div
+          className="text-xs font-extrabold"
+          style={{ color: "var(--color-text-secondary)" }}
+        >
           {title}
         </div>
 
         <button
+          type="button"
           onClick={onAdd}
-          className="rounded bg-gray-100 px-2 py-1 text-xs"
+          className="text-xs font-semibold"
+          style={{ color: "var(--color-primary)" }}
         >
           + 추가
         </button>
       </div>
 
-      <div className="space-y-1">{children}</div>
+      <div className="grid gap-2">{children}</div>
     </div>
   );
 }
@@ -242,17 +242,26 @@ function ItemRow({
 }: any) {
   return (
     <div
-      className={`flex rounded ${
-        active ? "bg-blue-50" : "hover:bg-gray-50"
-      }`}
+      className="flex items-center rounded"
+      style={{
+        background: active
+          ? "var(--state-selected-bg)"
+          : undefined,
+      }}
     >
       <button
         onClick={onClick}
         className="flex-1 px-2 py-2 text-left"
+        style={{ color: "var(--color-text-primary)" }}
       >
-        <div className="text-sm">{label}</div>
+        <div className="text-sm font-medium">{label}</div>
         {sub && (
-          <div className="text-xs text-gray-500">{sub}</div>
+          <div
+            className="text-xs"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            {sub}
+          </div>
         )}
       </button>
 
@@ -261,7 +270,8 @@ function ItemRow({
           e.stopPropagation();
           onDelete();
         }}
-        className="px-2 text-red-500"
+        className="px-2 text-xs"
+        style={{ color: "var(--color-error)" }}
       >
         ✕
       </button>
@@ -271,7 +281,10 @@ function ItemRow({
 
 function Empty({ children }: any) {
   return (
-    <div className="px-2 py-2 text-xs text-gray-400">
+    <div
+      className="px-2 py-2 text-xs"
+      style={{ color: "var(--color-text-muted)" }}
+    >
       {children}
     </div>
   );

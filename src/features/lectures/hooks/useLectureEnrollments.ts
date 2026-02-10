@@ -1,3 +1,4 @@
+// PATH: src/features/lectures/hooks/useLectureEnrollments.ts
 import { useQuery } from "@tanstack/react-query";
 import { fetchLectureEnrollments } from "../api/enrollments";
 

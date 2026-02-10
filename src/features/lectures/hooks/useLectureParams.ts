@@ -1,4 +1,4 @@
-// src/features/lectures/hooks/useLectureParams.ts
+// PATH: src/features/lectures/hooks/useLectureParams.ts
 import { useParams } from "react-router-dom";
 
 export function useLectureParams() {

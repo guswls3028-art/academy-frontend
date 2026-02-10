@@ -1,9 +1,15 @@
 // PATH: src/features/staff/pages/HomePage/StaffCreateModal.tsx
-
-import { Modal } from "antd";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+
+import {
+  AdminModal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/shared/ui/modal";
+import { ActionButton } from "@/shared/ui/ds";
 
 type Props = {
   open: boolean;
@@ -25,11 +31,6 @@ export default function StaffCreateModal({ open, onClose }: Props) {
 
   const createM = useMutation({
     mutationFn: async () => {
-      /**
-       * 🔒 스펙 단일진실
-       * - backend는 role 필드만 인식
-       * - OWNER는 프론트에서 전송 금지
-       */
       const role =
         form.permission_role === "OWNER"
           ? undefined
@@ -40,7 +41,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
         password: form.password,
         name: form.name,
         phone: form.phone || undefined,
-        role, // ✅ 핵심 수정
+        role,
       });
 
       return res.data;
@@ -66,98 +67,117 @@ export default function StaffCreateModal({ open, onClose }: Props) {
     },
   });
 
+  const invalidUsername = !String(form.username || "").trim();
+  const invalidPassword = !String(form.password || "").trim();
+  const invalidName = !String(form.name || "").trim();
+
   return (
-    <Modal
-      title="직원 등록"
-      open={open}
-      onCancel={onClose}
-      onOk={() => {
-        if (
-          !form.username.trim() ||
-          !form.password.trim() ||
-          !form.name.trim() ||
-          !form.permission_role
-        ) {
-          alert("필수 항목을 모두 입력하세요.");
-          return;
-        }
-        createM.mutate();
-      }}
-      okText="등록"
-      cancelText="취소"
-      confirmLoading={createM.isPending}
-    >
-      <div className="space-y-3">
-        <Field label="로그인 아이디 *">
-          <input
-            className="input"
-            value={form.username}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, username: e.target.value }))
-            }
-            placeholder="로그인에 사용됩니다"
-          />
-        </Field>
+    <AdminModal open={open} onClose={onClose} type="action">
+      <ModalHeader
+        title="직원 등록"
+        description="로그인 계정을 포함한 직원 정보를 등록합니다."
+        type="action"
+      />
 
-        <Field label="비밀번호 *">
-          <input
-            type="password"
-            className="input"
-            value={form.password}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, password: e.target.value }))
-            }
-          />
-        </Field>
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <Field label="로그인 아이디 *">
+            <input
+              className="ds-input"
+              value={form.username}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, username: e.target.value }))
+              }
+              data-required="true"
+              data-invalid={invalidUsername ? "true" : "false"}
+              autoFocus
+            />
+          </Field>
 
-        <Field label="이름 *">
-          <input
-            className="input"
-            value={form.name}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, name: e.target.value }))
-            }
-          />
-        </Field>
+          <Field label="비밀번호 *">
+            <input
+              type="password"
+              className="ds-input"
+              value={form.password}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, password: e.target.value }))
+              }
+              data-required="true"
+              data-invalid={invalidPassword ? "true" : "false"}
+            />
+          </Field>
 
-        <Field label="전화번호">
-          <input
-            className="input"
-            value={form.phone}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, phone: e.target.value }))
-            }
-          />
-        </Field>
+          <Field label="이름 *">
+            <input
+              className="ds-input"
+              value={form.name}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, name: e.target.value }))
+              }
+              data-required="true"
+              data-invalid={invalidName ? "true" : "false"}
+            />
+          </Field>
 
-        <Field label="권한 *">
-          <select
-            className="input"
-            value={form.permission_role}
-            onChange={(e) =>
-              setForm((p) => ({
-                ...p,
-                permission_role: e.target.value as PermissionRole,
-              }))
-            }
-          >
-            <option value="ASSISTANT">조교 (일반 직원)</option>
-            <option value="TEACHER">강사</option>
-            <option value="ADMIN">관리자</option>
-            <option value="OWNER" disabled>
-              오너 (백엔드 지정)
-            </option>
-          </select>
-        </Field>
+          <Field label="전화번호">
+            <input
+              className="ds-input"
+              value={form.phone}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, phone: e.target.value }))
+              }
+              placeholder="010XXXXXXXX"
+            />
+          </Field>
 
-        <div className="text-xs text-[var(--text-muted)] leading-relaxed">
-          • <b>관리자</b>: 직원 관리 · 승인 · 마감 가능<br />
-          • <b>강사</b>: 강의 담당 (권한은 백엔드 정책에 따름)<br />
-          • <b>조교</b>: 일반 직원<br />
-          • <b>오너</b>: 시스템 전용 (프론트에서 지정 불가)
+          <Field label="권한 *">
+            <select
+              className="ds-input"
+              value={form.permission_role}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  permission_role: e.target.value as PermissionRole,
+                }))
+              }
+              data-required="true"
+            >
+              <option value="ASSISTANT">조교 (일반 직원)</option>
+              <option value="TEACHER">강사</option>
+              <option value="ADMIN">관리자</option>
+              <option value="OWNER" disabled>
+                오너 (백엔드 지정)
+              </option>
+            </select>
+          </Field>
         </div>
-      </div>
-    </Modal>
+      </ModalBody>
+
+      <ModalFooter
+        right={
+          <>
+            <ActionButton
+              action="close"
+              onClick={onClose}
+              disabled={createM.isPending}
+            />
+            <ActionButton
+              action="create"
+              loading={createM.isPending}
+              onClick={() => {
+                if (invalidUsername || invalidPassword || invalidName) {
+                  alert("필수 항목을 모두 입력하세요.");
+                  return;
+                }
+                createM.mutate();
+              }}
+            >
+              등록
+            </ActionButton>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -169,8 +189,14 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-[var(--text-muted)]">
+    <div style={{ display: "grid", gap: 4 }}>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 800,
+          color: "var(--color-text-muted)",
+        }}
+      >
         {label}
       </div>
       {children}

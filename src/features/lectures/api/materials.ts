@@ -1,4 +1,4 @@
-// src/features/lectures/api/materials.ts
+// PATH: src/features/lectures/api/materials.ts
 import api from "@/shared/api/axios";
 
 const PREFIX = "/interactions";
@@ -67,9 +67,7 @@ export async function fetchMaterials(params: {
   return unwrap<Material>(res.data);
 }
 
-export async function createMaterial(
-  formData: FormData
-): Promise<Material> {
+export async function createMaterial(formData: FormData): Promise<Material> {
   const res = await api.post(`${PREFIX}/materials/`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });

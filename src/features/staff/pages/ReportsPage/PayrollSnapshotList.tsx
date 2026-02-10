@@ -7,7 +7,7 @@ import {
   fetchPayrollSnapshots,
   exportPayrollSnapshotExcel,
 } from "../../api/payrollSnapshots.api";
-import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
 import ActionButton from "../../components/ActionButton";
 
 export default function PayrollSnapshotList({
@@ -64,10 +64,7 @@ export default function PayrollSnapshotList({
                 {r.year}-{String(r.month).padStart(2, "0")} 급여
               </div>
               <div className="text-xs text-[var(--text-muted)]">
-                생성일:{" "}
-                {r.created_at
-                  ? new Date(r.created_at).toLocaleString()
-                  : "-"}
+                생성일: {r.created_at ? new Date(r.created_at).toLocaleString() : "-"}
               </div>
               {!!r.generated_by_name && (
                 <div className="text-xs text-[var(--text-muted)]">
@@ -77,9 +74,7 @@ export default function PayrollSnapshotList({
             </div>
 
             <div className="text-right space-y-2">
-              <div className="text-lg font-semibold">
-                {r.total_amount.toLocaleString()}원
-              </div>
+              <div className="text-lg font-semibold">{r.total_amount.toLocaleString()}원</div>
 
               <div className="flex gap-2 justify-end">
                 <ActionButton

@@ -1,12 +1,38 @@
 // PATH: src/features/students/components/StudentFilterModal.tsx
-
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   filters: any;
   onApply: (next: any) => void;
+}
+
+function normalize(next: any) {
+  Object.keys(next).forEach((k) => {
+    const v = next[k];
+    if (v === "" || v == null) delete next[k];
+  });
+
+  if (typeof next.is_managed === "string") {
+    if (next.is_managed === "true") next.is_managed = true;
+    else if (next.is_managed === "false") next.is_managed = false;
+    else delete next.is_managed;
+  }
+
+  if (typeof next.grade === "string" && next.grade.trim()) {
+    const n = Number(next.grade);
+    if (Number.isFinite(n)) next.grade = n;
+    else delete next.grade;
+  }
+
+  if (typeof next.school_type === "string" && !next.school_type.trim()) {
+    delete next.school_type;
+  }
+
+  return next;
 }
 
 export default function StudentFilterModal({
@@ -16,129 +42,57 @@ export default function StudentFilterModal({
   onApply,
 }: Props) {
   const [local, setLocal] = useState<any>(filters || {});
+  const title = useMemo(() => "고급 필터", []);
 
   useEffect(() => {
+    if (!open) return;
     setLocal(filters || {});
-  }, [filters]);
+  }, [open, filters]);
 
-  if (!open) return null;
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    if (open) window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
 
-  function update(key: string, value: string) {
-    setLocal((prev: any) => ({
-      ...prev,
-      [key]: value,
-    }));
+  function update(key: string, value: any) {
+    setLocal((prev: any) => ({ ...prev, [key]: value }));
   }
 
   function apply() {
-    const next = { ...local };
-
-    // ✅ 최소 정리: 빈 값은 params에서 제거(운영에서 필수)
-    Object.keys(next).forEach((k) => {
-      const v = next[k];
-      if (v === "" || v == null) delete next[k];
-    });
-
+    const next = normalize({ ...local });
     onApply(next);
   }
 
+  function reset() {
+    setLocal({});
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[520px] rounded-xl bg-[var(--bg-surface)] shadow-2xl border border-[var(--border-divider)] overflow-hidden">
-        {/* Header */}
-        <div className="border-b border-[var(--border-divider)] px-5 py-4 bg-[var(--bg-surface-soft)]">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">
-            고급 필터
-          </h2>
-          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-            조건에 맞는 학생만 조회
-          </div>
-        </div>
+    <AdminModal open={open} onClose={onClose} type="action" width={720}>
+      <ModalHeader
+        type="action"
+        title={title}
+        description="조건에 맞는 학생만 조회합니다."
+      />
 
-        {/* Body */}
-        <div className="px-5 py-4 space-y-3">
-          <input
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            placeholder="학부모 전화번호"
-            value={local.parent_phone || ""}
-            onChange={(e) => update("parent_phone", e.target.value)}
-          />
-
-          <input
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            placeholder="학생 전화번호/식별자"
-            value={local.student_phone || ""}
-            onChange={(e) => update("student_phone", e.target.value)}
-          />
-
-          <input
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            placeholder="학교 이름"
-            value={local.school || ""}
-            onChange={(e) => update("school", e.target.value)}
-          />
-
-          <input
-            className="w-full rounded-md px-3 py-2 text-sm
-              border border-[var(--border-divider)]
-              bg-[var(--bg-app)]
-              text-[var(--text-primary)]
-              placeholder:text-[var(--text-muted)]
-              focus:outline-none
-              focus:ring-1
-              focus:ring-[var(--color-primary)]"
-            placeholder="반"
-            value={local.school_class || ""}
-            onChange={(e) => update("school_class", e.target.value)}
-          />
-
-          <div className="flex gap-2">
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <select
-              className="flex-1 rounded-md px-3 py-2 text-sm
-                border border-[var(--border-divider)]
-                bg-[var(--bg-app)]
-                text-[var(--text-primary)]
-                focus:outline-none
-                focus:ring-1
-                focus:ring-[var(--color-primary)]"
-              value={local.gender || ""}
-              onChange={(e) => update("gender", e.target.value)}
+              className="ds-select"
+              value={local.school_type ?? ""}
+              onChange={(e) => update("school_type", e.target.value)}
             >
-              <option value="">성별 전체</option>
-              <option value="M">남</option>
-              <option value="F">여</option>
+              <option value="">학교급 전체</option>
+              <option value="HIGH">고등</option>
+              <option value="MIDDLE">중등</option>
             </select>
 
-            {/* ✅ 상태 필터 추가(정렬과 공존) */}
             <select
-              className="flex-1 rounded-md px-3 py-2 text-sm
-                border border-[var(--border-divider)]
-                bg-[var(--bg-app)]
-                text-[var(--text-primary)]
-                focus:outline-none
-                focus:ring-1
-                focus:ring-[var(--color-primary)]"
+              className="ds-select"
               value={local.is_managed ?? ""}
               onChange={(e) => update("is_managed", e.target.value)}
             >
@@ -147,31 +101,106 @@ export default function StudentFilterModal({
               <option value="false">비활성</option>
             </select>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-5 py-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface)]">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm rounded-md
-              border border-[var(--border-divider)]
-              text-[var(--text-secondary)]
-              hover:bg-[var(--bg-surface-soft)]"
-          >
-            취소
-          </button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              className="ds-input"
+              placeholder="아이디"
+              value={local.ps_number || ""}
+              onChange={(e) => update("ps_number", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="OMR 식별자 (8자리)"
+              value={local.omr_code || ""}
+              onChange={(e) => update("omr_code", e.target.value)}
+            />
+          </div>
 
-          <button
-            onClick={apply}
-            className="px-3 py-1.5 text-sm rounded-md
-              bg-[var(--color-primary)]
-              text-white
-              hover:opacity-90"
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              className="ds-input"
+              placeholder="이름"
+              value={local.name || ""}
+              onChange={(e) => update("name", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="계열(major)"
+              value={local.major || ""}
+              onChange={(e) => update("major", e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <input
+              className="ds-input"
+              placeholder="고등학교"
+              value={local.high_school || ""}
+              onChange={(e) => update("high_school", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="중학교"
+              value={local.middle_school || ""}
+              onChange={(e) => update("middle_school", e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <select
+              className="ds-select"
+              value={local.gender || ""}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">성별 전체</option>
+              <option value="M">남</option>
+              <option value="F">여</option>
+            </select>
+
+            <select
+              className="ds-select"
+              value={local.grade ?? ""}
+              onChange={(e) => update("grade", e.target.value)}
+            >
+              <option value="">학년 전체</option>
+              <option value="1">1학년</option>
+              <option value="2">2학년</option>
+              <option value="3">3학년</option>
+            </select>
+          </div>
+
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 11,
+              fontWeight: 850,
+              color: "var(--color-text-muted)",
+              lineHeight: 1.6,
+            }}
           >
-            적용
-          </button>
+            팁: 필터는 서버 조회에 반영됩니다. 불필요한 빈 값은 자동 제거됩니다.
+          </div>
         </div>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <Button intent="ghost" onClick={reset}>
+            초기화
+          </Button>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose}>
+              취소
+            </Button>
+            <Button intent="primary" onClick={apply}>
+              적용
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }

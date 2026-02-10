@@ -1,0 +1,87 @@
+/* ======================================================
+   DS INPUT — REQUIRED / PRIMARY EMPHASIS
+   ====================================================== */
+
+/* 기본 입력 필드 */
+.ds-input {
+  appearance: none;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+/* placeholder */
+.ds-input::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* hover */
+.ds-input:hover:not(:disabled) {
+  border-color: var(--color-border-strong, var(--color-border-divider));
+}
+
+/* focus (일반 입력) */
+.ds-input:focus:not([data-required="true"]) {
+  border-color: color-mix(
+    in srgb,
+    var(--color-text-secondary) 60%,
+    var(--color-border-divider)
+  );
+}
+
+/* ======================================================
+   REQUIRED (PRIMARY COLOR)
+   ====================================================== */
+
+/* 필수 필드 — 기본 상태 (에러 아님) */
+.ds-input[data-required="true"] {
+  border-color: color-mix(
+    in srgb,
+    var(--color-brand-primary) 38%,
+    var(--color-border-divider)
+  );
+}
+
+/* 필수 필드 hover */
+.ds-input[data-required="true"]:hover:not(:disabled) {
+  border-color: color-mix(
+    in srgb,
+    var(--color-brand-primary) 55%,
+    var(--color-border-divider)
+  );
+}
+
+/* 필수 필드 focus */
+.ds-input[data-required="true"]:focus {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 1px color-mix(
+    in srgb,
+    var(--color-brand-primary) 35%,
+    transparent
+  );
+}
+
+/* ======================================================
+   DISABLED
+   ====================================================== */
+
+.ds-input:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}

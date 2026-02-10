@@ -1,9 +1,13 @@
 /* PATH: src/styles/design-system/antd/tabs.css */
-/* AntD Tabs */
+/* AntD Tabs — WRAPPER ONLY (NO STYLE OWNERSHIP) */
 
-.ant-tabs-tab {
-  color: var(--color-text-secondary);
+.ant-tabs,
+.ant-tabs-nav,
+.ant-tabs-tab,
+.ant-tabs-ink-bar {
+  all: unset;
 }
-.ant-tabs-tab-active {
-  color: var(--color-text-primary);
+
+.ant-tabs {
+  display: block;
 }

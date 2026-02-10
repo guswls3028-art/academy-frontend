@@ -1,0 +1,121 @@
+/* PATH: src/styles/design-system/patterns/header.css */
+/* App Header Pattern (SSOT)
+   - colors are role/layout tokens only
+   - layout uses CSS, not inline color styling
+*/
+
+[data-app="admin"] .app-header {
+  height: var(--panel-header);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 var(--space-6);
+
+  border-bottom: 1px solid var(--color-border-divider);
+
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--layout-header-bg) 88%, transparent),
+    color-mix(in srgb, var(--layout-header-bg) 72%, transparent)
+  );
+}
+
+[data-app="admin"] .app-header__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+[data-app="admin"] .app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+[data-app="admin"] .app-header__brandMark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+}
+
+[data-app="admin"] .app-header__brandMark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+[data-app="admin"] .app-header__brandName {
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: -0.12px;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+}
+
+[data-app="admin"] .app-header__crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: 8px;
+}
+
+[data-app="admin"] .app-header__crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 13px;
+  letter-spacing: -0.15px;
+}
+
+[data-app="admin"] .app-header__crumb--active {
+  color: var(--color-text-primary);
+  font-weight: 950;
+}
+
+[data-app="admin"] .app-header__crumb--muted {
+  color: var(--color-text-muted);
+  font-weight: 850;
+}
+
+[data-app="admin"] .app-header__crumbSep {
+  color: var(--color-text-disabled);
+}
+
+[data-app="admin"] .app-header__center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+[data-app="admin"] .app-header__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+[data-app="admin"] .app-header__iconBtn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+[data-app="admin"] .app-header__menuBtn {
+  height: 40px;
+  border-radius: 999px;
+}
