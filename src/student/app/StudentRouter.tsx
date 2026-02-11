@@ -32,8 +32,10 @@ import QnaPage from "@/student/domains/qna/pages/QnaPage";
 // ✅ Media
 import MediaPlayerPage from "@/student/domains/media/pages/MediaPlayerPage";
 
-import ClinicIDCardPage from "@/student/domains/clinic-idcard/pages/ClinicIDCardPage";
+// 🚑 임시 데모 (홍보/캡쳐 전용)
+import MediaDemoPage from "@/student/domains/media/pages/MediaDemoPage";
 
+import ClinicIDCardPage from "@/student/domains/clinic-idcard/pages/ClinicIDCardPage";
 
 export default function StudentRouter() {
   return (
@@ -50,6 +52,9 @@ export default function StudentRouter() {
 
         {/* ✅ Media (실제 재생) */}
         <Route path="media" element={<MediaPlayerPage />} />
+
+        {/* 🚑 Media Demo (임시 검증/홍보용) */}
+        <Route path="media/demo" element={<MediaDemoPage />} />
 
         {/* ✅ Exams */}
         <Route path="exams" element={<ExamListPage />} />

@@ -7,9 +7,7 @@
 /* ===============================
    Surface SSOT (FINAL)
    =============================== */
-@import "./surface/layers.css";
 @import "./surface/slots.css";
-@import "./surface/areas.css";
 
 /* ===============================
    Component patterns

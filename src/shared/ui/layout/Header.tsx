@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/layout/Header.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Dropdown, Input, Badge } from "antd";
 import ThemeOverlay from "@/features/settings/overlays/ThemeOverlay";
@@ -165,7 +165,41 @@ export default function Header() {
   const [openNotice, setOpenNotice] = useState(false);
   const { unreadCount } = useNotices();
 
-  const academyName = program?.display_name || "HakwonPlus";
+
+
+
+
+
+
+
+
+// 데모찾기
+  /** 🔒 Header-level override (임시 고정용) */
+  const [academyName, setAcademyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (academyName === null) {
+      // 👇 여기 원하는 이름
+      setAcademyName("박철 과학");
+    }
+  }, [academyName]);
+
+
+  // 이거복구
+  // const academyName = program?.display_name || "HakwonPlus";
+  
+  
+
+
+
+
+
+
+
+
+
+  
+  
   const logoUrl = program?.ui_config?.logo_url;
 
   const userMenu = {

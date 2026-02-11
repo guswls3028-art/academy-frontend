@@ -7,121 +7,148 @@
 ==========================================================================================
 # FILE: pages/DashboardPage.tsx
 ==========================================================================================
-// PATH: src/features/dashboard/pages/AdminDashboard_v1.tsx
+// PATH: src/features/dashboard/pages/DashboardDemoPage.tsx
+/**
+ * 🧪 DashboardDemoPage (ADMIN / DEMO ONLY)
+ *
+ * 목적:
+ * - 학원 운영 전체 현황 한눈에 보여주는 홍보용
+ * - KPI / 그래프 / 최근 활동
+ *
+ * 주의:
+ * - 실제 데이터 X
+ * - 캡쳐 / 제안서 / 랜딩 페이지용
+ */
 
-import { Page, PageHeader, Section, Panel, KPI } from "@/shared/ui/ds";
-import { Table, Button, Tag } from "antd";
-
-export default function AdminDashboardV1() {
+export default function DashboardDemoPage() {
   return (
-    <Page width="wide" density="focus" background="app">
-      {/* ===== PAGE HEADER (L1) ===== */}
-      <PageHeader
-        title="운영 대시보드"
-        description="오늘 기준으로 학원 운영 상태를 요약합니다"
-        actions={
-          <Button type="primary" size="middle">
-            오늘 리포트 생성
-          </Button>
-        }
-        sticky
-      />
+    <div style={page}>
+      <h1 style={title}>Academy Operations Dashboard</h1>
 
-      {/* ===== PRIMARY SECTION (L2) ===== */}
-      <Section level="primary">
-        <Panel variant="primary">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "var(--space-5)",
-            }}
-          >
-            <KPI label="재원 학생" value={248} />
-            <KPI label="출결 주의" value={7} hint="최근 7일 기준" />
-            <KPI label="성적 관리 대상" value={12} />
-            <KPI label="상담 대기" value={3} />
-          </div>
-        </Panel>
-      </Section>
+      {/* KPI */}
+      <div style={kpiGrid}>
+        <KPI label="오늘 출석률" value="94%" />
+        <KPI label="영상 시청률" value="88%" />
+        <KPI label="진행 중 시험" value="6건" />
+        <KPI label="미채점 항목" value="12개" />
+      </div>
 
-      {/* ===== SECONDARY SECTION (L3) ===== */}
-      <Section
-        level="secondary"
-        title="오늘 처리해야 할 항목"
-        description="관리자가 즉시 확인해야 하는 핵심 작업"
-      >
-        <Panel>
-          <Table
-            pagination={false}
-            rowKey="key"
-            columns={[
-              {
-                title: "항목",
-                dataIndex: "task",
-                render: (v) => <strong>{v}</strong>,
-              },
-              {
-                title: "대상",
-                dataIndex: "target",
-              },
-              {
-                title: "상태",
-                dataIndex: "status",
-                render: (v) =>
-                  v === "주의" ? (
-                    <Tag color="warning">주의</Tag>
-                  ) : (
-                    <Tag color="default">정상</Tag>
-                  ),
-              },
-              {
-                title: "",
-                render: () => (
-                  <Button type="link" size="small">
-                    상세
-                  </Button>
-                ),
-              },
-            ]}
-            dataSource={[
-              {
-                key: 1,
-                task: "출결 누락 확인",
-                target: "중등 2학년",
-                status: "주의",
-              },
-              {
-                key: 2,
-                task: "성적 미반영 시험",
-                target: "고1 수학",
-                status: "정상",
-              },
-              {
-                key: 3,
-                task: "상담 요청 대기",
-                target: "학생 3명",
-                status: "주의",
-              },
-            ]}
-          />
-        </Panel>
-      </Section>
+      {/* Main */}
+      <div style={mainGrid}>
+        {/* Chart */}
+        <Card title="주간 학습 지표">
+          <div style={chartMock}>📊 Weekly Performance Chart</div>
+        </Card>
 
-      {/* ===== TERTIARY SECTION (L4) ===== */}
-      <Section
-        level="tertiary"
-        title="최근 활동 로그"
-        description="참고용 기록"
-      >
-        <Panel variant="subtle">
-          <ul style={{ margin: 0, paddingLeft: 16 }}>
-            <li>김민수 학생 성적 수정 (10분 전)</li>
-            <li>중3 수학 시험 결과 반영 (35분 전)</li>
-            <li>상담 일정 생성 (1시간 전)</li>
+        {/* Activity */}
+        <Card title="최근 활동">
+          <ul style={list}>
+            <li>· 3학년 2반 중간고사 채점 완료</li>
+            <li>· 물리 OT 영상 업로드</li>
+            <li>· 학생 12명 출석 확인</li>
+            <li>· 영상 시청 제한 정책 변경</li>
           </ul>
-        </Panel>
-      </Section>
-    </Page>
+        </Card>
+      </div>
+    </div>
   );
 }
+
+/* ---------------- styles ---------------- */
+
+const page: React.CSSProperties = {
+  padding: 32,
+  background: "#f5f7fb",
+  minHeight: "100vh",
+};
+
+const title: React.CSSProperties = {
+  fontSize: 26,
+  fontWeight: 900,
+  marginBottom: 24,
+};
+
+const kpiGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(4, 1fr)",
+  gap: 20,
+  marginBottom: 28,
+};
+
+const mainGrid: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "2fr 1fr",
+  gap: 24,
+};
+
+const chartMock: React.CSSProperties = {
+  height: 240,
+  borderRadius: 12,
+  background: "linear-gradient(135deg, #e0e7ff, #f8fafc)",
+  display: "grid",
+  placeItems: "center",
+  fontWeight: 700,
+  color: "#475569",
+};
+
+const list: React.CSSProperties = {
+  margin: 0,
+  paddingLeft: 16,
+  fontSize: 14,
+  lineHeight: 1.7,
+};
+
+function KPI({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={kpi}>
+      <div style={kpiLabel}>{label}</div>
+      <div style={kpiValue}>{value}</div>
+    </div>
+  );
+}
+
+function Card({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={card}>
+      <div style={cardTitle}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+const kpi: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 16,
+  padding: 20,
+  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+};
+
+const kpiLabel: React.CSSProperties = {
+  fontSize: 13,
+  color: "#64748b",
+  fontWeight: 700,
+};
+
+const kpiValue: React.CSSProperties = {
+  marginTop: 6,
+  fontSize: 28,
+  fontWeight: 900,
+};
+
+const card: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 18,
+  padding: 20,
+  boxShadow: "0 12px 36px rgba(0,0,0,0.1)",
+};
+
+const cardTitle: React.CSSProperties = {
+  fontWeight: 800,
+  marginBottom: 12,
+};

@@ -1,11 +1,4 @@
 // PATH: src/features/auth/pages/login/HakwonPlusLoginPage.tsx
-// --------------------------------------------------
-// HakwonPlus Admin Login
-// - Auth 전용 화면
-// - Admin / Student 스타일과 완전 분리
-// - 전역(body) 스타일 사용 금지
-// --------------------------------------------------
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
@@ -31,16 +24,17 @@ export default function HakwonPlusLoginPage() {
       await login(username, password);
       await refreshMe();
       navigate("/", { replace: true });
-    } catch (e: any) {
-      setError(
-        e?.response?.data?.detail || "아이디 또는 비밀번호를 확인해주세요."
-      );
+    } catch {
+      setError("아이디 또는 비밀번호를 확인해주세요.");
       setPending(false);
     }
   }
 
   return (
-    <div className="auth-shell flex min-h-screen items-center justify-center bg-[#0b0d12]">
+    <div
+      data-app="auth"
+      className="auth-shell flex min-h-screen items-center justify-center bg-[#0b0d12]"
+    >
       <form
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"

@@ -60,6 +60,11 @@ import { MaterialsRoutes } from "@/features/materials";
 /* ================= Settings ================= */
 import SettingsPage from "@/features/settings/pages/SettingsPage";
 
+/* ================= Exams / Results / Videos (Admin Root) ================= */
+import ExamAdminPage from "@/features/exams/pages/ExamAdminPage";
+import ResultsAdminPage from "@/features/results/pages/ResultsAdminPage";
+import VideoAdminPage from "@/features/videos/pages/VideoAdminPage";
+
 /* ================= Placeholder ================= */
 const CounselPage = () => <div className="p-6">상담 페이지</div>;
 const NoticePage = () => <div className="p-6">공지 페이지</div>;
@@ -116,6 +121,15 @@ export default function AdminRouter() {
 
         {/* ================= Clinic ================= */}
         <Route path="clinic/*" element={<ClinicRoutes />} />
+
+        {/* ================= Exams ================= */}
+        <Route path="exams" element={<ExamAdminPage />} />
+
+        {/* ================= Results ================= */}
+        <Route path="results" element={<ResultsAdminPage />} />
+
+        {/* ================= Videos (Admin Root) ================= */}
+        <Route path="videos" element={<VideoAdminPage />} />
 
         <Route path="counsel" element={<CounselPage />} />
         <Route path="notice" element={<NoticePage />} />

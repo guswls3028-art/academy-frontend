@@ -1473,7 +1473,7 @@ export default function StudentPageShell({
  */
 
 /* ✅ 1. 컬러 프리셋 (단 하나만 활성화) */
-@import "../presets/dark-neon.css";
+@import "../presets/dark-navy.css";
 
 /* ✅ 2. 색상 외 전역 토큰 */
 @import "../theme/typography.css";

@@ -36,9 +36,7 @@
 /* ===============================
    Surface SSOT (FINAL)
    =============================== */
-@import "./surface/layers.css";
 @import "./surface/slots.css";
-@import "./surface/areas.css";
 
 /* ===============================
    Component patterns
@@ -1916,10 +1914,8 @@
 @import "./button.css";
 @import "./header.css";
 @import "./modal-form.css";
-@import "./tabs.css";
 
 /* ✅ Enterprise primitives */
-@import "./controls.css";
 @import "./badge.css";
 @import "./status.css";
 @import "./modal.css";
