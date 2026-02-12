@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { Button } from "@/shared/ui/ds";
 
 export default function HakwonPlusLoginPage() {
   const [username, setUsername] = useState("");
@@ -58,16 +59,18 @@ export default function HakwonPlusLoginPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <button
+        <Button
           type="submit"
+          intent="primary"
+          size="lg"
           disabled={pending}
-          className="w-full rounded bg-black py-2 text-white font-semibold"
+          className="w-full"
         >
           {pending ? "로그인 중..." : "로그인"}
-        </button>
+        </Button>
 
         {error && (
-          <div className="mt-3 text-sm font-semibold text-red-600">
+          <div className="mt-3 text-sm font-semibold" style={{ color: "var(--color-error)" }}>
             {error}
           </div>
         )}

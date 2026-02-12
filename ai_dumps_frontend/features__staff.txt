@@ -8,78 +8,24 @@
 # FILE: StaffLayout.tsx
 ==========================================================================================
 // PATH: src/features/staff/StaffLayout.tsx
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { DomainLayout } from "@/shared/ui/layout";
+
+const STAFF_TABS = [
+  { key: "home", label: "홈", path: "/admin/staff/home" },
+  { key: "operations", label: "작업", path: "/admin/staff/operations" },
+  { key: "reports", label: "리포트", path: "/admin/staff/reports" },
+];
 
 export default function StaffLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const activeKey = location.pathname.includes("/operations")
-    ? "operations"
-    : location.pathname.includes("/reports")
-    ? "reports"
-    : "home";
-
   return (
-    <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
-      {/* ===============================
-          DOMAIN HEADER
-      =============================== */}
-      <div className="border-b border-[var(--border-divider)] bg-[var(--bg-surface)]">
-        <div className="px-6 pt-6 pb-4">
-          <div className="relative">
-            {/* accent line */}
-            <div className="absolute left-0 top-1 h-6 w-1 rounded-full bg-[var(--color-primary)]" />
-
-            <div className="pl-4">
-              <div className="text-2xl font-bold tracking-tight">
-                직원 관리
-              </div>
-              <div className="text-sm text-[var(--text-muted)] mt-0.5">
-                직원 정보 · 근무 · 비용 · 급여 관리
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ===============================
-            SUB NAV — DS TABS
-        =============================== */}
-        <div className="px-6">
-          <div className="ds-tabs">
-            <button
-              className={`ds-tab ${activeKey === "home" ? "is-active" : ""}`}
-              onClick={() => navigate("/admin/staff/home")}
-            >
-              홈
-            </button>
-
-            <button
-              className={`ds-tab ${activeKey === "operations" ? "is-active" : ""}`}
-              onClick={() => navigate("/admin/staff/operations")}
-            >
-              작업
-            </button>
-
-            <button
-              className={`ds-tab ${activeKey === "reports" ? "is-active" : ""}`}
-              onClick={() => navigate("/admin/staff/reports")}
-            >
-              리포트
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ===============================
-          DOMAIN CONTENT
-      =============================== */}
-      <div className="px-6 py-6">
-        <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
-          <Outlet />
-        </div>
-      </div>
-    </div>
+    <DomainLayout
+      title="직원 관리"
+      description="직원 정보 · 근무 · 비용 · 급여 관리"
+      tabs={STAFF_TABS}
+    >
+      <Outlet />
+    </DomainLayout>
   );
 }
 
@@ -116,23 +62,27 @@ export default function StaffRoutes() {
 ==========================================================================================
 # FILE: api/expenses.api.ts
 ==========================================================================================
-﻿// PATH: src/features/staff/api/expenses.api.ts
+// PATH: src/features/staff/api/expenses.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: ExpenseRecord.STATUS_CHOICES */
 export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
 
+/** Backend: ExpenseRecordSerializer */
 export type ExpenseRecord = {
   id: number;
   staff: number;
-  staff_name?: string;
+  staff_name: string;
   date: string;
   title: string;
   amount: number;
   memo: string;
   status: ExpenseStatus;
-  approved_at?: string | null;
-  approved_by?: number | null;
-  approved_by_name?: string | null;
+  approved_at: string | null;
+  approved_by: number | null;
+  approved_by_name: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 /**
@@ -250,21 +200,22 @@ export async function exportPayrollSnapshotPDF(params: {
 ==========================================================================================
 # FILE: api/payrollSnapshots.api.ts
 ==========================================================================================
-﻿// PATH: src/features/staff/api/payrollSnapshots.api.ts
+// PATH: src/features/staff/api/payrollSnapshots.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: PayrollSnapshotSerializer (work_hours Decimal, no updated_at) */
 export type PayrollSnapshot = {
   id: number;
   staff: number;
-  staff_name?: string;
+  staff_name: string;
   year: number;
   month: number;
   work_hours: number;
   work_amount: number;
   approved_expense_amount: number;
   total_amount: number;
-  generated_by?: number;
-  generated_by_name?: string;
+  generated_by: number | null;
+  generated_by_name: string | null;
   created_at: string;
 };
 
@@ -323,12 +274,11 @@ export async function exportPayrollSnapshotExcel(params: {
 ==========================================================================================
 # FILE: api/staff.api.ts
 ==========================================================================================
-﻿﻿// PATH: src/features/staff/api/staff.api.ts
+// PATH: src/features/staff/api/staff.api.ts
 import api from "@/shared/api/axios";
+import type { StaffWorkType } from "./staffWorkType.api";
 
-/**
- * Staff (직원)
- */
+/** Backend: StaffListSerializer */
 export type Staff = {
   id: number;
   name: string;
@@ -336,14 +286,9 @@ export type Staff = {
   is_active: boolean;
   is_manager: boolean;
   pay_type: "HOURLY" | "MONTHLY";
-  staff_work_types?: {
-    id: number;
-    work_type: number;
-    hourly_wage: number | null;
-    effective_hourly_wage: number;
-  }[];
-  created_at?: string;
-  updated_at?: string;
+  staff_work_types: StaffWorkType[];
+  created_at: string;
+  updated_at: string;
 };
 
 /**
@@ -378,20 +323,16 @@ export async function fetchStaffs(params?: {
  * POST /staffs/
  * 🔒 생성 스펙 단일진실
  *
- * backend expects: role
- * - ASSISTANT : 일반 직원
- * - TEACHER   : 강사
- * - ADMIN     : 관리자 (승인/마감 가능)
- *
- * ⚠️ OWNER는 백엔드 전용이며 프론트에서 지정 불가(전송 금지)
- * ⚠️ is_manager / is_payroll_manager 변환 책임은 백엔드
+ * backend StaffCreateUpdateSerializer.role choices:
+ * - TEACHER : 강사
+ * - ASSISTANT : 조교
  */
 export async function createStaff(payload: {
   username: string;
   password: string;
   name: string;
   phone?: string;
-  role: "ADMIN" | "TEACHER" | "ASSISTANT";
+  role: "TEACHER" | "ASSISTANT";
 }) {
   const res = await api.post("/staffs/", {
     username: payload.username,
@@ -416,14 +357,15 @@ export async function deleteStaff(id: number) {
 ==========================================================================================
 # FILE: api/staff.detail.api.ts
 ==========================================================================================
-﻿// PATH: src/features/staff/api/staff.detail.api.ts
+// PATH: src/features/staff/api/staff.detail.api.ts
 import api from "@/shared/api/axios";
 import { Staff, StaffSummary } from "./staff.api";
 
+/** Backend: StaffDetailSerializer (list fields + user, user_username, user_is_staff) */
 export type StaffDetail = Staff & {
   user: number | null;
-  user_username?: string | null;
-  user_is_staff?: boolean;
+  user_username: string | null;
+  user_is_staff: boolean;
 };
 
 /**
@@ -486,25 +428,30 @@ export async function fetchStaffMe() {
 ==========================================================================================
 # FILE: api/staffWorkType.api.ts
 ==========================================================================================
-﻿// PATH: src/features/staff/api/staffWorkType.api.ts
+// PATH: src/features/staff/api/staffWorkType.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: WorkTypeSerializer */
 export type WorkType = {
   id: number;
   name: string;
   base_hourly_wage: number;
   color: string;
-  is_active?: boolean;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
+/** Backend: StaffWorkTypeSerializer (work_type nested, work_type_id write_only) */
 export type StaffWorkType = {
   id: number;
   staff: number;
   work_type: WorkType;
   hourly_wage: number | null;
   effective_hourly_wage: number;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
 };
 
 /**
@@ -557,19 +504,20 @@ export async function deleteStaffWorkType(id: number) {
 ==========================================================================================
 # FILE: api/workMonthLocks.api.ts
 ==========================================================================================
-﻿// PATH: src/features/staff/api/workMonthLocks.api.ts
+// PATH: src/features/staff/api/workMonthLocks.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: WorkMonthLockSerializer (no updated_at) */
 export type WorkMonthLock = {
   id: number;
   staff: number;
-  staff_name?: string;
+  staff_name: string;
   year: number;
   month: number;
   is_locked: boolean;
-  locked_by?: number;
-  locked_by_name?: string;
-  created_at?: string;
+  locked_by: number | null;
+  locked_by_name: string | null;
+  created_at: string;
 };
 
 /**
@@ -621,22 +569,25 @@ export function isLockedFromLocks(
 ==========================================================================================
 # FILE: api/workRecords.api.ts
 ==========================================================================================
-﻿// PATH: src/features/staff/api/workRecords.api.ts
+// PATH: src/features/staff/api/workRecords.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: WorkRecordSerializer (resolved_hourly_wage, current_break_started_at not exposed) */
 export type WorkRecord = {
   id: number;
   staff: number;
-  staff_name?: string;
+  staff_name: string;
   work_type: number;
-  work_type_name?: string;
+  work_type_name: string;
   date: string;
   start_time: string;
-  end_time: string;
+  end_time: string | null;
   break_minutes: number;
-  work_hours: number;
-  amount: number;
+  work_hours: number | null;
+  amount: number | null;
   memo: string;
+  created_at: string;
+  updated_at: string;
 };
 
 /**

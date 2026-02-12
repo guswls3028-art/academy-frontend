@@ -1,5 +1,6 @@
 // PATH: src/features/notice/overlays/NoticeOverlay.tsx
 import Panel from "@/shared/ui/ds/Panel";
+import { Button } from "@/shared/ui/ds";
 import { useNotices } from "../context/NoticeContext";
 
 function levelColor(level: string) {
@@ -34,26 +35,12 @@ export default function NoticeOverlay({ onClose }: { onClose: () => void }) {
           <div style={{ fontWeight: 900, letterSpacing: "-0.2px" }}>알림</div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              onClick={clear}
-              style={{
-                fontSize: 12,
-                fontWeight: 900,
-                color: "var(--color-text-muted)",
-              }}
-            >
+            <Button type="button" intent="ghost" size="sm" onClick={clear} className="text-xs font-black text-[var(--color-text-muted)]">
               모두 지우기
-            </button>
-            <button
-              onClick={onClose}
-              style={{
-                fontSize: 12,
-                fontWeight: 900,
-                color: "var(--color-text-muted)",
-              }}
-            >
+            </Button>
+            <Button type="button" intent="ghost" size="sm" onClick={onClose} className="text-xs font-black text-[var(--color-text-muted)]">
               닫기
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -103,19 +90,17 @@ export default function NoticeOverlay({ onClose }: { onClose: () => void }) {
                       </div>
                     </div>
 
-                    <button
+                    <Button
+                      type="button"
+                      intent="ghost"
+                      size="sm"
                       onClick={() => remove(n.id)}
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 900,
-                        color: "var(--color-text-muted)",
-                        cursor: "pointer",
-                      }}
+                      className="text-xs font-black text-[var(--color-text-muted)]"
                       aria-label="알림 제거"
                       title="알림 제거"
                     >
                       ✕
-                    </button>
+                    </Button>
                   </div>
                 }
               >

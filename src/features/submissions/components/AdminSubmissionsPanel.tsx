@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import { fetchExamSubmissions } from "../api/adminSubmissionsApi";
 
 export default function AdminSubmissionsPanel({
@@ -35,12 +36,9 @@ export default function AdminSubmissionsPanel({
           제출 / 처리 상태
         </div>
 
-        <button
-          onClick={() => q.refetch()}
-          className="text-xs px-3 py-1 rounded bg-neutral-800 text-neutral-200"
-        >
+        <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()} className="text-xs bg-neutral-800 text-neutral-200">
           새로고침
-        </button>
+        </Button>
       </div>
 
       {rows.length === 0 && (
@@ -82,12 +80,9 @@ export default function AdminSubmissionsPanel({
 
       {rows.some((r) => r.status === "done") && onGoResults && (
         <div className="pt-3 text-right">
-          <button
-            onClick={() => onGoResults(examId)}
-            className="px-4 py-2 rounded bg-emerald-600 text-white text-sm font-semibold"
-          >
+          <Button type="button" intent="primary" size="sm" onClick={() => onGoResults(examId)}>
             결과 보기
-          </button>
+          </Button>
         </div>
       )}
     </div>

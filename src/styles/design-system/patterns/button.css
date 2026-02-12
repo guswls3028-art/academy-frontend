@@ -64,7 +64,7 @@
  * Intent
  * ====================================================== */
 
-/* Primary — 명시적 CTA */
+/* Primary — 100% (주요 CTA만) */
 .ds-button[data-intent="primary"] {
   background: var(--color-brand-primary);
   border-color: var(--color-brand-primary);
@@ -73,20 +73,23 @@
 
 .ds-button[data-intent="primary"]:hover {
   background: var(--color-brand-primary-hover);
+  border-color: var(--color-brand-primary-hover);
 }
 
-/* Secondary — 기본 작업 */
+/* Secondary — ghost 스타일 (프리미엄 톤) */
 .ds-button[data-intent="secondary"] {
-  background: var(--bg-surface);
-  border-color: var(--border-divider);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--border-divider) 80%, transparent);
   color: var(--text-primary);
 }
 
 .ds-button[data-intent="secondary"]:hover {
   background: var(--bg-surface-soft);
+  border-color: var(--border-divider);
+  color: var(--text-primary);
 }
 
-/* Ghost — 파괴적/보조 아님, 저강도 액션 */
+/* Ghost — 저강도 액션 */
 .ds-button[data-intent="ghost"] {
   background: transparent;
   border-color: transparent;
@@ -98,15 +101,16 @@
   color: var(--text-primary);
 }
 
-/* Danger — 파괴적 액션 */
+/* Danger — outline + subtle red (solid 금지) */
 .ds-button[data-intent="danger"] {
-  background: color-mix(in srgb, var(--color-error) 10%, var(--bg-surface));
-  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-error) 70%, transparent);
   color: var(--color-error);
 }
 
 .ds-button[data-intent="danger"]:hover {
-  background: color-mix(in srgb, var(--color-error) 18%, var(--bg-surface));
+  background: color-mix(in srgb, var(--color-error) 14%, var(--bg-surface));
+  border-color: var(--color-error);
 }
 
 /* ======================================================
@@ -118,9 +122,7 @@
   border-color: var(--color-brand-primary);
   color: var(--text-on-primary);
 
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.16),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  box-shadow: var(--elevation-1);
 }
 
 .ds-button[aria-pressed="true"]:hover {

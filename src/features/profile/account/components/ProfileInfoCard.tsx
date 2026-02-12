@@ -1,6 +1,6 @@
 // PATH: src/features/profile/account/components/ProfileInfoCard.tsx
-import { FiSave } from "react-icons/fi";
-import { Panel } from "@/shared/ui/ds";
+import { FiSave, FiUser, FiShield, FiPhone } from "react-icons/fi";
+import { Button, Panel } from "@/shared/ui/ds";
 import { Me } from "../../api/profile.api";
 
 export default function ProfileInfoList({
@@ -23,91 +23,156 @@ export default function ProfileInfoList({
   dirty?: boolean;
 }) {
   return (
-    <Panel>
+    <Panel variant="primary">
       {/* Header */}
-      <div className="border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-5 py-4">
-        <div className="text-sm font-semibold text-[var(--text-primary)]">
+      <div
+        style={{
+          padding: "var(--space-6)",
+          borderBottom: "1px solid var(--color-border-divider)",
+          background: "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface-soft))",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "var(--text-md)",
+            fontWeight: "var(--font-title)",
+            color: "var(--color-text-primary)",
+          }}
+        >
           계정 정보
         </div>
-        <div className="mt-1 text-xs text-[var(--text-muted)]">
-          기본 계정 정보를 관리합니다
+        <div
+          className="mt-1"
+          style={{
+            fontSize: "var(--text-sm)",
+            color: "var(--color-text-muted)",
+            fontWeight: "var(--font-meta)",
+          }}
+        >
+          기본 계정 정보를 관리합니다 · 변경사항은 즉시 반영됩니다
         </div>
       </div>
 
       {/* Body */}
       <div className="flex flex-col">
-        <InfoRow label="아이디">{me.username}</InfoRow>
-        <InfoRow label="권한">
-          {me.is_staff ? "관리자" : "일반 사용자"}
+        <InfoRow icon={<FiUser size={16} />} label="아이디">{me.username}</InfoRow>
+        <InfoRow
+          icon={<FiShield size={16} />}
+          label="권한"
+        >
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+            style={{
+              background: me.is_staff
+                ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
+                : "var(--color-bg-surface-soft)",
+              color: me.is_staff
+                ? "var(--color-primary)"
+                : "var(--color-text-secondary)",
+            }}
+          >
+            {me.is_staff ? "관리자" : "일반 사용자"}
+          </span>
         </InfoRow>
 
-        <EditRow label="이름">
+        <EditRow icon={<FiUser size={16} />} label="이름">
           <input
-            className="form-input w-full"
+            className="ds-input"
             value={name}
             onChange={(e) => onChangeName(e.target.value)}
+            placeholder="이름을 입력하세요"
           />
         </EditRow>
 
-        <EditRow label="전화번호">
+        <EditRow icon={<FiPhone size={16} />} label="전화번호">
           <input
-            className="form-input w-full"
+            className="ds-input"
             value={phone}
             onChange={(e) => onChangePhone(e.target.value)}
+            placeholder="전화번호를 입력하세요"
           />
         </EditRow>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between gap-3 border-t border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-5 py-4">
-        <div className="text-xs">
+      <div
+        className="flex items-center justify-between gap-3"
+        style={{
+          padding: "var(--space-6)",
+          borderTop: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface-soft)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "var(--text-sm)",
+            fontWeight: "var(--font-meta)",
+          }}
+        >
           {dirty ? (
-            <span className="font-medium text-[var(--color-primary)]">
+            <span style={{ color: "var(--color-primary)" }}>
               변경사항이 있습니다
             </span>
           ) : (
-            <span className="text-[var(--text-muted)]">
+            <span style={{ color: "var(--color-text-muted)" }}>
               최신 상태입니다
             </span>
           )}
         </div>
 
-        <button
+        <Button
+          type="button"
+          intent="primary"
+          size="md"
           onClick={onSave}
           disabled={saving || !dirty}
-          className="
-            inline-flex items-center gap-2
-            h-[38px] px-4
-            rounded-lg
-            font-semibold text-sm
-            border border-[var(--color-primary)]
-            bg-[var(--color-primary)]
-            text-white
-            hover:brightness-95
-            disabled:bg-[var(--bg-surface)]
-            disabled:text-[var(--text-muted)]
-            disabled:border-[var(--border-divider)]
-          "
+          className="inline-flex items-center gap-2"
         >
           <FiSave size={14} />
           {saving ? "저장중..." : "정보 저장"}
-        </button>
+        </Button>
       </div>
     </Panel>
   );
 }
 
 function InfoRow({
+  icon,
   label,
   children,
 }: {
+  icon?: React.ReactNode;
   label: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[120px_1fr] border-b border-[var(--border-divider)] px-5 py-4 hover:bg-[var(--bg-surface-soft)]">
-      <div className="text-sm text-[var(--text-muted)]">{label}</div>
-      <div className="text-sm font-medium text-[var(--text-primary)]">
+    <div
+      className="grid grid-cols-[140px_1fr] items-center gap-4 border-b border-[var(--color-border-divider)] px-6 py-4 transition-colors"
+      style={{
+        borderBottomColor: "color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
+      }}
+    >
+      <div className="flex items-center gap-2">
+        {icon && (
+          <span style={{ color: "var(--color-text-muted)" }}>{icon}</span>
+        )}
+        <span
+          style={{
+            fontSize: "var(--text-sm)",
+            fontWeight: "var(--font-title)",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          {label}
+        </span>
+      </div>
+      <div
+        style={{
+          fontSize: "var(--text-sm)",
+          fontWeight: 600,
+          color: "var(--color-text-primary)",
+        }}
+      >
         {children}
       </div>
     </div>
@@ -115,18 +180,36 @@ function InfoRow({
 }
 
 function EditRow({
+  icon,
   label,
   children,
 }: {
+  icon?: React.ReactNode;
   label: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[120px_1fr] border-b border-[var(--border-divider)] px-5 py-4 hover:bg-[var(--bg-surface-soft)]">
-      <div className="pt-2 text-sm text-[var(--text-muted)]">
-        {label}
+    <div
+      className="grid grid-cols-[140px_1fr] items-center gap-4 border-b border-[var(--color-border-divider)] px-6 py-4 transition-colors"
+      style={{
+        borderBottomColor: "color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
+      }}
+    >
+      <div className="flex items-center gap-2">
+        {icon && (
+          <span style={{ color: "var(--color-text-muted)" }}>{icon}</span>
+        )}
+        <span
+          style={{
+            fontSize: "var(--text-sm)",
+            fontWeight: "var(--font-title)",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          {label}
+        </span>
       </div>
-      <div>{children}</div>
+      <div style={{ maxWidth: 400 }}>{children}</div>
     </div>
   );
 }

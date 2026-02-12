@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Panel, WorkZone } from "@/shared/ui/ds";
+import { Panel } from "@/shared/ui/ds";
 
 type InspectOverlayShellProps = {
   title: string;
@@ -70,9 +70,7 @@ export default function InspectOverlayShell({
             <div style={{ minWidth: 0 }}>
               {tabs && <div style={{ marginBottom: 12 }}>{tabs}</div>}
 
-              <WorkZone>
-                {children}
-              </WorkZone>
+              <div>{children}</div>
             </div>
           </div>
         </Panel>

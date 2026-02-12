@@ -16,6 +16,7 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import { manualEditSubmissionApi } from "./submissions.api";
 
@@ -91,9 +92,9 @@ export default function SubmissionManualEditModal({
             </div>
           </div>
 
-          <button className="btn" onClick={onClose} disabled={mut.isPending}>
+          <Button type="button" intent="ghost" size="sm" onClick={onClose} disabled={mut.isPending}>
             닫기
-          </button>
+          </Button>
         </div>
 
         <div className="p-6 space-y-6">
@@ -162,9 +163,10 @@ export default function SubmissionManualEditModal({
                           />
                         </td>
                         <td className="text-right">
-                          <button
+                          <Button
                             type="button"
-                            className="btn"
+                            intent="ghost"
+                            size="sm"
                             onClick={() =>
                               setLocalAnswers((prev) => {
                                 const next = { ...prev };
@@ -174,7 +176,7 @@ export default function SubmissionManualEditModal({
                             }
                           >
                             지우기
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -195,16 +197,18 @@ export default function SubmissionManualEditModal({
           </div>
 
           <div className="flex items-center justify-end gap-2">
-            <button className="btn" onClick={onClose} disabled={mut.isPending}>
+            <Button type="button" intent="secondary" size="md" onClick={onClose} disabled={mut.isPending}>
               취소
-            </button>
-            <button
-              className="btn-primary"
+            </Button>
+            <Button
+              type="button"
+              intent="primary"
+              size="md"
               disabled={mut.isPending}
               onClick={() => mut.mutate()}
             >
               {mut.isPending ? "저장 중..." : "저장 및 채점 재개"}
-            </button>
+            </Button>
           </div>
 
           <div className="text-[11px] text-gray-600">

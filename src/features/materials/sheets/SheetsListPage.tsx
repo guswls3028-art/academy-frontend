@@ -1,7 +1,7 @@
 // PATH: src/features/materials/sheets/SheetsListPage.tsx
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Section, Panel, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState, Panel, Section } from "@/shared/ui/ds";
 import { listSheetsApi, type SheetEntity } from "./sheets.api";
 import { SheetsEditorModal } from "./components/editor/SheetsEditorModal";
 import { SheetsCreateModal } from "./components/SheetsCreateModal";
@@ -30,12 +30,9 @@ export default function SheetsListPage() {
               </div>
             </div>
 
-            <button
-              className="btn-primary"
-              onClick={() => setCreateOpen(true)}
-            >
+            <Button type="button" intent="primary" size="md" onClick={() => setCreateOpen(true)}>
               + 시험지 생성
-            </button>
+            </Button>
           </div>
 
           {items.length === 0 && !sheetsQ.isLoading && (
@@ -60,12 +57,9 @@ export default function SheetsListPage() {
                     <td>#{s.id}</td>
                     <td>{s.title}</td>
                     <td>
-                      <button
-                        className="btn"
-                        onClick={() => setEditingId(s.id)}
-                      >
+                      <Button type="button" intent="secondary" size="sm" onClick={() => setEditingId(s.id)}>
                         편집
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}

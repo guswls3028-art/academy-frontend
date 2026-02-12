@@ -1,4 +1,6 @@
 // PATH: src/features/sessions/components/SessionTabs.tsx
+import { Button } from "@/shared/ui/ds";
+
 type SessionTab =
   | "attendance"
   | "scores"
@@ -29,22 +31,21 @@ export default function SessionTabs({
         {TABS.map((tab) => {
           const active = activeTab === tab.id;
           return (
-            <button
+            <Button
               key={tab.id}
               type="button"
+              intent={active ? "primary" : "ghost"}
+              size="sm"
               onClick={() => onChange(tab.id)}
-              className="px-4 py-2 text-sm font-medium border-b-2"
+              className="-mb-px rounded-none border-b-2 px-4 py-2"
               style={{
                 borderColor: active
                   ? "var(--color-primary)"
                   : "transparent",
-                color: active
-                  ? "var(--color-text-primary)"
-                  : "var(--color-text-muted)",
               }}
             >
               {tab.label}
-            </button>
+            </Button>
           );
         })}
       </div>

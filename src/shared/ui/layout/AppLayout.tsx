@@ -78,7 +78,7 @@ export default function AppLayout() {
                   minHeight: "100vh",
                 }}
               >
-                {/* ===== HEADER (GLOBAL / FULL WIDTH) ===== */}
+                {/* ===== 공용 헤더: 사이드바 링크된 모든 admin 페이지에 동일 적용 ===== */}
                 <header
                   style={{
                     gridColumn: "1 / -1",

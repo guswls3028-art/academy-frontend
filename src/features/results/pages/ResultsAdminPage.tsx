@@ -1,37 +1,27 @@
 import {
-  Page,
-  PageHeader,
   Panel,
   Section,
   KPI,
-  WorkZone,
   Button,
   StatusBadge,
 } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
 
 export default function ResultControlCenter() {
   return (
-    <Page width="full" density="focus">
-      {/* ===============================
-          HEADER
-      =============================== */}
-      <PageHeader
-        title="성적·결과 통합 관리"
-        description="시험 · 과제 · 클리닉 결과를 한 번에 분석합니다."
-        badge={<StatusBadge status="active" />}
-        actions={
+    <DomainLayout
+      title="성적·결과 통합 관리"
+      description="시험 · 과제 · 클리닉 결과를 한 번에 분석합니다."
+    >
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-end">
           <Button intent="primary" size="md">
             리포트 다운로드
           </Button>
-        }
-        meta="BIOLOGY RESULTS & ANALYTICS"
-        variant="card"
-      />
+        </div>
 
-      {/* ===============================
-          KPI
-      =============================== */}
-      <Section level="primary" title="성과 요약">
+        {/* KPI */}
+        <Section level="primary" title="성과 요약">
         <div className="grid grid-cols-4 gap-6">
           <KPI label="평균 점수" value="84.6" hint="최근 시험" />
           <KPI label="합격률" value="78%" hint="커리큘럼 기준" />
@@ -53,7 +43,7 @@ export default function ResultControlCenter() {
           </div>
         }
       >
-        <WorkZone>
+        <div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[var(--color-text-muted)]">
@@ -101,7 +91,7 @@ export default function ResultControlCenter() {
                   </td>
                   <td>
                     {r.clinic ? (
-                      <span className="text-sm font-semibold text-red-600">
+                      <span className="text-sm font-semibold" style={{ color: "var(--color-error)" }}>
                         필요
                       </span>
                     ) : (
@@ -119,12 +109,13 @@ export default function ResultControlCenter() {
               ))}
             </tbody>
           </table>
-        </WorkZone>
+        </div>
       </Panel>
 
-      <div className="mt-10 text-center text-xs font-semibold text-[var(--color-text-muted)]">
-        HakwonPlus · Biology Results Intelligence Platform
+        <div className="text-center text-xs font-semibold text-[var(--color-text-muted)]">
+          HakwonPlus · Biology Results Intelligence Platform
+        </div>
       </div>
-    </Page>
+    </DomainLayout>
   );
 }

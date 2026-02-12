@@ -15,14 +15,14 @@
 .kpi-label {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
-  font-weight: 900;
+  font-weight: var(--font-title);
   letter-spacing: -0.12px;
 }
 
 .kpi-value {
   margin-top: 6px;
   font-size: var(--text-2xl);
-  font-weight: 950;
+  font-weight: 700;
   letter-spacing: -0.4px;
   color: var(--color-text-primary);
 }

@@ -54,7 +54,7 @@ export default function SessionDetailPage() {
         {/* ===== Actions ===== */}
         <ActionCard title="영상 보기" desc="미디어 도메인으로 이동합니다.">
           {/* media 이식 전이면 링크만 자리 확보 */}
-          <Link to={`/student/media?session=${data.id}`} style={btnStyle}>
+          <Link to={`/student/video?session=${data.id}`} style={btnStyle}>
             영상으로 이동
           </Link>
         </ActionCard>

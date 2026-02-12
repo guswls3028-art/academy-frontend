@@ -26,7 +26,8 @@ export default function PermissionTable({
 
         <div className="w-[130px]">이름</div>
         <div className="w-[90px] text-center">출석</div>
-        <div className="w-[90px] text-center">권한</div>
+        <div className="w-[90px] text-center">접근 모드</div>
+        <div className="w-[80px] text-center">완료</div>
         <div className="w-[150px]">학부모 번호</div>
         <div className="w-[150px]">학생 번호</div>
         <div className="w-[140px]">학교</div>

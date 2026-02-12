@@ -42,6 +42,8 @@ export interface Video {
 
 export interface VideoDetail extends Video {}
 
+import type { AccessMode, VideoRule } from "../types/access-mode";
+
 export interface VideoStatsStudent {
   enrollment: number;
   student_name: string;
@@ -50,7 +52,8 @@ export interface VideoStatsStudent {
   completed: boolean;
 
   attendance_status: string | null;
-  effective_rule: "free" | "once" | "blocked";
+  effective_rule: VideoRule; // Legacy field
+  access_mode?: AccessMode; // New field
 
   parent_phone?: string | null;
   student_phone?: string | null;
@@ -71,12 +74,15 @@ export interface UploadInitResponse {
   content_type: string;
 }
 
-export type PolicyImpactRule = "free" | "once" | "blocked";
+export type PolicyImpactRule = VideoRule; // Legacy type
 
 export interface PolicyImpactRow {
   enrollment: number;
   student_name: string;
-  effective_rule: PolicyImpactRule;
+  effective_rule: PolicyImpactRule; // Legacy field
+  access_mode?: AccessMode; // New field
+  attendance_status?: string | null;
+  completed?: boolean;
 }
 
 export interface PolicyImpactResponse {

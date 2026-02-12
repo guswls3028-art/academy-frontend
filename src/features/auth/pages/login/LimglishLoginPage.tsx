@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { Button } from "@/shared/ui/ds";
 import { useProgram } from "@/shared/program";
 
 export default function CustomLoginPage() {
@@ -77,13 +78,15 @@ export default function CustomLoginPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <button
+        <Button
           type="submit"
+          intent="primary"
+          size="lg"
           disabled={pending}
-          className="w-full rounded bg-black py-2 text-white font-semibold"
+          className="w-full"
         >
           {pending ? "로그인 중..." : "로그인"}
-        </button>
+        </Button>
 
         {error && (
           <div style={{ color: "red" }} className="mt-3 text-sm font-semibold">

@@ -16,8 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
   
-import { Page, PageHeader, Section } from "@/shared/ui/ds";
-import EmptyState from "@/shared/ui/ds";
+import { Button, EmptyState, Page, PageHeader, Section } from "@/shared/ui/ds";
 
 import api from "@/shared/api/axios";
 
@@ -108,13 +107,9 @@ export default function SessionDetailPage() {
       <PageHeader
         title={session.title}
         actions={
-          <button
-            type="button"
-            className="rounded bg-blue-600 px-4 py-2 text-sm text-white"
-            onClick={() => setShowModal(true)}
-          >
+          <Button type="button" intent="primary" size="sm" onClick={() => setShowModal(true)}>
             학생 추가
-          </button>
+          </Button>
         }
       />
 

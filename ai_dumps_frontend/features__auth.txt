@@ -418,7 +418,7 @@ export default function HakwonPlusLoginPage() {
         </button>
 
         {error && (
-          <div className="mt-3 text-sm font-semibold text-red-600">
+          <div className="mt-3 text-sm font-semibold" style={{ color: "var(--color-error)" }}>
             {error}
           </div>
         )}

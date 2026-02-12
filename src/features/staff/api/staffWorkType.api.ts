@@ -1,22 +1,27 @@
-﻿// PATH: src/features/staff/api/staffWorkType.api.ts
+// PATH: src/features/staff/api/staffWorkType.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: WorkTypeSerializer */
 export type WorkType = {
   id: number;
   name: string;
   base_hourly_wage: number;
   color: string;
-  is_active?: boolean;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
+/** Backend: StaffWorkTypeSerializer (work_type nested, work_type_id write_only) */
 export type StaffWorkType = {
   id: number;
   staff: number;
   work_type: WorkType;
   hourly_wage: number | null;
   effective_hourly_wage: number;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
 };
 
 /**

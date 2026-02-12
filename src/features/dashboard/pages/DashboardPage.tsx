@@ -1,23 +1,21 @@
-// PATH: src/features/dashboard/pages/DashboardDemoPage.tsx
+// PATH: src/features/dashboard/pages/DashboardPage.tsx
 /**
- * 🧪 DashboardDemoPage (ADMIN / DEMO ONLY)
- *
- * 목적:
+ * 🧪 Dashboard (ADMIN / DEMO ONLY)
  * - 학원 운영 전체 현황 한눈에 보여주는 홍보용
  * - KPI / 그래프 / 최근 활동
- *
- * 주의:
- * - 실제 데이터 X
- * - 캡쳐 / 제안서 / 랜딩 페이지용
  */
 
-export default function DashboardDemoPage() {
-  return (
-    <div style={page}>
-      <h1 style={title}>Academy Operations Dashboard</h1>
+import { DomainLayout } from "@/shared/ui/layout";
 
-      {/* KPI */}
-      <div style={kpiGrid}>
+export default function DashboardPage() {
+  return (
+    <DomainLayout
+      title="대시보드"
+      description="학원 운영 현황을 한눈에 확인하세요."
+    >
+      <div style={page}>
+        {/* KPI */}
+        <div style={kpiGrid}>
         <KPI label="오늘 출석률" value="94%" />
         <KPI label="영상 시청률" value="88%" />
         <KPI label="진행 중 시험" value="6건" />
@@ -41,22 +39,15 @@ export default function DashboardDemoPage() {
           </ul>
         </Card>
       </div>
-    </div>
+      </div>
+    </DomainLayout>
   );
 }
 
 /* ---------------- styles ---------------- */
 
 const page: React.CSSProperties = {
-  padding: 32,
-  background: "#f5f7fb",
-  minHeight: "100vh",
-};
-
-const title: React.CSSProperties = {
-  fontSize: 26,
-  fontWeight: 900,
-  marginBottom: 24,
+  padding: 0,
 };
 
 const kpiGrid: React.CSSProperties = {
@@ -75,11 +66,11 @@ const mainGrid: React.CSSProperties = {
 const chartMock: React.CSSProperties = {
   height: 240,
   borderRadius: 12,
-  background: "linear-gradient(135deg, #e0e7ff, #f8fafc)",
+  background: "var(--bg-surface)",
   display: "grid",
   placeItems: "center",
   fontWeight: 700,
-  color: "#475569",
+  color: "var(--color-text-secondary)",
 };
 
 const list: React.CSSProperties = {

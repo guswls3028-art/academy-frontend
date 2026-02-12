@@ -40,8 +40,12 @@ export default function InlineExamItemsRow({ examId, enrollmentId, colSpan }: Pr
   };
 
   return (
-    <tr className="bg-[var(--bg-surface-soft)]">
-      <td colSpan={colSpan} className="p-2">
+    <tr
+      style={{
+        background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
+      }}
+    >
+      <td colSpan={colSpan} style={{ padding: "var(--space-4)" }}>
         <div className="flex flex-wrap gap-2">
           {list.map((it, i) => {
             const disabled = !it.is_editable || it.is_locked;
@@ -49,12 +53,26 @@ export default function InlineExamItemsRow({ examId, enrollmentId, colSpan }: Pr
             return (
               <div
                 key={it.question_id}
-                className={[
-                  "flex items-center gap-1 rounded border px-2 py-1",
-                  "border-[var(--border-divider)] bg-[var(--bg-surface)]",
-                ].join(" ")}
+                className="flex items-center gap-2 rounded-lg border px-3 py-2 transition-all"
+                style={{
+                  borderColor: disabled
+                    ? "var(--color-border-divider)"
+                    : "var(--color-border-divider-strong)",
+                  background: disabled
+                    ? "var(--color-bg-surface-soft)"
+                    : "var(--color-bg-surface)",
+                  opacity: disabled ? 0.6 : 1,
+                }}
               >
-                <span className="text-xs text-muted">Q{it.question_id}</span>
+                <span
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    fontWeight: "var(--font-title)",
+                    color: "var(--color-text-secondary)",
+                  }}
+                >
+                  Q{it.question_id}
+                </span>
 
                 <ScoreInputCell
                   examId={it.exam_id}
@@ -78,10 +96,33 @@ export default function InlineExamItemsRow({ examId, enrollmentId, colSpan }: Pr
                     });
                   }}
                 />
+                {disabled && (
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: "var(--color-text-muted)",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {it.is_locked ? "잠김" : "편집 불가"}
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
+        {list.length > 0 && (
+          <div
+            className="mt-2"
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--color-text-muted)",
+              fontWeight: "var(--font-meta)",
+            }}
+          >
+            💡 Enter 저장 · ←/→ 이동 · 객관식/주관식 모두 수동 채점 가능
+          </div>
+        )}
       </td>
     </tr>
   );

@@ -122,7 +122,7 @@ export default function EmptyState({
           borderRadius: "var(--radius-xl)",
           border: "1px solid var(--color-border-divider)",
           background: "var(--ui-log-bg)",
-          boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
+          boxShadow: "var(--elevation-1)",
           overflow: "hidden",
         }
       : {};
@@ -130,10 +130,7 @@ export default function EmptyState({
   const innerStyle: React.CSSProperties = {
     padding: `${padY}px var(--space-7)`,
     textAlign: "center",
-    background:
-      scope === "page"
-        ? "linear-gradient(180deg, color-mix(in srgb, var(--bg-surface-soft) 48%, transparent), transparent)"
-        : "transparent",
+    background: "transparent",
   };
 
   const badgeStyle: React.CSSProperties = {
@@ -146,13 +143,13 @@ export default function EmptyState({
     border: "1px solid var(--color-border-divider)",
     background: "var(--bg-surface-soft)",
     color: iconColor,
-    boxShadow: "0 1px 0 rgba(0,0,0,0.02)",
+    boxShadow: "var(--elevation-1)",
   };
 
   const titleStyle: React.CSSProperties = {
     marginTop: showIcon ? 12 : 0,
     fontSize: titleSize,
-    fontWeight: 950,
+    fontWeight: "var(--font-title)",
     letterSpacing: "-0.18px",
     color: toneText,
   };
@@ -160,7 +157,7 @@ export default function EmptyState({
   const descStyle: React.CSSProperties = {
     marginTop: 8,
     fontSize: descSize,
-    fontWeight: 800,
+    fontWeight: "var(--font-meta)",
     color: toneMuted,
     lineHeight: 1.55,
     whiteSpace: "pre-line",
@@ -175,7 +172,7 @@ export default function EmptyState({
   const extraStyle: React.CSSProperties = {
     marginTop: 12,
     fontSize: 11,
-    fontWeight: 800,
+    fontWeight: "var(--font-meta)",
     color: "var(--color-text-muted)",
   };
 

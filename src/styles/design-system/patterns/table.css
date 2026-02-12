@@ -20,13 +20,12 @@ table.ds-table {
 }
 
 .ds-table thead th {
-  padding: 12px 14px;
-  font-size: 12px;
-  font-weight: 800;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: var(--font-title);
   text-align: center;
-
-  color: var(--text-muted);
-  background: var(--bg-surface-soft);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-surface-soft);
 
   border-bottom: 1px solid var(--border-divider);
   white-space: nowrap;
@@ -34,7 +33,7 @@ table.ds-table {
 }
 
 .ds-table tbody td {
-  padding: 14px;
+  padding: 11px 14px;
   text-align: center;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-divider);
@@ -49,7 +48,7 @@ table.ds-table {
 }
 
 .ds-table tbody tr:hover {
-  background: color-mix(in srgb, var(--bg-surface-soft) 72%, transparent);
+  background: var(--color-bg-surface-hover);
 }
 
 .ds-row-btn {
@@ -76,4 +75,174 @@ table.ds-table {
 .ds-th-sort__arrow {
   font-size: 10px;
   opacity: 0.8;
+}
+
+/* ============================================================================
+ * DS TABLE — Staff 톤 (work slot, 시각 밀도 통일)
+ * - .ds-table--work 사용 시 thead/tbody/hover/border를 Staff Table과 동일하게
+ * ============================================================================ */
+
+.ds-table-wrap:has(.ds-table--work) {
+  border-color: var(--ui-work-border);
+  background: var(--ui-work-bg);
+}
+
+.ds-table-wrap .ds-table.ds-table--work {
+  border: 1px solid var(--ui-work-border);
+  background: var(--ui-work-bg);
+}
+
+.ds-table-wrap .ds-table.ds-table--work thead th {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: var(--font-title);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--ui-work-header-bg);
+  border-bottom: 1px solid var(--ui-work-border);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ds-table-wrap .ds-table.ds-table--work tbody td {
+  padding: 10px 14px;
+  text-align: center;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--ui-work-border);
+}
+
+.ds-table-wrap .ds-table.ds-table--work tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ds-table-wrap .ds-table.ds-table--work tbody tr {
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+
+.ds-table-wrap .ds-table.ds-table--work tbody tr:hover {
+  background: color-mix(in srgb, var(--ui-work-header-bg) 72%, transparent);
+}
+
+/* ============================================================================
+ * DS TABLE — 프리미엄 밀도형 (StudentsTable / Staff 공통)
+ * - neutral thead, hairline 구분선, 첫 컬럼 강조, hover, 상태 뱃지 glow
+ * ============================================================================ */
+
+.ds-table-wrap:has(.ds-table--staff-home) {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home thead th {
+  background: var(--color-bg-surface-soft);
+  border-bottom: 1px solid var(--border-divider-strong);
+  font-weight: var(--font-title);
+  text-align: left;
+  padding: 6px 16px;
+  vertical-align: middle;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home thead th:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 25%, transparent);
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody td {
+  text-align: left;
+  padding: 10px 16px;
+  vertical-align: middle;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody td:first-child {
+  font-weight: 600;
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody td:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 25%, transparent);
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody tr:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+/* ============================================================================
+ * DS TABLE — Flat (borderless, no radius, transparent)
+ * - Students 등 목록형 테이블용
+ * ============================================================================ */
+
+.ds-table-wrap:has(.ds-table--flat) {
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat thead th {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--border-divider));
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 35%, transparent);
+  padding: 6px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat thead th:last-child {
+  border-right: 0;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody td {
+  border-bottom: 1px solid var(--border-divider);
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 35%, transparent);
+  padding: 11px 18px;
+  background: transparent;
+  text-align: left;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody td:last-child {
+  border-right: 0;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody td:first-child {
+  font-weight: 600;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody tr:last-child td {
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody tr:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+
+/* 테이블 체크박스 — 클릭 영역 확대 */
+.ds-table .ds-checkbox-cell input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+/* 체크박스 선택 행 — 프라이머리 색 강조 */
+.ds-table tbody tr.ds-row-selected {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface)) !important;
+}
+.ds-table tbody tr.ds-row-selected:hover {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--bg-surface)) !important;
 }

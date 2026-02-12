@@ -8,4 +8,6 @@ export interface PermissionModalProps {
   onClose: () => void;
   focusEnrollmentId?: number | null;
   onChangeFocusEnrollmentId?: (v: number | null) => void;
+  /** 열릴 때 초기 탭 (권한 설정 / 학습 성적표 / 시청 로그) */
+  initialTab?: TabKey;
 }

@@ -1,8 +1,51 @@
 // PATH: src/features/students/components/StudentsTable.tsx
 import { useMemo } from "react";
-import { EmptyState, Button } from "@/shared/ui/ds";
-import { toggleStudentActive } from "../api/students";
-import { useQueryClient } from "@tanstack/react-query";
+import { EmptyState } from "@/shared/ui/ds";
+import { DomainTable, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
+
+const DEFAULT_LECTURE_COLOR = "#3b82f6";
+
+function isLightColor(hex: string): boolean {
+  const c = String(hex || "").toLowerCase();
+  return ["#eab308", "#06b6d4"].includes(c);
+}
+
+function LectureChip({
+  lectureName,
+  color,
+  size = 18,
+}: {
+  lectureName: string;
+  color: string;
+  size?: number;
+}) {
+  const bg = color || DEFAULT_LECTURE_COLOR;
+  const textColor = isLightColor(bg) ? "#1a1a1a" : "#fff";
+  const two = (lectureName || "??").slice(0, 2);
+
+  return (
+    <span
+      title={lectureName}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 4,
+        flexShrink: 0,
+        display: "inline-grid",
+        placeItems: "center",
+        fontSize: 10,
+        fontWeight: 800,
+        letterSpacing: "-0.02em",
+        color: textColor,
+        background: bg,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+      }}
+    >
+      {two}
+    </span>
+  );
+}
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -17,7 +60,7 @@ function highlight(text: string, keyword: string) {
   return parts.map((p, i) =>
     p.toLowerCase() === k.toLowerCase() ? (
       <mark
-        key={i}
+        key={`hl-${i}-${String(p).slice(0, 8)}`}
         className="px-0.5 rounded"
         style={{
           backgroundColor: "var(--state-selected-bg)",
@@ -32,41 +75,62 @@ function highlight(text: string, keyword: string) {
   );
 }
 
-function formatPhone(v: any) {
-  if (!v) return "-";
-  return String(v);
-}
-
 export default function StudentsTable({
   data = [],
   search,
   sort,
   onSortChange,
-  onDelete,
   onRowClick,
-  onEditClick,
+  selectedIds = [],
+  onSelectionChange,
+  isDeletedTab = false,
 }: {
   data: any[];
   search: string;
   sort: string;
   onSortChange: (v: string) => void;
-  onDelete: (id: number) => void;
   onRowClick: (id: number) => void;
-  onEditClick: (id: number) => void;
+  selectedIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
+  isDeletedTab?: boolean;
 }) {
-  const qc = useQueryClient();
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => data.map((s) => s.id), [data]);
+  const allSelected = data.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  function toggleSelect(id: number) {
+    if (!onSelectionChange) return;
+    if (selectedSet.has(id)) {
+      onSelectionChange(selectedIds.filter((x) => x !== id));
+    } else {
+      onSelectionChange([...selectedIds, id]);
+    }
+  }
+
+  /** 현재 페이지 전체 선택/해제 — 기존 선택 유지, 페이지 전환 시에도 선택 유지 */
+  function toggleSelectAll() {
+    if (!onSelectionChange) return;
+    if (allSelected) {
+      onSelectionChange(selectedIds.filter((id) => !allIds.includes(id)));
+    } else {
+      const merged = new Set([...selectedIds, ...allIds]);
+      onSelectionChange([...merged]);
+    }
+  }
 
   const columns = useMemo(
     () => [
-      { key: "name", label: "이름", w: 140 },
-      { key: "studentPhone", label: "학생 전화/식별자", w: 190 },
-      { key: "parentPhone", label: "학부모 전화", w: 170 },
-      { key: "school", label: "학교", w: 160 },
-      { key: "schoolClass", label: "반", w: 80 },
-      { key: "registeredAt", label: "등록일", w: 120 },
-      { key: "active", label: "상태", w: 110 },
+      { key: "_checkbox", label: "", w: 48 },
+      { key: "name", label: "이름", w: 122 },
+      { key: "studentPhone", label: "학생 전화/식별자", w: 130 },
+      { key: "parentPhone", label: "학부모 전화", w: 130 },
+      { key: "school", label: "학교", w: 110 },
+      { key: "schoolClass", label: "반", w: 65 },
+      { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: 110 },
+      { key: "tags", label: "태그", w: 100 },
+      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: 72 }]),
     ],
-    []
+    [isDeletedTab]
   );
 
   if (!data.length) {
@@ -79,29 +143,16 @@ export default function StudentsTable({
     );
   }
 
-  async function toggle(id: number, active: boolean) {
-    await toggleStudentActive(id, !active);
-    qc.invalidateQueries({ queryKey: ["students"] });
-    qc.invalidateQueries({ queryKey: ["student", id] });
-  }
-
-  function sortHeader(key: string, label: string) {
-    const isAsc = sort === key;
-    const isDesc = sort === `-${key}`;
-    const next = isAsc ? `-${key}` : isDesc ? "" : key;
+  function sortHeader(colKey: string, label: string) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    const next = isAsc ? `-${colKey}` : isDesc ? "" : colKey;
 
     return (
       <th
+        key={colKey}
         onClick={() => onSortChange(next)}
-        className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)] cursor-pointer select-none"
-        style={{
-          textAlign: "center",
-          whiteSpace: "nowrap",
-          background:
-            "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-          color:
-            "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
-        }}
+        className="cursor-pointer select-none"
         aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
         scope="col"
       >
@@ -112,7 +163,7 @@ export default function StudentsTable({
             style={{
               fontSize: 11,
               opacity: isAsc || isDesc ? 1 : 0.35,
-              color: "var(--color-brand-primary)",
+              color: "var(--color-primary)",
             }}
           >
             {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
@@ -123,111 +174,163 @@ export default function StudentsTable({
   }
 
   return (
-    <div style={{ overflow: "hidden" }}>
-      <table className="w-full" style={{ tableLayout: "fixed" }}>
-        <colgroup>
-          {columns.map((c) => (
-            <col key={c.key} style={{ width: c.w }} />
-          ))}
-          <col style={{ width: 160 }} />
-        </colgroup>
+    <div style={{ width: "fit-content" }}>
+    <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: 887 }}>
+      <colgroup>
+        {columns.map((c) => (
+          <col key={c.key} style={{ width: c.w }} />
+        ))}
+      </colgroup>
 
-        <thead>
-          <tr>
-            {columns.map((c) => sortHeader(c.key, c.label))}
-            <th
-              className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-              style={{
-                textAlign: "center",
-                whiteSpace: "nowrap",
-                background:
-                  "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-                color:
-                  "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
-              }}
-              scope="col"
-            >
-              작업
-            </th>
-          </tr>
-        </thead>
+      <thead>
+        <tr>
+          {columns.map((c) =>
+            c.key === "_checkbox" ? (
+              <th key="_checkbox" scope="col" style={{ width: 48 }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                {onSelectionChange ? (
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="전체 선택"
+                    className="cursor-pointer"
+                  />
+                ) : null}
+              </th>
+            ) : c.key === "tags" ? (
+              <th key="tags" scope="col">
+                태그
+              </th>
+            ) : (
+              sortHeader(c.key, c.label)
+            )
+          )}
+        </tr>
+      </thead>
 
-        <tbody className="divide-y divide-[var(--color-border-divider)]">
-          {data.map((s) => (
+      <tbody>
+        {data.map((s) => (
             <tr
               key={s.id}
               onClick={() => onRowClick(s.id)}
               tabIndex={0}
               role="button"
-              className="group cursor-pointer hover:bg-[var(--color-bg-surface-soft)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
+              className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
             >
-              {/* 이름 */}
-              <td className="px-4 py-3 text-center text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
-                {highlight(s.name || "-", search)}
+              {/* 체크박스 */}
+              <td onClick={(e) => e.stopPropagation()} style={{ width: 48 }} className="ds-checkbox-cell">
+                {onSelectionChange ? (
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(s.id)}
+                    onChange={() => toggleSelect(s.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`${s.name} 선택`}
+                    className="cursor-pointer"
+                  />
+                ) : null}
+              </td>
+              {/* 이름 + 강의 아이콘 */}
+              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  {Array.isArray(s.enrollments) && s.enrollments.length > 0 ? (
+                    <span className="inline-flex items-center gap-1 flex-shrink-0">
+                      {s.enrollments.slice(0, 3).map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => (
+                        <LectureChip
+                          key={en.id}
+                          lectureName={en.lectureName || "??"}
+                          color={en.lectureColor || DEFAULT_LECTURE_COLOR}
+                        />
+                      ))}
+                      {s.enrollments.length > 3 && (
+                        <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
+                          +{s.enrollments.length - 3}
+                        </span>
+                      )}
+                    </span>
+                  ) : null}
+                  <span className="truncate">{highlight(s.name || "-", search)}</span>
+                </span>
               </td>
 
               {/* 학생 전화 */}
-              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
-                {highlight(formatPhone(s.studentPhone), search)}
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(
+                  formatStudentPhoneDisplay(s.studentPhone),
+                  search
+                )}
               </td>
 
               {/* 학부모 전화 */}
-              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
-                {highlight(s.parentPhone || "-", search)}
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(formatPhone(s.parentPhone), search)}
               </td>
 
               {/* 학교 */}
-              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {s.school || "-"}
               </td>
 
               {/* 반 */}
-              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {s.schoolClass || "-"}
               </td>
 
-              {/* 등록일 */}
-              <td className="px-4 py-3 text-center text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
-                {s.registeredAt?.slice(0, 10) || "-"}
+              {/* 등록일 / 삭제일 */}
+              <td className="text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
+                {(isDeletedTab ? s.deletedAt : s.registeredAt)?.slice(0, 10) || "-"}
+              </td>
+
+              {/* 태그 */}
+              <td className="text-[12px] leading-5">
+                {Array.isArray(s.tags) && s.tags.length > 0 ? (
+                  <span className="flex flex-wrap gap-1">
+                    {s.tags.slice(0, 3).map((t: { id: number; name: string; color: string }) => (
+                      <span
+                        key={t.id}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold truncate max-w-[70px]"
+                        style={{
+                          backgroundColor: t.color ? `${t.color}22` : "var(--color-bg-surface-soft)",
+                          color: t.color || "var(--color-text-secondary)",
+                          border: t.color ? `1px solid ${t.color}44` : undefined,
+                        }}
+                        title={t.name}
+                      >
+                        {t.name}
+                      </span>
+                    ))}
+                    {s.tags.length > 3 && (
+                      <span className="text-[11px] text-[var(--color-text-muted)]">
+                        +{s.tags.length - 3}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">-</span>
+                )}
               </td>
 
               {/* 상태 */}
-              <td
-                className="px-4 py-3 text-center"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span
-                  style={{
-                    padding: "5px 12px",
-                    borderRadius: 999,
-                    fontWeight: 800,
-                    fontSize: 12,
-                    color: "white",
-                    backgroundColor: s.active ? "#22c55e" : "#ef4444",
-                  }}
-                >
-                  {s.active ? "활성" : "비활성"}
-                </span>
-              </td>
-
-              {/* 작업 */}
-              <td
-                className="px-4 py-3"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <Button intent="primary" size="sm" onClick={() => onEditClick(s.id)}>
-                    수정
-                  </Button>
-                  <Button intent="danger" size="sm" onClick={() => onDelete(s.id)}>
-                    삭제
-                  </Button>
-                </div>
-              </td>
+              {!isDeletedTab && (
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <span
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 999,
+                      fontWeight: 800,
+                      fontSize: 11,
+                      color: "white",
+                      backgroundColor: s.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                    }}
+                  >
+                    {s.active ? "활성" : "비활성"}
+                  </span>
+                </td>
+              )}
             </tr>
           ))}
-        </tbody>
-      </table>
+      </tbody>
+    </DomainTable>
     </div>
   );
 }

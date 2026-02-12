@@ -53,12 +53,8 @@ export default function PageHeader({
     ? "sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg-surface)_82%,transparent)]"
     : "";
 
-  // Hero-only: subtle gradient + stronger separation from work area
   const heroStyle: React.CSSProperties | undefined = isHero
-    ? {
-        background:
-          "linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface-hover) 62%, transparent), var(--color-bg-surface))",
-      }
+    ? { background: "var(--bg-surface)" }
     : undefined;
 
   return (

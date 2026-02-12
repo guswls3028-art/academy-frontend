@@ -27,6 +27,8 @@ export interface User {
   is_superuser: boolean;
 
   tenantRole: TenantRole | null;
+  /** 학부모일 때 연결된 학생 ID (첫 번째) */
+  linkedStudentId?: number | null;
 }
 
 type AuthState = {

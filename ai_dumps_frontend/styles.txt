@@ -5,6 +5,86 @@
 
 
 ==========================================================================================
+# FILE: design-system/PREMIUM-SAAS-AUDIT.md
+==========================================================================================
+# 고급 SaaS처럼 안 보이는 이유 — 진단 & 개선안
+
+## 1. 진단: 왜 “관리자 ERP”처럼 보이는가
+
+### 1) 도메인 히어로가 과함 (가장 큰 요인)
+- **현상**: `DomainLayout` 상단이 **풀폭 primary 그라데이션 + 굵은 primary 세로 바**로 채워짐.
+- **문제**: 브랜드 색이 면적으로 너무 많이 쓰여 “광고 배너”처럼 보이고, 고급 SaaS에서 흔한 **중립 배경 + 여백 + 타이포 위계**와 거리가 멂.
+- **참고**: Linear, Notion, Vercel, Stripe Dashboard 등은 페이지 타이틀 영역을 **흰색/회색 배경 + 넉넉한 패딩 + 명확한 제목/설명만** 쓰는 경우가 많음.
+
+### 2) 숫자/하드코딩 잔존
+- **DomainLayout**: `px-6`, `pt-6`, `pb-4`, `py-6` 등 Tailwind 숫자만 사용 → 스케일 토큰(`--space-*`)과 불일치.
+- **DomainPanel**: `borderRadius: 18` → `--radius-xl`(18px)이 있는데 토큰 미사용.
+- **SectionHeader**: `borderRadius: "var(--radius-2xl)"` 사용하는데 **`--radius-2xl`이 디자인 시스템에 없음** → fallback으로 일관성 깨짐.
+- **SectionHeader / ModalHeader 등**: `fontSize: 20`, `marginTop: 6` 등 숫자 직접 사용 → 타이포/스페이싱 스케일과 연결되지 않음.
+
+### 3) 앱 헤더·KPI 등 DS 내부에 800+ 폰트 잔존
+- **patterns/header.css**: `font-weight: 950`(브랜드명, active crumb), `font-weight: 850`(muted crumb).
+- **patterns/kpi.css**: `font-weight: 900` / `950`.
+- **patterns/layout.css**: 한 곳 `font-weight: 900`.
+- Phase 2에서 많은 800+를 제거했지만 **DS 패턴 파일**에 남아 있어, “무거운” 인상과 위계 혼란을 줌.
+
+### 4) 여백·리듬·최대 너비
+- 페이지 콘텐츠가 **전부 `px-6` 수준**으로만 배치됨. 대형 모니터에서 영역이 과하게 넓어짐.
+- Premium SaaS는 보통 **콘텐츠 max-width**(예: 1280px) + **일정한 gutter**로 가독성과 “한 화면에 정리된” 느낌을 줌.
+- 도메인 헤더 ↔ 패널, 패널 ↔ 콘텐츠 사이 **세로 리듬**이 토큰(`--space-7`, `--space-8`)으로 명확히 잡혀 있지 않음.
+
+### 5) Elevation이 매우 약함
+- `--elevation-1~3`이 **0.04 / 0.06 / 0.08** opacity로 매우 subtle함.
+- 카드/패널/모달 간 **깊이 구분**이 약해 “다 붙어 보이는” 느낌을 줄 수 있음. (의도적일 수 있으나, “고급스러운 깊이”를 원하면 약간 강화 검토 가능.)
+
+### 6) 탭·CTA 대비
+- 도메인 탭이 **primary 그라데이션 배경 위**에 올라가 있음. 배경이 강해 탭 pill과의 대비·시인성이 약할 수 있음.
+- 히어로를 중립으로 줄이면, **탭과 primary CTA**가 상대적으로 더 잘 보임.
+
+### 7) 모션·인터랙션
+- `--motion-*`, `--ease-*` 토큰은 있으나, **탭/버튼 호버 시 미세한 scale·밝기 변화** 등이 없을 수 있음.  
+  작은 피드백만으로도 “반응하는 UI” 느낌이 커짐.
+
+---
+
+## 2. 개선안 (우선순위)
+
+### A. 즉시 적용 가능 (DS + 공유 UI만, 기능/features 비수정)
+
+| # | 항목 | 조치 |
+|---|------|------|
+| 1 | **도메인 히어로 완화** | `DomainLayout` 상단을 **primary 그라데이션 제거**, **중립 배경**(`var(--bg-surface)` 또는 `var(--layout-page-bg)`) + **좌측 얇은 primary 액센트**(4px 바 유지 또는 더 얇게) + **넉넉한 패딩**으로 변경. “한 화면에 히어로 1개”는 유지하되 색 면적 축소. |
+| 2 | **`--radius-2xl` 추가** | `density/radius.css`에 `--radius-2xl: 22px`(또는 24px) 정의. `SectionHeader` 등에서 이미 사용 중이므로 정의만 하면 됨. |
+| 3 | **DomainPanel 토큰화** | `borderRadius: 18` → `borderRadius: "var(--radius-xl)"`. 패딩/여백도 가능한 부분은 `--space-*` 사용. |
+| 4 | **DomainLayout 여백 토큰화** | `px-6` → `var(--space-6)`, `pt-6` / `pb-4` / `py-6` → `var(--space-6)` / `var(--space-4)` / `var(--space-6)` 등으로 치환해 스케일과 일치. |
+| 5 | **DS 내 800+ 제거** | `patterns/header.css`, `patterns/kpi.css`, `patterns/layout.css`에서 950/900/850 → `var(--font-title)` 또는 `var(--font-meta)`로 교체. |
+
+### B. 단기 (디자인 시스템 확장)
+
+| # | 항목 | 조치 |
+|---|------|------|
+| 6 | **콘텐츠 최대 너비** | `--content-max-width: 1280px`(또는 1440px) 토큰 추가. DomainLayout 또는 공통 wrapper에서 `max-width: var(--content-max-width); margin: 0 auto` 적용 검토. |
+| 7 | **Elevation 미세 조정** | “깊이”가 더 느껴지게 하려면 `--elevation-2`, `--elevation-3` opacity를 0.06→0.07, 0.08→0.10 등으로 **한 단계만** 올려서 A/B 비교. (기존 톤 유지하려면 생략 가능.) |
+| 8 | **타이포/스페이싱 토큰** | `--text-hero`, `--space-page-x` 등 페이지 레벨 토큰을 두고, SectionHeader/DomainLayout에서 숫자 대신 토큰 사용. |
+
+### C. 중기 (features는 그대로 두고 DS/패턴만)
+
+| # | 항목 | 조치 |
+|---|------|------|
+| 9 | **탭 호버/포커스** | `.ds-tab`에 `transition` + 호버 시 `background: color-mix(in srgb, var(--color-primary) 8%, transparent)` 등 **아주 약한** 피드백. (active는 현재처럼 primary 100% 유지.) |
+| 10 | **버튼 호버 미세 피드백** | primary/secondary 버튼 호버 시 `filter: brightness(1.02)` 또는 `box-shadow: var(--elevation-1)` 등 미세한 변화. |
+
+---
+
+## 3. 적용 범위 (규칙 유지)
+
+- **수정 가능**: `src/styles/design-system/**`, `src/shared/ui/**` (DomainLayout, DomainPanel, SectionHeader, 탭/버튼 패턴 등).
+- **수정 금지**: `src/features/**` 내 로직·API·라우팅·컴포넌트 시그니처. (폰트/색 등은 추후 점진 적용 시 토큰만 권장.)
+
+위 A안만 적용해도 **도메인 첫인상**과 **DS 일관성**이 크게 나아져, “고급 SaaS에 가까운” 톤을 낼 수 있습니다.
+
+
+==========================================================================================
 # FILE: design-system/README.md
 ==========================================================================================
 ## UI Color Slot Rules (LOCKED)
@@ -25,6 +105,79 @@
 
 
 ==========================================================================================
+# FILE: design-system/TABS-PREMIUM-SPEC.md
+==========================================================================================
+# 공통 탭 — 프리미엄 설계안
+
+## 현재 상태
+- **컨테이너**: `ds-tabs` — 회색 pill 배경(`surface-soft`), `gap 4px`, `padding 6px`, `radius-lg`
+- **탭**: `ds-tab` — `8px 14px`, 13px, `font-title`, 비활성=muted, 활성=primary 배경 + 흰 글자
+- **한계**: 컨테이너가 눈에 띄고, 활성 탭이 100% primary로 강함. 고급 SaaS는 보통 더 절제된 톤.
+
+---
+
+## 방향 1: 언더라인 인디케이터 (추천)
+**참고**: Linear, Notion, Vercel Dashboard
+
+| 요소 | 설계 |
+|------|------|
+| **컨테이너** | 배경 없음(`transparent`). 탭만 나열해 도메인 헤더와 한 몸처럼 보이게. |
+| **탭** | 패딩 `10px 16px`(또는 `--space-2` `--space-4`). 폰트 14px, `--font-title`. 비활성=`--color-text-secondary`. |
+| **활성** | 배경 pill 제거. **글자색만 primary** 또는 `--color-text-primary` + **하단 2px 실선** `border-bottom: 2px solid var(--color-primary)`. |
+| **호버** | 비활성: `color: var(--color-text-primary)`, 또는 배경 `color-mix(primary 6%, transparent)`. |
+| **인디케이터** | 활성 탭 하단 선만 쓰거나, 선 + `border-radius: 2px 2px 0 0`로 살짝 둥근 막대. |
+
+**장점**: 깔끔하고, 헤더와 시각적으로 붙어 있어 프리미엄 느낌. 12테마에서 primary만 바꿔도 통일.
+
+---
+
+## 방향 2: 소프트 필 (은은한 pill 유지)
+**참고**: Stripe Dashboard, 일부 Admin
+
+| 요소 | 설계 |
+|------|------|
+| **컨테이너** | 배경을 **은은한 primary**로: `color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface-soft))`. 패딩 `6px 8px`, `gap 4px` 유지. |
+| **탭** | 비활성: `color: var(--color-text-muted)`. 호버: `color: var(--color-text-primary)` + 배경 `color-mix(primary 4%, transparent)`. |
+| **활성** | 배경 `color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface))`(또는 `--color-bg-surface`만). 글자 `var(--color-primary)` 또는 `--color-text-primary` + `font-weight` 한 단계 강조. **100% primary 채우기 대신** 톤만 살짝. |
+| **모션** | `transition: color 120ms, background 120ms`. |
+
+**장점**: 지금 구조와 비슷해서 변경 폭이 작고, “은은한 primary” 요구와 잘 맞음.
+
+---
+
+## 방향 3: 세그먼트 컨트롤 (한 줄에 딱 붙은 블록)
+**참고**: iOS 세그먼트, 일부 대시보드
+
+| 요소 | 설계 |
+|------|------|
+| **컨테이너** | `display: flex`, 배경 `var(--color-bg-surface-soft)`, `border-radius: var(--radius-md)`, `padding: 2px`, 테두리 `1px solid var(--color-border-divider)`. |
+| **탭** | `flex: 1` 또는 `min-width`로 균등. `padding: 8px 12px`, `border-radius: calc(var(--radius-md) - 2px)`. |
+| **활성** | 배경 `var(--color-bg-surface)` + `box-shadow: var(--elevation-1)`. 글자 `--color-text-primary` + `--font-title`. |
+| **호버** | 비활성: 배경 `color-mix(primary 4%, transparent)`. |
+
+**장점**: “선택된 한 블록”이 분명해져서 데이터 밀도 높은 화면에 잘 맞음. 다만 도메인 탭처럼 개수가 가변이면 균등 분배가 애매할 수 있음.
+
+---
+
+## 권장 조합 (실제 적용 시)
+- **도메인 탭(클리닉·학생·강의 등)** → **방향 1(언더라인)**  
+  - 컨테이너 배경 제거, 활성은 **글자 primary + 하단 2px 선**.  
+  - 헤더와 한 몸으로 보이게 하면 “카드/박스” 느낌이 줄어듦.
+- **내부 섹션 탭**(예: 한 페이지 안에서 전환) → **방향 2(소프트 pill)**  
+  - 컨테이너에 은은한 primary, 활성은 100% 채우기 대신 10~15% primary 톤 + primary 글자.
+
+---
+
+## 토큰 제안
+- 탭 컨테이너 패딩: `--space-2`, `--space-3`
+- 탭 항목 패딩: `--space-2` `--space-4` (세로, 가로)
+- 폰트: `--text-sm` 또는 14px, `--font-title`
+- 전환: `--motion-base` `--ease-out` (기존 120ms와 유사하게)
+
+원하면 방향 1 기준으로 `tabs.css` 수정 패치까지 이어서 작성해 줄 수 있음.
+
+
+==========================================================================================
 # FILE: design-system/index.css
 ==========================================================================================
 @import "./base/element-lock.css";
@@ -42,6 +195,7 @@
    Component patterns
    =============================== */
 @import "./patterns/index.css";
+@import "../../shared/ui/ds/styles/tabs.css";
 
 /* ===============================
    AntD skin (slot only)
@@ -220,42 +374,59 @@
 ==========================================================================================
 /* PATH: src/styles/design-system/antd/table.css */
 /* ============================================================================
- * AntD Table — WORK SURFACE FIX (SLOT WIRED, FINAL)
- * - 테이블은 "작업 면(work)" 슬롯을 반드시 사용
- * - header/hover도 work 계열에서 파생
+ * AntD Table — 프리미엄 밀도형 (Staff / Students 공통 톤)
+ * - neutral header, hairline 구분선, 첫 컬럼 강조, hover
  * ============================================================================ */
 
 .ant-table {
-  background: var(--ui-work-bg);
-  border: 1px solid var(--ui-work-border);
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-divider);
+  border-radius: 16px;
   overflow: hidden;
 }
 
 .ant-table-container {
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
 }
 
-/* Header */
+/* Header (neutral) */
 .ant-table-thead > tr > th {
-  background: var(--ui-work-header-bg);
+  background: var(--color-bg-surface-soft);
   color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--ui-work-border);
+  border-bottom: 1px solid var(--border-divider-strong);
+  font-weight: 600;
+  text-align: left;
 }
 
-/* Body row hover */
-.ant-table-tbody > tr:hover > td {
-  background: color-mix(in srgb, var(--ui-work-header-bg) 72%, transparent);
+.ant-table-thead > tr > th:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 25%, transparent);
 }
 
-/* Cell borders */
+/* Body */
 .ant-table-tbody > tr > td {
-  border-bottom: 1px solid var(--ui-work-border);
+  border-bottom: 1px solid var(--border-divider);
+  text-align: left;
+}
+
+.ant-table-tbody > tr > td:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 25%, transparent);
+}
+
+.ant-table-tbody > tr > td:first-child {
+  font-weight: 600;
 }
 
 .ant-table-tbody > tr:last-child > td {
   border-bottom: 0;
+}
+
+.ant-table-tbody > tr {
+  transition: background-color 0.2s ease;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: var(--color-bg-surface-hover);
 }
 
 
@@ -377,6 +548,7 @@
 :root {
   /* Background */
   --bg-app: var(--color-bg-canvas);
+  --bg-page: var(--layout-page-bg);
   --bg-surface: var(--color-bg-surface);
   --bg-surface-soft: var(--color-bg-surface-hover);
   --bg-surface-muted: var(--color-bg-disabled);
@@ -391,9 +563,12 @@
   /* Brand */
   --color-primary: var(--color-brand-primary);
   --color-primary-soft: var(--color-brand-primary-subtle);
+  /* RGB for rgba() in gradients/glow (default from scale-Primary500 #3b82f6) */
+  --color-primary-rgb: 59, 130, 246;
 
   /* Border */
   --border-divider: var(--color-border-divider);
+  --border-divider-strong: var(--color-border-divider-strong);
 
   /* Semantic */
   --color-success: var(--color-success);
@@ -618,6 +793,8 @@
 
   --color-bg-accent-subtle: var(--scale-Primary50);
   --color-bg-disabled:      var(--scale-Neutral100);
+
+  --color-bg-surface-soft:  var(--color-bg-surface-hover);
 }
 
 
@@ -636,6 +813,7 @@
   --color-border-error:    var(--scale-Error500);
 
   --color-border-divider:  var(--scale-Neutral200);
+  --color-border-divider-strong: var(--scale-Neutral300);
   --color-border-selected: var(--scale-Primary500);
 }
 
@@ -865,6 +1043,7 @@
   --scale-Primary500: #2563eb;
   --scale-Primary600: #1d4ed8;
   --scale-Primary700: #1e40af;
+  --color-primary-rgb: 37, 99, 235;
 
   /* Space */
   --layout-page-bg: #f6f8fc;
@@ -901,6 +1080,7 @@
   --scale-Primary500: #3b82f6;
   --scale-Primary600: #2563eb;
   --scale-Primary700: #1d4ed8;
+  --color-primary-rgb: 59, 130, 246;
 
   /* Space */
   --layout-page-bg: #f3f6fb;
@@ -1342,6 +1522,20 @@
 
 
 ==========================================================================================
+# FILE: design-system/density/elevation.css
+==========================================================================================
+/* PATH: src/styles/design-system/density/elevation.css */
+/* Elevation — 영역 구분·깊이감 (프리미엄 SaaS) */
+
+:root {
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --elevation-2: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --elevation-3: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+
+==========================================================================================
 # FILE: design-system/density/index.css
 ==========================================================================================
 /* PATH: src/styles/design-system/density/index.css */
@@ -1350,6 +1544,7 @@
 @import "./spacing.css";
 @import "./radius.css";
 @import "./size.css";
+@import "./elevation.css";
 
 
 ==========================================================================================
@@ -1363,6 +1558,7 @@
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
+  --radius-2xl: 22px;
 
   /* ✅ pill / badge / status */
   --radius-full: 999px;
@@ -1558,7 +1754,7 @@
  * Intent
  * ====================================================== */
 
-/* Primary — 명시적 CTA */
+/* Primary — 100% (주요 CTA만) */
 .ds-button[data-intent="primary"] {
   background: var(--color-brand-primary);
   border-color: var(--color-brand-primary);
@@ -1567,20 +1763,23 @@
 
 .ds-button[data-intent="primary"]:hover {
   background: var(--color-brand-primary-hover);
+  border-color: var(--color-brand-primary-hover);
 }
 
-/* Secondary — 기본 작업 */
+/* Secondary — ghost 스타일 (프리미엄 톤) */
 .ds-button[data-intent="secondary"] {
-  background: var(--bg-surface);
-  border-color: var(--border-divider);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--border-divider) 80%, transparent);
   color: var(--text-primary);
 }
 
 .ds-button[data-intent="secondary"]:hover {
   background: var(--bg-surface-soft);
+  border-color: var(--border-divider);
+  color: var(--text-primary);
 }
 
-/* Ghost — 파괴적/보조 아님, 저강도 액션 */
+/* Ghost — 저강도 액션 */
 .ds-button[data-intent="ghost"] {
   background: transparent;
   border-color: transparent;
@@ -1592,15 +1791,16 @@
   color: var(--text-primary);
 }
 
-/* Danger — 파괴적 액션 */
+/* Danger — outline + subtle red (solid 금지) */
 .ds-button[data-intent="danger"] {
-  background: color-mix(in srgb, var(--color-error) 10%, var(--bg-surface));
-  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-error) 70%, transparent);
   color: var(--color-error);
 }
 
 .ds-button[data-intent="danger"]:hover {
-  background: color-mix(in srgb, var(--color-error) 18%, var(--bg-surface));
+  background: color-mix(in srgb, var(--color-error) 14%, var(--bg-surface));
+  border-color: var(--color-error);
 }
 
 /* ======================================================
@@ -1612,9 +1812,7 @@
   border-color: var(--color-brand-primary);
   color: var(--text-on-primary);
 
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.16),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  box-shadow: var(--elevation-1);
 }
 
 .ds-button[aria-pressed="true"]:hover {
@@ -1834,7 +2032,7 @@
 
 [data-app="admin"] .app-header__brandName {
   font-size: 13px;
-  font-weight: 950;
+  font-weight: var(--font-title);
   letter-spacing: -0.12px;
   white-space: nowrap;
   color: var(--color-text-primary);
@@ -1860,12 +2058,12 @@
 
 [data-app="admin"] .app-header__crumb--active {
   color: var(--color-text-primary);
-  font-weight: 950;
+  font-weight: var(--font-title);
 }
 
 [data-app="admin"] .app-header__crumb--muted {
   color: var(--color-text-muted);
-  font-weight: 850;
+  font-weight: var(--font-meta);
 }
 
 [data-app="admin"] .app-header__crumbSep {
@@ -1946,14 +2144,14 @@
 .kpi-label {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
-  font-weight: 900;
+  font-weight: var(--font-title);
   letter-spacing: -0.12px;
 }
 
 .kpi-value {
   margin-top: 6px;
   font-size: var(--text-2xl);
-  font-weight: 950;
+  font-weight: 700;
   letter-spacing: -0.4px;
   color: var(--color-text-primary);
 }
@@ -2002,7 +2200,7 @@
   border-radius: 14px;
   border: 1px solid var(--sidebar-header-border);
   background: var(--sidebar-header-bg);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  box-shadow: var(--elevation-1);
 }
 
 .sidebar-logo {
@@ -2027,7 +2225,7 @@
 
 .sidebar-title .name {
   font-size: 12px;
-  font-weight: 900;
+  font-weight: var(--font-title);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2036,7 +2234,7 @@
 .sidebar-title .sub {
   margin-top: 2px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: var(--font-meta);
   color: var(--sidebar-group-title);
 }
 
@@ -2063,7 +2261,7 @@
 
 .sidebar-group-title {
   font-size: 11px;
-  font-weight: 900;
+  font-weight: var(--font-title);
   color: var(--sidebar-group-title);
   padding: 6px 10px;
   letter-spacing: -0.1px;
@@ -2081,7 +2279,7 @@
   margin-bottom: 4px;
   text-decoration: none;
   color: var(--sidebar-muted);
-  font-weight: 900;
+  font-weight: var(--font-title);
   transition:
     background-color 0.16s ease,
     color 0.16s ease,
@@ -2114,7 +2312,7 @@
 
 /* Minor depth cue (subtle, non-noisy) */
 .nav-item.active {
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: var(--elevation-1);
 }
 
 .nav-item svg {
@@ -2145,7 +2343,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  font-weight: 900;
+  font-weight: var(--font-title);
   cursor: pointer;
   transition:
     background-color 0.16s ease,
@@ -2237,7 +2435,7 @@
   border: 1px solid var(--border-divider);
 
   background: var(--bg-surface);
-  box-shadow: 0 28px 56px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--elevation-3);
 }
 
 .ds-dialog[data-size="sm"] { max-width: 420px; }
@@ -2252,14 +2450,14 @@
 
 .ds-dialog__title {
   font-size: 14px;
-  font-weight: 800;
+  font-weight: var(--font-title);
   color: var(--text-primary);
 }
 
 .ds-dialog__desc {
   margin-top: 4px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--font-meta);
   color: var(--text-muted);
 }
 
@@ -2305,15 +2503,11 @@
 
 /* Emphasis (visual only) */
 .panel--focus {
-  box-shadow:
-    0 28px 56px rgba(0, 0, 0, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: var(--elevation-2);
 }
 
 .panel--card {
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6),
-    0 10px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--elevation-1);
 }
 
 
@@ -2417,11 +2611,11 @@ table.ds-table {
 .ds-table thead th {
   padding: 12px 14px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: var(--font-title);
   text-align: center;
 
   color: var(--text-muted);
-  background: var(--bg-surface-soft);
+  background: var(--color-bg-surface-soft);
 
   border-bottom: 1px solid var(--border-divider);
   white-space: nowrap;
@@ -2444,7 +2638,7 @@ table.ds-table {
 }
 
 .ds-table tbody tr:hover {
-  background: color-mix(in srgb, var(--bg-surface-soft) 72%, transparent);
+  background: var(--color-bg-surface-hover);
 }
 
 .ds-row-btn {
@@ -2471,6 +2665,109 @@ table.ds-table {
 .ds-th-sort__arrow {
   font-size: 10px;
   opacity: 0.8;
+}
+
+/* ============================================================================
+ * DS TABLE — Staff 톤 (work slot, 시각 밀도 통일)
+ * - .ds-table--work 사용 시 thead/tbody/hover/border를 Staff Table과 동일하게
+ * ============================================================================ */
+
+.ds-table-wrap:has(.ds-table--work) {
+  border-color: var(--ui-work-border);
+  background: var(--ui-work-bg);
+}
+
+.ds-table-wrap .ds-table.ds-table--work {
+  border: 1px solid var(--ui-work-border);
+  background: var(--ui-work-bg);
+}
+
+.ds-table-wrap .ds-table.ds-table--work thead th {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: var(--font-title);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--ui-work-header-bg);
+  border-bottom: 1px solid var(--ui-work-border);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ds-table-wrap .ds-table.ds-table--work tbody td {
+  padding: 12px 14px;
+  text-align: center;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--ui-work-border);
+}
+
+.ds-table-wrap .ds-table.ds-table--work tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ds-table-wrap .ds-table.ds-table--work tbody tr {
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+
+.ds-table-wrap .ds-table.ds-table--work tbody tr:hover {
+  background: color-mix(in srgb, var(--ui-work-header-bg) 72%, transparent);
+}
+
+/* ============================================================================
+ * DS TABLE — 프리미엄 밀도형 (StudentsTable / Staff 공통)
+ * - neutral thead, hairline 구분선, 첫 컬럼 강조, hover, 상태 뱃지 glow
+ * ============================================================================ */
+
+.ds-table-wrap:has(.ds-table--staff-home) {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-divider);
+  background: var(--bg-surface);
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home thead th {
+  background: var(--color-bg-surface-soft);
+  border-bottom: 1px solid var(--border-divider-strong);
+  font-weight: var(--font-title);
+  text-align: left;
+  padding: 12px 16px;
+  vertical-align: middle;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home thead th:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 25%, transparent);
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody td {
+  text-align: left;
+  padding: 12px 16px;
+  vertical-align: middle;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody td:first-child {
+  font-weight: 600;
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody td:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 25%, transparent);
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.ds-table-wrap .ds-table.ds-table--staff-home tbody tr:hover {
+  background: var(--color-bg-surface-hover);
 }
 
 
@@ -2662,8 +2959,9 @@ table.ds-table {
   --ui-page-bg: var(--layer-page-bg);
 
   /* WORK */
-  --ui-work-bg:     var(--layer-panel-bg);
-  --ui-work-border: var(--color-border-divider);
+  --ui-work-bg:           var(--layer-panel-bg);
+  --ui-work-border:      var(--color-border-divider);
+  --ui-work-header-bg:   var(--bg-surface-soft);
 
   /* META */
   --ui-meta-bg:     var(--layer-card-bg);
@@ -2742,4 +3040,10 @@ table.ds-table {
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
+
+  /* Semantic (additive only) */
+  --font-hero: 700;
+  --font-title: 600;
+  --font-body: 400;
+  --font-meta: 500;
 }

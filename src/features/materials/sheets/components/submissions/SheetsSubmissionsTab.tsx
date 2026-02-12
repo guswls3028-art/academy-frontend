@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import {
   listExamSubmissionsApi,
@@ -83,9 +83,9 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="btn" onClick={() => listQ.refetch()} disabled={listQ.isFetching}>
+          <Button type="button" intent="secondary" size="sm" onClick={() => listQ.refetch()} disabled={listQ.isFetching}>
             {listQ.isFetching ? "갱신 중..." : "새로고침"}
-          </button>
+          </Button>
 
           <select className="input" value={filter} onChange={(e) => setFilter(e.target.value as StatusFilter)}>
             <option value="all">전체</option>
@@ -121,18 +121,20 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
             onChange={(e) => setBatchFiles(Array.from(e.target.files ?? []))}
           />
 
-          <button
-            className="btn-primary"
+          <Button
+            type="button"
+            intent="primary"
+            size="md"
             disabled={batchMut.isPending || (batchFiles?.length ?? 0) === 0}
             onClick={() => batchMut.mutate()}
           >
             {batchMut.isPending ? "업로드 중..." : `업로드 (${batchFiles.length})`}
-          </button>
+          </Button>
 
           {(batchFiles?.length ?? 0) > 0 && (
-            <button type="button" className="btn" onClick={() => setBatchFiles([])} disabled={batchMut.isPending}>
+            <Button type="button" intent="secondary" size="md" onClick={() => setBatchFiles([])} disabled={batchMut.isPending}>
               선택 해제
-            </button>
+            </Button>
           )}
         </div>
 

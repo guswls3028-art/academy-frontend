@@ -14,6 +14,7 @@ export interface ClientStudentTag {
 export interface ClientEnrollmentLite {
   id: number;
   lectureName: string | null;
+  lectureColor: string | null;
 }
 
 export interface ClientStudent {
@@ -25,6 +26,8 @@ export interface ClientStudent {
 
   studentPhone: string | null;
   parentPhone: string | null;
+  /** True면 식별자로 가입, 표시 시 "식별자 XXXX-XXXX" */
+  usesIdentifier?: boolean;
 
   school: string | null;
   schoolClass: string | null;
@@ -41,6 +44,7 @@ export interface ClientStudent {
 
   tags: ClientStudentTag[];
   enrollments: ClientEnrollmentLite[];
+  deletedAt?: string | null;
 }
 
 export interface StudentTag {
@@ -77,6 +81,7 @@ function mapStudent(item: any): ClientStudent {
 
     studentPhone: displayPhone ?? null,
     parentPhone: item?.parent_phone ?? null,
+    usesIdentifier: !!item?.uses_identifier,
 
     school: item?.high_school ?? item?.middle_school ?? null,
     schoolClass: item?.high_school_class ?? null,
@@ -103,8 +108,10 @@ function mapStudent(item: any): ClientStudent {
       ? item.enrollments.map((en: any) => ({
           id: Number(en?.id),
           lectureName: en?.lecture_name ?? null,
+          lectureColor: en?.lecture_color ?? "#3b82f6",
         }))
       : [],
+    deletedAt: item?.deleted_at ?? null,
   };
 }
 
@@ -115,6 +122,7 @@ function mapStudent(item: any): ClientStudent {
 const ORDERING_MAP: Record<string, string> = {
   name: "name",
   registeredAt: "created_at",
+  deletedAt: "deleted_at",
   active: "is_managed",
   psNumber: "ps_number",
   studentPhone: "phone",
@@ -144,14 +152,18 @@ function buildOrdering(sort: string): string | undefined {
 export async function fetchStudents(
   search: string,
   filters: any = {},
-  sort: string = ""
-) {
+  sort: string = "",
+  page: number = 1,
+  deleted: boolean = false
+): Promise<{ data: ReturnType<typeof mapStudent>[]; count: number }> {
   const ordering = buildOrdering(sort);
 
   const params: any = {
     search: search || undefined,
     ...filters,
     ordering: ordering || undefined,
+    page,
+    deleted: deleted ? "true" : undefined,
   };
 
   const res = await api.get("/students/", { params });
@@ -161,8 +173,12 @@ export async function fetchStudents(
     : Array.isArray(res.data)
     ? res.data
     : [];
+  const count = typeof res.data?.count === "number" ? res.data.count : items.length;
 
-  return items.map(mapStudent);
+  return {
+    data: items.map(mapStudent),
+    count,
+  };
 }
 
 export async function getStudentDetail(id: number) {
@@ -176,18 +192,18 @@ export async function getStudentDetail(id: number) {
 
 export async function createStudent(form: any) {
   const name = safeStr(form?.name).trim();
-  const psNumber = safeStr(form?.psNumber).trim();
   const initialPassword = safeStr(form?.initialPassword).trim();
 
-  const omrCodeInput = safeStr(form?.omrCode).trim();
   const studentPhoneInput = safeStr(form?.studentPhone).trim();
   const parentPhoneInput = safeStr(form?.parentPhone).trim();
+  const noPhone = !studentPhoneInput;
 
-  const phone = form?.noPhone === true ? `010${omrCodeInput}` : studentPhoneInput;
+  const phone = noPhone
+    ? `010${parentPhoneInput.replace(/\D/g, "").slice(-8)}`
+    : studentPhoneInput;
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     name,
-    ps_number: psNumber,
     phone,
     omr_code: safeStr(phone).slice(-8),
     initial_password: initialPassword,
@@ -207,10 +223,56 @@ export async function createStudent(form: any) {
     memo: form?.memo || null,
 
     is_managed: !!form?.active,
+
+    send_welcome_message: !!form?.sendWelcomeMessage,
+    no_phone: noPhone,
   };
+  // ps_number 미입력 시 백엔드에서 6자리 자동 부여
+  const psNumber = safeStr(form?.psNumber).trim();
+  if (psNumber) payload.ps_number = psNumber;
 
   const res = await api.post("/students/", payload);
   return mapStudent(res.data);
+}
+
+/** 엑셀 일괄 등록 (600명+ 대량 업로드) */
+export async function bulkCreateStudents(
+  initialPassword: string,
+  students: Array<{
+    name: string;
+    phone: string;
+    parentPhone: string;
+    usesIdentifier?: boolean;
+    gender?: string | null;
+    schoolType?: "HIGH" | "MIDDLE";
+    school?: string | null;
+    grade?: number | null;
+    schoolClass?: string | null;
+    major?: string | null;
+    memo?: string | null;
+  }>,
+  sendWelcomeMessage = false
+) {
+  const payload = {
+    initial_password: initialPassword,
+    send_welcome_message: sendWelcomeMessage,
+    students: students.map((s) => ({
+      name: s.name.trim(),
+      phone: String(s.phone || "").replace(/\D/g, ""),
+      parent_phone: String(s.parentPhone || "").replace(/\D/g, ""),
+      uses_identifier: !!s.usesIdentifier,
+      gender: s.gender || "",
+      school_type: s.schoolType || "HIGH",
+      school: s.school || "",
+      high_school_class: s.schoolClass || "",
+      major: s.major || "",
+      grade: s.grade ?? null,
+      memo: s.memo || "",
+      is_managed: true,
+    })),
+  };
+  const res = await api.post("/students/bulk_create/", payload, { timeout: 120_000 });
+  return res.data as { created: number; failed: Array<{ row: number; name: string; error: string }>; total: number };
 }
 
 /* ===============================
@@ -278,6 +340,48 @@ export async function deleteStudent(id: number) {
   return true;
 }
 
+/** 선택 학생 일괄 소프트 삭제 (30일 보관) */
+export async function bulkDeleteStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_delete/", { ids });
+  return res.data as { deleted: number };
+}
+
+/** 삭제된 학생 일괄 복원 */
+export async function bulkRestoreStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_restore/", { ids });
+  return res.data as { restored: number };
+}
+
+/** 삭제된 학생 즉시 영구 삭제 */
+export async function bulkPermanentDeleteStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_permanent_delete/", { ids });
+  return res.data as { deleted: number };
+}
+
+/** 충돌 해결 후 재등록 (삭제된 학생과 번호 충돌 시 복원 또는 영구 삭제 후 재등록) */
+export async function bulkResolveConflicts(
+  password: string,
+  resolutions: Array<{
+    row: number;
+    student_id: number;
+    action: "restore" | "delete";
+    student_data: Record<string, unknown>;
+  }>,
+  sendWelcomeMessage = false
+) {
+  const res = await api.post("/students/bulk_resolve_conflicts/", {
+    initial_password: password,
+    send_welcome_message: sendWelcomeMessage,
+    resolutions: resolutions.map((r) => ({
+      row: r.row,
+      student_id: r.student_id,
+      action: r.action,
+      student_data: r.student_data,
+    })),
+  });
+  return res.data as { created: number; restored: number; failed: Array<{ row: number; name: string; error: string }> };
+}
+
 /* ===============================
  * TAG
  * =============================== */
@@ -294,6 +398,16 @@ export async function getTags(): Promise<StudentTag[]> {
     name: safeStr(t?.name),
     color: safeStr(t?.color),
   }));
+}
+
+export async function createTag(name: string, color: string): Promise<StudentTag> {
+  const res = await api.post(`/students/tags/`, { name: name.trim(), color });
+  const t = res.data;
+  return {
+    id: Number(t?.id),
+    name: safeStr(t?.name),
+    color: safeStr(t?.color),
+  };
 }
 
 export async function attachStudentTag(studentId: number, tagId: number) {

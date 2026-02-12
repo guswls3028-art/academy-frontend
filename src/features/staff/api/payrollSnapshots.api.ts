@@ -1,18 +1,19 @@
-﻿// PATH: src/features/staff/api/payrollSnapshots.api.ts
+// PATH: src/features/staff/api/payrollSnapshots.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: PayrollSnapshotSerializer (work_hours Decimal, no updated_at) */
 export type PayrollSnapshot = {
   id: number;
   staff: number;
-  staff_name?: string;
+  staff_name: string;
   year: number;
   month: number;
   work_hours: number;
   work_amount: number;
   approved_expense_amount: number;
   total_amount: number;
-  generated_by?: number;
-  generated_by_name?: string;
+  generated_by: number | null;
+  generated_by_name: string | null;
   created_at: string;
 };
 

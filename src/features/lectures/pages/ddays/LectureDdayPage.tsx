@@ -8,10 +8,8 @@ import DdayModal from "@/features/lectures/components/DdayModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function LectureDdayPage() {

@@ -4,3 +4,16 @@
 .ant-modal-content {
   border-radius: var(--radius-xl);
 }
+
+/* 브랜드/라이트 테마: 모달 강제 흰색 (포탈 상속 이슈 방지) */
+html[data-theme="modern-white"] .ant-modal-content,
+html[data-theme="navy-pro"] .ant-modal-content,
+html[data-theme="ivory-office"] .ant-modal-content,
+html[data-theme="minimal-mono"] .ant-modal-content,
+html[data-theme="kakao-business"] .ant-modal-content,
+html[data-theme="naver-works"] .ant-modal-content,
+html[data-theme="samsung-admin"] .ant-modal-content,
+html[data-theme="purple-insight"] .ant-modal-content {
+  --color-modal-bg: #ffffff;
+  background: #ffffff !important;
+}

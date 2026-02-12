@@ -1,6 +1,7 @@
 // PATH: src/features/videos/ui/VideoThumbnail.tsx
 
 import { useEffect, useState } from "react";
+import { Button } from "@/shared/ui/ds";
 
 type VideoStatus = "READY" | "PROCESSING" | "FAILED" | "PENDING" | "UPLOADED";
 
@@ -84,17 +85,19 @@ export default function VideoThumbnail({ title, status, thumbnail_url }: Props) 
       />
 
       {resolved && (
-        <button
+        <Button
           type="button"
+          intent="secondary"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             refreshThumbnail();
           }}
-          className="absolute bottom-2 right-2 rounded bg-black/60 px-2 py-1 text-xs text-white hover:bg-black/80"
+          className="absolute bottom-2 right-2 !bg-black/60 hover:!bg-black/80 !text-white !border-0"
         >
           🔄 썸네일 새로고침
-        </button>
+        </Button>
       )}
     </div>
   );

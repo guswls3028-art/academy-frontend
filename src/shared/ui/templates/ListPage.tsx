@@ -35,15 +35,14 @@ export default function ListPage({
             borderRadius: "var(--radius-xl)",
             border: "1px solid var(--color-border-divider)",
             background: "var(--color-bg-surface)",
-            boxShadow: "0 1px 0 rgba(0,0,0,0.02)",
+            boxShadow: "var(--elevation-1)",
             overflow: "hidden",
           }}
         >
           <div
             style={{
               padding: "14px 16px",
-              background:
-                "linear-gradient(180deg, var(--color-bg-surface-hover), var(--color-bg-surface))",
+              background: "var(--bg-surface)",
               borderBottom: "1px solid var(--color-border-divider)",
               display: "flex",
               alignItems: "center",
@@ -53,7 +52,7 @@ export default function ListPage({
             <div
               style={{
                 fontSize: 12,
-                fontWeight: 950,
+                fontWeight: "var(--font-title)",
                 letterSpacing: "-0.12px",
                 color: "var(--color-text-secondary)",
               }}

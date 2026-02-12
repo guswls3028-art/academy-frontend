@@ -6,4 +6,10 @@
   --font-medium: 500;
   --font-semibold: 600;
   --font-bold: 700;
+
+  /* Semantic (additive only) */
+  --font-hero: 700;
+  --font-title: 600;
+  --font-body: 400;
+  --font-meta: 500;
 }

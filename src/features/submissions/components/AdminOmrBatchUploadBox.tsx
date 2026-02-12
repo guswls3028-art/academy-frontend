@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import api from "@/shared/api/axios";
+import { Button } from "@/shared/ui/ds";
 
 type Props = {
   examId: number;
@@ -167,13 +168,13 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
               className="text-sm"
             />
 
-            <button className="btn-primary" disabled={busy || items.length === 0} onClick={() => void upload()}>
+            <Button type="button" intent="primary" size="md" disabled={busy || items.length === 0} onClick={() => void upload()}>
               {busy ? "업로드 중..." : "업로드 시작"}
-            </button>
+            </Button>
 
-            <button className="btn" disabled={busy || items.length === 0} onClick={clear}>
+            <Button type="button" intent="secondary" size="md" disabled={busy || items.length === 0} onClick={clear}>
               비우기
-            </button>
+            </Button>
           </div>
 
           {items.length === 0 ? (
@@ -202,9 +203,9 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
                         {it.message ? <span className="ml-2 text-xs text-[var(--text-muted)]">({it.message})</span> : null}
                       </td>
                       <td>
-                        <button className="btn" disabled={busy} onClick={() => removeOne(idx)}>
+                        <Button type="button" intent="secondary" size="sm" disabled={busy} onClick={() => removeOne(idx)}>
                           삭제
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}

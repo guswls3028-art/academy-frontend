@@ -1,7 +1,7 @@
 // PATH: src/features/videos/components/features/video-permission/components/PermissionRow.tsx
 
 // // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
-import { RULE_COLORS, RULE_LABELS } from "../permission.constants";
+import { RULE_COLORS, RULE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
 
 function Pill({
   className,
@@ -68,11 +68,18 @@ export default function PermissionRow({
         </div>
       </div>
 
-      {/* RULE */}
+      {/* ACCESS MODE */}
       <div className="w-[90px] flex justify-center">
-        <Pill className={[RULE_COLORS[student.effective_rule] || "bg-gray-500", "text-white"].join(" ")}>
-          {RULE_LABELS[student.effective_rule] || "-"}
+        <Pill className={[getAccessColor(student.access_mode, student.effective_rule), "text-white"].join(" ")}>
+          {getAccessLabel(student.access_mode, student.effective_rule)}
         </Pill>
+      </div>
+
+      {/* COMPLETED */}
+      <div className="w-[80px] flex justify-center">
+        <span className="text-xs text-[var(--text-secondary)]">
+          {student.completed ? "완료" : "미완료"}
+        </span>
       </div>
 
       {/* PHONES / META */}

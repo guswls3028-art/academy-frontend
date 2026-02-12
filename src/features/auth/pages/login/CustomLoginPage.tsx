@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
+import { Button } from "@/shared/ui/ds";
 
 export default function CustomLoginPage() {
   const [username, setUsername] = useState("");
@@ -97,22 +98,15 @@ export default function CustomLoginPage() {
               }}
             />
 
-            <button
+            <Button
               type="submit"
+              intent="primary"
+              size="lg"
               disabled={pending}
-              style={{
-                width: "100%",
-                padding: "10px 0",
-                borderRadius: 6,
-                border: "none",
-                background: "#000",
-                color: "#fff",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
+              className="w-full"
             >
               {pending ? "로그인 중..." : "로그인"}
-            </button>
+            </Button>
           </form>
 
           {error && (

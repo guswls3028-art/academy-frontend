@@ -39,8 +39,10 @@ export type VideoMetaLite = {
 
 export type PlaybackBootstrap = {
   token: string;
-  session_id: string;
-  expires_at: number;
+  session_id: string | null;  // null for FREE_REVIEW
+  expires_at: number | null;  // null for FREE_REVIEW
+  access_mode: "FREE_REVIEW" | "PROCTORED_CLASS";
+  monitoring_enabled: boolean;
   policy: any;
   play_url: string;
 };
@@ -52,7 +54,11 @@ type Props = {
   onFatal?: (reason: string) => void;
 };
 
+import type { AccessMode } from "@/features/videos/types/access-mode";
+
 type Policy = {
+  access_mode?: AccessMode;
+  monitoring_enabled?: boolean;  // true only for PROCTORED_CLASS
   allow_seek?: boolean;
   seek?: {
     mode?: "free" | "blocked" | "bounded_forward";
@@ -91,7 +97,9 @@ function normalizePolicy(p: any): Policy {
   policy.playback_rate = (policy.playback_rate || {}) as any;
   policy.watermark = (policy.watermark || {}) as any;
 
-  // defaults (backend가 없더라도 UX가 깨지지 않도록)
+  if (policy.monitoring_enabled == null) {
+    policy.monitoring_enabled = policy.access_mode === "PROCTORED_CLASS";
+  }
   if (policy.allow_seek == null) policy.allow_seek = true;
   if (!policy.seek) policy.seek = { mode: "free", grace_seconds: 3 };
   if (!policy.seek?.mode) policy.seek!.mode = "free";
@@ -117,10 +125,17 @@ async function postEnd(token: string) {
   await studentApi.post(`/api/v1/videos/playback/end/`, { token });
 }
 
-async function postEvents(token: string, events: Array<{ type: EventType; occurred_at: number; payload?: any }>) {
+async function postEvents(
+  token: string,
+  events: Array<{ type: EventType; occurred_at: number; payload?: any }>,
+  videoId: number,
+  enrollmentId: number
+) {
   if (!events.length) return;
   await studentApi.post(`/api/v1/videos/playback/events/`, {
     token,
+    video_id: videoId,
+    enrollment_id: enrollmentId,
     events: events.map((e) => ({
       type: e.type,
       occurred_at: e.occurred_at,
@@ -259,6 +274,25 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   // Events batching (anti-spam)
   // ---------------------------------------------------------------------------
   const queueEvent = useCallback((type: EventType, payload?: any) => {
+    const policy = normalizePolicy(bootstrap.policy);
+    const monitoringEnabled = policy.monitoring_enabled ?? false;
+    
+    // If monitoring is disabled (FREE_REVIEW), skip all event logging
+    if (!monitoringEnabled) {
+      return;
+    }
+    
+    // Only send violation-relevant events in PROCTORED_CLASS mode
+    // FREE_REVIEW mode: minimal logging (no violation events)
+    const violationEvents: EventType[] = ["SEEK_ATTEMPT", "SPEED_CHANGE_ATTEMPT"];
+    const isViolationEvent = violationEvents.includes(type);
+    const accessMode = policy.access_mode;
+    
+    if (accessMode === "FREE_REVIEW" && isViolationEvent) {
+      // Don't send violation events in FREE_REVIEW mode
+      return;
+    }
+    
     const now = getEpochSec();
     eventQueueRef.current.push({ type, occurred_at: now, payload: payload || {} });
 
@@ -266,7 +300,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (eventQueueRef.current.length > 300) {
       eventQueueRef.current.splice(0, eventQueueRef.current.length - 300);
     }
-  }, []);
+  }, [bootstrap.policy]);
 
   const flushEvents = useCallback(async () => {
     const token = tokenRef.current;
@@ -275,7 +309,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (!batch.length) return;
 
     try {
-      await postEvents(token, batch);
+      await postEvents(token, batch, video.id, enrollmentId);
     } catch (e: any) {
       // session revoked / inactive -> stop
       const msg = e?.response?.data?.detail || e?.message || "";
@@ -284,18 +318,20 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
         onFatal?.("session_inactive");
       }
     }
-  }, [onFatal]);
+  }, [onFatal, video.id, enrollmentId]);
 
+  const monitoringEnabled = policy.monitoring_enabled ?? false;
+
+  // Events: only when monitoring_enabled (FREE_REVIEW sends nothing)
   useStableInterval(
     () => {
-      // batch send (2.2s)
       flushEvents();
     },
     2200,
-    true
+    monitoringEnabled
   );
 
-  // Heartbeat / Refresh
+  // Heartbeat: only for PROCTORED_CLASS
   useStableInterval(
     () => {
       const token = tokenRef.current;
@@ -316,7 +352,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       });
     },
     30000,
-    true
+    monitoringEnabled
   );
 
   // ---------------------------------------------------------------------------
@@ -335,16 +371,21 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
         } catch {}
       }
 
-      // end session (best-effort)
-      const token = tokenRef.current;
-      if (token) {
-        postEnd(token).catch(() => {});
-      }
+      // end session (best-effort, only for PROCTORED_CLASS)
+      const policy = normalizePolicy(bootstrap.policy);
+      const monitoringEnabled = policy.monitoring_enabled ?? false;
+      
+      if (monitoringEnabled) {
+        const token = tokenRef.current;
+        if (token) {
+          postEnd(token).catch(() => {});
+        }
 
-      // flush last events
-      try {
-        flushEvents();
-      } catch {}
+        // flush last events
+        try {
+          flushEvents();
+        } catch {}
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -358,10 +399,9 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
         queueEvent("VISIBILITY_HIDDEN", { hidden: true });
       } else {
         queueEvent("VISIBILITY_VISIBLE", { hidden: false });
-        // refresh policy/session quickly when user returns
-        const token = tokenRef.current;
-        if (token) {
-          postRefresh(token).catch(() => {});
+        if (monitoringEnabled) {
+          const token = tokenRef.current;
+          if (token) postRefresh(token).catch(() => {});
         }
       }
     };
@@ -377,7 +417,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
     };
-  }, [queueEvent]);
+  }, [queueEvent, monitoringEnabled]);
 
   // ---------------------------------------------------------------------------
   // Video event binding
@@ -699,9 +739,17 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     } catch {}
   }, [muted, volume]);
 
-  // Nice "policy pills"
   const policyPills = useMemo(() => {
     const pills: Array<{ text: string; tone?: "neutral" | "warn" | "danger" }> = [];
+    const accessMode = policy.access_mode;
+    if (accessMode === "PROCTORED_CLASS") {
+      pills.push({ text: "온라인 수업 대체", tone: "warn" });
+    } else if (accessMode === "FREE_REVIEW") {
+      pills.push({
+        text: monitoringEnabled ? "복습" : "복습 모드 (모니터링 없음)",
+        tone: "neutral",
+      });
+    }
 
     if (!allowSeek || seekMode === "blocked") pills.push({ text: "탐색 제한", tone: "warn" });
     else if (boundedForward) pills.push({ text: "앞으로 탐색 제한", tone: "warn" });
@@ -711,14 +759,21 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (watermarkEnabled) pills.push({ text: "워터마크", tone: "neutral" });
 
     return pills;
-  }, [allowSeek, boundedForward, seekMode, speedLocked, watermarkEnabled]);
+  }, [policy.access_mode, monitoringEnabled, allowSeek, boundedForward, seekMode, speedLocked, watermarkEnabled]);
 
   const deviceId = useMemo(() => getOrCreateDeviceId(), []);
 
   const shareText = useMemo(() => {
+    const policy = normalizePolicy(bootstrap.policy);
+    const monitoringEnabled = policy.monitoring_enabled ?? false;
+    
+    if (!monitoringEnabled) {
+      return `기기: ${deviceId.slice(0, 8)}… · 모니터링 없음 (복습 모드)`;
+    }
+    
     const expires = bootstrap.expires_at ? formatDateTimeKorean(bootstrap.expires_at * 1000) : "";
     return `기기: ${deviceId.slice(0, 8)}… · 세션 만료: ${expires || "-"}`;
-  }, [bootstrap.expires_at, deviceId]);
+  }, [bootstrap.expires_at, bootstrap.policy, deviceId]);
 
   const rateMenu = useMemo(() => {
     const common = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -926,17 +981,26 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
           <div className="svpSideCard">
             <div className="svpSideTitle">시청 도우미</div>
 
-            <div className="svpSideRow">
-              <div className="svpSideLabel">세션</div>
-              <div className="svpSideValue">{bootstrap.session_id.slice(0, 8)}…</div>
-            </div>
+            {policy.monitoring_enabled ? (
+              <>
+                <div className="svpSideRow">
+                  <div className="svpSideLabel">세션</div>
+                  <div className="svpSideValue">{bootstrap.session_id?.slice(0, 8) || "-"}…</div>
+                </div>
 
-            <div className="svpSideRow">
-              <div className="svpSideLabel">만료</div>
-              <div className="svpSideValue">
-                {bootstrap.expires_at ? formatDateTimeKorean(bootstrap.expires_at * 1000) : "-"}
+                <div className="svpSideRow">
+                  <div className="svpSideLabel">만료</div>
+                  <div className="svpSideValue">
+                    {bootstrap.expires_at ? formatDateTimeKorean(bootstrap.expires_at * 1000) : "-"}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="svpSideRow">
+                <div className="svpSideLabel">모니터링</div>
+                <div className="svpSideValue">비활성 (복습 모드)</div>
               </div>
-            </div>
+            )}
 
             <div className="svpSideRow">
               <div className="svpSideLabel">기기</div>
@@ -988,19 +1052,21 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
               진행률 보기
             </button>
 
-            <button
-              type="button"
-              className="svpSideButton svpSideButtonGhost"
-              onClick={() => {
-                const token = tokenRef.current;
-                if (!token) return;
-                postRefresh(token)
-                  .then(() => setToast({ text: "세션 확인 완료", kind: "info" }))
-                  .catch(() => setToast({ text: "세션 확인 실패", kind: "warn" }));
-              }}
-            >
-              세션 점검
-            </button>
+            {monitoringEnabled && (
+              <button
+                type="button"
+                className="svpSideButton svpSideButtonGhost"
+                onClick={() => {
+                  const token = tokenRef.current;
+                  if (!token) return;
+                  postRefresh(token)
+                    .then(() => setToast({ text: "세션 확인 완료", kind: "info" }))
+                    .catch(() => setToast({ text: "세션 확인 실패", kind: "warn" }));
+                }}
+              >
+                세션 점검
+              </button>
+            )}
           </div>
         </aside>
       </div>

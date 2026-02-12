@@ -10,7 +10,7 @@ export default function ModalBody({
     <div
       style={{
         padding: "20px 24px",
-        background: "var(--color-bg-surface)",
+        background: "var(--color-modal-bg)",
       }}
     >
       {children}

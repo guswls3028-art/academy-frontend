@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import { createSheetApi, type SheetEntity } from "../sheets.api";
 
 type Props = {
@@ -64,7 +65,7 @@ export function SheetsCreateModal({ open, onClose, onCreated }: Props) {
       >
         <div className="px-4 py-3 border-b flex justify-between items-center">
           <div className="font-semibold">시험지 생성</div>
-          <button className="btn" onClick={onClose}>닫기</button>
+          <Button type="button" intent="ghost" size="sm" onClick={onClose}>닫기</Button>
         </div>
 
         <div className="p-4 space-y-4">
@@ -84,25 +85,29 @@ export function SheetsCreateModal({ open, onClose, onCreated }: Props) {
 
           <div className="flex gap-2">
             {QUESTION_COUNTS.map((qc) => (
-              <button
+              <Button
                 key={qc}
-                className={`btn ${questionCount === qc ? "bg-black text-white" : ""}`}
+                type="button"
+                intent={questionCount === qc ? "primary" : "secondary"}
+                size="sm"
                 onClick={() => setQuestionCount(qc)}
               >
                 {qc}
-              </button>
+              </Button>
             ))}
           </div>
 
           <div className="flex justify-end gap-2">
-            <button className="btn" onClick={onClose}>취소</button>
-            <button
-              className="btn-primary"
+            <Button type="button" intent="secondary" size="md" onClick={onClose}>취소</Button>
+            <Button
+              type="button"
+              intent="primary"
+              size="md"
               disabled={!canCreate || createMut.isPending}
               onClick={() => createMut.mutate()}
             >
               {createMut.isPending ? "생성 중..." : "생성"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

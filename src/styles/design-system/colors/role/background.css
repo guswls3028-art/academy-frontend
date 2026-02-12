@@ -16,4 +16,9 @@
 
   --color-bg-accent-subtle: var(--scale-Primary50);
   --color-bg-disabled:      var(--scale-Neutral100);
+
+  --color-bg-surface-soft:  var(--color-bg-surface-hover);
+
+  /* Modal: 라이트/브랜드=흰색, 다크=테마 surface (붕뜸 방지) */
+  --color-modal-bg: var(--color-bg-surface);
 }

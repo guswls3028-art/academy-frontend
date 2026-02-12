@@ -10,5 +10,6 @@
   --color-border-error:    var(--scale-Error500);
 
   --color-border-divider:  var(--scale-Neutral200);
+  --color-border-divider-strong: var(--scale-Neutral300);
   --color-border-selected: var(--scale-Primary500);
 }

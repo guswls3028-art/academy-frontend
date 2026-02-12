@@ -1,19 +1,22 @@
-﻿// PATH: src/features/staff/api/workRecords.api.ts
+// PATH: src/features/staff/api/workRecords.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: WorkRecordSerializer (resolved_hourly_wage, current_break_started_at not exposed) */
 export type WorkRecord = {
   id: number;
   staff: number;
-  staff_name?: string;
+  staff_name: string;
   work_type: number;
-  work_type_name?: string;
+  work_type_name: string;
   date: string;
   start_time: string;
-  end_time: string;
+  end_time: string | null;
   break_minutes: number;
-  work_hours: number;
-  amount: number;
+  work_hours: number | null;
+  amount: number | null;
   memo: string;
+  created_at: string;
+  updated_at: string;
 };
 
 /**

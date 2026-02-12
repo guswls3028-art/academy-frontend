@@ -4,6 +4,16 @@ import React from "react";
 
 export type AdminModalType = "action" | "confirm" | "inspect";
 
+const BRAND_AND_LIGHT_THEMES = new Set([
+  "modern-white", "navy-pro", "ivory-office", "minimal-mono",
+  "kakao-business", "naver-works", "samsung-admin", "purple-insight",
+]);
+
+function getModalBackground(): string {
+  const theme = document.documentElement.getAttribute("data-theme") || "";
+  return BRAND_AND_LIGHT_THEMES.has(theme) ? "#ffffff" : "var(--color-modal-bg)";
+}
+
 type AdminModalProps = {
   open: boolean;
   onClose: () => void;
@@ -20,6 +30,7 @@ export default function AdminModal({
   children,
 }: AdminModalProps) {
   const isConfirm = type === "confirm";
+  const contentBg = getModalBackground();
 
   return (
     <Modal
@@ -28,7 +39,7 @@ export default function AdminModal({
       footer={null}
       width={width}
       centered
-      destroyOnClose
+      destroyOnHidden
       maskClosable={!isConfirm}
       closable={!isConfirm}
       keyboard={!isConfirm}
@@ -40,10 +51,8 @@ export default function AdminModal({
           border: isConfirm
             ? "1px solid color-mix(in srgb, var(--color-error) 28%, var(--color-border-divider))"
             : "1px solid var(--color-border-divider)",
-          boxShadow: isConfirm
-            ? "0 18px 60px rgba(0,0,0,0.40)"
-            : "0 14px 48px rgba(0,0,0,0.28)",
-          background: "var(--color-bg-surface)",
+          boxShadow: "var(--elevation-3)",
+          background: contentBg,
         },
         mask: {
           backdropFilter: "blur(3px)",
@@ -52,7 +61,19 @@ export default function AdminModal({
       }}
       className={`admin-modal admin-modal--${type}`}
     >
-      {children}
+      <div
+        style={
+          contentBg === "#ffffff"
+            ? ({
+                "--color-modal-bg": "#ffffff",
+                "--color-bg-surface": "#ffffff",
+                "--color-bg-surface-hover": "#f8fafc",
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
+        {children}
+      </div>
     </Modal>
   );
 }

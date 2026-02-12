@@ -1,6 +1,5 @@
 // PATH: src/features/profile/account/components/AccountHeader.tsx
-import { PageHeader } from "@/shared/ui/ds";
-
+// AccountHeader는 더 이상 사용하지 않음 (DomainLayout에서 처리)
 export default function AccountHeader() {
-  return <PageHeader title="계정 설정" />;
+  return null;
 }

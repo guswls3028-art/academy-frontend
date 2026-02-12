@@ -135,10 +135,10 @@ export default function Sidebar() {
             icon: <Icon d="M4 4h16v12H7l-3 3z" />,
           },
           {
-            to: `${BASE}/messages`,
-            label: "메시지",
+            to: `${BASE}/materials`,
+            label: "자료실",
             icon: (
-              <Icon d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+              <Icon d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />
             ),
           },
         ],

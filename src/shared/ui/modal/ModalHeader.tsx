@@ -99,10 +99,8 @@ export default function ModalHeader({
 
   const bg =
     type === "confirm"
-      ? "linear-gradient(180deg, color-mix(in srgb, var(--color-error) 10%, var(--color-bg-surface-hover)), var(--color-bg-surface))"
-      : type === "inspect"
-      ? "linear-gradient(180deg, var(--color-bg-surface-hover), var(--color-bg-surface))"
-      : "linear-gradient(180deg, color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface-hover)), var(--color-bg-surface))";
+      ? "color-mix(in srgb, var(--color-error) 12%, var(--color-modal-bg))"
+      : "var(--color-modal-bg)";
 
   return (
     <div
@@ -137,9 +135,9 @@ export default function ModalHeader({
             display: "grid",
             placeItems: "center",
             border: "1px solid var(--color-border-divider)",
-            background: "var(--color-bg-surface)",
+            background: "var(--color-modal-bg)",
             color: accentColor,
-            boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
+            boxShadow: "var(--elevation-1)",
             flex: "0 0 auto",
           }}
         >
@@ -150,7 +148,7 @@ export default function ModalHeader({
           <div
             style={{
               fontSize: 15,
-              fontWeight: 950,
+              fontWeight: "var(--font-title)",
               letterSpacing: "-0.28px",
               color: "var(--color-text-primary)",
               lineHeight: 1.25,
@@ -164,7 +162,7 @@ export default function ModalHeader({
               style={{
                 marginTop: 6,
                 fontSize: 13,
-                fontWeight: 800,
+                fontWeight: "var(--font-meta)",
                 color: isConfirm ? "var(--color-text-secondary)" : "var(--color-text-muted)",
                 lineHeight: 1.5,
               }}
@@ -186,10 +184,10 @@ export default function ModalHeader({
                 border:
                   "1px solid color-mix(in srgb, var(--color-error) 22%, var(--color-border-divider))",
                 background:
-                  "color-mix(in srgb, var(--color-error) 6%, var(--color-bg-surface))",
+                  "color-mix(in srgb, var(--color-error) 6%, var(--color-modal-bg))",
                 color: "var(--color-text-secondary)",
                 fontSize: 12,
-                fontWeight: 850,
+                fontWeight: "var(--font-meta)",
                 letterSpacing: "-0.12px",
               }}
             >

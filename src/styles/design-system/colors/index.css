@@ -13,6 +13,7 @@
 :root {
   /* Background */
   --bg-app: var(--color-bg-canvas);
+  --bg-page: var(--layout-page-bg);
   --bg-surface: var(--color-bg-surface);
   --bg-surface-soft: var(--color-bg-surface-hover);
   --bg-surface-muted: var(--color-bg-disabled);
@@ -27,9 +28,12 @@
   /* Brand */
   --color-primary: var(--color-brand-primary);
   --color-primary-soft: var(--color-brand-primary-subtle);
+  /* RGB for rgba() in gradients/glow (default from scale-Primary500 #3b82f6) */
+  --color-primary-rgb: 59, 130, 246;
 
   /* Border */
   --border-divider: var(--color-border-divider);
+  --border-divider-strong: var(--color-border-divider-strong);
 
   /* Semantic */
   --color-success: var(--color-success);

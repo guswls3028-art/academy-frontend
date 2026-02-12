@@ -1,20 +1,24 @@
-﻿// PATH: src/features/staff/api/expenses.api.ts
+// PATH: src/features/staff/api/expenses.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: ExpenseRecord.STATUS_CHOICES */
 export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
 
+/** Backend: ExpenseRecordSerializer */
 export type ExpenseRecord = {
   id: number;
   staff: number;
-  staff_name?: string;
+  staff_name: string;
   date: string;
   title: string;
   amount: number;
   memo: string;
   status: ExpenseStatus;
-  approved_at?: string | null;
-  approved_by?: number | null;
-  approved_by_name?: string | null;
+  approved_at: string | null;
+  approved_by: number | null;
+  approved_by_name: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 /**

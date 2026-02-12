@@ -34,7 +34,7 @@ const tabs: TabItem[] = [
     icon: <IconCalendar />,
   },
   {
-    to: "/student/media",
+    to: "/student/video",
     label: "영상",
     icon: <IconPlay />,
   },

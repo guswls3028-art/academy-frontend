@@ -50,11 +50,11 @@ export default function StudentRouter() {
         <Route path="sessions" element={<SessionListPage />} />
         <Route path="sessions/:sessionId" element={<SessionDetailPage />} />
 
-        {/* ✅ Media (실제 재생) */}
-        <Route path="media" element={<MediaPlayerPage />} />
+        {/* ✅ Video (실제 재생) */}
+        <Route path="video" element={<MediaPlayerPage />} />
 
-        {/* 🚑 Media Demo (임시 검증/홍보용) */}
-        <Route path="media/demo" element={<MediaDemoPage />} />
+        {/* 🚑 Video Demo (임시 검증/홍보용) */}
+        <Route path="video/demo" element={<MediaDemoPage />} />
 
         {/* ✅ Exams */}
         <Route path="exams" element={<ExamListPage />} />

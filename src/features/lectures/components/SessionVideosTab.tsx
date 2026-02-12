@@ -10,6 +10,7 @@ import VideoStatusBadge from "@/features/videos/ui/VideoStatusBadge";
 
 import { useSessionVideos } from "../hooks/useSessionVideos";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { DomainListToolbar } from "@/shared/ui/domain";
 
 /**
  * media 도메인 기준 Video 타입 (관리자 목록용)
@@ -68,23 +69,24 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   });
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>
-          해당 차시에 등록된 영상 목록입니다.
-        </div>
-
-        <Button intent="primary" onClick={() => setShowModal(true)}>
-          영상 추가
-        </Button>
-      </div>
+    <div className="flex flex-col gap-4">
+      <DomainListToolbar
+        totalLabel={isLoading ? "…" : `총 ${videos.length}개`}
+        searchSlot={null}
+        primaryAction={
+          <Button intent="primary" onClick={() => setShowModal(true)}>
+            영상 추가
+          </Button>
+        }
+      />
 
       <div
+        className="ds-panel"
         style={{
-          borderRadius: 14,
+          borderRadius: "var(--radius-xl)",
           border: "1px solid var(--color-border-divider)",
           background: "var(--color-bg-surface)",
-          padding: 12,
+          padding: "var(--space-4)",
         }}
       >
         {isLoading ? (
@@ -96,7 +98,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 12,
+              gap: "var(--space-4)",
             }}
           >
             {videos.map((video: MediaVideo) => {

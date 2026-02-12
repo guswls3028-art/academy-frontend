@@ -5,6 +5,8 @@ import ThemeGrid from "../components/ThemeGrid";
 import { THEMES } from "../constants/themes";
 import type { ThemeKey } from "../constants/themes";
 import { fetchThemeSettings, updateThemeSettings } from "../api/theme";
+import { useTheme } from "@/context/ThemeContext";
+import { Button } from "@/shared/ui/ds";
 
 type Props = {
   onClose: () => void;
@@ -20,13 +22,9 @@ function safeGetCurrentTheme(): ThemeKey {
   }
 }
 
-function applyThemeToDom(theme: ThemeKey) {
-  const root = document.documentElement;
-  root.setAttribute("data-theme", theme);
-}
-
 export default function ThemeOverlay({ onClose }: Props) {
   const qc = useQueryClient();
+  const { setTheme: persistTheme } = useTheme();
 
   const { data, isLoading } = useQuery({
     queryKey: ["settings", "theme"],
@@ -47,21 +45,20 @@ export default function ThemeOverlay({ onClose }: Props) {
       const prev = qc.getQueryData<{ theme: ThemeKey }>(["settings", "theme"]);
       qc.setQueryData(["settings", "theme"], { theme: next });
 
-      applyThemeToDom(next);
-
+      persistTheme(next);
       return { prev };
     },
     onError: (_err, _next, ctx) => {
       const rollback = (ctx as any)?.prev?.theme as ThemeKey | undefined;
       if (rollback) {
         qc.setQueryData(["settings", "theme"], { theme: rollback });
-        applyThemeToDom(rollback);
+        persistTheme(rollback);
       }
     },
     onSuccess: (res) => {
       const next = (res?.theme as ThemeKey | undefined) ?? focus;
       qc.setQueryData(["settings", "theme"], { theme: next });
-      applyThemeToDom(next);
+      persistTheme(next);
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["settings", "theme"] });
@@ -98,7 +95,7 @@ export default function ThemeOverlay({ onClose }: Props) {
           overflow: "auto",
           borderRadius: 14,
           border: "1px solid var(--color-border-divider)",
-          background: "var(--color-bg-surface)",
+          background: "var(--color-modal-bg)",
           boxShadow: "0 18px 60px rgba(0,0,0,0.30)",
         }}
       >
@@ -121,22 +118,9 @@ export default function ThemeOverlay({ onClose }: Props) {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              height: 40,
-              padding: "0 14px",
-              borderRadius: 999,
-              border: "1px solid var(--color-border-divider)",
-              background: "var(--color-bg-surface)",
-              color: "var(--color-text-primary)",
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
+          <Button type="button" intent="secondary" size="md" onClick={onClose}>
             닫기
-          </button>
+          </Button>
         </div>
 
         <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 16 }}>
@@ -146,7 +130,7 @@ export default function ThemeOverlay({ onClose }: Props) {
               style={{
                 borderRadius: "var(--radius-xl)",
                 border: "1px solid var(--color-border-divider)",
-                background: "var(--color-bg-surface)",
+                background: "var(--color-modal-bg)",
                 padding: 18,
               }}
             >
@@ -174,49 +158,31 @@ export default function ThemeOverlay({ onClose }: Props) {
             display: "flex",
             justifyContent: "flex-end",
             gap: 10,
-            background: "color-mix(in srgb, var(--color-bg-surface) 92%, transparent)",
+            background: "var(--color-modal-bg)",
           }}
         >
-          <button
+          <Button
             type="button"
+            intent="ghost"
+            size="md"
             onClick={() => {
               setFocus(currentTheme);
-              applyThemeToDom(currentTheme);
+              persistTheme(currentTheme);
             }}
             disabled={focus === currentTheme || isSaving}
-            style={{
-              height: 44,
-              padding: "0 18px",
-              borderRadius: 10,
-              border: "1px solid var(--color-border-divider)",
-              background: "var(--color-bg-surface)",
-              color: "var(--color-text-primary)",
-              fontWeight: 900,
-              cursor: focus === currentTheme || isSaving ? "not-allowed" : "pointer",
-              opacity: focus === currentTheme || isSaving ? 0.6 : 1,
-            }}
           >
             되돌리기
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            intent="primary"
+            size="md"
             onClick={() => mut.mutate(focus)}
             disabled={!canApply}
-            style={{
-              height: 44,
-              padding: "0 22px",
-              borderRadius: 10,
-              border: "1px solid var(--color-brand-primary)",
-              background: "var(--color-brand-primary)",
-              color: "var(--color-text-inverse)",
-              fontWeight: 900,
-              cursor: canApply ? "pointer" : "not-allowed",
-              opacity: canApply ? 1 : 0.6,
-            }}
           >
             적용
-          </button>
+          </Button>
         </div>
       </div>
     </div>

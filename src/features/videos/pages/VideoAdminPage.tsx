@@ -1,40 +1,29 @@
 // PATH: src/features/videos/pages/VideoControlCenter.tsx
 
 import {
-  Page,
-  PageHeader,
   Panel,
   Section,
   KPI,
-  WorkZone,
   Button,
   StatusBadge,
 } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
 
 export default function VideoControlCenter() {
   return (
-    <Page width="full" density="focus">
-      {/* ===============================
-          HEADER (COMPACT)
-      =============================== */}
-      <PageHeader
-        title="생명과학 영상 관리"
-        description="생명과학 전 강의 영상 자산을 통합 관리합니다."
-        badge={<StatusBadge status="active" />}
-        actions={
+    <DomainLayout
+      title="생명과학 영상 관리"
+      description="생명과학 전 강의 영상 자산을 통합 관리합니다."
+    >
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-end">
           <Button intent="primary" size="md">
             영상 업로드
           </Button>
-        }
-        meta="BIOLOGY VIDEO CONTROL · INTERNAL"
-        variant="card"
-        importance="normal"
-      />
+        </div>
 
-      {/* ===============================
-          KPI OVERVIEW
-      =============================== */}
-      <Section level="primary" title="운영 요약">
+        {/* KPI */}
+        <Section level="primary" title="운영 요약">
         <div className="grid grid-cols-4 gap-6">
           <KPI label="총 영상 수" value="40" hint="생명과학 전체" />
           <KPI label="총 재생 시간" value="62h" hint="순수 콘텐츠 기준" />
@@ -57,7 +46,7 @@ export default function VideoControlCenter() {
               style={{
                 borderColor: "var(--color-border-divider)",
                 background:
-                  "linear-gradient(180deg, var(--color-bg-surface-hover), var(--color-bg-surface))",
+                  "var(--bg-surface)",
               }}
             >
               <ControlTab label="전체" count={40} active />
@@ -72,7 +61,7 @@ export default function VideoControlCenter() {
           </div>
         }
       >
-        <WorkZone>
+        <div>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[var(--color-text-muted)]">
@@ -131,16 +120,14 @@ export default function VideoControlCenter() {
               ))}
             </tbody>
           </table>
-        </WorkZone>
+        </div>
       </Panel>
 
-      {/* ===============================
-          FOOTER
-      =============================== */}
-      <div className="text-center text-xs font-semibold text-[var(--color-text-muted)] mt-10">
-        HakwonPlus · Biology Video Platform
+        <div className="text-center text-xs font-semibold text-[var(--color-text-muted)]">
+          HakwonPlus · Biology Video Platform
+        </div>
       </div>
-    </Page>
+    </DomainLayout>
   );
 }
 
@@ -168,28 +155,22 @@ function ControlTab({
       : "var(--color-text-primary)";
 
   return (
-    <button
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold"
-      style={{
-        background: active ? "var(--color-bg-surface)" : "transparent",
-        color: toneColor,
-        border: active
-          ? "1px solid var(--color-border-divider)"
-          : "1px solid transparent",
-        boxShadow: active ? "0 1px 0 rgba(0,0,0,0.08)" : "none",
-      }}
+    <Button
+      type="button"
+      intent={active ? "primary" : "ghost"}
+      size="sm"
+      className="!gap-2 !text-xs"
     >
       <span>{label}</span>
       <span
-        className="px-2 py-0.5 rounded-full text-[11px]"
+        className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
         style={{
           background: "var(--color-bg-surface-hover)",
-          color: toneColor,
-          fontWeight: 900,
+          color: active ? "var(--text-on-primary)" : toneColor,
         }}
       >
         {count}
       </span>
-    </button>
+    </Button>
   );
 }

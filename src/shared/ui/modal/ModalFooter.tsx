@@ -16,7 +16,7 @@ export default function ModalFooter({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        background: "var(--color-bg-surface)",
+        background: "var(--color-modal-bg)",
       }}
     >
       <div>{left}</div>

@@ -1,6 +1,7 @@
 // src/features/submissions/components/AdminSubmissionDetailModal.tsx
 import { useEffect, useState } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import { useSubmissionPolling } from "../hooks/useSubmissionPolling";
 import SubmissionStatusBadge from "./SubmissionStatusBadge";
 import {
@@ -55,7 +56,7 @@ export default function AdminSubmissionDetailModal({
       <div className="bg-[var(--bg-surface)] w-full max-w-4xl rounded-xl border">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="text-sm font-semibold">Submission #{submission.id}</div>
-          <button className="text-xs" onClick={onClose}>닫기</button>
+          <Button type="button" intent="ghost" size="sm" onClick={onClose}>닫기</Button>
         </div>
 
         <div className="p-4 space-y-4">
@@ -90,22 +91,22 @@ export default function AdminSubmissionDetailModal({
                 </tbody>
               </table>
 
-              <button className="btn-primary" onClick={() => save.mutate()}>
+              <Button type="button" intent="primary" size="md" onClick={() => save.mutate()}>
                 저장 후 재채점
-              </button>
+              </Button>
             </>
           )}
 
           {submission.status === "failed" && (
-            <button className="btn" onClick={() => retryAnySubmission(submissionId)}>
+            <Button type="button" intent="secondary" size="md" onClick={() => retryAnySubmission(submissionId)}>
               다시 처리
-            </button>
+            </Button>
           )}
 
           {submission.status === "done" && onGoResults && (
-            <button className="btn-primary" onClick={() => onGoResults(submission.target_id)}>
+            <Button type="button" intent="primary" size="md" onClick={() => onGoResults(submission.target_id)}>
               결과 보기
-            </button>
+            </Button>
           )}
         </div>
       </div>

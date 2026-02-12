@@ -236,84 +236,24 @@ SSOT 문서 수정
 # FILE: StudentsLayout.tsx
 ==========================================================================================
 // PATH: src/features/students/StudentsLayout.tsx
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { DomainLayout } from "@/shared/ui/layout";
+
+const STUDENTS_TABS = [
+  { key: "home", label: "홈", path: "/admin/students/home" },
+  { key: "scores", label: "학교 성적", locked: true },
+  { key: "history", label: "상담 이력", locked: true },
+];
 
 export default function StudentsLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const activeKey = location.pathname.includes("/history")
-    ? "history"
-    : location.pathname.includes("/scores")
-    ? "scores"
-    : "home";
-
-  const lockedTabClass =
-    "opacity-40 cursor-not-allowed pointer-events-none";
-
   return (
-    <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
-      {/* ===============================
-          DOMAIN HEADER
-      =============================== */}
-      <div className="border-b border-[var(--border-divider)] bg-[var(--bg-surface)]">
-        <div className="px-6 pt-6 pb-4">
-          <div className="relative">
-            <div className="absolute left-0 top-1 h-6 w-1 rounded-full bg-[var(--color-primary)]" />
-
-            <div className="pl-4">
-              <div className="text-2xl font-bold tracking-tight">
-                학생 관리
-              </div>
-              <div className="text-base text-[var(--text-muted)] mt-1">
-                학생 추가 · 학교 성적 · 상담
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-6">
-          <div className="ds-tabs">
-            {/* 홈 */}
-            <button
-              className={`ds-tab text-[15px] font-semibold ${
-                activeKey === "home" ? "is-active" : ""
-              }`}
-              onClick={() => navigate("/admin/students/home")}
-            >
-              홈
-            </button>
-
-            {/* 학교 성적 (잠금) */}
-            <button
-              className={`ds-tab text-[15px] font-semibold ${lockedTabClass}`}
-              title="준비 중인 기능입니다"
-              disabled
-            >
-              학교 성적
-            </button>
-
-            {/* 상담 이력 (잠금) */}
-            <button
-              className={`ds-tab text-[15px] font-semibold ${lockedTabClass}`}
-              title="준비 중인 기능입니다"
-              disabled
-            >
-              상담 이력
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ===============================
-          DOMAIN CONTENT
-      =============================== */}
-      <div className="px-6 py-6">
-        <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
-          <Outlet />
-        </div>
-      </div>
-    </div>
+    <DomainLayout
+      title="학생 관리"
+      description="학생 추가 · 학교 성적 · 상담"
+      tabs={STUDENTS_TABS}
+    >
+      <Outlet />
+    </DomainLayout>
   );
 }
 
@@ -809,6 +749,8 @@ export default function EditStudentModal({
 
   const [noPhone, setNoPhone] = useState(initialNoPhone);
   const [busy, setBusy] = useState(false);
+  /** 400 응답 시 백엔드 필드별 에러 (backend key -> message). setFields 개념으로 매핑 */
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     name: initialValue.name || "",
@@ -842,6 +784,7 @@ export default function EditStudentModal({
     if (!open) return;
     setNoPhone(initialNoPhone);
     setBusy(false);
+    setFieldErrors({});
     setForm({
       name: initialValue.name || "",
       gender: initialValue.gender || "",
@@ -860,26 +803,38 @@ export default function EditStudentModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialValue?.id]);
 
+  /** 백엔드 필드명 -> 프론트 필드명 (setFields 매핑) */
+  const backendToFrontendField: Record<string, string> = {
+    ps_number: "psNumber",
+    omr_code: noPhone ? "omrCode" : "studentPhone",
+    phone: "studentPhone",
+    parent_phone: "parentPhone",
+    name: "name",
+  };
+
   function handleChange(e: any) {
-    const { name, value } = e.target;
-    setForm((p) => ({ ...p, [name]: value }));
+    const { name } = e.target;
+    setForm((p) => ({ ...p, [name]: e.target.value }));
+    if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   }
 
+  /** StudentUpdateSerializer / 모델 기준 필수: name, ps_number, phone, parent_phone (Create와 동일) */
   function validate(): string | null {
-    if (!String(form.name || "").trim()) return "이름은 필수입니다.";
-    if (!String(form.psNumber || "").trim()) return "PS 번호는 필수입니다.";
+    if (!String(form.name || "").trim()) return "필수 입력입니다.";
+    if (!String(form.psNumber || "").trim()) return "필수 입력입니다.";
 
     if (noPhone) {
       const code = String(form.omrCode || "").trim();
+      if (!code) return "필수 입력입니다.";
       if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
     } else {
       const phone = String(form.studentPhone || "").trim();
-      if (!phone) return "학생 전화번호를 입력하세요.";
+      if (!phone) return "필수 입력입니다.";
       if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
     }
 
     const parent = String(form.parentPhone || "").trim();
-    if (!parent) return "학부모 전화번호는 필수입니다.";
+    if (!parent) return "필수 입력입니다.";
     if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
 
     return null;
@@ -892,10 +847,29 @@ export default function EditStudentModal({
     if (err) return alert(err);
 
     setBusy(true);
+    setFieldErrors({});
     try {
       await updateStudent(initialValue.id, { ...form, noPhone });
       onSuccess();
       onClose();
+    } catch (raw: any) {
+      const data = raw?.response?.data;
+      if (raw?.response?.status === 400 && data && typeof data === "object") {
+        const next: Record<string, string> = {};
+        for (const [backendKey, val] of Object.entries(data)) {
+          const msg = Array.isArray(val) ? val[0] : typeof val === "string" ? val : "";
+          if (!msg) continue;
+          const frontKey = backendToFrontendField[backendKey] ?? backendKey;
+          next[frontKey] = msg;
+        }
+        setFieldErrors(next);
+        const messages = Object.entries(next)
+          .map(([k, v]) => (k === "name" ? "이름" : k === "psNumber" ? "아이디" : k === "studentPhone" ? "학생 전화/식별자" : k === "omrCode" ? "식별자" : k === "parentPhone" ? "학부모 전화" : k) + ": " + v)
+          .join("\n");
+        alert(messages);
+      } else {
+        alert(raw?.message || "저장에 실패했습니다.");
+      }
     } finally {
       setBusy(false);
     }
@@ -1193,21 +1167,23 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
   }
 
   function validate(): string | null {
-    if (!String(form.name || "").trim()) return "이름은 필수입니다.";
-    if (!String(form.psNumber || "").trim()) return "아이디는 필수입니다.";
-    if (!String(form.initialPassword || "").trim()) return "비밀번호는 필수입니다.";
+    // 백엔드 StudentCreateSerializer required 필드와 동일: name, ps_number, initial_password, phone, parent_phone
+    if (!String(form.name || "").trim()) return "필수 입력입니다.";
+    if (!String(form.psNumber || "").trim()) return "필수 입력입니다.";
+    if (!String(form.initialPassword || "").trim()) return "필수 입력입니다.";
 
     if (noPhone) {
       const code = String(form.omrCode || "").trim();
+      if (!code) return "필수 입력입니다.";
       if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
     } else {
       const phone = String(form.studentPhone || "").trim();
-      if (!phone) return "학생 전화번호를 입력하세요.";
+      if (!phone) return "필수 입력입니다.";
       if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
     }
 
     const parent = String(form.parentPhone || "").trim();
-    if (!parent) return "학부모 전화번호는 필수입니다.";
+    if (!parent) return "필수 입력입니다.";
     if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
 
     return null;
@@ -1671,6 +1647,7 @@ export default function StudentFilterModal({
 // PATH: src/features/students/components/StudentsTable.tsx
 import { useMemo } from "react";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { DomainTable } from "@/shared/ui/domain";
 import { toggleStudentActive } from "../api/students";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -1687,7 +1664,7 @@ function highlight(text: string, keyword: string) {
   return parts.map((p, i) =>
     p.toLowerCase() === k.toLowerCase() ? (
       <mark
-        key={i}
+        key={`hl-${i}-${String(p).slice(0, 8)}`}
         className="px-0.5 rounded"
         style={{
           backgroundColor: "var(--state-selected-bg)",
@@ -1755,23 +1732,16 @@ export default function StudentsTable({
     qc.invalidateQueries({ queryKey: ["student", id] });
   }
 
-  function sortHeader(key: string, label: string) {
-    const isAsc = sort === key;
-    const isDesc = sort === `-${key}`;
-    const next = isAsc ? `-${key}` : isDesc ? "" : key;
+  function sortHeader(colKey: string, label: string) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    const next = isAsc ? `-${colKey}` : isDesc ? "" : colKey;
 
     return (
       <th
+        key={colKey}
         onClick={() => onSortChange(next)}
-        className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)] cursor-pointer select-none"
-        style={{
-          textAlign: "center",
-          whiteSpace: "nowrap",
-          background:
-            "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-          color:
-            "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
-        }}
+        className="cursor-pointer select-none"
         aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
         scope="col"
       >
@@ -1782,7 +1752,7 @@ export default function StudentsTable({
             style={{
               fontSize: 11,
               opacity: isAsc || isDesc ? 1 : 0.35,
-              color: "var(--color-brand-primary)",
+              color: "var(--color-primary)",
             }}
           >
             {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
@@ -1793,79 +1763,62 @@ export default function StudentsTable({
   }
 
   return (
-    <div style={{ overflow: "hidden" }}>
-      <table className="w-full" style={{ tableLayout: "fixed" }}>
-        <colgroup>
-          {columns.map((c) => (
-            <col key={c.key} style={{ width: c.w }} />
-          ))}
-          <col style={{ width: 160 }} />
-        </colgroup>
+    <DomainTable tableClassName="ds-table--staff-home" tableStyle={{ tableLayout: "fixed" }}>
+      <colgroup>
+        {columns.map((c) => (
+          <col key={c.key} style={{ width: c.w }} />
+        ))}
+        <col style={{ width: 160 }} />
+      </colgroup>
 
-        <thead>
-          <tr>
-            {columns.map((c) => sortHeader(c.key, c.label))}
-            <th
-              className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-              style={{
-                textAlign: "center",
-                whiteSpace: "nowrap",
-                background:
-                  "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-                color:
-                  "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
-              }}
-              scope="col"
-            >
-              작업
-            </th>
-          </tr>
-        </thead>
+      <thead>
+        <tr>
+          {columns.map((c) => sortHeader(c.key, c.label))}
+          <th scope="col">작업</th>
+        </tr>
+      </thead>
 
-        <tbody className="divide-y divide-[var(--color-border-divider)]">
-          {data.map((s) => (
+      <tbody>
+        {data.map((s) => (
             <tr
               key={s.id}
               onClick={() => onRowClick(s.id)}
               tabIndex={0}
               role="button"
-              className="group cursor-pointer hover:bg-[var(--color-bg-surface-soft)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
+              className="group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
             >
               {/* 이름 */}
-              <td className="px-4 py-3 text-center text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
                 {highlight(s.name || "-", search)}
               </td>
 
               {/* 학생 전화 */}
-              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {highlight(formatPhone(s.studentPhone), search)}
               </td>
 
               {/* 학부모 전화 */}
-              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {highlight(s.parentPhone || "-", search)}
               </td>
 
               {/* 학교 */}
-              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {s.school || "-"}
               </td>
 
               {/* 반 */}
-              <td className="px-4 py-3 text-center text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {s.schoolClass || "-"}
               </td>
 
               {/* 등록일 */}
-              <td className="px-4 py-3 text-center text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
+              <td className="text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
                 {s.registeredAt?.slice(0, 10) || "-"}
               </td>
 
               {/* 상태 */}
-              <td
-                className="px-4 py-3 text-center"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <td className="text-center" onClick={(e) => e.stopPropagation()}>
                 <span
                   style={{
                     padding: "5px 12px",
@@ -1881,10 +1834,7 @@ export default function StudentsTable({
               </td>
 
               {/* 작업 */}
-              <td
-                className="px-4 py-3"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <td onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-center gap-2">
                   <Button intent="primary" size="sm" onClick={() => onEditClick(s.id)}>
                     수정
@@ -1896,9 +1846,8 @@ export default function StudentsTable({
               </td>
             </tr>
           ))}
-        </tbody>
-      </table>
-    </div>
+      </tbody>
+    </DomainTable>
   );
 }
 
@@ -2060,7 +2009,7 @@ export default function StudentsDetailPage() {
               borderTopLeftRadius: 22,
               borderTopRightRadius: 22,
               background:
-                "linear-gradient(135deg, var(--color-brand-primary), var(--scale-Primary700))",
+                "linear-gradient(90deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 30%, transparent) 100%), var(--color-primary)",
               color: "white",
             }}
           >
@@ -2080,7 +2029,7 @@ export default function StudentsDetailPage() {
                       fontWeight: 900,
                       borderRadius: 999,
                       color: "white",
-                      backgroundColor: student.active ? "#22c55e" : "#ef4444", // 초록/빨강
+                      backgroundColor: student.active ? "var(--color-success)" : "var(--color-error)",
                     }}
                   >
                     {student.active ? "활성" : "비활성"}
@@ -2114,8 +2063,7 @@ export default function StudentsDetailPage() {
                   style={{
                     borderRadius: 18,
                     padding: 16,
-                    background:
-                      "linear-gradient(180deg, var(--color-bg-surface-soft), var(--color-bg-surface))",
+                    background: "var(--bg-surface)",
                     border: "1px solid var(--color-border-divider)",
                   }}
                 >
@@ -2214,8 +2162,7 @@ export default function StudentsDetailPage() {
                   style={{
                     borderRadius: 18,
                     padding: 16,
-                    background:
-                      "linear-gradient(180deg, color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface)), var(--color-bg-surface))",
+                    background: "var(--bg-surface)",
                     border: "1px solid var(--color-border-divider)",
                   }}
                 >
@@ -2242,10 +2189,8 @@ export default function StudentsDetailPage() {
                             fontSize: 13,
                             fontWeight: 900,
                             color: active ? "white" : "var(--color-text-secondary)",
-                            background: active
-                              ? "linear-gradient(135deg, var(--color-brand-primary), var(--scale-Primary600))"
-                              : "transparent",
-                            boxShadow: active ? "0 6px 18px rgba(0,0,0,0.35)" : "none",
+                            background: active ? "var(--color-primary)" : "transparent",
+                            boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
                           }}
                         >
                           {t.label}
@@ -2306,7 +2251,7 @@ function InfoRow({
         padding: "8px 10px",
         borderRadius: 12,
         background: accent
-          ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
+          ? "color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface))"
           : "var(--color-bg-surface)",
         border: "1px solid var(--color-border-divider)",
         fontSize: 12,

@@ -10,7 +10,7 @@ export default function ModalState({
         padding: "32px 24px",
         textAlign: "center",
         fontSize: 13,
-        fontWeight: 800,
+        fontWeight: "var(--font-meta)",
         color: "var(--color-text-muted)",
       }}
     >

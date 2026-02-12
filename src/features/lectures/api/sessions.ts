@@ -10,11 +10,20 @@ export async function fetchLecture(lectureId: number) {
 }
 
 // ----------------------------------------
+// SESSION 상세 가져오기
+// ----------------------------------------
+export async function fetchSession(sessionId: number) {
+  const res = await api.get(`/lectures/sessions/${sessionId}/`);
+  return res.data;
+}
+
+// ----------------------------------------
 // SESSION 목록 가져오기 (lecture 기준)
 // ----------------------------------------
 export async function fetchSessions(lectureId: number) {
   const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
-  return res.data.results;
+  const data = res.data;
+  return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
 }
 
 // ----------------------------------------

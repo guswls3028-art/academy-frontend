@@ -2264,8 +2264,9 @@ export function useSessionVideos(sessionId: number) {
 // PATH: src/features/lectures/layout/LectureLayout.tsx
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import api from "@/shared/api/axios";
-import LectureTabs from "../components/LectureTabs";
+import { DomainLayout } from "@/shared/ui/layout";
 
 function safeStr(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -2279,16 +2280,11 @@ export default function LectureLayout() {
 
   if (!Number.isFinite(lectureIdNum)) {
     return (
-      <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
-        <div className="px-6 py-6">
-          <div
-            className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)] p-4 text-sm"
-            style={{ color: "var(--color-error)" }}
-          >
-            잘못된 강의 ID
-          </div>
+      <DomainLayout title="강의" description="잘못된 강의 ID">
+        <div className="p-4 text-sm" style={{ color: "var(--color-error)" }}>
+          잘못된 강의 ID
         </div>
-      </div>
+      </DomainLayout>
     );
   }
 
@@ -2311,59 +2307,48 @@ export default function LectureLayout() {
         .filter(Boolean)
         .join(" · ") || "수강생 · 자료 · 출결 · 리포트";
 
+  const base = `/admin/lectures/${lectureId}`;
+  const tabs = useMemo(
+    () => [
+      { key: "students", label: "수강생", path: base, exact: true },
+      { key: "materials", label: "자료실", path: `${base}/materials` },
+      { key: "board", label: "게시판", path: `${base}/board` },
+      { key: "ddays", label: "디데이", path: `${base}/ddays` },
+      { key: "attendance", label: "출결", path: `${base}/attendance` },
+      { key: "report", label: "리포트", path: `${base}/report` },
+    ],
+    [base]
+  );
+
   const isSessionDetail = location.pathname.includes("/sessions/");
 
   return (
-    <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
-      {/* DOMAIN HEADER (StudentsLayout 동일 패턴) */}
-      <div className="border-b border-[var(--border-divider)] bg-[var(--bg-surface)]">
-        <div className="px-6 pt-6 pb-4">
-          <div className="relative">
-            <div className="absolute left-0 top-1 h-6 w-1 rounded-full bg-[var(--color-primary)]" />
-            <div className="pl-4">
-              <div className="text-2xl font-bold tracking-tight">{title}</div>
-              <div className="text-base text-[var(--text-muted)] mt-1">{desc}</div>
-            </div>
-          </div>
+    <DomainLayout title={title} description={desc} tabs={tabs}>
+      {isSessionDetail && (
+        <div className="px-5 py-4 border-b border-[var(--border-divider)]">
+          <button
+            onClick={() => navigate(-1)}
+            className="ds-tab text-[15px] font-semibold"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 12px",
+              borderRadius: 12,
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface)",
+              color: "var(--color-text-secondary)",
+            }}
+          >
+            ← 강의로 돌아가기
+          </button>
         </div>
+      )}
 
-        {/* Tabs (ds-tabs) */}
-        <div className="px-6">
-          <LectureTabs />
-        </div>
+      <div className="p-4">
+        <Outlet />
       </div>
-
-      {/* DOMAIN CONTENT CARD (단일 프레임) */}
-      <div className="px-6 py-6">
-        <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
-          {/* Session detail도 같은 프레임 유지, 상단에만 back 제공 */}
-          {isSessionDetail && (
-            <div className="px-5 py-4 border-b border-[var(--border-divider)]">
-              <button
-                onClick={() => navigate(-1)}
-                className="ds-tab text-[15px] font-semibold"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 12px",
-                  borderRadius: 12,
-                  border: "1px solid var(--color-border-divider)",
-                  background: "var(--color-bg-surface)",
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                ← 강의로 돌아가기
-              </button>
-            </div>
-          )}
-
-          <div className="p-4">
-            <Outlet />
-          </div>
-        </div>
-      </div>
-    </div>
+    </DomainLayout>
   );
 }
 
@@ -2372,65 +2357,23 @@ export default function LectureLayout() {
 # FILE: layout/LecturesLayout.tsx
 ==========================================================================================
 // PATH: src/features/lectures/layout/LecturesLayout.tsx
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { DomainLayout } from "@/shared/ui/layout";
+
+const LECTURES_TABS = [
+  { key: "list", label: "강의목록", path: "/admin/lectures", exact: true },
+  { key: "past", label: "지난강의", path: "/admin/lectures/past" },
+];
 
 export default function LecturesLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const activeKey = location.pathname.includes("/lectures/past")
-    ? "past"
-    : "list";
-
   return (
-    <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
-      {/* DOMAIN HEADER */}
-      <div className="border-b border-[var(--border-divider)] bg-[var(--bg-surface)]">
-        <div className="px-6 pt-6 pb-4">
-          <div className="relative">
-            <div className="absolute left-0 top-1 h-6 w-1 rounded-full bg-[var(--color-primary)]" />
-            <div className="pl-4">
-              <div className="text-2xl font-bold tracking-tight">
-                강의 관리
-              </div>
-              <div className="text-base text-[var(--text-muted)] mt-1">
-                강의 목록 · 지난 강의 · 수강생 · 출결 · 리포트
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* DOMAIN TABS */}
-        <div className="px-6">
-          <div className="ds-tabs">
-            <button
-              className={`ds-tab text-[15px] font-semibold ${
-                activeKey === "list" ? "is-active" : ""
-              }`}
-              onClick={() => navigate("/admin/lectures")}
-            >
-              강의목록
-            </button>
-
-            <button
-              className={`ds-tab text-[15px] font-semibold ${
-                activeKey === "past" ? "is-active" : ""
-              }`}
-              onClick={() => navigate("/admin/lectures/past")}
-            >
-              지난강의
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* DOMAIN CARD */}
-      <div className="px-6 py-6">
-        <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
-          <Outlet />
-        </div>
-      </div>
-    </div>
+    <DomainLayout
+      title="강의 관리"
+      description="강의 목록 · 지난 강의 · 수강생 · 출결 · 리포트"
+      tabs={LECTURES_TABS}
+    >
+      <Outlet />
+    </DomainLayout>
   );
 }
 
@@ -2445,10 +2388,8 @@ import { fetchAttendanceMatrix, type AttendanceMatrixRow } from "@/features/lect
 import { EmptyState } from "@/shared/ui/ds";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function LectureAttendanceMatrixPage() {
@@ -2545,10 +2486,8 @@ const STATUS_LIST = [
 type AttendanceStatus = (typeof STATUS_LIST)[number];
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 function formatPhone(v?: string | null) {
@@ -2831,10 +2770,8 @@ import BoardPostDetail from "../../components/BoardPostDetail";
 import { EmptyState, Button } from "@/shared/ui/ds";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function LectureBoardPage() {
@@ -3021,10 +2958,8 @@ import DdayModal from "@/features/lectures/components/DdayModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function LectureDdayPage() {
@@ -3149,10 +3084,8 @@ import { EmptyState } from "@/shared/ui/ds";
 import { fetchLectureReport, type LectureReportResponse } from "@/features/lectures/api/report";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function LectureReportPage() {
@@ -3265,10 +3198,8 @@ import { EmptyState } from "@/shared/ui/ds";
 import { fetchLectureStudents, type LectureStudent } from "@/features/lectures/api/students";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function LectureStudentsPage() {
@@ -3377,10 +3308,8 @@ type LectureItem = {
 type TabKey = "active" | "past";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 function isPastLecture(lec: LectureItem) {
@@ -3620,10 +3549,8 @@ import MaterialUploadModal from "../../components/MaterialUploadModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function MaterialsPage() {
@@ -4037,10 +3964,8 @@ import SessionCreateModal from "../../components/SessionCreateModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function LectureSessionsPage() {

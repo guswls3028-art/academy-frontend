@@ -42,11 +42,14 @@ async function startPlayback(params: {
     device_id: params.deviceId,
   });
   const d = res?.data || {};
+  const policy = d.policy || {};
   return {
     token: String(d.token || ""),
-    session_id: String(d.session_id || ""),
-    expires_at: Number(d.expires_at || 0),
-    policy: d.policy || {},
+    session_id: d.session_id != null ? String(d.session_id) : null,
+    expires_at: d.expires_at != null ? Number(d.expires_at) : null,
+    access_mode: (d.access_mode ?? policy.access_mode) || "FREE_REVIEW",
+    monitoring_enabled: d.monitoring_enabled ?? policy.monitoring_enabled ?? false,
+    policy,
     play_url: String(d.play_url || ""),
   };
 }
@@ -98,6 +101,8 @@ export default function MediaPlayerPage() {
           setLoading(false);
           return;
         }
+
+        // For FREE_REVIEW mode, session_id and expires_at may be null (expected)
 
         setVideo(v);
         setBoot(b);

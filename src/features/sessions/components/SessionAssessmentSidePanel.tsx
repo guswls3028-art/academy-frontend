@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
+import { Button } from "@/shared/ui/ds";
 import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
 
 import CreateRegularExamModal from "@/features/exams/components/create/CreateRegularExamModal";
@@ -116,14 +117,15 @@ export default function SessionAssessmentSidePanel({
 
   return (
     <aside
+      className="ds-panel flex-shrink-0"
       style={{
         width: 220,
-        borderRadius: 14,
+        borderRadius: "var(--radius-xl)",
         border: "1px solid var(--color-border-divider)",
         background: "var(--color-bg-surface)",
-        padding: 12,
+        padding: "var(--space-4)",
         display: "grid",
-        gap: 16,
+        gap: "var(--space-4)",
       }}
     >
       <PanelSection
@@ -218,14 +220,9 @@ function PanelSection({
           {title}
         </div>
 
-        <button
-          type="button"
-          onClick={onAdd}
-          className="text-xs font-semibold"
-          style={{ color: "var(--color-primary)" }}
-        >
+        <Button type="button" intent="ghost" size="sm" onClick={onAdd} className="text-xs font-semibold">
           + 추가
-        </button>
+        </Button>
       </div>
 
       <div className="grid gap-2">{children}</div>
@@ -249,10 +246,12 @@ function ItemRow({
           : undefined,
       }}
     >
-      <button
+      <Button
+        type="button"
+        intent="ghost"
+        size="sm"
         onClick={onClick}
-        className="flex-1 px-2 py-2 text-left"
-        style={{ color: "var(--color-text-primary)" }}
+        className="flex-1 !justify-start px-2 py-2 text-left"
       >
         <div className="text-sm font-medium">{label}</div>
         {sub && (
@@ -263,18 +262,20 @@ function ItemRow({
             {sub}
           </div>
         )}
-      </button>
+      </Button>
 
-      <button
+      <Button
+        type="button"
+        intent="ghost"
+        size="sm"
         onClick={(e) => {
           e.stopPropagation();
           onDelete();
         }}
-        className="px-2 text-xs"
-        style={{ color: "var(--color-error)" }}
+        className="px-2 text-xs text-[var(--color-error)]"
       >
         ✕
-      </button>
+      </Button>
     </div>
   );
 }

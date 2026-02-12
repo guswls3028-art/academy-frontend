@@ -1,5 +1,6 @@
 // PATH: src/features/lectures/components/LectureTabs.tsx
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Button } from "@/shared/ui/ds";
 
 export default function LectureTabs() {
   const navigate = useNavigate();
@@ -31,15 +32,18 @@ export default function LectureTabs() {
   ];
 
   return (
-    <div className="ds-tabs">
+    <div className="ds-tabs flex gap-2">
       {tabs.map((t) => (
-        <button
+        <Button
           key={t.key}
-          className={`ds-tab text-[15px] font-semibold ${activeKey === t.key ? "is-active" : ""}`}
+          type="button"
+          intent={activeKey === t.key ? "primary" : "ghost"}
+          size="sm"
+          className="ds-tab text-[15px] font-semibold"
           onClick={() => navigate(t.to)}
         >
           {t.label}
-        </button>
+        </Button>
       ))}
     </div>
   );

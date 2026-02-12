@@ -4,10 +4,13 @@ import api from "@/shared/api/axios";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  /** 이미 사용 중인 강의 색상 — 기본값이 이들과 최대한 차이나도록 선택됨 */
+  usedColors?: string[];
 }
 
 interface CreateLecturePayload {
@@ -17,10 +20,12 @@ interface CreateLecturePayload {
   description: string;
   start_date: string;
   end_date: string;
+  lecture_time: string;
+  color: string;
   is_active: boolean;
 }
 
-export default function LectureCreateModal({ isOpen, onClose }: Props) {
+export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }: Props) {
   const qc = useQueryClient();
 
   const [title, setTitle] = useState("");
@@ -29,6 +34,8 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [lectureTime, setLectureTime] = useState("");
+  const [color, setColor] = useState(() => getDefaultColorForPicker(usedColors));
 
   const modalTitle = useMemo(() => "강의 추가", []);
 
@@ -44,6 +51,18 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
 
   useEffect(() => {
     if (!isOpen) return;
+    setTitle("");
+    setName("");
+    setSubject("");
+    setDescription("");
+    setStartDate("");
+    setEndDate("");
+    setLectureTime("");
+    setColor(getDefaultColorForPicker(usedColors));
+  }, [isOpen, usedColors]);
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -55,7 +74,7 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, title, name, subject, description, startDate, endDate, isPending]);
+  }, [isOpen, title, name, subject, description, startDate, endDate, lectureTime, color, isPending]);
 
   if (!isOpen) return null;
 
@@ -68,6 +87,8 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
       description,
       start_date: startDate,
       end_date: endDate,
+      lecture_time: lectureTime.trim(),
+      color,
       is_active: true,
     });
   }
@@ -138,6 +159,21 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
               disabled={isPending}
             />
           </div>
+
+          <input
+            className="ds-input"
+            placeholder="강의 시간 (예: 토 12:00 ~ 13:00)"
+            value={lectureTime}
+            onChange={(e) => setLectureTime(e.target.value)}
+            disabled={isPending}
+          />
+
+          <ColorPickerField
+            label="아이콘 색상"
+            value={color}
+            onChange={setColor}
+            disabled={isPending}
+          />
         </div>
       </ModalBody>
 

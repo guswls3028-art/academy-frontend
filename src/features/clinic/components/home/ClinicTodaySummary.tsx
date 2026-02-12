@@ -1,4 +1,5 @@
 // PATH: src/features/clinic/components/home/ClinicTodaySummary.tsx
+import { KPI, Button } from "@/shared/ui/ds";
 import { ClinicParticipant } from "../../api/clinicParticipants.api";
 
 function groupBySession(rows: ClinicParticipant[]) {
@@ -50,72 +51,138 @@ export default function ClinicTodaySummary({
   const noShow = rows.filter((r) => r.status === "no_show").length;
 
   return (
-    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
-      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)] flex items-center justify-between">
+    <div className="ds-panel" data-panel-variant="primary">
+      <div className="clinic-card__header flex items-center justify-between">
         <div>
-          <div className="text-sm font-semibold">오늘 클리닉</div>
-          <div className="text-xs text-[var(--text-muted)]">{date}</div>
+          <div
+            style={{
+              fontSize: "var(--text-md)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            오늘 클리닉
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--color-text-muted)",
+              marginTop: "var(--space-1)",
+            }}
+          >
+            {date}
+          </div>
         </div>
         <div className="flex gap-2">
-          <button
-            className="h-[32px] px-3 rounded-lg border text-xs"
-            onClick={onGoBookings}
-          >
+          <Button size="sm" intent="secondary" onClick={onGoBookings}>
             예약 추가
-          </button>
-          <button
-            className="h-[32px] px-3 rounded-lg border text-xs"
-            onClick={onGoOperations}
-          >
+          </Button>
+          <Button size="sm" intent="primary" onClick={onGoOperations}>
             운영 처리
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="p-5 space-y-4">
-        {/* KPI */}
+      <div
+        className="clinic-card__body"
+        style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}
+      >
         <div className="grid grid-cols-3 gap-3">
           <KPI label="총 인원" value={rows.length} />
           <KPI label="예약" value={booked} />
-          <KPI label="불참" value={noShow} danger />
+          <KPI
+            label="불참"
+            value={noShow}
+            hint={noShow > 0 ? "확인 필요" : undefined}
+          />
         </div>
+        {noShow > 0 && (
+          <div
+            style={{
+              fontSize: "var(--text-sm)",
+              color: "var(--color-error)",
+              fontWeight: "var(--font-meta)",
+            }}
+          >
+            불참 {noShow}명
+          </div>
+        )}
 
         {loading && (
-          <div className="text-xs text-[var(--text-muted)]">불러오는 중...</div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            불러오는 중...
+          </div>
         )}
 
         {!loading && sessions.length === 0 && (
-          <div className="text-xs text-[var(--text-muted)]">
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--color-text-muted)",
+            }}
+          >
             오늘 예정된 클리닉이 없습니다.
           </div>
         )}
 
-        {/* 세션 단위 타임라인 (관리자 관점 강화) */}
         {!loading && sessions.length > 0 && (
-          <div className="space-y-2">
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
             {sessions.map((s) => (
               <div
                 key={s.sessionId}
-                className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3"
+                className="clinic-kpi-block"
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: "var(--space-3)",
+                }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-semibold">
-                      {s.time}
-                      {s.end ? ` ~ ${s.end}` : ""} · {s.total}명
-                    </div>
-                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                      {s.location}
-                    </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "var(--text-xs)",
+                      fontWeight: "var(--font-title)",
+                      color: "var(--color-text-primary)",
+                    }}
+                  >
+                    {s.time}
+                    {s.end ? ` ~ ${s.end}` : ""} · {s.total}명
                   </div>
-
-                  <div className="text-right">
-                    <div className="text-[11px] text-[var(--text-muted)]">
-                      예약 {s.booked}
-                    </div>
-                    <div className="text-[11px] text-[var(--text-muted)]">
-                      불참 {s.noShow}
-                    </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-text-muted)",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {s.location}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-text-muted)",
+                      fontWeight: "var(--font-meta)",
+                    }}
+                  >
+                    예약 {s.booked}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: s.noShow > 0 ? "var(--color-error)" : "var(--color-text-muted)",
+                      fontWeight: "var(--font-meta)",
+                    }}
+                  >
+                    불참 {s.noShow}
                   </div>
                 </div>
               </div>
@@ -127,26 +194,3 @@ export default function ClinicTodaySummary({
   );
 }
 
-function KPI({
-  label,
-  value,
-  danger,
-}: {
-  label: string;
-  value: number;
-  danger?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border bg-[var(--bg-surface-soft)] px-4 py-3">
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
-      <div
-        className={[
-          "text-xl font-bold",
-          danger ? "text-[var(--color-danger)]" : "",
-        ].join(" ")}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}

@@ -1,6 +1,6 @@
 // PATH: src/features/profile/expense/components/ExpenseFormModal.tsx
 import { useEffect, useMemo, useState } from "react";
-import { Panel } from "@/shared/ui/ds";
+import { Button, Panel } from "@/shared/ui/ds";
 import { Expense } from "../../api/profile.api";
 
 type Form = {
@@ -169,16 +169,14 @@ export default function ExpenseFormModal({
 
             {/* 버튼 */}
             <div className="grid grid-cols-2 gap-2 pt-2">
-              <button
-                className={secondaryBtn}
-                onClick={onClose}
-                disabled={submitting}
-              >
+              <Button type="button" intent="secondary" size="md" onClick={onClose} disabled={submitting}>
                 취소
-              </button>
+              </Button>
 
-              <button
-                className={primaryBtn}
+              <Button
+                type="button"
+                intent="primary"
+                size="md"
                 onClick={submit}
                 disabled={submitting || !canSubmit}
               >
@@ -187,7 +185,7 @@ export default function ExpenseFormModal({
                   : isEdit
                   ? "수정 저장"
                   : "저장"}
-              </button>
+              </Button>
             </div>
           </div>
         </Panel>
@@ -201,22 +199,6 @@ export default function ExpenseFormModal({
 const inputCls =
   "w-full rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] \
    px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]";
-
-const secondaryBtn =
-  "h-[44px] rounded-lg border border-[var(--border-divider)] \
-   bg-[var(--bg-surface)] text-sm font-semibold text-[var(--text-primary)] \
-   hover:bg-[var(--bg-surface-soft)] active:translate-y-[1px] \
-   disabled:opacity-60 disabled:cursor-not-allowed";
-
-const primaryBtn =
-  "h-[44px] rounded-lg border border-[var(--color-primary)] \
-   bg-[var(--color-primary)] text-sm font-semibold text-white \
-   hover:brightness-95 active:translate-y-[1px] \
-   disabled:border-[var(--border-divider)] \
-   disabled:bg-[var(--bg-surface)] \
-   disabled:text-[var(--text-muted)] \
-   disabled:cursor-not-allowed \
-   disabled:brightness-100";
 
 function Row({
   label,

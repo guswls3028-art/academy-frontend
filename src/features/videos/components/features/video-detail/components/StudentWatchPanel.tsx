@@ -1,10 +1,13 @@
 // PATH: src/features/videos/components/features/video-detail/components/StudentWatchPanel.tsx
 
 import { useMemo } from "react";
+import { Button } from "@/shared/ui/ds";
 // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
 import {
   RULE_COLORS,
   RULE_LABELS,
+  getAccessLabel,
+  getAccessColor,
 } from "@/features/videos/components/features/video-permission/permission.constants";
 
 interface Props {
@@ -32,13 +35,9 @@ export default function StudentWatchPanel({
     <div className="w-full flex flex-col gap-3">
       {/* ACTION */}
       <div className="flex justify-end">
-        <button
-          onClick={onOpenPermission}
-          className="text-xs rounded bg-[var(--color-primary)] text-white px-3 py-1.5"
-          type="button"
-        >
+        <Button type="button" intent="primary" size="sm" onClick={onOpenPermission}>
           권한 관리
-        </button>
+        </Button>
       </div>
 
       {/* LIST */}
@@ -85,10 +84,10 @@ export default function StudentWatchPanel({
                   className={[
                     "inline-flex items-center rounded-full px-2 py-0.5",
                     "text-[11px] font-semibold text-white",
-                    RULE_COLORS[s.effective_rule] ?? "bg-gray-400",
+                    getAccessColor(s.access_mode, s.effective_rule),
                   ].join(" ")}
                 >
-                  {RULE_LABELS[s.effective_rule] ?? "미정"}
+                  {getAccessLabel(s.access_mode, s.effective_rule)}
                 </span>
               </div>
 

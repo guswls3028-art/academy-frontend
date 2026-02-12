@@ -1,0 +1,42 @@
+/* PATH: src/features/clinic/clinic.css
+   클리닉 도메인 — 프리미엄 SaaS 영역 구분 (토큰 기반) */
+
+/* 카드 영역: 선·깊이로 구분 (12테마 공통) */
+.clinic-card {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-divider-strong);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-2);
+  overflow: hidden;
+}
+
+.clinic-card__header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface-soft));
+}
+
+.clinic-card__body {
+  padding: var(--space-6);
+}
+
+/* 주간 일정 요일 셀 */
+.clinic-day-cell {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  padding: var(--space-4);
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+
+.clinic-day-cell:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+/* KPI/숫자 강조 블록 */
+.clinic-kpi-block {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  padding: var(--space-4);
+}

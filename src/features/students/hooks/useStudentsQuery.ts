@@ -27,19 +27,28 @@ function compare(a: any, b: any, key: string) {
   return String(av).localeCompare(String(bv), "ko");
 }
 
-export function useStudentsQuery(search: string, filters: any, sort: string) {
-  return useQuery({
-    queryKey: ["students", search, filters, sort],
-    queryFn: async () => {
-      const data = await fetchStudents(search, filters, sort);
+const PAGE_SIZE = 50;
 
-      if (!sort) return data;
+export function useStudentsQuery(
+  search: string,
+  filters: any,
+  sort: string,
+  page: number = 1,
+  deleted: boolean = false
+) {
+  return useQuery({
+    queryKey: ["students", search, filters, sort, page, deleted],
+    queryFn: async () => {
+      const { data, count } = await fetchStudents(search, filters, sort, page, deleted);
+
+      if (!sort) return { data, count, pageSize: PAGE_SIZE };
 
       const isDesc = sort.startsWith("-");
       const key = isDesc ? sort.slice(1) : sort;
 
       const sorted = [...data].sort((a, b) => compare(a, b, key));
-      return isDesc ? sorted.reverse() : sorted;
+      const sortedData = isDesc ? sorted.reverse() : sorted;
+      return { data: sortedData, count, pageSize: PAGE_SIZE };
     },
     staleTime: 1000 * 5,
   });

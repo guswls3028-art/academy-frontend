@@ -1,16 +1,17 @@
-﻿// PATH: src/features/staff/api/workMonthLocks.api.ts
+// PATH: src/features/staff/api/workMonthLocks.api.ts
 import api from "@/shared/api/axios";
 
+/** Backend: WorkMonthLockSerializer (no updated_at) */
 export type WorkMonthLock = {
   id: number;
   staff: number;
-  staff_name?: string;
+  staff_name: string;
   year: number;
   month: number;
   is_locked: boolean;
-  locked_by?: number;
-  locked_by_name?: string;
-  created_at?: string;
+  locked_by: number | null;
+  locked_by_name: string | null;
+  created_at: string;
 };
 
 /**

@@ -11,10 +11,15 @@ import { styles } from "./VideoDetail.styles";
 import PermissionModal from "@/features/videos/components/features/video-detail/modals/PermissionModal";
 import VideoPreviewSection from "@/features/videos/components/features/video-detail/components/VideoPreviewSection";
 import VideoPolicySection from "@/features/videos/components/features/video-detail/components/VideoPolicySection";
-import VideoInfoSection from "@/features/videos/components/features/video-detail/components/VideoInfoSection";
+import AdminMemoSection from "@/features/videos/components/features/video-detail/components/AdminMemoSection";
 import VideoStudentsSection from "@/features/videos/components/features/video-detail/components/VideoStudentsSection";
+import type { TabKey } from "@/features/videos/components/features/video-permission/permission.types";
 
 type PreviewMode = "admin" | "student";
+
+function formatBytes(b?: number) {
+  return b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "—";
+}
 
 export default function VideoDetailPage() {
   const params = useParams();
@@ -23,7 +28,8 @@ export default function VideoDetailPage() {
   const videoId = Number(params.videoId);
 
   const [previewMode, setPreviewMode] = useState<PreviewMode>("admin");
-  const [openPermission, setOpenPermission] = useState(false);
+  const [permissionOpen, setPermissionOpen] = useState(false);
+  const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [memo, setMemo] = useState("");
 
   const { data, isLoading } = useQuery({
@@ -37,36 +43,45 @@ export default function VideoDetailPage() {
   });
 
   if (isLoading || !data?.video) {
-    return <div className="text-sm text-[var(--text-muted)]">로딩중…</div>;
+    return <div className="text-sm text-[var(--color-text-muted)]">로딩중…</div>;
   }
 
   const video = data.video;
   const students = data.students ?? [];
+  const total = students.length;
+  const completed100 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 1).length;
+  const progressSum = students.reduce((a, s) => a + (Number(s.progress ?? 0) || 0), 0);
+  const avgProgress = total > 0 ? progressSum / total : 0;
+  const completed90 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 0.9).length;
+
+  const openModal = (tab: TabKey) => {
+    setPermissionTab(tab);
+    setPermissionOpen(true);
+  };
 
   return (
     <>
       <VideoDetailLayout
         header={
-          <div className="flex items-start justify-between gap-4">
+          <>
             <div>
-              <h2 className={styles.header.title}>{video.title}</h2>
-              <div className="mt-1 text-xs text-[var(--text-muted)]">
+              <h1 className={styles.header.title}>{video.title}</h1>
+              <p className={styles.header.subtitle}>
                 세션 영상 관리 · 정책 / 시청 / 로그
-              </div>
+              </p>
+              <p className={styles.header.description}>
+                이 영상에 대한 시청 정책, 학생 성과, 로그 데이터를 관리합니다.
+              </p>
             </div>
-
             <div className={styles.header.actions}>
               <Link
                 to={`/admin/lectures/${lectureId}/sessions/${sessionId}`}
-                className={styles.header.backLink}
+                className={styles.header.primaryDropdown}
               >
                 출석 화면으로
               </Link>
             </div>
-          </div>
-        }
-        subtitle={
-          <span>이 영상에 대한 시청 정책, 학생 상태, 로그 데이터를 관리합니다.</span>
+          </>
         }
         left={
           <>
@@ -98,9 +113,9 @@ export default function VideoDetailPage() {
             </section>
 
             <section className={styles.section.wrapper}>
-              <div className={styles.section.header}>영상 정보</div>
+              <div className={styles.section.header}>관리자 메모</div>
               <div className={styles.section.body}>
-                <VideoInfoSection video={video} memo={memo} setMemo={setMemo} />
+                <AdminMemoSection memo={memo} setMemo={setMemo} />
               </div>
             </section>
           </>
@@ -111,17 +126,36 @@ export default function VideoDetailPage() {
             <div className={styles.section.body}>
               <VideoStudentsSection
                 students={students}
-                onOpenPermission={() => setOpenPermission(true)}
+                onOpenPermission={() => openModal("permission")}
+                onOpenAchievement={() => openModal("achievement")}
+                onOpenLog={() => openModal("log")}
               />
             </div>
           </section>
         }
+        bottom={
+          <>
+            <div className={styles.bottom.row}>
+              <span className={styles.bottom.label}>파일 정보</span>
+              <span>
+                {video.status ?? "—"} / {video.duration ?? "—"} / {formatBytes(video.file_size)} / {video.created_at ?? "—"}
+              </span>
+            </div>
+            <div className={styles.bottom.row}>
+              <span className={styles.bottom.label}>통계</span>
+              <span>
+                평균 만족도 {total > 0 ? `${(avgProgress * 100).toFixed(1)}%` : "—"} / 100% 완료 {completed100}명 / 90% 완료 {completed90}명
+              </span>
+            </div>
+          </>
+        }
       />
 
       <PermissionModal
-        open={openPermission}
-        onClose={() => setOpenPermission(false)}
+        open={permissionOpen}
+        onClose={() => setPermissionOpen(false)}
         videoId={videoId}
+        initialTab={permissionTab}
       />
     </>
   );

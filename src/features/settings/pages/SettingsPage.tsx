@@ -1,7 +1,8 @@
 // PATH: src/features/settings/pages/SettingsPage.tsx
 import { useEffect, useMemo, useState } from "react";
 
-import { Page, PageHeader, Section, Panel } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
+import { Section, Panel } from "@/shared/ui/ds";
 
 import ThemeGrid from "../components/ThemeGrid";
 import { THEMES, type ThemeKey, isThemeKey } from "../constants/themes";
@@ -33,9 +34,10 @@ export default function SettingsPage() {
   }, [currentTheme]);
 
   return (
-    <Page>
-      <PageHeader title="시스템 설정 · 테마" />
-
+    <DomainLayout
+      title="시스템 설정"
+      description="테마 및 시스템 옵션을 관리합니다."
+    >
       <Section>
         <Panel>
           {/* Sticky Header */}
@@ -88,6 +90,6 @@ export default function SettingsPage() {
           </div>
         </Panel>
       </Section>
-    </Page>
+    </DomainLayout>
   );
 }

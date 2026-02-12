@@ -1,3 +1,4 @@
+import { Button } from "@/shared/ui/ds";
 import type { ExamTabKey } from "../../types";
 
 type Props = {
@@ -21,19 +22,17 @@ export default function ExamTabs({ activeTab, onChange }: Props) {
         const isActive = activeTab === t.key;
 
         return (
-          <button
+          <Button
             key={t.key}
             type="button"
+            intent={isActive ? "primary" : "ghost"}
+            size="sm"
             onClick={() => onChange(t.key)}
-            className={[
-              "pb-2 text-sm border-b-2 transition-colors",
-              isActive
-                ? "border-[var(--color-primary)] font-semibold text-[var(--text-primary)]"
-                : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-            ].join(" ")}
+            className="-mb-px rounded-none border-b-2 border-transparent pb-2"
+            style={isActive ? { borderColor: "var(--color-primary)" } : undefined}
           >
             {t.label}
-          </button>
+          </Button>
         );
       })}
     </div>

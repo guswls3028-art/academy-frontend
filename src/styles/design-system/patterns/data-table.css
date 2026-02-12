@@ -14,11 +14,11 @@
 
 /* Header */
 [data-app="admin"] thead th {
-  padding: 12px 14px;
-  font-size: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
   font-weight: 600;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--color-text-secondary);
   background: var(--bg-surface-soft);
   border-bottom: 1px solid var(--border-divider);
   white-space: nowrap;
@@ -26,7 +26,7 @@
 
 /* Body */
 [data-app="admin"] tbody td {
-  padding: 14px;
+  padding: 11px 14px;
   font-size: 13px;
   text-align: center;
   color: var(--text-primary);

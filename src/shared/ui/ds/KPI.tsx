@@ -21,7 +21,7 @@ export default function KPI({
         style={{
           fontSize: "var(--text-sm)",
           color: "var(--color-text-muted)",
-          fontWeight: 900,
+          fontWeight: "var(--font-title)",
         }}
       >
         {label}
@@ -32,7 +32,7 @@ export default function KPI({
         style={{
           marginTop: 6,
           fontSize: "var(--text-2xl)",
-          fontWeight: 900,
+          fontWeight: 700,
           letterSpacing: "-0.4px",
           color: "var(--color-text-primary)",
         }}
@@ -45,7 +45,7 @@ export default function KPI({
           style={{
             marginTop: 8,
             fontSize: "var(--text-sm)",
-            fontWeight: 800,
+            fontWeight: "var(--font-meta)",
             color: "var(--color-text-secondary)",
           }}
         >

@@ -67,26 +67,59 @@ export default function SessionScoresPanel({ sessionId }: { sessionId: number })
   }, [rows, selected, currentExamId, currentHomeworkId]);
 
   return (
-    <section className="card p-4 space-y-4">
-      <div className="flex items-center justify-between border-b pb-3">
+    <div className="flex flex-col gap-[var(--space-6)]">
+      <div className="flex items-center justify-between border-b border-[var(--color-border-divider)] pb-[var(--space-4)]">
         <div>
-          <h3 className="text-base font-semibold">성적 관리</h3>
-          <p className="text-xs text-[var(--text-muted)]">
-            세션 등록 학생 기준 성적 입력 및 판정
+          <h3
+            style={{
+              fontSize: "var(--text-lg)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            성적 관리
+          </h3>
+          <p
+            className="mt-1"
+            style={{
+              fontSize: "var(--text-sm)",
+              color: "var(--color-text-muted)",
+              fontWeight: "var(--font-meta)",
+            }}
+          >
+            세션 등록 학생 기준 성적 입력 및 판정 · AI 워커 미작동 시 수동 채점 가능
           </p>
         </div>
       </div>
 
       {isLoading && (
-        <div className="text-sm text-[var(--text-muted)]">성적 불러오는 중...</div>
+        <div
+          style={{
+            fontSize: "var(--text-sm)",
+            color: "var(--color-text-muted)",
+            padding: "var(--space-8)",
+            textAlign: "center",
+          }}
+        >
+          성적 불러오는 중...
+        </div>
       )}
 
       {!isLoading && (isError || !data) && (
-        <div className="text-sm text-red-500">성적 로드 실패</div>
+        <div
+          style={{
+            fontSize: "var(--text-sm)",
+            color: "var(--color-error)",
+            padding: "var(--space-8)",
+            textAlign: "center",
+          }}
+        >
+          성적 로드 실패
+        </div>
       )}
 
       {!isLoading && !isError && data && (
-        <div className="flex gap-4">
+        <div className="flex gap-[var(--space-6)]">
           <div className="flex-1 min-w-0">
             <ScoresTable
               rows={rows}
@@ -131,6 +164,6 @@ export default function SessionScoresPanel({ sessionId }: { sessionId: number })
           )}
         </div>
       )}
-    </section>
+    </div>
   );
 }

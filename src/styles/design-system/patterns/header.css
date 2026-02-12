@@ -1,10 +1,11 @@
 /* PATH: src/styles/design-system/patterns/header.css */
-/* App Header Pattern (SSOT)
+/* App Header Pattern (SSOT) — Premium SaaS style
    - colors are role/layout tokens only
    - layout uses CSS, not inline color styling
 */
 
 [data-app="admin"] .app-header {
+  position: relative;
   height: var(--panel-header);
   display: flex;
   align-items: center;
@@ -12,13 +13,35 @@
   gap: var(--space-4);
   padding: 0 var(--space-6);
 
-  border-bottom: 1px solid var(--color-border-divider);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 8%, var(--color-border-divider));
 
   background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--layout-header-bg) 88%, transparent),
-    color-mix(in srgb, var(--layout-header-bg) 72%, transparent)
+    165deg,
+    color-mix(in srgb, var(--color-primary) 4%, var(--layout-header-bg)) 0%,
+    var(--layout-header-bg) 45%,
+    color-mix(in srgb, var(--color-primary) 2%, var(--layout-header-bg)) 100%
   );
+
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* 질감 레이어 */
+[data-app="admin"] .app-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+[data-app="admin"] .app-header__left,
+[data-app="admin"] .app-header__center,
+[data-app="admin"] .app-header__right {
+  position: relative;
+  z-index: 1;
 }
 
 [data-app="admin"] .app-header__left {
@@ -36,16 +59,21 @@
 }
 
 [data-app="admin"] .app-header__brandMark {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
   overflow: hidden;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
 
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface)),
+    var(--color-bg-surface)
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 [data-app="admin"] .app-header__brandMark img {
@@ -55,9 +83,9 @@
 }
 
 [data-app="admin"] .app-header__brandName {
-  font-size: 13px;
-  font-weight: 950;
-  letter-spacing: -0.12px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   white-space: nowrap;
   color: var(--color-text-primary);
 }
@@ -67,7 +95,11 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  margin-left: 8px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid color-mix(in srgb, var(--color-primary) 15%, var(--color-border-divider));
+  flex: 1 1 0;
+  overflow-x: auto;
 }
 
 [data-app="admin"] .app-header__crumb {
@@ -82,12 +114,12 @@
 
 [data-app="admin"] .app-header__crumb--active {
   color: var(--color-text-primary);
-  font-weight: 950;
+  font-weight: var(--font-title);
 }
 
 [data-app="admin"] .app-header__crumb--muted {
   color: var(--color-text-muted);
-  font-weight: 850;
+  font-weight: var(--font-meta);
 }
 
 [data-app="admin"] .app-header__crumbSep {
@@ -112,10 +144,32 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  border-radius: 999px;
+  border-radius: 10px;
+
+  border-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+[data-app="admin"] .app-header__iconBtn:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));
 }
 
 [data-app="admin"] .app-header__menuBtn {
   height: 40px;
-  border-radius: 999px;
+  padding-left: 14px;
+  padding-right: 14px;
+  border-radius: 10px;
+
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+[data-app="admin"] .app-header__menuBtn:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border-divider));
 }

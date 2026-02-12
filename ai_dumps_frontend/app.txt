@@ -196,7 +196,7 @@ export default function AdminRouter() {
 
         {/* ================= Community ================= */}
         <Route path="community" element={<CommunityPage />}>
-          <Route index element={<NoticeBoardPage />} />
+          <Route index element={<Navigate to="notice" replace />} />
           <Route path="notice" element={<NoticeBoardPage />} />
           <Route path="qna" element={<QnaBoardPage />} />
           <Route path="review" element={<ReviewBoardPage />} />

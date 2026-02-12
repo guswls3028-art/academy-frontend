@@ -421,47 +421,26 @@ export function TemplateMaterialEditorModal({ open, onClose }: Props) {
 # FILE: layout/MaterialsLayout.tsx
 ==========================================================================================
 // PATH: src/features/materials/layout/MaterialsLayout.tsx
-import { Outlet, NavLink } from "react-router-dom";
-import { Section, Panel, PageHeader } from "@/shared/ui/ds";
+// Students UI SSOT — Domain Header + ds-tabs + panel
+
+import { Outlet } from "react-router-dom";
+import { DomainLayout } from "@/shared/ui/layout";
+
+const MATERIALS_TABS = [
+  { key: "sheets", label: "시험지", path: "/admin/materials/sheets" },
+  { key: "reports", label: "성적표", path: "/admin/materials/reports" },
+  { key: "messages", label: "메시지", path: "/admin/materials/messages" },
+];
 
 export default function MaterialsLayout() {
   return (
-    <>
-      <PageHeader title="자료실" />
-
-      <Section>
-        <Panel>
-          <div className="panel-body flex gap-4 text-sm font-semibold">
-            <NavLink
-              to="/admin/materials/sheets"
-              className={({ isActive }) =>
-                isActive ? "text-[var(--color-primary)]" : ""
-              }
-            >
-              시험지
-            </NavLink>
-            <NavLink
-              to="/admin/materials/reports"
-              className={({ isActive }) =>
-                isActive ? "text-[var(--color-primary)]" : ""
-              }
-            >
-              성적표
-            </NavLink>
-            <NavLink
-              to="/admin/materials/messages"
-              className={({ isActive }) =>
-                isActive ? "text-[var(--color-primary)]" : ""
-              }
-            >
-              메시지
-            </NavLink>
-          </div>
-        </Panel>
-      </Section>
-
+    <DomainLayout
+      title="자료실"
+      description="시험지 · 성적표 · 메시지"
+      tabs={MATERIALS_TABS}
+    >
       <Outlet />
-    </>
+    </DomainLayout>
   );
 }
 

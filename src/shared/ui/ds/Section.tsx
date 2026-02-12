@@ -52,7 +52,14 @@ export default function Section({
       data-level={level}
     >
       {(title || description || right || hint) && (
-        <div className="px-6 pt-6">
+        <div
+          className="ds-section__header"
+          style={{
+            paddingTop: "var(--space-7)",
+            paddingLeft: "var(--space-7)",
+            paddingRight: "var(--space-7)",
+          }}
+        >
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-1">
               {!!title && (
@@ -73,7 +80,14 @@ export default function Section({
         </div>
       )}
 
-      <div className="px-6 pb-6">
+      <div
+        className="ds-section__body"
+        style={{
+          paddingBottom: "var(--space-7)",
+          paddingLeft: "var(--space-7)",
+          paddingRight: "var(--space-7)",
+        }}
+      >
         <div className={gap}>{children}</div>
       </div>
     </section>

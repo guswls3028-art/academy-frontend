@@ -57,6 +57,7 @@
   --scale-Primary500: #2563eb;
   --scale-Primary600: #1d4ed8;
   --scale-Primary700: #1e40af;
+  --color-primary-rgb: 37, 99, 235;
 
   /* Space */
   --layout-page-bg: #f6f8fc;
@@ -68,6 +69,8 @@
   --sidebar-header-bg: color-mix(in srgb, #ffffff 78%, var(--color-bg-surface-hover));
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 2) Navy Pro (cool enterprise light) */
@@ -93,6 +96,7 @@
   --scale-Primary500: #3b82f6;
   --scale-Primary600: #2563eb;
   --scale-Primary700: #1d4ed8;
+  --color-primary-rgb: 59, 130, 246;
 
   /* Space */
   --layout-page-bg: #f3f6fb;
@@ -105,6 +109,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #dbe8ff 56%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 3) Ivory Office */
@@ -142,6 +148,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #e7dfd3 72%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 4) Minimal Mono */
@@ -182,6 +190,8 @@
   --sidebar-item-hover-bg: #f5f5f5;
   --sidebar-item-active-bg: #0a0a0a;
   --sidebar-item-active-text: #ffffff;
+
+  --color-modal-bg: #ffffff;
 }
 
 /* =========================================================
@@ -227,6 +237,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #161f2c 88%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: var(--color-bg-surface);
 }
 
 /* 6) Dark Navy (premium navy) */
@@ -267,6 +279,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #102044 86%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: var(--color-bg-surface);
 }
 
 /* 7) YouTube Studio (charcoal studio, NOT gray-active) */
@@ -309,6 +323,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #17171a 92%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
   --sidebar-item-active-text: #ff6b6b;
+
+  --color-modal-bg: var(--color-bg-surface);
 }
 
 /* 8) Terminal Neon (developer neon dark) */
@@ -350,54 +366,62 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #0a0c11 92%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: var(--color-bg-surface);
 }
 /* =========================================================
    BRAND / PREMIUM THEMES (4)
    - Sidebar background MUST be brand fill for Samsung/Naver/Kakao
 ========================================================= */
-/* 9) Kakao Business (FIXED RULE: yellow bg + brown accent) */
+/* 9) Kakao Business (FIXED RULE: yellow + brown, 강·약 차이만) */
+/* 사이드바=강한 노랑, 콘텐츠=약한 노랑·크림 (같은 톤, 농도만 다름) */
 [data-theme="kakao-business"] {
-  /* Keep app readable: warm light canvas */
+  --kakao-yellow: #FBE300;
+  --kakao-brown: #3B1E1E;
+
+  /* Neutral: 카카오 톤 유지, 강(사이드바)→약(콘텐츠) 그라데이션 */
   --scale-Neutral0:   #ffffff;
-  --scale-Neutral50:  #fffdf2;
-  --scale-Neutral100: #fff9d6;
-  --scale-Neutral200: #fff3b0;
-  --scale-Neutral300: #f5df73;
-  --scale-Neutral400: #c9ab3a;
-  --scale-Neutral500: #7c4a2d;
+  --scale-Neutral50:  #fffef7;   /* 아주 은은한 크림 */
+  --scale-Neutral100: #fffde8;   /* 연한 노랑톤 */
+  --scale-Neutral200: #fff8cc;   /* 살짝 더 강한 노랑 */
+  --scale-Neutral300: #f5e699;   /* 황금빛 계열 */
+  --scale-Neutral400: #c9ab3a;   /* 갈색 노랑 */
+  --scale-Neutral500: #7c4a2d;   /* 브라운 */
   --scale-Neutral600: #5b3a24;
-  --scale-Neutral700: #3a1d1d;
+  --scale-Neutral700: var(--kakao-brown);
   --scale-Neutral800: #2b1414;
   --scale-Neutral900: #1a0d0d;
 
-  /* Primary fixed to Kakao brown (role brand) */
-  --scale-Primary50:  #f5e6e6;
-  --scale-Primary100: #e8caca;
-  --scale-Primary200: #d2a1a1;
-  --scale-Primary300: #b87373;
+  /* Primary: brown (사이드바 accent와 동일) */
+  --scale-Primary50:  color-mix(in srgb, var(--kakao-brown) 8%, #ffffff);
+  --scale-Primary100: color-mix(in srgb, var(--kakao-brown) 16%, #ffffff);
+  --scale-Primary200: color-mix(in srgb, var(--kakao-brown) 28%, #ffffff);
+  --scale-Primary300: color-mix(in srgb, var(--kakao-brown) 45%, #ffffff);
   --scale-Primary400: #8a3f3f;
-  --scale-Primary500: #3B1E1E;
+  --scale-Primary500: var(--kakao-brown);
   --scale-Primary600: #2b1414;
   --scale-Primary700: #1a0d0d;
 
-  /* Page: 완전 무채, 필터감 제거 */
-  --layout-page-bg: #ffffff;
-  --layout-header-bg: #ffffff;
+  /* Page·Header: 카카오 톤 (노랑 베이스, 회색 X) */
+  --layout-page-bg: var(--scale-Neutral50);
+  --layout-header-bg: var(--scale-Neutral100);
 
-  /* Sidebar: Kakao solid yellow (no milky mix) */
-  --sidebar-bg: #FBE300;
-  --sidebar-border: color-mix(in srgb, #3B1E1E 18%, #FBE300);
+  /* Sidebar: 토큰 기준 (--kakao-yellow, --kakao-brown) */
+  --sidebar-bg: var(--kakao-yellow);
+  --sidebar-border: color-mix(in srgb, var(--kakao-brown) 18%, var(--kakao-yellow));
 
-  --sidebar-header-bg: #FBE300;
-  --sidebar-header-border: color-mix(in srgb, #3B1E1E 22%, #FBE300);
+  --sidebar-header-bg: var(--kakao-yellow);
+  --sidebar-header-border: color-mix(in srgb, var(--kakao-brown) 22%, var(--kakao-yellow));
 
-  --sidebar-text: #3B1E1E;
-  --sidebar-muted: color-mix(in srgb, #3B1E1E 68%, #FBE300);
-  --sidebar-group-title: color-mix(in srgb, #3B1E1E 54%, #FBE300);
+  --sidebar-text: var(--kakao-brown);
+  --sidebar-muted: color-mix(in srgb, var(--kakao-brown) 68%, var(--kakao-yellow));
+  --sidebar-group-title: color-mix(in srgb, var(--kakao-brown) 54%, var(--kakao-yellow));
 
-  --sidebar-item-hover-bg: color-mix(in srgb, #3B1E1E 6%, #FBE300);
-  --sidebar-item-active-bg: #3B1E1E;
+  --sidebar-item-hover-bg: color-mix(in srgb, var(--kakao-brown) 6%, var(--kakao-yellow));
+  --sidebar-item-active-bg: var(--kakao-brown);
   --sidebar-item-active-text: #ffffff;
+
+  --color-modal-bg: #ffffff;
 }
 
 
@@ -443,6 +467,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #0b2b17 22%, #14532d);
   --sidebar-item-active-bg: #ffffff;
   --sidebar-item-active-text: #14532d;
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 11) Samsung Admin (brand fill samsung blue) */
@@ -487,6 +513,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #0b1533 14%, #0057d9);
   --sidebar-item-active-bg: #e6efff;
   --sidebar-item-active-text: #003ea8;
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 12) Purple Insight (premium) */
@@ -530,4 +558,20 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #24074f 18%, #4c1d95);
   --sidebar-item-active-bg: #ede9fe;
   --sidebar-item-active-text: #5b21b6;
+
+  --color-modal-bg: #ffffff;
+}
+
+/* =========================================================
+   BRAND 테마: 모달 내부 surface 강제 흰색 (토큰 우선)
+   - .ant-modal-content 하위에서 --color-bg-surface 까지 흰색으로
+========================================================= */
+[data-theme="kakao-business"] .ant-modal-content,
+[data-theme="naver-works"] .ant-modal-content,
+[data-theme="samsung-admin"] .ant-modal-content,
+[data-theme="purple-insight"] .ant-modal-content {
+  --color-modal-bg: #ffffff;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-hover: #f8fafc;
+  --color-bg-surface-soft: #f8fafc;
 }

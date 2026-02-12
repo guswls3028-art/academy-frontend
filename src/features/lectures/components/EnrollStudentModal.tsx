@@ -7,6 +7,7 @@ import { fetchStudents as fetchStudentList, type ClientStudent } from "@/feature
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 interface Props {
   sessionId: number;
@@ -120,22 +121,18 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
                   {students.map((st) => {
                     const checked = selectedIds.includes(st.id);
                     return (
-                      <button
+                      <Button
                         key={st.id}
                         type="button"
+                        intent="ghost"
+                        size="md"
                         onClick={() => toggleSelect(st.id)}
+                        className="!block !w-full !grid !grid-cols-[28px_1fr] !gap-2.5 !py-2.5 !px-3 !text-left !justify-start border-t border-[var(--color-border-divider)]"
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "28px 1fr",
-                          gap: 10,
-                          padding: "10px 12px",
-                          borderTop: "1px solid var(--color-border-divider)",
                           background: checked ? "var(--color-bg-surface-soft)" : "transparent",
-                          textAlign: "left",
-                          cursor: "pointer",
                         }}
                       >
-                        <input type="checkbox" checked={checked} readOnly />
+                        <input type="checkbox" checked={checked} readOnly className="mt-0.5" />
                         <div style={{ minWidth: 0 }}>
                           <div
                             style={{
@@ -150,10 +147,10 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
                             {st.name}
                           </div>
                           <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
-                            {st.phone || "-"}
+                            {formatPhone(st.phone)}
                           </div>
                         </div>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>

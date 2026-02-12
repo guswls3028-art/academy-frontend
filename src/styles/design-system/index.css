@@ -13,6 +13,7 @@
    Component patterns
    =============================== */
 @import "./patterns/index.css";
+@import "../../shared/ui/ds/styles/tabs.css";
 
 /* ===============================
    AntD skin (slot only)

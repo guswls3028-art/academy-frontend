@@ -29,5 +29,3 @@ export { default as ActionButton } from "./components/ActionButton";
 export { default as StatusBadge } from "./components/StatusBadge";
 export { default as StatusToggle } from "./components/StatusToggle";
 // PATH: src/shared/ui/ds/index.ts
-
-export { default as WorkZone } from "./WorkZone";

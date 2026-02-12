@@ -3,8 +3,9 @@
   --ui-page-bg: var(--layer-page-bg);
 
   /* WORK */
-  --ui-work-bg:     var(--layer-panel-bg);
-  --ui-work-border: var(--color-border-divider);
+  --ui-work-bg:           var(--layer-panel-bg);
+  --ui-work-border:      var(--color-border-divider);
+  --ui-work-header-bg:   var(--bg-surface-soft);
 
   /* META */
   --ui-meta-bg:     var(--layer-card-bg);

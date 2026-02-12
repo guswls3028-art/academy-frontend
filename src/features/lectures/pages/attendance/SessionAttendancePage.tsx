@@ -1,39 +1,28 @@
 // PATH: src/features/lectures/pages/attendance/SessionAttendancePage.tsx
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAttendance, updateAttendance } from "@/features/lectures/api/attendance";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState, Button } from "@/shared/ui/ds";
+import { DomainTable } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 const STATUS_LIST = [
-  "PRESENT",
-  "LATE",
-  "ONLINE",
-  "SUPPLEMENT",
-  "EARLY_LEAVE",
-  "ABSENT",
-  "RUNAWAY",
-  "MATERIAL",
+  "PRESENT",      // 현장
+  "ONLINE",       // 영상
+  "SUPPLEMENT",   // 보강
+  "MATERIAL",     // 자료
+  "LATE",         // 지각
+  "EARLY_LEAVE",  // 조퇴
+  "RUNAWAY",      // 출튀
+  "ABSENT",       // 결석
 ] as const;
 
 type AttendanceStatus = (typeof STATUS_LIST)[number];
 
-const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
-};
-
-function formatPhone(v?: string | null) {
-  if (!v) return "-";
-  const d = v.replace(/\D/g, "");
-  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
-  return v;
-}
-
 export default function SessionAttendancePage({ sessionId }: { sessionId: number }) {
   const qc = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const { data: attendance, isLoading } = useQuery({
     queryKey: ["attendance", sessionId],
@@ -56,57 +45,100 @@ export default function SessionAttendancePage({ sessionId }: { sessionId: number
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!attendance || attendance.length === 0) return <EmptyState scope="panel" title="출결 데이터 없음" />;
 
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--color-border-divider)" }}>
-        <table className="w-full" style={{ borderCollapse: "collapse", minWidth: 980 }}>
-          <thead>
-            <tr>
-              {[
-                { label: "이름", align: "left", width: 140 },
-                { label: "학생 전화번호", align: "left", width: 180 },
-                { label: "학부모 전화번호", align: "left", width: 180 },
-                { label: "현재 상태", align: "left", width: 140 },
-                { label: "출결 변경", align: "left" },
-                { label: "메모", align: "left", width: 260 },
-              ].map((h) => (
-                <th
-                  key={h.label}
-                  className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-                  style={{
-                    textAlign: h.align as any,
-                    whiteSpace: "nowrap",
-                    width: h.width as any,
-                    ...TH_STYLE,
-                  }}
-                >
-                  {h.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = attendance.map((att: any) => att.id);
+  const allSelected = attendance.length > 0 && allIds.every((id: number) => selectedSet.has(id));
 
-          <tbody className="divide-y divide-[var(--color-border-divider)]">
+  function toggleSelect(id: number) {
+    if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
+    else setSelectedIds([...selectedIds, id]);
+  }
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds([]);
+    else setSelectedIds([...allIds]);
+  }
+
+  const selectionBar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        className="text-[13px] font-semibold"
+        style={{
+          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+        }}
+      >
+        {selectedIds.length}명 선택됨
+      </span>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        선택 해제
+      </Button>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      {selectionBar}
+      <DomainTable tableClassName="ds-table--flat" tableStyle={{ minWidth: 1232, width: "100%", tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: 48 }} />
+          <col style={{ width: 144 }} />
+          <col style={{ width: 100 }} />
+          <col style={{ width: 75 }} />
+          <col style={{ width: 75 }} />
+          <col style={{ width: 520 }} />
+          <col style={{ width: 360 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col" className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                aria-label="전체 선택"
+                className="cursor-pointer"
+              />
+            </th>
+            <th scope="col">이름</th>
+            <th scope="col" className="text-center">상태</th>
+            <th scope="col">학생 전화번호</th>
+            <th scope="col">학부모 전화번호</th>
+            <th scope="col">출결 변경</th>
+            <th scope="col">메모</th>
+          </tr>
+        </thead>
+
+          <tbody>
             {attendance.map((att: any) => (
-              <tr key={att.id} className="hover:bg-[var(--color-bg-surface-soft)]">
-                <td className="px-4 py-3 text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
+              <tr key={att.id} className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
+                <td className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(att.id)}
+                    onChange={() => toggleSelect(att.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`${att.name} 선택`}
+                    className="cursor-pointer"
+                  />
+                </td>
+                <td className="text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
                   {att.name}
                 </td>
 
-                <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-secondary)]">
-                  {formatPhone(att.student_phone)}
-                </td>
-
-                <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-muted)]">
-                  {formatPhone(att.parent_phone)}
-                </td>
-
-                <td className="px-4 py-3">
+                <td className="text-center">
                   <AttendanceStatusBadge status={att.status} />
                 </td>
 
-                <td className="px-4 py-3">
-                  <div style={{ display: "flex", gap: 10, overflowX: "auto", whiteSpace: "nowrap", paddingBottom: 2 }}>
+                <td className="text-left text-[14px] text-[var(--color-text-secondary)] truncate">
+                  {formatPhone(att.phone ?? att.student_phone)}
+                </td>
+
+                <td className="text-left text-[14px] text-[var(--color-text-muted)] truncate">
+                  {formatPhone(att.parent_phone)}
+                </td>
+
+                <td>
+                  <div style={{ display: "flex", flexWrap: "nowrap", gap: 8, width: "fit-content" }}>
                     {STATUS_LIST.map((code) => {
                       const active = att.status === code;
                       return (
@@ -137,7 +169,7 @@ export default function SessionAttendancePage({ sessionId }: { sessionId: number
                   </div>
                 </td>
 
-                <td className="px-4 py-3">
+                <td>
                   <input
                     defaultValue={att.memo || ""}
                     placeholder="메모 입력"
@@ -148,8 +180,7 @@ export default function SessionAttendancePage({ sessionId }: { sessionId: number
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </DomainTable>
     </div>
   );
 }

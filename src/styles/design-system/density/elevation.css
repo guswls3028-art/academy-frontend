@@ -1,0 +1,9 @@
+/* PATH: src/styles/design-system/density/elevation.css */
+/* Elevation — 영역 구분·깊이감 (프리미엄 SaaS) */
+
+:root {
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --elevation-2: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --elevation-3: 0 8px 24px rgba(0, 0, 0, 0.12);
+}

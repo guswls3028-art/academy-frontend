@@ -43,7 +43,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
 
     setBusy(true);
     try {
-      await createSession(lectureId, form);
+      await createSession(lectureId, form.title, form.date);
       onClose();
     } finally {
       setBusy(false);

@@ -1,7 +1,8 @@
 // PATH: src/features/profile/attendance/components/AttendanceTable.tsx
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { Attendance } from "../../api/profile.api";
-import { Panel } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
+import { DomainTable } from "@/shared/ui/domain";
 
 interface Props {
   rows: Attendance[];
@@ -29,81 +30,198 @@ export default function AttendanceTable({
   if (!rows.length) return null;
 
   return (
-    <Panel>
-      {/* ===== Header ===== */}
-      <div className="px-4 py-2 bg-[var(--bg-surface-soft)] text-xs text-[var(--text-muted)]">
-        <div className={GRID}>
-          <div>날짜</div>
-          <div>유형</div>
-          <div>근무시간</div>
-          <div>시급</div>
-          <div>금액</div>
-          <div className="text-center">관리</div>
-        </div>
-      </div>
-
-      {/* ===== Rows ===== */}
-      {rows.map((r) => {
-        const hourly =
-          r.duration_hours > 0
-            ? Math.round(r.amount / r.duration_hours)
-            : 0;
-
-        return (
-          <div
-            key={r.id}
-            className="px-4 py-2 border-t border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+    <DomainTable tableClassName="ds-table--flat">
+      <thead>
+        <tr
+          style={{
+            background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
+          }}
+        >
+          <th
+            style={{
+              padding: "var(--space-3) var(--space-4)",
+              fontSize: "var(--text-sm)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-secondary)",
+              textAlign: "left",
+            }}
           >
-            <div className={GRID}>
+            날짜
+          </th>
+          <th
+            style={{
+              padding: "var(--space-3) var(--space-4)",
+              fontSize: "var(--text-sm)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-secondary)",
+              textAlign: "left",
+            }}
+          >
+            유형
+          </th>
+          <th
+            style={{
+              padding: "var(--space-3) var(--space-4)",
+              fontSize: "var(--text-sm)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-secondary)",
+              textAlign: "left",
+            }}
+          >
+            근무시간
+          </th>
+          <th
+            style={{
+              padding: "var(--space-3) var(--space-4)",
+              fontSize: "var(--text-sm)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-secondary)",
+              textAlign: "right",
+            }}
+          >
+            시급
+          </th>
+          <th
+            style={{
+              padding: "var(--space-3) var(--space-4)",
+              fontSize: "var(--text-sm)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-secondary)",
+              textAlign: "right",
+            }}
+          >
+            금액
+          </th>
+          <th
+            style={{
+              padding: "var(--space-3) var(--space-4)",
+              fontSize: "var(--text-sm)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-secondary)",
+              textAlign: "center",
+            }}
+          >
+            관리
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => {
+          const hourly =
+            r.duration_hours > 0
+              ? Math.round(r.amount / r.duration_hours)
+              : 0;
+
+          return (
+            <tr
+              key={r.id}
+              className="transition-colors"
+              style={{
+                borderTop: "1px solid color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
+              }}
+            >
               {/* 날짜 */}
-              <div className="font-medium">{r.date}</div>
+              <td
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: 600,
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {r.date}
+              </td>
 
               {/* 유형 */}
-              <div className="text-[var(--text-muted)]">
+              <td
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
                 {r.work_type}
-              </div>
+              </td>
 
               {/* 근무시간 */}
-              <div className="leading-tight">
-                <div>
-                  {fmtTime(r.start_time)} ~ {fmtTime(r.end_time)}
-                </div>
-                <div className="text-xs text-[var(--text-muted)]">
+              <td
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                <div>{fmtTime(r.start_time)} ~ {fmtTime(r.end_time)}</div>
+                <div
+                  style={{
+                    fontSize: "var(--text-xs)",
+                    color: "var(--color-text-muted)",
+                    marginTop: 2,
+                  }}
+                >
                   총 {r.duration_hours}시간
                 </div>
-              </div>
+              </td>
 
               {/* 시급 */}
-              <div className="text-[var(--text-muted)]">
+              <td
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-text-secondary)",
+                  textAlign: "right",
+                }}
+              >
                 {hourly.toLocaleString()}원
-              </div>
+              </td>
 
               {/* 금액 */}
-              <div className="font-semibold">
+              <td
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  fontSize: "var(--text-sm)",
+                  fontWeight: "var(--font-title)",
+                  color: "var(--color-text-primary)",
+                  textAlign: "right",
+                }}
+              >
                 {r.amount.toLocaleString()}원
-              </div>
+              </td>
 
               {/* 관리 */}
-              <div className="flex justify-end gap-1">
-                <button
-                  className="p-2 rounded-md hover:bg-[var(--bg-surface-muted)]"
-                  onClick={() => onEdit(r)}
-                  title="수정"
-                >
-                  <FiEdit2 size={14} />
-                </button>
-                <button
-                  className="p-2 rounded-md text-red-400 hover:bg-[var(--bg-surface-muted)]"
-                  onClick={() => onDelete(r)}
-                  title="삭제"
-                >
-                  <FiTrash2 size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </Panel>
+              <td
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  textAlign: "center",
+                }}
+              >
+                <div className="flex justify-center gap-1">
+                  <Button
+                    type="button"
+                    intent="ghost"
+                    size="sm"
+                    onClick={() => onEdit(r)}
+                    title="수정"
+                    className="!min-w-0 !w-8 !h-8 !p-0"
+                  >
+                    <FiEdit2 size={14} />
+                  </Button>
+                  <Button
+                    type="button"
+                    intent="danger"
+                    size="sm"
+                    onClick={() => onDelete(r)}
+                    title="삭제"
+                    className="!min-w-0 !w-8 !h-8 !p-0"
+                  >
+                    <FiTrash2 size={14} />
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </DomainTable>
   );
 }

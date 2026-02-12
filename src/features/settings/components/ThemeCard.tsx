@@ -1,5 +1,6 @@
 // PATH: src/features/settings/components/ThemeCard.tsx
 import type React from "react";
+import { Button } from "@/shared/ui/ds";
 import type { ThemeMeta } from "../constants/themes";
 import MiniAdminPreview from "./MiniAdminPreview";
 
@@ -26,18 +27,15 @@ export default function ThemeCard({
     : "1px solid var(--color-border-divider)";
 
   return (
-    <button
+    <Button
       type="button"
+      intent="ghost"
+      size="md"
       onClick={onSelect}
       disabled={disabled}
+      className="!block !w-full !text-left !justify-start !rounded-xl !p-3 !min-h-0"
       style={{
-        width: "100%",
-        textAlign: "left",
-        borderRadius: "var(--radius-xl)",
         border: frameBorder,
-        background: "var(--color-bg-surface)",
-        padding: 12,
-        cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.6 : 1,
         display: "grid",
         gridTemplateRows: "auto auto",
@@ -139,6 +137,6 @@ export default function ThemeCard({
           {theme.desc}
         </div>
       </div>
-    </button>
+    </Button>
   );
 }

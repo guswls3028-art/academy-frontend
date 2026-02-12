@@ -1,7 +1,7 @@
 // PATH: src/features/profile/account/pages/ProfileAccountPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FiKey, FiLogOut } from "react-icons/fi";
+import { FiKey, FiLogOut, FiUser, FiShield } from "react-icons/fi";
 
 import { fetchMe, updateProfile } from "../../api/profile.api";
 import useAuth from "@/features/auth/hooks/useAuth";
@@ -10,7 +10,7 @@ import AccountHeader from "../components/AccountHeader";
 import AccountInfoList from "../components/ProfileInfoCard";
 import ChangePasswordModal from "../components/ChangePasswordModal";
 
-import { Section, Panel, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState, Panel, Section } from "@/shared/ui/ds";
 
 export default function ProfileAccountPage() {
   const qc = useQueryClient();
@@ -55,54 +55,92 @@ export default function ProfileAccountPage() {
 
   return (
     <>
-      <AccountHeader />
+      <div className="flex flex-col gap-[var(--space-6)]">
+        {/* 빠른 액션 */}
+        <Section>
+          <Panel variant="subtle">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div
+                  style={{
+                    fontSize: "var(--text-md)",
+                    fontWeight: "var(--font-title)",
+                    color: "var(--color-text-primary)",
+                  }}
+                >
+                  빠른 액션
+                </div>
+                <div
+                  className="mt-1"
+                  style={{
+                    fontSize: "var(--text-sm)",
+                    color: "var(--color-text-muted)",
+                    fontWeight: "var(--font-meta)",
+                  }}
+                >
+                  계정 보안 및 세션 관리
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="md"
+                  onClick={() => setPwOpen(true)}
+                  className="inline-flex items-center gap-2"
+                >
+                  <FiKey size={14} />
+                  비밀번호 변경
+                </Button>
 
-      <Section>
-        <Panel>
-          <div className="flex flex-wrap gap-2">
-            <button
-              className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-semibold hover:bg-[var(--bg-surface-soft)]"
-              onClick={() => setPwOpen(true)}
+                <Button
+                  type="button"
+                  intent="danger"
+                  size="md"
+                  onClick={clearAuth}
+                  className="inline-flex items-center gap-2"
+                >
+                  <FiLogOut size={14} />
+                  로그아웃
+                </Button>
+              </div>
+            </div>
+          </Panel>
+        </Section>
+
+        {/* 계정 정보 */}
+        <Section>
+          {meQ.isLoading && (
+            <div
+              style={{
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-muted)",
+                padding: "var(--space-8)",
+                textAlign: "center",
+              }}
             >
-              <FiKey size={14} />
-              비밀번호 변경
-            </button>
+              불러오는 중...
+            </div>
+          )}
 
-            <button
-              className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 px-4 py-2 text-sm font-semibold text-[var(--color-danger)] hover:bg-[var(--color-danger)]/20"
-              onClick={clearAuth}
-            >
-              <FiLogOut size={14} />
-              로그아웃
-            </button>
-          </div>
-        </Panel>
-      </Section>
+          {meQ.isError && (
+            <EmptyState title="내 정보 조회 실패" />
+          )}
 
-      <Section>
-        {meQ.isLoading && (
-          <div className="text-sm text-[var(--text-muted)]">
-            불러오는 중...
-          </div>
-        )}
-
-        {meQ.isError && (
-          <EmptyState title="내 정보 조회 실패" />
-        )}
-
-        {meQ.data && (
-          <AccountInfoList
-            me={meQ.data}
-            name={name}
-            phone={phone}
-            onChangeName={setName}
-            onChangePhone={setPhone}
-            onSave={save}
-            saving={updateMut.isPending}
-            dirty={dirty}
-          />
-        )}
-      </Section>
+          {meQ.data && (
+            <AccountInfoList
+              me={meQ.data}
+              name={name}
+              phone={phone}
+              onChangeName={setName}
+              onChangePhone={setPhone}
+              onSave={save}
+              saving={updateMut.isPending}
+              dirty={dirty}
+            />
+          )}
+        </Section>
+      </div>
 
       <ChangePasswordModal
         open={pwOpen}

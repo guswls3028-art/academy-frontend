@@ -10,16 +10,18 @@ export default function AttendanceSummaryCard({
   if (!summary) return null;
 
   return (
-    <Panel>
-      <div className="panel-body grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Item label="총 근무 시간" value={`${summary.total_hours} h`} />
+    <Panel variant="primary">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Item label="총 근무 시간" value={`${summary.total_hours}`} unit="시간" />
         <Item
           label="총 급여"
-          value={`${summary.total_amount.toLocaleString()} 원`}
+          value={summary.total_amount.toLocaleString()}
+          unit="원"
         />
         <Item
           label="세후 수령액"
-          value={`${summary.total_after_tax.toLocaleString()} 원`}
+          value={summary.total_after_tax.toLocaleString()}
+          unit="원"
           tone="primary"
         />
       </div>
@@ -30,24 +32,58 @@ export default function AttendanceSummaryCard({
 function Item({
   label,
   value,
+  unit,
   tone,
 }: {
   label: string;
-  value: string;
+  value: string | number;
+  unit?: string;
   tone?: "primary" | "normal";
 }) {
   return (
-    <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+    <div
+      className="rounded-xl border px-5 py-4 transition-all"
+      style={{
+        borderColor: "var(--color-border-divider)",
+        background: tone === "primary"
+          ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))"
+          : "var(--color-bg-surface-soft)",
+        boxShadow: "var(--elevation-1)",
+      }}
+    >
       <div
-        className={[
-          "mt-1 text-2xl font-semibold",
-          tone === "primary"
-            ? "text-[var(--color-primary)]"
-            : "text-[var(--text-primary)]",
-        ].join(" ")}
+        style={{
+          fontSize: "var(--text-xs)",
+          fontWeight: "var(--font-meta)",
+          color: "var(--color-text-muted)",
+        }}
       >
-        {value}
+        {label}
+      </div>
+      <div
+        className="mt-2 flex items-baseline gap-1"
+        style={{
+          fontSize: "var(--text-2xl)",
+          fontWeight: 700,
+          letterSpacing: "-0.4px",
+          color:
+            tone === "primary"
+              ? "var(--color-primary)"
+              : "var(--color-text-primary)",
+        }}
+      >
+        <span>{typeof value === "number" ? value.toLocaleString() : value}</span>
+        {unit && (
+          <span
+            style={{
+              fontSize: "var(--text-sm)",
+              fontWeight: "var(--font-meta)",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            {unit}
+          </span>
+        )}
       </div>
     </div>
   );

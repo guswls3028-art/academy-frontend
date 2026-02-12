@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { DatePicker } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 
+import { Button, KPI } from "@/shared/ui/ds";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import ClinicTodaySummary from "../../components/home/ClinicTodaySummary";
@@ -78,117 +79,199 @@ export default function ClinicHomePage() {
   }, [weekQ.listQ.data, weekDays]);
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <div className="text-2xl font-semibold">클리닉</div>
-          <div className="text-sm text-[var(--text-muted)] mt-1">
-            오늘 기준 운영 요약
-          </div>
+    <div className="flex flex-col gap-[var(--space-6)]">
+        {/* 툴바: 날짜 선택 (도메인 타이틀은 Layout에서) */}
+        <div className="flex items-center justify-end">
+          <DatePicker
+            value={dayjs(date)}
+            onChange={(d: Dayjs | null) => d && setDate(d.format("YYYY-MM-DD"))}
+            allowClear={false}
+            size="large"
+            style={{ width: 200 }}
+          />
         </div>
 
-        <DatePicker
-          value={dayjs(date)}
-          onChange={(d: Dayjs | null) => d && setDate(d.format("YYYY-MM-DD"))}
-          allowClear={false}
-        />
-      </div>
+        {/* 상단 3열: 오늘 클리닉 · 예약 필수 · 예약 신청 */}
+        <div className="grid grid-cols-1 gap-[var(--space-6)] lg:grid-cols-3">
+          <ClinicTodaySummary
+            date={date}
+            rows={todayQ.listQ.data ?? []}
+            loading={todayQ.listQ.isLoading}
+            onGoOperations={() => nav("/admin/clinic/operations")}
+            onGoBookings={() => nav("/admin/clinic/bookings")}
+          />
 
-      {/* 상단 3열 */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <ClinicTodaySummary
-          date={date}
-          rows={todayQ.listQ.data ?? []}
-          loading={todayQ.listQ.isLoading}
-          onGoOperations={() => nav("/admin/clinic/operations")}
-          onGoBookings={() => nav("/admin/clinic/bookings")}
-        />
-
-        {/* 예약 필수 */}
-        <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
-          <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
-            <div className="text-base font-semibold">예약 필수 대상자</div>
-            <div className="text-sm text-[var(--text-muted)] mt-1">
-              이번 주 미예약
-            </div>
-          </div>
-
-          <div className="px-5 py-6 flex items-end justify-between">
-            <div className="text-4xl font-bold text-[var(--color-danger)]">
-              {requiredCount}명
-            </div>
-            <button
-              className="text-sm font-medium underline text-[var(--color-danger)]"
-              onClick={() => nav("/admin/clinic/bookings?focus=required")}
-            >
-              관리 이동
-            </button>
-          </div>
-        </div>
-
-        {/* 예약 신청 */}
-        <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
-          <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
-            <div className="text-base font-semibold">예약 신청자</div>
-          </div>
-          <div className="px-5 py-6 text-base text-[var(--text-muted)]">
-            현재 없음
-          </div>
-        </div>
-      </div>
-
-      {/* 주간 일정 */}
-      <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
-        <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
-          <div className="text-lg font-semibold">주간 일정</div>
-          <div className="text-sm text-[var(--text-muted)] mt-1">
-            {wk.from} ~ {wk.to}
-          </div>
-        </div>
-
-        <div className="p-6 grid grid-cols-1 gap-4 md:grid-cols-7">
-          {weekDays.map((d) => {
-            const info = rowsByDay[d.date];
-            const times = Object.keys(info.byTime).sort();
-
-            return (
-              <button
-                key={d.date}
-                onClick={() => {
-                  setDate(d.date);
-                  nav(`/admin/clinic/operations?date=${d.date}`);
+          <div className="ds-panel" data-panel-variant="default">
+            <div className="clinic-card__header">
+              <div
+                style={{
+                  fontSize: "var(--text-md)",
+                  color: "var(--color-text-primary)",
+                  fontWeight: "var(--font-title)",
                 }}
-                className="rounded-xl border bg-[var(--bg-surface-soft)] p-4 text-left hover:bg-[var(--bg-surface)] transition"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-lg font-semibold">{d.dow}</div>
-                  <div className="text-sm text-[var(--text-muted)]">
-                    {times.length}회 · {info.total}명
-                  </div>
-                </div>
+                예약 필수 대상자
+              </div>
+              <div
+                className="mt-1"
+                style={{
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-text-muted)",
+                  fontWeight: "var(--font-meta)",
+                }}
+              >
+                이번 주 미예약
+              </div>
+            </div>
+            <div className="clinic-card__body flex items-end justify-between">
+              <KPI
+                label=""
+                value={requiredCount}
+                hint={requiredCount > 0 ? "확인 필요" : undefined}
+              />
+              <Button
+                type="button"
+                intent="primary"
+                size="sm"
+                onClick={() => nav("/admin/clinic/bookings?focus=required")}
+              >
+                관리 이동
+              </Button>
+            </div>
+          </div>
 
-                <div className="flex flex-col gap-2">
-                  {times.map((t) => (
-                    <div
-                      key={t}
-                      className="rounded-lg border bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium"
-                    >
-                      {t} 시작 · {info.byTime[t]}명
-                    </div>
-                  ))}
-
-                  {times.length === 0 && (
-                    <div className="text-sm text-[var(--text-muted)]">
-                      일정 없음
-                    </div>
-                  )}
-                </div>
-              </button>
-            );
-          })}
+          <div className="ds-panel" data-panel-variant="subtle">
+            <div className="clinic-card__header">
+              <div
+                style={{
+                  fontSize: "var(--text-md)",
+                  color: "var(--color-text-primary)",
+                  fontWeight: "var(--font-title)",
+                }}
+              >
+                예약 신청자
+              </div>
+            </div>
+            <div className="clinic-card__body">
+              <div
+                style={{
+                  fontSize: "var(--text-md)",
+                  color: "var(--color-text-muted)",
+                  fontWeight: "var(--font-meta)",
+                }}
+              >
+                현재 없음
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* 주간 일정 */}
+        <div className="ds-panel" data-panel-variant="default">
+          <div className="clinic-card__header">
+            <div
+              style={{
+                fontSize: "var(--text-lg)",
+                fontWeight: "var(--font-title)",
+                color: "var(--color-text-primary)",
+              }}
+            >
+              주간 일정
+            </div>
+            <div
+              className="mt-1"
+              style={{
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-muted)",
+                fontWeight: "var(--font-meta)",
+              }}
+            >
+              {wk.from} ~ {wk.to}
+            </div>
+          </div>
+          <div
+            className="grid grid-cols-1 gap-[var(--space-4)] md:grid-cols-7"
+            style={{ padding: "var(--space-6)" }}
+          >
+            {weekDays.map((d) => {
+              const info = rowsByDay[d.date];
+              const times = Object.keys(info.byTime).sort();
+              const isToday = d.date === date;
+
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  onClick={() => {
+                    setDate(d.date);
+                    nav(`/admin/clinic/operations?date=${d.date}`);
+                  }}
+                  className="clinic-day-cell !block !w-full !text-left !justify-start"
+                  style={{
+                    borderColor: isToday ? "var(--color-primary)" : undefined,
+                    borderWidth: isToday ? 2 : 1,
+                    background: isToday
+                      ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))"
+                      : undefined,
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-between"
+                    style={{ marginBottom: "var(--space-3)" }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "var(--text-lg)",
+                        fontWeight: "var(--font-title)",
+                        color: isToday
+                          ? "var(--color-primary)"
+                          : "var(--color-text-primary)",
+                      }}
+                    >
+                      {d.dow}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        color: "var(--color-text-muted)",
+                        fontWeight: "var(--font-meta)",
+                      }}
+                    >
+                      {times.length}회 · {info.total}명
+                    </div>
+                  </div>
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: "var(--space-2)" }}
+                  >
+                    {times.map((t) => (
+                      <div
+                        key={t}
+                        className="clinic-kpi-block text-sm font-medium"
+                        style={{
+                          color: "var(--color-text-primary)",
+                          fontWeight: "var(--font-meta)",
+                        }}
+                      >
+                        {t} 시작 · {info.byTime[t]}명
+                      </div>
+                    ))}
+                    {times.length === 0 && (
+                      <div
+                        style={{
+                          fontSize: "var(--text-sm)",
+                          color: "var(--color-text-muted)",
+                        }}
+                      >
+                        일정 없음
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
     </div>
   );
 }

@@ -1,37 +1,60 @@
 // PATH: src/features/sessions/layout/SessionLayout.tsx
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 import api from "@/shared/api/axios";
-import { Button } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
 
 import { useSessionParams } from "../hooks/useSessionParams";
 import SessionAssessmentSidePanel from "../components/SessionAssessmentSidePanel";
+import SessionBlock from "../components/SessionBlock";
 import EnrollStudentModal from "@/features/lectures/components/EnrollStudentModal";
-
-type TabId =
-  | "attendance"
-  | "scores"
-  | "exams"
-  | "assignments"
-  | "videos"
-  | "materials";
-
-const TABS: { id: TabId; label: string; path: string }[] = [
-  { id: "attendance", label: "출결", path: "attendance" },
-  { id: "scores", label: "성적", path: "scores" },
-  { id: "exams", label: "시험", path: "exams" },
-  { id: "assignments", label: "과제", path: "assignments" },
-  { id: "videos", label: "영상", path: "videos" },
-  { id: "materials", label: "자료", path: "materials" },
-];
 
 export default function SessionLayout() {
   const { lectureId, sessionId } = useSessionParams();
   const location = useLocation();
   const qc = useQueryClient();
   const [showEnrollModal, setShowEnrollModal] = useState(false);
+
+  const { data: session, isLoading } = useQuery({
+    queryKey: ["session", sessionId],
+    queryFn: async () =>
+      (await api.get(`/lectures/sessions/${sessionId}/`)).data,
+    enabled: !!lectureId && !!sessionId,
+  });
+
+  const { data: lecture } = useQuery({
+    queryKey: ["lecture", lectureId],
+    queryFn: async () =>
+      (await api.get(`/lectures/lectures/${lectureId}/`)).data,
+    enabled: !!lectureId && !!session,
+  });
+
+  const base =
+    lectureId && sessionId
+      ? `/admin/lectures/${lectureId}/sessions/${sessionId}`
+      : "";
+
+  const tabs = useMemo(
+    () =>
+      base
+        ? [
+            { key: "attendance", label: "출결", path: base, exact: true },
+            { key: "scores", label: "성적", path: `${base}/scores` },
+            { key: "exams", label: "시험", path: `${base}/exams` },
+            { key: "assignments", label: "과제", path: `${base}/assignments` },
+            { key: "videos", label: "영상", path: `${base}/videos` },
+            { key: "materials", label: "자료", path: `${base}/materials` },
+          ]
+        : [],
+    [base]
+  );
+
+  const showAssessmentPanel =
+    !!base &&
+    (location.pathname.startsWith(`${base}/exams`) ||
+      location.pathname.startsWith(`${base}/assignments`));
 
   if (!lectureId || !sessionId) {
     return (
@@ -41,87 +64,36 @@ export default function SessionLayout() {
     );
   }
 
-  const { data: session, isLoading } = useQuery({
-    queryKey: ["session", sessionId],
-    queryFn: async () =>
-      (await api.get(`/lectures/sessions/${sessionId}/`)).data,
-  });
-
   if (isLoading || !session) return null;
 
-  const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
-
-  const showAssessmentPanel =
-    location.pathname.startsWith(`${base}/exams`) ||
-    location.pathname.startsWith(`${base}/assignments`);
+  const lectureTitle = lecture?.title ?? lecture?.name ?? "강의";
+  const breadcrumbs = [
+    { label: "강의", to: "/admin/lectures" },
+    { label: lectureTitle, to: `/admin/lectures/${lectureId}` },
+    { label: session.title },
+  ];
 
   return (
-    <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
-      {/* ===============================
-          DOMAIN HEADER (Students SSOT)
-      =============================== */}
-      <div className="border-b border-[var(--border-divider)] bg-[var(--bg-surface)]">
-        <div className="px-6 pt-6 pb-4">
-          <div className="relative">
-            {/* accent bar */}
-            <div className="absolute left-0 top-1 h-6 w-1 rounded-full bg-[var(--color-primary)]" />
-
-            <div className="pl-4">
-              <div className="text-2xl font-bold tracking-tight">
-                {session.title}
-              </div>
-              {session.date && (
-                <div className="text-base text-[var(--text-muted)] mt-1">
-                  {session.date}
-                </div>
-              )}
-            </div>
+    <>
+      <DomainLayout
+        title={session.title}
+        description={session.date ?? undefined}
+        breadcrumbs={breadcrumbs}
+        tabs={tabs}
+      >
+        <SessionBlock lectureId={lectureId} currentSessionId={sessionId} />
+        <div className="flex flex-col gap-4 sm:flex-row">
+          {showAssessmentPanel && (
+            <SessionAssessmentSidePanel
+              lectureId={lectureId}
+              sessionId={sessionId}
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            <Outlet />
           </div>
         </div>
-
-        {/* ===============================
-            DOMAIN TABS (Students SSOT)
-        =============================== */}
-        <div className="px-6">
-          <div className="ds-tabs">
-            {TABS.map((tab) => (
-              <NavLink
-                key={tab.id}
-                to={`${base}/${tab.path}`}
-                end={tab.id === "attendance"}
-                className={({ isActive }) =>
-                  [
-                    "ds-tab text-[15px] font-semibold",
-                    isActive ? "is-active" : "",
-                  ].join(" ")
-                }
-              >
-                {tab.label}
-              </NavLink>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ===============================
-          DOMAIN CONTENT (Students SSOT)
-      =============================== */}
-      <div className="px-6 py-6">
-        <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
-          <div className="flex gap-4 p-4">
-            {showAssessmentPanel && (
-              <SessionAssessmentSidePanel
-                lectureId={lectureId}
-                sessionId={sessionId}
-              />
-            )}
-
-            <div className="flex-1 min-w-0">
-              <Outlet />
-            </div>
-          </div>
-        </div>
-      </div>
+      </DomainLayout>
 
       {showEnrollModal && (
         <EnrollStudentModal
@@ -133,6 +105,6 @@ export default function SessionLayout() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

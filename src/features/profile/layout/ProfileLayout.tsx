@@ -1,7 +1,7 @@
 // PATH: src/features/profile/layout/ProfileLayout.tsx
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
 
 export type DateRange = {
   from: string;
@@ -32,7 +32,15 @@ function getMonthBounds(month: string): DateRange {
   return { from: first, to: last };
 }
 
+const PROFILE_TABS = [
+  { key: "account", label: "내 계정", path: "/admin/profile/account" },
+  { key: "attendance", label: "근태", path: "/admin/profile/attendance" },
+  { key: "expense", label: "지출", path: "/admin/profile/expense" },
+];
+
 export default function ProfileLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [range, setRange] = useState<DateRange>(() =>
     getMonthBounds(month)
@@ -66,12 +74,14 @@ export default function ProfileLayout() {
   );
 
   return (
-    <>
-      <PageHeader title="사용자 정보" />
-
-      <div className="max-w-[1100px] px-6">
+    <DomainLayout
+      title="내 계정"
+      description="개인 정보 관리 · 근태 기록 · 지출 내역 · 대형강사 전용 통합 대시보드"
+      tabs={PROFILE_TABS}
+    >
+      <div className="max-w-[1200px] mx-auto">
         <Outlet context={ctx} />
       </div>
-    </>
+    </DomainLayout>
   );
 }

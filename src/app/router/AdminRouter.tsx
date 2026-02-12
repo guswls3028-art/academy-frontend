@@ -1,7 +1,7 @@
 // PATH: src/app/router/AdminRouter.tsx
 
 import { Routes, Route, Navigate } from "react-router-dom";
-import { AppLayout } from "@/shared/ui/layout";
+import { AppLayout, DomainLayout } from "@/shared/ui/layout";
 
 /* ================= Dashboard ================= */
 import DashboardPage from "@/features/dashboard/pages/DashboardPage";
@@ -9,7 +9,7 @@ import DashboardPage from "@/features/dashboard/pages/DashboardPage";
 /* ================= Students ================= */
 import StudentsLayout from "@/features/students/StudentsLayout";
 import StudentsHomePage from "@/features/students/pages/StudentsHomePage";
-import StudentsDetailPage from "@/features/students/pages/StudentsDetailPage";
+import StudentsDetailOverlay from "@/features/students/overlays/StudentsDetailOverlay";
 
 /* ================= Lectures ================= */
 import LecturesLayout from "@/features/lectures/layout/LecturesLayout";
@@ -65,10 +65,22 @@ import ExamAdminPage from "@/features/exams/pages/ExamAdminPage";
 import ResultsAdminPage from "@/features/results/pages/ResultsAdminPage";
 import VideoAdminPage from "@/features/videos/pages/VideoAdminPage";
 
-/* ================= Placeholder ================= */
-const CounselPage = () => <div className="p-6">상담 페이지</div>;
-const NoticePage = () => <div className="p-6">공지 페이지</div>;
-const MessagePage = () => <div className="p-6">메시지 페이지</div>;
+/* ================= Placeholder (DomainLayout 적용) ================= */
+const CounselPage = () => (
+  <DomainLayout title="상담" description="상담·코칭 관리를 한 화면에서.">
+    <div className="p-6">상담 페이지</div>
+  </DomainLayout>
+);
+const NoticePage = () => (
+  <DomainLayout title="공지" description="전체 공지 관리">
+    <div className="p-6">공지 페이지</div>
+  </DomainLayout>
+);
+const MessagePage = () => (
+  <DomainLayout title="메시지" description="메시지 관리">
+    <div className="p-6">메시지 페이지</div>
+  </DomainLayout>
+);
 
 export default function AdminRouter() {
   return (
@@ -81,14 +93,16 @@ export default function AdminRouter() {
         <Route path="students" element={<StudentsLayout />}>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={<StudentsHomePage />} />
+          <Route path="deleted" element={<StudentsHomePage />} />
         </Route>
 
         {/* 학생 상세 (Overlay / Layout 밖) */}
-        <Route path="students/:studentId" element={<StudentsDetailPage />} />
+        <Route path="students/:studentId" element={<StudentsDetailOverlay />} />
 
         {/* ================= Lectures (SSOT 동일 구조) ================= */}
         <Route path="lectures" element={<LecturesLayout />}>
           <Route index element={<LecturesPage />} />
+          <Route path="past" element={<LecturesPage tab="past" />} />
         </Route>
 
         {/* 강의 상세 */}
@@ -137,7 +151,7 @@ export default function AdminRouter() {
 
         {/* ================= Community ================= */}
         <Route path="community" element={<CommunityPage />}>
-          <Route index element={<NoticeBoardPage />} />
+          <Route index element={<Navigate to="notice" replace />} />
           <Route path="notice" element={<NoticeBoardPage />} />
           <Route path="qna" element={<QnaBoardPage />} />
           <Route path="review" element={<ReviewBoardPage />} />

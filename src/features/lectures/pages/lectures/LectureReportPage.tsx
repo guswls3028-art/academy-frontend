@@ -5,10 +5,8 @@ import { EmptyState } from "@/shared/ui/ds";
 import { fetchLectureReport, type LectureReportResponse } from "@/features/lectures/api/report";
 
 const TH_STYLE = {
-  background:
-    "color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface-hover))",
-  color:
-    "color-mix(in srgb, var(--color-brand-primary) 55%, var(--color-text-secondary))",
+  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
+  color: "var(--color-text-muted)",
 };
 
 export default function LectureReportPage() {

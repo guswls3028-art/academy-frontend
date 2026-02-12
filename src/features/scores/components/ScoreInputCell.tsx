@@ -110,17 +110,24 @@ export default function ScoreInputCell({
           return;
         }
       }}
-      className={[
-        "w-16 rounded border px-1 py-0.5 text-xs text-right",
-        "border-[var(--border-default)]",
-        disabled
-          ? "bg-[var(--bg-surface-soft)] text-[var(--text-muted)]"
-          : "bg-[var(--bg-surface)] text-[var(--text-primary)]",
-      ].join(" ")}
+      className="rounded-lg border px-2 py-1.5 text-sm text-right font-medium transition-all"
+      style={{
+        width: 72,
+        borderColor: disabled
+          ? "var(--color-border-divider)"
+          : "var(--color-border-divider-strong)",
+        background: disabled
+          ? "var(--color-bg-surface-soft)"
+          : "var(--color-bg-surface)",
+        color: disabled
+          ? "var(--color-text-muted)"
+          : "var(--color-text-primary)",
+        cursor: disabled ? "not-allowed" : "text",
+      }}
       title={
         disabled
           ? "채점 중이거나 편집 불가 상태"
-          : "Enter 저장 · ←/→ 이동 · blur 저장"
+          : "Enter 저장 · ←/→ 이동 · blur 저장 · 객관식/주관식 모두 지원"
       }
     />
   );

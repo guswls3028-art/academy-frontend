@@ -38,7 +38,7 @@ export default function PageState({
         borderRadius: "var(--radius-xl)",
         border: "1px solid var(--color-border-divider)",
         background: "var(--color-bg-surface)",
-        boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
+        boxShadow: "var(--elevation-1)",
       }}
     >
       <EmptyState

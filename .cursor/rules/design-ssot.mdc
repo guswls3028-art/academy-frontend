@@ -1,0 +1,23 @@
+---
+description: Admin UI Design SSOT — students 도메인 기준, 전역 적용
+globs: src/features/**/*.tsx
+alwaysApply: false
+---
+
+# Design SSOT
+
+- **Reference**: `features/students`
+- **전역 규칙**: `src/styles/design-system/DESIGN-SSOT.md`
+
+## 필수 준수
+
+1. **리스트 페이지**: DomainListToolbar, 카드 래퍼 없음, DomainTable(ds-table--flat)
+2. **활성/비활성**: STATUS_ACTIVE_COLOR(#22c55e), STATUS_INACTIVE_COLOR(#ef4444) — `@/shared/ui/domain`
+3. **DomainLayout**: DomainHeader + Tabs + DomainPanel (카드 없이 플랫)
+4. **모달**: AdminModal + ModalHeader + ModalBody + ModalFooter
+
+## Import
+
+```ts
+import { DomainListToolbar, DomainTable, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+```

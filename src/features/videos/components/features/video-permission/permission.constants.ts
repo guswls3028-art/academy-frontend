@@ -38,10 +38,29 @@ export const ATT_COLORS: Record<string, string> = {
   SECESSION: "bg-[color-mix(in_srgb,var(--text-muted)_16%,transparent)] text-[var(--text-secondary)]",
 };
 
+// Legacy rule labels (backward compatibility)
 export const RULE_LABELS: Record<string, string> = {
   free: "무제한",
   once: "1회",
   blocked: "제한",
+};
+
+// New access mode labels
+export const ACCESS_MODE_LABELS: Record<string, string> = {
+  FREE_REVIEW: "복습",
+  PROCTORED_CLASS: "온라인 수업 대체",
+  BLOCKED: "제한",
+};
+
+// Combined labels (access_mode takes precedence)
+export const getAccessLabel = (accessMode?: string, rule?: string): string => {
+  if (accessMode && ACCESS_MODE_LABELS[accessMode]) {
+    return ACCESS_MODE_LABELS[accessMode];
+  }
+  if (rule && RULE_LABELS[rule]) {
+    return RULE_LABELS[rule];
+  }
+  return "미정";
 };
 
 /**
@@ -52,4 +71,22 @@ export const RULE_COLORS: Record<string, string> = {
   free: "bg-[color-mix(in_srgb,var(--color-primary)_85%,black)]",
   once: "bg-yellow-400 text-black",
   blocked: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
+};
+
+// New access mode colors
+export const ACCESS_MODE_COLORS: Record<string, string> = {
+  FREE_REVIEW: "bg-[color-mix(in_srgb,var(--color-primary)_85%,black)]",
+  PROCTORED_CLASS: "bg-yellow-400 text-black",
+  BLOCKED: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
+};
+
+// Combined colors (access_mode takes precedence)
+export const getAccessColor = (accessMode?: string, rule?: string): string => {
+  if (accessMode && ACCESS_MODE_COLORS[accessMode]) {
+    return ACCESS_MODE_COLORS[accessMode];
+  }
+  if (rule && RULE_COLORS[rule]) {
+    return RULE_COLORS[rule];
+  }
+  return "bg-gray-500";
 };

@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
+import { Button } from "@/shared/ui/ds";
 
 import PermissionHeader from "../../video-permission/components/PermissionHeader";
 import PermissionTable from "../../video-permission/components/PermissionTable";
@@ -24,20 +25,21 @@ export default function PermissionModal({
   onClose,
   focusEnrollmentId,
   onChangeFocusEnrollmentId,
+  initialTab = "permission",
 }: PermissionModalProps) {
   const qc = useQueryClient();
 
-  const [tab, setTab] = useState<TabKey>("permission");
+  const [tab, setTab] = useState<TabKey>(initialTab);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
   const [focusEnrollment, setFocusEnrollment] = useState<number | null>(null);
 
-  /* focus sync (원본 유지) */
+  /* focus + initialTab sync */
   useEffect(() => {
     if (!open) return;
-    if (focusEnrollmentId === undefined) return;
-    setFocusEnrollment(focusEnrollmentId ?? null);
-  }, [open, focusEnrollmentId]);
+    if (focusEnrollmentId !== undefined) setFocusEnrollment(focusEnrollmentId ?? null);
+    setTab(initialTab);
+  }, [open, focusEnrollmentId, initialTab]);
 
   const setFocusBoth = (v: number | null) => {
     setFocusEnrollment(v);
@@ -108,12 +110,23 @@ export default function PermissionModal({
   }, [studentsRaw, selected]);
 
   const mutate = useMutation({
-    mutationFn: async (rule: string) => {
-      await api.post(`/media/video-permissions/bulk-set/`, {
-        video: videoId,
+    mutationFn: async (ruleOrAccessMode: string) => {
+      // Support both legacy 'rule' and new 'access_mode'
+      const isAccessMode = ["FREE_REVIEW", "PROCTORED_CLASS", "BLOCKED"].includes(ruleOrAccessMode);
+      
+      const payload: any = {
+        video_id: videoId,
         enrollments: selected,
-        rule,
-      });
+      };
+      
+      if (isAccessMode) {
+        payload.access_mode = ruleOrAccessMode;
+      } else {
+        // Legacy rule support
+        payload.rule = ruleOrAccessMode;
+      }
+      
+      await api.post(`/media/video-permissions/bulk-set/`, payload);
     },
     onSuccess: async () => {
       setSelected([]);
@@ -138,9 +151,9 @@ export default function PermissionModal({
               </div>
             </div>
 
-            <button onClick={onClose} className="rounded border px-3 py-1.5 text-xs" type="button">
+            <Button type="button" intent="ghost" size="sm" onClick={onClose}>
               닫기
-            </button>
+            </Button>
           </div>
 
           <div className="mt-3">

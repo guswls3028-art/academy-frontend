@@ -1,6 +1,6 @@
 // PATH: src/features/profile/account/components/ChangePasswordModal.tsx
 import { useEffect, useState } from "react";
-import { Panel } from "@/shared/ui/ds";
+import { Button, Panel } from "@/shared/ui/ds";
 import { useMutation } from "@tanstack/react-query";
 import { changePassword } from "../../api/profile.api";
 
@@ -105,17 +105,19 @@ export default function ChangePasswordModal({
 
             {/* 버튼 */}
             <div className="grid grid-cols-2 gap-2 pt-2">
-              <button className={secondaryBtn} onClick={onClose}>
+              <Button type="button" intent="secondary" size="md" onClick={onClose}>
                 취소
-              </button>
+              </Button>
 
-              <button
-                className={primaryBtn}
+              <Button
+                type="button"
+                intent="primary"
+                size="md"
                 onClick={submit}
                 disabled={mut.isPending}
               >
                 {mut.isPending ? "변경중..." : "비밀번호 변경"}
-              </button>
+              </Button>
             </div>
           </div>
         </Panel>
@@ -143,9 +145,3 @@ function Field({
 
 const inputCls =
   "w-full rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]";
-
-const secondaryBtn =
-  "h-[44px] rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm font-semibold hover:bg-[var(--bg-surface-soft)]";
-
-const primaryBtn =
-  "h-[44px] rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)] text-sm font-semibold text-white hover:brightness-95 disabled:opacity-60";

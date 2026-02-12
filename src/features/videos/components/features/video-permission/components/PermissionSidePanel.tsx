@@ -1,7 +1,9 @@
 // PATH: src/features/videos/components/features/video-permission/components/PermissionSidePanel.tsx
 
 // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
-import { RULE_COLORS, RULE_LABELS } from "../permission.constants";
+import { Button } from "@/shared/ui/ds";
+import { formatPhone } from "@/shared/utils/formatPhone";
+import { RULE_COLORS, RULE_LABELS, ACCESS_MODE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -14,32 +16,27 @@ function ApplyPillButton({
   onClick,
 }: {
   label: string;
-  tone: "free" | "once" | "blocked";
+  tone: "free" | "once" | "blocked" | "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
   disabled: boolean;
   onClick: () => void;
 }) {
-  const toneClass =
-    tone === "blocked"
-      ? "bg-[color-mix(in_srgb,var(--color-danger)_92%,black)] hover:bg-[color-mix(in_srgb,var(--color-danger)_84%,black)] text-white"
-      : tone === "once"
-      // ✅ 1회 제한: 노랑 하드코딩 (가시성 최우선)
-      ? "bg-yellow-400 hover:bg-yellow-500 border border-yellow-500 text-black"
-      : "bg-[color-mix(in_srgb,var(--color-primary)_92%,black)] hover:bg-[color-mix(in_srgb,var(--color-primary)_84%,black)] text-white";
+  const isProctored = tone === "once" || tone === "PROCTORED_CLASS";
+  const isBlocked = tone === "blocked" || tone === "BLOCKED";
+  const intent = isBlocked ? "danger" : isProctored ? "secondary" : "primary";
+  const onceClass = isProctored ? "!bg-yellow-400 hover:!bg-yellow-500 !border-yellow-500 !text-black" : "";
 
   return (
-    <button
+    <Button
       type="button"
+      intent={intent}
+      size="sm"
       disabled={disabled}
       onClick={onClick}
-      className={cx(
-        "h-8 px-3 rounded-md text-xs font-semibold transition",
-        "disabled:opacity-40 disabled:cursor-not-allowed",
-        toneClass
-      )}
+      className={cx("text-xs", onceClass)}
       title={`${label} 적용`}
     >
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -76,35 +73,37 @@ export default function PermissionSidePanel({
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
+            intent="secondary"
+            size="sm"
             onClick={onClear}
             disabled={selectedCount === 0}
-            className="shrink-0 h-8 px-3 rounded-md border border-[var(--border-divider)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)] disabled:opacity-40"
+            className="shrink-0"
           >
             선택 해제
-          </button>
+          </Button>
         </div>
 
         {/* 권한 적용 버튼 */}
         <div className="mt-3 flex items-center gap-2">
           <ApplyPillButton
-            label={RULE_LABELS.free}
-            tone="free"
+            label={ACCESS_MODE_LABELS.FREE_REVIEW || RULE_LABELS.free}
+            tone="FREE_REVIEW"
             disabled={disabledApply}
-            onClick={() => onApply("free")}
+            onClick={() => onApply("FREE_REVIEW")}
           />
           <ApplyPillButton
-            label={RULE_LABELS.once}
-            tone="once"
+            label={ACCESS_MODE_LABELS.PROCTORED_CLASS || RULE_LABELS.once}
+            tone="PROCTORED_CLASS"
             disabled={disabledApply}
-            onClick={() => onApply("once")}
+            onClick={() => onApply("PROCTORED_CLASS")}
           />
           <ApplyPillButton
-            label={RULE_LABELS.blocked}
-            tone="blocked"
+            label={ACCESS_MODE_LABELS.BLOCKED || RULE_LABELS.blocked}
+            tone="BLOCKED"
             disabled={disabledApply}
-            onClick={() => onApply("blocked")}
+            onClick={() => onApply("BLOCKED")}
           />
 
           {pending && (
@@ -132,8 +131,9 @@ export default function PermissionSidePanel({
             bg-[var(--bg-surface-soft)]
           ">
             <div className="col-span-2 text-center">출석</div>
-            <div className="col-span-2 text-center">권한</div>
-            <div className="col-span-4">이름</div>
+            <div className="col-span-2 text-center">접근 모드</div>
+            <div className="col-span-1 text-center">완료</div>
+            <div className="col-span-3">이름</div>
             <div className="col-span-3">학부모 번호</div>
             <div className="col-span-1 text-right">삭제</div>
           </div>
@@ -164,45 +164,54 @@ export default function PermissionSidePanel({
                     </div>
                   </div>
 
-                  {/* 권한 */}
+                  {/* 접근 모드 */}
                   <div className="col-span-2 flex justify-center">
                     <span
                       className={cx(
                         "inline-flex items-center justify-center",
                         "h-[22px] px-2 rounded-full",
                         "text-[11px] font-semibold leading-none text-white",
-                        RULE_COLORS[s.effective_rule] || "bg-gray-500"
+                        getAccessColor(s.access_mode, s.effective_rule)
                       )}
                     >
-                      {RULE_LABELS[s.effective_rule] || "-"}
+                      {getAccessLabel(s.access_mode, s.effective_rule)}
+                    </span>
+                  </div>
+
+                  {/* 완료 */}
+                  <div className="col-span-1 flex justify-center">
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      {s.completed ? "완료" : "미완료"}
                     </span>
                   </div>
 
                   {/* 이름 */}
-                  <div className="col-span-4 min-w-0">
+                  <div className="col-span-3 min-w-0">
                     <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
                       {s.student_name}
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] truncate">
-                      학생번호 {s.student_phone || "-"}
+                      학생번호 {formatPhone(s.student_phone)}
                     </div>
                   </div>
 
                   {/* 학부모 번호 */}
                   <div className="col-span-3 text-sm text-[var(--text-secondary)] truncate">
-                    {s.parent_phone || "-"}
+                    {formatPhone(s.parent_phone)}
                   </div>
 
                   {/* 삭제 */}
                   <div className="col-span-1 flex justify-end">
-                    <button
+                    <Button
                       type="button"
+                      intent="ghost"
+                      size="sm"
                       onClick={() => onRemoveOne(s.enrollment)}
-                      className="h-7 w-10 rounded-md border border-[var(--border-divider)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+                      className="!min-w-0 !w-10 !h-7"
                       title="선택에서 제거"
                     >
                       ✕
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))
@@ -213,14 +222,16 @@ export default function PermissionSidePanel({
 
       {/* FOOTER */}
       <div className="p-4 border-t border-[var(--border-divider)]">
-        <button
+        <Button
           type="button"
+          intent="secondary"
+          size="md"
           disabled={selectedCount === 0}
           onClick={onClear}
-          className="w-full h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)] disabled:opacity-40"
+          className="w-full"
         >
           전체 선택 해제
-        </button>
+        </Button>
       </div>
     </div>
   );

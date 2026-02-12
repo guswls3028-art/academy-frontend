@@ -155,11 +155,22 @@ export default function ScoresTable({
 
   return (
     <div
-      className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)]"
+      className="ds-table-wrap"
+      style={{
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface)",
+        overflow: "hidden",
+      }}
       tabIndex={0}
     >
       {/* HEADER */}
-      <div className={`border-b ${grid}`}>
+      <div
+        className={`${grid} border-b border-[var(--color-border-divider)]`}
+        style={{
+          background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
+        }}
+      >
         <div className={thBase}>학생</div>
         <div className={[thBase, activeColumn === "exam" ? thActive : ""].join(" ")}>
           시험
@@ -195,12 +206,15 @@ export default function ScoresTable({
             <div
               className={[
                 grid,
-                "border-b cursor-pointer",
+                "border-b border-[var(--color-border-divider)] cursor-pointer transition-colors",
                 selected
-                  ? "bg-[var(--color-primary-soft)]"
+                  ? "bg-[color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))]"
                   : "hover:bg-[var(--bg-surface-soft)]",
               ].join(" ")}
               onClick={() => onSelectRow(row)}
+              style={{
+                borderBottomColor: "color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
+              }}
             >
               <div className={`${tdBase} font-semibold`}>
                 {row.student_name}

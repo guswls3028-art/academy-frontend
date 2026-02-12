@@ -1,5 +1,6 @@
 // PATH: src/features/materials/sheets/components/submissions/SubmissionRow.tsx
 
+import { Button } from "@/shared/ui/ds";
 import type { ExamSubmissionRow } from "./submissions.api";
 
 export default function SubmissionRow({
@@ -46,14 +47,14 @@ export default function SubmissionRow({
       <td className="text-xs text-gray-600">{row.created_at}</td>
       <td className="text-right">
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onManualEdit}>
+          <Button type="button" intent="secondary" size="sm" onClick={onManualEdit}>
             수동 수정
-          </button>
+          </Button>
 
           {row.status === "failed" && (
-            <button type="button" className="btn" onClick={onRetry} disabled={!!retryLoading}>
+            <Button type="button" intent="secondary" size="sm" onClick={onRetry} disabled={!!retryLoading}>
               {retryLoading ? "재시도..." : "재시도"}
-            </button>
+            </Button>
           )}
         </div>
       </td>

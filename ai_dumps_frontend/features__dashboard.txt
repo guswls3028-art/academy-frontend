@@ -84,11 +84,11 @@ const mainGrid: React.CSSProperties = {
 const chartMock: React.CSSProperties = {
   height: 240,
   borderRadius: 12,
-  background: "linear-gradient(135deg, #e0e7ff, #f8fafc)",
+  background: "var(--bg-surface)",
   display: "grid",
   placeItems: "center",
   fontWeight: 700,
-  color: "#475569",
+  color: "var(--color-text-secondary)",
 };
 
 const list: React.CSSProperties = {
