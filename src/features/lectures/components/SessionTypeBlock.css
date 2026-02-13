@@ -25,20 +25,20 @@
 }
 
 .session-type-block:hover {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 45%, var(--color-border-divider));
+  border-color: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 45%, var(--color-border-divider));
   background: var(--color-bg-surface-hover);
   box-shadow: var(--elevation-2);
 }
 
 .session-type-block--selected {
-  border-color: var(--color-brand-primary);
-  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  border-color: var(--color-brand-primary, var(--color-primary));
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
   box-shadow: var(--elevation-2);
 }
 
 .session-type-block--selected:hover {
-  border-color: var(--color-brand-primary);
-  background: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+  border-color: var(--color-brand-primary, var(--color-primary));
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 16%, transparent);
 }
 
 .session-type-block__title {
