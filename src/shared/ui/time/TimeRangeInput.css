@@ -81,8 +81,8 @@
 }
 
 .shared-time-range-picker-icon {
-  font-size: 22px;
-  line-height: 1;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
 }
 
 .shared-time-range-input:hover:not(:disabled) {
