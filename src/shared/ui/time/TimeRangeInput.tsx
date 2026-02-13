@@ -50,6 +50,17 @@ function addMinutes(timeStr: string, minutes: number): string {
   return d.format("HH:mm");
 }
 
+/** end에서 분을 빼되, start보다 작아지지 않도록 함 */
+function clampEndAboveStart(endStr: string, startStr: string, deltaMinutes: number): string {
+  if (!endStr) return "";
+  const next = addMinutes(endStr, -deltaMinutes);
+  if (!startStr) return next;
+  const startM = dayjs().hour(parseInt(startStr.slice(0, 2), 10)).minute(parseInt(startStr.slice(3), 10));
+  const nextM = dayjs().hour(parseInt(next.slice(0, 2), 10)).minute(parseInt(next.slice(3), 10));
+  if (nextM.isBefore(startM) || nextM.isSame(startM)) return startStr;
+  return next;
+}
+
 export default function TimeRangeInput({
   value,
   onChange,
