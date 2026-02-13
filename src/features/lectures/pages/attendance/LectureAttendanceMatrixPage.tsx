@@ -14,7 +14,7 @@ import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 
-const SESSION_COL_WIDTH = 32;
+const SESSION_COL_WIDTH = 28;
 
 export default function LectureAttendanceMatrixPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
