@@ -171,7 +171,7 @@ export default function TimeRangeInput({
               aria-label="종료 시간 시계로 선택"
               title="시계로 시간 선택"
             >
-              <span className="shared-time-range-picker-icon" aria-hidden>🕐</span>
+              <Clock className="shared-time-range-picker-icon" size={22} aria-hidden />
             </button>
           </div>
           <div className="shared-time-range-quick">
