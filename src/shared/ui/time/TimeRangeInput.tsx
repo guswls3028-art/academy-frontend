@@ -109,26 +109,30 @@ export default function TimeRangeInput({
         <div className="shared-time-range-grid">
           <label className="shared-time-range-label">시작시간</label>
           <div className="shared-time-range-input-wrap">
-            <input
-              ref={startInputRef}
-              type="time"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              disabled={disabled}
-              className="shared-time-range-input"
-              placeholder={startPlaceholder}
+            <div
+              ref={startAnchorRef}
+              role="button"
+              tabIndex={disabled ? -1 : 0}
+              className="shared-time-range-input shared-time-range-input-trigger"
+              onClick={() => !disabled && setOpenStart(true)}
+              onKeyDown={(e) => e.key === "Enter" && !disabled && setOpenStart(true)}
               aria-label="시작 시간 선택"
-            />
-            <button
-              type="button"
-              className="shared-time-range-picker-trigger"
-              onClick={openStartPicker}
-              disabled={disabled}
-              aria-label="시작 시간 시계로 선택"
-              title="시계로 시간 선택"
             >
-              <Clock className="shared-time-range-picker-icon" size={22} aria-hidden />
-            </button>
+              {start || startPlaceholder}
+            </div>
+            {openStart && startAnchorRef.current && (
+              <TimeScrollPopover
+                value={start || "00:00"}
+                slots={SLOTS}
+                slotMinutes={SLOT_MINUTES}
+                anchorEl={startAnchorRef.current}
+                onSelect={(v) => {
+                  setStart(v);
+                  setOpenStart(false);
+                }}
+                onClose={() => setOpenStart(false)}
+              />
+            )}
           </div>
           <div className="shared-time-range-quick">
             <button
