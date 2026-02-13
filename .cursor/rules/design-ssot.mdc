@@ -14,7 +14,7 @@ alwaysApply: false
 1. **리스트 페이지**: DomainListToolbar, 카드 래퍼 없음, DomainTable(ds-table--flat)
 2. **활성/비활성**: STATUS_ACTIVE_COLOR(#22c55e), STATUS_INACTIVE_COLOR(#ef4444) — `@/shared/ui/domain`
 3. **DomainLayout**: DomainHeader + Tabs + DomainPanel (카드 없이 플랫)
-4. **모달**: AdminModal + ModalHeader + ModalBody + ModalFooter
+4. **모달**: AdminModal + ModalHeader + ModalBody + ModalFooter — 헤더/바디/푸터 **얇은 패딩** SSOT(shared/ui/modal): 헤더 12px 20px·아이콘 28px·제목 14px·설명 marginTop 4px, 바디 16px 20px, 푸터 12px 20px
 
 ## Import
 

@@ -89,6 +89,7 @@ export function useNotices() {
 ==========================================================================================
 // PATH: src/features/notice/overlays/NoticeOverlay.tsx
 import Panel from "@/shared/ui/ds/Panel";
+import { Button } from "@/shared/ui/ds";
 import { useNotices } from "../context/NoticeContext";
 
 function levelColor(level: string) {
@@ -123,26 +124,12 @@ export default function NoticeOverlay({ onClose }: { onClose: () => void }) {
           <div style={{ fontWeight: 900, letterSpacing: "-0.2px" }}>알림</div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              onClick={clear}
-              style={{
-                fontSize: 12,
-                fontWeight: 900,
-                color: "var(--color-text-muted)",
-              }}
-            >
+            <Button type="button" intent="ghost" size="sm" onClick={clear} className="text-xs font-black text-[var(--color-text-muted)]">
               모두 지우기
-            </button>
-            <button
-              onClick={onClose}
-              style={{
-                fontSize: 12,
-                fontWeight: 900,
-                color: "var(--color-text-muted)",
-              }}
-            >
+            </Button>
+            <Button type="button" intent="ghost" size="sm" onClick={onClose} className="text-xs font-black text-[var(--color-text-muted)]">
               닫기
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -192,19 +179,17 @@ export default function NoticeOverlay({ onClose }: { onClose: () => void }) {
                       </div>
                     </div>
 
-                    <button
+                    <Button
+                      type="button"
+                      intent="ghost"
+                      size="sm"
                       onClick={() => remove(n.id)}
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 900,
-                        color: "var(--color-text-muted)",
-                        cursor: "pointer",
-                      }}
+                      className="text-xs font-black text-[var(--color-text-muted)]"
                       aria-label="알림 제거"
                       title="알림 제거"
                     >
                       ✕
-                    </button>
+                    </Button>
                   </div>
                 }
               >
@@ -247,6 +232,7 @@ export default function NoticeOverlay({ onClose }: { onClose: () => void }) {
 // PATH: src/features/notice/pages/NoticePage.tsx
 import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
 import { useState } from "react";
+import { Button } from "@/shared/ui/ds";
 
 export default function NoticePage() {
   const [open, setOpen] = useState(true);
@@ -260,21 +246,9 @@ export default function NoticePage() {
           <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
             이 페이지는 디버그/검증용입니다. 실제 사용은 Header의 🔔 오버레이를 사용합니다.
           </div>
-          <button
-            onClick={() => setOpen(true)}
-            style={{
-              marginTop: 16,
-              height: 40,
-              borderRadius: 999,
-              padding: "0 16px",
-              border: "1px solid var(--color-border-divider)",
-              background: "var(--color-bg-surface)",
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-          >
+          <Button type="button" intent="secondary" size="md" onClick={() => setOpen(true)} className="mt-4">
             알림 오버레이 열기
-          </button>
+          </Button>
         </div>
       )}
     </div>

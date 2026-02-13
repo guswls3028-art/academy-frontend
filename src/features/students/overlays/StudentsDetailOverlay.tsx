@@ -30,10 +30,17 @@ const TABS = [
   { key: "schoolScore", label: "학교 성적" },
 ];
 
-export default function StudentsDetailOverlay() {
-  const { studentId } = useParams();
+type StudentsDetailOverlayProps = {
+  /** 라우트가 아닌 곳(예: 모달)에서 띄울 때 전달. 있으면 onClose로만 닫고 라우트 변경 없음 */
+  studentId?: number;
+  onClose?: () => void;
+};
+
+export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps) {
+  const routeParams = useParams();
   const navigate = useNavigate();
-  const id = Number(studentId);
+  const id = props?.studentId ?? Number(routeParams.studentId);
+  const onClose = props?.onClose ?? (() => navigate(-1));
   const qc = useQueryClient();
 
   const [tab, setTab] = useState("enroll");
@@ -81,7 +88,7 @@ export default function StudentsDetailOverlay() {
     if (!confirm("이 학생을 삭제하시겠습니까?")) return;
     await deleteStudent(id);
     qc.invalidateQueries({ queryKey: ["students"] });
-    navigate(-1);
+    onClose();
   }
 
   if (isLoading || !student) return null;
@@ -90,20 +97,20 @@ export default function StudentsDetailOverlay() {
     <>
       {/* Backdrop — 부드러운 블러 + 딤 */}
       <div
-        className="fixed inset-0 z-40"
+        className="fixed inset-0 z-[60]"
         style={{
           background: "rgba(0,0,0,0.45)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
           transition: "opacity 0.2s ease",
         }}
-        onClick={() => navigate(-1)}
+        onClick={onClose}
         aria-hidden
       />
 
       {/* Overlay panel */}
       <div
-        className="fixed inset-0 z-50 flex justify-center overflow-auto"
+        className="fixed inset-0 z-[70] flex justify-center overflow-auto"
         style={{
           paddingTop: "calc(var(--panel-header, 64px) + 16px)",
           paddingBottom: 16,
@@ -268,7 +275,7 @@ export default function StudentsDetailOverlay() {
                     type="button"
                     intent="secondary"
                     size="sm"
-                    onClick={() => navigate(-1)}
+                    onClick={onClose}
                   >
                     닫기
                   </Button>

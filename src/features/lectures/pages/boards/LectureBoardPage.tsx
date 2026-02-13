@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import { BoardCategory, BoardPost, fetchBoardCategories, fetchBoardPosts } from "../../api/board";
-import BoardCategoryModal from "../../components/BoardCategoryModal";
+import { fetchPostTemplates, type PostTemplate } from "@/features/community/api/community.api";
 import BoardPostModal from "../../components/BoardPostModal";
 import BoardPostDetail from "../../components/BoardPostDetail";
 import { EmptyState, Button } from "@/shared/ui/ds";
@@ -19,7 +19,6 @@ export default function LectureBoardPage() {
   const lectureIdNum = Number(lectureId);
 
   const [selectedCategory, setSelectedCategory] = useState<BoardCategory | null>(null);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   const [openedPost, setOpenedPost] = useState<BoardPost | null>(null);
 
@@ -42,15 +41,18 @@ export default function LectureBoardPage() {
     enabled: Number.isFinite(lectureIdNum) && !!selectedCategory,
   });
 
-  const categoryTitle = useMemo(() => selectedCategory?.name ?? "카테고리", [selectedCategory]);
+  const { data: templates = [] } = useQuery<PostTemplate[]>({
+    queryKey: ["community-post-templates"],
+    queryFn: () => fetchPostTemplates(),
+    enabled: showPostModal,
+  });
+
+  const categoryTitle = useMemo(() => selectedCategory?.label ?? "카테고리", [selectedCategory]);
 
   return (
     <>
-      {/* 액션바 */}
+      {/* 액션바 — 블록 타입은 읽기 전용 */}
       <div className="flex items-center gap-2 mb-3">
-        <Button intent="secondary" onClick={() => setShowCategoryModal(true)}>
-          카테고리 추가
-        </Button>
         <Button intent="primary" onClick={() => setShowPostModal(true)} disabled={!selectedCategory}>
           글 작성
         </Button>
@@ -74,9 +76,6 @@ export default function LectureBoardPage() {
             <span style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-muted)" }}>
               게시판 목록
             </span>
-            <Button intent="ghost" size="sm" onClick={() => setShowCategoryModal(true)}>
-              + 추가
-            </Button>
           </div>
 
           {loadingCats ? (
@@ -101,7 +100,7 @@ export default function LectureBoardPage() {
                     aria-pressed={active}
                     style={{ justifyContent: "flex-start" }}
                   >
-                    {cat.name}
+                    {cat.label}
                   </Button>
                 );
               })}
@@ -175,9 +174,13 @@ export default function LectureBoardPage() {
         </div>
       </div>
 
-      {showCategoryModal && <BoardCategoryModal lectureId={lectureIdNum} isOpen={true} onClose={() => setShowCategoryModal(false)} />}
       {showPostModal && selectedCategory && (
-        <BoardPostModal lectureId={lectureIdNum} category={selectedCategory} onClose={() => setShowPostModal(false)} />
+        <BoardPostModal
+          lectureId={lectureIdNum}
+          category={selectedCategory}
+          templates={templates}
+          onClose={() => setShowPostModal(false)}
+        />
       )}
       {openedPost && <BoardPostDetail lectureId={lectureIdNum} post={openedPost} onClose={() => setOpenedPost(null)} />}
     </>

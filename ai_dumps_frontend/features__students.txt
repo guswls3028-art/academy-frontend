@@ -5,234 +5,6 @@
 
 
 ==========================================================================================
-# FILE: STUDENTS DOMAIN UI SSOT.md
-==========================================================================================
-📐 STUDENTS DOMAIN UI SSOT
-
-Students UI Design Single Source of Truth
-
-이 문서는 features/students 영역의 레이아웃, 탭, 카드, 테이블, 오버레이 패턴을
-고정된 디자인 규칙(SSOT) 으로 정의한다.
-
-이 문서에 명시되지 않은 UI 변형은 금지하며,
-다른 도메인(staff, lectures, exams 등)도 동일 규칙을 그대로 따른다.
-
-1. 최상위 레이아웃 규칙 (Domain Layout)
-1.1 Domain Layout 구조
-
-모든 도메인 페이지는 반드시 다음 구조를 따른다.
-
-[ Domain Header ]
- ├─ Accent Bar (Primary Color)
- ├─ Title (text-2xl / bold)
- ├─ Description (text-base / muted)
- └─ Domain Tabs (ds-tabs)
-
-[ Domain Content ]
- └─ Rounded Card (radius-2xl, border)
-    └─ Outlet
-
-1.2 StudentsLayout.tsx 책임
-
-도메인 타이틀, 설명, 탭 UI를 전담
-
-실제 페이지 내용은 절대 포함하지 않는다
-
-내부 페이지는 반드시 <Outlet />으로 렌더링
-
-✔ 허용
-
-탭 잠금 (disabled, pointer-events-none)
-
-설명 문구 변경
-
-❌ 금지
-
-테이블 / 카드 직접 포함
-
-API / 상태 로직 포함
-
-2. 도메인 탭 규칙 (Tabs)
-2.1 탭 기본 원칙
-
-모든 도메인은 ds-tabs + ds-tab 사용
-
-텍스트 크기: text-[15px] font-semibold
-
-활성 상태: is-active 클래스
-
-2.2 잠금 탭 규칙 (LOCKED TAB)
-
-아직 구현되지 않은 기능은 노출은 하되 클릭 불가 처리한다.
-
-필수 조건
-
-disabled
-
-pointer-events-none
-
-opacity-40
-
-tooltip(title) 제공
-
-const lockedTabClass =
-  "opacity-40 cursor-not-allowed pointer-events-none";
-
-
-❗ 라우팅은 살아 있어도 UI에서 접근 불가해야 한다
-
-3. Domain Content 카드 규칙
-3.1 공통 카드 스타일
-
-모든 도메인 페이지는 다음 카드 스타일을 사용한다.
-
-border-radius: rounded-2xl
-
-background: var(--bg-surface)
-
-border: var(--border-divider)
-
-내부 패딩은 페이지에서 제어
-
-<div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
-  <Outlet />
-</div>
-
-
-❌ 카드 안에 또 카드 중첩 금지
-❌ radius/색상 임의 변경 금지
-
-4. 리스트 페이지 규칙 (Home Page)
-4.1 HomePage 책임 분리
-
-StudentsHomePage.tsx는 다음만 담당한다:
-
-검색 입력
-
-필터 모달 제어
-
-생성/삭제 모달 제어
-
-테이블 렌더링
-
-라우팅 연결
-
-❌ 금지
-
-테이블 row 상세 구현
-
-모달 내부 UI 구현
-
-5. 테이블 규칙 (StudentsTable)
-5.1 테이블 헤더
-
-컬럼 헤더 배경:
-
-color-mix(
-  var(--color-brand-primary) 6%,
-  var(--color-bg-surface-hover)
-)
-
-
-컬럼 헤더 텍스트:
-
-color-mix(
-  var(--color-brand-primary) 55%,
-  var(--color-text-secondary)
-)
-
-5.2 텍스트 크기 규칙
-영역	크기
-이름	15px / bold
-전화/학교	14px
-등록일	13px
-상태 뱃지	12px
-
-👉 전화번호/식별자 포함, 전부 가독성 우선
-
-6. 상세 페이지 규칙 (Overlay Pattern)
-6.1 접근 방식
-
-리스트 → /admin/students/:id
-
-페이지 이동이 아니라 오버레이
-
-backdrop 클릭 시 navigate(-1)
-
-<div className="fixed inset-0 z-40 bg-black/60" />
-
-6.2 Overlay 구조
-[ Backdrop ]
-[ Centered Overlay Panel ]
- ├─ Gradient Header
- ├─ Left Info Panel
- └─ Right Tabs Panel
-
-
-max-width: 1120px
-
-radius: 22px
-
-box-shadow 필수
-
-7. 정보 행(Row) 규칙 (InfoRow)
-
-label: muted / font-weight 800
-
-value: primary / font-weight 950
-
-accent 행은 brand-primary 10% mix 사용
-
-❌ 임의 아이콘, 컬러 추가 금지
-
-8. 모달 규칙 (Create / Edit / Delete)
-8.1 공통 원칙
-
-반드시 AdminModal 사용
-
-단축키 지원:
-
-ESC → 닫기
-
-⌘/Ctrl + Enter → 저장/등록
-
-width 고정 (520 / 720)
-
-8.2 입력 스타일
-
-ds-input, ds-textarea, ds-select만 사용
-
-height, padding 변경 금지
-
-9. 다른 도메인 적용 규칙 (MANDATORY)
-
-이 SSOT는 다음 도메인에 그대로 복사 적용한다.
-
-features/staff
-
-features/lectures
-
-features/exams
-
-features/clinics
-
-✔ 이름/문구만 변경 가능
-❌ 구조/패턴 변경 불가
-
-10. 변경 정책 (LOCK)
-
-이 문서 변경 = 디자인 기준 변경
-
-변경 시:
-
-SSOT 문서 수정
-
-모든 도메인 동시 반영
-
-부분 적용 금지
-
-
-==========================================================================================
 # FILE: StudentsLayout.tsx
 ==========================================================================================
 // PATH: src/features/students/StudentsLayout.tsx
@@ -241,8 +13,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 
 const STUDENTS_TABS = [
   { key: "home", label: "홈", path: "/admin/students/home" },
-  { key: "scores", label: "학교 성적", locked: true },
-  { key: "history", label: "상담 이력", locked: true },
+  { key: "deleted", label: "삭제된 학생", path: "/admin/students/deleted" },
 ];
 
 export default function StudentsLayout() {
@@ -307,6 +78,7 @@ export interface ClientStudentTag {
 export interface ClientEnrollmentLite {
   id: number;
   lectureName: string | null;
+  lectureColor: string | null;
 }
 
 export interface ClientStudent {
@@ -318,6 +90,8 @@ export interface ClientStudent {
 
   studentPhone: string | null;
   parentPhone: string | null;
+  /** True면 식별자로 가입, 표시 시 "식별자 XXXX-XXXX" */
+  usesIdentifier?: boolean;
 
   school: string | null;
   schoolClass: string | null;
@@ -334,6 +108,7 @@ export interface ClientStudent {
 
   tags: ClientStudentTag[];
   enrollments: ClientEnrollmentLite[];
+  deletedAt?: string | null;
 }
 
 export interface StudentTag {
@@ -370,6 +145,7 @@ function mapStudent(item: any): ClientStudent {
 
     studentPhone: displayPhone ?? null,
     parentPhone: item?.parent_phone ?? null,
+    usesIdentifier: !!item?.uses_identifier,
 
     school: item?.high_school ?? item?.middle_school ?? null,
     schoolClass: item?.high_school_class ?? null,
@@ -396,8 +172,10 @@ function mapStudent(item: any): ClientStudent {
       ? item.enrollments.map((en: any) => ({
           id: Number(en?.id),
           lectureName: en?.lecture_name ?? null,
+          lectureColor: en?.lecture_color ?? "#3b82f6",
         }))
       : [],
+    deletedAt: item?.deleted_at ?? null,
   };
 }
 
@@ -408,6 +186,7 @@ function mapStudent(item: any): ClientStudent {
 const ORDERING_MAP: Record<string, string> = {
   name: "name",
   registeredAt: "created_at",
+  deletedAt: "deleted_at",
   active: "is_managed",
   psNumber: "ps_number",
   studentPhone: "phone",
@@ -437,14 +216,18 @@ function buildOrdering(sort: string): string | undefined {
 export async function fetchStudents(
   search: string,
   filters: any = {},
-  sort: string = ""
-) {
+  sort: string = "",
+  page: number = 1,
+  deleted: boolean = false
+): Promise<{ data: ReturnType<typeof mapStudent>[]; count: number }> {
   const ordering = buildOrdering(sort);
 
   const params: any = {
     search: search || undefined,
     ...filters,
     ordering: ordering || undefined,
+    page,
+    deleted: deleted ? "true" : undefined,
   };
 
   const res = await api.get("/students/", { params });
@@ -454,8 +237,12 @@ export async function fetchStudents(
     : Array.isArray(res.data)
     ? res.data
     : [];
+  const count = typeof res.data?.count === "number" ? res.data.count : items.length;
 
-  return items.map(mapStudent);
+  return {
+    data: items.map(mapStudent),
+    count,
+  };
 }
 
 export async function getStudentDetail(id: number) {
@@ -469,18 +256,18 @@ export async function getStudentDetail(id: number) {
 
 export async function createStudent(form: any) {
   const name = safeStr(form?.name).trim();
-  const psNumber = safeStr(form?.psNumber).trim();
   const initialPassword = safeStr(form?.initialPassword).trim();
 
-  const omrCodeInput = safeStr(form?.omrCode).trim();
   const studentPhoneInput = safeStr(form?.studentPhone).trim();
   const parentPhoneInput = safeStr(form?.parentPhone).trim();
+  const noPhone = !studentPhoneInput;
 
-  const phone = form?.noPhone === true ? `010${omrCodeInput}` : studentPhoneInput;
+  const phone = noPhone
+    ? `010${parentPhoneInput.replace(/\D/g, "").slice(-8)}`
+    : studentPhoneInput;
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     name,
-    ps_number: psNumber,
     phone,
     omr_code: safeStr(phone).slice(-8),
     initial_password: initialPassword,
@@ -500,10 +287,56 @@ export async function createStudent(form: any) {
     memo: form?.memo || null,
 
     is_managed: !!form?.active,
+
+    send_welcome_message: !!form?.sendWelcomeMessage,
+    no_phone: noPhone,
   };
+  // ps_number 미입력 시 백엔드에서 6자리 자동 부여
+  const psNumber = safeStr(form?.psNumber).trim();
+  if (psNumber) payload.ps_number = psNumber;
 
   const res = await api.post("/students/", payload);
   return mapStudent(res.data);
+}
+
+/** 엑셀 일괄 등록 (600명+ 대량 업로드) */
+export async function bulkCreateStudents(
+  initialPassword: string,
+  students: Array<{
+    name: string;
+    phone: string;
+    parentPhone: string;
+    usesIdentifier?: boolean;
+    gender?: string | null;
+    schoolType?: "HIGH" | "MIDDLE";
+    school?: string | null;
+    grade?: number | null;
+    schoolClass?: string | null;
+    major?: string | null;
+    memo?: string | null;
+  }>,
+  sendWelcomeMessage = false
+) {
+  const payload = {
+    initial_password: initialPassword,
+    send_welcome_message: sendWelcomeMessage,
+    students: students.map((s) => ({
+      name: s.name.trim(),
+      phone: String(s.phone || "").replace(/\D/g, ""),
+      parent_phone: String(s.parentPhone || "").replace(/\D/g, ""),
+      uses_identifier: !!s.usesIdentifier,
+      gender: s.gender || "",
+      school_type: s.schoolType || "HIGH",
+      school: s.school || "",
+      high_school_class: s.schoolClass || "",
+      major: s.major || "",
+      grade: s.grade ?? null,
+      memo: s.memo || "",
+      is_managed: true,
+    })),
+  };
+  const res = await api.post("/students/bulk_create/", payload, { timeout: 120_000 });
+  return res.data as { created: number; failed: Array<{ row: number; name: string; error: string }>; total: number };
 }
 
 /* ===============================
@@ -571,6 +404,48 @@ export async function deleteStudent(id: number) {
   return true;
 }
 
+/** 선택 학생 일괄 소프트 삭제 (30일 보관) */
+export async function bulkDeleteStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_delete/", { ids });
+  return res.data as { deleted: number };
+}
+
+/** 삭제된 학생 일괄 복원 */
+export async function bulkRestoreStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_restore/", { ids });
+  return res.data as { restored: number };
+}
+
+/** 삭제된 학생 즉시 영구 삭제 */
+export async function bulkPermanentDeleteStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_permanent_delete/", { ids });
+  return res.data as { deleted: number };
+}
+
+/** 충돌 해결 후 재등록 (삭제된 학생과 번호 충돌 시 복원 또는 영구 삭제 후 재등록) */
+export async function bulkResolveConflicts(
+  password: string,
+  resolutions: Array<{
+    row: number;
+    student_id: number;
+    action: "restore" | "delete";
+    student_data: Record<string, unknown>;
+  }>,
+  sendWelcomeMessage = false
+) {
+  const res = await api.post("/students/bulk_resolve_conflicts/", {
+    initial_password: password,
+    send_welcome_message: sendWelcomeMessage,
+    resolutions: resolutions.map((r) => ({
+      row: r.row,
+      student_id: r.student_id,
+      action: r.action,
+      student_data: r.student_data,
+    })),
+  });
+  return res.data as { created: number; restored: number; failed: Array<{ row: number; name: string; error: string }> };
+}
+
 /* ===============================
  * TAG
  * =============================== */
@@ -587,6 +462,16 @@ export async function getTags(): Promise<StudentTag[]> {
     name: safeStr(t?.name),
     color: safeStr(t?.color),
   }));
+}
+
+export async function createTag(name: string, color: string): Promise<StudentTag> {
+  const res = await api.post(`/students/tags/`, { name: name.trim(), color });
+  const t = res.data;
+  return {
+    id: Number(t?.id),
+    name: safeStr(t?.name),
+    color: safeStr(t?.color),
+  };
 }
 
 export async function attachStudentTag(studentId: number, tagId: number) {
@@ -724,6 +609,13 @@ export default function DeleteConfirmModal({
 import { useEffect, useMemo, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import {
+  formatPhoneForInput,
+  formatIdentifierForInput,
+  parsePhoneInput,
+  parseIdentifierInput,
+} from "@/shared/utils/phoneInput";
 import { updateStudent } from "../api/students";
 
 interface Props {
@@ -744,8 +636,9 @@ export default function EditStudentModal({
   onSuccess,
 }: Props) {
   const initialNoPhone = useMemo(() => {
+    if (initialValue.usesIdentifier != null) return initialValue.usesIdentifier;
     return initialValue.studentPhone && is8Digits(initialValue.studentPhone);
-  }, [initialValue.studentPhone]);
+  }, [initialValue.studentPhone, initialValue.usesIdentifier]);
 
   const [noPhone, setNoPhone] = useState(initialNoPhone);
   const [busy, setBusy] = useState(false);
@@ -790,7 +683,12 @@ export default function EditStudentModal({
       gender: initialValue.gender || "",
       psNumber: initialValue.psNumber || "",
       studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
-      omrCode: initialNoPhone ? initialValue.studentPhone || "" : "",
+      omrCode: initialNoPhone
+        ? (() => {
+            const p = String(initialValue.studentPhone || "").replace(/\D/g, "");
+            return p.length === 11 && p.startsWith("010") ? p.slice(-8) : p.slice(0, 8);
+          })()
+        : "",
       parentPhone: initialValue.parentPhone || "",
       schoolType: initialValue.schoolType || "HIGH",
       school: initialValue.school || "",
@@ -816,6 +714,18 @@ export default function EditStudentModal({
     const { name } = e.target;
     setForm((p) => ({ ...p, [name]: e.target.value }));
     if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+  }
+
+  function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
+    const raw = parsePhoneInput(value);
+    setForm((p) => ({ ...p, [name]: raw }));
+    if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+  }
+
+  function handleIdentifierChange(value: string) {
+    const raw = parseIdentifierInput(value);
+    setForm((p) => ({ ...p, omrCode: raw }));
+    if (fieldErrors.omrCode) setFieldErrors((prev) => ({ ...prev, omrCode: "" }));
   }
 
   /** StudentUpdateSerializer / 모델 기준 필수: name, ps_number, phone, parent_phone (Create와 동일) */
@@ -946,28 +856,52 @@ export default function EditStudentModal({
               >
                 상태
               </span>
-              <Button
-                intent={form.active ? "secondary" : "ghost"}
-                size="sm"
+              <button
+                type="button"
                 aria-pressed={form.active}
                 onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
                 disabled={busy}
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: 8,
+                  color: "#fff",
+                  backgroundColor: form.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                  border: "none",
+                }}
               >
                 {form.active ? "활성" : "비활성"}
-              </Button>
+              </button>
             </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
-            <input
-              name={noPhone ? "omrCode" : "studentPhone"}
-              placeholder={noPhone ? "식별자 (XXXXXXXX)" : "학생 전화번호 (010XXXXXXXX)"}
-              value={noPhone ? form.omrCode : form.studentPhone}
-              onChange={handleChange}
-              className="ds-input"
-              data-required="true"
-              disabled={busy}
-            />
+            {noPhone ? (
+              <input
+                placeholder="식별자 (XXXX-XXXX)"
+                value={formatIdentifierForInput(form.omrCode)}
+                onChange={(e) => handleIdentifierChange(e.target.value)}
+                className="ds-input"
+                data-required="true"
+                disabled={busy}
+                maxLength={9}
+                inputMode="numeric"
+                pattern="[0-9\-]*"
+              />
+            ) : (
+              <input
+                placeholder="학생 전화번호 (010-XXXX-XXXX)"
+                value={formatPhoneForInput(form.studentPhone)}
+                onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
+                className="ds-input"
+                data-required="true"
+                disabled={busy}
+                maxLength={13}
+                inputMode="numeric"
+                pattern="[0-9\-]*"
+              />
+            )}
             <Button
               intent={noPhone ? "secondary" : "ghost"}
               onClick={() => {
@@ -981,13 +915,15 @@ export default function EditStudentModal({
           </div>
 
           <input
-            name="parentPhone"
-            placeholder="학부모 전화번호 (010XXXXXXXX)"
-            value={form.parentPhone}
-            onChange={handleChange}
+            placeholder="학부모 전화번호 (010-XXXX-XXXX)"
+            value={formatPhoneForInput(form.parentPhone)}
+            onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
             className="ds-input"
             data-required="true"
             disabled={busy}
+            maxLength={13}
+            inputMode="numeric"
+            pattern="[0-9\-]*"
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1095,25 +1031,75 @@ export default function EditStudentModal({
 # FILE: components/StudentCreateModal.tsx
 ==========================================================================================
 // PATH: src/features/students/components/StudentCreateModal.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
-import { createStudent } from "../api/students";
+import { Button, Tabs } from "@/shared/ui/ds";
+import { STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import {
+  formatPhoneForInput,
+  formatIdentifierForInput,
+  parsePhoneInput,
+} from "@/shared/utils/phoneInput";
+import { createStudent, bulkCreateStudents, bulkResolveConflicts } from "../api/students";
+import {
+  downloadStudentExcelTemplate,
+  parseStudentExcel,
+  type ParsedStudentRow,
+} from "../excel/studentExcel";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onBulkProgress?: (progress: { current: number; total: number } | null) => void;
 }
 
-export default function StudentCreateModal({ open, onClose, onSuccess }: Props) {
-  const [noPhone, setNoPhone] = useState(false);
-  const [busy, setBusy] = useState(false);
+const TAB_ITEMS = [
+  { key: "single", label: "1명만 등록" },
+  { key: "excel", label: "엑셀로 업로드" },
+];
 
+interface BulkFailedItem {
+  row: number;
+  name: string;
+  error: string;
+  conflict_student_id?: number | null;
+  student: {
+    name: string;
+    phone: string;
+    parentPhone: string;
+    gender?: string | null;
+    schoolType?: "HIGH" | "MIDDLE";
+    school?: string | null;
+    grade?: number | null;
+    schoolClass?: string | null;
+    major?: string | null;
+    memo?: string | null;
+  };
+}
+
+interface BulkResult {
+  created: number;
+  failed: BulkFailedItem[];
+  total: number;
+  password: string;
+}
+
+export default function StudentCreateModal({ open, onClose, onSuccess, onBulkProgress }: Props) {
+  const [activeTab, setActiveTab] = useState("single");
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+  const [excelBulkPassword, setExcelBulkPassword] = useState("");
+  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
+  const [excelParsedRows, setExcelParsedRows] = useState<ParsedStudentRow[] | null>(null);
+  const [conflictResolutions, setConflictResolutions] = useState<Record<number, "restore" | "delete">>({});
+  const [batchConflictAction, setBatchConflictAction] = useState<"restore" | "delete" | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [form, setForm] = useState({
     name: "",
     gender: "",
-    psNumber: "",
     initialPassword: "",
     studentPhone: "",
     omrCode: "",
@@ -1132,21 +1118,26 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && activeTab === "single") handleSubmit();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, form, noPhone, busy]);
+  }, [open, onClose, form, busy, activeTab]);
 
   useEffect(() => {
     if (!open) return;
-    setNoPhone(false);
+    setActiveTab("single");
     setBusy(false);
+    setProgress(null);
+    onBulkProgress?.(null);
+    setExcelBulkPassword("");
+    setBulkResult(null);
+    setExcelParsedRows(null);
+    setSendWelcomeMessage(false);
     setForm({
       name: "",
       gender: "",
-      psNumber: "",
       initialPassword: "",
       studentPhone: "",
       omrCode: "",
@@ -1159,32 +1150,29 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
       memo: "",
       active: true,
     });
-  }, [open]);
+  }, [open, onBulkProgress]);
 
-  function handleChange(e: any) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
     setForm((p) => ({ ...p, [name]: value }));
   }
 
-  function validate(): string | null {
-    // 백엔드 StudentCreateSerializer required 필드와 동일: name, ps_number, initial_password, phone, parent_phone
-    if (!String(form.name || "").trim()) return "필수 입력입니다.";
-    if (!String(form.psNumber || "").trim()) return "필수 입력입니다.";
-    if (!String(form.initialPassword || "").trim()) return "필수 입력입니다.";
+  function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
+    const raw = parsePhoneInput(value);
+    setForm((p) => ({ ...p, [name]: raw }));
+  }
 
-    if (noPhone) {
-      const code = String(form.omrCode || "").trim();
-      if (!code) return "필수 입력입니다.";
-      if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
-    } else {
-      const phone = String(form.studentPhone || "").trim();
-      if (!phone) return "필수 입력입니다.";
-      if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
-    }
+  function validate(): string | null {
+    // 필수: 이름, 초기비밀번호, 학부모 전화번호 (학생 전화는 선택, 없으면 부모 전화 8자리로 OMR)
+    if (!String(form.name || "").trim()) return "이름을 입력해 주세요.";
+    if (!String(form.initialPassword || "").trim()) return "초기 비밀번호를 입력해 주세요.";
 
     const parent = String(form.parentPhone || "").trim();
-    if (!parent) return "필수 입력입니다.";
+    if (!parent) return "학부모 전화번호를 입력해 주세요.";
     if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+
+    const phone = String(form.studentPhone || "").trim();
+    if (phone && !/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
 
     return null;
   }
@@ -1197,9 +1185,282 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
 
     setBusy(true);
     try {
-      await createStudent({ ...form, noPhone });
+      await createStudent({ ...form, noPhone: !String(form.studentPhone || "").trim(), sendWelcomeMessage });
       onSuccess();
       onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleExcelFileSelect(file: File) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const rows = await parseStudentExcel(file);
+      if (!rows.length) {
+        alert("등록할 학생 데이터가 없습니다.");
+        return;
+      }
+      setExcelParsedRows(rows);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "엑셀 파일을 읽는 중 오류가 발생했습니다.";
+      alert(msg);
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleExcelRegister() {
+    if (busy || !excelParsedRows?.length) return;
+    const pwd = String(excelBulkPassword || "").trim();
+    if (!pwd || pwd.length < 4) {
+      alert("초기 비밀번호를 4자 이상 입력해 주세요.");
+      return;
+    }
+    const students = excelParsedRows.map((r) => ({
+      name: r.name.trim(),
+      phone: r.studentPhone,
+      parentPhone: r.parentPhone,
+      usesIdentifier: !!r.usesIdentifier,
+      gender: r.gender || null,
+      schoolType: r.schoolType,
+      school: r.school || null,
+      grade: r.grade ? Number(r.grade) || null : null,
+      schoolClass: r.schoolClass || null,
+      major: r.schoolType === "HIGH" ? (r.major || null) : null,
+      memo: r.memo || null,
+    }));
+    setBusy(true);
+    const initProg = { current: 0, total: students.length };
+    setProgress(initProg);
+    onBulkProgress?.(initProg);
+
+    const CHUNK_SIZE = 20; // 한 번에 20명씩 처리
+    let totalCreated = 0;
+    const allFailed: BulkFailedItem[] = [];
+    
+    try {
+      // 청크 단위로 나눠서 요청
+      for (let i = 0; i < students.length; i += CHUNK_SIZE) {
+        const chunk = students.slice(i, i + CHUNK_SIZE);
+        const prog = { current: i, total: students.length };
+        setProgress(prog);
+        onBulkProgress?.(prog);
+        
+        try {
+          const result = await bulkCreateStudents(pwd, chunk, sendWelcomeMessage);
+          totalCreated += result.created ?? 0;
+          
+          // 실패 항목의 row 번호를 전체 인덱스로 조정
+          const failedWithStudent: BulkFailedItem[] = (result.failed ?? []).map((f: { row: number; name: string; error: string; conflict_student_id?: number }) => ({
+            ...f,
+            row: i + f.row, // 전체 인덱스로 조정
+            conflict_student_id: f.conflict_student_id ?? null,
+            student: chunk[f.row - 1] ?? { name: f.name, phone: "", parentPhone: "" },
+          }));
+          allFailed.push(...failedWithStudent);
+        } catch (chunkError: unknown) {
+          // 청크 단위 에러(400 등) 시 백엔드 메시지 추출
+          let errMsg = "등록 중 오류가 발생했습니다.";
+          if (chunkError && typeof chunkError === "object" && "response" in chunkError) {
+            const res = (chunkError as { response?: { data?: unknown; status?: number } }).response;
+            const data = res?.data;
+            if (data && typeof data === "object") {
+              const d = data as Record<string, unknown>;
+              if (typeof d.detail === "string") errMsg = d.detail;
+              else if (d.detail && typeof d.detail === "object") {
+                const parts = Object.entries(d.detail as Record<string, unknown>).flatMap(([k, v]) =>
+                  Array.isArray(v) ? v.map((x) => `${k}: ${x}`) : [`${k}: ${v}`]
+                );
+                if (parts.length) errMsg = parts.join(" · ");
+              } else if (d.students && Array.isArray(d.students)) {
+                const first = (d.students as unknown[])[0];
+                if (first && typeof first === "object") {
+                  const msgs = Object.entries(first as Record<string, unknown>).flatMap(([k, v]) =>
+                    Array.isArray(v) ? v.map((x) => `${k}: ${x}`) : []
+                  );
+                  if (msgs.length) errMsg = msgs.join(" · ");
+                }
+              }
+            }
+          } else if (chunkError instanceof Error) {
+            errMsg = chunkError.message;
+          }
+          chunk.forEach((s, idx) => {
+            allFailed.push({
+              row: i + idx + 1,
+              name: s.name,
+              error: errMsg,
+              conflict_student_id: null,
+              student: s,
+            });
+          });
+        }
+      }
+      
+      const doneProg = { current: students.length, total: students.length };
+      setProgress(doneProg);
+      onBulkProgress?.(doneProg);
+      setBulkResult({
+        created: totalCreated,
+        failed: allFailed,
+        total: students.length,
+        password: pwd,
+      });
+      setConflictResolutions({});
+      setBatchConflictAction(null);
+      setExcelParsedRows(null);
+      if (totalCreated > 0) onSuccess();
+      // 실패 항목이 없으면 모달 자동 닫기
+      if (allFailed.length === 0) {
+        setTimeout(() => {
+          setProgress(null);
+          onBulkProgress?.(null);
+          onClose();
+        }, 500);
+      } else {
+        setProgress(null);
+        onBulkProgress?.(null);
+      }
+    } catch (e: unknown) {
+      let msg = "등록 중 오류가 발생했습니다.";
+      if (e && typeof e === "object" && "response" in e) {
+        const data = (e as { response?: { data?: unknown } }).response?.data;
+        if (data && typeof data === "object") {
+          const d = data as Record<string, unknown>;
+          if (typeof d.detail === "string") msg = d.detail;
+          else if (d.detail && typeof d.detail === "object") {
+            const parts = Object.entries(d.detail as Record<string, unknown>).map(
+              ([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`
+            );
+            if (parts.length) msg = parts.join("\n");
+          }
+        }
+      } else if (e instanceof Error) msg = e.message;
+      alert(msg);
+      setProgress(null);
+      onBulkProgress?.(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function updateFailedItem(index: number, field: "phone", value: string) {
+    if (!bulkResult) return;
+    const next = [...bulkResult.failed];
+    next[index] = { ...next[index], student: { ...next[index].student, [field]: value } };
+    setBulkResult({ ...bulkResult, failed: next });
+  }
+
+  function setConflictResolution(row: number, action: "restore" | "delete") {
+    setConflictResolutions((p) => ({ ...p, [row]: action }));
+  }
+
+  function applyBatchConflictResolution() {
+    if (!batchConflictAction || !bulkResult) return;
+    const next: Record<number, "restore" | "delete"> = {};
+    for (const item of bulkResult.failed) {
+      if (item.conflict_student_id) next[item.row] = batchConflictAction;
+    }
+    setConflictResolutions(next);
+  }
+
+  const conflictedItems = (bulkResult?.failed ?? []).filter((f) => f.conflict_student_id);
+  const hasUnresolvedConflicts = conflictedItems.some((f) => !conflictResolutions[f.row]);
+
+  async function handleResolveConflicts() {
+    if (!bulkResult || !conflictedItems.length || busy || hasUnresolvedConflicts) return;
+    const resolutions = conflictedItems
+      .filter((f) => conflictResolutions[f.row])
+      .map((f) => ({
+        row: f.row,
+        student_id: f.conflict_student_id!,
+        action: conflictResolutions[f.row] as "restore" | "delete",
+        student_data: {
+          name: f.student.name,
+          phone: String(f.student.phone || "").replace(/\D/g, ""),
+          parent_phone: String(f.student.parentPhone || "").replace(/\D/g, ""),
+          uses_identifier: false,
+          gender: f.student.gender || "",
+          school_type: f.student.schoolType || "HIGH",
+          school: f.student.school || "",
+          high_school_class: f.student.schoolClass || "",
+          major: f.student.major || "",
+          grade: f.student.grade ?? null,
+          memo: f.student.memo || "",
+        },
+      }));
+    if (!resolutions.length) return;
+    setBusy(true);
+    try {
+      const result = await bulkResolveConflicts(bulkResult.password, resolutions, sendWelcomeMessage);
+      const stillFailed = (result.failed ?? []).map((f) => {
+        const orig = bulkResult.failed.find((x) => x.row === f.row);
+        return {
+          ...f,
+          conflict_student_id: orig?.conflict_student_id,
+          student: orig?.student ?? { name: f.name, phone: "", parentPhone: "" },
+        };
+      });
+      const newCreated = (bulkResult.created ?? 0) + (result.created ?? 0) + (result.restored ?? 0);
+      setBulkResult({
+        created: newCreated,
+        failed: stillFailed,
+        total: bulkResult.total,
+        password: bulkResult.password,
+      });
+      setConflictResolutions({});
+      setBatchConflictAction(null);
+      if (result.created > 0 || result.restored) onSuccess();
+      if (stillFailed.length === 0) onClose();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "충돌 해결 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRetryFailed() {
+    if (!bulkResult || !bulkResult.failed.length || busy) return;
+    setBusy(true);
+    try {
+      const toSend = bulkResult.failed.map((f) => {
+        let phone = f.student.phone.replace(/\D/g, "");
+        if (phone.length === 8 && /^\d{8}$/.test(phone)) phone = `010${phone}`;
+        return {
+          name: f.student.name,
+          phone,
+          parentPhone: f.student.parentPhone.replace(/\D/g, ""),
+          gender: f.student.gender,
+          schoolType: f.student.schoolType,
+          school: f.student.school,
+          grade: f.student.grade,
+          schoolClass: f.student.schoolClass,
+          major: f.student.major,
+          memo: f.student.memo,
+        };
+      });
+      const result = await bulkCreateStudents(bulkResult.password, toSend, sendWelcomeMessage);
+      const stillFailed: BulkFailedItem[] = (result.failed ?? []).map((f) => {
+        const idx = f.row - 1;
+        const orig = bulkResult.failed[idx];
+        return {
+          row: f.row,
+          name: f.name,
+          error: f.error,
+          student: orig?.student ?? { name: f.name, phone: "", parentPhone: "" },
+        };
+      });
+      setBulkResult({
+        created: bulkResult.created + result.created,
+        failed: stillFailed,
+        total: bulkResult.total,
+        password: bulkResult.password,
+      });
+      if (result.created > 0) onSuccess();
+      if (stillFailed.length === 0) onClose();
     } finally {
       setBusy(false);
     }
@@ -1210,16 +1471,71 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
       <ModalHeader
         type="action"
         title="학생 등록"
-        description="⌘/Ctrl + Enter 로 등록"
+        description={activeTab === "single" ? "⌘/Ctrl + Enter 로 등록" : "엑셀 파일로 학생을 일괄 등록합니다"}
       />
 
-      <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+      <div style={{ padding: "0 24px 12px" }}>
+        <Tabs value={activeTab} items={TAB_ITEMS} onChange={setActiveTab} />
+        {progress && activeTab === "excel" && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: "var(--color-primary)",
+              background: "color-mix(in srgb, var(--color-primary) 10%, transparent)",
+              borderRadius: 8,
+              border: "1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)",
+            }}
+          >
+            창을 닫아도 진행됩니다
+          </div>
+        )}
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 12,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--color-text-secondary)",
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={Boolean(sendWelcomeMessage)}
+            onChange={(e) => setSendWelcomeMessage(e.target.checked)}
+            disabled={busy}
+          />
+          등록완료 후 학부모, 학생에게 가입성공 메세지 일괄발송
+        </label>
+      </div>
+
+      <ModalBody key={activeTab}>
+        {activeTab === "single" ? (
+        <div style={{ display: "grid", gap: 16 }}>
+          {/* 필수 입력 3개 — 테두리로 강조 */}
+          <div
+            style={{
+              padding: 16,
+              borderRadius: 12,
+              border: "2px solid color-mix(in srgb, var(--color-primary) 35%, transparent)",
+              background: "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-primary)", letterSpacing: "-0.02em" }}>
+              필수 입력
+            </div>
             <input
               name="name"
               placeholder="이름"
-              value={form.name}
+              value={form.name ?? ""}
               onChange={handleChange}
               className="ds-input"
               data-required="true"
@@ -1227,77 +1543,55 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
               disabled={busy}
               autoFocus
             />
-
-            <div style={{ display: "flex", gap: 8 }}>
-              {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
-                <Button
-                  key={g.key}
-                  intent={form.gender === g.key ? "secondary" : "ghost"}
-                  aria-pressed={form.gender === g.key}
-                  onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
-                  disabled={busy}
-                >
-                  {g.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <input
-              name="psNumber"
-              placeholder="로그인 아이디"
-              value={form.psNumber}
-              onChange={handleChange}
-              className="ds-input"
-              data-required="true"
-              data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
-              disabled={busy}
-            />
             <input
               name="initialPassword"
               type="password"
               placeholder="초기 비밀번호"
-              value={form.initialPassword}
+              value={form.initialPassword ?? ""}
               onChange={handleChange}
               className="ds-input"
               data-required="true"
               data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
               disabled={busy}
             />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
             <input
-              name={noPhone ? "omrCode" : "studentPhone"}
-              placeholder={noPhone ? "식별자 (XXXXXXXX)" : "학생 전화번호 (010XXXXXXXX)"}
-              value={noPhone ? form.omrCode : form.studentPhone}
-              onChange={handleChange}
+              placeholder="학부모 전화번호 (010-XXXX-XXXX)"
+              value={formatPhoneForInput(form.parentPhone ?? "")}
+              onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
               className="ds-input"
               data-required="true"
+              data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
               disabled={busy}
+              maxLength={13}
+              inputMode="numeric"
+              pattern="[0-9\-]*"
             />
-            <Button
-              intent={noPhone ? "secondary" : "ghost"}
-              onClick={() => {
-                setNoPhone((v) => !v);
-                setForm((p) => ({ ...p, studentPhone: "", omrCode: "" }));
-              }}
-              disabled={busy}
-            >
-              {noPhone ? "전화번호 입력" : "없음(식별자사용)"}
-            </Button>
           </div>
 
           <input
-            name="parentPhone"
-            placeholder="학부모 전화번호 (010XXXXXXXX)"
-            value={form.parentPhone}
-            onChange={handleChange}
+            placeholder="학생 전화번호 (선택, 없으면 부모 전화로 OMR 식별)"
+            value={formatPhoneForInput(form.studentPhone ?? "")}
+            onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
             className="ds-input"
-            data-required="true"
             disabled={busy}
+            maxLength={13}
+            inputMode="numeric"
+            pattern="[0-9\-]*"
           />
+
+          <div style={{ display: "flex", gap: 8 }}>
+            {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+              <Button
+                key={g.key}
+                intent={form.gender === g.key ? "secondary" : "ghost"}
+                aria-pressed={form.gender === g.key}
+                onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                disabled={busy}
+              >
+                {g.label}
+              </Button>
+            ))}
+          </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
@@ -1327,7 +1621,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
             <input
               name="school"
               placeholder="학교명"
-              value={form.school}
+              value={form.school ?? ""}
               onChange={handleChange}
               className="ds-input"
               disabled={busy}
@@ -1351,7 +1645,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
             <input
               name="schoolClass"
               placeholder="반"
-              value={form.schoolClass}
+              value={form.schoolClass ?? ""}
               onChange={handleChange}
               className="ds-input"
               disabled={busy}
@@ -1359,7 +1653,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
             <input
               name="major"
               placeholder="계열(고등만)"
-              value={form.major}
+              value={form.major ?? ""}
               onChange={handleChange}
               className="ds-input"
               disabled={busy}
@@ -1370,7 +1664,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
             name="memo"
             rows={4}
             placeholder="메모"
-            value={form.memo}
+            value={form.memo ?? ""}
             onChange={handleChange}
             className="ds-textarea"
             disabled={busy}
@@ -1395,33 +1689,309 @@ export default function StudentCreateModal({ open, onClose, onSuccess }: Props) 
               등록 후 상세 화면에서 태그/메모/상태를 추가로 관리할 수 있습니다.
             </div>
 
-            <Button
-              intent={form.active ? "secondary" : "ghost"}
-              size="sm"
+            <button
+              type="button"
               aria-pressed={form.active}
               onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
               disabled={busy}
+              style={{
+                padding: "6px 12px",
+                fontSize: 12,
+                fontWeight: 700,
+                borderRadius: 8,
+                color: "#fff",
+                backgroundColor: form.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                border: "none",
+              }}
             >
               {form.active ? "활성" : "비활성"}
-            </Button>
+            </button>
           </div>
         </div>
+        ) : bulkResult ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
+            {bulkResult.created}명 등록 완료
+            {bulkResult.failed.length > 0 && ` · 실패 ${bulkResult.failed.length}건`}
+          </div>
+
+          {bulkResult.failed.length > 0 && (
+            <>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--color-text-muted)",
+                  padding: "10px 12px",
+                  background: "var(--color-bg-surface-soft)",
+                  borderRadius: 8,
+                  lineHeight: 1.5,
+                }}
+              >
+                필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR 식별). 아이디 6자리 자동 부여.
+                {conflictedItems.length > 0 && (
+                  <span style={{ display: "block", marginTop: 8 }}>
+                    <strong>삭제된 학생과 번호 충돌</strong> 시 복원 또는 삭제 후 재등록을 선택하세요.
+                  </span>
+                )}
+              </div>
+
+              {conflictedItems.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>일괄 적용:</span>
+                  <Button
+                    intent={batchConflictAction === "restore" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setBatchConflictAction("restore")}
+                  >
+                    모두 복원
+                  </Button>
+                  <Button
+                    intent={batchConflictAction === "delete" ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setBatchConflictAction("delete")}
+                  >
+                    모두 삭제 후 재등록
+                  </Button>
+                  <Button intent="secondary" size="sm" onClick={applyBatchConflictResolution}>
+                    적용
+                  </Button>
+                </div>
+              )}
+
+              <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+                {bulkResult.failed.map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: 12,
+                      border: "1px solid var(--color-border-divider)",
+                      borderRadius: 8,
+                      background: "var(--color-bg-surface)",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                      {item.row}행 {item.name} · <span style={{ color: "var(--color-status-error)" }}>{item.error}</span>
+                    </div>
+                    {item.conflict_student_id && (
+                      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 8 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                          <input
+                            type="radio"
+                            name={`conflict-${item.row}`}
+                            checked={conflictResolutions[item.row] === "restore"}
+                            onChange={() => setConflictResolution(item.row, "restore")}
+                          />
+                          복원
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                          <input
+                            type="radio"
+                            name={`conflict-${item.row}`}
+                            checked={conflictResolutions[item.row] === "delete"}
+                            onChange={() => setConflictResolution(item.row, "delete")}
+                          />
+                          삭제 후 재등록
+                        </label>
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <input
+                        placeholder="학생 전화(010-XXXX-XXXX, 선택) · 없으면 학부모 전화로 OMR"
+                        value={
+                          (() => {
+                            const raw = String(item.student?.phone ?? "").replace(/\D/g, "");
+                            if (raw.length === 8) return formatIdentifierForInput(raw);
+                            if (raw.length === 11) return formatPhoneForInput(raw);
+                            return item.student?.phone ?? "";
+                          })()
+                        }
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
+                          const phone = raw.length === 8 ? `010${raw}` : raw;
+                          updateFailedItem(idx, "phone", phone);
+                        }}
+                        className="ds-input"
+                        style={{ flex: 1, minWidth: 180 }}
+                        maxLength={13}
+                        inputMode="numeric"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {conflictedItems.length > 0 && (
+                  <Button
+                    intent="primary"
+                    onClick={handleResolveConflicts}
+                    disabled={busy || hasUnresolvedConflicts}
+                  >
+                    {busy ? "처리 중…" : "충돌 해결 후 등록"}
+                  </Button>
+                )}
+                <Button intent="primary" onClick={handleRetryFailed} disabled={busy}>
+                  {busy ? "다시 등록 중…" : "실패 항목 다시 등록"}
+                </Button>
+              </div>
+            </>
+          )}
+
+          <Button intent="secondary" onClick={() => { setBulkResult(null); onClose(); }}>
+            완료
+          </Button>
+        </div>
+        ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>
+                초기 비밀번호 (일괄)
+              </label>
+              <input
+                type="password"
+                placeholder="모든 학생에 적용할 초기 비밀번호 (4자 이상)"
+                value={excelBulkPassword ?? ""}
+                onChange={(e) => setExcelBulkPassword(e.target.value)}
+                className="ds-input"
+                disabled={busy}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <Button intent="secondary" onClick={downloadStudentExcelTemplate} disabled={busy} style={{ alignSelf: "flex-end" }}>
+              엑셀 양식 다운로드
+            </Button>
+          </div>
+
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+            style={{
+              border: "2px dashed var(--color-border-divider)",
+              borderRadius: 12,
+              padding: 40,
+              textAlign: "center",
+              cursor: "pointer",
+              background: "var(--color-bg-surface-soft)",
+              color: "var(--color-text-secondary)",
+            }}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-primary)"; }}
+            onDragLeave={(e) => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border-divider)"; }}
+            onDrop={(e) => {
+              e.preventDefault();
+              (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border-divider)";
+              const file = e.dataTransfer.files[0];
+              if (file && /\.(xlsx|xls)$/i.test(file.name)) {
+                handleExcelFileSelect(file);
+              } else {
+                alert("엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.");
+              }
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleExcelFileSelect(file);
+              }}
+            />
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              엑셀 파일을 드래그하거나 클릭하여 업로드
+            </div>
+            <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+              .xlsx, .xls · 필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR). 아이디 6자리 자동 부여.
+            </div>
+          </div>
+
+          {excelParsedRows && excelParsedRows.length > 0 && (
+            <div
+              style={{
+                padding: 12,
+                background: "var(--color-bg-surface-soft)",
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 600 }}>
+                {excelParsedRows.length}명 등록 예정
+              </span>
+              <Button
+                intent="ghost"
+                size="sm"
+                onClick={() => setExcelParsedRows(null)}
+                disabled={busy}
+              >
+                취소
+              </Button>
+            </div>
+          )}
+        </div>
+        )}
       </ModalBody>
 
       <ModalFooter
         left={
-          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
-            ⌘/Ctrl + Enter 등록
-          </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {progress && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 200, height: 6, background: "var(--color-bg-surface-soft)", borderRadius: 3, overflow: "hidden" }}>
+                  <div
+                    style={{
+                      width: `${(progress.current / progress.total) * 100}%`,
+                      height: "100%",
+                      background: "var(--color-primary)",
+                      transition: "width 0.3s ease",
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-primary)", minWidth: 60 }}>
+                  {Math.round((progress.current / progress.total) * 100)}%
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)" }}>
+                  ({progress.current}/{progress.total}명)
+                </span>
+              </div>
+            )}
+            <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+              {activeTab === "single"
+                ? "⌘/Ctrl + Enter 등록"
+                : bulkResult
+                ? "실패 항목을 수정한 뒤 '다시 등록'을 누르세요"
+                : excelParsedRows?.length
+                ? "초기 비밀번호 입력 후 '등록' 버튼을 눌러 주세요"
+                : "엑셀 파일을 선택한 뒤 '등록' 버튼을 눌러 주세요"}
+            </span>
+          </div>
         }
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={busy}>
-              취소
-            </Button>
-            <Button intent="primary" onClick={handleSubmit} disabled={busy}>
-              {busy ? "등록 중…" : "등록"}
-            </Button>
+            {progress && activeTab === "excel" ? (
+              <Button intent="secondary" onClick={onClose}>
+                닫기
+              </Button>
+            ) : (
+              <Button intent="secondary" onClick={onClose} disabled={busy}>
+                취소
+              </Button>
+            )}
+            {activeTab === "single" && (
+              <Button intent="primary" onClick={handleSubmit} disabled={busy}>
+                {busy ? "등록 중…" : "등록"}
+              </Button>
+            )}
+            {activeTab === "excel" && !bulkResult && excelParsedRows && excelParsedRows.length > 0 && (
+              <Button intent="primary" onClick={handleExcelRegister} disabled={busy}>
+                {busy ? (progress ? `등록 중… ${Math.round((progress.current / progress.total) * 100)}%` : "등록 중…") : "등록"}
+              </Button>
+            )}
           </>
         }
       />
@@ -1646,10 +2216,52 @@ export default function StudentFilterModal({
 ==========================================================================================
 // PATH: src/features/students/components/StudentsTable.tsx
 import { useMemo } from "react";
-import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainTable } from "@/shared/ui/domain";
-import { toggleStudentActive } from "../api/students";
-import { useQueryClient } from "@tanstack/react-query";
+import { EmptyState } from "@/shared/ui/ds";
+import { DomainTable, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
+
+const DEFAULT_LECTURE_COLOR = "#3b82f6";
+
+function isLightColor(hex: string): boolean {
+  const c = String(hex || "").toLowerCase();
+  return ["#eab308", "#06b6d4"].includes(c);
+}
+
+function LectureChip({
+  lectureName,
+  color,
+  size = 18,
+}: {
+  lectureName: string;
+  color: string;
+  size?: number;
+}) {
+  const bg = color || DEFAULT_LECTURE_COLOR;
+  const textColor = isLightColor(bg) ? "#1a1a1a" : "#fff";
+  const two = (lectureName || "??").slice(0, 2);
+
+  return (
+    <span
+      title={lectureName}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 4,
+        flexShrink: 0,
+        display: "inline-grid",
+        placeItems: "center",
+        fontSize: 10,
+        fontWeight: 800,
+        letterSpacing: "-0.02em",
+        color: textColor,
+        background: bg,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+      }}
+    >
+      {two}
+    </span>
+  );
+}
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -1679,41 +2291,62 @@ function highlight(text: string, keyword: string) {
   );
 }
 
-function formatPhone(v: any) {
-  if (!v) return "-";
-  return String(v);
-}
-
 export default function StudentsTable({
   data = [],
   search,
   sort,
   onSortChange,
-  onDelete,
   onRowClick,
-  onEditClick,
+  selectedIds = [],
+  onSelectionChange,
+  isDeletedTab = false,
 }: {
   data: any[];
   search: string;
   sort: string;
   onSortChange: (v: string) => void;
-  onDelete: (id: number) => void;
   onRowClick: (id: number) => void;
-  onEditClick: (id: number) => void;
+  selectedIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
+  isDeletedTab?: boolean;
 }) {
-  const qc = useQueryClient();
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => data.map((s) => s.id), [data]);
+  const allSelected = data.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  function toggleSelect(id: number) {
+    if (!onSelectionChange) return;
+    if (selectedSet.has(id)) {
+      onSelectionChange(selectedIds.filter((x) => x !== id));
+    } else {
+      onSelectionChange([...selectedIds, id]);
+    }
+  }
+
+  /** 현재 페이지 전체 선택/해제 — 기존 선택 유지, 페이지 전환 시에도 선택 유지 */
+  function toggleSelectAll() {
+    if (!onSelectionChange) return;
+    if (allSelected) {
+      onSelectionChange(selectedIds.filter((id) => !allIds.includes(id)));
+    } else {
+      const merged = new Set([...selectedIds, ...allIds]);
+      onSelectionChange([...merged]);
+    }
+  }
 
   const columns = useMemo(
     () => [
-      { key: "name", label: "이름", w: 140 },
-      { key: "studentPhone", label: "학생 전화/식별자", w: 190 },
-      { key: "parentPhone", label: "학부모 전화", w: 170 },
-      { key: "school", label: "학교", w: 160 },
-      { key: "schoolClass", label: "반", w: 80 },
-      { key: "registeredAt", label: "등록일", w: 120 },
-      { key: "active", label: "상태", w: 110 },
+      { key: "_checkbox", label: "", w: 48 },
+      { key: "name", label: "이름", w: 122 },
+      { key: "studentPhone", label: "학생 전화/식별자", w: 130 },
+      { key: "parentPhone", label: "학부모 전화", w: 130 },
+      { key: "school", label: "학교", w: 110 },
+      { key: "schoolClass", label: "반", w: 65 },
+      { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: 110 },
+      { key: "tags", label: "태그", w: 100 },
+      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: 72 }]),
     ],
-    []
+    [isDeletedTab]
   );
 
   if (!data.length) {
@@ -1724,12 +2357,6 @@ export default function StudentsTable({
         scope="panel"
       />
     );
-  }
-
-  async function toggle(id: number, active: boolean) {
-    await toggleStudentActive(id, !active);
-    qc.invalidateQueries({ queryKey: ["students"] });
-    qc.invalidateQueries({ queryKey: ["student", id] });
   }
 
   function sortHeader(colKey: string, label: string) {
@@ -1763,18 +2390,37 @@ export default function StudentsTable({
   }
 
   return (
-    <DomainTable tableClassName="ds-table--staff-home" tableStyle={{ tableLayout: "fixed" }}>
+    <div style={{ width: "fit-content" }}>
+    <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: 887 }}>
       <colgroup>
         {columns.map((c) => (
           <col key={c.key} style={{ width: c.w }} />
         ))}
-        <col style={{ width: 160 }} />
       </colgroup>
 
       <thead>
         <tr>
-          {columns.map((c) => sortHeader(c.key, c.label))}
-          <th scope="col">작업</th>
+          {columns.map((c) =>
+            c.key === "_checkbox" ? (
+              <th key="_checkbox" scope="col" style={{ width: 48 }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                {onSelectionChange ? (
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="전체 선택"
+                    className="cursor-pointer"
+                  />
+                ) : null}
+              </th>
+            ) : c.key === "tags" ? (
+              <th key="tags" scope="col">
+                태그
+              </th>
+            ) : (
+              sortHeader(c.key, c.label)
+            )
+          )}
         </tr>
       </thead>
 
@@ -1785,21 +2431,55 @@ export default function StudentsTable({
               onClick={() => onRowClick(s.id)}
               tabIndex={0}
               role="button"
-              className="group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
+              className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
             >
-              {/* 이름 */}
+              {/* 체크박스 */}
+              <td onClick={(e) => e.stopPropagation()} style={{ width: 48 }} className="ds-checkbox-cell">
+                {onSelectionChange ? (
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(s.id)}
+                    onChange={() => toggleSelect(s.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`${s.name} 선택`}
+                    className="cursor-pointer"
+                  />
+                ) : null}
+              </td>
+              {/* 이름 + 강의 아이콘 */}
               <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
-                {highlight(s.name || "-", search)}
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  {Array.isArray(s.enrollments) && s.enrollments.length > 0 ? (
+                    <span className="inline-flex items-center gap-1 flex-shrink-0">
+                      {s.enrollments.slice(0, 3).map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => (
+                        <LectureChip
+                          key={en.id}
+                          lectureName={en.lectureName || "??"}
+                          color={en.lectureColor || DEFAULT_LECTURE_COLOR}
+                        />
+                      ))}
+                      {s.enrollments.length > 3 && (
+                        <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
+                          +{s.enrollments.length - 3}
+                        </span>
+                      )}
+                    </span>
+                  ) : null}
+                  <span className="truncate">{highlight(s.name || "-", search)}</span>
+                </span>
               </td>
 
               {/* 학생 전화 */}
               <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
-                {highlight(formatPhone(s.studentPhone), search)}
+                {highlight(
+                  formatStudentPhoneDisplay(s.studentPhone),
+                  search
+                )}
               </td>
 
               {/* 학부모 전화 */}
               <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
-                {highlight(s.parentPhone || "-", search)}
+                {highlight(formatPhone(s.parentPhone), search)}
               </td>
 
               {/* 학교 */}
@@ -1812,43 +2492,539 @@ export default function StudentsTable({
                 {s.schoolClass || "-"}
               </td>
 
-              {/* 등록일 */}
+              {/* 등록일 / 삭제일 */}
               <td className="text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
-                {s.registeredAt?.slice(0, 10) || "-"}
+                {(isDeletedTab ? s.deletedAt : s.registeredAt)?.slice(0, 10) || "-"}
+              </td>
+
+              {/* 태그 */}
+              <td className="text-[12px] leading-5">
+                {Array.isArray(s.tags) && s.tags.length > 0 ? (
+                  <span className="flex flex-wrap gap-1">
+                    {s.tags.slice(0, 3).map((t: { id: number; name: string; color: string }) => (
+                      <span
+                        key={t.id}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold truncate max-w-[70px]"
+                        style={{
+                          backgroundColor: t.color ? `${t.color}22` : "var(--color-bg-surface-soft)",
+                          color: t.color || "var(--color-text-secondary)",
+                          border: t.color ? `1px solid ${t.color}44` : undefined,
+                        }}
+                        title={t.name}
+                      >
+                        {t.name}
+                      </span>
+                    ))}
+                    {s.tags.length > 3 && (
+                      <span className="text-[11px] text-[var(--color-text-muted)]">
+                        +{s.tags.length - 3}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">-</span>
+                )}
               </td>
 
               {/* 상태 */}
-              <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                <span
-                  style={{
-                    padding: "5px 12px",
-                    borderRadius: 999,
-                    fontWeight: 800,
-                    fontSize: 12,
-                    color: "white",
-                    backgroundColor: s.active ? "#22c55e" : "#ef4444",
-                  }}
-                >
-                  {s.active ? "활성" : "비활성"}
-                </span>
-              </td>
-
-              {/* 작업 */}
-              <td onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-center gap-2">
-                  <Button intent="primary" size="sm" onClick={() => onEditClick(s.id)}>
-                    수정
-                  </Button>
-                  <Button intent="danger" size="sm" onClick={() => onDelete(s.id)}>
-                    삭제
-                  </Button>
-                </div>
-              </td>
+              {!isDeletedTab && (
+                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <span
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 999,
+                      fontWeight: 800,
+                      fontSize: 11,
+                      color: "white",
+                      backgroundColor: s.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                    }}
+                  >
+                    {s.active ? "활성" : "비활성"}
+                  </span>
+                </td>
+              )}
             </tr>
           ))}
       </tbody>
     </DomainTable>
+    </div>
   );
+}
+
+
+==========================================================================================
+# FILE: components/TagCreateModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/TagCreateModal.tsx
+// 태그 생성 모달 — 이름 + 색상
+
+import { useState, useEffect } from "react";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
+import { createTag } from "../api/students";
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: (tag: { id: number; name: string; color: string }) => void;
+  /** 이미 사용 중인 색상 — 기본값이 이들과 최대한 차이나도록 선택됨 */
+  usedColors?: string[];
+};
+
+export default function TagCreateModal({
+  open,
+  onClose,
+  onSuccess,
+  usedColors = [],
+}: Props) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(() => getDefaultColorForPicker(usedColors));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setColor(getDefaultColorForPicker(usedColors));
+    setBusy(false);
+    setError(null);
+  }, [open, usedColors]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  async function handleSubmit() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("태그 이름을 입력하세요.");
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      const tag = await createTag(trimmed, color);
+      onSuccess(tag);
+      onClose();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.name?.[0] ||
+        err?.response?.data?.detail ||
+        "태그 생성에 실패했습니다.";
+      setError(typeof msg === "string" ? msg : "태그 생성에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminModal open={open} onClose={onClose} width={400}>
+      <ModalHeader
+        title="태그 생성"
+        description="이름과 색상을 정하면 꼬리표처럼 학생에 붙습니다."
+      />
+      <ModalBody>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--color-text-muted)",
+                marginBottom: 8,
+                letterSpacing: "0.04em",
+              }}
+            >
+              태그 이름
+            </label>
+            <input
+              type="text"
+              className="ds-input w-full"
+              placeholder="예: VIP, 재수생, 수학반"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setError(null);
+              }}
+              maxLength={50}
+              style={{ fontSize: 14 }}
+              autoFocus
+            />
+            {error && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color: "var(--color-error)",
+                  fontWeight: 600,
+                }}
+              >
+                {error}
+              </div>
+            )}
+          </div>
+
+          <ColorPickerField label="색상" value={color} onChange={setColor} disabled={busy} />
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="ghost" size="sm" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={busy || !name.trim()}
+            >
+              {busy ? "생성 중…" : "생성 후 붙이기"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: excel/studentExcel.ts
+==========================================================================================
+// PATH: src/features/students/excel/studentExcel.ts
+// 학생 일괄 등록 엑셀 — 양식 다운로드 / 파싱
+
+import * as XLSX from "xlsx";
+import * as XLSXStyle from "xlsx-js-style";
+
+/** 엑셀 양식 컬럼 — 구분(예시여부), 필수 우선, 선택옵션 뒤로 */
+export const EXCEL_HEADERS = [
+  { key: "remark", label: "구분", required: false },
+  { key: "name", label: "이름", required: true },
+  { key: "parentPhone", label: "학부모전화번호", required: true },
+  { key: "studentPhone", label: "학생전화번호", required: false },
+  { key: "gender", label: "성별", required: false },
+  { key: "schoolType", label: "학교유형", required: false },
+  { key: "school", label: "학교", required: false },
+  { key: "grade", label: "학년", required: false },
+  { key: "schoolClass", label: "반", required: false },
+  { key: "major", label: "계열", required: false },
+  { key: "memo", label: "메모", required: false },
+] as const;
+
+export type ExcelRowKey = Exclude<(typeof EXCEL_HEADERS)[number]["key"], "remark">;
+
+export interface ParsedStudentRow {
+  name: string;
+  gender: string;
+  studentPhone: string;
+  parentPhone: string;
+  /** 학생 전화가 없어 식별자(010+8자리)로 대체한 경우 true */
+  usesIdentifier?: boolean;
+  schoolType: "HIGH" | "MIDDLE";
+  school: string;
+  grade: string;
+  schoolClass: string;
+  major: string;
+  memo: string;
+}
+
+/** 전화번호에서 숫자만 추출 (01012345678) */
+function toRawPhone(v: unknown): string {
+  const s = String(v ?? "").replace(/\D/g, "");
+  return s;
+}
+
+/**
+ * 학원별 양식 대응 — 헤더 별칭 매핑
+ * 각 필드에 매칭 가능한 대체 라벨 목록
+ */
+const HEADER_ALIASES: Record<string, readonly string[]> = {
+  remark: ["구분", "체크"],
+  name: ["이름", "성명", "학생명"],
+  studentPhone: ["학생전화번호", "학생핸드폰", "학생 전화번호", "학생 전화", "학생연락처"],
+  parentPhone: ["학부모전화번호", "부모핸드폰", "부모 전화", "학부모 전화", "보호자 전화", "보호자전화"],
+  gender: ["성별"],
+  schoolType: ["학교유형"],
+  school: ["학교", "학교(학년)", "학교명"], // 학교(학년) = 학교+학년 합쳐진 컬럼
+  grade: ["학년"],
+  schoolClass: ["반"],
+  major: ["계열"],
+  memo: ["메모"],
+};
+
+function normalizeHeader(s: string): string {
+  return String(s ?? "").trim().replace(/\s/g, "");
+}
+
+/** 헤더 라벨이 특정 필드에 매칭되는지 확인 */
+function headerMatches(label: string, key: string): boolean {
+  const normalized = normalizeHeader(label);
+  const aliases = HEADER_ALIASES[key];
+  if (!aliases) return false;
+  const labels = EXCEL_HEADERS.filter((h) => h.key === key).map((h) => h.label);
+  const allLabels = [...new Set([...aliases, ...labels])];
+  return allLabels.some((a) => normalizeHeader(a) === normalized);
+}
+
+/** 헤더 인덱스 매핑 (첫 행 기준) — 별칭 포함 */
+function buildHeaderMap(headers: string[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  headers.forEach((h, i) => {
+    const label = String(h ?? "").trim();
+    if (!label) return;
+    for (const key of Object.keys(HEADER_ALIASES) as (keyof typeof HEADER_ALIASES)[]) {
+      if (headerMatches(label, key) && map[key] === undefined) {
+        map[key] = i;
+        break;
+      }
+    }
+  });
+  return map;
+}
+
+/** 셀 값 → 문자열 */
+function cellStr(map: Record<string, number>, row: unknown[], key: ExcelRowKey): string {
+  const i = map[key];
+  if (i == null) return "";
+  const v = row[i];
+  return String(v ?? "").trim();
+}
+
+/**
+ * "학교(학년)" 형식 파싱 — 예: 숙명여고(０), 휘문중(3)
+ * 전각 숫자 ０→0 변환, 학교명과 학년 분리
+ */
+function parseSchoolGrade(value: string): { school: string; grade: string } {
+  const s = String(value ?? "").trim();
+  if (!s) return { school: "", grade: "" };
+  const m = s.match(/^(.+?)\(([０-９0-9]+)\)\s*$/);
+  if (!m) return { school: s, grade: "" };
+  const school = m[1].trim();
+  const gradeFullwidth = m[2].replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+  const grade = gradeFullwidth.replace(/\D/g, "") || "";
+  return { school, grade };
+}
+
+/** 학교명에서 학교유형 추론 (여고/부고/고→HIGH, 중→MIDDLE) */
+function inferSchoolType(school: string): "HIGH" | "MIDDLE" {
+  const s = school.trim();
+  if (/(중학교|중등|중\b)/.test(s)) return "MIDDLE";
+  if (/(여고|부고|고등|고등학교)/.test(s)) return "HIGH";
+  return "HIGH";
+}
+
+const GREEN_FILL = { patternType: "solid" as const, fgColor: { rgb: "FF92D050" } };
+const YELLOW_FILL = { patternType: "solid" as const, fgColor: { rgb: "FFFFDE99" } };
+const MUTED_FONT = { font: { sz: 11, color: { rgb: "FF666666" } } };
+
+/**
+ * 엑셀 양식 다운로드 — 상단 안내문, 필수 컬럼 초록색, 예시 노란색, 성별/학교유형 선택지
+ */
+export function downloadStudentExcelTemplate() {
+  const wb = XLSXStyle.utils.book_new();
+  const headers = EXCEL_HEADERS.map((h) => h.label);
+  const exampleRow1 = [
+    "예시(등록안됨)",
+    "홍길동",
+    "01087654321",
+    "01012345678",
+    "M",
+    "HIGH",
+    "OO고등학교",
+    "1",
+    "1",
+    "인문계",
+    "",
+  ];
+  const exampleRow2 = [
+    "예시(등록안됨)",
+    "김영희",
+    "01011112222",
+    "01098765432",
+    "F",
+    "MIDDLE",
+    "OO중학교",
+    "2",
+    "3",
+    "",
+    "",
+  ];
+
+  const instructionRow1 = [
+    "◆ 필수 입력(초록색): 이름, 학부모전화번호. 학생전화번호는 선택(비워두면 학부모 전화 뒤 8자리로 OMR 식별). 아이디는 6자리 숫자로 자동 부여됩니다.",
+  ];
+  const instructionRow2 = [
+    "◆ 양식 규칙: 학부모전화번호·학생전화번호 010XXXXXXXX 11자리, 성별(M 또는 F), 학교유형(HIGH 또는 MIDDLE). 성별·학교유형은 셀 클릭 후 드롭다운에서 선택하세요.",
+  ];
+  const instructionRow3 = [
+    "◆ 양식 안 지켜도 되는 곳: 이름, 학교, 학년, 반, 계열, 메모 — 편하게 쓰시면 됩니다.",
+  ];
+  const instructionRow4 = [
+    "◆ 노란색 행(7~8행)은 예시입니다. 지우지 않아도 되고, 등록되지 않습니다. 9행부터 학생 정보를 작성하세요. 등록되는 건 헤더(6행) 아래 데이터 행들입니다.",
+  ];
+  const emptyRow: string[] = [];
+
+  const data = [
+    instructionRow1,
+    instructionRow2,
+    instructionRow3,
+    instructionRow4,
+    emptyRow,
+    headers,
+    exampleRow1,
+    exampleRow2,
+  ];
+  const sheet = XLSXStyle.utils.aoa_to_sheet(data);
+
+  // 안내문 스타일 (1~4행)
+  for (let r = 1; r <= 4; r++) {
+    const ref = "A" + r;
+    if (sheet[ref]) sheet[ref].s = MUTED_FONT;
+  }
+
+  // 필수 헤더(6행): 이름(B), 학부모전화번호(C) — 붙어있음, 초록 배경
+  const colLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  for (const c of [1, 2]) {
+    const ref = colLetters[c] + "6";
+    if (sheet[ref]) {
+      sheet[ref].s = { fill: GREEN_FILL, font: { bold: true } };
+    }
+  }
+
+  // 예시 행(7~8행) 노란색 채우기
+  for (let r = 7; r <= 8; r++) {
+    for (let c = 0; c <= 10; c++) {
+      const ref = (c < 26 ? colLetters[c] : colLetters[0] + colLetters[c - 26]) + r;
+      if (sheet[ref]) sheet[ref].s = { fill: YELLOW_FILL };
+    }
+  }
+
+  // 성별(D), 학교유형(E) 열 데이터 유효성 검사 — 7행부터
+  const dv = [
+    { sqref: "E7:E1000", type: "list" as const, formula1: '"M,F"', allowBlank: true },
+    { sqref: "F7:F1000", type: "list" as const, formula1: '"HIGH,MIDDLE"', allowBlank: true },
+  ];
+  (sheet as Record<string, unknown>)["!dataValidation"] = dv;
+
+  sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 22 : i === 1 ? 12 : 14 }));
+  XLSXStyle.utils.book_append_sheet(wb, sheet, "학생목록");
+  XLSXStyle.writeFile(wb, "학생_일괄등록_양식.xlsx");
+}
+
+/**
+ * 엑셀 파일 파싱 → ParsedStudentRow[]
+ */
+export function parseStudentExcel(file: File): Promise<ParsedStudentRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        if (!data) {
+          reject(new Error("파일을 읽을 수 없습니다."));
+          return;
+        }
+        const wb = XLSX.read(data, { type: "binary" });
+        const firstSheet = wb.Sheets[wb.SheetNames[0]];
+        if (!firstSheet) {
+          reject(new Error("시트가 없습니다."));
+          return;
+        }
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
+        if (!rows.length) {
+          reject(new Error("데이터가 없습니다."));
+          return;
+        }
+        // 헤더 행 찾기 — 이름 + (학생전화 또는 학부모전화) 포함된 첫 행
+        const hasName = (r: unknown[]) =>
+          (r || []).some((c) => headerMatches(String(c ?? ""), "name"));
+        const hasPhone = (r: unknown[]) =>
+          (r || []).some(
+            (c) => headerMatches(String(c ?? ""), "studentPhone") || headerMatches(String(c ?? ""), "parentPhone")
+          );
+        let headerRowIndex = -1;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i] as unknown[];
+          if (hasName(row) && hasPhone(row)) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+        if (headerRowIndex < 0) {
+          reject(new Error("양식이 맞지 않습니다. 이름·전화번호 컬럼이 있는 행을 찾을 수 없습니다."));
+          return;
+        }
+        const headerRow = rows[headerRowIndex] as string[];
+        const map = buildHeaderMap(headerRow);
+        const result: ParsedStudentRow[] = [];
+        const remarkVal = (m: Record<string, number>, row: unknown[]) => {
+          const i = m["remark"];
+          if (i == null || typeof i !== "number") return "";
+          return String((row as unknown[])[i] ?? "").trim();
+        };
+        for (let r = headerRowIndex + 1; r < rows.length; r++) {
+          const row = rows[r] as unknown[];
+          if (/예시/.test(remarkVal(map, row))) continue; // 예시 행 스킵
+          const name = cellStr(map, row, "name");
+          const rawStudent = toRawPhone(cellStr(map, row, "studentPhone"));
+          let studentPhone = rawStudent;
+          let parentPhone = toRawPhone(cellStr(map, row, "parentPhone"));
+          let usesIdentifier = false;
+
+          // 8자리 숫자만 있으면 식별자(010+8자리)로 해석
+          if (rawStudent.length === 8 && /^\d{8}$/.test(rawStudent)) {
+            studentPhone = `010${rawStudent}`;
+            usesIdentifier = true;
+          }
+          // 학생 전화 없을 때: 학부모 전화 8자리로 OMR 식별 (백엔드에서 처리)
+          else if (!studentPhone || studentPhone.length !== 11 || !studentPhone.startsWith("010")) {
+            if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) continue; // 학부모도 없으면 스킵
+            studentPhone = "";
+            usesIdentifier = true;
+          }
+          if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) parentPhone = studentPhone;
+          if (!name && !studentPhone) continue; // 빈 행 스킵
+
+          const schoolCell = cellStr(map, row, "school");
+          const gradeCell = cellStr(map, row, "grade");
+          const { school: parsedSchool, grade: parsedGrade } = parseSchoolGrade(schoolCell);
+          const school = parsedSchool || schoolCell; // 학교(학년) 파싱 결과 또는 원본
+          const grade = parsedGrade || gradeCell;
+          const schoolTypeRaw = cellStr(map, row, "schoolType").toUpperCase();
+          const schoolType =
+            schoolTypeRaw === "MIDDLE" ? "MIDDLE" : school ? inferSchoolType(school) : "HIGH";
+
+          result.push({
+            name,
+            gender: cellStr(map, row, "gender").toUpperCase().slice(0, 1) || "",
+            studentPhone,
+            parentPhone,
+            usesIdentifier,
+            schoolType,
+            school,
+            grade,
+            schoolClass: cellStr(map, row, "schoolClass"),
+            major: cellStr(map, row, "major"),
+            memo: cellStr(map, row, "memo"),
+          });
+        }
+        resolve(result);
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error("파일 파싱 실패"));
+      }
+    };
+    reader.onerror = () => reject(new Error("파일 읽기 실패"));
+    reader.readAsBinaryString(file);
+  });
 }
 
 
@@ -1884,19 +3060,28 @@ function compare(a: any, b: any, key: string) {
   return String(av).localeCompare(String(bv), "ko");
 }
 
-export function useStudentsQuery(search: string, filters: any, sort: string) {
-  return useQuery({
-    queryKey: ["students", search, filters, sort],
-    queryFn: async () => {
-      const data = await fetchStudents(search, filters, sort);
+const PAGE_SIZE = 50;
 
-      if (!sort) return data;
+export function useStudentsQuery(
+  search: string,
+  filters: any,
+  sort: string,
+  page: number = 1,
+  deleted: boolean = false
+) {
+  return useQuery({
+    queryKey: ["students", search, filters, sort, page, deleted],
+    queryFn: async () => {
+      const { data, count } = await fetchStudents(search, filters, sort, page, deleted);
+
+      if (!sort) return { data, count, pageSize: PAGE_SIZE };
 
       const isDesc = sort.startsWith("-");
       const key = isDesc ? sort.slice(1) : sort;
 
       const sorted = [...data].sort((a, b) => compare(a, b, key));
-      return isDesc ? sorted.reverse() : sorted;
+      const sortedData = isDesc ? sorted.reverse() : sorted;
+      return { data: sortedData, count, pageSize: PAGE_SIZE };
     },
     staleTime: 1000 * 5,
   });
@@ -1904,9 +3089,10 @@ export function useStudentsQuery(search: string, filters: any, sort: string) {
 
 
 ==========================================================================================
-# FILE: pages/StudentsDetailPage.tsx
+# FILE: overlays/StudentsDetailOverlay.tsx
 ==========================================================================================
-// PATH: src/features/students/pages/StudentsDetailPage.tsx
+// PATH: src/features/students/overlays/StudentsDetailOverlay.tsx
+// 학생 상세 오버레이 — 고급 SaaS 스타일, 기능·구성 동일
 
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -1920,12 +3106,14 @@ import {
   detachStudentTag,
   createMemo,
   deleteStudent,
+  toggleStudentActive,
 } from "../api/students";
 
 import StudentFormModal from "../components/EditStudentModal";
-import { PageHeader, Section, EmptyState, Button } from "@/shared/ui/ds";
-
-/* ================= constants ================= */
+import TagCreateModal from "../components/TagCreateModal";
+import { EmptyState, Button } from "@/shared/ui/ds";
+import { formatPhone, formatStudentPhoneDisplay, formatOmrCode } from "@/shared/utils/formatPhone";
+import { STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
 
 const TABS = [
   { key: "enroll", label: "수강 이력" },
@@ -1935,9 +3123,7 @@ const TABS = [
   { key: "schoolScore", label: "학교 성적" },
 ];
 
-/* ================= page ================= */
-
-export default function StudentsDetailPage() {
+export default function StudentsDetailOverlay() {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const id = Number(studentId);
@@ -1945,6 +3131,7 @@ export default function StudentsDetailPage() {
 
   const [tab, setTab] = useState("enroll");
   const [editOpen, setEditOpen] = useState(false);
+  const [tagCreateOpen, setTagCreateOpen] = useState(false);
 
   const { data: student, isLoading } = useQuery({
     queryKey: ["student", id],
@@ -1959,7 +3146,10 @@ export default function StudentsDetailPage() {
 
   const addTag = useMutation({
     mutationFn: (tagId: number) => attachStudentTag(id, tagId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student", id] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
+    },
   });
 
   const removeTag = useMutation({
@@ -1970,6 +3160,14 @@ export default function StudentsDetailPage() {
   const updateMemo = useMutation({
     mutationFn: (memo: string) => createMemo(id, memo),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
+  });
+
+  const toggleActive = useMutation({
+    mutationFn: (nextActive: boolean) => toggleStudentActive(id, nextActive),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student", id] });
+      qc.invalidateQueries({ queryKey: ["students"] });
+    },
   });
 
   async function handleDelete() {
@@ -1983,237 +3181,423 @@ export default function StudentsDetailPage() {
 
   return (
     <>
-      {/* backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/60" onClick={() => navigate(-1)} />
+      {/* Backdrop — 부드러운 블러 + 딤 */}
+      <div
+        className="fixed inset-0 z-40"
+        style={{
+          background: "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          transition: "opacity 0.2s ease",
+        }}
+        onClick={() => navigate(-1)}
+        aria-hidden
+      />
 
-      {/* overlay wrapper */}
+      {/* Overlay panel */}
       <div
         className="fixed inset-0 z-50 flex justify-center overflow-auto"
         style={{
-          paddingTop: "calc(var(--panel-header, 64px) + 24px)",
-          paddingBottom: 32,
+          paddingTop: "calc(var(--panel-header, 64px) + 16px)",
+          paddingBottom: 16,
+          paddingLeft: 24,
+          paddingRight: 24,
         }}
       >
         <div
-          className="w-full max-w-[1120px]"
+          className="w-full max-w-[1100px]"
           style={{
-            borderRadius: 22,
-            background: "var(--layout-page-bg)",
+            borderRadius: 24,
+            background: "var(--color-bg-surface)",
             border: "1px solid var(--color-border-divider)",
-            boxShadow: "0 40px 120px rgba(0,0,0,0.55)",
+            boxShadow:
+              "0 0 0 1px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.04), 0 12px 24px rgba(0,0,0,0.08), 0 24px 48px rgba(0,0,0,0.12)",
+            overflow: "hidden",
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {/* HEADER (GRADIENT) */}
-          <div
+          {/* Header — 프리미엄 인스펙트 스타일, 유리 질감 */}
+          <header
+            className="relative overflow-hidden"
             style={{
-              borderTopLeftRadius: 22,
-              borderTopRightRadius: 22,
               background:
-                "linear-gradient(90deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 30%, transparent) 100%), var(--color-primary)",
-              color: "white",
+                "linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface)) 50%, var(--color-bg-surface) 100%)",
+              borderBottom: "1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider))",
+              padding: "28px 32px 24px",
+              boxShadow:
+                "0 1px 0 0 color-mix(in srgb, var(--color-primary) 6%, transparent)",
             }}
           >
-            <PageHeader
-              title={
-                <div style={{ fontSize: 22, fontWeight: 950, letterSpacing: "-0.3px" }}>
-                  {student.name}
+            {/* 유리 반사 (gloss) — 상단 흰줄 없이 은은하게 */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 50%)",
+                pointerEvents: "none",
+              }}
+            />
+            {/* 질감 (노이즈) */}
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                opacity: 0.04,
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                pointerEvents: "none",
+              }}
+            />
+            <div className="relative flex items-start justify-between gap-6 flex-wrap">
+              {/* Left: 아바타 + 타이틀 블록 */}
+              <div className="flex items-center gap-4 min-w-0">
+                <div
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 14,
+                    flexShrink: 0,
+                    display: "grid",
+                    placeItems: "center",
+                    background:
+                      "linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface)), color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface)))",
+                    border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))",
+                    boxShadow:
+                      "0 2px 8px color-mix(in srgb, var(--color-primary) 12%, transparent), inset 0 1px 0 0 rgba(255,255,255,0.5)",
+                    fontSize: 18,
+                    fontWeight: 800,
+                    letterSpacing: "-0.04em",
+                    color: "var(--color-primary)",
+                  }}
+                >
+                  {student.name?.[0] ?? "?"}
                 </div>
-              }
-              description={<span style={{ opacity: 0.85 }}>아이디 · {student.psNumber}</span>}
-              actions={
-                <div className="flex items-center gap-2">
-                  <span
+                <div className="min-w-0">
+                  <h1
                     style={{
-                      padding: "4px 12px",
-                      fontSize: 12,
-                      fontWeight: 900,
-                      borderRadius: 999,
-                      color: "white",
-                      backgroundColor: student.active ? "var(--color-success)" : "var(--color-error)",
+                      fontSize: 22,
+                      fontWeight: 800,
+                      letterSpacing: "-0.03em",
+                      lineHeight: 1.2,
+                      color: "var(--color-text-primary)",
+                      margin: 0,
                     }}
                   >
-                    {student.active ? "활성" : "비활성"}
-                  </span>
-                  <Button intent="secondary" size="sm" onClick={() => setEditOpen(true)}>
+                    {student.name}
+                  </h1>
+                  <p
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "var(--color-text-muted)",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    <span style={{ opacity: 0.85 }}>아이디</span> · {student.psNumber ?? "—"}
+                    <span style={{ marginLeft: 16, opacity: 0.85 }}>시험 식별코드</span>
+                    <span
+                      style={{
+                        marginLeft: 6,
+                        fontFamily: "ui-monospace, monospace",
+                        fontWeight: 700,
+                        color: "var(--color-primary)",
+                        letterSpacing: "0.02em",
+                      }}
+                    >
+                      {formatOmrCode(student.omrCode)}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: 액션 영역 */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => toggleActive.mutate(!student.active)}
+                  disabled={toggleActive.isPending}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    borderRadius: 10,
+                    letterSpacing: "-0.01em",
+                    cursor: toggleActive.isPending ? "wait" : "pointer",
+                    color: "#fff",
+                    backgroundColor: student.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                    border: "none",
+                    transition: "all 0.15s ease",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                  }}
+                  className="hover:opacity-90 disabled:opacity-60"
+                >
+                  {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
+                </button>
+                <span
+                  style={{
+                    width: 1,
+                    height: 20,
+                    background: "var(--color-border-divider)",
+                    opacity: 0.7,
+                  }}
+                  aria-hidden
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    intent="primary"
+                    size="sm"
+                    onClick={() => setEditOpen(true)}
+                  >
                     수정
                   </Button>
-                  <Button intent="danger" size="sm" onClick={handleDelete}>
+                  <Button type="button" intent="danger" size="sm" onClick={handleDelete}>
                     삭제
                   </Button>
-                  <Button intent="ghost" size="sm" onClick={() => navigate(-1)}>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => navigate(-1)}
+                  >
                     닫기
                   </Button>
                 </div>
-              }
-            />
-          </div>
+              </div>
+            </div>
+          </header>
 
-          {/* BODY */}
-          <div className="px-6 py-6">
-            <Section>
+          {/* Body */}
+          <div style={{ padding: "28px 28px 32px" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "300px 1fr",
+                gap: 24,
+                alignItems: "start",
+              }}
+            >
+              {/* Left panel — 정보·태그·메모 */}
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "300px 1fr",
-                  gap: 20,
+                  borderRadius: 16,
+                  padding: 20,
+                  background: "var(--bg-surface-soft)",
+                  border: "1px solid var(--color-border-divider)",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 }}
               >
-                {/* LEFT PANEL */}
-                <div
-                  style={{
-                    borderRadius: 18,
-                    padding: 16,
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--color-border-divider)",
-                  }}
-                >
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <InfoRow label="학생 전화/식별자" value={student.studentPhone} accent />
-                    <InfoRow label="학부모 전화" value={student.parentPhone} />
-                    <InfoRow label="성별" value={student.gender} />
-                    <InfoRow label="학교" value={student.school} />
-                    <InfoRow
-                      label="학년"
-                      value={student.grade ? `${student.grade}학년` : "-"}
-                    />
-                    <InfoRow label="반" value={student.schoolClass} />
-                    <InfoRow label="계열" value={student.major} />
-                  </div>
-
-                  {/* TAG */}
-                  <div style={{ marginTop: 18 }}>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 900,
-                        marginBottom: 6,
-                        color: "var(--color-text-muted)",
-                      }}
-                    >
-                      태그
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {student.tags?.length ? (
-                        student.tags.map((t: any) => (
-                          <span
-                            key={t.id}
-                            style={{
-                              padding: "4px 10px",
-                              borderRadius: 999,
-                              fontSize: 11,
-                              fontWeight: 900,
-                              background: `color-mix(in srgb, ${t.color} 22%, var(--color-bg-surface))`,
-                              color: t.color,
-                              border: `1px solid ${t.color}`,
-                            }}
-                          >
-                            {t.name}
-                          </span>
-                        ))
-                      ) : (
-                        <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
-                          태그 없음
-                        </span>
-                      )}
-                    </div>
-
-                    <select
-                      className="ds-input"
-                      onChange={(e) => {
-                        const tagId = Number(e.target.value);
-                        if (tagId) addTag.mutate(tagId);
-                        e.currentTarget.value = "";
-                      }}
-                    >
-                      <option value="">태그 추가…</option>
-                      {tags?.map((tag: any) => (
-                        <option key={tag.id} value={tag.id}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* MEMO */}
-                  <div style={{ marginTop: 18 }}>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 900,
-                        marginBottom: 6,
-                        color: "var(--color-text-muted)",
-                      }}
-                    >
-                      메모
-                    </div>
-                    <textarea
-                      className="ds-textarea"
-                      rows={4}
-                      defaultValue={student.memo}
-                      placeholder="메모..."
-                      onBlur={(e) => updateMemo.mutate(e.target.value)}
-                    />
-                  </div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  <InfoRow
+                    label="학생 전화"
+                    value={formatStudentPhoneDisplay(student.studentPhone)}
+                  />
+                  <InfoRow
+                    label="시험 식별코드"
+                    value={formatOmrCode(student.omrCode)}
+                    accent
+                  />
+                  <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} />
+                  <InfoRow label="성별" value={student.gender} />
+                  <InfoRow label="학교" value={student.school} />
+                  <InfoRow
+                    label="학년"
+                    value={student.grade ? `${student.grade}학년` : "-"}
+                  />
+                  <InfoRow label="반" value={student.schoolClass} />
+                  <InfoRow label="계열" value={student.major} />
                 </div>
 
-                {/* RIGHT PANEL */}
-                <div
-                  style={{
-                    borderRadius: 18,
-                    padding: 16,
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--color-border-divider)",
-                  }}
-                >
+                <div style={{ marginTop: 20 }}>
                   <div
                     style={{
-                      display: "flex",
-                      gap: 6,
-                      padding: 6,
-                      marginBottom: 14,
-                      borderRadius: 14,
-                      background: "var(--color-bg-surface-soft)",
-                      border: "1px solid var(--color-border-divider)",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      marginBottom: 8,
+                      color: "var(--color-text-muted)",
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
                     }}
                   >
-                    {TABS.map((t) => {
-                      const active = tab === t.key;
-                      return (
-                        <button
-                          key={t.key}
-                          onClick={() => setTab(t.key)}
+                    태그
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {student.tags?.length ? (
+                      student.tags.map((t: any) => {
+                        const c = String(t.color || "").toLowerCase();
+                        const lightColors = ["#eab308", "#06b6d4"];
+                        const isLight = lightColors.some((x) => c === x);
+                        return (
+                        <span
+                          key={t.id}
+                          className="inline-flex items-center gap-1 group cursor-default"
                           style={{
-                            padding: "8px 14px",
-                            borderRadius: 12,
-                            fontSize: 13,
-                            fontWeight: 900,
-                            color: active ? "white" : "var(--color-text-secondary)",
-                            background: active ? "var(--color-primary)" : "transparent",
-                            boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+                            padding: "6px 10px 6px 12px",
+                            borderRadius: "6px 6px 6px 2px",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            background: t.color,
+                            color: isLight ? "#1a1a1a" : "#fff",
+                            border: "none",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                            textShadow: isLight ? "none" : "0 0 1px rgba(0,0,0,0.2)",
                           }}
                         >
-                          {t.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div style={{ minHeight: 260 }}>
-                    {tab === "enroll" ? (
-                      <EnrollmentsTab enrollments={student.enrollments} />
+                          {t.name}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeTag.mutate(t.id);
+                            }}
+                            disabled={removeTag.isPending}
+                            aria-label={`${t.name} 태그 제거`}
+                            style={{
+                              marginLeft: 4,
+                              padding: 0,
+                              width: 16,
+                              height: 16,
+                              borderRadius: 999,
+                              border: "none",
+                              background: "rgba(0,0,0,0.2)",
+                              color: "#fff",
+                              fontSize: 12,
+                              cursor: removeTag.isPending ? "wait" : "pointer",
+                              display: "grid",
+                              placeItems: "center",
+                              lineHeight: 1,
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                        );
+                      })
                     ) : (
-                      <EmptyState title="데이터가 없습니다." />
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "var(--color-text-muted)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        태그 없음
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      intent="primary"
+                      size="sm"
+                      onClick={() => setTagCreateOpen(true)}
+                    >
+                      + 태그 추가
+                    </Button>
+                    {tags?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id)).length > 0 && (
+                      <select
+                        className="ds-input"
+                        style={{ fontSize: 13, minWidth: 140 }}
+                        onChange={(e) => {
+                          const tagId = Number(e.target.value);
+                          if (tagId) addTag.mutate(tagId);
+                          e.currentTarget.value = "";
+                        }}
+                      >
+                        <option value="">기존 태그 선택…</option>
+                        {tags
+                          ?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id))
+                          .map((tag: any) => (
+                            <option key={tag.id} value={tag.id}>
+                              {tag.name}
+                            </option>
+                          ))}
+                      </select>
                     )}
                   </div>
                 </div>
+
+                <div style={{ marginTop: 20 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      marginBottom: 8,
+                      color: "var(--color-text-muted)",
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    메모
+                  </div>
+                  <textarea
+                    className="ds-textarea w-full"
+                    rows={4}
+                    defaultValue={student.memo}
+                    placeholder="메모..."
+                    onBlur={(e) => updateMemo.mutate(e.target.value)}
+                    style={{
+                      fontSize: 13,
+                      borderRadius: 12,
+                      border: "1px solid var(--color-border-divider)",
+                    }}
+                  />
+                </div>
               </div>
-            </Section>
+
+              {/* Right panel — 탭 + 콘텐츠 */}
+              <div
+                style={{
+                  borderRadius: 16,
+                  padding: 20,
+                  background: "color-mix(in srgb, var(--color-primary) 4%, var(--bg-surface-soft))",
+                  border: "1px solid var(--color-border-divider)",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    padding: 6,
+                    marginBottom: 16,
+                    borderRadius: 12,
+                    background: "var(--color-bg-surface)",
+                    border: "1px solid var(--color-border-divider)",
+                  }}
+                >
+                  {TABS.map((t) => {
+                    const active = tab === t.key;
+                    return (
+                      <Button
+                        key={t.key}
+                        type="button"
+                        intent={active ? "primary" : "ghost"}
+                        size="sm"
+                        onClick={() => setTab(t.key)}
+                      >
+                        {t.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ minHeight: 260 }}>
+                  {tab === "enroll" ? (
+                    <EnrollmentsTab enrollments={student.enrollments} />
+                  ) : (
+                    <EmptyState title="데이터가 없습니다." />
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 🔧 수정 버튼 모달 포탈 */}
       {editOpen &&
         createPortal(
           <StudentFormModal
@@ -2227,11 +3611,23 @@ export default function StudentsDetailPage() {
           />,
           document.body
         )}
+
+      {tagCreateOpen &&
+        createPortal(
+          <TagCreateModal
+            open={true}
+            onClose={() => setTagCreateOpen(false)}
+            onSuccess={(tag) => {
+              addTag.mutate(tag.id);
+              setTagCreateOpen(false);
+            }}
+            usedColors={tags?.map((t: any) => t.color).filter(Boolean) ?? []}
+          />,
+          document.body
+        )}
     </>
   );
 }
-
-/* ================= sub ================= */
 
 function InfoRow({
   label,
@@ -2248,17 +3644,33 @@ function InfoRow({
         display: "grid",
         gridTemplateColumns: "1fr auto",
         alignItems: "center",
-        padding: "8px 10px",
-        borderRadius: 12,
+        padding: "10px 12px",
+        borderRadius: 10,
         background: accent
-          ? "color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface))"
+          ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))"
           : "var(--color-bg-surface)",
         border: "1px solid var(--color-border-divider)",
-        fontSize: 12,
+        fontSize: 13,
       }}
     >
-      <span style={{ fontWeight: 800, color: "var(--color-text-muted)" }}>{label}</span>
-      <span style={{ fontWeight: 950, color: "var(--color-text-primary)" }}>{value || "-"}</span>
+      <span
+        style={{
+          fontWeight: 600,
+          color: "var(--color-text-muted)",
+          fontSize: 12,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontWeight: 700,
+          color: "var(--color-text-primary)",
+          textAlign: "right",
+        }}
+      >
+        {value || "-"}
+      </span>
     </div>
   );
 }
@@ -2272,13 +3684,15 @@ function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
         <div
           key={en.id}
           style={{
-            padding: "12px 14px",
-            borderRadius: 14,
+            padding: "14px 16px",
+            borderRadius: 12,
             background: "var(--color-bg-surface)",
             border: "1px solid var(--color-border-divider)",
             fontSize: 13,
-            fontWeight: 900,
+            fontWeight: 700,
+            transition: "border-color 0.15s, box-shadow 0.15s",
           }}
+          className="hover:border-[var(--color-primary)]/30 hover:shadow-sm"
         >
           {en.lectureName || "-"}
         </div>
@@ -2292,21 +3706,32 @@ function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
 # FILE: pages/StudentsHomePage.tsx
 ==========================================================================================
 // PATH: src/features/students/pages/StudentsHomePage.tsx
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
+const STORAGE_KEY = "students-selected-ids";
+
 import { useStudentsQuery } from "../hooks/useStudentsQuery";
+import {
+  bulkDeleteStudents,
+  bulkRestoreStudents,
+  bulkPermanentDeleteStudents,
+} from "../api/students";
 import StudentsTable from "../components/StudentsTable";
 import StudentCreateModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
-import DeleteConfirmModal from "../components/DeleteConfirmModal";
 
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { DomainListToolbar } from "@/shared/ui/domain";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function StudentsHomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
+
+  const isDeletedTab = location.pathname.includes("/deleted");
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -2314,53 +3739,272 @@ export default function StudentsHomePage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [sort, setSort] = useState("-registeredAt");
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<number[]>(() => {
+    try {
+      const k = `${STORAGE_KEY}-${isDeletedTab ? "deleted" : "home"}`;
+      const v = sessionStorage.getItem(k);
+      if (v) {
+        const arr = JSON.parse(v);
+        return Array.isArray(arr) ? arr.filter((x) => typeof x === "number") : [];
+      }
+    } catch {}
+    return [];
+  });
+  const [deleting, setDeleting] = useState(false);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState<{ current: number; total: number } | null>(null);
+
+  useEffect(() => {
+    setSort(isDeletedTab ? "-deletedAt" : "-registeredAt");
+  }, [isDeletedTab]);
+
+  const prevTabRef = useRef(isDeletedTab);
+  useEffect(() => {
+    if (prevTabRef.current !== isDeletedTab) {
+      prevTabRef.current = isDeletedTab;
+      setSelectedIds([]);
+    }
+  }, [isDeletedTab]);
+
+  useEffect(() => {
+    const k = `${STORAGE_KEY}-${isDeletedTab ? "deleted" : "home"}`;
+    sessionStorage.setItem(k, JSON.stringify(selectedIds));
+  }, [selectedIds, isDeletedTab]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 250);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { data, isLoading } = useStudentsQuery(search, filters, sort);
+  useEffect(() => {
+    setPage(1);
+  }, [search, filters, isDeletedTab]);
+
+  const { data: queryResult, isLoading } = useStudentsQuery(
+    search,
+    filters,
+    sort,
+    page,
+    isDeletedTab
+  );
+  const data = queryResult?.data ?? [];
+  const totalCount = queryResult?.count ?? 0;
+  const pageSize = queryResult?.pageSize ?? 50;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
   const activeFilterCount = useMemo(
     () => Object.keys(filters || {}).length,
     [filters]
   );
 
+  const selectionBar = (
+    <div className="flex flex-col gap-2">
+    <div className="flex flex-wrap items-center gap-2 pl-1">
+      <span
+        className="text-[13px] font-semibold"
+        style={{
+          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+        }}
+      >
+        {selectedIds.length}명 선택됨
+      </span>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      {!isDeletedTab && (
+        <>
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
+            메시지 발송
+          </Button>
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
+            엑셀 다운로드
+          </Button>
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("태그 추가 기능 준비 중입니다.")}>
+            태그 추가
+          </Button>
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
+            비밀번호 변경
+          </Button>
+          <Button
+            intent="danger"
+            size="sm"
+            disabled={selectedIds.length === 0 || deleting}
+            onClick={async () => {
+              if (selectedIds.length === 0) return;
+              const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
+              const parts = selected.map(
+                (s) => `${s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
+              );
+              const msg =
+                parts.length > 0
+                  ? `${parts.join(", ")}\n\n위 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
+                  : `선택한 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
+              if (!window.confirm(msg)) return;
+              setDeleting(true);
+              try {
+                const { deleted } = await bulkDeleteStudents(selectedIds);
+                setSelectedIds([]);
+                qc.invalidateQueries({ queryKey: ["students"] });
+                feedback.success(`${deleted}명 삭제되었습니다.`);
+              } catch (e: unknown) {
+                feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+              } finally {
+                setDeleting(false);
+              }
+            }}
+          >
+            {deleting ? "삭제 중…" : "삭제"}
+          </Button>
+        </>
+      )}
+      {isDeletedTab && (
+        <>
+          <Button
+            intent="primary"
+            size="sm"
+            disabled={selectedIds.length === 0 || deleting}
+            onClick={async () => {
+              if (selectedIds.length === 0) return;
+              if (!window.confirm(`선택한 ${selectedIds.length}명을 복원하시겠습니까?`)) return;
+              setDeleting(true);
+              try {
+                const { restored } = await bulkRestoreStudents(selectedIds);
+                setSelectedIds([]);
+                qc.invalidateQueries({ queryKey: ["students"] });
+                feedback.success(`${restored}명 복원되었습니다.`);
+              } catch (e: unknown) {
+                feedback.error(e instanceof Error ? e.message : "복원 중 오류가 발생했습니다.");
+              } finally {
+                setDeleting(false);
+              }
+            }}
+          >
+            {deleting ? "복원 중…" : "복원"}
+          </Button>
+          <Button
+            intent="danger"
+            size="sm"
+            disabled={selectedIds.length === 0 || deleting}
+            onClick={async () => {
+              if (selectedIds.length === 0) return;
+              if (!window.confirm(`선택한 ${selectedIds.length}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`)) return;
+              setDeleting(true);
+              try {
+                const { deleted } = await bulkPermanentDeleteStudents(selectedIds);
+                setSelectedIds([]);
+                qc.invalidateQueries({ queryKey: ["students"] });
+                feedback.success(`${deleted}명 영구 삭제되었습니다.`);
+              } catch (e: unknown) {
+                feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+              } finally {
+                setDeleting(false);
+              }
+            }}
+          >
+            {deleting ? "삭제 중…" : "즉시 삭제"}
+          </Button>
+        </>
+      )}
+    </div>
+
+    {totalPages > 1 && (
+      <div className="flex flex-wrap items-center gap-1 pl-1">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPage(p)}
+            style={{
+              minWidth: 32,
+              height: 32,
+              padding: "0 8px",
+              fontSize: 13,
+              fontWeight: page === p ? 700 : 500,
+              borderRadius: 6,
+              border: page === p ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
+              background: page === p ? "var(--state-selected-bg)" : "var(--color-bg-surface)",
+              color: page === p ? "var(--color-primary)" : "var(--color-text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+    )}
+    </div>
+  );
+
   return (
     <>
-      <div className="rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-divider)]">
-        {/* CARD HEADER */}
-        <div className="px-5 py-4 border-b border-[var(--border-divider)]">
-          <div className="text-base font-semibold mb-2">
-            학생 관리
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={isLoading ? "…" : `총 ${totalCount}명${isDeletedTab ? " (30일 후 자동 삭제)" : ""}`}
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="이름 / 아이디 / 전화번호 / 학교 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              style={{ maxWidth: 360 }}
+            />
+          }
+          filterSlot={
+            <Button intent="secondary" onClick={() => setShowFilter(true)}>
+              고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
+            </Button>
+          }
+          primaryAction={
+            !isDeletedTab ? (
+              <Button intent="primary" onClick={() => setShowCreate(true)}>
+                학생 추가
+              </Button>
+            ) : null
+          }
+          belowSlot={selectionBar}
+        />
+
+        {/* 엑셀 업로드 진행바 (모달 닫고 진행 중일 때) */}
+        {bulkUploadProgress && !showCreate && (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: "12px 16px",
+              background: "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))",
+              border: "1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border-divider))",
+              borderRadius: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  height: 8,
+                  background: "var(--color-bg-surface-soft)",
+                  borderRadius: 4,
+                  overflow: "hidden",
+                  marginBottom: 4,
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(bulkUploadProgress.current / bulkUploadProgress.total) * 100}%`,
+                    height: "100%",
+                    background: "var(--color-primary)",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)" }}>
+                학생 등록 중… {Math.round((bulkUploadProgress.current / bulkUploadProgress.total) * 100)}%
+                ({bulkUploadProgress.current}/{bulkUploadProgress.total}명)
+              </span>
+            </div>
           </div>
+        )}
 
-          <input
-            className="ds-input"
-            placeholder="이름 / 아이디 / 전화번호 / 학교 검색"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            style={{ maxWidth: 360 }}
-          />
-        </div>
-
-        {/* CARD ACTIONS */}
-        <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border-divider)]">
-          <Button intent="secondary" onClick={() => setShowFilter(true)}>
-            고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
-          </Button>
-          <Button intent="primary" onClick={() => setShowCreate(true)}>
-            학생 추가
-          </Button>
-
-          <span className="ml-auto text-sm font-semibold text-[var(--color-text-muted)]">
-            {isLoading ? "불러오는 중…" : `${data?.length ?? 0}명`}
-          </span>
-        </div>
-
-        {/* CARD BODY */}
-        <div className="p-4">
+        {/* 테이블 */}
+        <div>
           {isLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
           ) : data?.length ? (
@@ -2369,19 +4013,27 @@ export default function StudentsHomePage() {
               search={search}
               sort={sort}
               onSortChange={setSort}
-              onDelete={(id) => setDeleteId(id)}
-              onRowClick={(id) => navigate(`/admin/students/${id}`)}
+              onRowClick={(id) => !isDeletedTab && navigate(`/admin/students/${id}`)}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              isDeletedTab={isDeletedTab}
             />
           ) : (
             <EmptyState
               scope="panel"
               tone="empty"
-              title="학생이 없습니다"
-              description="학생을 등록하면 목록/검색/이력 관리가 가능합니다."
+              title={isDeletedTab ? "삭제된 학생이 없습니다" : "학생이 없습니다"}
+              description={
+                isDeletedTab
+                  ? "삭제한 학생은 30일간 여기에 보관됩니다."
+                  : "학생을 등록하면 목록/검색/이력 관리가 가능합니다."
+              }
               actions={
-                <Button intent="primary" onClick={() => setShowCreate(true)}>
-                  학생 추가
-                </Button>
+                !isDeletedTab ? (
+                  <Button intent="primary" onClick={() => setShowCreate(true)}>
+                    학생 추가
+                  </Button>
+                ) : undefined
               }
             />
           )}
@@ -2394,8 +4046,10 @@ export default function StudentsHomePage() {
         onClose={() => setShowCreate(false)}
         onSuccess={() => {
           setShowCreate(false);
+          setBulkUploadProgress(null);
           qc.invalidateQueries({ queryKey: ["students"] });
         }}
+        onBulkProgress={setBulkUploadProgress}
       />
 
       <StudentFilterModal
@@ -2407,18 +4061,6 @@ export default function StudentsHomePage() {
           setShowFilter(false);
         }}
       />
-
-      {deleteId != null && (
-        <DeleteConfirmModal
-          open
-          id={deleteId}
-          onClose={() => setDeleteId(null)}
-          onSuccess={() => {
-            setDeleteId(null);
-            qc.invalidateQueries({ queryKey: ["students"] });
-          }}
-        />
-      )}
     </>
   );
 }

@@ -1,10 +1,11 @@
 import api from "@/shared/api/axios";
+import type { SubmissionStatus } from "../types";
 
 export type SubmissionRow = {
   id: number;
   enrollment_id: number;
   student_name: string;
-  status: "pending" | "processing" | "done" | "failed";
+  status: SubmissionStatus;
   score: number | null;
   created_at: string;
 };

@@ -2,7 +2,6 @@
 // 학생 일괄 등록 엑셀 — 양식 다운로드 / 파싱
 
 import * as XLSX from "xlsx";
-import * as XLSXStyle from "xlsx-js-style";
 
 /** 엑셀 양식 컬럼 — 구분(예시여부), 필수 우선, 선택옵션 뒤로 */
 export const EXCEL_HEADERS = [
@@ -121,15 +120,11 @@ function inferSchoolType(school: string): "HIGH" | "MIDDLE" {
   return "HIGH";
 }
 
-const GREEN_FILL = { patternType: "solid" as const, fgColor: { rgb: "FF92D050" } };
-const YELLOW_FILL = { patternType: "solid" as const, fgColor: { rgb: "FFFFDE99" } };
-const MUTED_FONT = { font: { sz: 11, color: { rgb: "FF666666" } } };
-
 /**
- * 엑셀 양식 다운로드 — 상단 안내문, 필수 컬럼 초록색, 예시 노란색, 성별/학교유형 선택지
+ * 엑셀 양식 다운로드 — 상단 안내문, 헤더, 예시 행 (xlsx 패키지로 동작 보장)
  */
 export function downloadStudentExcelTemplate() {
-  const wb = XLSXStyle.utils.book_new();
+  const wb = XLSX.utils.book_new();
   const headers = EXCEL_HEADERS.map((h) => h.label);
   const exampleRow1 = [
     "예시(등록안됨)",
@@ -159,16 +154,13 @@ export function downloadStudentExcelTemplate() {
   ];
 
   const instructionRow1 = [
-    "◆ 필수 입력(초록색): 이름, 학부모전화번호. 학생전화번호는 선택(비워두면 학부모 전화 뒤 8자리로 OMR 식별). 아이디는 6자리 숫자로 자동 부여됩니다.",
+    "◆ 필수 입력: 이름, 학부모전화번호. 학생전화번호는 선택(비워두면 학부모 전화 뒤 8자리로 OMR 식별). 아이디는 6자리 숫자로 자동 부여됩니다.",
   ];
   const instructionRow2 = [
-    "◆ 양식 규칙: 학부모전화번호·학생전화번호 010XXXXXXXX 11자리, 성별(M 또는 F), 학교유형(HIGH 또는 MIDDLE). 성별·학교유형은 셀 클릭 후 드롭다운에서 선택하세요.",
+    "◆ 양식 규칙: 학부모전화번호·학생전화번호 010XXXXXXXX 11자리, 성별(M 또는 F), 학교유형(HIGH 또는 MIDDLE). 학교 비우면 비움, XX중/XX고 적으면 자동 반영.",
   ];
   const instructionRow3 = [
-    "◆ 양식 안 지켜도 되는 곳: 이름, 학교, 학년, 반, 계열, 메모 — 편하게 쓰시면 됩니다.",
-  ];
-  const instructionRow4 = [
-    "◆ 노란색 행(7~8행)은 예시입니다. 지우지 않아도 되고, 등록되지 않습니다. 9행부터 학생 정보를 작성하세요. 등록되는 건 헤더(6행) 아래 데이터 행들입니다.",
+    "◆ 7~8행은 예시입니다. 9행부터 학생 정보를 작성하세요.",
   ];
   const emptyRow: string[] = [];
 
@@ -176,47 +168,15 @@ export function downloadStudentExcelTemplate() {
     instructionRow1,
     instructionRow2,
     instructionRow3,
-    instructionRow4,
     emptyRow,
     headers,
     exampleRow1,
     exampleRow2,
   ];
-  const sheet = XLSXStyle.utils.aoa_to_sheet(data);
-
-  // 안내문 스타일 (1~4행)
-  for (let r = 1; r <= 4; r++) {
-    const ref = "A" + r;
-    if (sheet[ref]) sheet[ref].s = MUTED_FONT;
-  }
-
-  // 필수 헤더(6행): 이름(B), 학부모전화번호(C) — 붙어있음, 초록 배경
-  const colLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  for (const c of [1, 2]) {
-    const ref = colLetters[c] + "6";
-    if (sheet[ref]) {
-      sheet[ref].s = { fill: GREEN_FILL, font: { bold: true } };
-    }
-  }
-
-  // 예시 행(7~8행) 노란색 채우기
-  for (let r = 7; r <= 8; r++) {
-    for (let c = 0; c <= 10; c++) {
-      const ref = (c < 26 ? colLetters[c] : colLetters[0] + colLetters[c - 26]) + r;
-      if (sheet[ref]) sheet[ref].s = { fill: YELLOW_FILL };
-    }
-  }
-
-  // 성별(D), 학교유형(E) 열 데이터 유효성 검사 — 7행부터
-  const dv = [
-    { sqref: "E7:E1000", type: "list" as const, formula1: '"M,F"', allowBlank: true },
-    { sqref: "F7:F1000", type: "list" as const, formula1: '"HIGH,MIDDLE"', allowBlank: true },
-  ];
-  (sheet as Record<string, unknown>)["!dataValidation"] = dv;
-
+  const sheet = XLSX.utils.aoa_to_sheet(data);
   sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 22 : i === 1 ? 12 : 14 }));
-  XLSXStyle.utils.book_append_sheet(wb, sheet, "학생목록");
-  XLSXStyle.writeFile(wb, "학생_일괄등록_양식.xlsx");
+  XLSX.utils.book_append_sheet(wb, sheet, "학생목록");
+  XLSX.writeFile(wb, "학생_일괄등록_양식.xlsx");
 }
 
 /**

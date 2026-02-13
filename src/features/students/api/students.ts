@@ -158,15 +158,22 @@ export async function fetchStudents(
 ): Promise<{ data: ReturnType<typeof mapStudent>[]; count: number }> {
   const ordering = buildOrdering(sort);
 
-  const params: any = {
+  const params: Record<string, unknown> = {
     search: search || undefined,
     ...filters,
     ordering: ordering || undefined,
     page,
     deleted: deleted ? "true" : undefined,
   };
+  // 목록 필터: 백엔드에 반드시 전달 (school_type, grade)
+  if (filters.school_type != null && String(filters.school_type).trim() !== "") {
+    params.school_type = filters.school_type;
+  }
+  if (filters.grade != null && Number.isInteger(Number(filters.grade))) {
+    params.grade = Number(filters.grade);
+  }
 
-  const res = await api.get("/students/", { params });
+  const res = await api.get("/students/", { params: params as any });
 
   const items = Array.isArray(res.data?.results)
     ? res.data.results

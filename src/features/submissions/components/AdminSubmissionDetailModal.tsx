@@ -60,7 +60,14 @@ export default function AdminSubmissionDetailModal({
         </div>
 
         <div className="p-4 space-y-4">
-          <SubmissionStatusBadge status={submission.status} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <SubmissionStatusBadge status={submission.status} />
+            {(submission.meta?.manual_review?.required || submission.meta?.ai_result?.result?.flags?.review_candidate) && (
+              <span className="inline-flex items-center rounded-full border border-amber-700 bg-amber-950/50 px-2 py-1 text-xs text-amber-200">
+                검토 후보
+              </span>
+            )}
+          </div>
 
           {submission.meta?.manual_review?.required && (
             <>
@@ -97,13 +104,13 @@ export default function AdminSubmissionDetailModal({
             </>
           )}
 
-          {submission.status === "failed" && (
+          {(submission.status === "failed" || submission.status === "needs_identification") && (
             <Button type="button" intent="secondary" size="md" onClick={() => retryAnySubmission(submissionId)}>
-              다시 처리
+              {submission.status === "needs_identification" ? "식별 확인 후 재채점" : "다시 처리"}
             </Button>
           )}
 
-          {submission.status === "done" && onGoResults && (
+          {(submission.status === "done" || submission.status === "answers_ready") && onGoResults && (
             <Button type="button" intent="primary" size="md" onClick={() => onGoResults(submission.target_id)}>
               결과 보기
             </Button>

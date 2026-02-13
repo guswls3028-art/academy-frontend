@@ -495,7 +495,7 @@ export default function ReportsPage() {
 // PATH: src/features/materials/sheets/SheetsListPage.tsx
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Section, Panel, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState, Panel, Section } from "@/shared/ui/ds";
 import { listSheetsApi, type SheetEntity } from "./sheets.api";
 import { SheetsEditorModal } from "./components/editor/SheetsEditorModal";
 import { SheetsCreateModal } from "./components/SheetsCreateModal";
@@ -524,12 +524,9 @@ export default function SheetsListPage() {
               </div>
             </div>
 
-            <button
-              className="btn-primary"
-              onClick={() => setCreateOpen(true)}
-            >
+            <Button type="button" intent="primary" size="md" onClick={() => setCreateOpen(true)}>
               + 시험지 생성
-            </button>
+            </Button>
           </div>
 
           {items.length === 0 && !sheetsQ.isLoading && (
@@ -554,12 +551,9 @@ export default function SheetsListPage() {
                     <td>#{s.id}</td>
                     <td>{s.title}</td>
                     <td>
-                      <button
-                        className="btn"
-                        onClick={() => setEditingId(s.id)}
-                      >
+                      <Button type="button" intent="secondary" size="sm" onClick={() => setEditingId(s.id)}>
                         편집
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -1004,6 +998,7 @@ export default function OmrTemplateModal({
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import { createSheetApi, type SheetEntity } from "../sheets.api";
 
 type Props = {
@@ -1066,7 +1061,7 @@ export function SheetsCreateModal({ open, onClose, onCreated }: Props) {
       >
         <div className="px-4 py-3 border-b flex justify-between items-center">
           <div className="font-semibold">시험지 생성</div>
-          <button className="btn" onClick={onClose}>닫기</button>
+          <Button type="button" intent="ghost" size="sm" onClick={onClose}>닫기</Button>
         </div>
 
         <div className="p-4 space-y-4">
@@ -1086,25 +1081,29 @@ export function SheetsCreateModal({ open, onClose, onCreated }: Props) {
 
           <div className="flex gap-2">
             {QUESTION_COUNTS.map((qc) => (
-              <button
+              <Button
                 key={qc}
-                className={`btn ${questionCount === qc ? "bg-black text-white" : ""}`}
+                type="button"
+                intent={questionCount === qc ? "primary" : "secondary"}
+                size="sm"
                 onClick={() => setQuestionCount(qc)}
               >
                 {qc}
-              </button>
+              </Button>
             ))}
           </div>
 
           <div className="flex justify-end gap-2">
-            <button className="btn" onClick={onClose}>취소</button>
-            <button
-              className="btn-primary"
+            <Button type="button" intent="secondary" size="md" onClick={onClose}>취소</Button>
+            <Button
+              type="button"
+              intent="primary"
+              size="md"
               disabled={!canCreate || createMut.isPending}
               onClick={() => createMut.mutate()}
             >
               {createMut.isPending ? "생성 중..." : "생성"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -1582,6 +1581,7 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
 // FILE: src/features/materials/sheets/components/editor/SheetsEditorModal.tsx
 // ======================================================================================
 import { createPortal } from "react-dom";
+import { Button } from "@/shared/ui/ds";
 import SheetsEditorBody from "./SheetsEditorBody";
 
 export function SheetsEditorModal({
@@ -1605,9 +1605,9 @@ export function SheetsEditorModal({
       <div className="absolute inset-4 lg:inset-8 bg-[var(--bg-page)] rounded-2xl overflow-hidden flex flex-col border shadow-2xl">
         <div className="px-4 py-3 border-b bg-[var(--bg-surface)] flex items-center justify-between">
           <div className="text-sm font-extrabold">시험지 상품 제작실</div>
-          <button className="btn" onClick={onClose}>
+          <Button type="button" intent="ghost" size="sm" onClick={onClose}>
             닫기
-          </button>
+          </Button>
         </div>
         <div className="flex-1 overflow-auto">
           <SheetsEditorBody sheetId={sheetId} />
@@ -1629,7 +1629,7 @@ export function SheetsEditorModal({
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import {
   listExamSubmissionsApi,
@@ -1707,9 +1707,9 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="btn" onClick={() => listQ.refetch()} disabled={listQ.isFetching}>
+          <Button type="button" intent="secondary" size="sm" onClick={() => listQ.refetch()} disabled={listQ.isFetching}>
             {listQ.isFetching ? "갱신 중..." : "새로고침"}
-          </button>
+          </Button>
 
           <select className="input" value={filter} onChange={(e) => setFilter(e.target.value as StatusFilter)}>
             <option value="all">전체</option>
@@ -1745,18 +1745,20 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
             onChange={(e) => setBatchFiles(Array.from(e.target.files ?? []))}
           />
 
-          <button
-            className="btn-primary"
+          <Button
+            type="button"
+            intent="primary"
+            size="md"
             disabled={batchMut.isPending || (batchFiles?.length ?? 0) === 0}
             onClick={() => batchMut.mutate()}
           >
             {batchMut.isPending ? "업로드 중..." : `업로드 (${batchFiles.length})`}
-          </button>
+          </Button>
 
           {(batchFiles?.length ?? 0) > 0 && (
-            <button type="button" className="btn" onClick={() => setBatchFiles([])} disabled={batchMut.isPending}>
+            <Button type="button" intent="secondary" size="md" onClick={() => setBatchFiles([])} disabled={batchMut.isPending}>
               선택 해제
-            </button>
+            </Button>
           )}
         </div>
 
@@ -1844,6 +1846,7 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import { manualEditSubmissionApi } from "./submissions.api";
 
@@ -1919,9 +1922,9 @@ export default function SubmissionManualEditModal({
             </div>
           </div>
 
-          <button className="btn" onClick={onClose} disabled={mut.isPending}>
+          <Button type="button" intent="ghost" size="sm" onClick={onClose} disabled={mut.isPending}>
             닫기
-          </button>
+          </Button>
         </div>
 
         <div className="p-6 space-y-6">
@@ -1990,9 +1993,10 @@ export default function SubmissionManualEditModal({
                           />
                         </td>
                         <td className="text-right">
-                          <button
+                          <Button
                             type="button"
-                            className="btn"
+                            intent="ghost"
+                            size="sm"
                             onClick={() =>
                               setLocalAnswers((prev) => {
                                 const next = { ...prev };
@@ -2002,7 +2006,7 @@ export default function SubmissionManualEditModal({
                             }
                           >
                             지우기
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -2023,16 +2027,18 @@ export default function SubmissionManualEditModal({
           </div>
 
           <div className="flex items-center justify-end gap-2">
-            <button className="btn" onClick={onClose} disabled={mut.isPending}>
+            <Button type="button" intent="secondary" size="md" onClick={onClose} disabled={mut.isPending}>
               취소
-            </button>
-            <button
-              className="btn-primary"
+            </Button>
+            <Button
+              type="button"
+              intent="primary"
+              size="md"
               disabled={mut.isPending}
               onClick={() => mut.mutate()}
             >
               {mut.isPending ? "저장 중..." : "저장 및 채점 재개"}
-            </button>
+            </Button>
           </div>
 
           <div className="text-[11px] text-gray-600">
@@ -2051,6 +2057,7 @@ export default function SubmissionManualEditModal({
 ==========================================================================================
 // PATH: src/features/materials/sheets/components/submissions/SubmissionRow.tsx
 
+import { Button } from "@/shared/ui/ds";
 import type { ExamSubmissionRow } from "./submissions.api";
 
 export default function SubmissionRow({
@@ -2097,14 +2104,14 @@ export default function SubmissionRow({
       <td className="text-xs text-gray-600">{row.created_at}</td>
       <td className="text-right">
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onManualEdit}>
+          <Button type="button" intent="secondary" size="sm" onClick={onManualEdit}>
             수동 수정
-          </button>
+          </Button>
 
           {row.status === "failed" && (
-            <button type="button" className="btn" onClick={onRetry} disabled={!!retryLoading}>
+            <Button type="button" intent="secondary" size="sm" onClick={onRetry} disabled={!!retryLoading}>
               {retryLoading ? "재시도..." : "재시도"}
-            </button>
+            </Button>
           )}
         </div>
       </td>

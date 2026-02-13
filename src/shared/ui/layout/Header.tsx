@@ -218,8 +218,10 @@ function deriveCrumbs(
     return [{ label: "커뮤니티", to: "/admin/community" }];
   if (p.startsWith("/materials"))
     return [{ label: "자료실", to: "/admin/materials" }];
+  if (p.startsWith("/message"))
+    return [{ label: "메시지", to: "/admin/message" }];
   if (p.startsWith("/messages"))
-    return [{ label: "메시지", to: "/admin/messages" }];
+    return [{ label: "메시지", to: "/admin/message" }];
   if (p.startsWith("/settings"))
     return [{ label: "시스템 설정", to: "/admin/settings" }];
   if (p.startsWith("/profile"))
@@ -375,6 +377,18 @@ export default function Header() {
                 </div>
               );
             })}
+            {lecture && (lid > 0) && (
+              <div
+                className="app-header__crumb app-header__crumb--muted"
+                style={{ marginLeft: 8, paddingLeft: 8, borderLeft: "1px solid var(--color-border-divider)" }}
+                title="현재 컨텍스트"
+              >
+                <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                  현재: {lecture.title ?? "강의"}
+                  {session && sid > 0 ? ` · ${session.title ?? "차시"}` : ""}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

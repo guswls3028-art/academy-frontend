@@ -1,9 +1,9 @@
 // PATH: src/features/lectures/pages/sessions/LectureSessionsPage.tsx
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchSessions } from "../../api/sessions";
+import { fetchSessions, type Session } from "../../api/sessions";
 import SessionCreateModal from "../../components/SessionCreateModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
@@ -17,46 +17,70 @@ export default function LectureSessionsPage() {
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  const { data: sessions = [], isLoading, isError } = useQuery({
+  const { data: sessions = [], isLoading, isError } = useQuery<Session[]>({
     queryKey: ["lecture-sessions", lecId],
     queryFn: () => fetchSessions(lecId),
     enabled: Number.isFinite(lecId),
   });
 
-  const selectedSet = new Set(selectedIds);
-  const allIds = sessions.map((s: any) => s.id);
-  const allSelected = sessions.length > 0 && allIds.every((id: number) => selectedSet.has(id));
-
-  function toggleSelect(id: number) {
-    if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
-    else setSelectedIds([...selectedIds, id]);
-  }
-  function toggleSelectAll() {
-    if (allSelected) setSelectedIds([]);
-    else setSelectedIds([...allIds]);
-  }
-
-  const selectionBar = (
-    <div className="flex flex-wrap items-center gap-2 pl-1">
-      <span
-        className="text-[13px] font-semibold"
-        style={{
-          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
-        }}
-      >
-        {selectedIds.length}개 선택됨
-      </span>
-      <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
-        선택 해제
-      </Button>
-    </div>
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
+  const allSelected = useMemo(
+    () => sessions.length > 0 && allIds.length > 0 && allIds.every((id) => selectedIds.includes(id)),
+    [sessions.length, allIds, selectedIds]
   );
 
-  const handleClose = () => {
+  const toggleSelect = useCallback(
+    (id: number) => {
+      setSelectedIds((prev) => {
+        if (prev.includes(id)) {
+          return prev.filter((x) => x !== id);
+        } else {
+          return [...prev, id];
+        }
+      });
+    },
+    []
+  );
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (allSelected) {
+        return [];
+      } else {
+        return [...allIds];
+      }
+    });
+  }, [allSelected, allIds]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds([]);
+  }, []);
+
+  const selectionBar = useMemo(
+    () => (
+      <div className="flex flex-wrap items-center gap-2 pl-1">
+        <span
+          className="text-[13px] font-semibold"
+          style={{
+            color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+          }}
+        >
+          {selectedIds.length}개 선택됨
+        </span>
+        <span className="text-[var(--color-border-divider)]">|</span>
+        <Button intent="secondary" size="sm" onClick={handleClearSelection} disabled={selectedIds.length === 0}>
+          선택 해제
+        </Button>
+      </div>
+    ),
+    [selectedIds.length, handleClearSelection]
+  );
+
+  const handleClose = useCallback(() => {
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["lecture-sessions", lecId] });
-  };
+  }, [qc, lecId]);
 
   if (!Number.isFinite(lecId)) {
     return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>잘못된 강의 ID</div>;
@@ -118,7 +142,7 @@ export default function LectureSessionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {sessions.map((s: any) => (
+                {sessions.map((s) => (
                   <tr
                     key={s.id}
                     className={`cursor-pointer hover:bg-[var(--color-bg-surface-hover)] ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}

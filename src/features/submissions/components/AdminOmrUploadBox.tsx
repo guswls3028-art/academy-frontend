@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { adminOmrUpload } from "@/features/submissions/api/adminOmrUpload";
+import { getRejectionMessage } from "@/features/submissions/contracts/aiJobContract";
 
 export default function AdminOmrUploadBox({
   examId,
@@ -12,6 +13,7 @@ export default function AdminOmrUploadBox({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [enrollmentId, setEnrollmentId] = useState<string>("");
+  const [rejectMessage, setRejectMessage] = useState<string | null>(null);
 
   const uploadMut = useMutation({
     mutationFn: async (file: File) => {
@@ -22,7 +24,12 @@ export default function AdminOmrUploadBox({
       });
     },
     onSuccess: (data) => {
+      setRejectMessage(null);
       onUploaded?.(data.submission_id);
+    },
+    onError: (err: any) => {
+      const code = err?.response?.data?.rejection_code;
+      setRejectMessage(getRejectionMessage(code ?? undefined));
     },
   });
 
@@ -55,10 +62,18 @@ export default function AdminOmrUploadBox({
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) uploadMut.mutate(f);
+          if (f) {
+            setRejectMessage(null);
+            uploadMut.mutate(f);
+          }
         }}
       />
 
+      {rejectMessage && (
+        <div className="mt-2 rounded border border-amber-600/40 bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
+          {rejectMessage}
+        </div>
+      )}
       <div className="mt-2 text-xs text-neutral-400">
         {uploadMut.isPending
           ? "업로드 중입니다. 잠시만 기다려주세요."

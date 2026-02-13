@@ -941,74 +941,21 @@ type AttendanceStatus =
   | "INACTIVE"
   | "SECESSION";
 
+/** 출결 상태별 고유 색상 (전역 하드코딩 — 테마 무관) */
 const STATUS_META: Record<
   AttendanceStatus,
   { label: string; style: React.CSSProperties }
 > = {
-  PRESENT: {
-    label: "현장",
-    style: { backgroundColor: "var(--color-primary)", color: "white" },
-  },
-  LATE: {
-    label: "지각",
-    style: {
-      backgroundColor: "color-mix(in srgb, var(--color-primary) 75%, var(--color-bg-surface))",
-      color: "white",
-    },
-  },
-  ONLINE: {
-    label: "영상",
-    style: {
-      backgroundColor: "color-mix(in srgb, var(--color-primary) 65%, var(--color-bg-surface))",
-      color: "white",
-    },
-  },
-  SUPPLEMENT: {
-    label: "보강",
-    style: {
-      backgroundColor: "color-mix(in srgb, var(--color-primary) 55%, var(--color-bg-surface))",
-      color: "white",
-    },
-  },
-  EARLY_LEAVE: {
-    label: "조퇴",
-    style: {
-      backgroundColor: "color-mix(in srgb, var(--color-primary) 45%, var(--color-bg-surface))",
-      color: "white",
-    },
-  },
-  ABSENT: {
-    label: "결석",
-    style: { backgroundColor: "var(--color-error)", color: "white" },
-  },
-  RUNAWAY: {
-    label: "출튀",
-    style: {
-      backgroundColor: "color-mix(in srgb, var(--color-error) 85%, var(--color-bg-surface))",
-      color: "white",
-    },
-  },
-  MATERIAL: {
-    label: "자료",
-    style: {
-      backgroundColor: "var(--color-bg-surface-soft)",
-      color: "var(--color-text-secondary)",
-    },
-  },
-  INACTIVE: {
-    label: "부재",
-    style: {
-      backgroundColor: "var(--color-bg-surface-soft)",
-      color: "var(--color-text-muted)",
-    },
-  },
-  SECESSION: {
-    label: "퇴원",
-    style: {
-      backgroundColor: "color-mix(in srgb, var(--color-text-muted) 40%, var(--color-bg-surface))",
-      color: "white",
-    },
-  },
+  PRESENT: { label: "현장", style: { backgroundColor: "#22c55e", color: "#fff" } },
+  LATE: { label: "지각", style: { backgroundColor: "#f59e0b", color: "#fff" } },
+  ONLINE: { label: "영상", style: { backgroundColor: "#3b82f6", color: "#fff" } },
+  SUPPLEMENT: { label: "보강", style: { backgroundColor: "#14b8a6", color: "#fff" } },
+  EARLY_LEAVE: { label: "조퇴", style: { backgroundColor: "#eab308", color: "#1f2937" } },
+  ABSENT: { label: "결석", style: { backgroundColor: "#ef4444", color: "#fff" } },
+  RUNAWAY: { label: "출튀", style: { backgroundColor: "#dc2626", color: "#fff" } },
+  MATERIAL: { label: "자료", style: { backgroundColor: "#e2e8f0", color: "#475569" } },
+  INACTIVE: { label: "부재", style: { backgroundColor: "#f1f5f9", color: "#64748b" } },
+  SECESSION: { label: "퇴원", style: { backgroundColor: "#64748b", color: "#fff" } },
 };
 
 export default function AttendanceStatusBadge({
@@ -1021,7 +968,7 @@ export default function AttendanceStatusBadge({
 
   return (
     <span
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+      className="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold"
       style={meta.style}
     >
       {meta.label}
@@ -1038,6 +985,107 @@ export { default as AttendanceStatusBadge } from "./AttendanceStatusBadge";
 
 
 ==========================================================================================
+# FILE: ui/domain/ColorPickerField.tsx
+==========================================================================================
+// PATH: src/shared/ui/domain/ColorPickerField.tsx
+// 색상 선택 UI — 태그·강의 아이콘 등 공통
+
+import { PRESET_COLORS } from "./constants";
+
+type ColorPickerFieldProps = {
+  value: string;
+  onChange: (color: string) => void;
+  label?: string;
+  disabled?: boolean;
+};
+
+export default function ColorPickerField({
+  value,
+  onChange,
+  label = "색상",
+  disabled,
+}: ColorPickerFieldProps) {
+  return (
+    <div>
+      {label && (
+        <label
+          style={{
+            display: "block",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--color-text-muted)",
+            marginBottom: 10,
+            letterSpacing: "0.04em",
+          }}
+        >
+          {label}
+        </label>
+      )}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          alignItems: "center",
+        }}
+      >
+        {PRESET_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(c)}
+            disabled={disabled}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              background: c,
+              border:
+                value === c
+                  ? "2px solid var(--color-text-primary)"
+                  : "2px solid transparent",
+              boxShadow:
+                value === c
+                  ? "0 0 0 2px var(--color-bg-surface)"
+                  : "0 1px 3px rgba(0,0,0,0.2)",
+              cursor: disabled ? "default" : "pointer",
+              opacity: disabled ? 0.6 : 1,
+            }}
+            aria-label={`색상 ${c} 선택`}
+          />
+        ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <input
+            type="color"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            disabled={disabled}
+            style={{
+              width: 32,
+              height: 32,
+              padding: 0,
+              border: "none",
+              cursor: disabled ? "default" : "pointer",
+              background: "transparent",
+            }}
+          />
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--color-text-muted)",
+            }}
+          >
+            직접 선택
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
 # FILE: ui/domain/DomainLayout.tsx
 ==========================================================================================
 // PATH: src/shared/ui/domain/DomainLayout.tsx
@@ -1051,9 +1099,13 @@ import DomainPanel from "./DomainPanel";
 
 export type { DomainTab } from "./DomainTabs";
 
+export type DomainCrumb = { label: string; to?: string };
+
 type DomainLayoutProps = {
   title: string;
   description?: string;
+  /** 도메인 헤더 상단 브레드크럼 (예: 강의 › 박철의 생명과학) */
+  breadcrumbs?: DomainCrumb[];
   tabs?: DomainTab[];
   children: ReactNode;
 };
@@ -1061,6 +1113,7 @@ type DomainLayoutProps = {
 export default function DomainLayout({
   title,
   description,
+  breadcrumbs,
   tabs,
   children,
 }: DomainLayoutProps) {
@@ -1088,12 +1141,50 @@ export default function DomainLayout({
             aria-hidden
           />
           <div style={{ paddingLeft: "var(--space-4)" }}>
-            <div
-              className="text-2xl tracking-tight"
-              style={{ fontWeight: 700, color: "var(--color-text-primary)" }}
-            >
-              {title}
-            </div>
+            {breadcrumbs != null && breadcrumbs.length > 0 ? (
+              <div
+                className="flex items-center gap-2 flex-wrap text-2xl tracking-tight"
+                style={{ fontWeight: 700, color: "var(--color-text-primary)" }}
+              >
+                {breadcrumbs.map((c, idx) => (
+                  <span key={`${c.label}-${idx}`} className="flex items-center gap-2">
+                    {c.to ? (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => navigate(c.to!)}
+                        onKeyDown={(e) => e.key === "Enter" && navigate(c.to!)}
+                        style={{
+                          cursor: "pointer",
+                          color: "var(--color-text-secondary)",
+                        }}
+                      >
+                        {c.label}
+                      </span>
+                    ) : (
+                      <span>{c.label}</span>
+                    )}
+                    {idx < breadcrumbs.length - 1 && (
+                      <span
+                        style={{
+                          color: "var(--color-text-disabled)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        ›
+                      </span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div
+                className="text-2xl tracking-tight"
+                style={{ fontWeight: 700, color: "var(--color-text-primary)" }}
+              >
+                {title}
+              </div>
+            )}
             {description != null && (
               <div
                 className="text-base mt-1"
@@ -1127,6 +1218,59 @@ export default function DomainLayout({
       >
         <DomainPanel>{children}</DomainPanel>
       </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/domain/DomainListToolbar.tsx
+==========================================================================================
+// PATH: src/shared/ui/domain/DomainListToolbar.tsx
+// Design SSOT — 리스트 페이지 툴바 (총계 | 검색 | 필터 | 추가)
+
+import { ReactNode } from "react";
+
+type DomainListToolbarProps = {
+  /** 좌측 총계 표시 (예: "총 12명", "총 5개") */
+  totalLabel: ReactNode;
+  /** 검색 input (ds-input) */
+  searchSlot: ReactNode;
+  /** 필터 버튼 (선택) */
+  filterSlot?: ReactNode;
+  /** 메인 추가 버튼 (필수) */
+  primaryAction: ReactNode;
+  /** 검색창 밑에 표시 (예: N명 선택됨 + 액션 버튼) */
+  belowSlot?: ReactNode;
+};
+
+export default function DomainListToolbar({
+  totalLabel,
+  searchSlot,
+  filterSlot,
+  primaryAction,
+  belowSlot,
+}: DomainListToolbarProps) {
+  return (
+    <div className="flex flex-col gap-3">
+    <div className="flex flex-wrap items-center gap-3">
+      <span
+        style={{
+          fontSize: 15,
+          fontWeight: 700,
+          color: "var(--color-text-primary)",
+          paddingRight: 12,
+          borderRight: "1px solid var(--color-border-divider)",
+          marginRight: 4,
+        }}
+      >
+        {totalLabel}
+      </span>
+      {searchSlot}
+      {filterSlot}
+      {primaryAction}
+    </div>
+    {belowSlot}
     </div>
   );
 }
@@ -1259,16 +1403,87 @@ export default function DomainTabs({
 
 
 ==========================================================================================
+# FILE: ui/domain/constants.ts
+==========================================================================================
+// PATH: src/shared/ui/domain/constants.ts
+// Design SSOT — 색상 상수 (태그·아이콘·꼬리표 등 공통)
+
+/** 활성 상태 — 초록 */
+export const STATUS_ACTIVE_COLOR = "#22c55e";
+
+/** 비활성 상태 — 빨강 */
+export const STATUS_INACTIVE_COLOR = "#ef4444";
+
+/** 프리셋 색상 (태그·강의 아이콘·꼬리표 등) */
+export const PRESET_COLORS = [
+  "#3b82f6",
+  "#22c55e",
+  "#eab308",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#f97316",
+  "#6366f1",
+  "#14b8a6",
+] as const;
+
+/** 프리셋 기본값 (첫 번째) */
+export const DEFAULT_PRESET_COLOR = PRESET_COLORS[0];
+
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+    : [0, 0, 0];
+}
+
+function colorDistance(a: string, b: string): number {
+  const [r1, g1, b1] = hexToRgb(a);
+  const [r2, g2, b2] = hexToRgb(b);
+  return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+}
+
+/** 사용 중인 색상과 최대한 차이나는 프리셋을 기본값으로 반환 */
+export function getDefaultColorForPicker(usedColors: string[]): string {
+  const used = usedColors.filter(Boolean);
+  if (used.length === 0) return DEFAULT_PRESET_COLOR;
+
+  let best = PRESET_COLORS[0];
+  let bestMinDist = -1;
+
+  for (const preset of PRESET_COLORS) {
+    const minDist = Math.min(...used.map((c) => colorDistance(preset, c)));
+    if (minDist > bestMinDist) {
+      bestMinDist = minDist;
+      best = preset;
+    }
+  }
+  return best;
+}
+
+
+==========================================================================================
 # FILE: ui/domain/index.ts
 ==========================================================================================
 // src/shared/ui/domain/index.ts
-// 도메인 공통 UI (Students SSOT 기준)
+// 도메인 공통 UI (Design SSOT — students 기준)
 
 export { default as DomainLayout } from "./DomainLayout";
 export { default as DomainTabs } from "./DomainTabs";
 export { default as DomainPanel } from "./DomainPanel";
 export { default as DomainTable } from "./DomainTable";
+export { default as DomainListToolbar } from "./DomainListToolbar";
 export type { DomainTab } from "./DomainTabs";
+export type { DomainCrumb } from "./DomainLayout";
+export {
+  STATUS_ACTIVE_COLOR,
+  STATUS_INACTIVE_COLOR,
+  PRESET_COLORS,
+  DEFAULT_PRESET_COLOR,
+  getDefaultColorForPicker,
+} from "./constants";
+export { default as ColorPickerField } from "./ColorPickerField";
 
 
 ==========================================================================================
@@ -2599,7 +2814,7 @@ export default function AppLayout() {
                   minHeight: "100vh",
                 }}
               >
-                {/* ===== HEADER (GLOBAL / FULL WIDTH) ===== */}
+                {/* ===== 공용 헤더: 사이드바 링크된 모든 admin 페이지에 동일 적용 ===== */}
                 <header
                   style={{
                     gridColumn: "1 / -1",
@@ -2676,12 +2891,14 @@ export type { DomainTab } from "@/shared/ui/domain";
 // PATH: src/shared/ui/layout/Header.tsx
 import { useMemo, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Dropdown, Input, Badge } from "antd";
 import ThemeOverlay from "@/features/settings/overlays/ThemeOverlay";
 import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
 import { useNotices } from "@/features/notice/context/NoticeContext";
 import { useProgram } from "@/shared/program";
 import { Button } from "@/shared/ui/ds";
+import { fetchLecture, fetchSession } from "@/features/lectures/api/sessions";
 
 type Crumb = { label: string; to?: string };
 
@@ -2810,10 +3027,77 @@ function stripAdminPrefix(pathname: string) {
   return p;
 }
 
-function deriveCrumbs(pathname: string): Crumb[] {
+/** pathname에서 lectureId, sessionId 추출 (useParams 대체 — AppLayout 수준에서 params 미전달 대응) */
+function parseIdsFromPath(pathname: string): { lectureId: number; sessionId: number } {
+  const p = (pathname || "").split("?")[0];
+  const lectureMatch = p.match(/\/lectures\/(\d+)/);
+  const sessionMatch = p.match(/\/sessions\/(\d+)/);
+  return {
+    lectureId: lectureMatch ? Number(lectureMatch[1]) : 0,
+    sessionId: sessionMatch ? Number(sessionMatch[1]) : 0,
+  };
+}
+
+const LECTURE_TAB_LABELS: Record<string, string> = {
+  materials: "자료실",
+  board: "게시판",
+  ddays: "디데이",
+  attendance: "출결",
+  report: "리포트",
+  sessions: "차시",
+};
+
+const SESSION_TAB_LABELS: Record<string, string> = {
+  attendance: "출결",
+  scores: "성적",
+  exams: "시험",
+  assignments: "과제",
+  videos: "영상",
+  materials: "자료",
+};
+
+function deriveCrumbs(
+  pathname: string,
+  lecture?: { title?: string } | null,
+  session?: { title?: string } | null
+): Crumb[] {
   const p = stripAdminPrefix(pathname);
   if (p === "/" || p === "/dashboard") return [{ label: "대시보드" }];
-  if (p.startsWith("/lectures")) return [{ label: "강의", to: "/admin/lectures" }];
+
+  if (p.startsWith("/lectures")) {
+    const base: Crumb[] = [{ label: "강의", to: "/admin/lectures" }];
+    const lectureMatch = p.match(/^\/lectures\/(\d+)/);
+    if (!lectureMatch) return base;
+
+    const lid = lectureMatch[1];
+    const lectureLabel = lecture?.title ?? (lecture as any)?.name ?? "강의";
+    base.push({ label: lectureLabel, to: `/admin/lectures/${lid}` });
+
+    const sessionMatch = p.match(/^\/lectures\/\d+\/sessions\/(\d+)/);
+    if (sessionMatch) {
+      const sid = sessionMatch[1];
+      const sessionLabel = session?.title ?? "차시";
+      base.push({
+        label: sessionLabel,
+        to: `/admin/lectures/${lid}/sessions/${sid}`,
+      });
+      const tailMatch = p.match(/^\/lectures\/\d+\/sessions\/\d+\/(\w+)(?:\/|$)/);
+      if (tailMatch) {
+        const tab = tailMatch[1];
+        const label = SESSION_TAB_LABELS[tab] ?? tab;
+        base.push({ label }); // 현재 탭, 링크 없음
+      }
+    } else {
+      const tailMatch = p.match(/^\/lectures\/\d+\/(\w+)(?:\/|$)/);
+      if (tailMatch) {
+        const tab = tailMatch[1];
+        const label = LECTURE_TAB_LABELS[tab] ?? tab;
+        base.push({ label }); // 현재 탭
+      }
+    }
+    return base;
+  }
+
   if (p.startsWith("/students")) return [{ label: "학생", to: "/admin/students" }];
   if (p.startsWith("/exams")) return [{ label: "시험", to: "/admin/exams" }];
   if (p.startsWith("/results")) return [{ label: "결과", to: "/admin/results" }];
@@ -2822,17 +3106,38 @@ function deriveCrumbs(pathname: string): Crumb[] {
   if (p.startsWith("/videos")) return [{ label: "영상", to: "/admin/videos" }];
   if (p.startsWith("/community"))
     return [{ label: "커뮤니티", to: "/admin/community" }];
+  if (p.startsWith("/materials"))
+    return [{ label: "자료실", to: "/admin/materials" }];
   if (p.startsWith("/messages"))
     return [{ label: "메시지", to: "/admin/messages" }];
+  if (p.startsWith("/settings"))
+    return [{ label: "시스템 설정", to: "/admin/settings" }];
   if (p.startsWith("/profile"))
-    return [{ label: "설정", to: "/admin/profile/account" }];
+    return [{ label: "내 계정", to: "/admin/profile/account" }];
   return [{ label: "워크스페이스" }];
 }
 
 export default function Header() {
   const loc = useLocation();
   const nav = useNavigate();
-  const crumbs = useMemo(() => deriveCrumbs(loc.pathname), [loc.pathname]);
+  const { lectureId: lid, sessionId: sid } = parseIdsFromPath(loc.pathname);
+
+  const { data: lecture } = useQuery({
+    queryKey: ["lecture", lid],
+    queryFn: () => fetchLecture(lid),
+    enabled: Number.isFinite(lid) && lid > 0,
+  });
+
+  const { data: session } = useQuery({
+    queryKey: ["session", sid],
+    queryFn: () => fetchSession(sid),
+    enabled: Number.isFinite(sid) && sid > 0,
+  });
+
+  const crumbs = useMemo(
+    () => deriveCrumbs(loc.pathname, lecture, session),
+    [loc.pathname, lecture, session]
+  );
   const { program } = useProgram();
 
   const [q, setQ] = useState("");
@@ -3203,10 +3508,10 @@ export default function Sidebar() {
             icon: <Icon d="M4 4h16v12H7l-3 3z" />,
           },
           {
-            to: `${BASE}/messages`,
-            label: "메시지",
+            to: `${BASE}/materials`,
+            label: "자료실",
             icon: (
-              <Icon d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+              <Icon d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />
             ),
           },
         ],
@@ -3328,6 +3633,16 @@ import React from "react";
 
 export type AdminModalType = "action" | "confirm" | "inspect";
 
+const BRAND_AND_LIGHT_THEMES = new Set([
+  "modern-white", "navy-pro", "ivory-office", "minimal-mono",
+  "kakao-business", "naver-works", "samsung-admin", "purple-insight",
+]);
+
+function getModalBackground(): string {
+  const theme = document.documentElement.getAttribute("data-theme") || "";
+  return BRAND_AND_LIGHT_THEMES.has(theme) ? "#ffffff" : "var(--color-modal-bg)";
+}
+
 type AdminModalProps = {
   open: boolean;
   onClose: () => void;
@@ -3344,6 +3659,7 @@ export default function AdminModal({
   children,
 }: AdminModalProps) {
   const isConfirm = type === "confirm";
+  const contentBg = getModalBackground();
 
   return (
     <Modal
@@ -3365,7 +3681,7 @@ export default function AdminModal({
             ? "1px solid color-mix(in srgb, var(--color-error) 28%, var(--color-border-divider))"
             : "1px solid var(--color-border-divider)",
           boxShadow: "var(--elevation-3)",
-          background: "var(--color-bg-surface)",
+          background: contentBg,
         },
         mask: {
           backdropFilter: "blur(3px)",
@@ -3374,7 +3690,19 @@ export default function AdminModal({
       }}
       className={`admin-modal admin-modal--${type}`}
     >
-      {children}
+      <div
+        style={
+          contentBg === "#ffffff"
+            ? ({
+                "--color-modal-bg": "#ffffff",
+                "--color-bg-surface": "#ffffff",
+                "--color-bg-surface-hover": "#f8fafc",
+              } as React.CSSProperties)
+            : undefined
+        }
+      >
+        {children}
+      </div>
     </Modal>
   );
 }
@@ -3395,7 +3723,7 @@ export default function ModalBody({
     <div
       style={{
         padding: "20px 24px",
-        background: "var(--color-bg-surface)",
+        background: "var(--color-modal-bg)",
       }}
     >
       {children}
@@ -3425,7 +3753,7 @@ export default function ModalFooter({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        background: "var(--color-bg-surface)",
+        background: "var(--color-modal-bg)",
       }}
     >
       <div>{left}</div>
@@ -3539,10 +3867,8 @@ export default function ModalHeader({
 
   const bg =
     type === "confirm"
-      ? "color-mix(in srgb, var(--color-error) 12%, var(--bg-surface))"
-      : type === "inspect"
-      ? "var(--bg-surface-soft)"
-      : "var(--bg-surface)";
+      ? "color-mix(in srgb, var(--color-error) 12%, var(--color-modal-bg))"
+      : "var(--color-modal-bg)";
 
   return (
     <div
@@ -3577,7 +3903,7 @@ export default function ModalHeader({
             display: "grid",
             placeItems: "center",
             border: "1px solid var(--color-border-divider)",
-            background: "var(--color-bg-surface)",
+            background: "var(--color-modal-bg)",
             color: accentColor,
             boxShadow: "var(--elevation-1)",
             flex: "0 0 auto",
@@ -3626,7 +3952,7 @@ export default function ModalHeader({
                 border:
                   "1px solid color-mix(in srgb, var(--color-error) 22%, var(--color-border-divider))",
                 background:
-                  "color-mix(in srgb, var(--color-error) 6%, var(--color-bg-surface))",
+                  "color-mix(in srgb, var(--color-error) 6%, var(--color-modal-bg))",
                 color: "var(--color-text-secondary)",
                 fontSize: 12,
                 fontWeight: "var(--font-meta)",
@@ -3974,3 +4300,72 @@ export default function ListPage({
 ==========================================================================================
 // PATH: src/shared/ui/templates/index.ts
 export { default as ListPage } from "./ListPage";
+
+
+==========================================================================================
+# FILE: utils/formatPhone.ts
+==========================================================================================
+/**
+ * 전화번호 표시용 포맷 — 010-XXXX-XXXX 형식
+ */
+export function formatPhone(v?: string | null): string {
+  if (v == null || String(v).trim() === "") return "-";
+  const d = String(v).replace(/\D/g, "");
+  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  if (d.length === 10 && d.startsWith("02")) return `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length >= 6) return d; // 8자리 식별자 등은 그대로
+  return v;
+}
+
+/**
+ * OMR 시험 식별코드 표시 — 8자리를 XXXX-XXXX 형식으로
+ * 학생번호 뒤 8자리 or 부모번호 뒤 8자리 (학생번호 없는 경우 부모번호 8자리만)
+ */
+export function formatOmrCode(omrCode?: string | null): string {
+  if (omrCode == null || String(omrCode).trim() === "") return "—";
+  const d = String(omrCode).replace(/\D/g, "").slice(0, 8);
+  if (d.length >= 4) return `${d.slice(0, 4)}-${d.slice(4)}`;
+  return d || "—";
+}
+
+/**
+ * 학생 전화 표시 — 학생 전화번호 없으면 "-", 있으면 "010-XXXX-XXXX"
+ */
+export function formatStudentPhoneDisplay(phone?: string | null): string {
+  if (phone == null || String(phone).trim() === "") return "-";
+  return formatPhone(phone);
+}
+
+
+==========================================================================================
+# FILE: utils/phoneInput.ts
+==========================================================================================
+/**
+ * 전화번호/식별자 입력용 — 표시 포맷 + raw 값 분리
+ */
+
+/** 11자리 전화번호 → 010-XXXX-XXXX 표시 */
+export function formatPhoneForInput(raw: string): string {
+  const d = String(raw).replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+}
+
+/** 입력값에서 11자리 raw 추출 */
+export function parsePhoneInput(v: string): string {
+  return v.replace(/\D/g, "").slice(0, 11);
+}
+
+/** 8자리 식별자 → XXXX-XXXX 표시 */
+export function formatIdentifierForInput(raw: string): string {
+  const d = String(raw).replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 4) return d;
+  return `${d.slice(0, 4)}-${d.slice(4)}`;
+}
+
+/** 입력값에서 8자리 raw 추출 */
+export function parseIdentifierInput(v: string): string {
+  return v.replace(/\D/g, "").slice(0, 8);
+}

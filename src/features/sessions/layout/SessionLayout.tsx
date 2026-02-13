@@ -1,21 +1,16 @@
 // PATH: src/features/sessions/layout/SessionLayout.tsx
-import { Outlet, useLocation } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+// 구조: students 도메인과 동일 — DomainLayout > Outlet (페이지가 콘텐츠 전담)
+import { Outlet } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
 
 import { useSessionParams } from "../hooks/useSessionParams";
-import SessionAssessmentSidePanel from "../components/SessionAssessmentSidePanel";
-import SessionBlock from "../components/SessionBlock";
-import EnrollStudentModal from "@/features/lectures/components/EnrollStudentModal";
 
 export default function SessionLayout() {
   const { lectureId, sessionId } = useSessionParams();
-  const location = useLocation();
-  const qc = useQueryClient();
-  const [showEnrollModal, setShowEnrollModal] = useState(false);
 
   const { data: session, isLoading } = useQuery({
     queryKey: ["session", sessionId],
@@ -51,11 +46,6 @@ export default function SessionLayout() {
     [base]
   );
 
-  const showAssessmentPanel =
-    !!base &&
-    (location.pathname.startsWith(`${base}/exams`) ||
-      location.pathname.startsWith(`${base}/assignments`));
-
   if (!lectureId || !sessionId) {
     return (
       <div className="p-6 text-sm text-[var(--color-error)]">
@@ -74,37 +64,13 @@ export default function SessionLayout() {
   ];
 
   return (
-    <>
-      <DomainLayout
-        title={session.title}
-        description={session.date ?? undefined}
-        breadcrumbs={breadcrumbs}
-        tabs={tabs}
-      >
-        <SessionBlock lectureId={lectureId} currentSessionId={sessionId} />
-        <div className="flex flex-col gap-4 sm:flex-row">
-          {showAssessmentPanel && (
-            <SessionAssessmentSidePanel
-              lectureId={lectureId}
-              sessionId={sessionId}
-            />
-          )}
-          <div className="flex-1 min-w-0">
-            <Outlet />
-          </div>
-        </div>
-      </DomainLayout>
-
-      {showEnrollModal && (
-        <EnrollStudentModal
-          sessionId={sessionId}
-          isOpen
-          onClose={() => setShowEnrollModal(false)}
-          onSuccess={() => {
-            qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
-          }}
-        />
-      )}
-    </>
+    <DomainLayout
+      title={session.title}
+      description={session.date ?? undefined}
+      breadcrumbs={breadcrumbs}
+      tabs={tabs}
+    >
+      <Outlet />
+    </DomainLayout>
   );
 }

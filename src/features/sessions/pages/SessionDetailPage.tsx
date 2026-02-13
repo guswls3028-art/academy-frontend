@@ -11,21 +11,26 @@
 // - 점수/합불/정책 해석
 // ------------------------------------------------------------
 
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 
-  
-import { Button, EmptyState, Page, PageHeader, Section } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 
 import api from "@/shared/api/axios";
 
 import EnrollStudentModal from "@/features/lectures/components/EnrollStudentModal";
+import SessionBlock from "@/features/sessions/components/SessionBlock";
+import SessionEnrollModal from "@/features/lectures/components/SessionEnrollModal";
 import SessionVideosTab from "@/features/lectures/components/SessionVideosTab";
+import {
+  fetchSessionEnrollments,
+  bulkCreateSessionEnrollments,
+} from "@/features/lectures/api/enrollments";
+import { fetchSessions } from "@/features/lectures/api/sessions";
 import { useLectureParams } from "@/features/lectures/hooks/useLectureParams";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
-/* ================= sessions UI ================= */
-import SessionTabs from "../components/SessionTabs";
 import SessionAssessmentSidePanel
   from "../components/SessionAssessmentSidePanel";
 
@@ -50,42 +55,31 @@ async function fetchSession(id: number) {
 
 export default function SessionDetailPage() {
   const { lectureId, sessionId } = useLectureParams();
+  const location = useLocation();
   const qc = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const lecId = Number(lectureId);
   const sId = Number(sessionId);
 
   if (!Number.isFinite(lecId) || !Number.isFinite(sId)) {
-    return <Page title="">잘못된 접근입니다.</Page>;
+    return <div className="p-4 text-sm text-[var(--color-error)]">잘못된 접근입니다.</div>;
   }
 
   /* --------------------------------------------------
-   * 탭 상태
-   * - 기본은 attendance
-   * - searchParams(tab) 있으면 우선
+   * 탭 상태: 레이아웃 탭이 path로 이동하므로 pathname 기준으로 결정
    * -------------------------------------------------- */
-  const paramTab = searchParams.get("tab") as SessionTab | null;
+  const activeTab = useMemo((): SessionTab => {
+    const p = location.pathname;
+    if (p.includes("/scores")) return "scores";
+    if (p.includes("/exams")) return "exams";
+    if (p.includes("/assignments")) return "assignments";
+    if (p.includes("/videos")) return "videos";
+    if (p.includes("/materials")) return "materials";
+    return "attendance";
+  }, [location.pathname]);
 
-  const [activeTab, setActiveTab] =
-    useState<SessionTab>(paramTab ?? "attendance");
-
-  useEffect(() => {
-    if (paramTab && paramTab !== activeTab) {
-      setActiveTab(paramTab);
-    }
-  }, [paramTab]);
-
-  const handleChangeTab = (tab: SessionTab) => {
-    setActiveTab(tab);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("tab", tab);
-      return next;
-    });
-  };
-
-  const [showModal, setShowModal] = useState(false);
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [showStudentModal, setShowStudentModal] = useState(false);
 
   const { data: session } = useQuery({
     queryKey: ["session", sId],
@@ -93,8 +87,63 @@ export default function SessionDetailPage() {
     enabled: Number.isFinite(sId),
   });
 
+  const { data: sessionEnrollments = [] } = useQuery({
+    queryKey: ["session-enrollments", sId],
+    queryFn: () => fetchSessionEnrollments(sId),
+    enabled: Number.isFinite(sId),
+  });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["lecture-sessions", lecId],
+    queryFn: () => fetchSessions(lecId),
+    enabled: Number.isFinite(lecId),
+  });
+
+  const currentOrder = session?.order ?? 0;
+  const sortedSessions = useMemo(
+    () => [...sessions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [sessions]
+  );
+  const prevSession = useMemo(() => {
+    const idx = sortedSessions.findIndex((s) => s.id === sId);
+    if (idx <= 0) return null;
+    return sortedSessions[idx - 1];
+  }, [sortedSessions, sId]);
+
+  const copyFromPrevMutation = useMutation({
+    mutationFn: async () => {
+      if (!prevSession) throw new Error("직전 차시가 없습니다.");
+      const prevList = await fetchSessionEnrollments(prevSession.id);
+      const alreadyIds = new Set(sessionEnrollments.map((se) => se.enrollment));
+      const toAdd = prevList
+        .map((se) => se.enrollment)
+        .filter((eid) => !alreadyIds.has(eid));
+      if (toAdd.length === 0) return { added: 0 };
+      await bulkCreateSessionEnrollments(sId, toAdd);
+      return { added: toAdd.length };
+    },
+    onSuccess: (result) => {
+      invalidateSession();
+      qc.invalidateQueries({ queryKey: ["attendance-matrix", lecId] });
+      if (result && "added" in result && result.added > 0) {
+        feedback.success(`직전 차시에서 ${result.added}명을 가져왔습니다.`);
+      } else if (result && "added" in result && result.added === 0) {
+        feedback.info("가져올 새 수강생이 없습니다. (이미 모두 등록됨)");
+      }
+    },
+    onError: (e) => {
+      feedback.error(e instanceof Error ? e.message : "가져오기 실패");
+    },
+  });
+
+  const invalidateSession = () => {
+    qc.invalidateQueries({ queryKey: ["session-enrollments", sId] });
+    qc.invalidateQueries({ queryKey: ["attendance", sId] });
+    qc.invalidateQueries({ queryKey: ["attendance-matrix", lecId] });
+  };
+
   if (!session) {
-    return <Page title="">로딩중...</Page>;
+    return <div className="p-4 text-sm text-[var(--color-text-muted)]">로딩중...</div>;
   }
 
   const showAssessmentPanel =
@@ -103,40 +152,46 @@ export default function SessionDetailPage() {
     activeTab === "assignments";
 
   return (
-    <Page title="">
-      <PageHeader
-        title={session.title}
-        actions={
-          <Button type="button" intent="primary" size="sm" onClick={() => setShowModal(true)}>
-            학생 추가
-          </Button>
-        }
-      />
+    <>
+      {/* 구조: students와 동일 — 레이아웃은 DomainLayout > Outlet, 페이지가 콘텐츠 전담 */}
+      <SessionBlock lectureId={lecId} currentSessionId={sId} />
 
-      <div className="mb-6 text-sm text-gray-500">
-        {session.date}
-      </div>
+      {activeTab !== "attendance" && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2"
+          style={{ marginBottom: "var(--space-4)" }}
+        >
+          <span className="text-lg font-semibold text-[var(--color-text-primary)]">{session.title}</span>
+          <div className="flex items-center gap-2">
+            <Button type="button" intent="primary" size="sm" onClick={() => setShowEnrollModal(true)}>
+              수강생 등록
+            </Button>
+            <Button type="button" intent="secondary" size="sm" onClick={() => setShowStudentModal(true)}>
+              학생 추가
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* ================= Tabs ================= */}
-      <SessionTabs
-        activeTab={activeTab}
-        onChange={handleChangeTab}
-      />
-
-      {/* ================= CONTENT ================= */}
       <div className="flex gap-4">
-        {/* LEFT: 공용 평가 패널 */}
         {showAssessmentPanel && (
-          <SessionAssessmentSidePanel
-            lectureId={lecId}
-            sessionId={sId}
-          />
+          <SessionAssessmentSidePanel lectureId={lecId} sessionId={sId} />
         )}
-
-        {/* RIGHT */}
         <div className="flex-1 min-w-0">
           {activeTab === "attendance" && (
-            <SessionAttendancePage sessionId={sId} />
+            <SessionAttendancePage
+              sessionId={sId}
+              lectureId={lecId}
+              onOpenEnrollModal={() => setShowEnrollModal(true)}
+              onOpenStudentModal={() => setShowStudentModal(true)}
+              onCopyFromPrev={() => copyFromPrevMutation.mutate()}
+              copyFromPrevDisabled={!prevSession || copyFromPrevMutation.isPending}
+              copyFromPrevLabel={
+                prevSession
+                  ? `직전 차시(${prevSession.order ?? "?"}차시)에서 가져오기`
+                  : "직전 차시에서 가져오기"
+              }
+            />
           )}
 
           {activeTab === "exams" && (
@@ -167,19 +222,23 @@ export default function SessionDetailPage() {
         </div>
       </div>
 
-      {/* ================= MODAL ================= */}
-      {showModal && (
-        <EnrollStudentModal
+      {showEnrollModal && (
+        <SessionEnrollModal
+          lectureId={lecId}
           sessionId={sId}
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          onSuccess={() =>
-            qc.invalidateQueries({
-              queryKey: ["attendance", sId],
-            })
-          }
+          isOpen={showEnrollModal}
+          onClose={() => setShowEnrollModal(false)}
+          onSuccess={invalidateSession}
         />
       )}
-    </Page>
+      {showStudentModal && (
+        <EnrollStudentModal
+          sessionId={sId}
+          isOpen={showStudentModal}
+          onClose={() => setShowStudentModal(false)}
+          onSuccess={invalidateSession}
+        />
+      )}
+    </>
   );
 }

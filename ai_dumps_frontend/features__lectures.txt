@@ -395,32 +395,150 @@ export async function fetchLectureReport(
 import api from "@/shared/api/axios";
 
 // ----------------------------------------
+// TYPES
+// ----------------------------------------
+export interface Lecture {
+  id: number;
+  title: string;
+  name: string;
+  subject: string;
+  description?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  lecture_time?: string | null;
+  color?: string | null;
+  is_active: boolean;
+  tenant: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Session {
+  id: number;
+  lecture: number;
+  order: number;
+  title: string;
+  date?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ----------------------------------------
+// LECTURE 목록 가져오기
+// ----------------------------------------
+export async function fetchLectures(params?: {
+  is_active?: boolean;
+  subject?: string;
+  search?: string;
+}): Promise<Lecture[]> {
+  const res = await api.get("/lectures/lectures/", { params });
+  const data = res.data;
+  return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+}
+
+// ----------------------------------------
 // LECTURE 상세 가져오기
 // ----------------------------------------
-export async function fetchLecture(lectureId: number) {
+export async function fetchLecture(lectureId: number): Promise<Lecture> {
   const res = await api.get(`/lectures/lectures/${lectureId}/`);
+  return res.data;
+}
+
+// ----------------------------------------
+// LECTURE 생성
+// ----------------------------------------
+export async function createLecture(payload: {
+  title: string;
+  name: string;
+  subject: string;
+  description?: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  lecture_time?: string | null;
+  color?: string | null;
+  is_active?: boolean;
+}): Promise<Lecture> {
+  const res = await api.post("/lectures/lectures/", payload);
+  return res.data;
+}
+
+// ----------------------------------------
+// LECTURE 수정
+// ----------------------------------------
+export async function updateLecture(
+  lectureId: number,
+  payload: Partial<Omit<Lecture, "id" | "tenant" | "created_at" | "updated_at">>
+): Promise<Lecture> {
+  const res = await api.patch(`/lectures/lectures/${lectureId}/`, payload);
+  return res.data;
+}
+
+// ----------------------------------------
+// LECTURE 삭제
+// ----------------------------------------
+export async function deleteLecture(lectureId: number): Promise<void> {
+  await api.delete(`/lectures/lectures/${lectureId}/`);
+}
+
+// ----------------------------------------
+// SESSION 상세 가져오기
+// ----------------------------------------
+export async function fetchSession(sessionId: number): Promise<Session> {
+  const res = await api.get(`/lectures/sessions/${sessionId}/`);
   return res.data;
 }
 
 // ----------------------------------------
 // SESSION 목록 가져오기 (lecture 기준)
 // ----------------------------------------
-export async function fetchSessions(lectureId: number) {
+export async function fetchSessions(lectureId: number): Promise<Session[]> {
   const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
-  return res.data.results;
+  const data = res.data;
+  return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
 }
 
 // ----------------------------------------
-// SESSION 생성 (기존 기능 유지)
+// SESSION 생성
 // ----------------------------------------
-export async function createSession(lectureId: number, title: string, date: string) {
-  const res = await api.post(`/lectures/sessions/`, {
+export async function createSession(
+  lectureId: number,
+  title: string,
+  date?: string | null,
+  order?: number | null
+): Promise<Session> {
+  const payload: {
+    lecture: number;
+    title: string;
+    date?: string | null;
+    order?: number | null;
+  } = {
     lecture: lectureId,
     title,
-    date,
-  });
+  };
+  
+  if (date !== undefined) payload.date = date;
+  if (order !== undefined) payload.order = order;
 
+  const res = await api.post(`/lectures/sessions/`, payload);
   return res.data;
+}
+
+// ----------------------------------------
+// SESSION 수정
+// ----------------------------------------
+export async function updateSession(
+  sessionId: number,
+  payload: Partial<Pick<Session, "title" | "date" | "order">>
+): Promise<Session> {
+  const res = await api.patch(`/lectures/sessions/${sessionId}/`, payload);
+  return res.data;
+}
+
+// ----------------------------------------
+// SESSION 삭제
+// ----------------------------------------
+export async function deleteSession(sessionId: number): Promise<void> {
+  await api.delete(`/lectures/sessions/${sessionId}/`);
 }
 
 /**
@@ -1046,6 +1164,7 @@ import { fetchStudents as fetchStudentList, type ClientStudent } from "@/feature
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 interface Props {
   sessionId: number;
@@ -1159,22 +1278,18 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
                   {students.map((st) => {
                     const checked = selectedIds.includes(st.id);
                     return (
-                      <button
+                      <Button
                         key={st.id}
                         type="button"
+                        intent="ghost"
+                        size="md"
                         onClick={() => toggleSelect(st.id)}
+                        className="!block !w-full !grid !grid-cols-[28px_1fr] !gap-2.5 !py-2.5 !px-3 !text-left !justify-start border-t border-[var(--color-border-divider)]"
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "28px 1fr",
-                          gap: 10,
-                          padding: "10px 12px",
-                          borderTop: "1px solid var(--color-border-divider)",
                           background: checked ? "var(--color-bg-surface-soft)" : "transparent",
-                          textAlign: "left",
-                          cursor: "pointer",
                         }}
                       >
-                        <input type="checkbox" checked={checked} readOnly />
+                        <input type="checkbox" checked={checked} readOnly className="mt-0.5" />
                         <div style={{ minWidth: 0 }}>
                           <div
                             style={{
@@ -1189,10 +1304,10 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
                             {st.name}
                           </div>
                           <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
-                            {st.phone || "-"}
+                            {formatPhone(st.phone)}
                           </div>
                         </div>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -1241,10 +1356,13 @@ import api from "@/shared/api/axios";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  /** 이미 사용 중인 강의 색상 — 기본값이 이들과 최대한 차이나도록 선택됨 */
+  usedColors?: string[];
 }
 
 interface CreateLecturePayload {
@@ -1254,10 +1372,12 @@ interface CreateLecturePayload {
   description: string;
   start_date: string;
   end_date: string;
+  lecture_time: string;
+  color: string;
   is_active: boolean;
 }
 
-export default function LectureCreateModal({ isOpen, onClose }: Props) {
+export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }: Props) {
   const qc = useQueryClient();
 
   const [title, setTitle] = useState("");
@@ -1266,6 +1386,8 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [lectureTime, setLectureTime] = useState("");
+  const [color, setColor] = useState(() => getDefaultColorForPicker(usedColors));
 
   const modalTitle = useMemo(() => "강의 추가", []);
 
@@ -1281,6 +1403,18 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
 
   useEffect(() => {
     if (!isOpen) return;
+    setTitle("");
+    setName("");
+    setSubject("");
+    setDescription("");
+    setStartDate("");
+    setEndDate("");
+    setLectureTime("");
+    setColor(getDefaultColorForPicker(usedColors));
+  }, [isOpen, usedColors]);
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -1292,7 +1426,7 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, title, name, subject, description, startDate, endDate, isPending]);
+  }, [isOpen, title, name, subject, description, startDate, endDate, lectureTime, color, isPending]);
 
   if (!isOpen) return null;
 
@@ -1305,6 +1439,8 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
       description,
       start_date: startDate,
       end_date: endDate,
+      lecture_time: lectureTime.trim(),
+      color,
       is_active: true,
     });
   }
@@ -1375,6 +1511,21 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
               disabled={isPending}
             />
           </div>
+
+          <input
+            className="ds-input"
+            placeholder="강의 시간 (예: 토 12:00 ~ 13:00)"
+            value={lectureTime}
+            onChange={(e) => setLectureTime(e.target.value)}
+            disabled={isPending}
+          />
+
+          <ColorPickerField
+            label="아이콘 색상"
+            value={color}
+            onChange={setColor}
+            disabled={isPending}
+          />
         </div>
       </ModalBody>
 
@@ -1401,10 +1552,203 @@ export default function LectureCreateModal({ isOpen, onClose }: Props) {
 
 
 ==========================================================================================
+# FILE: components/LectureEnrollStudentModal.tsx
+==========================================================================================
+// PATH: src/features/lectures/components/LectureEnrollStudentModal.tsx
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { bulkCreateEnrollments } from "../api/enrollments";
+import { fetchStudents as fetchStudentList, type ClientStudent } from "@/features/students/api/students";
+
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { Button, EmptyState } from "@/shared/ui/ds";
+import { formatPhone } from "@/shared/utils/formatPhone";
+
+interface Props {
+  lectureId: number;
+  open: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
+
+type Student = {
+  id: number;
+  name: string;
+  phone?: string | null;
+};
+
+export default function LectureEnrollStudentModal({ lectureId, open, onClose, onSuccess }: Props) {
+  const qc = useQueryClient();
+
+  const [keyword, setKeyword] = useState("");
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(keyword.trim()), 300);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
+  const mutation = useMutation({
+    mutationFn: (ids: number[]) => bulkCreateEnrollments(lectureId, ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["lecture-students", lectureId] });
+      qc.invalidateQueries({ queryKey: ["lecture-enrollments", lectureId] });
+      onSuccess?.();
+      onClose();
+      setSelectedIds([]);
+    },
+  });
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!open) return;
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        if (selectedIds.length > 0 && !mutation.isPending) mutation.mutate(selectedIds);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedIds]);
+
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ["lecture-enroll-modal-students", search],
+    queryFn: async (): Promise<Student[]> => {
+      const list: ClientStudent[] = await fetchStudentList(search, {});
+      return list.map((s) => ({
+        id: s.id,
+        name: s.name,
+        phone: s.studentPhone,
+      }));
+    },
+    enabled: open,
+  });
+
+  if (!open) return null;
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  return (
+    <AdminModal open onClose={onClose} type="action" width={720}>
+      <ModalHeader
+        type="action"
+        title="수강생 등록"
+        description="검색 후 체크하여 강의 수강생을 추가합니다. (⌘/Ctrl + Enter 추가)"
+      />
+
+      <ModalBody>
+        <div style={{ display: "grid", gap: 12 }}>
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="학생 이름 검색"
+            className="ds-input"
+            autoFocus
+          />
+
+          <div
+            style={{
+              borderRadius: 14,
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface)",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ maxHeight: 320, overflow: "auto" }}>
+              {isLoading ? (
+                <EmptyState mode="embedded" scope="panel" tone="loading" title="불러오는 중…" />
+              ) : students.length === 0 ? (
+                <EmptyState
+                  mode="embedded"
+                  scope="panel"
+                  title="학생이 없습니다."
+                  description="검색어를 변경해 보세요."
+                />
+              ) : (
+                <div style={{ display: "grid" }}>
+                  {students.map((st) => {
+                    const checked = selectedIds.includes(st.id);
+                    return (
+                      <Button
+                        key={st.id}
+                        type="button"
+                        intent="ghost"
+                        size="md"
+                        onClick={() => toggleSelect(st.id)}
+                        className="!block !w-full !grid !grid-cols-[28px_1fr] !gap-2.5 !py-2.5 !px-3 !text-left !justify-start border-t border-[var(--color-border-divider)]"
+                        style={{
+                          background: checked ? "var(--color-bg-surface-soft)" : "transparent",
+                        }}
+                      >
+                        <input type="checkbox" checked={checked} readOnly className="mt-0.5" />
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 900,
+                              color: "var(--color-text-primary)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {st.name}
+                          </div>
+                          <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+                            {formatPhone(st.phone)}
+                          </div>
+                        </div>
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            선택: {selectedIds.length}명
+          </div>
+        </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            ESC 로 닫기 · ⌘/Ctrl + Enter 추가
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              onClick={() => mutation.mutate(selectedIds)}
+              disabled={mutation.isPending || selectedIds.length === 0}
+            >
+              {mutation.isPending ? "추가 중…" : "추가"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
 # FILE: components/LectureTabs.tsx
 ==========================================================================================
 // PATH: src/features/lectures/components/LectureTabs.tsx
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Button } from "@/shared/ui/ds";
 
 export default function LectureTabs() {
   const navigate = useNavigate();
@@ -1436,15 +1780,18 @@ export default function LectureTabs() {
   ];
 
   return (
-    <div className="ds-tabs">
+    <div className="ds-tabs flex gap-2">
       {tabs.map((t) => (
-        <button
+        <Button
           key={t.key}
-          className={`ds-tab text-[15px] font-semibold ${activeKey === t.key ? "is-active" : ""}`}
+          type="button"
+          intent={activeKey === t.key ? "primary" : "ghost"}
+          size="sm"
+          className="ds-tab text-[15px] font-semibold"
           onClick={() => navigate(t.to)}
         >
           {t.label}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -1864,7 +2211,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
 
     setBusy(true);
     try {
-      await createSession(lectureId, form);
+      await createSession(lectureId, form.title, form.date);
       onClose();
     } finally {
       setBusy(false);
@@ -1947,6 +2294,7 @@ import VideoStatusBadge from "@/features/videos/ui/VideoStatusBadge";
 
 import { useSessionVideos } from "../hooks/useSessionVideos";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { DomainListToolbar } from "@/shared/ui/domain";
 
 /**
  * media 도메인 기준 Video 타입 (관리자 목록용)
@@ -2005,23 +2353,24 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   });
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>
-          해당 차시에 등록된 영상 목록입니다.
-        </div>
-
-        <Button intent="primary" onClick={() => setShowModal(true)}>
-          영상 추가
-        </Button>
-      </div>
+    <div className="flex flex-col gap-4">
+      <DomainListToolbar
+        totalLabel={isLoading ? "…" : `총 ${videos.length}개`}
+        searchSlot={null}
+        primaryAction={
+          <Button intent="primary" onClick={() => setShowModal(true)}>
+            영상 추가
+          </Button>
+        }
+      />
 
       <div
+        className="ds-panel"
         style={{
-          borderRadius: 14,
+          borderRadius: "var(--radius-xl)",
           border: "1px solid var(--color-border-divider)",
           background: "var(--color-bg-surface)",
-          padding: 12,
+          padding: "var(--space-4)",
         }}
       >
         {isLoading ? (
@@ -2033,7 +2382,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 12,
+              gap: "var(--space-4)",
             }}
           >
             {videos.map((video: MediaVideo) => {
@@ -2262,19 +2611,18 @@ export function useSessionVideos(sessionId: number) {
 # FILE: layout/LectureLayout.tsx
 ==========================================================================================
 // PATH: src/features/lectures/layout/LectureLayout.tsx
-import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Outlet, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
+import SessionBlock from "@/features/sessions/components/SessionBlock";
 
 function safeStr(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
 export default function LectureLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
 
@@ -2320,34 +2668,18 @@ export default function LectureLayout() {
     [base]
   );
 
-  const isSessionDetail = location.pathname.includes("/sessions/");
+  const breadcrumbs = useMemo(
+    () => [
+      { label: "강의", to: "/admin/lectures" },
+      { label: title },
+    ],
+    [title]
+  );
 
   return (
-    <DomainLayout title={title} description={desc} tabs={tabs}>
-      {isSessionDetail && (
-        <div className="px-5 py-4 border-b border-[var(--border-divider)]">
-          <button
-            onClick={() => navigate(-1)}
-            className="ds-tab text-[15px] font-semibold"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 12px",
-              borderRadius: 12,
-              border: "1px solid var(--color-border-divider)",
-              background: "var(--color-bg-surface)",
-              color: "var(--color-text-secondary)",
-            }}
-          >
-            ← 강의로 돌아가기
-          </button>
-        </div>
-      )}
-
-      <div className="p-4">
-        <Outlet />
-      </div>
+    <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} tabs={tabs}>
+      <SessionBlock lectureId={lectureIdNum} />
+      <Outlet />
     </DomainLayout>
   );
 }
@@ -2466,39 +2798,30 @@ export default function LectureAttendanceMatrixPage() {
 # FILE: pages/attendance/SessionAttendancePage.tsx
 ==========================================================================================
 // PATH: src/features/lectures/pages/attendance/SessionAttendancePage.tsx
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAttendance, updateAttendance } from "@/features/lectures/api/attendance";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState, Button } from "@/shared/ui/ds";
+import { DomainTable } from "@/shared/ui/domain";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import { formatPhone } from "@/shared/utils/formatPhone";
 
 const STATUS_LIST = [
-  "PRESENT",
-  "LATE",
-  "ONLINE",
-  "SUPPLEMENT",
-  "EARLY_LEAVE",
-  "ABSENT",
-  "RUNAWAY",
-  "MATERIAL",
+  "PRESENT",      // 현장
+  "ONLINE",       // 영상
+  "SUPPLEMENT",   // 보강
+  "MATERIAL",     // 자료
+  "LATE",         // 지각
+  "EARLY_LEAVE",  // 조퇴
+  "RUNAWAY",      // 출튀
+  "ABSENT",       // 결석
 ] as const;
 
 type AttendanceStatus = (typeof STATUS_LIST)[number];
 
-const TH_STYLE = {
-  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
-  color: "var(--color-text-muted)",
-};
-
-function formatPhone(v?: string | null) {
-  if (!v) return "-";
-  const d = v.replace(/\D/g, "");
-  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
-  return v;
-}
-
 export default function SessionAttendancePage({ sessionId }: { sessionId: number }) {
   const qc = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const { data: attendance, isLoading } = useQuery({
     queryKey: ["attendance", sessionId],
@@ -2521,57 +2844,100 @@ export default function SessionAttendancePage({ sessionId }: { sessionId: number
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!attendance || attendance.length === 0) return <EmptyState scope="panel" title="출결 데이터 없음" />;
 
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--color-border-divider)" }}>
-        <table className="w-full" style={{ borderCollapse: "collapse", minWidth: 980 }}>
-          <thead>
-            <tr>
-              {[
-                { label: "이름", align: "left", width: 140 },
-                { label: "학생 전화번호", align: "left", width: 180 },
-                { label: "학부모 전화번호", align: "left", width: 180 },
-                { label: "현재 상태", align: "left", width: 140 },
-                { label: "출결 변경", align: "left" },
-                { label: "메모", align: "left", width: 260 },
-              ].map((h) => (
-                <th
-                  key={h.label}
-                  className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-                  style={{
-                    textAlign: h.align as any,
-                    whiteSpace: "nowrap",
-                    width: h.width as any,
-                    ...TH_STYLE,
-                  }}
-                >
-                  {h.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = attendance.map((att: any) => att.id);
+  const allSelected = attendance.length > 0 && allIds.every((id: number) => selectedSet.has(id));
 
-          <tbody className="divide-y divide-[var(--color-border-divider)]">
+  function toggleSelect(id: number) {
+    if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
+    else setSelectedIds([...selectedIds, id]);
+  }
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds([]);
+    else setSelectedIds([...allIds]);
+  }
+
+  const selectionBar = (
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        className="text-[13px] font-semibold"
+        style={{
+          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+        }}
+      >
+        {selectedIds.length}명 선택됨
+      </span>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        선택 해제
+      </Button>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      {selectionBar}
+      <DomainTable tableClassName="ds-table--flat" tableStyle={{ minWidth: 1232, width: "100%", tableLayout: "fixed" }}>
+        <colgroup>
+          <col style={{ width: 48 }} />
+          <col style={{ width: 144 }} />
+          <col style={{ width: 100 }} />
+          <col style={{ width: 75 }} />
+          <col style={{ width: 75 }} />
+          <col style={{ width: 520 }} />
+          <col style={{ width: 360 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col" className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+                aria-label="전체 선택"
+                className="cursor-pointer"
+              />
+            </th>
+            <th scope="col">이름</th>
+            <th scope="col" className="text-center">상태</th>
+            <th scope="col">학생 전화번호</th>
+            <th scope="col">학부모 전화번호</th>
+            <th scope="col">출결 변경</th>
+            <th scope="col">메모</th>
+          </tr>
+        </thead>
+
+          <tbody>
             {attendance.map((att: any) => (
-              <tr key={att.id} className="hover:bg-[var(--color-bg-surface-soft)]">
-                <td className="px-4 py-3 text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
+              <tr key={att.id} className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
+                <td className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(att.id)}
+                    onChange={() => toggleSelect(att.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`${att.name} 선택`}
+                    className="cursor-pointer"
+                  />
+                </td>
+                <td className="text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
                   {att.name}
                 </td>
 
-                <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-secondary)]">
-                  {formatPhone(att.student_phone)}
-                </td>
-
-                <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-muted)]">
-                  {formatPhone(att.parent_phone)}
-                </td>
-
-                <td className="px-4 py-3">
+                <td className="text-center">
                   <AttendanceStatusBadge status={att.status} />
                 </td>
 
-                <td className="px-4 py-3">
-                  <div style={{ display: "flex", gap: 10, overflowX: "auto", whiteSpace: "nowrap", paddingBottom: 2 }}>
+                <td className="text-left text-[14px] text-[var(--color-text-secondary)] truncate">
+                  {formatPhone(att.phone ?? att.student_phone)}
+                </td>
+
+                <td className="text-left text-[14px] text-[var(--color-text-muted)] truncate">
+                  {formatPhone(att.parent_phone)}
+                </td>
+
+                <td>
+                  <div style={{ display: "flex", flexWrap: "nowrap", gap: 8, width: "fit-content" }}>
                     {STATUS_LIST.map((code) => {
                       const active = att.status === code;
                       return (
@@ -2602,7 +2968,7 @@ export default function SessionAttendancePage({ sessionId }: { sessionId: number
                   </div>
                 </td>
 
-                <td className="px-4 py-3">
+                <td>
                   <input
                     defaultValue={att.memo || ""}
                     placeholder="메모 입력"
@@ -2613,8 +2979,7 @@ export default function SessionAttendancePage({ sessionId }: { sessionId: number
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+        </DomainTable>
     </div>
   );
 }
@@ -3192,19 +3557,31 @@ export default function LectureReportPage() {
 # FILE: pages/lectures/LectureStudentsPage.tsx
 ==========================================================================================
 // PATH: src/features/lectures/pages/lectures/LectureStudentsPage.tsx
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/shared/ui/ds";
-import { fetchLectureStudents, type LectureStudent } from "@/features/lectures/api/students";
 
-const TH_STYLE = {
-  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
-  color: "var(--color-text-muted)",
-};
+import { fetchLectureStudents, type LectureStudent } from "@/features/lectures/api/students";
+import LectureEnrollStudentModal from "@/features/lectures/components/LectureEnrollStudentModal";
+
+import { Button, EmptyState } from "@/shared/ui/ds";
+import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function LectureStudentsPage() {
+  const navigate = useNavigate();
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
+
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [showEnroll, setShowEnroll] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const { data: students = [], isLoading } = useQuery<LectureStudent[]>({
     queryKey: ["lecture-students", lectureIdNum],
@@ -3212,73 +3589,176 @@ export default function LectureStudentsPage() {
     enabled: Number.isFinite(lectureIdNum),
   });
 
-  if (!Number.isFinite(lectureIdNum)) {
-    return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>잘못된 lectureId</div>;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return students;
+    const k = search.trim().toLowerCase();
+    return students.filter(
+      (s) =>
+        (s.name || "").toLowerCase().includes(k) ||
+        (s.school || "").toLowerCase().includes(k) ||
+        String(s.grade ?? "").includes(k)
+    );
+  }, [students, search]);
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => filtered.map((s) => s.id), [filtered]);
+  const allSelected = filtered.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  function toggleSelect(id: number) {
+    if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
+    else setSelectedIds([...selectedIds, id]);
+  }
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds([]);
+    else setSelectedIds([...allIds]);
   }
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (!students.length)
+  const selectionBar = (
+    <div className="flex flex-wrap items-center gap-2 pl-1">
+      <span
+        className="text-[13px] font-semibold"
+        style={{
+          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+        }}
+      >
+        {selectedIds.length}명 선택됨
+      </span>
+      <span className="text-[var(--color-border-divider)]">|</span>
+        <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
+          메시지 발송
+        </Button>
+        <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
+          엑셀 다운로드
+        </Button>
+        <Button intent="secondary" size="sm" onClick={() => feedback.info("태그 추가 기능 준비 중입니다.")}>
+          태그 추가
+        </Button>
+        <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
+          비밀번호 변경
+        </Button>
+        <Button intent="danger" size="sm" onClick={() => feedback.info("일괄 삭제 기능 준비 중입니다.")}>
+          삭제
+        </Button>
+      </div>
+  );
+
+  if (!Number.isFinite(lectureIdNum)) {
     return (
-      <EmptyState
-        scope="panel"
-        tone="empty"
-        title="수강 중인 학생이 없습니다."
-        description="학생이 등록되면 여기에 표시됩니다."
-      />
+      <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>
+        잘못된 lectureId
+      </div>
     );
+  }
 
   return (
-    <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--color-border-divider)" }}>
-      <table className="w-full" style={{ tableLayout: "fixed" }}>
-        <thead>
-          <tr>
-            <th
-              className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-              style={{ textAlign: "left", whiteSpace: "nowrap", ...TH_STYLE }}
-            >
-              이름
-            </th>
-            <th
-              className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-              style={{ textAlign: "center", width: 120, whiteSpace: "nowrap", ...TH_STYLE }}
-            >
-              학년
-            </th>
-            <th
-              className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-              style={{ textAlign: "left", whiteSpace: "nowrap", ...TH_STYLE }}
-            >
-              학교
-            </th>
-            <th
-              className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-              style={{ textAlign: "center", width: 160, whiteSpace: "nowrap", ...TH_STYLE }}
-            >
-              상태
-            </th>
-          </tr>
-        </thead>
+    <>
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={isLoading ? "…" : `총 ${filtered.length}명`}
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="이름 / 학교 / 학년 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              style={{ maxWidth: 360 }}
+            />
+          }
+          primaryAction={
+            <Button intent="primary" onClick={() => setShowEnroll(true)}>
+              수강생 등록
+            </Button>
+          }
+          belowSlot={selectionBar}
+        />
 
-        <tbody className="divide-y divide-[var(--color-border-divider)]">
-          {students.map((s) => (
-            <tr key={s.id} className="hover:bg-[var(--color-bg-surface-soft)]">
-              <td className="px-4 py-3 text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
-                {s.name}
-              </td>
-              <td className="px-4 py-3 text-center text-[14px] text-[var(--color-text-secondary)] truncate">
-                {s.grade ?? "-"}
-              </td>
-              <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-secondary)] truncate">
-                {s.school ?? "-"}
-              </td>
-              <td className="px-4 py-3 text-center text-[13px] font-semibold text-[var(--color-text-muted)] truncate">
-                {s.status_label}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        <div>
+          {isLoading ? (
+            <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : !filtered.length ? (
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title="수강 중인 학생이 없습니다."
+              description="수강생 등록 버튼으로 학생을 추가하거나, 검색 조건을 변경해 보세요."
+              actions={
+                <Button intent="primary" onClick={() => setShowEnroll(true)}>
+                  수강생 등록
+                </Button>
+              }
+            />
+          ) : (
+            <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: 48 }} />
+                <col style={{ width: 256 }} />
+                <col style={{ width: 100 }} />
+                <col />
+                <col style={{ width: 120 }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col" className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="전체 선택"
+                      className="cursor-pointer"
+                    />
+                  </th>
+                  <th scope="col">이름</th>
+                  <th scope="col">학년</th>
+                  <th scope="col">학교</th>
+                  <th scope="col">상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((s) => (
+                  <tr
+                    key={s.id}
+                    onClick={() => navigate(`/admin/students/${s.id}`)}
+                    tabIndex={0}
+                    role="button"
+                    className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
+                  >
+                    <td className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedSet.has(s.id)}
+                        onChange={() => toggleSelect(s.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`${s.name} 선택`}
+                        className="cursor-pointer"
+                      />
+                    </td>
+                    <td className="text-[15px] font-bold text-[var(--color-text-primary)] truncate">
+                      {s.name}
+                    </td>
+                    <td className="text-[14px] text-[var(--color-text-secondary)] truncate text-center">
+                      {s.grade ?? "-"}
+                    </td>
+                    <td className="text-[14px] text-[var(--color-text-secondary)] truncate">
+                      {s.school ?? "-"}
+                    </td>
+                    <td className="text-[13px] font-semibold text-[var(--color-text-muted)] truncate text-center">
+                      {s.status_label}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </DomainTable>
+          )}
+        </div>
+      </div>
+
+      <LectureEnrollStudentModal
+        lectureId={lectureIdNum}
+        open={showEnroll}
+        onClose={() => setShowEnroll(false)}
+        onSuccess={() => setShowEnroll(false)}
+      />
+    </>
   );
 }
 
@@ -3287,13 +3767,20 @@ export default function LectureStudentsPage() {
 # FILE: pages/lectures/LecturesPage.tsx
 ==========================================================================================
 // PATH: src/features/lectures/pages/lectures/LecturesPage.tsx
+// Design SSOT — students 도메인 패턴 준수
+
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
+import { DomainListToolbar, DomainTable, DEFAULT_PRESET_COLOR } from "@/shared/ui/domain";
 import LectureCreateModal from "../../components/LectureCreateModal";
+
+type LecturesPageProps = {
+  tab?: "active" | "past";
+};
 
 type LectureItem = {
   id: number;
@@ -3302,15 +3789,12 @@ type LectureItem = {
   name?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  lecture_time?: string | null;
+  color?: string | null;
   is_active?: boolean;
 };
 
 type TabKey = "active" | "past";
-
-const TH_STYLE = {
-  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
-  color: "var(--color-text-muted)",
-};
 
 function isPastLecture(lec: LectureItem) {
   const activeFlag =
@@ -3328,11 +3812,11 @@ function isPastLecture(lec: LectureItem) {
   return end.getTime() < today.getTime();
 }
 
-export default function LecturesPage() {
+export default function LecturesPage({ tab = "active" }: LecturesPageProps = {}) {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
-  const [tab] = useState<TabKey>("active"); // UI 없이 내부 필터로만 사용
   const [q, setQ] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const { data = [], isLoading, error, isFetching } = useQuery({
     queryKey: ["lectures"],
@@ -3364,6 +3848,11 @@ export default function LecturesPage() {
     return { activeLectures: active, pastLectures: past };
   }, [data]);
 
+  function isLightColor(hex: string): boolean {
+  const c = String(hex || "").toLowerCase();
+  return ["#eab308", "#06b6d4"].includes(c);
+}
+
   const list = useMemo(() => {
     const base = tab === "active" ? activeLectures : pastLectures;
     const keyword = q.trim().toLowerCase();
@@ -3374,6 +3863,7 @@ export default function LecturesPage() {
         lec.title,
         lec.subject ?? "",
         lec.name ?? "",
+        lec.lecture_time ?? "",
         lec.start_date ?? "",
         lec.end_date ?? "",
       ]
@@ -3383,117 +3873,168 @@ export default function LecturesPage() {
     );
   }, [tab, activeLectures, pastLectures, q]);
 
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => list.map((l) => l.id), [list]);
+  const allSelected = list.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  function toggleSelect(id: number) {
+    if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
+    else setSelectedIds([...selectedIds, id]);
+  }
+  function toggleSelectAll() {
+    if (allSelected) setSelectedIds([]);
+    else setSelectedIds([...allIds]);
+  }
+
+  const selectionBar = (
+    <div className="flex flex-wrap items-center gap-2 pl-1">
+      <span
+        className="text-[13px] font-semibold"
+        style={{
+          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+        }}
+      >
+        {selectedIds.length}개 선택됨
+      </span>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        선택 해제
+      </Button>
+    </div>
+  );
+
   return (
     <>
-      {/* CARD HEADER (Students와 동일: 제목 + 검색만) */}
-      <div className="px-5 py-4 border-b border-[var(--border-divider)]">
-        <div className="text-base font-semibold mb-2">강의 목록</div>
-
-        <input
-          className="ds-input"
-          placeholder="강의 검색 (강의명/과목/강사/기간)"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          style={{ maxWidth: 360 }}
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={
+            isLoading ? "…" : isFetching ? "동기화 중…" : `총 ${list.length}개`
+          }
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="강의 검색 (강의명/과목/강사/기간)"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              style={{ maxWidth: 360 }}
+            />
+          }
+          primaryAction={
+            <Button intent="primary" onClick={() => setShowModal(true)}>
+              강의 추가
+            </Button>
+          }
+          belowSlot={selectionBar}
         />
-      </div>
 
-      {/* CARD ACTIONS (강의 추가 + 카운트만) */}
-      <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border-divider)]">
-        <Button intent="primary" onClick={() => setShowModal(true)}>
-          강의 추가
-        </Button>
-
-        <span className="ml-auto text-sm font-semibold text-[var(--color-text-muted)]">
-          {isLoading
-            ? "불러오는 중…"
-            : isFetching
-            ? "동기화 중…"
-            : `${list.length}개`}
-        </span>
-      </div>
-
-      {/* CARD BODY */}
-      <div className="p-4">
-        {isLoading ? (
-          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-        ) : error ? (
-          <EmptyState scope="panel" tone="error" title="에러가 발생했습니다." />
-        ) : list.length === 0 ? (
-          <EmptyState scope="panel" tone="empty" title="표시할 강의가 없습니다." />
-        ) : (
-          <div
-            style={{
-              overflow: "hidden",
-              borderRadius: 14,
-              border: "1px solid var(--color-border-divider)",
-            }}
-          >
-            <table className="w-full" style={{ tableLayout: "fixed" }}>
-              <thead>
-                <tr>
-                  <th
-                    className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-                    style={{ textAlign: "left", ...TH_STYLE }}
-                  >
-                    강의 이름
-                  </th>
-                  <th
-                    className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-                    style={{ textAlign: "center", width: 140, ...TH_STYLE }}
-                  >
-                    과목
-                  </th>
-                  <th
-                    className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-                    style={{ textAlign: "center", width: 140, ...TH_STYLE }}
-                  >
-                    강사
-                  </th>
-                  <th
-                    className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]"
-                    style={{ textAlign: "center", width: 240, ...TH_STYLE }}
-                  >
-                    기간
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-[var(--color-border-divider)]">
-                {list.map((lec) => (
-                  <tr
-                    key={lec.id}
-                    onClick={() => navigate(`/admin/lectures/${lec.id}`)}
-                    tabIndex={0}
-                    role="button"
-                    className="cursor-pointer hover:bg-[var(--color-bg-surface-soft)]"
-                  >
-                    <td className="px-4 py-3 text-[15px] font-bold truncate">
-                      {lec.title}
-                    </td>
-                    <td className="px-4 py-3 text-center text-[14px] truncate">
-                      {lec.subject || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center text-[14px] truncate">
-                      {lec.name || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-center text-[13px] font-semibold truncate">
-                      {lec.start_date && lec.end_date
-                        ? `${lec.start_date} ~ ${lec.end_date}`
-                        : "-"}
-                    </td>
+        <div>
+          {isLoading ? (
+            <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : error ? (
+            <EmptyState scope="panel" tone="error" title="에러가 발생했습니다." />
+          ) : list.length === 0 ? (
+            <EmptyState scope="panel" tone="empty" title="표시할 강의가 없습니다." />
+          ) : (
+            <div style={{ width: "fit-content" }}>
+              <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "auto" }}>
+                <colgroup>
+                  <col style={{ width: 48 }} />
+                  <col style={{ width: 192 }} />
+                  <col />
+                  <col />
+                  <col style={{ width: 160 }} />
+                  <col />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col" className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="전체 선택"
+                        className="cursor-pointer"
+                      />
+                    </th>
+                    <th scope="col">강의 이름</th>
+                    <th scope="col">과목</th>
+                    <th scope="col">강사</th>
+                    <th scope="col">강의 시간</th>
+                    <th scope="col">기간</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {list.map((lec) => (
+                    <tr
+                      key={lec.id}
+                      onClick={() => navigate(`/admin/lectures/${lec.id}`)}
+                      tabIndex={0}
+                      role="button"
+                      className={`cursor-pointer ${selectedSet.has(lec.id) ? "ds-row-selected" : ""}`}
+                    >
+                      <td className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedSet.has(lec.id)}
+                          onChange={() => toggleSelect(lec.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`${lec.title} 선택`}
+                          className="cursor-pointer"
+                        />
+                      </td>
+                      <td style={{ fontWeight: 600 }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 10,
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 8,
+                              flexShrink: 0,
+                              display: "grid",
+                              placeItems: "center",
+                              fontSize: 12,
+                              fontWeight: 800,
+                              letterSpacing: "-0.02em",
+                              color: isLightColor(lec.color || "") ? "#1a1a1a" : "#fff",
+                              background: lec.color || DEFAULT_PRESET_COLOR,
+                              border: "none",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.15)",
+                              textShadow: "0 0 1px rgba(0,0,0,0.2)",
+                            }}
+                          >
+                            {(lec.title || "??").slice(0, 2)}
+                          </span>
+                          {lec.title}
+                        </span>
+                      </td>
+                      <td>{lec.subject || "-"}</td>
+                      <td>{lec.name || "-"}</td>
+                      <td>{lec.lecture_time || "-"}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        {lec.start_date && lec.end_date
+                          ? `${lec.start_date} ~ ${lec.end_date}`
+                          : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DomainTable>
+            </div>
+          )}
+        </div>
       </div>
 
       {showModal && (
         <LectureCreateModal
           isOpen
           onClose={() => setShowModal(false)}
+          usedColors={data?.map((l) => l.color).filter(Boolean) ?? []}
         />
       )}
     </>
@@ -3955,30 +4496,88 @@ export default function SessionScoresEntryPage() {
 # FILE: pages/sessions/LectureSessionsPage.tsx
 ==========================================================================================
 // PATH: src/features/lectures/pages/sessions/LectureSessionsPage.tsx
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useCallback } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchSessions } from "../../api/sessions";
+import { fetchSessions, type Session } from "../../api/sessions";
 import SessionCreateModal from "../../components/SessionCreateModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
-
-const TH_STYLE = {
-  background: "color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface))",
-  color: "var(--color-text-muted)",
-};
+import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 
 export default function LectureSessionsPage() {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const { lectureId } = useParams<{ lectureId: string }>();
   const lecId = Number(lectureId);
 
   const [open, setOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  const { data: sessions = [], isLoading, isError } = useQuery({
+  const { data: sessions = [], isLoading, isError } = useQuery<Session[]>({
     queryKey: ["lecture-sessions", lecId],
     queryFn: () => fetchSessions(lecId),
     enabled: Number.isFinite(lecId),
   });
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
+  const allSelected = useMemo(
+    () => sessions.length > 0 && allIds.length > 0 && allIds.every((id) => selectedIds.includes(id)),
+    [sessions.length, allIds, selectedIds]
+  );
+
+  const toggleSelect = useCallback(
+    (id: number) => {
+      setSelectedIds((prev) => {
+        if (prev.includes(id)) {
+          return prev.filter((x) => x !== id);
+        } else {
+          return [...prev, id];
+        }
+      });
+    },
+    []
+  );
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (allSelected) {
+        return [];
+      } else {
+        return [...allIds];
+      }
+    });
+  }, [allSelected, allIds]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds([]);
+  }, []);
+
+  const selectionBar = useMemo(
+    () => (
+      <div className="flex flex-wrap items-center gap-2 pl-1">
+        <span
+          className="text-[13px] font-semibold"
+          style={{
+            color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+          }}
+        >
+          {selectedIds.length}개 선택됨
+        </span>
+        <span className="text-[var(--color-border-divider)]">|</span>
+        <Button intent="secondary" size="sm" onClick={handleClearSelection} disabled={selectedIds.length === 0}>
+          선택 해제
+        </Button>
+      </div>
+    ),
+    [selectedIds.length, handleClearSelection]
+  );
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    qc.invalidateQueries({ queryKey: ["lecture-sessions", lecId] });
+  }, [qc, lecId]);
 
   if (!Number.isFinite(lecId)) {
     return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>잘못된 강의 ID</div>;
@@ -3986,66 +4585,103 @@ export default function LectureSessionsPage() {
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-3">
-        <Button intent="primary" onClick={() => setOpen(true)}>
-          + 차시 추가
-        </Button>
-        <span className="ml-auto text-sm font-semibold text-[var(--color-text-muted)]">
-          {isLoading ? "불러오는 중…" : `${sessions.length}개`}
-        </span>
+      <div className="flex flex-col gap-4">
+        {isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : isError ? (
+          <EmptyState scope="panel" tone="error" title="차시 데이터를 불러올 수 없습니다." />
+        ) : sessions.length === 0 ? (
+          <EmptyState
+            scope="panel"
+            title="등록된 차시가 없습니다."
+            description="차시를 추가하면 여기에 표시됩니다."
+            actions={
+              <Button intent="primary" onClick={() => setOpen(true)}>
+                + 차시 추가
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <DomainListToolbar
+              totalLabel={`총 ${sessions.length}개`}
+              searchSlot={null}
+              primaryAction={
+                <Button intent="primary" onClick={() => setOpen(true)}>
+                  + 차시 추가
+                </Button>
+              }
+              belowSlot={selectionBar}
+            />
+            <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: 48 }} />
+                <col style={{ width: 120 }} />
+                <col style={{ width: 192 }} />
+                <col style={{ width: 160 }} />
+                <col style={{ width: 100 }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col" className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="전체 선택"
+                      className="cursor-pointer"
+                    />
+                  </th>
+                  <th scope="col">차시</th>
+                  <th scope="col">제목</th>
+                  <th scope="col">날짜</th>
+                  <th scope="col">ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.map((s) => (
+                  <tr
+                    key={s.id}
+                    className={`cursor-pointer hover:bg-[var(--color-bg-surface-hover)] ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
+                    onClick={() => navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)}
+                  >
+                    <td className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedSet.has(s.id)}
+                        onChange={() => toggleSelect(s.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`${s.title} 선택`}
+                        className="cursor-pointer"
+                      />
+                    </td>
+                    <td className="text-[15px] font-bold text-[var(--color-text-primary)] truncate">
+                      <Link
+                        to={`/admin/lectures/${lectureId}/sessions/${s.id}`}
+                        style={{ color: "inherit", textDecoration: "none" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {s.order ?? "-"}차시
+                      </Link>
+                    </td>
+                    <td className="text-[14px] text-[var(--color-text-secondary)] truncate">
+                      {s.title || "-"}
+                    </td>
+                    <td className="text-[14px] text-[var(--color-text-secondary)] truncate text-center">
+                      {s.date || "-"}
+                    </td>
+                    <td className="text-[13px] font-semibold text-[var(--color-text-muted)] truncate text-center">
+                      {s.id}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </DomainTable>
+          </>
+        )}
       </div>
 
-      {isLoading ? (
-        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-      ) : isError ? (
-        <EmptyState scope="panel" tone="error" title="차시 데이터를 불러올 수 없습니다." />
-      ) : sessions.length === 0 ? (
-        <EmptyState scope="panel" title="등록된 차시가 없습니다." description="차시를 추가하면 여기에 표시됩니다." />
-      ) : (
-        <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--color-border-divider)" }}>
-          <table className="w-full" style={{ tableLayout: "fixed" }}>
-            <thead>
-              <tr>
-                <th className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]" style={{ textAlign: "left", ...TH_STYLE }}>
-                  차시
-                </th>
-                <th className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]" style={{ textAlign: "left", ...TH_STYLE }}>
-                  제목
-                </th>
-                <th className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]" style={{ textAlign: "center", width: 160, ...TH_STYLE }}>
-                  날짜
-                </th>
-                <th className="px-4 py-3 text-sm font-semibold border-b border-[var(--color-border-divider)]" style={{ textAlign: "center", width: 120, ...TH_STYLE }}>
-                  ID
-                </th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-[var(--color-border-divider)]">
-              {sessions.map((s: any) => (
-                <tr key={s.id} className="hover:bg-[var(--color-bg-surface-soft)]">
-                  <td className="px-4 py-3 text-left text-[15px] font-bold text-[var(--color-text-primary)] truncate">
-                    <Link to={`${s.id}`} style={{ color: "inherit", textDecoration: "none", fontWeight: 950 }}>
-                      {s.order ?? "-"}차시
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-left text-[14px] text-[var(--color-text-secondary)] truncate">
-                    {s.title || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-center text-[14px] text-[var(--color-text-secondary)] truncate">
-                    {s.date || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-center text-[13px] font-semibold text-[var(--color-text-muted)] truncate">
-                    {s.id}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {open && <SessionCreateModal lectureId={lecId} onClose={() => setOpen(false)} />}
+      {open && <SessionCreateModal lectureId={lecId} onClose={handleClose} />}
     </>
   );
 }

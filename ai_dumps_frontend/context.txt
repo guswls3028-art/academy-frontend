@@ -9,7 +9,10 @@
 ==========================================================================================
 // PATH: src/context/ThemeContext.tsx
 import { createContext, useContext, useEffect, useState } from "react";
-import type { ThemeKey } from "@/features/settings/constants/themes";
+import {
+  type ThemeKey,
+  isThemeKey,
+} from "@/features/settings/constants/themes";
 
 type ThemeContextState = {
   theme: ThemeKey;
@@ -18,19 +21,20 @@ type ThemeContextState = {
 
 const ThemeContext = createContext<ThemeContextState | null>(null);
 
-const STORAGE_KEY = "admin_theme";
+const STORAGE_KEY = "hakwonplus:theme";
+
+function loadThemeFromStorage(): ThemeKey {
+  try {
+    const v = localStorage.getItem(STORAGE_KEY);
+    if (v && isThemeKey(v)) return v;
+  } catch {
+    // ignore
+  }
+  return "modern-white";
+}
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeKey>("modern-white");
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY) as ThemeKey | null;
-      if (saved) setThemeState(saved);
-    } catch {
-      // ignore
-    }
-  }, []);
+  const [theme, setThemeState] = useState<ThemeKey>(loadThemeFromStorage);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);

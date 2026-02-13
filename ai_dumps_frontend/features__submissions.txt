@@ -372,6 +372,7 @@ export async function fetchExamSubmissions(examId: number) {
 ==========================================================================================
 import { useMemo, useRef, useState } from "react";
 import api from "@/shared/api/axios";
+import { Button } from "@/shared/ui/ds";
 
 type Props = {
   examId: number;
@@ -539,13 +540,13 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
               className="text-sm"
             />
 
-            <button className="btn-primary" disabled={busy || items.length === 0} onClick={() => void upload()}>
+            <Button type="button" intent="primary" size="md" disabled={busy || items.length === 0} onClick={() => void upload()}>
               {busy ? "업로드 중..." : "업로드 시작"}
-            </button>
+            </Button>
 
-            <button className="btn" disabled={busy || items.length === 0} onClick={clear}>
+            <Button type="button" intent="secondary" size="md" disabled={busy || items.length === 0} onClick={clear}>
               비우기
-            </button>
+            </Button>
           </div>
 
           {items.length === 0 ? (
@@ -574,9 +575,9 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
                         {it.message ? <span className="ml-2 text-xs text-[var(--text-muted)]">({it.message})</span> : null}
                       </td>
                       <td>
-                        <button className="btn" disabled={busy} onClick={() => removeOne(idx)}>
+                        <Button type="button" intent="secondary" size="sm" disabled={busy} onClick={() => removeOne(idx)}>
                           삭제
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -962,6 +963,7 @@ export default function AdminOmrUploadSection({ examId, onUploaded }: Props) {
 // src/features/submissions/components/AdminSubmissionDetailModal.tsx
 import { useEffect, useState } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import { useSubmissionPolling } from "../hooks/useSubmissionPolling";
 import SubmissionStatusBadge from "./SubmissionStatusBadge";
 import {
@@ -1016,7 +1018,7 @@ export default function AdminSubmissionDetailModal({
       <div className="bg-[var(--bg-surface)] w-full max-w-4xl rounded-xl border">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="text-sm font-semibold">Submission #{submission.id}</div>
-          <button className="text-xs" onClick={onClose}>닫기</button>
+          <Button type="button" intent="ghost" size="sm" onClick={onClose}>닫기</Button>
         </div>
 
         <div className="p-4 space-y-4">
@@ -1051,22 +1053,22 @@ export default function AdminSubmissionDetailModal({
                 </tbody>
               </table>
 
-              <button className="btn-primary" onClick={() => save.mutate()}>
+              <Button type="button" intent="primary" size="md" onClick={() => save.mutate()}>
                 저장 후 재채점
-              </button>
+              </Button>
             </>
           )}
 
           {submission.status === "failed" && (
-            <button className="btn" onClick={() => retryAnySubmission(submissionId)}>
+            <Button type="button" intent="secondary" size="md" onClick={() => retryAnySubmission(submissionId)}>
               다시 처리
-            </button>
+            </Button>
           )}
 
           {submission.status === "done" && onGoResults && (
-            <button className="btn-primary" onClick={() => onGoResults(submission.target_id)}>
+            <Button type="button" intent="primary" size="md" onClick={() => onGoResults(submission.target_id)}>
               결과 보기
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -1079,6 +1081,7 @@ export default function AdminSubmissionDetailModal({
 # FILE: components/AdminSubmissionsPanel.tsx
 ==========================================================================================
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/shared/ui/ds";
 import { fetchExamSubmissions } from "../api/adminSubmissionsApi";
 
 export default function AdminSubmissionsPanel({
@@ -1115,12 +1118,9 @@ export default function AdminSubmissionsPanel({
           제출 / 처리 상태
         </div>
 
-        <button
-          onClick={() => q.refetch()}
-          className="text-xs px-3 py-1 rounded bg-neutral-800 text-neutral-200"
-        >
+        <Button type="button" intent="ghost" size="sm" onClick={() => q.refetch()} className="text-xs bg-neutral-800 text-neutral-200">
           새로고침
-        </button>
+        </Button>
       </div>
 
       {rows.length === 0 && (
@@ -1162,12 +1162,9 @@ export default function AdminSubmissionsPanel({
 
       {rows.some((r) => r.status === "done") && onGoResults && (
         <div className="pt-3 text-right">
-          <button
-            onClick={() => onGoResults(examId)}
-            className="px-4 py-2 rounded bg-emerald-600 text-white text-sm font-semibold"
-          >
+          <Button type="button" intent="primary" size="sm" onClick={() => onGoResults(examId)}>
             결과 보기
-          </button>
+          </Button>
         </div>
       )}
     </div>

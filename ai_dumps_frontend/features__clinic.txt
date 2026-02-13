@@ -1234,7 +1234,7 @@ export default function ClinicTodaySummary({
   const noShow = rows.filter((r) => r.status === "no_show").length;
 
   return (
-    <div className="clinic-card">
+    <div className="ds-panel" data-panel-variant="primary">
       <div className="clinic-card__header flex items-center justify-between">
         <div>
           <div
@@ -1729,6 +1729,7 @@ import { useNavigate } from "react-router-dom";
 import { DatePicker } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 
+import { Button, KPI } from "@/shared/ui/ds";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import ClinicTodaySummary from "../../components/home/ClinicTodaySummary";
@@ -1804,20 +1805,15 @@ export default function ClinicHomePage() {
   }, [weekQ.listQ.data, weekDays]);
 
   return (
-    <div style={{ padding: "var(--space-6)" }}>
-      <div
-        className="grid grid-cols-1 gap-[var(--space-6)] lg:gap-[var(--space-8)]"
-        style={{ rowGap: "var(--space-8)" }}
-      >
-        {/* 툴바: 날짜만 (도메인 타이틀은 Layout에서) */}
-        <div
-          className="flex items-center justify-end"
-          style={{ marginBottom: "var(--space-2)" }}
-        >
+    <div className="flex flex-col gap-[var(--space-6)]">
+        {/* 툴바: 날짜 선택 (도메인 타이틀은 Layout에서) */}
+        <div className="flex items-center justify-end">
           <DatePicker
             value={dayjs(date)}
             onChange={(d: Dayjs | null) => d && setDate(d.format("YYYY-MM-DD"))}
             allowClear={false}
+            size="large"
+            style={{ width: 200 }}
           />
         </div>
 
@@ -1831,10 +1827,9 @@ export default function ClinicHomePage() {
             onGoBookings={() => nav("/admin/clinic/bookings")}
           />
 
-          <div className="clinic-card">
+          <div className="ds-panel" data-panel-variant="default">
             <div className="clinic-card__header">
               <div
-                className="font-semibold"
                 style={{
                   fontSize: "var(--text-md)",
                   color: "var(--color-text-primary)",
@@ -1855,30 +1850,25 @@ export default function ClinicHomePage() {
               </div>
             </div>
             <div className="clinic-card__body flex items-end justify-between">
-              <div
-                style={{
-                  fontSize: "var(--text-2xl)",
-                  fontWeight: 700,
-                  letterSpacing: "-0.4px",
-                  color: "var(--color-error)",
-                }}
-              >
-                {requiredCount}명
-              </div>
-              <button
+              <KPI
+                label=""
+                value={requiredCount}
+                hint={requiredCount > 0 ? "확인 필요" : undefined}
+              />
+              <Button
                 type="button"
-                className="text-sm font-medium text-[var(--color-error)] hover:underline"
+                intent="primary"
+                size="sm"
                 onClick={() => nav("/admin/clinic/bookings?focus=required")}
               >
                 관리 이동
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="clinic-card">
+          <div className="ds-panel" data-panel-variant="subtle">
             <div className="clinic-card__header">
               <div
-                className="font-semibold"
                 style={{
                   fontSize: "var(--text-md)",
                   color: "var(--color-text-primary)",
@@ -1903,7 +1893,7 @@ export default function ClinicHomePage() {
         </div>
 
         {/* 주간 일정 */}
-        <div className="clinic-card">
+        <div className="ds-panel" data-panel-variant="default">
           <div className="clinic-card__header">
             <div
               style={{
@@ -1932,6 +1922,7 @@ export default function ClinicHomePage() {
             {weekDays.map((d) => {
               const info = rowsByDay[d.date];
               const times = Object.keys(info.byTime).sort();
+              const isToday = d.date === date;
 
               return (
                 <button
@@ -1941,7 +1932,14 @@ export default function ClinicHomePage() {
                     setDate(d.date);
                     nav(`/admin/clinic/operations?date=${d.date}`);
                   }}
-                  className="clinic-day-cell text-left"
+                  className="clinic-day-cell !block !w-full !text-left !justify-start"
+                  style={{
+                    borderColor: isToday ? "var(--color-primary)" : undefined,
+                    borderWidth: isToday ? 2 : 1,
+                    background: isToday
+                      ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))"
+                      : undefined,
+                  }}
                 >
                   <div
                     className="flex items-center justify-between"
@@ -1951,7 +1949,9 @@ export default function ClinicHomePage() {
                       style={{
                         fontSize: "var(--text-lg)",
                         fontWeight: "var(--font-title)",
-                        color: "var(--color-text-primary)",
+                        color: isToday
+                          ? "var(--color-primary)"
+                          : "var(--color-text-primary)",
                       }}
                     >
                       {d.dow}
@@ -1998,7 +1998,6 @@ export default function ClinicHomePage() {
             })}
           </div>
         </div>
-      </div>
     </div>
   );
 }

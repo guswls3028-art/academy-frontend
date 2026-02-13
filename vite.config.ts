@@ -22,4 +22,9 @@ export default defineConfig({
       "@student": path.resolve(process.cwd(), "src/student"),
     },
   },
+
+  // xlsx-js-style 등 Node 'stream' 사용 시 브라우저 호환 경고 완화
+  optimizeDeps: {
+    exclude: ["xlsx-js-style"],
+  },
 });

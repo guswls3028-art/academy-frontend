@@ -11,7 +11,7 @@ export default function ModalFooter({
   return (
     <div
       style={{
-        padding: "16px 24px",
+        padding: "12px 20px",
         borderTop: "1px solid var(--color-border-divider)",
         display: "flex",
         alignItems: "center",

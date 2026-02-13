@@ -9,7 +9,7 @@ export default function ModalBody({
   return (
     <div
       style={{
-        padding: "20px 24px",
+        padding: "16px 20px",
         background: "var(--color-modal-bg)",
       }}
     >

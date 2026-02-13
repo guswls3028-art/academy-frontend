@@ -102,6 +102,10 @@ export default function StudentsHomePage() {
         {selectedIds.length}명 선택됨
       </span>
       <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        선택 해제
+      </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
       {!isDeletedTab && (
         <>
           <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>

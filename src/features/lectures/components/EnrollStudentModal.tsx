@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { bulkCreateAttendance } from "../api/attendance";
-import { fetchStudents as fetchStudentList, type ClientStudent } from "@/features/students/api/students";
+import { fetchStudents } from "@/features/students/api/students";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -62,8 +62,8 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
   const { data: students = [], isLoading } = useQuery({
     queryKey: ["enroll-modal-students", search],
     queryFn: async (): Promise<Student[]> => {
-      const list: ClientStudent[] = await fetchStudentList(search, {});
-      return list.map((s) => ({
+      const { data } = await fetchStudents(search, { page_size: 100 }, "", 1);
+      return data.map((s) => ({
         id: s.id,
         name: s.name,
         phone: s.studentPhone,

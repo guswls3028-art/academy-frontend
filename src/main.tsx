@@ -24,7 +24,12 @@ import "antd/dist/reset.css";         // ✅ AntD reset
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <QueryProvider>
           {/* 🔒 Program is resolved BEFORE auth & routing */}
           <ProgramProvider>

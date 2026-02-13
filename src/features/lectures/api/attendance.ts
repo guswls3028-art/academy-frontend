@@ -25,6 +25,14 @@ export async function updateAttendance(
 }
 
 /* =========================================================
+ * 2-1 출결 단건 삭제 (차시에서 수강생 제외)
+ * DELETE /api/v1/lectures/attendance/{id}/
+ * ======================================================= */
+export async function deleteAttendance(id: number) {
+  await api.delete(`/lectures/attendance/${id}/`);
+}
+
+/* =========================================================
  * 3️⃣ 세션 기준 학생 등록
  * POST /api/v1/lectures/attendance/bulk_create/
  * ======================================================= */
@@ -48,20 +56,31 @@ export async function bulkCreateAttendance(
  * GET /api/v1/lectures/attendance/matrix/?lecture={id}
  * ======================================================= */
 
-export type AttendanceMatrixSessionCell = {
-  session_id: number;
-  title: string;
-  status?: string | null;
-  status_label?: string | null;
+/** 강의 출결 매트릭스 응답 (세션에 등록된 수강생 + 차시별 출결) */
+export type AttendanceMatrixSession = {
+  id: number;
+  order: number | null;
+  date: string | null;
 };
 
-export type AttendanceMatrixRow = {
+export type AttendanceMatrixStudent = {
   student_id: number;
-  student_name: string;
-  sessions: AttendanceMatrixSessionCell[];
+  name: string;
+  phone: string | null;
+  parent_phone: string | null;
+  /** session_id 문자열 키 → { attendance_id, status } */
+  attendance: Record<string, { attendance_id: number; status: string }>;
 };
 
-export async function fetchAttendanceMatrix(lectureId: number) {
+export type AttendanceMatrixResponse = {
+  lecture: { id: number; title: string };
+  sessions: AttendanceMatrixSession[];
+  students: AttendanceMatrixStudent[];
+};
+
+export async function fetchAttendanceMatrix(
+  lectureId: number
+): Promise<AttendanceMatrixResponse> {
   const res = await api.get("/lectures/attendance/matrix/", {
     params: { lecture: lectureId },
   });

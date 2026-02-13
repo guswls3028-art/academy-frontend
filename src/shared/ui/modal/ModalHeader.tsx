@@ -9,8 +9,8 @@ type ModalHeaderProps = {
 
 function Icon({ type }: { type: "action" | "confirm" | "inspect" }) {
   const common = {
-    width: 18,
-    height: 18,
+    width: 16,
+    height: 16,
     viewBox: "0 0 24 24",
     fill: "none" as const,
   };
@@ -105,7 +105,7 @@ export default function ModalHeader({
   return (
     <div
       style={{
-        padding: "18px 24px",
+        padding: "12px 20px",
         background: bg,
         borderBottom: "1px solid var(--color-border-divider)",
         position: "relative",
@@ -125,13 +125,13 @@ export default function ModalHeader({
         }}
       />
 
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div
           aria-hidden
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 12,
+            width: 28,
+            height: 28,
+            borderRadius: 10,
             display: "grid",
             placeItems: "center",
             border: "1px solid var(--color-border-divider)",
@@ -147,11 +147,11 @@ export default function ModalHeader({
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             style={{
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: "var(--font-title)",
-              letterSpacing: "-0.28px",
+              letterSpacing: "-0.2px",
               color: "var(--color-text-primary)",
-              lineHeight: 1.25,
+              lineHeight: 1.3,
             }}
           >
             {title}
@@ -160,11 +160,11 @@ export default function ModalHeader({
           {description && (
             <div
               style={{
-                marginTop: 6,
-                fontSize: 13,
+                marginTop: 4,
+                fontSize: 12,
                 fontWeight: "var(--font-meta)",
                 color: isConfirm ? "var(--color-text-secondary)" : "var(--color-text-muted)",
-                lineHeight: 1.5,
+                lineHeight: 1.45,
               }}
             >
               {description}
@@ -175,11 +175,11 @@ export default function ModalHeader({
           {isConfirm && (
             <div
               style={{
-                marginTop: 10,
+                marginTop: 8,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
-                padding: "8px 10px",
+                padding: "6px 10px",
                 borderRadius: 12,
                 border:
                   "1px solid color-mix(in srgb, var(--color-error) 22%, var(--color-border-divider))",

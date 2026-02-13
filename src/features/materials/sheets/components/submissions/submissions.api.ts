@@ -6,12 +6,14 @@
 // - batch:   POST /submissions/exams/<exam_id>/omr/batch/  (multipart, files[])
 
 import api from "@/shared/api/axios";
+import type { SubmissionStatus } from "@/features/submissions/types";
 
+/** 백엔드가 구형 pending/processing 반환 시 대비 */
 export type ExamSubmissionRow = {
   id: number;
   enrollment_id: number;
   student_name: string;
-  status: "pending" | "processing" | "done" | "failed";
+  status: SubmissionStatus | "pending" | "processing";
   score: number | null;
   created_at: string;
 };

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { fetchExamSubmissions } from "../api/adminSubmissionsApi";
+import { SUBMISSION_STATUS_LABEL } from "../statusMaps";
 
 export default function AdminSubmissionsPanel({
   examId,
@@ -64,10 +65,7 @@ export default function AdminSubmissionsPanel({
 
             <div className="flex items-center gap-4">
               <span>
-                {r.status === "pending" && "대기"}
-                {r.status === "processing" && "처리중"}
-                {r.status === "done" && "완료"}
-                {r.status === "failed" && "실패"}
+                {SUBMISSION_STATUS_LABEL[r.status] ?? r.status}
               </span>
 
               <span className="font-semibold">
@@ -78,7 +76,7 @@ export default function AdminSubmissionsPanel({
         ))}
       </div>
 
-      {rows.some((r) => r.status === "done") && onGoResults && (
+      {rows.some((r) => r.status === "done" || r.status === "answers_ready") && onGoResults && (
         <div className="pt-3 text-right">
           <Button type="button" intent="primary" size="sm" onClick={() => onGoResults(examId)}>
             결과 보기

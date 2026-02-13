@@ -5,9 +5,11 @@ import axios, {
   AxiosRequestConfig,
   AxiosResponse,
 } from "axios";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 
 type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
+  _asyncId?: string;
 };
 
 type RefreshResponse = { access: string };
@@ -112,6 +114,14 @@ api.interceptors.request.use((config) => {
     import.meta.env.VITE_APP_VERSION || "dev"
   );
 
+  // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록
+  const asyncId = asyncStatusStore.trackRequest(
+    cfg.method ?? "get",
+    cfg.url,
+    cfg as AxiosRequestConfig & { meta?: { asyncLabel?: string } }
+  );
+  if (asyncId) (cfg as RetryConfig)._asyncId = asyncId;
+
   return cfg;
 });
 
@@ -141,12 +151,25 @@ async function refreshAccessToken(): Promise<string | null> {
 
 /**
  * Response interceptor
+ * - 비동기 SSOT: 성공/실패 시 해당 요청 완료 처리
  * - 401: attempt refresh ONCE, then replay original request
  * - 403: do not refresh (membership/role), fail-fast
  */
 api.interceptors.response.use(
-  (res: AxiosResponse) => res,
+  (res: AxiosResponse) => {
+    const id = (res.config as RetryConfig)._asyncId;
+    if (id) asyncStatusStore.completeTask(id, "success");
+    return res;
+  },
   async (err: any) => {
+    const config = err?.config as RetryConfig | undefined;
+    const asyncId = config?._asyncId;
+    if (asyncId)
+      asyncStatusStore.completeTask(
+        asyncId,
+        "error",
+        err?.response?.data?.detail ?? err?.message ?? "오류"
+      );
     if (!isAxiosError(err)) throw err;
 
     const status = err.response?.status;

@@ -5,179 +5,6 @@
 
 
 ==========================================================================================
-# FILE: design-system/PREMIUM-SAAS-AUDIT.md
-==========================================================================================
-# 고급 SaaS처럼 안 보이는 이유 — 진단 & 개선안
-
-## 1. 진단: 왜 “관리자 ERP”처럼 보이는가
-
-### 1) 도메인 히어로가 과함 (가장 큰 요인)
-- **현상**: `DomainLayout` 상단이 **풀폭 primary 그라데이션 + 굵은 primary 세로 바**로 채워짐.
-- **문제**: 브랜드 색이 면적으로 너무 많이 쓰여 “광고 배너”처럼 보이고, 고급 SaaS에서 흔한 **중립 배경 + 여백 + 타이포 위계**와 거리가 멂.
-- **참고**: Linear, Notion, Vercel, Stripe Dashboard 등은 페이지 타이틀 영역을 **흰색/회색 배경 + 넉넉한 패딩 + 명확한 제목/설명만** 쓰는 경우가 많음.
-
-### 2) 숫자/하드코딩 잔존
-- **DomainLayout**: `px-6`, `pt-6`, `pb-4`, `py-6` 등 Tailwind 숫자만 사용 → 스케일 토큰(`--space-*`)과 불일치.
-- **DomainPanel**: `borderRadius: 18` → `--radius-xl`(18px)이 있는데 토큰 미사용.
-- **SectionHeader**: `borderRadius: "var(--radius-2xl)"` 사용하는데 **`--radius-2xl`이 디자인 시스템에 없음** → fallback으로 일관성 깨짐.
-- **SectionHeader / ModalHeader 등**: `fontSize: 20`, `marginTop: 6` 등 숫자 직접 사용 → 타이포/스페이싱 스케일과 연결되지 않음.
-
-### 3) 앱 헤더·KPI 등 DS 내부에 800+ 폰트 잔존
-- **patterns/header.css**: `font-weight: 950`(브랜드명, active crumb), `font-weight: 850`(muted crumb).
-- **patterns/kpi.css**: `font-weight: 900` / `950`.
-- **patterns/layout.css**: 한 곳 `font-weight: 900`.
-- Phase 2에서 많은 800+를 제거했지만 **DS 패턴 파일**에 남아 있어, “무거운” 인상과 위계 혼란을 줌.
-
-### 4) 여백·리듬·최대 너비
-- 페이지 콘텐츠가 **전부 `px-6` 수준**으로만 배치됨. 대형 모니터에서 영역이 과하게 넓어짐.
-- Premium SaaS는 보통 **콘텐츠 max-width**(예: 1280px) + **일정한 gutter**로 가독성과 “한 화면에 정리된” 느낌을 줌.
-- 도메인 헤더 ↔ 패널, 패널 ↔ 콘텐츠 사이 **세로 리듬**이 토큰(`--space-7`, `--space-8`)으로 명확히 잡혀 있지 않음.
-
-### 5) Elevation이 매우 약함
-- `--elevation-1~3`이 **0.04 / 0.06 / 0.08** opacity로 매우 subtle함.
-- 카드/패널/모달 간 **깊이 구분**이 약해 “다 붙어 보이는” 느낌을 줄 수 있음. (의도적일 수 있으나, “고급스러운 깊이”를 원하면 약간 강화 검토 가능.)
-
-### 6) 탭·CTA 대비
-- 도메인 탭이 **primary 그라데이션 배경 위**에 올라가 있음. 배경이 강해 탭 pill과의 대비·시인성이 약할 수 있음.
-- 히어로를 중립으로 줄이면, **탭과 primary CTA**가 상대적으로 더 잘 보임.
-
-### 7) 모션·인터랙션
-- `--motion-*`, `--ease-*` 토큰은 있으나, **탭/버튼 호버 시 미세한 scale·밝기 변화** 등이 없을 수 있음.  
-  작은 피드백만으로도 “반응하는 UI” 느낌이 커짐.
-
----
-
-## 2. 개선안 (우선순위)
-
-### A. 즉시 적용 가능 (DS + 공유 UI만, 기능/features 비수정)
-
-| # | 항목 | 조치 |
-|---|------|------|
-| 1 | **도메인 히어로 완화** | `DomainLayout` 상단을 **primary 그라데이션 제거**, **중립 배경**(`var(--bg-surface)` 또는 `var(--layout-page-bg)`) + **좌측 얇은 primary 액센트**(4px 바 유지 또는 더 얇게) + **넉넉한 패딩**으로 변경. “한 화면에 히어로 1개”는 유지하되 색 면적 축소. |
-| 2 | **`--radius-2xl` 추가** | `density/radius.css`에 `--radius-2xl: 22px`(또는 24px) 정의. `SectionHeader` 등에서 이미 사용 중이므로 정의만 하면 됨. |
-| 3 | **DomainPanel 토큰화** | `borderRadius: 18` → `borderRadius: "var(--radius-xl)"`. 패딩/여백도 가능한 부분은 `--space-*` 사용. |
-| 4 | **DomainLayout 여백 토큰화** | `px-6` → `var(--space-6)`, `pt-6` / `pb-4` / `py-6` → `var(--space-6)` / `var(--space-4)` / `var(--space-6)` 등으로 치환해 스케일과 일치. |
-| 5 | **DS 내 800+ 제거** | `patterns/header.css`, `patterns/kpi.css`, `patterns/layout.css`에서 950/900/850 → `var(--font-title)` 또는 `var(--font-meta)`로 교체. |
-
-### B. 단기 (디자인 시스템 확장)
-
-| # | 항목 | 조치 |
-|---|------|------|
-| 6 | **콘텐츠 최대 너비** | `--content-max-width: 1280px`(또는 1440px) 토큰 추가. DomainLayout 또는 공통 wrapper에서 `max-width: var(--content-max-width); margin: 0 auto` 적용 검토. |
-| 7 | **Elevation 미세 조정** | “깊이”가 더 느껴지게 하려면 `--elevation-2`, `--elevation-3` opacity를 0.06→0.07, 0.08→0.10 등으로 **한 단계만** 올려서 A/B 비교. (기존 톤 유지하려면 생략 가능.) |
-| 8 | **타이포/스페이싱 토큰** | `--text-hero`, `--space-page-x` 등 페이지 레벨 토큰을 두고, SectionHeader/DomainLayout에서 숫자 대신 토큰 사용. |
-
-### C. 중기 (features는 그대로 두고 DS/패턴만)
-
-| # | 항목 | 조치 |
-|---|------|------|
-| 9 | **탭 호버/포커스** | `.ds-tab`에 `transition` + 호버 시 `background: color-mix(in srgb, var(--color-primary) 8%, transparent)` 등 **아주 약한** 피드백. (active는 현재처럼 primary 100% 유지.) |
-| 10 | **버튼 호버 미세 피드백** | primary/secondary 버튼 호버 시 `filter: brightness(1.02)` 또는 `box-shadow: var(--elevation-1)` 등 미세한 변화. |
-
----
-
-## 3. 적용 범위 (규칙 유지)
-
-- **수정 가능**: `src/styles/design-system/**`, `src/shared/ui/**` (DomainLayout, DomainPanel, SectionHeader, 탭/버튼 패턴 등).
-- **수정 금지**: `src/features/**` 내 로직·API·라우팅·컴포넌트 시그니처. (폰트/색 등은 추후 점진 적용 시 토큰만 권장.)
-
-위 A안만 적용해도 **도메인 첫인상**과 **DS 일관성**이 크게 나아져, “고급 SaaS에 가까운” 톤을 낼 수 있습니다.
-
-
-==========================================================================================
-# FILE: design-system/README.md
-==========================================================================================
-## UI Color Slot Rules (LOCKED)
-
-- 컴포넌트는 색상을 직접 사용하지 않는다
-- 모든 배경 / 영역 색은 ui-slot을 통해서만 사용한다
-
-### Allowed Slots
-- --ui-page-*
-- --ui-hero-*
-- --ui-control-*
-- --ui-work-*
-- --ui-meta-*
-
-### Forbidden
-- 직접 scale / brand 색 사용
-- JSX inline background / border 색상 지정
-
-
-==========================================================================================
-# FILE: design-system/TABS-PREMIUM-SPEC.md
-==========================================================================================
-# 공통 탭 — 프리미엄 설계안
-
-## 현재 상태
-- **컨테이너**: `ds-tabs` — 회색 pill 배경(`surface-soft`), `gap 4px`, `padding 6px`, `radius-lg`
-- **탭**: `ds-tab` — `8px 14px`, 13px, `font-title`, 비활성=muted, 활성=primary 배경 + 흰 글자
-- **한계**: 컨테이너가 눈에 띄고, 활성 탭이 100% primary로 강함. 고급 SaaS는 보통 더 절제된 톤.
-
----
-
-## 방향 1: 언더라인 인디케이터 (추천)
-**참고**: Linear, Notion, Vercel Dashboard
-
-| 요소 | 설계 |
-|------|------|
-| **컨테이너** | 배경 없음(`transparent`). 탭만 나열해 도메인 헤더와 한 몸처럼 보이게. |
-| **탭** | 패딩 `10px 16px`(또는 `--space-2` `--space-4`). 폰트 14px, `--font-title`. 비활성=`--color-text-secondary`. |
-| **활성** | 배경 pill 제거. **글자색만 primary** 또는 `--color-text-primary` + **하단 2px 실선** `border-bottom: 2px solid var(--color-primary)`. |
-| **호버** | 비활성: `color: var(--color-text-primary)`, 또는 배경 `color-mix(primary 6%, transparent)`. |
-| **인디케이터** | 활성 탭 하단 선만 쓰거나, 선 + `border-radius: 2px 2px 0 0`로 살짝 둥근 막대. |
-
-**장점**: 깔끔하고, 헤더와 시각적으로 붙어 있어 프리미엄 느낌. 12테마에서 primary만 바꿔도 통일.
-
----
-
-## 방향 2: 소프트 필 (은은한 pill 유지)
-**참고**: Stripe Dashboard, 일부 Admin
-
-| 요소 | 설계 |
-|------|------|
-| **컨테이너** | 배경을 **은은한 primary**로: `color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface-soft))`. 패딩 `6px 8px`, `gap 4px` 유지. |
-| **탭** | 비활성: `color: var(--color-text-muted)`. 호버: `color: var(--color-text-primary)` + 배경 `color-mix(primary 4%, transparent)`. |
-| **활성** | 배경 `color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface))`(또는 `--color-bg-surface`만). 글자 `var(--color-primary)` 또는 `--color-text-primary` + `font-weight` 한 단계 강조. **100% primary 채우기 대신** 톤만 살짝. |
-| **모션** | `transition: color 120ms, background 120ms`. |
-
-**장점**: 지금 구조와 비슷해서 변경 폭이 작고, “은은한 primary” 요구와 잘 맞음.
-
----
-
-## 방향 3: 세그먼트 컨트롤 (한 줄에 딱 붙은 블록)
-**참고**: iOS 세그먼트, 일부 대시보드
-
-| 요소 | 설계 |
-|------|------|
-| **컨테이너** | `display: flex`, 배경 `var(--color-bg-surface-soft)`, `border-radius: var(--radius-md)`, `padding: 2px`, 테두리 `1px solid var(--color-border-divider)`. |
-| **탭** | `flex: 1` 또는 `min-width`로 균등. `padding: 8px 12px`, `border-radius: calc(var(--radius-md) - 2px)`. |
-| **활성** | 배경 `var(--color-bg-surface)` + `box-shadow: var(--elevation-1)`. 글자 `--color-text-primary` + `--font-title`. |
-| **호버** | 비활성: 배경 `color-mix(primary 4%, transparent)`. |
-
-**장점**: “선택된 한 블록”이 분명해져서 데이터 밀도 높은 화면에 잘 맞음. 다만 도메인 탭처럼 개수가 가변이면 균등 분배가 애매할 수 있음.
-
----
-
-## 권장 조합 (실제 적용 시)
-- **도메인 탭(클리닉·학생·강의 등)** → **방향 1(언더라인)**  
-  - 컨테이너 배경 제거, 활성은 **글자 primary + 하단 2px 선**.  
-  - 헤더와 한 몸으로 보이게 하면 “카드/박스” 느낌이 줄어듦.
-- **내부 섹션 탭**(예: 한 페이지 안에서 전환) → **방향 2(소프트 pill)**  
-  - 컨테이너에 은은한 primary, 활성은 100% 채우기 대신 10~15% primary 톤 + primary 글자.
-
----
-
-## 토큰 제안
-- 탭 컨테이너 패딩: `--space-2`, `--space-3`
-- 탭 항목 패딩: `--space-2` `--space-4` (세로, 가로)
-- 폰트: `--text-sm` 또는 14px, `--font-title`
-- 전환: `--motion-base` `--ease-out` (기존 120ms와 유사하게)
-
-원하면 방향 1 기준으로 `tabs.css` 수정 패치까지 이어서 작성해 줄 수 있음.
-
-
-==========================================================================================
 # FILE: design-system/index.css
 ==========================================================================================
 @import "./base/element-lock.css";
@@ -355,6 +182,19 @@
 
 .ant-modal-content {
   border-radius: var(--radius-xl);
+}
+
+/* 브랜드/라이트 테마: 모달 강제 흰색 (포탈 상속 이슈 방지) */
+html[data-theme="modern-white"] .ant-modal-content,
+html[data-theme="navy-pro"] .ant-modal-content,
+html[data-theme="ivory-office"] .ant-modal-content,
+html[data-theme="minimal-mono"] .ant-modal-content,
+html[data-theme="kakao-business"] .ant-modal-content,
+html[data-theme="naver-works"] .ant-modal-content,
+html[data-theme="samsung-admin"] .ant-modal-content,
+html[data-theme="purple-insight"] .ant-modal-content {
+  --color-modal-bg: #ffffff;
+  background: #ffffff !important;
 }
 
 
@@ -795,6 +635,9 @@
   --color-bg-disabled:      var(--scale-Neutral100);
 
   --color-bg-surface-soft:  var(--color-bg-surface-hover);
+
+  /* Modal: 라이트/브랜드=흰색, 다크=테마 surface (붕뜸 방지) */
+  --color-modal-bg: var(--color-bg-surface);
 }
 
 
@@ -1055,6 +898,8 @@
   --sidebar-header-bg: color-mix(in srgb, #ffffff 78%, var(--color-bg-surface-hover));
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 2) Navy Pro (cool enterprise light) */
@@ -1093,6 +938,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #dbe8ff 56%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 3) Ivory Office */
@@ -1130,6 +977,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #e7dfd3 72%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 4) Minimal Mono */
@@ -1170,6 +1019,8 @@
   --sidebar-item-hover-bg: #f5f5f5;
   --sidebar-item-active-bg: #0a0a0a;
   --sidebar-item-active-text: #ffffff;
+
+  --color-modal-bg: #ffffff;
 }
 
 /* =========================================================
@@ -1215,6 +1066,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #161f2c 88%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: var(--color-bg-surface);
 }
 
 /* 6) Dark Navy (premium navy) */
@@ -1255,6 +1108,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #102044 86%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: var(--color-bg-surface);
 }
 
 /* 7) YouTube Studio (charcoal studio, NOT gray-active) */
@@ -1297,6 +1152,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #17171a 92%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 18%, transparent);
   --sidebar-item-active-text: #ff6b6b;
+
+  --color-modal-bg: var(--color-bg-surface);
 }
 
 /* 8) Terminal Neon (developer neon dark) */
@@ -1338,54 +1195,62 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #0a0c11 92%, transparent);
   --sidebar-item-active-bg: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
   --sidebar-item-active-text: var(--color-brand-primary);
+
+  --color-modal-bg: var(--color-bg-surface);
 }
 /* =========================================================
    BRAND / PREMIUM THEMES (4)
    - Sidebar background MUST be brand fill for Samsung/Naver/Kakao
 ========================================================= */
-/* 9) Kakao Business (FIXED RULE: yellow bg + brown accent) */
+/* 9) Kakao Business (FIXED RULE: yellow + brown, 강·약 차이만) */
+/* 사이드바=강한 노랑, 콘텐츠=약한 노랑·크림 (같은 톤, 농도만 다름) */
 [data-theme="kakao-business"] {
-  /* Keep app readable: warm light canvas */
+  --kakao-yellow: #FBE300;
+  --kakao-brown: #3B1E1E;
+
+  /* Neutral: 카카오 톤 유지, 강(사이드바)→약(콘텐츠) 그라데이션 */
   --scale-Neutral0:   #ffffff;
-  --scale-Neutral50:  #fffdf2;
-  --scale-Neutral100: #fff9d6;
-  --scale-Neutral200: #fff3b0;
-  --scale-Neutral300: #f5df73;
-  --scale-Neutral400: #c9ab3a;
-  --scale-Neutral500: #7c4a2d;
+  --scale-Neutral50:  #fffef7;   /* 아주 은은한 크림 */
+  --scale-Neutral100: #fffde8;   /* 연한 노랑톤 */
+  --scale-Neutral200: #fff8cc;   /* 살짝 더 강한 노랑 */
+  --scale-Neutral300: #f5e699;   /* 황금빛 계열 */
+  --scale-Neutral400: #c9ab3a;   /* 갈색 노랑 */
+  --scale-Neutral500: #7c4a2d;   /* 브라운 */
   --scale-Neutral600: #5b3a24;
-  --scale-Neutral700: #3a1d1d;
+  --scale-Neutral700: var(--kakao-brown);
   --scale-Neutral800: #2b1414;
   --scale-Neutral900: #1a0d0d;
 
-  /* Primary fixed to Kakao brown (role brand) */
-  --scale-Primary50:  #f5e6e6;
-  --scale-Primary100: #e8caca;
-  --scale-Primary200: #d2a1a1;
-  --scale-Primary300: #b87373;
+  /* Primary: brown (사이드바 accent와 동일) */
+  --scale-Primary50:  color-mix(in srgb, var(--kakao-brown) 8%, #ffffff);
+  --scale-Primary100: color-mix(in srgb, var(--kakao-brown) 16%, #ffffff);
+  --scale-Primary200: color-mix(in srgb, var(--kakao-brown) 28%, #ffffff);
+  --scale-Primary300: color-mix(in srgb, var(--kakao-brown) 45%, #ffffff);
   --scale-Primary400: #8a3f3f;
-  --scale-Primary500: #3B1E1E;
+  --scale-Primary500: var(--kakao-brown);
   --scale-Primary600: #2b1414;
   --scale-Primary700: #1a0d0d;
 
-  /* Page: 완전 무채, 필터감 제거 */
-  --layout-page-bg: #ffffff;
-  --layout-header-bg: #ffffff;
+  /* Page·Header: 카카오 톤 (노랑 베이스, 회색 X) */
+  --layout-page-bg: var(--scale-Neutral50);
+  --layout-header-bg: var(--scale-Neutral100);
 
-  /* Sidebar: Kakao solid yellow (no milky mix) */
-  --sidebar-bg: #FBE300;
-  --sidebar-border: color-mix(in srgb, #3B1E1E 18%, #FBE300);
+  /* Sidebar: 토큰 기준 (--kakao-yellow, --kakao-brown) */
+  --sidebar-bg: var(--kakao-yellow);
+  --sidebar-border: color-mix(in srgb, var(--kakao-brown) 18%, var(--kakao-yellow));
 
-  --sidebar-header-bg: #FBE300;
-  --sidebar-header-border: color-mix(in srgb, #3B1E1E 22%, #FBE300);
+  --sidebar-header-bg: var(--kakao-yellow);
+  --sidebar-header-border: color-mix(in srgb, var(--kakao-brown) 22%, var(--kakao-yellow));
 
-  --sidebar-text: #3B1E1E;
-  --sidebar-muted: color-mix(in srgb, #3B1E1E 68%, #FBE300);
-  --sidebar-group-title: color-mix(in srgb, #3B1E1E 54%, #FBE300);
+  --sidebar-text: var(--kakao-brown);
+  --sidebar-muted: color-mix(in srgb, var(--kakao-brown) 68%, var(--kakao-yellow));
+  --sidebar-group-title: color-mix(in srgb, var(--kakao-brown) 54%, var(--kakao-yellow));
 
-  --sidebar-item-hover-bg: color-mix(in srgb, #3B1E1E 6%, #FBE300);
-  --sidebar-item-active-bg: #3B1E1E;
+  --sidebar-item-hover-bg: color-mix(in srgb, var(--kakao-brown) 6%, var(--kakao-yellow));
+  --sidebar-item-active-bg: var(--kakao-brown);
   --sidebar-item-active-text: #ffffff;
+
+  --color-modal-bg: #ffffff;
 }
 
 
@@ -1431,6 +1296,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #0b2b17 22%, #14532d);
   --sidebar-item-active-bg: #ffffff;
   --sidebar-item-active-text: #14532d;
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 11) Samsung Admin (brand fill samsung blue) */
@@ -1475,6 +1342,8 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #0b1533 14%, #0057d9);
   --sidebar-item-active-bg: #e6efff;
   --sidebar-item-active-text: #003ea8;
+
+  --color-modal-bg: #ffffff;
 }
 
 /* 12) Purple Insight (premium) */
@@ -1518,6 +1387,22 @@
   --sidebar-item-hover-bg: color-mix(in srgb, #24074f 18%, #4c1d95);
   --sidebar-item-active-bg: #ede9fe;
   --sidebar-item-active-text: #5b21b6;
+
+  --color-modal-bg: #ffffff;
+}
+
+/* =========================================================
+   BRAND 테마: 모달 내부 surface 강제 흰색 (토큰 우선)
+   - .ant-modal-content 하위에서 --color-bg-surface 까지 흰색으로
+========================================================= */
+[data-theme="kakao-business"] .ant-modal-content,
+[data-theme="naver-works"] .ant-modal-content,
+[data-theme="samsung-admin"] .ant-modal-content,
+[data-theme="purple-insight"] .ant-modal-content {
+  --color-modal-bg: #ffffff;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-hover: #f8fafc;
+  --color-bg-surface-soft: #f8fafc;
 }
 
 
@@ -1901,11 +1786,11 @@
 
 /* Header */
 [data-app="admin"] thead th {
-  padding: 12px 14px;
-  font-size: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
   font-weight: 600;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--color-text-secondary);
   background: var(--bg-surface-soft);
   border-bottom: 1px solid var(--border-divider);
   white-space: nowrap;
@@ -1913,7 +1798,7 @@
 
 /* Body */
 [data-app="admin"] tbody td {
-  padding: 14px;
+  padding: 11px 14px;
   font-size: 13px;
   text-align: center;
   color: var(--text-primary);
@@ -1975,12 +1860,13 @@
 # FILE: design-system/patterns/header.css
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/header.css */
-/* App Header Pattern (SSOT)
+/* App Header Pattern (SSOT) — Premium SaaS style
    - colors are role/layout tokens only
    - layout uses CSS, not inline color styling
 */
 
 [data-app="admin"] .app-header {
+  position: relative;
   height: var(--panel-header);
   display: flex;
   align-items: center;
@@ -1988,13 +1874,35 @@
   gap: var(--space-4);
   padding: 0 var(--space-6);
 
-  border-bottom: 1px solid var(--color-border-divider);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 8%, var(--color-border-divider));
 
   background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--layout-header-bg) 88%, transparent),
-    color-mix(in srgb, var(--layout-header-bg) 72%, transparent)
+    165deg,
+    color-mix(in srgb, var(--color-primary) 4%, var(--layout-header-bg)) 0%,
+    var(--layout-header-bg) 45%,
+    color-mix(in srgb, var(--color-primary) 2%, var(--layout-header-bg)) 100%
   );
+
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* 질감 레이어 */
+[data-app="admin"] .app-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+[data-app="admin"] .app-header__left,
+[data-app="admin"] .app-header__center,
+[data-app="admin"] .app-header__right {
+  position: relative;
+  z-index: 1;
 }
 
 [data-app="admin"] .app-header__left {
@@ -2012,16 +1920,21 @@
 }
 
 [data-app="admin"] .app-header__brandMark {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
   overflow: hidden;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
 
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface)),
+    var(--color-bg-surface)
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 [data-app="admin"] .app-header__brandMark img {
@@ -2031,9 +1944,9 @@
 }
 
 [data-app="admin"] .app-header__brandName {
-  font-size: 13px;
-  font-weight: var(--font-title);
-  letter-spacing: -0.12px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   white-space: nowrap;
   color: var(--color-text-primary);
 }
@@ -2043,7 +1956,11 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  margin-left: 8px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid color-mix(in srgb, var(--color-primary) 15%, var(--color-border-divider));
+  flex: 1 1 0;
+  overflow-x: auto;
 }
 
 [data-app="admin"] .app-header__crumb {
@@ -2088,12 +2005,34 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  border-radius: 999px;
+  border-radius: 10px;
+
+  border-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+[data-app="admin"] .app-header__iconBtn:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border-divider));
 }
 
 [data-app="admin"] .app-header__menuBtn {
   height: 40px;
-  border-radius: 999px;
+  padding-left: 14px;
+  padding-right: 14px;
+  border-radius: 10px;
+
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+[data-app="admin"] .app-header__menuBtn:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border-divider));
 }
 
 
@@ -2609,12 +2548,11 @@ table.ds-table {
 }
 
 .ds-table thead th {
-  padding: 12px 14px;
-  font-size: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
   font-weight: var(--font-title);
   text-align: center;
-
-  color: var(--text-muted);
+  color: var(--color-text-secondary);
   background: var(--color-bg-surface-soft);
 
   border-bottom: 1px solid var(--border-divider);
@@ -2623,7 +2561,7 @@ table.ds-table {
 }
 
 .ds-table tbody td {
-  padding: 14px;
+  padding: 11px 14px;
   text-align: center;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-divider);
@@ -2683,8 +2621,8 @@ table.ds-table {
 }
 
 .ds-table-wrap .ds-table.ds-table--work thead th {
-  padding: 12px 14px;
-  font-size: 12px;
+  padding: 6px 14px;
+  font-size: 13px;
   font-weight: var(--font-title);
   text-align: center;
   color: var(--color-text-secondary);
@@ -2695,7 +2633,7 @@ table.ds-table {
 }
 
 .ds-table-wrap .ds-table.ds-table--work tbody td {
-  padding: 12px 14px;
+  padding: 10px 14px;
   text-align: center;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--ui-work-border);
@@ -2730,10 +2668,10 @@ table.ds-table {
   border-bottom: 1px solid var(--border-divider-strong);
   font-weight: var(--font-title);
   text-align: left;
-  padding: 12px 16px;
+  padding: 6px 16px;
   vertical-align: middle;
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: var(--color-text-secondary);
   white-space: nowrap;
   user-select: none;
 }
@@ -2744,7 +2682,7 @@ table.ds-table {
 
 .ds-table-wrap .ds-table.ds-table--staff-home tbody td {
   text-align: left;
-  padding: 12px 16px;
+  padding: 10px 16px;
   vertical-align: middle;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border-divider);
@@ -2768,6 +2706,73 @@ table.ds-table {
 
 .ds-table-wrap .ds-table.ds-table--staff-home tbody tr:hover {
   background: var(--color-bg-surface-hover);
+}
+
+/* ============================================================================
+ * DS TABLE — Flat (borderless, no radius, transparent)
+ * - Students 등 목록형 테이블용
+ * ============================================================================ */
+
+.ds-table-wrap:has(.ds-table--flat) {
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat thead th {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--border-divider));
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 35%, transparent);
+  padding: 6px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: left;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat thead th:last-child {
+  border-right: 0;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody td {
+  border-bottom: 1px solid var(--border-divider);
+  border-right: 1px solid color-mix(in srgb, var(--border-divider) 35%, transparent);
+  padding: 11px 18px;
+  background: transparent;
+  text-align: left;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody td:last-child {
+  border-right: 0;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody td:first-child {
+  font-weight: 600;
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody tr:last-child td {
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.ds-table-wrap .ds-table.ds-table--flat tbody tr:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+
+/* 테이블 체크박스 — 클릭 영역 확대 */
+.ds-table .ds-checkbox-cell input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+/* 체크박스 선택 행 — 프라이머리 색 강조 */
+.ds-table tbody tr.ds-row-selected {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--bg-surface)) !important;
+}
+.ds-table tbody tr.ds-row-selected:hover {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--bg-surface)) !important;
 }
 
 

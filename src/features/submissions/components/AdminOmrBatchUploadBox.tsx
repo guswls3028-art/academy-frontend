@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import api from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
+import { getRejectionMessage } from "@/features/submissions/contracts/aiJobContract";
 
 type Props = {
   examId: number;
@@ -104,7 +105,9 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
         );
       } catch (e: any) {
         const status = e?.response?.status;
-        const detail = e?.response?.data?.detail;
+        const data = e?.response?.data;
+        const detail = data?.detail;
+        const rejectionCode = data?.rejection_code;
 
         // 404/501이면 백엔드 미구현 or 라우팅 불일치 → 무한 시도 금지(즉시 중단)
         if (status === 404 || status === 501) {
@@ -119,9 +122,12 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
           break;
         }
 
+        const message = rejectionCode
+          ? getRejectionMessage(rejectionCode)
+          : String(detail || "업로드 실패");
         setItems((prev) =>
           prev.map((x, idx) =>
-            idx === i ? { ...x, status: "fail", message: String(detail || "업로드 실패") } : x
+            idx === i ? { ...x, status: "fail", message } : x
           )
         );
       }

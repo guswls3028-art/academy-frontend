@@ -1,23 +1,39 @@
 // PATH: src/features/community/pages/CommunityPage.tsx
-// Students UI SSOT — Domain Header + ds-tabs + panel
+// 커뮤니티 — 게시 관리(게시판+공지) · 질의응답 · 자료실 · 설정
 
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { DomainLayout } from "@/shared/ui/layout";
+import { CommunityScopeProvider } from "../context/CommunityScopeContext";
+import CommunityScopeSelector from "../components/CommunityScopeSelector";
 
 const COMMUNITY_TABS = [
-  { key: "notice", label: "공지사항", path: "/admin/community/notice" },
+  { key: "admin", label: "게시 관리", path: "/admin/community/admin" },
   { key: "qna", label: "질의응답", path: "/admin/community/qna" },
-  { key: "review", label: "수강후기", path: "/admin/community/review" },
+  { key: "materials", label: "자료실", path: "/admin/community/materials" },
+  { key: "settings", label: "설정", path: "/admin/community/settings" },
 ];
 
-export default function CommunityPage() {
+function CommunityPageInner() {
+  const location = useLocation();
+  const isAdminPanel = location.pathname.endsWith("/admin");
+  const isSettingsPanel = location.pathname.endsWith("/settings");
+
   return (
     <DomainLayout
       title="커뮤니티"
-      description="공지사항 · 질의응답 · 수강후기"
+      description="게시 관리 · 질의응답 · 자료실"
       tabs={COMMUNITY_TABS}
     >
+      {!isAdminPanel && !isSettingsPanel && <CommunityScopeSelector />}
       <Outlet />
     </DomainLayout>
+  );
+}
+
+export default function CommunityPage() {
+  return (
+    <CommunityScopeProvider>
+      <CommunityPageInner />
+    </CommunityScopeProvider>
   );
 }

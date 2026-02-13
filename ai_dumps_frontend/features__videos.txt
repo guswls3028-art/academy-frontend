@@ -120,6 +120,8 @@ export interface Video {
 
 export interface VideoDetail extends Video {}
 
+import type { AccessMode, VideoRule } from "../types/access-mode";
+
 export interface VideoStatsStudent {
   enrollment: number;
   student_name: string;
@@ -128,7 +130,8 @@ export interface VideoStatsStudent {
   completed: boolean;
 
   attendance_status: string | null;
-  effective_rule: "free" | "once" | "blocked";
+  effective_rule: VideoRule; // Legacy field
+  access_mode?: AccessMode; // New field
 
   parent_phone?: string | null;
   student_phone?: string | null;
@@ -149,12 +152,15 @@ export interface UploadInitResponse {
   content_type: string;
 }
 
-export type PolicyImpactRule = "free" | "once" | "blocked";
+export type PolicyImpactRule = VideoRule; // Legacy type
 
 export interface PolicyImpactRow {
   enrollment: number;
   student_name: string;
-  effective_rule: PolicyImpactRule;
+  effective_rule: PolicyImpactRule; // Legacy field
+  access_mode?: AccessMode; // New field
+  attendance_status?: string | null;
+  completed?: boolean;
 }
 
 export interface PolicyImpactResponse {
@@ -1308,6 +1314,29 @@ export default function AdminHlsPreview({ src }: { src: string }) {
 
 
 ==========================================================================================
+# FILE: components/features/video-detail/components/AdminMemoSection.tsx
+==========================================================================================
+// PATH: src/features/videos/components/features/video-detail/components/AdminMemoSection.tsx
+// 좌측 패널용 "관리자 메모" 전용 (시안: 영상 미리보기 아래)
+
+interface Props {
+  memo: string;
+  setMemo: (v: string) => void;
+}
+
+export default function AdminMemoSection({ memo, setMemo }: Props) {
+  return (
+    <textarea
+      value={memo}
+      onChange={(e) => setMemo(e.target.value)}
+      className="w-full min-h-[100px] rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-app)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+      placeholder="관리자 메모"
+    />
+  );
+}
+
+
+==========================================================================================
 # FILE: components/features/video-detail/components/AdminStudentVideoPreview.tsx
 ==========================================================================================
 // PATH: src/features/videos/components/features/video-detail/components/AdminStudentVideoPreview.tsx
@@ -1343,10 +1372,13 @@ export default function AdminStudentVideoPreview({
 // PATH: src/features/videos/components/features/video-detail/components/StudentWatchPanel.tsx
 
 import { useMemo } from "react";
+import { Button } from "@/shared/ui/ds";
 // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
 import {
   RULE_COLORS,
   RULE_LABELS,
+  getAccessLabel,
+  getAccessColor,
 } from "@/features/videos/components/features/video-permission/permission.constants";
 
 interface Props {
@@ -1374,13 +1406,9 @@ export default function StudentWatchPanel({
     <div className="w-full flex flex-col gap-3">
       {/* ACTION */}
       <div className="flex justify-end">
-        <button
-          onClick={onOpenPermission}
-          className="text-xs rounded bg-[var(--color-primary)] text-white px-3 py-1.5"
-          type="button"
-        >
+        <Button type="button" intent="primary" size="sm" onClick={onOpenPermission}>
           권한 관리
-        </button>
+        </Button>
       </div>
 
       {/* LIST */}
@@ -1427,10 +1455,10 @@ export default function StudentWatchPanel({
                   className={[
                     "inline-flex items-center rounded-full px-2 py-0.5",
                     "text-[11px] font-semibold text-white",
-                    RULE_COLORS[s.effective_rule] ?? "bg-gray-400",
+                    getAccessColor(s.access_mode, s.effective_rule),
                   ].join(" ")}
                 >
-                  {RULE_LABELS[s.effective_rule] ?? "미정"}
+                  {getAccessLabel(s.access_mode, s.effective_rule)}
                 </span>
               </div>
 
@@ -1695,17 +1723,40 @@ export default function VideoProcessingPreview({ percent, status }: Props) {
 ==========================================================================================
 // PATH: src/features/videos/components/features/video-detail/components/VideoStudentsSection.tsx
 
+import { FiSettings, FiBarChart2, FiClock } from "react-icons/fi";
+import { KPI, Button } from "@/shared/ui/ds";
 import StudentWatchPanel from "./StudentWatchPanel";
 
 interface Props {
   students: any[];
   onOpenPermission: () => void;
+  onOpenAchievement?: () => void;
+  onOpenLog?: () => void;
 }
 
-export default function VideoStudentsSection({ students, onOpenPermission }: Props) {
+function percent(v: number) {
+  return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : "—";
+}
+
+export default function VideoStudentsSection({
+  students,
+  onOpenPermission,
+  onOpenAchievement,
+  onOpenLog,
+}: Props) {
+  const total = students.length;
+  const completed100 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 1).length;
+  const progressSum = students.reduce((a, s) => a + (Number(s.progress ?? 0) || 0), 0);
+  const avgProgress = total > 0 ? progressSum / total : 0;
+
   return (
-    <div className="space-y-3">
-      <div className="text-xs text-[var(--text-muted)]">출결 · 권한 · 진도 요약</div>
+    <div className="space-y-5">
+      {/* 상단 KPI 3개 */}
+      <div className="grid grid-cols-3 gap-3">
+        <KPI label="총 학생" value={total > 0 ? `${total}명` : "—"} />
+        <KPI label="평균 만족도" value={percent(avgProgress)} />
+        <KPI label="100% 완료" value={total > 0 ? `${completed100}명` : "—"} />
+      </div>
 
       <StudentWatchPanel
         students={students}
@@ -1713,6 +1764,44 @@ export default function VideoStudentsSection({ students, onOpenPermission }: Pro
         onSelectPreviewStudent={() => {}}
         onOpenPermission={onOpenPermission}
       />
+
+      {/* 하단 3버튼: 권한 설정 / 학습 성적표 / 시청 로그 */}
+      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--color-border-divider)]">
+        <Button
+          type="button"
+          intent="secondary"
+          size="sm"
+          onClick={onOpenPermission}
+          className="inline-flex items-center gap-1.5"
+        >
+          <FiSettings size={14} />
+          권한 설정
+        </Button>
+        {typeof onOpenAchievement === "function" && (
+          <Button
+            type="button"
+            intent="ghost"
+            size="sm"
+            onClick={onOpenAchievement}
+            className="inline-flex items-center gap-1.5"
+          >
+            <FiBarChart2 size={14} />
+            학습 성적표
+          </Button>
+        )}
+        {typeof onOpenLog === "function" && (
+          <Button
+            type="button"
+            intent="ghost"
+            size="sm"
+            onClick={onOpenLog}
+            className="inline-flex items-center gap-1.5"
+          >
+            <FiClock size={14} />
+            시청 로그
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1727,6 +1816,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
+import { Button } from "@/shared/ui/ds";
 
 import PermissionHeader from "../../video-permission/components/PermissionHeader";
 import PermissionTable from "../../video-permission/components/PermissionTable";
@@ -1747,20 +1837,21 @@ export default function PermissionModal({
   onClose,
   focusEnrollmentId,
   onChangeFocusEnrollmentId,
+  initialTab = "permission",
 }: PermissionModalProps) {
   const qc = useQueryClient();
 
-  const [tab, setTab] = useState<TabKey>("permission");
+  const [tab, setTab] = useState<TabKey>(initialTab);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number[]>([]);
   const [focusEnrollment, setFocusEnrollment] = useState<number | null>(null);
 
-  /* focus sync (원본 유지) */
+  /* focus + initialTab sync */
   useEffect(() => {
     if (!open) return;
-    if (focusEnrollmentId === undefined) return;
-    setFocusEnrollment(focusEnrollmentId ?? null);
-  }, [open, focusEnrollmentId]);
+    if (focusEnrollmentId !== undefined) setFocusEnrollment(focusEnrollmentId ?? null);
+    setTab(initialTab);
+  }, [open, focusEnrollmentId, initialTab]);
 
   const setFocusBoth = (v: number | null) => {
     setFocusEnrollment(v);
@@ -1831,12 +1922,23 @@ export default function PermissionModal({
   }, [studentsRaw, selected]);
 
   const mutate = useMutation({
-    mutationFn: async (rule: string) => {
-      await api.post(`/media/video-permissions/bulk-set/`, {
-        video: videoId,
+    mutationFn: async (ruleOrAccessMode: string) => {
+      // Support both legacy 'rule' and new 'access_mode'
+      const isAccessMode = ["FREE_REVIEW", "PROCTORED_CLASS", "BLOCKED"].includes(ruleOrAccessMode);
+      
+      const payload: any = {
+        video_id: videoId,
         enrollments: selected,
-        rule,
-      });
+      };
+      
+      if (isAccessMode) {
+        payload.access_mode = ruleOrAccessMode;
+      } else {
+        // Legacy rule support
+        payload.rule = ruleOrAccessMode;
+      }
+      
+      await api.post(`/media/video-permissions/bulk-set/`, payload);
     },
     onSuccess: async () => {
       setSelected([]);
@@ -1861,9 +1963,9 @@ export default function PermissionModal({
               </div>
             </div>
 
-            <button onClick={onClose} className="rounded border px-3 py-1.5 text-xs" type="button">
+            <Button type="button" intent="ghost" size="sm" onClick={onClose}>
               닫기
-            </button>
+            </Button>
           </div>
 
           <div className="mt-3">
@@ -2463,10 +2565,29 @@ export const ATT_COLORS: Record<string, string> = {
   SECESSION: "bg-[color-mix(in_srgb,var(--text-muted)_16%,transparent)] text-[var(--text-secondary)]",
 };
 
+// Legacy rule labels (backward compatibility)
 export const RULE_LABELS: Record<string, string> = {
   free: "무제한",
   once: "1회",
   blocked: "제한",
+};
+
+// New access mode labels
+export const ACCESS_MODE_LABELS: Record<string, string> = {
+  FREE_REVIEW: "복습",
+  PROCTORED_CLASS: "온라인 수업 대체",
+  BLOCKED: "제한",
+};
+
+// Combined labels (access_mode takes precedence)
+export const getAccessLabel = (accessMode?: string, rule?: string): string => {
+  if (accessMode && ACCESS_MODE_LABELS[accessMode]) {
+    return ACCESS_MODE_LABELS[accessMode];
+  }
+  if (rule && RULE_LABELS[rule]) {
+    return RULE_LABELS[rule];
+  }
+  return "미정";
 };
 
 /**
@@ -2477,6 +2598,24 @@ export const RULE_COLORS: Record<string, string> = {
   free: "bg-[color-mix(in_srgb,var(--color-primary)_85%,black)]",
   once: "bg-yellow-400 text-black",
   blocked: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
+};
+
+// New access mode colors
+export const ACCESS_MODE_COLORS: Record<string, string> = {
+  FREE_REVIEW: "bg-[color-mix(in_srgb,var(--color-primary)_85%,black)]",
+  PROCTORED_CLASS: "bg-yellow-400 text-black",
+  BLOCKED: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
+};
+
+// Combined colors (access_mode takes precedence)
+export const getAccessColor = (accessMode?: string, rule?: string): string => {
+  if (accessMode && ACCESS_MODE_COLORS[accessMode]) {
+    return ACCESS_MODE_COLORS[accessMode];
+  }
+  if (rule && RULE_COLORS[rule]) {
+    return RULE_COLORS[rule];
+  }
+  return "bg-gray-500";
 };
 
 
@@ -2493,6 +2632,8 @@ export interface PermissionModalProps {
   onClose: () => void;
   focusEnrollmentId?: number | null;
   onChangeFocusEnrollmentId?: (v: number | null) => void;
+  /** 열릴 때 초기 탭 (권한 설정 / 학습 성적표 / 시청 로그) */
+  initialTab?: TabKey;
 }
 
 
@@ -2765,7 +2906,7 @@ export default function PermissionHeader({
 // PATH: src/features/videos/components/features/video-permission/components/PermissionRow.tsx
 
 // // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
-import { RULE_COLORS, RULE_LABELS } from "../permission.constants";
+import { RULE_COLORS, RULE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
 
 function Pill({
   className,
@@ -2832,11 +2973,18 @@ export default function PermissionRow({
         </div>
       </div>
 
-      {/* RULE */}
+      {/* ACCESS MODE */}
       <div className="w-[90px] flex justify-center">
-        <Pill className={[RULE_COLORS[student.effective_rule] || "bg-gray-500", "text-white"].join(" ")}>
-          {RULE_LABELS[student.effective_rule] || "-"}
+        <Pill className={[getAccessColor(student.access_mode, student.effective_rule), "text-white"].join(" ")}>
+          {getAccessLabel(student.access_mode, student.effective_rule)}
         </Pill>
+      </div>
+
+      {/* COMPLETED */}
+      <div className="w-[80px] flex justify-center">
+        <span className="text-xs text-[var(--text-secondary)]">
+          {student.completed ? "완료" : "미완료"}
+        </span>
       </div>
 
       {/* PHONES / META */}
@@ -2863,7 +3011,9 @@ export default function PermissionRow({
 // PATH: src/features/videos/components/features/video-permission/components/PermissionSidePanel.tsx
 
 // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
-import { RULE_COLORS, RULE_LABELS } from "../permission.constants";
+import { Button } from "@/shared/ui/ds";
+import { formatPhone } from "@/shared/utils/formatPhone";
+import { RULE_COLORS, RULE_LABELS, ACCESS_MODE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -2876,32 +3026,27 @@ function ApplyPillButton({
   onClick,
 }: {
   label: string;
-  tone: "free" | "once" | "blocked";
+  tone: "free" | "once" | "blocked" | "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
   disabled: boolean;
   onClick: () => void;
 }) {
-  const toneClass =
-    tone === "blocked"
-      ? "bg-[color-mix(in_srgb,var(--color-danger)_92%,black)] hover:bg-[color-mix(in_srgb,var(--color-danger)_84%,black)] text-white"
-      : tone === "once"
-      // ✅ 1회 제한: 노랑 하드코딩 (가시성 최우선)
-      ? "bg-yellow-400 hover:bg-yellow-500 border border-yellow-500 text-black"
-      : "bg-[color-mix(in_srgb,var(--color-primary)_92%,black)] hover:bg-[color-mix(in_srgb,var(--color-primary)_84%,black)] text-white";
+  const isProctored = tone === "once" || tone === "PROCTORED_CLASS";
+  const isBlocked = tone === "blocked" || tone === "BLOCKED";
+  const intent = isBlocked ? "danger" : isProctored ? "secondary" : "primary";
+  const onceClass = isProctored ? "!bg-yellow-400 hover:!bg-yellow-500 !border-yellow-500 !text-black" : "";
 
   return (
-    <button
+    <Button
       type="button"
+      intent={intent}
+      size="sm"
       disabled={disabled}
       onClick={onClick}
-      className={cx(
-        "h-8 px-3 rounded-md text-xs font-semibold transition",
-        "disabled:opacity-40 disabled:cursor-not-allowed",
-        toneClass
-      )}
+      className={cx("text-xs", onceClass)}
       title={`${label} 적용`}
     >
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -2938,35 +3083,37 @@ export default function PermissionSidePanel({
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
+            intent="secondary"
+            size="sm"
             onClick={onClear}
             disabled={selectedCount === 0}
-            className="shrink-0 h-8 px-3 rounded-md border border-[var(--border-divider)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)] disabled:opacity-40"
+            className="shrink-0"
           >
             선택 해제
-          </button>
+          </Button>
         </div>
 
         {/* 권한 적용 버튼 */}
         <div className="mt-3 flex items-center gap-2">
           <ApplyPillButton
-            label={RULE_LABELS.free}
-            tone="free"
+            label={ACCESS_MODE_LABELS.FREE_REVIEW || RULE_LABELS.free}
+            tone="FREE_REVIEW"
             disabled={disabledApply}
-            onClick={() => onApply("free")}
+            onClick={() => onApply("FREE_REVIEW")}
           />
           <ApplyPillButton
-            label={RULE_LABELS.once}
-            tone="once"
+            label={ACCESS_MODE_LABELS.PROCTORED_CLASS || RULE_LABELS.once}
+            tone="PROCTORED_CLASS"
             disabled={disabledApply}
-            onClick={() => onApply("once")}
+            onClick={() => onApply("PROCTORED_CLASS")}
           />
           <ApplyPillButton
-            label={RULE_LABELS.blocked}
-            tone="blocked"
+            label={ACCESS_MODE_LABELS.BLOCKED || RULE_LABELS.blocked}
+            tone="BLOCKED"
             disabled={disabledApply}
-            onClick={() => onApply("blocked")}
+            onClick={() => onApply("BLOCKED")}
           />
 
           {pending && (
@@ -2994,8 +3141,9 @@ export default function PermissionSidePanel({
             bg-[var(--bg-surface-soft)]
           ">
             <div className="col-span-2 text-center">출석</div>
-            <div className="col-span-2 text-center">권한</div>
-            <div className="col-span-4">이름</div>
+            <div className="col-span-2 text-center">접근 모드</div>
+            <div className="col-span-1 text-center">완료</div>
+            <div className="col-span-3">이름</div>
             <div className="col-span-3">학부모 번호</div>
             <div className="col-span-1 text-right">삭제</div>
           </div>
@@ -3026,45 +3174,54 @@ export default function PermissionSidePanel({
                     </div>
                   </div>
 
-                  {/* 권한 */}
+                  {/* 접근 모드 */}
                   <div className="col-span-2 flex justify-center">
                     <span
                       className={cx(
                         "inline-flex items-center justify-center",
                         "h-[22px] px-2 rounded-full",
                         "text-[11px] font-semibold leading-none text-white",
-                        RULE_COLORS[s.effective_rule] || "bg-gray-500"
+                        getAccessColor(s.access_mode, s.effective_rule)
                       )}
                     >
-                      {RULE_LABELS[s.effective_rule] || "-"}
+                      {getAccessLabel(s.access_mode, s.effective_rule)}
+                    </span>
+                  </div>
+
+                  {/* 완료 */}
+                  <div className="col-span-1 flex justify-center">
+                    <span className="text-xs text-[var(--text-secondary)]">
+                      {s.completed ? "완료" : "미완료"}
                     </span>
                   </div>
 
                   {/* 이름 */}
-                  <div className="col-span-4 min-w-0">
+                  <div className="col-span-3 min-w-0">
                     <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
                       {s.student_name}
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] truncate">
-                      학생번호 {s.student_phone || "-"}
+                      학생번호 {formatPhone(s.student_phone)}
                     </div>
                   </div>
 
                   {/* 학부모 번호 */}
                   <div className="col-span-3 text-sm text-[var(--text-secondary)] truncate">
-                    {s.parent_phone || "-"}
+                    {formatPhone(s.parent_phone)}
                   </div>
 
                   {/* 삭제 */}
                   <div className="col-span-1 flex justify-end">
-                    <button
+                    <Button
                       type="button"
+                      intent="ghost"
+                      size="sm"
                       onClick={() => onRemoveOne(s.enrollment)}
-                      className="h-7 w-10 rounded-md border border-[var(--border-divider)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+                      className="!min-w-0 !w-10 !h-7"
                       title="선택에서 제거"
                     >
                       ✕
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))
@@ -3075,14 +3232,16 @@ export default function PermissionSidePanel({
 
       {/* FOOTER */}
       <div className="p-4 border-t border-[var(--border-divider)]">
-        <button
+        <Button
           type="button"
+          intent="secondary"
+          size="md"
           disabled={selectedCount === 0}
           onClick={onClear}
-          className="w-full h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)] disabled:opacity-40"
+          className="w-full"
         >
           전체 선택 해제
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -3120,7 +3279,8 @@ export default function PermissionTable({
 
         <div className="w-[130px]">이름</div>
         <div className="w-[90px] text-center">출석</div>
-        <div className="w-[90px] text-center">권한</div>
+        <div className="w-[90px] text-center">접근 모드</div>
+        <div className="w-[80px] text-center">완료</div>
         <div className="w-[150px]">학부모 번호</div>
         <div className="w-[150px]">학생 번호</div>
         <div className="w-[140px]">학교</div>
@@ -3452,29 +3612,23 @@ function ControlTab({
       : "var(--color-text-primary)";
 
   return (
-    <button
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold"
-      style={{
-        background: active ? "var(--color-bg-surface)" : "transparent",
-        color: toneColor,
-        border: active
-          ? "1px solid var(--color-border-divider)"
-          : "1px solid transparent",
-        boxShadow: active ? "0 1px 0 rgba(0,0,0,0.08)" : "none",
-      }}
+    <Button
+      type="button"
+      intent={active ? "primary" : "ghost"}
+      size="sm"
+      className="!gap-2 !text-xs"
     >
       <span>{label}</span>
       <span
-        className="px-2 py-0.5 rounded-full text-[11px]"
+        className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
         style={{
           background: "var(--color-bg-surface-hover)",
-          color: toneColor,
-          fontWeight: 900,
+          color: active ? "var(--text-on-primary)" : toneColor,
         }}
       >
         {count}
       </span>
-    </button>
+    </Button>
   );
 }
 
@@ -3483,40 +3637,47 @@ function ControlTab({
 # FILE: pages/VideoDetail.styles.ts
 ==========================================================================================
 // PATH: src/features/videos/pages/VideoDetail.styles.ts
+// 시안: 상단 헤더(제목+서브+설명, 우측 드롭다운) / 2컬럼(좌: 미리보기+정책+메모, 우: 현황+통계+버튼) / 하단 파일정보+통계
 
 export const styles = {
   page: {
-    subtitle: "mt-1 text-sm text-[var(--text-muted)]",
+    subtitle: "mt-1 text-sm text-[var(--color-text-muted)]",
   },
 
   layout: {
-    root: "flex gap-10 items-start",
-    left: "flex flex-col gap-8 w-[760px]",
-    right: "w-[520px] shrink-0",
+    root: "grid grid-cols-1 gap-8 lg:grid-cols-[1fr_420px] items-start",
+    left: "flex flex-col gap-6 min-w-0",
+    right: "min-w-0 lg:sticky lg:top-4",
   },
 
   section: {
-    /**
-     * Admin / Staff canonical
-     * - wrapper: surface + border + radius
-     * - header: 책임 단위 제목
-     * - body: 실제 조작 영역
-     */
-    wrapper: "bg-[var(--bg-surface)] rounded-xl border border-[var(--border-divider)]",
-
-    header: "px-6 pt-5 pb-2 text-sm font-semibold text-[var(--text-primary)]",
-
-    body: "px-6 pb-6 space-y-4",
-
-    description: "text-xs text-[var(--text-muted)]",
+    wrapper: "bg-[var(--color-bg-surface)] rounded-xl border border-[var(--color-border-divider)] overflow-hidden",
+    header: "px-5 py-4 text-sm font-semibold text-[var(--color-text-primary)] border-b border-[var(--color-border-divider)]",
+    body: "px-5 py-5 space-y-4",
+    description: "text-xs text-[var(--color-text-muted)]",
   },
 
   header: {
-    title: "text-xl font-semibold text-[var(--text-primary)]",
-    actions: "flex items-center gap-2",
+    wrap: "flex flex-wrap items-start justify-between gap-4",
+    title: "text-2xl font-bold text-[var(--color-text-primary)] tracking-tight",
+    subtitle: "mt-1.5 text-sm text-[var(--color-text-secondary)]",
+    description: "mt-0.5 text-xs text-[var(--color-text-muted)]",
+    actions: "flex items-center gap-2 shrink-0",
     backLink:
-      "rounded border border-[var(--border-divider)] px-3 py-1.5 text-sm bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)] transition",
+      "rounded-lg border border-[var(--color-border-divider)] px-4 py-2 text-sm font-semibold bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-soft)] transition",
+    primaryDropdown:
+      "rounded-lg px-4 py-2 text-sm font-semibold bg-[var(--color-primary)] text-white hover:brightness-95 transition inline-flex items-center gap-2",
   },
+
+  /** 하단 파일정보 / 통계 스트립 */
+  bottom: {
+    wrap: "mt-8 pt-6 border-t border-[var(--color-border-divider)] space-y-4",
+    row: "flex flex-wrap items-center gap-6 text-xs text-[var(--color-text-secondary)]",
+    label: "font-semibold text-[var(--color-text-primary)]",
+  },
+
+  /** 우측 현황 상단 KPI 카드 그리드 */
+  kpiGrid: "grid grid-cols-3 gap-3",
 };
 
 
@@ -3533,23 +3694,26 @@ interface Props {
   subtitle?: ReactNode;
   left: ReactNode;
   right: ReactNode;
+  bottom?: ReactNode;
 }
 
-export default function VideoDetailLayout({ header, subtitle, left, right }: Props) {
+export default function VideoDetailLayout({ header, subtitle, left, right, bottom }: Props) {
   return (
     <div className="space-y-6">
-      {/* PAGE HEADER */}
-      <div>{header}</div>
+      {/* PAGE HEADER: 제목 + 서브타이틀 + 설명, 우측 액션 */}
+      <header className={styles.header.wrap}>
+        {header}
+      </header>
+      {subtitle != null && <div className={styles.page.subtitle}>{subtitle}</div>}
 
-      {subtitle && <div className={styles.page.subtitle}>{subtitle}</div>}
-
-      {/* PAGE BODY */}
+      {/* PAGE BODY: 좌(미리보기+정책+메모) | 우(학생 시청 현황) */}
       <div className={styles.layout.root}>
         <div className={styles.layout.left}>{left}</div>
-
-        {/* RIGHT = 상태 / 관리 패널 */}
         <div className={styles.layout.right}>{right}</div>
       </div>
+
+      {/* BOTTOM: 파일 정보 / 통계 */}
+      {bottom != null && <div className={styles.bottom.wrap}>{bottom}</div>}
     </div>
   );
 }
@@ -3571,10 +3735,15 @@ import { styles } from "./VideoDetail.styles";
 import PermissionModal from "@/features/videos/components/features/video-detail/modals/PermissionModal";
 import VideoPreviewSection from "@/features/videos/components/features/video-detail/components/VideoPreviewSection";
 import VideoPolicySection from "@/features/videos/components/features/video-detail/components/VideoPolicySection";
-import VideoInfoSection from "@/features/videos/components/features/video-detail/components/VideoInfoSection";
+import AdminMemoSection from "@/features/videos/components/features/video-detail/components/AdminMemoSection";
 import VideoStudentsSection from "@/features/videos/components/features/video-detail/components/VideoStudentsSection";
+import type { TabKey } from "@/features/videos/components/features/video-permission/permission.types";
 
 type PreviewMode = "admin" | "student";
+
+function formatBytes(b?: number) {
+  return b ? `${(Number(b) / 1024 / 1024).toFixed(1)} MB` : "—";
+}
 
 export default function VideoDetailPage() {
   const params = useParams();
@@ -3583,7 +3752,8 @@ export default function VideoDetailPage() {
   const videoId = Number(params.videoId);
 
   const [previewMode, setPreviewMode] = useState<PreviewMode>("admin");
-  const [openPermission, setOpenPermission] = useState(false);
+  const [permissionOpen, setPermissionOpen] = useState(false);
+  const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [memo, setMemo] = useState("");
 
   const { data, isLoading } = useQuery({
@@ -3597,36 +3767,45 @@ export default function VideoDetailPage() {
   });
 
   if (isLoading || !data?.video) {
-    return <div className="text-sm text-[var(--text-muted)]">로딩중…</div>;
+    return <div className="text-sm text-[var(--color-text-muted)]">로딩중…</div>;
   }
 
   const video = data.video;
   const students = data.students ?? [];
+  const total = students.length;
+  const completed100 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 1).length;
+  const progressSum = students.reduce((a, s) => a + (Number(s.progress ?? 0) || 0), 0);
+  const avgProgress = total > 0 ? progressSum / total : 0;
+  const completed90 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 0.9).length;
+
+  const openModal = (tab: TabKey) => {
+    setPermissionTab(tab);
+    setPermissionOpen(true);
+  };
 
   return (
     <>
       <VideoDetailLayout
         header={
-          <div className="flex items-start justify-between gap-4">
+          <>
             <div>
-              <h2 className={styles.header.title}>{video.title}</h2>
-              <div className="mt-1 text-xs text-[var(--text-muted)]">
+              <h1 className={styles.header.title}>{video.title}</h1>
+              <p className={styles.header.subtitle}>
                 세션 영상 관리 · 정책 / 시청 / 로그
-              </div>
+              </p>
+              <p className={styles.header.description}>
+                이 영상에 대한 시청 정책, 학생 성과, 로그 데이터를 관리합니다.
+              </p>
             </div>
-
             <div className={styles.header.actions}>
               <Link
                 to={`/admin/lectures/${lectureId}/sessions/${sessionId}`}
-                className={styles.header.backLink}
+                className={styles.header.primaryDropdown}
               >
                 출석 화면으로
               </Link>
             </div>
-          </div>
-        }
-        subtitle={
-          <span>이 영상에 대한 시청 정책, 학생 상태, 로그 데이터를 관리합니다.</span>
+          </>
         }
         left={
           <>
@@ -3658,9 +3837,9 @@ export default function VideoDetailPage() {
             </section>
 
             <section className={styles.section.wrapper}>
-              <div className={styles.section.header}>영상 정보</div>
+              <div className={styles.section.header}>관리자 메모</div>
               <div className={styles.section.body}>
-                <VideoInfoSection video={video} memo={memo} setMemo={setMemo} />
+                <AdminMemoSection memo={memo} setMemo={setMemo} />
               </div>
             </section>
           </>
@@ -3671,20 +3850,85 @@ export default function VideoDetailPage() {
             <div className={styles.section.body}>
               <VideoStudentsSection
                 students={students}
-                onOpenPermission={() => setOpenPermission(true)}
+                onOpenPermission={() => openModal("permission")}
+                onOpenAchievement={() => openModal("achievement")}
+                onOpenLog={() => openModal("log")}
               />
             </div>
           </section>
         }
+        bottom={
+          <>
+            <div className={styles.bottom.row}>
+              <span className={styles.bottom.label}>파일 정보</span>
+              <span>
+                {video.status ?? "—"} / {video.duration ?? "—"} / {formatBytes(video.file_size)} / {video.created_at ?? "—"}
+              </span>
+            </div>
+            <div className={styles.bottom.row}>
+              <span className={styles.bottom.label}>통계</span>
+              <span>
+                평균 만족도 {total > 0 ? `${(avgProgress * 100).toFixed(1)}%` : "—"} / 100% 완료 {completed100}명 / 90% 완료 {completed90}명
+              </span>
+            </div>
+          </>
+        }
       />
 
       <PermissionModal
-        open={openPermission}
-        onClose={() => setOpenPermission(false)}
+        open={permissionOpen}
+        onClose={() => setPermissionOpen(false)}
         videoId={videoId}
+        initialTab={permissionTab}
       />
     </>
   );
+}
+
+
+==========================================================================================
+# FILE: types/access-mode.ts
+==========================================================================================
+// PATH: src/features/videos/types/access-mode.ts
+
+/**
+ * Video Access Mode Type
+ * 
+ * Replaces ambiguous "once" logic with clear access model:
+ * - FREE_REVIEW: Free review mode (no restrictions)
+ * - PROCTORED_CLASS: Online replacement class (restrictions apply)
+ * - BLOCKED: Access blocked
+ */
+export type AccessMode = "FREE_REVIEW" | "PROCTORED_CLASS" | "BLOCKED";
+
+/**
+ * Legacy rule type (backward compatibility)
+ * @deprecated Use AccessMode instead
+ */
+export type VideoRule = "free" | "once" | "blocked";
+
+/**
+ * Map legacy rule to access mode
+ */
+export function mapRuleToAccessMode(rule: VideoRule): AccessMode {
+  const mapping: Record<VideoRule, AccessMode> = {
+    free: "FREE_REVIEW",
+    once: "PROCTORED_CLASS",
+    blocked: "BLOCKED",
+  };
+  return mapping[rule] || "FREE_REVIEW";
+}
+
+/**
+ * Map access mode to legacy rule (for backward compatibility)
+ */
+export function mapAccessModeToRule(accessMode: AccessMode): VideoRule {
+  const mapping: Record<AccessMode, VideoRule> = {
+    FREE_REVIEW: "free",
+    PROCTORED_CLASS: "once",
+    BLOCKED: "blocked",
+  };
+  return mapping[accessMode] || "free";
 }
 
 
@@ -3831,6 +4075,7 @@ export default function VideoStatusBadge({ status }: Props) {
 // PATH: src/features/videos/ui/VideoThumbnail.tsx
 
 import { useEffect, useState } from "react";
+import { Button } from "@/shared/ui/ds";
 
 type VideoStatus = "READY" | "PROCESSING" | "FAILED" | "PENDING" | "UPLOADED";
 
@@ -3914,17 +4159,19 @@ export default function VideoThumbnail({ title, status, thumbnail_url }: Props) 
       />
 
       {resolved && (
-        <button
+        <Button
           type="button"
+          intent="secondary"
+          size="sm"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             refreshThumbnail();
           }}
-          className="absolute bottom-2 right-2 rounded bg-black/60 px-2 py-1 text-xs text-white hover:bg-black/80"
+          className="absolute bottom-2 right-2 !bg-black/60 hover:!bg-black/80 !text-white !border-0"
         >
           🔄 썸네일 새로고침
-        </button>
+        </Button>
       )}
     </div>
   );

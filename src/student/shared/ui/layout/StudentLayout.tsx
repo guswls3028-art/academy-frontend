@@ -12,6 +12,7 @@
  */
 
 import { Outlet, useLocation } from "react-router-dom";
+import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import "../theme/tokens.css";
 
 import StudentTopBar from "./StudentTopBar";
@@ -76,6 +77,9 @@ export default function StudentLayout() {
 
       {/* ===== Bottom TabBar ===== */}
       <StudentTabBar />
+
+      {/* 우하단 비동기 상태 SSOT (Windows 알림 스타일) */}
+      <AsyncStatusBar />
     </div>
   );
 }

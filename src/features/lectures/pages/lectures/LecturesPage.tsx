@@ -48,7 +48,6 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [q, setQ] = useState("");
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const { data = [], isLoading, error, isFetching } = useQuery({
     queryKey: ["lectures"],
@@ -105,36 +104,6 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
     );
   }, [tab, activeLectures, pastLectures, q]);
 
-  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const allIds = useMemo(() => list.map((l) => l.id), [list]);
-  const allSelected = list.length > 0 && allIds.every((id) => selectedSet.has(id));
-
-  function toggleSelect(id: number) {
-    if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
-    else setSelectedIds([...selectedIds, id]);
-  }
-  function toggleSelectAll() {
-    if (allSelected) setSelectedIds([]);
-    else setSelectedIds([...allIds]);
-  }
-
-  const selectionBar = (
-    <div className="flex flex-wrap items-center gap-2 pl-1">
-      <span
-        className="text-[13px] font-semibold"
-        style={{
-          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
-        }}
-      >
-        {selectedIds.length}개 선택됨
-      </span>
-      <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
-        선택 해제
-      </Button>
-    </div>
-  );
-
   return (
     <>
       <div className="flex flex-col gap-4">
@@ -156,7 +125,6 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
               강의 추가
             </Button>
           }
-          belowSlot={selectionBar}
         />
 
         <div>
@@ -170,29 +138,21 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
             <div style={{ width: "fit-content" }}>
               <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "auto" }}>
                 <colgroup>
-                  <col style={{ width: 48 }} />
                   <col style={{ width: 192 }} />
                   <col />
                   <col />
                   <col style={{ width: 160 }} />
                   <col />
+                  <col style={{ width: 140 }} />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col" className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={toggleSelectAll}
-                        aria-label="전체 선택"
-                        className="cursor-pointer"
-                      />
-                    </th>
                     <th scope="col">강의 이름</th>
                     <th scope="col">과목</th>
                     <th scope="col">강사</th>
                     <th scope="col">강의 시간</th>
                     <th scope="col">기간</th>
+                    <th scope="col">바로가기</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -202,18 +162,8 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
                       onClick={() => navigate(`/admin/lectures/${lec.id}`)}
                       tabIndex={0}
                       role="button"
-                      className={`cursor-pointer ${selectedSet.has(lec.id) ? "ds-row-selected" : ""}`}
+                      className="cursor-pointer"
                     >
-                      <td className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedSet.has(lec.id)}
-                          onChange={() => toggleSelect(lec.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`${lec.title} 선택`}
-                          className="cursor-pointer"
-                        />
-                      </td>
                       <td style={{ fontWeight: 600 }}>
                         <span
                           style={{
@@ -252,6 +202,39 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
                         {lec.start_date && lec.end_date
                           ? `${lec.start_date} ~ ${lec.end_date}`
                           : "-"}
+                      </td>
+                      <td onClick={(e) => e.stopPropagation()} style={{ verticalAlign: "middle" }}>
+                        <div className="flex flex-wrap gap-1">
+                          <button
+                            type="button"
+                            className="text-xs px-2 py-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)]"
+                            onClick={() =>
+                              navigate(
+                                `/admin/community/admin?tab=notice&scope=lecture&lectureId=${lec.id}`
+                              )
+                            }
+                          >
+                            공지
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs px-2 py-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)]"
+                            onClick={() => navigate("/admin/exams")}
+                          >
+                            시험
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs px-2 py-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)]"
+                            onClick={() =>
+                              navigate(
+                                `/admin/community/admin?tab=notice&scope=lecture&lectureId=${lec.id}`
+                              )
+                            }
+                          >
+                            게시판
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

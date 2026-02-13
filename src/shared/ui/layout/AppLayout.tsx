@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { ConfigProvider } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@/features/notice/context/NoticeContext";
@@ -130,6 +131,8 @@ export default function AppLayout() {
                   </div>
                 </main>
               </div>
+              {/* 우하단 비동기 상태 SSOT (Windows 알림 스타일, 접기/펼치기) */}
+              <AsyncStatusBar />
             </div>
           </ConfigProvider>
         </NoticeProvider>
