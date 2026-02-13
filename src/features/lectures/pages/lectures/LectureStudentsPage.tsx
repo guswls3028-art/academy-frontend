@@ -65,7 +65,8 @@ export default function LectureStudentsPage() {
     );
   }, [students, search]);
 
-  const col = { checkbox: 48, name: 100, parentPhone: 120, studentPhone: 120 };
+  // 공간 효율: 다른 출결 테이블과 동일하게 타이트한 컬럼, 테이블은 필요한 만큼만 너비 사용
+  const col = { checkbox: 44, name: 88, parentPhone: 104, studentPhone: 104 };
   const tableMinWidth =
     col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionsReversed.length * SESSION_COL_WIDTH;
 
