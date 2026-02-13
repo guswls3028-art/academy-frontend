@@ -2,6 +2,7 @@
 
 // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
 import { Button } from "@/shared/ui/ds";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { RULE_COLORS, RULE_LABELS, ACCESS_MODE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
 
