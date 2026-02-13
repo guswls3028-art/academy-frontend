@@ -71,9 +71,17 @@ export default function StudentWatchPanel({
                 .filter(Boolean)
                 .join(" ")}
             >
-              {/* NAME */}
-              <div className="w-[90px] truncate font-medium text-[var(--text-primary)]">
-                {s.student_name}
+              {/* NAME + 강의 딱지 (전역 규칙) */}
+              <div className="w-[90px] min-w-0 truncate font-medium text-[var(--text-primary)]">
+                <StudentNameWithLectureChip
+                  name={s.student_name ?? ""}
+                  lectures={
+                    s.lecture_title
+                      ? [{ lectureName: s.lecture_title, color: s.lecture_color }]
+                      : undefined
+                  }
+                  chipSize={14}
+                />
               </div>
 
               {/* BADGES */}
