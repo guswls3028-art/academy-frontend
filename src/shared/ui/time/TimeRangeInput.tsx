@@ -71,16 +71,18 @@ export default function TimeRangeInput({
 
   return (
     <div className="shared-time-range">
-      <div className="shared-time-range-row">
+      <div className="shared-time-range-grid">
         <label className="shared-time-range-label">시작시간</label>
-        <input
-          type="time"
-          value={start}
-          onChange={(e) => setStart(e.target.value)}
-          disabled={disabled}
-          className="shared-time-range-input"
-          placeholder={startPlaceholder}
-        />
+        <div className="shared-time-range-input-wrap">
+          <input
+            type="time"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            disabled={disabled}
+            className="shared-time-range-input"
+            placeholder={startPlaceholder}
+          />
+        </div>
         <div className="shared-time-range-quick">
           <button
             type="button"
@@ -99,17 +101,19 @@ export default function TimeRangeInput({
             +1시간
           </button>
         </div>
-      </div>
-      <div className="shared-time-range-row">
+
         <label className="shared-time-range-label">종료시간</label>
-        <input
-          type="time"
-          value={end}
-          onChange={(e) => setEnd(e.target.value)}
-          disabled={disabled}
-          className="shared-time-range-input"
-          placeholder={endPlaceholder}
-        />
+        <div className="shared-time-range-input-wrap shared-time-range-input-wrap-end">
+          <input
+            type="time"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            disabled={disabled}
+            className="shared-time-range-input"
+            placeholder={endPlaceholder}
+          />
+        </div>
+        <div className="shared-time-range-quick" aria-hidden />
       </div>
     </div>
   );
