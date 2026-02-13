@@ -4,6 +4,7 @@ import api from "@/shared/api/axios";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { DatePicker } from "@/shared/ui/date";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 
 interface Props {
