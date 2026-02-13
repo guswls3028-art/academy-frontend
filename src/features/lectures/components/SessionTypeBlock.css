@@ -1,0 +1,56 @@
+/* PATH: src/features/lectures/components/SessionTypeBlock.css
+   차시 추가 모달 — 2차시/보강 선택 블록. 카드처럼 보이도록 elevation·테두리·배경 강화 */
+
+.session-type-block {
+  /* 블록 크기·간격 */
+  min-height: 96px;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+
+  /* 카드형: 그림자 + 테두리로 블록 감각 */
+  border: 2px solid var(--color-border-divider);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 120ms ease;
+}
+
+.session-type-block:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 45%, var(--color-border-divider));
+  background: var(--color-bg-surface-hover);
+  box-shadow: var(--elevation-2);
+}
+
+.session-type-block--selected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  box-shadow: var(--elevation-2);
+}
+
+.session-type-block--selected:hover {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+}
+
+.session-type-block__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+}
+
+.session-type-block__desc {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
