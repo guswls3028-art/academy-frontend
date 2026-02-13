@@ -1,6 +1,7 @@
 // PATH: src/features/profile/expense/components/ExpenseFormModal.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Button, Panel } from "@/shared/ui/ds";
+import { DatePicker } from "@/shared/ui/date";
 import { Expense } from "../../api/profile.api";
 
 type Form = {
