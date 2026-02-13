@@ -14,7 +14,8 @@ import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 
-const SESSION_COL_WIDTH = 28;
+/** 출결 1글자 뱃지 한 칸 — 최대 10차시까지 잘리지 않게 */
+const SESSION_COL_WIDTH = 34;
 
 export default function LectureAttendanceMatrixPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
@@ -44,9 +45,9 @@ export default function LectureAttendanceMatrixPage() {
 
   const col = {
     checkbox: 44,
-    name: 92,
-    parentPhone: 104,
-    studentPhone: 104,
+    name: 116,
+    parentPhone: 116,
+    studentPhone: 116,
   };
   const sessionColsTotal = sessionsReversed.length * SESSION_COL_WIDTH;
   const tableMinWidth = col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionColsTotal;

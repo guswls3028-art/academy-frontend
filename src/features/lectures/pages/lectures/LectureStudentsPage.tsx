@@ -16,7 +16,8 @@ import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
-const SESSION_COL_WIDTH = 28;
+/** 출결 1글자 뱃지 한 칸 — 최대 10차시까지 잘리지 않게 */
+const SESSION_COL_WIDTH = 34;
 
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
@@ -65,8 +66,8 @@ export default function LectureStudentsPage() {
     );
   }, [students, search]);
 
-  // 공간 효율: 타이트한 컬럼, 테이블은 필요한 만큼만 너비 사용 (다른 출결 테이블과 동일)
-  const col = { checkbox: 44, name: 92, parentPhone: 104, studentPhone: 104 };
+  // 이름(딱지 2개+이름), 전화번호 전체 표시, 출결 1글자 블록 여유
+  const col = { checkbox: 44, name: 116, parentPhone: 116, studentPhone: 116 };
   const tableMinWidth =
     col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionsReversed.length * SESSION_COL_WIDTH;
 
