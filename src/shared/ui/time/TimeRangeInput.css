@@ -23,10 +23,6 @@
   min-width: 0;
 }
 
-.shared-time-range-input-wrap-end {
-  grid-column: 2;
-}
-
 .shared-time-range-input {
   width: 100%;
   min-width: 180px;

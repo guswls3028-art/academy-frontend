@@ -103,7 +103,7 @@ export default function TimeRangeInput({
         </div>
 
         <label className="shared-time-range-label">종료시간</label>
-        <div className="shared-time-range-input-wrap shared-time-range-input-wrap-end">
+        <div className="shared-time-range-input-wrap">
           <input
             type="time"
             value={end}
