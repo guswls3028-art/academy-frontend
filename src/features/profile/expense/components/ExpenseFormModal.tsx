@@ -111,12 +111,10 @@ export default function ExpenseFormModal({
             {/* 입력 영역 */}
             <div className="space-y-4 rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4">
               <Row label="날짜">
-                <input
-                  type="date"
-                  className={inputCls}
+                <DatePicker
                   value={form.date}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, date: e.target.value }))
+                  onChange={(v) =>
+                    setForm((p) => ({ ...p, date: v }))
                   }
                 />
               </Row>
