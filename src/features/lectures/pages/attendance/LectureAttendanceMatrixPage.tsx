@@ -44,7 +44,7 @@ export default function LectureAttendanceMatrixPage() {
 
   const col = {
     checkbox: 44,
-    name: 88,
+    name: 92,
     parentPhone: 104,
     studentPhone: 104,
   };
