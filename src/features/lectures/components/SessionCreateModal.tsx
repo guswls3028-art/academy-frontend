@@ -53,15 +53,22 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     enabled: Number.isFinite(lectureId),
   });
 
-  const { data: sessions = [] } = useQuery({
+  const { data: sessionsData } = useQuery({
     queryKey: ["sessions", lectureId],
     queryFn: async () => (await api.get(`/lectures/sessions/?lecture=${lectureId}`)).data,
     enabled: Number.isFinite(lectureId),
   });
 
+  const sessionsList = useMemo(() => {
+    const raw = sessionsData;
+    if (Array.isArray(raw)) return raw;
+    if (raw && Array.isArray((raw as { results?: unknown[] }).results)) return (raw as { results: unknown[] }).results;
+    return [];
+  }, [sessionsData]);
+
   const sortedSessions = useMemo(
-    () => (sessions as { order?: number; date?: string | null }[]).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-    [sessions]
+    () => (sessionsList as { order?: number; date?: string | null }[]).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [sessionsList]
   );
   const nextOrder = sortedSessions.length + 1;
   const lastSessionWithDate = useMemo(
