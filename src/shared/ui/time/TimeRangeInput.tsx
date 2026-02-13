@@ -2,6 +2,7 @@
 // 전역 SSOT: 시작/종료 시간 + [+30분][+1시간] 누적 버튼. 마우스 조작에 맞춘 큼지막한 UI
 
 import dayjs from "dayjs";
+import "./TimeRangeInput.css";
 
 export interface TimeRangeInputProps {
   /** "HH:mm~HH:mm" 형식 */

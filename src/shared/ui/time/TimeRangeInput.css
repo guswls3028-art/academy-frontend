@@ -1,0 +1,81 @@
+/* PATH: src/shared/ui/time/TimeRangeInput.css
+   전역 시간 구간 입력 — 큼지막한 입력/버튼, 마우스 조작 친화 */
+
+.shared-time-range {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shared-time-range-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.shared-time-range-label {
+  flex: 0 0 72px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.shared-time-range-input {
+  flex: 0 1 120px;
+  min-width: 100px;
+  height: 44px;
+  padding: 0 12px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.shared-time-range-input:hover:not(:disabled) {
+  border-color: var(--color-border-strong, var(--color-border-divider));
+}
+
+.shared-time-range-input:focus {
+  outline: none;
+  border-color: var(--color-brand-primary, var(--color-primary));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 25%, transparent);
+}
+
+.shared-time-range-input:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.shared-time-range-quick {
+  display: flex;
+  gap: 8px;
+}
+
+.shared-time-range-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 120ms, border-color 120ms;
+}
+
+.shared-time-range-btn:hover:not(:disabled) {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-strong, var(--color-border-divider));
+}
+
+.shared-time-range-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
