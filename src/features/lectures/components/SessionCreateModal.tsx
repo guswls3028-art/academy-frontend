@@ -114,9 +114,11 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionType, date, timeMode, timeInput, busy]);
 
+  const effectiveDate = dateMode === "default" ? (defaultDateFromLecture || date) : date;
+
   function validate(): string | null {
     if (!sessionType) return "차시 유형을 선택하세요.";
-    if (!date.trim()) return "날짜를 선택하세요.";
+    if (!effectiveDate?.trim()) return "날짜를 선택하세요.";
     if (sessionType === "supplement" || timeMode === "custom") {
       if (!timeInput.trim()) return "시간을 입력하세요.";
     }
@@ -137,7 +139,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
 
     setBusy(true);
     try {
-      await createSession(lectureId, title, date || undefined, nextOrder);
+      await createSession(lectureId, title, effectiveDate || undefined, nextOrder);
       onClose();
     } finally {
       setBusy(false);
