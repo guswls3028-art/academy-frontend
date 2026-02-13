@@ -2,50 +2,8 @@
 import { useMemo } from "react";
 import { EmptyState } from "@/shared/ui/ds";
 import { DomainTable, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
-
-const DEFAULT_LECTURE_COLOR = "#3b82f6";
-
-function isLightColor(hex: string): boolean {
-  const c = String(hex || "").toLowerCase();
-  return ["#eab308", "#06b6d4"].includes(c);
-}
-
-function LectureChip({
-  lectureName,
-  color,
-  size = 18,
-}: {
-  lectureName: string;
-  color: string;
-  size?: number;
-}) {
-  const bg = color || DEFAULT_LECTURE_COLOR;
-  const textColor = isLightColor(bg) ? "#1a1a1a" : "#fff";
-  const two = (lectureName || "??").slice(0, 2);
-
-  return (
-    <span
-      title={lectureName}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 4,
-        flexShrink: 0,
-        display: "inline-grid",
-        placeItems: "center",
-        fontSize: 10,
-        fontWeight: 800,
-        letterSpacing: "-0.02em",
-        color: textColor,
-        background: bg,
-        boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
-      }}
-    >
-      {two}
-    </span>
-  );
-}
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -118,12 +76,13 @@ export default function StudentsTable({
     }
   }
 
+  // 컬럼 순서: 이름, 학부모 전화, 학생 전화, ... (학생 테이블 공통)
   const columns = useMemo(
     () => [
       { key: "_checkbox", label: "", w: 48 },
       { key: "name", label: "이름", w: 122 },
-      { key: "studentPhone", label: "학생 전화/식별자", w: 130 },
       { key: "parentPhone", label: "학부모 전화", w: 130 },
+      { key: "studentPhone", label: "학생 전화/식별자", w: 130 },
       { key: "school", label: "학교", w: 110 },
       { key: "schoolClass", label: "반", w: 65 },
       { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: 110 },
@@ -230,7 +189,7 @@ export default function StudentsTable({
                   />
                 ) : null}
               </td>
-              {/* 이름 + 강의 아이콘 */}
+              {/* 이름 + 강의 딱지 (학생정보 공통) */}
               <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
                 <span className="inline-flex items-center gap-1.5 min-w-0">
                   {Array.isArray(s.enrollments) && s.enrollments.length > 0 ? (
@@ -253,17 +212,14 @@ export default function StudentsTable({
                 </span>
               </td>
 
-              {/* 학생 전화 */}
-              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
-                {highlight(
-                  formatStudentPhoneDisplay(s.studentPhone),
-                  search
-                )}
-              </td>
-
               {/* 학부모 전화 */}
               <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {highlight(formatPhone(s.parentPhone), search)}
+              </td>
+
+              {/* 학생 전화 */}
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(formatStudentPhoneDisplay(s.studentPhone), search)}
               </td>
 
               {/* 학교 */}

@@ -73,7 +73,7 @@ export type AttendanceMatrixStudent = {
 };
 
 export type AttendanceMatrixResponse = {
-  lecture: { id: number; title: string };
+  lecture: { id: number; title: string; color?: string };
   sessions: AttendanceMatrixSession[];
   students: AttendanceMatrixStudent[];
 };

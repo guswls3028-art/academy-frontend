@@ -14,6 +14,7 @@ import { fetchStudents } from "@/features/students/api/students";
 import type { ClientStudent } from "@/features/students/api/students";
 import StudentCreateModal from "@/features/students/components/StudentCreateModal";
 import StudentsDetailOverlay from "@/features/students/overlays/StudentsDetailOverlay";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState, Tabs } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -452,7 +453,18 @@ export default function SessionEnrollModal({
                                       tabIndex={0}
                                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openStudentDetail(); } }}
                                     >
-                                      {row.name || "-"}
+                                      <StudentNameWithLectureChip
+                                        name={row.name ?? "-"}
+                                        lectures={
+                                          Array.isArray(row.enrollments) && row.enrollments.length > 0
+                                            ? row.enrollments.slice(0, 5).map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => ({
+                                                lectureName: en.lectureName ?? "??",
+                                                color: en.lectureColor ?? undefined,
+                                              }))
+                                            : undefined
+                                        }
+                                        chipSize={16}
+                                      />
                                     </td>
                                     <td
                                       className="py-2.5 px-3 text-[var(--color-text-secondary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)]"

@@ -37,16 +37,18 @@ function Chip({
   );
 }
 
-/** ✅ 실제 Attendance 스펙 (8개) */
+/** ✅ 출결 상태 10개 — 역할 순서: 출석인정 → 경고 → 부정 → 중립 (AttendanceStatusBadge SSOT) */
 const ATTENDANCE_OPTIONS = [
-  { value: "PRESENT", label: "출석" },
-  { value: "LATE", label: "지각" },
+  { value: "PRESENT", label: "현장" },
   { value: "ONLINE", label: "영상" },
   { value: "SUPPLEMENT", label: "보강" },
+  { value: "LATE", label: "지각" },
   { value: "EARLY_LEAVE", label: "조퇴" },
   { value: "ABSENT", label: "결석" },
   { value: "RUNAWAY", label: "출튀" },
   { value: "MATERIAL", label: "자료" },
+  { value: "INACTIVE", label: "부재" },
+  { value: "SECESSION", label: "퇴원" },
 ] as const;
 
 /** 권한 */

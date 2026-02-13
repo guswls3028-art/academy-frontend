@@ -8,7 +8,7 @@
  */
 
 export const ATT_LABELS: Record<string, string> = {
-  PRESENT: "출석",
+  PRESENT: "현장",
   LATE: "지각",
   ONLINE: "영상",
   SUPPLEMENT: "보강",

@@ -183,14 +183,6 @@ export default function SessionDetailPage() {
               sessionId={sId}
               lectureId={lecId}
               onOpenEnrollModal={() => setShowEnrollModal(true)}
-              onOpenStudentModal={() => setShowStudentModal(true)}
-              onCopyFromPrev={() => copyFromPrevMutation.mutate()}
-              copyFromPrevDisabled={!prevSession || copyFromPrevMutation.isPending}
-              copyFromPrevLabel={
-                prevSession
-                  ? `직전 차시(${prevSession.order ?? "?"}차시)에서 가져오기`
-                  : "직전 차시에서 가져오기"
-              }
             />
           )}
 

@@ -1,17 +1,22 @@
 // PATH: src/features/lectures/pages/lectures/LectureStudentsPage.tsx
-// 강의 수강생 = 세션(차시)에 등록된 학생 전체. 차시별 출결 매트릭스 테이블 + 차시별 수강생 등록.
+// 학생 테이블 = 세션 출결 테이블 UI/UX 카피: 강의 뱃지 + 체크박스, 이름, 학부모/학생 전화, N차…1차(역순) 1글자
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
 
-import { fetchAttendanceMatrix } from "@/features/lectures/api/attendance";
+import { fetchAttendanceMatrix, downloadAttendanceExcel } from "@/features/lectures/api/attendance";
 import LectureEnrollStudentModal from "@/features/lectures/components/LectureEnrollStudentModal";
 
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
+import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
+
+const SESSION_COL_WIDTH = 32;
 
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
@@ -35,17 +40,34 @@ export default function LectureStudentsPage() {
     enabled: Number.isFinite(lectureIdNum),
   });
 
+  const { data: lecture } = useQuery({
+    queryKey: ["lecture", lectureIdNum],
+    queryFn: async () => (await api.get(`/lectures/lectures/${lectureIdNum}/`)).data,
+    enabled: Number.isFinite(lectureIdNum),
+  });
+
   const students = matrix?.students ?? [];
+  const sessions = matrix?.sessions ?? [];
+  const sessionsReversed = useMemo(
+    () => [...sessions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).reverse(),
+    [sessions]
+  );
 
   const filtered = useMemo(() => {
     if (!search.trim()) return students;
     const k = search.trim().toLowerCase();
+    const digits = search.trim().replace(/\D/g, "");
     return students.filter(
       (s) =>
         (s.name || "").toLowerCase().includes(k) ||
-        (s.phone ?? "").replace(/\s/g, "").includes(k)
+        (s.phone ?? "").replace(/\D/g, "").includes(digits) ||
+        (s.parent_phone ?? "").replace(/\D/g, "").includes(digits)
     );
   }, [students, search]);
+
+  const col = { checkbox: 48, name: 100, parentPhone: 120, studentPhone: 120 };
+  const tableMinWidth =
+    col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionsReversed.length * SESSION_COL_WIDTH;
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => filtered.map((s) => s.student_id), [filtered]);
@@ -74,7 +96,7 @@ export default function LectureStudentsPage() {
       <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
         메시지 발송
       </Button>
-      <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
+      <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)}>
         엑셀 다운로드
       </Button>
       <Button intent="secondary" size="sm" onClick={() => feedback.info("태그 추가 기능 준비 중입니다.")}>
@@ -135,91 +157,107 @@ export default function LectureStudentsPage() {
               }
             />
           ) : (
-            <DomainTable
-              tableClassName="ds-table--flat"
-              tableStyle={{ tableLayout: "auto", minWidth: 800 }}
-            >
-              <colgroup>
-                <col style={{ width: 48 }} />
-                <col style={{ width: 140 }} />
-                <col style={{ width: 110 }} />
-                {(matrix?.sessions ?? []).map((_, i) => (
-                  <col key={i} style={{ width: 44 }} />
-                ))}
-              </colgroup>
-              <thead>
-                <tr>
-                  <th scope="col" className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={toggleSelectAll}
-                      aria-label="전체 선택"
-                      className="cursor-pointer"
-                    />
-                  </th>
-                  <th scope="col">이름</th>
-                  <th scope="col">연락처</th>
-                  {(matrix?.sessions ?? []).map((s) => (
-                    <th
-                      key={s.id}
-                      scope="col"
-                      className="text-center text-xs font-semibold text-[var(--color-text-muted)]"
-                      style={{ width: 44 }}
-                    >
-                      {s.order}차
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row) => (
-                  <tr
-                    key={row.student_id}
-                    onClick={() => navigate(`/admin/students/${row.student_id}`)}
-                    tabIndex={0}
-                    role="button"
-                    className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(row.student_id) ? "ds-row-selected" : ""}`}
-                  >
-                    <td className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSet.has(row.student_id)}
-                        onChange={() => toggleSelect(row.student_id)}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`${row.name} 선택`}
-                        className="cursor-pointer"
-                      />
-                    </td>
-                    <td className="text-[15px] font-bold text-[var(--color-text-primary)] truncate">
-                      {row.name}
-                    </td>
-                    <td className="text-[13px] text-[var(--color-text-secondary)] truncate">
-                      {row.phone ?? "-"}
-                    </td>
-                    {(matrix?.sessions ?? []).map((s) => {
-                      const cell = row.attendance[String(s.id)];
-                      return (
-                        <td
+            <div className="overflow-x-auto w-full">
+              <div style={{ width: "fit-content" }}>
+                <DomainTable
+                  tableClassName="ds-table--flat ds-table--attendance"
+                  tableStyle={{ minWidth: tableMinWidth, width: "100%", tableLayout: "fixed" }}
+                >
+                  <colgroup>
+                    <col style={{ width: col.checkbox }} />
+                    <col style={{ width: col.name }} />
+                    <col style={{ width: col.parentPhone }} />
+                    <col style={{ width: col.studentPhone }} />
+                    {sessionsReversed.map((s) => (
+                      <col key={s.id} style={{ width: SESSION_COL_WIDTH }} />
+                    ))}
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={toggleSelectAll}
+                          aria-label="전체 선택"
+                          className="cursor-pointer"
+                        />
+                      </th>
+                      <th scope="col" style={{ width: col.name }}>이름</th>
+                      <th scope="col" style={{ width: col.parentPhone }}>학부모 전화번호</th>
+                      <th scope="col" style={{ width: col.studentPhone }}>학생 전화번호</th>
+                      {sessionsReversed.map((s) => (
+                        <th
                           key={s.id}
-                          className="text-center align-middle py-2"
-                          onClick={(e) => e.stopPropagation()}
+                          scope="col"
+                          className="text-center"
+                          style={{ width: SESSION_COL_WIDTH }}
+                          title={`${s.order ?? "-"}차시${s.date ? ` (${s.date})` : ""}`}
                         >
-                          {cell?.status ? (
-                            <AttendanceStatusBadge
-                              status={cell.status as any}
-                              variant="short"
-                            />
-                          ) : (
-                            <span className="text-[var(--color-text-muted)] text-xs">－</span>
-                          )}
+                          {s.order ?? "-"}차
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((row) => (
+                      <tr
+                        key={row.student_id}
+                        onClick={() => navigate(`/admin/students/${row.student_id}`)}
+                        tabIndex={0}
+                        role="button"
+                        className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(row.student_id) ? "ds-row-selected" : ""}`}
+                      >
+                        <td className="ds-checkbox-cell align-middle" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedSet.has(row.student_id)}
+                            onChange={() => toggleSelect(row.student_id)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`${row.name} 선택`}
+                            className="cursor-pointer"
+                          />
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </DomainTable>
+                        <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: col.name }}>
+                          <StudentNameWithLectureChip
+                            name={row.name ?? ""}
+                            lectures={
+                              lecture?.title
+                                ? [{ lectureName: lecture.title, color: lecture.color }]
+                                : undefined
+                            }
+                            chipSize={16}
+                          />
+                        </td>
+                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: col.parentPhone }}>
+                          {formatPhone(row.parent_phone)}
+                        </td>
+                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: col.studentPhone }}>
+                          {formatPhone(row.phone)}
+                        </td>
+                        {sessionsReversed.map((s) => {
+                          const cell = row.attendance[String(s.id)];
+                          return (
+                            <td
+                              key={s.id}
+                              className="text-center align-middle px-0"
+                              style={{ width: SESSION_COL_WIDTH }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {cell?.status ? (
+                                <AttendanceStatusBadge status={cell.status as any} variant="short" />
+                              ) : (
+                                <span className="text-[var(--color-text-muted)] text-[10px]">－</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </DomainTable>
+              </div>
+            </div>
           )}
         </div>
       </div>
