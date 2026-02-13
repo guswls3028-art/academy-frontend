@@ -43,10 +43,10 @@ export default function LectureAttendanceMatrixPage() {
     .reverse();
 
   const col = {
-    checkbox: 48,
-    name: 100,
-    parentPhone: 120,
-    studentPhone: 120,
+    checkbox: 44,
+    name: 88,
+    parentPhone: 104,
+    studentPhone: 104,
   };
   const sessionColsTotal = sessionsReversed.length * SESSION_COL_WIDTH;
   const tableMinWidth = col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionColsTotal;
