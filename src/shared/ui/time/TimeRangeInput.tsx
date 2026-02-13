@@ -80,51 +80,76 @@ export default function TimeRangeInput({
     onChange(formatRange(start, nextEnd));
   };
 
+  const subtractFromEnd = (deltaMinutes: number) => {
+    if (!end) return;
+    const nextEnd = clampEndAboveStart(end, start, deltaMinutes);
+    onChange(formatRange(start, nextEnd));
+  };
+
   return (
     <div className="shared-time-range">
-      <div className="shared-time-range-grid">
-        <label className="shared-time-range-label">시작시간</label>
-        <div className="shared-time-range-input-wrap">
-          <input
-            type="time"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            disabled={disabled}
-            className="shared-time-range-input"
-            placeholder={startPlaceholder}
-          />
-        </div>
-        <div className="shared-time-range-quick">
-          <button
-            type="button"
-            className="shared-time-range-btn"
-            onClick={() => addToEnd(30)}
-            disabled={disabled || !start}
-          >
-            +30분
-          </button>
-          <button
-            type="button"
-            className="shared-time-range-btn"
-            onClick={() => addToEnd(60)}
-            disabled={disabled || !start}
-          >
-            +1시간
-          </button>
-        </div>
+      <div className="shared-time-range-card">
+        <div className="shared-time-range-grid">
+          <label className="shared-time-range-label">시작시간</label>
+          <div className="shared-time-range-input-wrap">
+            <input
+              type="time"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              disabled={disabled}
+              className="shared-time-range-input"
+              placeholder={startPlaceholder}
+            />
+          </div>
+          <div className="shared-time-range-quick">
+            <button
+              type="button"
+              className="shared-time-range-btn"
+              onClick={() => addToEnd(30)}
+              disabled={disabled || !start}
+            >
+              +30분
+            </button>
+            <button
+              type="button"
+              className="shared-time-range-btn"
+              onClick={() => addToEnd(60)}
+              disabled={disabled || !start}
+            >
+              +1시간
+            </button>
+          </div>
 
-        <label className="shared-time-range-label">종료시간</label>
-        <div className="shared-time-range-input-wrap">
-          <input
-            type="time"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            disabled={disabled}
-            className="shared-time-range-input"
-            placeholder={endPlaceholder}
-          />
+          <label className="shared-time-range-label">종료시간</label>
+          <div className="shared-time-range-input-wrap">
+            <input
+              type="time"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              disabled={disabled}
+              className="shared-time-range-input"
+              placeholder={endPlaceholder}
+            />
+          </div>
+          <div className="shared-time-range-quick">
+            <button
+              type="button"
+              className="shared-time-range-btn"
+              onClick={() => subtractFromEnd(30)}
+              disabled={disabled || !end || (!!start && !!end && end <= start)}
+            >
+              −30분
+            </button>
+            <button
+              type="button"
+              className="shared-time-range-btn"
+              onClick={() => subtractFromEnd(60)}
+              disabled={disabled || !end || (!!start && !!end && end <= start)}
+            >
+              −1시간
+            </button>
+          </div>
         </div>
-        <div className="shared-time-range-quick" aria-hidden />
       </div>
     </div>
   );
