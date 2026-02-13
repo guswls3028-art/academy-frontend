@@ -186,10 +186,18 @@ export default function PermissionSidePanel({
                     </span>
                   </div>
 
-                  {/* 이름 */}
+                  {/* 이름 + 강의 딱지 (전역 규칙) */}
                   <div className="col-span-3 min-w-0">
                     <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                      {s.student_name}
+                      <StudentNameWithLectureChip
+                        name={s.student_name ?? ""}
+                        lectures={
+                          s.lecture_title
+                            ? [{ lectureName: s.lecture_title, color: s.lecture_color }]
+                            : undefined
+                        }
+                        chipSize={14}
+                      />
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] truncate">
                       학생번호 {formatPhone(s.student_phone)}
