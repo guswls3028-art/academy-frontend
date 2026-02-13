@@ -145,18 +145,16 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <input
-              type="date"
-              className="ds-input"
+            <DatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={setStartDate}
+              placeholder="시작일"
               disabled={isPending}
             />
-            <input
-              type="date"
-              className="ds-input"
+            <DatePicker
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={setEndDate}
+              placeholder="종료일"
               disabled={isPending}
             />
           </div>
