@@ -200,21 +200,19 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                       margin: 0,
                     }}
                   >
-                    <span className="inline-flex items-center gap-2 min-w-0">
-                      <StudentNameWithLectureChip
-                        name={student.name ?? ""}
-                        lectures={
-                          Array.isArray(student.enrollments) && student.enrollments.length > 0
-                            ? student.enrollments.slice(0, 5).map((en: { lecture_name?: string; lecture_color?: string }) => ({
-                                lectureName: en.lecture_name ?? "??",
-                                color: en.lecture_color ?? undefined,
-                              }))
-                            : undefined
-                        }
-                        chipSize={20}
-                        className="[&_.truncate]:!text-[22px] [&_.truncate]:!font-extrabold"
-                      />
-                    </span>
+                    <StudentNameWithLectureChip
+                      name={student.name ?? ""}
+                      lectures={
+                        Array.isArray(student.enrollments) && student.enrollments.length > 0
+                          ? student.enrollments.slice(0, 5).map((en: { lecture_name?: string; lecture_color?: string }) => ({
+                              lectureName: en.lecture_name ?? "??",
+                              color: en.lecture_color ?? undefined,
+                            }))
+                          : undefined
+                      }
+                      chipSize={20}
+                      className="text-[22px] font-extrabold"
+                    />
                   </h1>
                   <p
                     style={{
