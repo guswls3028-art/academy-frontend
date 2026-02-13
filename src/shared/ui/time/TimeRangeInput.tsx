@@ -153,13 +153,25 @@ export default function TimeRangeInput({
           <label className="shared-time-range-label">종료시간</label>
           <div className="shared-time-range-input-wrap">
             <input
+              ref={endInputRef}
               type="time"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
               disabled={disabled}
               className="shared-time-range-input"
               placeholder={endPlaceholder}
+              aria-label="종료 시간 선택"
             />
+            <button
+              type="button"
+              className="shared-time-range-picker-trigger"
+              onClick={openEndPicker}
+              disabled={disabled}
+              aria-label="종료 시간 시계로 선택"
+              title="시계로 시간 선택"
+            >
+              <span className="shared-time-range-picker-icon" aria-hidden>🕐</span>
+            </button>
           </div>
           <div className="shared-time-range-quick">
             <button
