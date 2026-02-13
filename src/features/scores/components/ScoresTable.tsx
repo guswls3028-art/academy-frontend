@@ -8,6 +8,7 @@ import InlineExamItemsRow from "./InlineExamItemsRow";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import HomeworkQuickInput from "./HomeworkQuickInput";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 /* ===============================
    Status 표시 (LOCAL / SSOT)
