@@ -69,7 +69,24 @@ export default function TimeRangeInput({
   startPlaceholder = "00:00",
   endPlaceholder = "00:00",
 }: TimeRangeInputProps) {
+  const startInputRef = useRef<HTMLInputElement>(null);
+  const endInputRef = useRef<HTMLInputElement>(null);
   const { start, end } = parseRange(value);
+
+  const openStartPicker = () => {
+    if (typeof startInputRef.current?.showPicker === "function") {
+      startInputRef.current.showPicker();
+    } else {
+      startInputRef.current?.focus();
+    }
+  };
+  const openEndPicker = () => {
+    if (typeof endInputRef.current?.showPicker === "function") {
+      endInputRef.current.showPicker();
+    } else {
+      endInputRef.current?.focus();
+    }
+  };
 
   const setStart = (v: string) => onChange(formatRange(toHHmm(v) || v, end));
   const setEnd = (v: string) => onChange(formatRange(start, toHHmm(v) || v));
