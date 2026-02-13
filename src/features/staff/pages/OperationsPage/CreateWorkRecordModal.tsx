@@ -12,6 +12,7 @@ import {
   ModalFooter,
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
+import { DatePicker } from "@/shared/ui/date";
 
 type Props = {
   open: boolean;

@@ -10,6 +10,7 @@ import {
   ModalFooter,
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
+import { DatePicker } from "@/shared/ui/date";
 
 export default function CreateExpenseModal({
   open,
