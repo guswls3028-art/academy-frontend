@@ -109,12 +109,10 @@ export default function AttendanceFormModal({
             {/* 입력 */}
             <div className="space-y-4 rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4">
               <Row label="날짜">
-                <input
-                  type="date"
-                  className={inputCls}
+                <DatePicker
                   value={form.date}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, date: e.target.value }))
+                  onChange={(v) =>
+                    setForm((p) => ({ ...p, date: v }))
                   }
                 />
               </Row>
