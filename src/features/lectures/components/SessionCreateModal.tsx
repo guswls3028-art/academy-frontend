@@ -46,6 +46,7 @@ function nextWeekDate(lastDateStr: string | null | undefined): string {
 export default function SessionCreateModal({ lectureId, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [sessionType, setSessionType] = useState<SessionType | null>(null);
+  const [dateMode, setDateMode] = useState<DateMode>("default");
   const [date, setDate] = useState("");
   const [timeMode, setTimeMode] = useState<TimeMode>("default");
   const [timeInput, setTimeInput] = useState("");
