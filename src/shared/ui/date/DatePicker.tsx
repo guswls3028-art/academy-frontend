@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dayjs, { type Dayjs } from "dayjs";
+import "./DatePicker.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const CELL_SIZE = 44;
