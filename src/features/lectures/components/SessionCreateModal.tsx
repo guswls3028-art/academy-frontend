@@ -1,14 +1,17 @@
 // PATH: src/features/lectures/components/SessionCreateModal.tsx
-// 차시 추가: 1차시/2차시/…(N+1) 또는 보강. 날짜·시간은 강의 기본값(매주 요일+시간) 또는 직접입력.
+// 차시 추가: 2차시/보강을 큰 블록으로 선택. 날짜·시간은 강의 기본값 사용 | 직접선택(전역 달력/시간 UI).
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { DatePicker } from "@/shared/ui/date";
+import { TimeRangeInput } from "@/shared/ui/time";
 import { createSession } from "../api/sessions";
 
 type SessionType = "n+1" | "supplement";
+type DateMode = "default" | "custom";
 type TimeMode = "default" | "custom";
 
 interface Props {
