@@ -161,7 +161,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
 
       <ModalBody>
         <div className="grid gap-6">
-          {/* 차시 유형: 2차시 / 보강 — 큰 블록으로 직관적 선택 */}
+          {/* 차시 유형: 2차시 / 보강 — 카드형 블록으로 직관적 선택 */}
           <div>
             <div className="text-[13px] font-semibold text-[var(--color-text-secondary)] mb-3">
               차시 유형
@@ -171,35 +171,27 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                 type="button"
                 onClick={() => setSessionType("n+1")}
                 className={cx(
-                  "rounded-2xl border-2 min-h-[88px] p-5 text-left transition flex flex-col justify-center",
-                  sessionType === "n+1"
-                    ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)]"
-                    : "border-[var(--border-divider)] bg-[var(--bg-surface)] hover:border-[color-mix(in_srgb,var(--color-primary)_50%,transparent)]"
+                  "session-type-block",
+                  sessionType === "n+1" && "session-type-block--selected"
                 )}
               >
-                <span className="text-[18px] font-bold text-[var(--color-text-primary)]">
-                  {nextOrder}차시
-                </span>
-                <div className="mt-1.5 text-[13px] text-[var(--color-text-muted)]">
+                <span className="session-type-block__title">{nextOrder}차시</span>
+                <span className="session-type-block__desc">
                   이 블록을 누르면 정규 차시가 추가됩니다
-                </div>
+                </span>
               </button>
               <button
                 type="button"
                 onClick={() => setSessionType("supplement")}
                 className={cx(
-                  "rounded-2xl border-2 min-h-[88px] p-5 text-left transition flex flex-col justify-center",
-                  sessionType === "supplement"
-                    ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)]"
-                    : "border-[var(--border-divider)] bg-[var(--bg-surface)] hover:border-[color-mix(in_srgb,var(--color-primary)_50%,transparent)]"
+                  "session-type-block",
+                  sessionType === "supplement" && "session-type-block--selected"
                 )}
               >
-                <span className="text-[18px] font-bold text-[var(--color-text-primary)]">
-                  보강
-                </span>
-                <div className="mt-1.5 text-[13px] text-[var(--color-text-muted)]">
+                <span className="session-type-block__title">보강</span>
+                <span className="session-type-block__desc">
                   이 블록을 누르면 보강 차시가 추가됩니다
-                </div>
+                </span>
               </button>
             </div>
           </div>
