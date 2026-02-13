@@ -16,7 +16,7 @@ import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
-const SESSION_COL_WIDTH = 32;
+const SESSION_COL_WIDTH = 28;
 
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
