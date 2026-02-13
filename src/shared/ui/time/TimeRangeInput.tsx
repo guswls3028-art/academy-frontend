@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/time/TimeRangeInput.tsx
-// 전역 SSOT: 시작/종료 시간 + [+30분][+1시간] 누적 버튼. 마우스 조작에 맞춘 큼지막한 UI
+// 전역 SSOT: 시작/종료 시간 + [+30분][+1시간](종료 추가) / [−30분][−1시간](종료 감소). 마우스 조작 친화.
 
 import dayjs from "dayjs";
 import "./TimeRangeInput.css";
