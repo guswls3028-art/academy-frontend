@@ -63,6 +63,17 @@ function clampEndAboveStart(endStr: string, startStr: string, deltaMinutes: numb
   return next;
 }
 
+const SLOT_MINUTES = 15;
+const SLOTS = (() => {
+  const out: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += SLOT_MINUTES) {
+      out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return out;
+})();
+
 export default function TimeRangeInput({
   value,
   onChange,
@@ -70,24 +81,11 @@ export default function TimeRangeInput({
   startPlaceholder = "00:00",
   endPlaceholder = "00:00",
 }: TimeRangeInputProps) {
-  const startInputRef = useRef<HTMLInputElement>(null);
-  const endInputRef = useRef<HTMLInputElement>(null);
+  const startAnchorRef = useRef<HTMLDivElement>(null);
+  const endAnchorRef = useRef<HTMLDivElement>(null);
+  const [openStart, setOpenStart] = useState(false);
+  const [openEnd, setOpenEnd] = useState(false);
   const { start, end } = parseRange(value);
-
-  const openStartPicker = () => {
-    if (typeof startInputRef.current?.showPicker === "function") {
-      startInputRef.current.showPicker();
-    } else {
-      startInputRef.current?.focus();
-    }
-  };
-  const openEndPicker = () => {
-    if (typeof endInputRef.current?.showPicker === "function") {
-      endInputRef.current.showPicker();
-    } else {
-      endInputRef.current?.focus();
-    }
-  };
 
   const setStart = (v: string) => onChange(formatRange(toHHmm(v) || v, end));
   const setEnd = (v: string) => onChange(formatRange(start, toHHmm(v) || v));
