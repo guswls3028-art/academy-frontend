@@ -234,19 +234,21 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                   </span>
                 </label>
               )}
-              <label className="flex items-center gap-3 cursor-pointer rounded-xl border border-[var(--border-divider)] p-3 hover:bg-[var(--color-bg-surface-soft)]">
-                <input
-                  type="radio"
-                  name="dateMode"
-                  checked={dateMode === "custom" || isSupplement}
-                  onChange={() => setDateMode("custom")}
-                  className="w-4 h-4"
-                />
-                <span className="text-[14px] font-medium text-[var(--color-text-primary)] shrink-0">
-                  직접선택
-                </span>
+              <label className="flex flex-col gap-2 rounded-xl border border-[var(--border-divider)] p-3 hover:bg-[var(--color-bg-surface-soft)]">
+                <div className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="dateMode"
+                    checked={dateMode === "custom" || isSupplement}
+                    onChange={() => setDateMode("custom")}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-[14px] font-medium text-[var(--color-text-primary)]">
+                    직접선택
+                  </span>
+                </div>
                 {(dateMode === "custom" || isSupplement) && (
-                  <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                  <div onClick={(e) => e.stopPropagation()}>
                     <DatePicker
                       value={date}
                       onChange={setDate}
