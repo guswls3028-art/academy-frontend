@@ -5,6 +5,7 @@ import { createDday } from "../api/ddays";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { DatePicker } from "@/shared/ui/date";
 
 interface Props {
   lectureId: number;
