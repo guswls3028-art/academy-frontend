@@ -67,13 +67,11 @@ export default function DdayModal({ lectureId, onClose }: Props) {
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 10 }}>
-            <input
-              type="date"
-              className="ds-input"
+            <DatePicker
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={setDate}
+              placeholder="날짜 선택"
               disabled={busy}
-              data-invalid={!date ? "true" : "false"}
             />
             <input
               type="time"
