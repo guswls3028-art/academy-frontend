@@ -53,12 +53,10 @@ export default function CreateExpenseModal({
       <ModalBody>
         <div className="grid gap-3">
           <Field label="날짜">
-            <input
-              type="date"
-              className="ds-input"
+            <DatePicker
               value={form.date}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, date: e.target.value }))
+              onChange={(v) =>
+                setForm((p) => ({ ...p, date: v }))
               }
             />
           </Field>
