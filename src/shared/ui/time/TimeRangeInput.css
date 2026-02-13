@@ -71,16 +71,17 @@
 }
 
 .shared-time-range-btn {
-  min-height: 48px;
-  padding: 0 var(--space-4);
+  min-height: 52px;
+  min-width: 72px;
+  padding: 0 var(--space-3);
   font-size: 14px;
   font-weight: 600;
   color: var(--ui-control-text, var(--color-text-primary));
-  background: var(--color-bg-surface-soft);
+  background: var(--color-bg-surface);
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 120ms, border-color 120ms, color 120ms;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
 .shared-time-range-btn:hover:not(:disabled) {
@@ -89,6 +90,6 @@
 }
 
 .shared-time-range-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
