@@ -2,6 +2,7 @@
 // 전역 SSOT: 시작/종료 시간 + 시계(타임 피커) 열기 / [+−30분·1시간] 버튼. 마우스 조작 친화.
 
 import { useRef } from "react";
+import { Clock } from "lucide-react";
 import dayjs from "dayjs";
 import "./TimeRangeInput.css";
 
