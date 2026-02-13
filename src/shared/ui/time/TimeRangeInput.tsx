@@ -1,9 +1,9 @@
 // PATH: src/shared/ui/time/TimeRangeInput.tsx
-// 전역 SSOT: 시작/종료 시간 + 시계(타임 피커) 열기 / [+−30분·1시간] 버튼. 마우스 조작 친화.
+// 전역 SSOT: 시작/종료 시간 — 시간 영역 클릭 시 원테이크 스크롤 피커, [+−30분·1시간] 버튼.
 
-import { useRef } from "react";
-import { Clock } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
 import dayjs from "dayjs";
+import { TimeScrollPopover } from "./TimeScrollPopover";
 import "./TimeRangeInput.css";
 
 export interface TimeRangeInputProps {

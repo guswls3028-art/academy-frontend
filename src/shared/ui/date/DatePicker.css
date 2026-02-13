@@ -43,7 +43,7 @@
 .shared-date-picker-dropdown {
   position: absolute;
   z-index: 1100;
-  top: calc(100% + var(--space-2));
+  bottom: calc(100% + var(--space-2));
   left: 0;
   padding: var(--space-4);
   background: var(--ui-control-bg, var(--color-bg-surface));
