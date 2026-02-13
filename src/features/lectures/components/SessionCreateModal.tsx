@@ -89,17 +89,20 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
   const lectureTimeRaw = lecture?.lecture_time?.trim() || "";
   const lectureTimeExtract = useMemo(() => extractTimeFromLectureTime(lecture?.lecture_time), [lecture?.lecture_time]);
 
-  // 보강 선택 시 무조건 직접입력
+  // 보강 선택 시 날짜·시간 모두 직접선택만 가능
   useEffect(() => {
-    if (sessionType === "supplement") setTimeMode("custom");
+    if (sessionType === "supplement") {
+      setDateMode("custom");
+      setTimeMode("custom");
+    }
   }, [sessionType]);
 
-  // N+1 + 강의 기본값 사용 시 날짜 자동 채우기 (다음 주 같은 요일)
+  // N+1 + 날짜 기본값 사용 시 날짜 자동 채우기 (다음 주 같은 요일)
   useEffect(() => {
-    if (sessionType === "n+1" && timeMode === "default" && defaultDateFromLecture) {
+    if (sessionType === "n+1" && dateMode === "default" && defaultDateFromLecture) {
       setDate(defaultDateFromLecture);
     }
-  }, [sessionType, timeMode, defaultDateFromLecture]);
+  }, [sessionType, dateMode, defaultDateFromLecture]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
