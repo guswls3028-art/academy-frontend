@@ -216,8 +216,16 @@ export default function ScoresTable({
                 borderBottomColor: "color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
               }}
             >
-              <div className={`${tdBase} font-semibold`}>
-                {row.student_name}
+              <div className={`${tdBase} font-semibold min-w-0`}>
+                <StudentNameWithLectureChip
+                  name={row.student_name ?? ""}
+                  lectures={
+                    row.lecture_title
+                      ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
+                      : undefined
+                  }
+                  chipSize={14}
+                />
               </div>
 
               <div className={tdBase}>
