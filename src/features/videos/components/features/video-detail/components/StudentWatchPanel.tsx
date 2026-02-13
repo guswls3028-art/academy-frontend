@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Button } from "@/shared/ui/ds";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
 import {
   RULE_COLORS,
