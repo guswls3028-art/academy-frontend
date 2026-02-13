@@ -189,27 +189,21 @@ export default function StudentsTable({
                   />
                 ) : null}
               </td>
-              {/* 이름 + 강의 딱지 (학생정보 공통) */}
+              {/* 이름 + 강의 딱지 (전역 규칙: 학생 이름 앞 강의 딱지) */}
               <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  {Array.isArray(s.enrollments) && s.enrollments.length > 0 ? (
-                    <span className="inline-flex items-center gap-1 flex-shrink-0">
-                      {s.enrollments.slice(0, 3).map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => (
-                        <LectureChip
-                          key={en.id}
-                          lectureName={en.lectureName || "??"}
-                          color={en.lectureColor || DEFAULT_LECTURE_COLOR}
-                        />
-                      ))}
-                      {s.enrollments.length > 3 && (
-                        <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
-                          +{s.enrollments.length - 3}
-                        </span>
-                      )}
-                    </span>
-                  ) : null}
-                  <span className="truncate">{highlight(s.name || "-", search)}</span>
-                </span>
+                <StudentNameWithLectureChip
+                  name={s.name ?? "-"}
+                  lectures={
+                    Array.isArray(s.enrollments) && s.enrollments.length > 0
+                      ? s.enrollments.slice(0, 5).map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => ({
+                          lectureName: en.lectureName ?? "??",
+                          color: en.lectureColor ?? undefined,
+                        }))
+                      : undefined
+                  }
+                  chipSize={16}
+                  highlight={(text) => highlight(text, search)}
+                />
               </td>
 
               {/* 학부모 전화 */}
