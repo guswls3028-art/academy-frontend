@@ -162,7 +162,7 @@ export default function LectureStudentsPage() {
               <div style={{ width: "fit-content" }}>
                 <DomainTable
                   tableClassName="ds-table--flat ds-table--attendance"
-                  tableStyle={{ minWidth: tableMinWidth, width: "100%", tableLayout: "fixed" }}
+                  tableStyle={{ width: tableMinWidth, minWidth: tableMinWidth, tableLayout: "fixed" }}
                 >
                   <colgroup>
                     <col style={{ width: col.checkbox }} />
