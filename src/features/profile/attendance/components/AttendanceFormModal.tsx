@@ -127,28 +127,25 @@ export default function AttendanceFormModal({
                 />
               </Row>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Row label="시작 시간">
-                  <input
-                    type="time"
-                    className={inputCls}
-                    value={form.start_time}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, start_time: e.target.value }))
+              <div>
+                <div className="mb-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
+                  근무 시간
+                </div>
+                <TimeRangeInput
+                  value={form.start_time && form.end_time ? `${form.start_time}~${form.end_time}` : ""}
+                  onChange={(v) => {
+                    const i = v.indexOf("~");
+                    if (i >= 0) {
+                      setForm((p) => ({
+                        ...p,
+                        start_time: v.slice(0, i).trim() || p.start_time,
+                        end_time: v.slice(i + 1).trim() || p.end_time,
+                      }));
+                    } else if (v.trim()) {
+                      setForm((p) => ({ ...p, start_time: v.trim() }));
                     }
-                  />
-                </Row>
-
-                <Row label="종료 시간">
-                  <input
-                    type="time"
-                    className={inputCls}
-                    value={form.end_time}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, end_time: e.target.value }))
-                    }
-                  />
-                </Row>
+                  }}
+                />
               </div>
 
               <Row label="메모 (선택)">
