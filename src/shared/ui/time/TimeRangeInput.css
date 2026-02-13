@@ -1,14 +1,22 @@
 /* PATH: src/shared/ui/time/TimeRangeInput.css
-   전역 시간 구간 — DS 토큰 준수, 시작/종료 입력 공간 넉넉히, 마우스 조작 친화 */
+   전역 SSOT: 시간 구간 선택 — 사용감·디자인 통일, +/− 30분·1시간 버튼 */
 
 .shared-time-range {
   display: block;
 }
 
+.shared-time-range-card {
+  padding: var(--space-4);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-0);
+}
+
 .shared-time-range-grid {
   display: grid;
   grid-template-columns: 88px 1fr auto;
-  gap: var(--space-3) var(--space-4);
+  gap: var(--space-4) var(--space-4);
   align-items: center;
 }
 
