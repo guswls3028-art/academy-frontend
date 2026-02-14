@@ -153,7 +153,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     if (!editItem) return;
     const { item, tab } = editItem;
     const updater = (prev: UploadedInventoryItem[]) =>
-      prev.map((i) => (i.id === item.id ? { ...i, title: editItem.item.title, description: editItem.item.description, iconPreset: editItem.item.iconPreset } : i));
+      prev.map((i) => (i.id === item.id ? { ...i, title: item.title, description: item.description, iconPreset: item.iconPreset } : i));
     if (tab === "score") setUploadedScoreItems(updater);
     else setUploadedMiscItems(updater);
     setEditItem(null);
