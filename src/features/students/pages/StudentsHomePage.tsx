@@ -1,7 +1,7 @@
 // PATH: src/features/students/pages/StudentsHomePage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const STORAGE_KEY = "students-selected-ids";
 
@@ -10,6 +10,7 @@ import {
   bulkDeleteStudents,
   bulkRestoreStudents,
   bulkPermanentDeleteStudents,
+  toggleStudentActive,
 } from "../api/students";
 import StudentsTable from "../components/StudentsTable";
 import StudentCreateModal from "../components/StudentCreateModal";
