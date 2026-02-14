@@ -715,7 +715,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                           updateFailedItem(idx, "phone", phone);
                         }}
                         className="ds-input"
-                        style={{ flex: 1, minWidth: 180 }}
                         maxLength={13}
                         inputMode="numeric"
                       />
