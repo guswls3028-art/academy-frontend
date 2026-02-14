@@ -41,14 +41,6 @@ export default function StudentNameWithLectureChip({
 
   return (
     <span className={`inline-flex items-center gap-2 min-w-0 ${className ?? ""}`.trim()}>
-      {list.map((lec, i) => (
-        <LectureChip
-          key={`${lec.lectureName ?? ""}-${i}`}
-          lectureName={lec.lectureName || "??"}
-          color={lec.color ?? DEFAULT_COLOR}
-          size={chipSize}
-        />
-      ))}
       {avatarSize != null && avatarSize > 0 && (
         <span
           className="flex-shrink-0 rounded-full overflow-hidden bg-[var(--color-brand-primary)]/15 text-[var(--color-brand-primary)] text-xs font-bold flex items-center justify-center"
@@ -65,6 +57,14 @@ export default function StudentNameWithLectureChip({
       <span className="truncate">
         {highlight ? highlight(name || "-") : (name || "-")}
       </span>
+      {list.map((lec, i) => (
+        <LectureChip
+          key={`${lec.lectureName ?? ""}-${i}`}
+          lectureName={lec.lectureName || "??"}
+          color={lec.color ?? DEFAULT_COLOR}
+          size={chipSize}
+        />
+      ))}
     </span>
   );
 }
