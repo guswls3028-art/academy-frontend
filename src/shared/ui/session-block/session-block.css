@@ -52,54 +52,54 @@
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.1),
-    0 3px 0 0 var(--session-block-bottom, rgba(0, 0, 0, 0.18)),
-    0 4px 10px rgba(0, 0, 0, 0.1);
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.1)),
+    0 3px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.18))),
+    0 4px 10px var(--color-shadow-soft, rgba(0, 0, 0, 0.1));
 }
 
 .session-block--compact:hover {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.12),
-    0 4px 0 0 var(--session-block-bottom, rgba(0, 0, 0, 0.2)),
-    0 6px 14px rgba(0, 0, 0, 0.12);
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.12)),
+    0 4px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.2))),
+    0 6px 14px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
 }
 
 .session-block--compact:active {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.06),
-    0 1px 0 0 var(--session-block-bottom, rgba(0, 0, 0, 0.22)),
-    0 2px 6px rgba(0, 0, 0, 0.12);
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.06)),
+    0 1px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.22))),
+    0 2px 6px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
 }
 
 .session-block--compact.session-block--selected {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.18),
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.18)),
     0 3px 0 0 var(--session-block-bottom),
-    0 4px 10px rgba(0, 0, 0, 0.1),
-    0 0 0 2px color-mix(in srgb, var(--color-brand-primary, #2563eb) 25%, transparent);
+    0 4px 10px var(--color-shadow-soft, rgba(0, 0, 0, 0.1)),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
 .session-block--compact.session-block--supplement.session-block--selected {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.18),
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.18)),
     0 3px 0 0 var(--session-block-bottom),
-    0 4px 10px rgba(0, 0, 0, 0.1),
-    0 0 0 2px color-mix(in srgb, #0d9488 25%, transparent);
+    0 4px 10px var(--color-shadow-soft, rgba(0, 0, 0, 0.1)),
+    0 0 0 2px color-mix(in srgb, var(--session-block-supplement) 25%, transparent);
 }
 
 /* 컴팩트는 호버/액티브 시에도 얇은 블록 유지 (n1/supplement 스타일보다 우선) */
 .session-block--compact.session-block:hover {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.12),
-    0 4px 0 0 var(--session-block-bottom, rgba(0, 0, 0, 0.2)),
-    0 6px 14px rgba(0, 0, 0, 0.12);
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.12)),
+    0 4px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.2))),
+    0 6px 14px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
 }
 
 .session-block--compact.session-block:active {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.06),
-    0 1px 0 0 var(--session-block-bottom, rgba(0, 0, 0, 0.22)),
-    0 2px 6px rgba(0, 0, 0, 0.12);
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.06)),
+    0 1px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.22))),
+    0 2px 6px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
 }
 
 .session-block--compact .session-block__title {
