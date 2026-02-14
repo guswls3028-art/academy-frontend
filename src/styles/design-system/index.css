@@ -14,6 +14,8 @@
    =============================== */
 @import "./patterns/index.css";
 @import "../../shared/ui/ds/styles/tabs.css";
+/* 상태 뱃지 SSOT (ds-status-badge, --action 예외 포함) */
+@import "../../shared/ui/ds/styles/status.css";
 
 /* ===============================
    AntD skin (slot only)
