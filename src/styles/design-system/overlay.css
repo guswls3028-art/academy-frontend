@@ -491,6 +491,13 @@
   line-height: 1;
 }
 
+.ds-inventory-panel__item--folder {
+  min-height: 64px;
+}
+.ds-inventory-panel__item--folder .ds-inventory-panel__item-icon {
+  font-size: 22px;
+}
+
 /* + 추가 슬롯 (성적표/기타 탭) */
 .ds-inventory-panel__item--add {
   border-style: dashed;
