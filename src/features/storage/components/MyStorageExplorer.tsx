@@ -11,6 +11,7 @@ import {
   uploadFile,
   deleteFolder,
   deleteFile,
+  getPresignedUrl,
   type InventoryFolder,
   type InventoryFile,
 } from "../api/storage.api";
