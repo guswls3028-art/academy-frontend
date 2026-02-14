@@ -322,7 +322,7 @@ export default function EditStudentModal({
             )}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)" }}>
             <input
               name="school"
               placeholder="학교명"
@@ -331,7 +331,7 @@ export default function EditStudentModal({
               className="ds-input"
               disabled={busy}
             />
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: "var(--space-2)" }}>
               {["1", "2", "3"].map((g) => (
                 <Button
                   key={g}
