@@ -57,12 +57,18 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const [uploadedMiscItems, setUploadedMiscItems] = useState<UploadedInventoryItem[]>([]);
   const [addFileModal, setAddFileModal] = useState<{ tab: "score" | "misc"; file: File; title: string; description: string } | null>(null);
 
-  const handleInventoryFileChange = (tab: "score" | "misc") => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInventoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const tab = addFileTabRef.current;
     const baseName = file.name.replace(/\.[^.]+$/, "") || file.name;
     setAddFileModal({ tab, file, title: baseName, description: "" });
     e.target.value = "";
+  };
+
+  const triggerAddFile = (tab: "score" | "misc") => {
+    addFileTabRef.current = tab;
+    fileInputRef.current?.click();
   };
 
   const confirmAddFile = () => {
