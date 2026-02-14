@@ -377,9 +377,7 @@ export default function EditStudentModal({
 
       <ModalFooter
         left={
-          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
-            ⌘/Ctrl + Enter 저장
-          </span>
+          <span className="modal-hint" style={{ marginBottom: 0 }}>⌘/Ctrl + Enter 저장</span>
         }
         right={
           <>

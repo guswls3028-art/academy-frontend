@@ -851,14 +851,14 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 </span>
               </div>
             )}
-            <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            <span className="modal-hint" style={{ marginBottom: 0 }}>
               {activeTab === "single"
                 ? "⌘/Ctrl + Enter 등록"
                 : bulkResult
-                ? "실패 항목을 수정한 뒤 '다시 등록'을 누르세요"
+                ? "실패 항목 수정 후 '다시 등록'"
                 : excelParsedRows?.length
-                ? "초기 비밀번호 입력 후 '등록' 버튼을 눌러 주세요"
-                : "엑셀 파일을 선택한 뒤 '등록' 버튼을 눌러 주세요"}
+                ? "초기 비밀번호 입력 후 등록"
+                : "엑셀 파일 선택 후 등록"}
             </span>
           </div>
         }
