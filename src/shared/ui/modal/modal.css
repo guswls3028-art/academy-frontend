@@ -16,6 +16,10 @@
   background: var(--color-modal-bg);
 }
 
+.admin-modal--confirm .ant-modal-content {
+  border-color: color-mix(in srgb, var(--color-error) 28%, var(--color-border-divider));
+}
+
 /* ========== 헤더 (상단 액센트 + 블록감) ========== */
 .modal-header {
   position: relative;
