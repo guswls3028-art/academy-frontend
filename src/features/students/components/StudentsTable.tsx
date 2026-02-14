@@ -82,7 +82,7 @@ export default function StudentsTable({
       { key: "_checkbox", label: "", w: 48 },
       { key: "name", label: "이름", w: 122 },
       { key: "parentPhone", label: "학부모 전화", w: 130 },
-      { key: "studentPhone", label: "학생 전화/식별자", w: 130 },
+      { key: "studentPhone", label: "학생 전화", w: 130 },
       { key: "school", label: "학교", w: 110 },
       { key: "schoolClass", label: "반", w: 65 },
       { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: 110 },
