@@ -457,33 +457,55 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   {inventoryTab === "score" && (
                     <>
                       <div
-                        className="ds-inventory-panel__item"
-                        title="더블클릭하여 보기"
-                        onDoubleClick={() => setViewerItem({ type: "pdf", url: "#", name: "중간고사 성적표" })}
+                        className="ds-inventory-panel__item ds-inventory-panel__item--add"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => triggerAddFile("score")}
+                        onKeyDown={(e) => e.key === "Enter" && triggerAddFile("score")}
+                        title="파일 추가"
                       >
-                        <span className="ds-inventory-panel__item-icon">📄</span>
-                        <span>중간고사 성적표</span>
+                        +
                       </div>
-                      <div
-                        className="ds-inventory-panel__item"
-                        title="더블클릭하여 보기"
-                        onDoubleClick={() => setViewerItem({ type: "image", url: "#", name: "기말 성적" })}
-                      >
-                        <span className="ds-inventory-panel__item-icon">🖼️</span>
-                        <span>기말 성적</span>
-                      </div>
+                      {uploadedScoreItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="ds-inventory-panel__item ds-inventory-panel__item--uploaded"
+                          title="더블클릭하여 보기"
+                          onDoubleClick={() => setViewerItem({ type: item.fileType, url: item.fileUrl, name: item.title })}
+                        >
+                          <span className="ds-inventory-panel__item-icon">{item.fileType === "pdf" ? "📄" : "🖼️"}</span>
+                          <span className="ds-inventory-panel__item-title">{item.title}</span>
+                          {item.description && <span className="ds-inventory-panel__item-desc">{item.description}</span>}
+                          <span className="ds-inventory-panel__item-filename">{item.fileName}</span>
+                        </div>
+                      ))}
                     </>
                   )}
                   {inventoryTab === "misc" && (
                     <>
                       <div
-                        className="ds-inventory-panel__item"
-                        title="더블클릭하여 보기"
-                        onDoubleClick={() => setViewerItem({ type: "pdf", url: "#", name: "기타 자료" })}
+                        className="ds-inventory-panel__item ds-inventory-panel__item--add"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => triggerAddFile("misc")}
+                        onKeyDown={(e) => e.key === "Enter" && triggerAddFile("misc")}
+                        title="파일 추가"
                       >
-                        <span className="ds-inventory-panel__item-icon">📎</span>
-                        <span>기타 자료</span>
+                        +
                       </div>
+                      {uploadedMiscItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="ds-inventory-panel__item ds-inventory-panel__item--uploaded"
+                          title="더블클릭하여 보기"
+                          onDoubleClick={() => setViewerItem({ type: item.fileType, url: item.fileUrl, name: item.title })}
+                        >
+                          <span className="ds-inventory-panel__item-icon">{item.fileType === "pdf" ? "📄" : "🖼️"}</span>
+                          <span className="ds-inventory-panel__item-title">{item.title}</span>
+                          {item.description && <span className="ds-inventory-panel__item-desc">{item.description}</span>}
+                          <span className="ds-inventory-panel__item-filename">{item.fileName}</span>
+                        </div>
+                      ))}
                     </>
                   )}
                   {inventoryTab === "video" && (
