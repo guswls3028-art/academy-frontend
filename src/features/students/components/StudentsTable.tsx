@@ -92,7 +92,7 @@ export default function StudentsTable({
       { key: "schoolClass", label: "반", w: 65 },
       { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: 110 },
       { key: "tags", label: "태그", w: 100 },
-      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: 72 }]),
+      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: 92 }]),
     ],
     [isDeletedTab]
   );

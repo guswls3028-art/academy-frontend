@@ -139,10 +139,10 @@ button.ds-status-badge.ds-status-badge--action[data-status="active"]:hover:not(:
 }
 
 button.ds-status-badge.ds-status-badge--action[data-status="inactive"] {
-  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 10%, var(--color-bg-surface, #fff)) !important;
-  color: var(--color-text-secondary, #64748b) !important;
+  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 22%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-text-muted, #64748b) !important;
 }
 button.ds-status-badge.ds-status-badge--action[data-status="inactive"]:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 16%, var(--color-bg-surface, #fff)) !important;
-  color: var(--color-text-primary, #0f172a) !important;
+  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 28%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-text-secondary, #475569) !important;
 }
