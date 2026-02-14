@@ -183,7 +183,7 @@ export default function MyStorageExplorer() {
                     setSelectedFileId(file.id);
                     setSelectedFolderIds(new Set());
                   }}
-                  onDoubleClick={() => window.open(file.r2Key, "_blank")}
+                  onDoubleClick={() => openFileUrl(file.r2Key)}
                   title={file.description || file.displayName}
                 >
                   {file.contentType?.startsWith("image/") ? (
