@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { DomainLayout } from "@/shared/ui/domain/DomainLayout";
+import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { Button } from "@/shared/ui/ds";
 import MyStorageExplorer from "../components/MyStorageExplorer";
 import StudentInventoryManage from "../components/StudentInventoryManage";
