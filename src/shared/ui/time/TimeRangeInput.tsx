@@ -2,7 +2,7 @@
 // 전역 SSOT: 시작/종료 시간 — 12시간제(오전/오후) 원스크롤 순환, 시간 영역 클릭 시 피커, [+−30분·1시간].
 
 import { useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { Clock, ChevronDown } from "lucide-react";
 import dayjs from "dayjs";
 import { TimeScrollPopover, format24To12Display } from "./TimeScrollPopover";
 import "./TimeRangeInput.css";
