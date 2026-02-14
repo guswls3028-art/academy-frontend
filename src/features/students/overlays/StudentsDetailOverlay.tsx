@@ -1046,6 +1046,40 @@ function InfoRow({
   );
 }
 
+function InventoryTreeFolder({
+  folder,
+  allFolders,
+  currentFolderId,
+  onSelect,
+}: {
+  folder: { id: string; name: string; parentId: string | null };
+  allFolders: { id: string; name: string; parentId: string | null }[];
+  currentFolderId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const children = allFolders.filter((f) => f.parentId === folder.id);
+  const isCurrent = currentFolderId === folder.id;
+  return (
+    <div>
+      <div
+        className={`ds-inventory-panel__tree-item ${isCurrent ? "is-current" : ""}`}
+        onClick={() => onSelect(folder.id)}
+      >
+        {folder.name}
+      </div>
+      {children.map((child) => (
+        <InventoryTreeFolder
+          key={child.id}
+          folder={child}
+          allFolders={allFolders}
+          currentFolderId={currentFolderId}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+}
+
 function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
   if (!enrollments?.length) return <EmptyState title="수강 이력이 없습니다." />;
 
