@@ -181,8 +181,8 @@ export default function StudentsTable({
               role="button"
               className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
             >
-              {/* 체크박스 */}
-              <td onClick={(e) => e.stopPropagation()} style={{ width: 48 }} className="ds-checkbox-cell">
+              {/* 체크박스 — 타이트 */}
+              <td onClick={(e) => e.stopPropagation()} style={{ width: 36 }} className="ds-checkbox-cell text-center align-middle">
                 {onSelectionChange ? (
                   <input
                     type="checkbox"
@@ -194,8 +194,8 @@ export default function StudentsTable({
                   />
                 ) : null}
               </td>
-              {/* 이름 + 아바타 + 강의 딱지 (수강 강의 1:1, 없으면 칩 없음) */}
-              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+              {/* 이름 — 강의딱지·아바타·이름, 넓은 영역 */}
+              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate text-center align-middle">
                 <StudentNameWithLectureChip
                   name={s.name ?? "-"}
                   profilePhotoUrl={s.profilePhotoUrl}
