@@ -32,19 +32,19 @@ export default function DomainLayout({
 
   return (
     <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
-      {/* DOMAIN HEADER — 은은한 primary 톤 + 좌측 액센트 */}
+      {/* DOMAIN HEADER — 은은한 primary 톤 + 좌측 액센트, 탭 있으면 맨 바닥에 여백 없이 */}
       <div
-        className="relative"
+        className={`relative flex flex-col ${tabs != null && tabs.length > 0 ? "domain-header--with-tabs" : ""}`}
         style={{
           background: "color-mix(in srgb, var(--color-primary) 8%, var(--bg-surface))",
           borderBottom: "1px solid var(--color-border-divider-strong)",
           paddingLeft: "var(--space-6)",
           paddingRight: "var(--space-6)",
           paddingTop: "var(--space-7)",
-          paddingBottom: "var(--space-4)",
+          paddingBottom: tabs != null && tabs.length > 0 ? 0 : "var(--space-4)",
         }}
       >
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <div
             className="absolute left-0 top-1 rounded-full bg-[var(--color-primary)]"
             style={{ width: 4, height: 24 }}

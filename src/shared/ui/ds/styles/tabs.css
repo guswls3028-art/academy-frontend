@@ -68,9 +68,12 @@
   background: transparent;
 }
 
-/* 도메인 헤더 내 탭 영역 — 플랫 탭(언더라인만), 버튼/박스 효과 없음 */
+/* 도메인 헤더 내 탭 영역 — 배경 있는 플랫 탭, 헤더 맨 바닥에 여백 없이 */
 .domain-header__tabs-wrap {
-  margin-top: var(--space-4);
-  padding: 0;
+  margin-top: auto;
+  padding: var(--space-2) var(--space-2) 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-surface, var(--bg-surface, #fff));
   width: fit-content;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
