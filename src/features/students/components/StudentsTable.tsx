@@ -269,7 +269,7 @@ export default function StudentsTable({
 
               {/* 상태 — 학생 도메인 예외: 클릭 시 토글(버튼형 연한 톤 뱃지) */}
               {!isDeletedTab && (
-                <td className="text-center align-middle" onClick={(e) => e.stopPropagation()}>
+                <td onClick={(e) => e.stopPropagation()}>
                   {onToggleActive ? (
                     <button
                       type="button"
