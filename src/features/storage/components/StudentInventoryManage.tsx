@@ -1,7 +1,7 @@
 // PATH: src/features/storage/components/StudentInventoryManage.tsx
 // 학생 인벤토리 관리 — 이름/PS 검색 후 해당 학생 인벤토리 진입
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Search, FolderOpen } from "lucide-react";
