@@ -32,28 +32,18 @@
   position: relative;
 }
 
-.shared-time-range-input-wrap .shared-time-range-input {
-  flex: 1;
-  min-width: 0;
-}
-
-.shared-time-range-input-trigger {
-  cursor: pointer;
-  user-select: none;
-}
-
-.shared-time-range-input--placeholder {
-  color: var(--ui-control-placeholder, var(--color-text-muted));
-  font-weight: 400;
-}
-
-.shared-time-range-input {
+/* 기본 표시: 시간 영역 (아까 스타일 고급화 — 입력 박스 + 우측 인디케이터) */
+.shared-time-range-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   width: 100%;
-  min-width: 160px;
+  min-width: 180px;
   box-sizing: border-box;
   height: 52px;
   padding: 0 var(--space-4);
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 500;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
@@ -63,24 +53,42 @@
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
   border-radius: var(--radius-md);
   cursor: pointer;
+  user-select: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
-.shared-time-range-input:hover:not(:disabled) {
+.shared-time-range-trigger:hover:not(:disabled) {
   border-color: var(--ui-control-border-hover, var(--color-border-focus));
   background: var(--ui-control-bg-hover, var(--color-bg-surface-hover));
 }
 
-.shared-time-range-input:focus {
+.shared-time-range-trigger:focus {
   outline: none;
   border-color: var(--ui-control-border-focus, var(--color-border-focus));
   box-shadow: var(--state-focus-ring, 0 0 0 2px var(--color-border-focus));
 }
 
-.shared-time-range-input:disabled {
+.shared-time-range-trigger:disabled {
   background: var(--color-bg-surface-soft);
   color: var(--color-text-disabled);
   cursor: not-allowed;
+}
+
+.shared-time-range-trigger--placeholder .shared-time-range-trigger-text {
+  color: var(--ui-control-placeholder, var(--color-text-muted));
+  font-weight: 400;
+}
+
+.shared-time-range-trigger-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.shared-time-range-trigger-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.85;
 }
 
 .shared-time-range-quick {
