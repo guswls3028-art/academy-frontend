@@ -2,7 +2,7 @@
    30분 단위 원통형(roller) 시간 선택 — 순환 스크롤, 위아래 페이드로 원통감 */
 
 .shared-time-scroll-popover {
-  padding: var(--space-4);
+  padding: var(--space-3);
   background: var(--ui-control-bg, var(--color-bg-surface));
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
   border-radius: var(--radius-xl);
