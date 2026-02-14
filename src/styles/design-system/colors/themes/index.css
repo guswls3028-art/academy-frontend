@@ -457,6 +457,7 @@
   --scale-Primary500: #013619;
   --scale-Primary600: #14532d;
   --scale-Primary700: #0b2b17;
+  --color-brand-complement: #c026d3;
 
   /* 👉 필터 제거 */
   --layout-page-bg: #ffffff;
@@ -503,6 +504,7 @@
   --scale-Primary500: #0057d9;
   --scale-Primary600: #0046b3;
   --scale-Primary700: #003ea8;
+  --color-brand-complement: #ea580c;
 
   /* 👉 필터 제거 */
   --layout-page-bg: #ffffff;
@@ -548,6 +550,7 @@
   --scale-Primary500: #7c3aed;
   --scale-Primary600: #6d28d9;
   --scale-Primary700: #5b21b6;
+  --color-brand-complement: #65a30d;
 
   /* 👉 필터 제거 */
   --layout-page-bg: #ffffff;
