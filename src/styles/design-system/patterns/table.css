@@ -239,8 +239,7 @@ table.ds-table {
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell {
   padding: 6px 4px;
-  width: 28px;
-  min-width: 28px;
+  box-sizing: border-box;
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell input[type="checkbox"] {
   margin: 0 auto;
