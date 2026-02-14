@@ -10,12 +10,15 @@
 @import "./surface/slots.css";
 
 /* ===============================
+   상태 뱃지 SSOT (patterns보다 먼저 로드 — 레거시에 덮이지 않도록)
+   =============================== */
+@import "../../shared/ui/ds/styles/status.css";
+
+/* ===============================
    Component patterns
    =============================== */
 @import "./patterns/index.css";
 @import "../../shared/ui/ds/styles/tabs.css";
-/* 상태 뱃지 SSOT (ds-status-badge, --action 예외 포함) */
-@import "../../shared/ui/ds/styles/status.css";
 
 /* ===============================
    AntD skin (slot only)
