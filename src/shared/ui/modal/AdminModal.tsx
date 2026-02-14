@@ -46,13 +46,8 @@ export default function AdminModal({
       styles={{
         content: {
           padding: 0,
-          borderRadius: "var(--radius-xl)",
           overflow: "hidden",
-          border: isConfirm
-            ? "1px solid color-mix(in srgb, var(--color-error) 28%, var(--color-border-divider))"
-            : "1px solid var(--color-border-divider)",
-          boxShadow: "var(--elevation-3)",
-          background: contentBg,
+          /* border, borderRadius, boxShadow, background → modal.css SSOT */
         },
         mask: {
           backdropFilter: "blur(3px)",
@@ -62,6 +57,7 @@ export default function AdminModal({
       className={`admin-modal admin-modal--${type}`}
     >
       <div
+        className="admin-modal__inner"
         style={
           contentBg === "#ffffff"
             ? ({
