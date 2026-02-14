@@ -96,10 +96,10 @@ export default function TemplateEditModal({
   const locked = isLocked || isPending;
   const showSubject = activeTab === "alimtalk";
 
-  const tabItems: TabsProps["items"] = [
-    { key: "message", label: "메시지", children: null },
-    { key: "alimtalk", label: "알림톡", children: null },
-  ];
+  const editorTabItems = [
+    { key: "message", label: "메시지" },
+    { key: "alimtalk", label: "알림톡" },
+  ] as const;
 
   if (!open) return null;
 
