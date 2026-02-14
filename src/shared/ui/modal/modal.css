@@ -132,6 +132,48 @@
   transform: translateY(-1px);
 }
 
+/* 모달 본문 내 탭(헤더/본문 경계 아님) — 입체탭 스타일만 적용 */
+.modal-tabs-elevated .ds-tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+.modal-tabs-elevated .ds-tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  border-bottom: none;
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+}
+.modal-tabs-elevated .ds-tab:hover:not(.is-active):not(:disabled) {
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+.modal-tabs-elevated .ds-tab.is-active {
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-modal-bg));
+  color: var(--color-text-primary);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+}
+.modal-tabs-elevated .ds-tab.is-active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-modal-bg));
+  transform: translateY(-1px);
+}
+
 /* ========== 푸터 (헤더와 대칭되는 구분감) ========== */
 .modal-footer {
   display: flex;
