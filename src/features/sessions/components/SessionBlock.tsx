@@ -1,5 +1,5 @@
 // PATH: src/features/sessions/components/SessionBlock.tsx
-// 차시 = 세션 — lecture 기준 세션 목록 + 추가 (LectureLayout, SessionLayout 공용)
+// 차시 = 세션 — lecture 기준 세션 목록 + 추가 (LectureLayout, SessionLayout 공용). 전역 차시 블록 디자인 사용
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchSessions } from "@/features/lectures/api/sessions";
 import SessionCreateModal from "@/features/lectures/components/SessionCreateModal";
+import "@/shared/ui/session-block/session-block.css";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function isSupplement(title: string | null | undefined): boolean {
+  return Boolean(title?.includes?.("보강"));
+}
 
 interface Props {
   lectureId: number;
@@ -48,9 +57,11 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           <span style={{ fontSize: 14, color: "var(--color-text-muted)" }}>불러오는 중…</span>
         ) : (
           <>
-            {sessions.map((s: any) => {
+            {(sessions as { id: number; order?: number; title?: string | null }[]).map((s) => {
               const isActive =
                 currentSessionId != null && Number(s.id) === Number(currentSessionId);
+              const supplement = isSupplement(s.title);
+
               return (
                 <button
                   key={s.id}
@@ -58,38 +69,22 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   onClick={() =>
                     navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)
                   }
-                  style={{
-                    padding: "10px 20px",
-                    borderRadius: "var(--radius-lg)",
-                    border: `1px solid ${isActive ? "var(--color-primary)" : "var(--color-border-divider)"}`,
-                    background: isActive
-                      ? "color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface))"
-                      : "var(--color-bg-surface)",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: isActive ? "var(--color-primary)" : "var(--color-text-primary)",
-                    cursor: "pointer",
-                  }}
+                  className={cx(
+                    "session-block session-block--compact",
+                    supplement ? "session-block--supplement" : "session-block--n1",
+                    isActive && "session-block--selected"
+                  )}
                 >
-                  {s.order ?? "-"}차시
+                  <span className="session-block__title">{s.order ?? "-"}차시</span>
                 </button>
               );
             })}
             <button
               type="button"
               onClick={() => setShowCreate(true)}
-              style={{
-                padding: "10px 20px",
-                borderRadius: "var(--radius-lg)",
-                border: "1px solid var(--color-primary)",
-                background: "color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface))",
-                fontSize: 15,
-                fontWeight: 600,
-                color: "var(--color-primary)",
-                cursor: "pointer",
-              }}
+              className="session-block session-block--compact session-block--add"
             >
-              + 차시 추가
+              <span className="session-block__title">+ 차시 추가</span>
             </button>
           </>
         )}
