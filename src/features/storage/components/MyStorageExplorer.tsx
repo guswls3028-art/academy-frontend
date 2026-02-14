@@ -37,6 +37,11 @@ export default function MyStorageExplorer() {
     queryKey: ["storage-inventory", SCOPE],
     queryFn: () => fetchInventoryList(SCOPE),
   });
+  const { data: quota } = useQuery({
+    queryKey: ["storage-quota"],
+    queryFn: fetchStorageQuota,
+  });
+  const isLocked = quota?.plan === "lite";
 
   const folders = data?.folders ?? [];
   const files = data?.files ?? [];
