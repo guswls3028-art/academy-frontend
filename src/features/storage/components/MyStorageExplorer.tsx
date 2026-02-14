@@ -169,9 +169,9 @@ export default function MyStorageExplorer() {
           ) : (
             <div className={styles.grid}>
               <div
-                className={styles.item + " " + styles.itemAdd}
-                onClick={() => setAddChoiceOpen(true)}
-                title="폴더 또는 파일 추가"
+                className={styles.item + " " + styles.itemAdd + (isLocked ? " " + styles.itemLocked : "")}
+                onClick={() => !isLocked && setAddChoiceOpen(true)}
+                title={isLocked ? "Lite 플랜에서는 사용 불가" : "폴더 또는 파일 추가"}
               >
                 <FilePlus size={32} />
                 <span>추가</span>
