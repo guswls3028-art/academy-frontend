@@ -255,7 +255,23 @@ export default function MyStorageExplorer() {
           {isLoading ? (
             <div className={styles.placeholder}>로딩 중...</div>
           ) : (
-            <div className={styles.grid}>
+            <div
+              className={styles.grid}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropTargetFolderId(currentFolderId);
+              }}
+              onDragLeave={() => setDropTargetFolderId(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropTargetFolderId(null);
+                const payload = getDragPayload(e);
+                if (payload && payload.sourceId) {
+                  handleMove(currentFolderId, payload.type, payload.sourceId);
+                }
+              }}
+            >
               <div
                 className={styles.item + " " + styles.itemAdd + (isLocked ? " " + styles.itemLocked : "")}
                 onClick={() => !isLocked && setAddChoiceOpen(true)}
@@ -267,9 +283,12 @@ export default function MyStorageExplorer() {
               {subFolders.map((f) => (
                 <div
                   key={f.id}
+                  draggable
                   className={
                     styles.item +
-                    (selectedFolderIds.has(f.id) ? " " + styles.itemSelected : "")
+                    (selectedFolderIds.has(f.id) ? " " + styles.itemSelected : "") +
+                    (dropTargetFolderId === f.id ? " " + styles.dropTarget : "") +
+                    (movingId === f.id ? " " + styles.itemMoving : "")
                   }
                   onClick={(e) => {
                     e.stopPropagation();
@@ -277,17 +296,39 @@ export default function MyStorageExplorer() {
                     setSelectedFileId(null);
                   }}
                   onDoubleClick={() => setCurrentFolderId(f.id)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "folder" as const, sourceId: f.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    setDropTargetFolderId(f.id);
+                  }}
+                  onDragLeave={() => setDropTargetFolderId((id) => (id === f.id ? null : id))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDropTargetFolderId(null);
+                    const payload = getDragPayload(e);
+                    if (payload && payload.sourceId && payload.sourceId !== f.id) {
+                      handleMove(f.id, payload.type, payload.sourceId);
+                    }
+                  }}
                 >
                   <FolderOpen size={36} />
                   <span>{f.name}</span>
+                  {movingId === f.id && <span className={styles.movingLabel}>이동 중...</span>}
                 </div>
               ))}
               {subFiles.map((file) => (
                 <div
                   key={file.id}
+                  draggable
                   className={
                     styles.item +
-                    (selectedFileId === file.id ? " " + styles.itemSelected : "")
+                    (selectedFileId === file.id ? " " + styles.itemSelected : "") +
+                    (movingId === file.id ? " " + styles.itemMoving : "")
                   }
                   onClick={(e) => {
                     e.stopPropagation();
@@ -296,6 +337,10 @@ export default function MyStorageExplorer() {
                   }}
                   onDoubleClick={() => openFileUrl(file.r2Key)}
                   title={file.description || file.displayName}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
                 >
                   {file.contentType?.startsWith("image/") ? (
                     <Image size={36} />
@@ -303,6 +348,7 @@ export default function MyStorageExplorer() {
                     <FileText size={36} />
                   )}
                   <span>{file.displayName}</span>
+                  {movingId === file.id && <span className={styles.movingLabel}>이동 중...</span>}
                 </div>
               ))}
             </div>
