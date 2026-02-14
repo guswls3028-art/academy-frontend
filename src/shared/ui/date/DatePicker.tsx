@@ -115,14 +115,19 @@ export default function DatePicker({
         <span className={value ? "" : "shared-date-picker-placeholder"}>{displayText}</span>
       </button>
 
-      {open && (
+      {open && dropdownStyle && ReactDOM.createPortal(
         <div
-          className="shared-date-picker-dropdown"
+          className="shared-date-picker-dropdown shared-date-picker-dropdown--portaled"
           role="dialog"
           aria-label="날짜 선택"
           style={{
             minWidth: CALENDAR_MIN_WIDTH,
             width: "max-content",
+            position: "fixed",
+            zIndex: 1200,
+            ...(dropdownStyle.top != null
+              ? { top: dropdownStyle.top, left: dropdownStyle.left }
+              : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
           }}
         >
           <div className="shared-date-picker-header">
@@ -182,7 +187,8 @@ export default function DatePicker({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
