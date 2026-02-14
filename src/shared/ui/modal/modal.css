@@ -1,5 +1,79 @@
 /* PATH: src/shared/ui/modal/modal.css
-   모달 SSOT — 모든 모달 공통: 스크롤 본문, 날짜/시간 옵션 행(달력·타임스크롤 래퍼) */
+   모달 SSOT — 태두리·헤더·배경·푸터 + 스크롤 본문, 옵션 행(달력·타임스크롤)
+   내부 블록(차시 블록, option-row)과 같은 DS 톤으로 통일 */
+
+/* ========== 모달 셸 (내부 블록과 같은 볼록·테두리 느낌) ========== */
+.admin-modal .ant-modal-content {
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  /* 블록과 동일: 상단 하이라이트 + 내부 글로우 + 하단 살짝 어둡게 + 외부 그림자 */
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset 0 2px 8px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.04),
+    var(--elevation-3);
+  background: var(--color-modal-bg);
+}
+
+/* ========== 헤더 (상단 액센트 + 블록감) ========== */
+.modal-header {
+  position: relative;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-modal-bg));
+  /* 상단 액센트 라인은 블록 하이라이트와 톤 맞춤 */
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+.modal-header--confirm {
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 2px 0 0 color-mix(in srgb, var(--color-error) 40%, transparent),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.modal-header--inspect {
+  background: color-mix(in srgb, var(--color-text-muted) 6%, var(--color-modal-bg));
+}
+
+.modal-header__accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 3px;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  opacity: 0.7;
+}
+
+.modal-header--action .modal-header__accent {
+  background: var(--color-brand-primary);
+}
+
+.modal-header--confirm .modal-header__accent {
+  background: var(--color-error);
+}
+
+.modal-header--inspect .modal-header__accent {
+  background: var(--color-text-muted);
+}
+
+/* ========== 본문 ========== */
+.modal-body {
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-modal-bg);
+}
+
+/* ========== 푸터 (헤더와 대칭되는 구분감) ========== */
+.modal-footer {
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-modal-bg));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ========== 스크롤 본문 · 옵션 행 ========== */
 
 /* 스크롤 가능한 모달 본문 (차시 추가 등 폼 모달) */
 .modal-scroll-body {
