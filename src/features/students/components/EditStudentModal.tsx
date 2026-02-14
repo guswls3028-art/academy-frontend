@@ -187,8 +187,8 @@ export default function EditStudentModal({
       />
 
       <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+        <div className="modal-scroll-body">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)" }}>
             <input
               name="name"
               placeholder="이름"
@@ -200,8 +200,7 @@ export default function EditStudentModal({
               disabled={busy}
               autoFocus
             />
-
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", padding: "var(--space-3)", flexWrap: "wrap" }}>
               {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
                 <Button
                   key={g.key}
