@@ -175,11 +175,6 @@ export function TimeScrollPopover({
   }, [anchorEl, onClose]);
 
   const scrollToPeriod = (idx: number) => {
-    const el = periodScrollRef.current;
-    if (!el) return;
-    const blockHeight = PERIOD_SLOTS.length * ROW_HEIGHT;
-    el.scrollTop =
-      blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
     setPeriodIdx(idx);
   };
 
@@ -224,19 +219,21 @@ export function TimeScrollPopover({
             className="shared-time-scroll-popover-list shared-time-scroll-popover-list--period"
             style={{ height: VISIBLE_HEIGHT }}
           >
-            {[0, 1, 2].map((block) =>
-              PERIOD_SLOTS.map((label) => (
-                <button
-                  key={`${block}-${label}`}
-                  type="button"
-                  className="shared-time-scroll-popover-item"
-                  style={{ height: ROW_HEIGHT }}
-                  onClick={() => scrollToPeriod(PERIOD_SLOTS.indexOf(label))}
-                >
-                  {label}
-                </button>
-              ))
-            )}
+            {PERIOD_SLOTS.map((label) => (
+              <button
+                key={label}
+                type="button"
+                className={`shared-time-scroll-popover-item ${
+                  periodIdx === PERIOD_SLOTS.indexOf(label)
+                    ? "shared-time-scroll-popover-item--selected"
+                    : ""
+                }`}
+                style={{ height: ROW_HEIGHT }}
+                onClick={() => scrollToPeriod(PERIOD_SLOTS.indexOf(label))}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
