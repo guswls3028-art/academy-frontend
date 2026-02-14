@@ -52,11 +52,28 @@ export default function DatePicker({
     if (v) setViewMonth(v);
   }, [value]);
 
+  // 포털로 body에 렌더해 overflow 잘림 방지. position: fixed 좌표 계산
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const space = 8;
+    const dropdownHeight = 380; // 대략적 달력 높이
+    const viewportBottom = window.innerHeight - rect.bottom;
+    const fitsBelow = viewportBottom >= dropdownHeight + space;
+    if (fitsBelow) {
+      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
+    } else {
+      setDropdownStyle({ bottom: window.innerHeight - rect.top + space, left: rect.left });
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
+        const popup = document.querySelector(".shared-date-picker-dropdown--portaled");
+        if (!popup?.contains(target)) setOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -85,6 +102,7 @@ export default function DatePicker({
   return (
     <div ref={containerRef} className="shared-date-picker" style={{ position: "relative" }}>
       <button
+        ref={triggerRef}
         type="button"
         id={id}
         data-testid={dataTestId}
