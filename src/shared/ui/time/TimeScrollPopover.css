@@ -149,22 +149,28 @@
   width: 100%;
   min-height: 48px;
   padding: 0 var(--space-4);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 500;
+  letter-spacing: -0.02em;
   color: var(--color-text-muted);
   background: transparent;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   cursor: pointer;
-  transition: color 120ms, background 120ms;
+  transition: color 150ms, background 150ms;
   font-family: inherit;
   font-variant-numeric: tabular-nums;
   scroll-snap-align: center;
   scroll-snap-stop: always;
-  text-shadow: 0 1px 0 color-mix(in srgb, white 50%, transparent);
 }
 
 .time-picker__item:hover {
   color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 5%, transparent);
+}
+
+/* 선택된 아이템 시각적 강조 */
+.time-picker__item:focus-visible {
+  outline: 2px solid var(--color-brand-primary, var(--color-primary));
+  outline-offset: -2px;
 }
