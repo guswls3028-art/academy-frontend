@@ -88,6 +88,8 @@ export function TimeScrollPopover({
   const isMountedRef = useRef(false);
   const isJumpingRef = useRef(false);
   const lastIdxRef = useRef(slotIndex(value));
+  const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUserScrollingRef = useRef(false);
 
   const initialIdx = slotIndex(value);
   const [selectedIdx, setSelectedIdx] = useState(initialIdx);
@@ -102,28 +104,26 @@ export function TimeScrollPopover({
   const scrollToIdx = useCallback((idx: number) => {
     const el = listRef.current;
     if (!el) return;
+    isUserScrollingRef.current = false;
+    if (scrollEndTimeoutRef.current) {
+      clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = null;
+    }
     lastIdxRef.current = idx;
     const blockHeight = ALL_SLOTS.length * ROW_HEIGHT;
     const top = blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
     el.scrollTop = Math.max(0, Math.min(top, el.scrollHeight - VISIBLE_HEIGHT));
     setSelectedIdx(idx);
-  }, []);
+    emit(idx);
+  }, [emit]);
 
-  // 외부 value 변경 시 동기화
+  // 외부 value 변경 시 동기화 (스크롤 중에는 덮어쓰지 않음)
   useEffect(() => {
+    if (isUserScrollingRef.current) return;
     const idx = slotIndex(value);
     lastIdxRef.current = idx;
     setSelectedIdx(idx);
   }, [value]);
-
-  // 선택 변경 시 부모에 전달 (마운트 직후 1회 제외)
-  useEffect(() => {
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
-    }
-    emit(selectedIdx);
-  }, [selectedIdx, emit]);
 
   // 초기 스크롤 (마운트 시 1회)
   useLayoutEffect(() => {
