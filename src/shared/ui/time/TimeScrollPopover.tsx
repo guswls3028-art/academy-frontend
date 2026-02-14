@@ -2,7 +2,7 @@
 // [ 오전 | 24h롤러 ] — 우측 24h 48슬롯 롤링, 좌측 오전/오후 시각+클릭(같은 시각 AM↔PM ±12h).
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import "./TimeScrollPopover.css";
+import "@/styles/design-system/components/TimeScrollPopover.css";
 
 const ROW_HEIGHT = 48;
 const VISIBLE_ROWS = 5;

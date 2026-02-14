@@ -4,7 +4,7 @@
 // - 마크업·클래스: SessionBlockView + session-block.constants
 // 모달·세션바·세션 목록 등 모든 차시 블록은 여기서 import.
 
-import "./session-block.css";
+import "@/styles/design-system/components/session-block.css";
 
 export { SessionBlockView } from "./SessionBlockView";
 export type { SessionBlockViewProps } from "./SessionBlockView";

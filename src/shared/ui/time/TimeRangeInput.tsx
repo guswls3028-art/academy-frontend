@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { Clock, ChevronDown } from "lucide-react";
 import dayjs from "dayjs";
 import { TimeScrollPopover, format24To12Display } from "./TimeScrollPopover";
-import "./TimeRangeInput.css";
+import "@/styles/design-system/components/TimeRangeInput.css";
 
 export interface TimeRangeInputProps {
   /** "HH:mm~HH:mm" 형식 */
