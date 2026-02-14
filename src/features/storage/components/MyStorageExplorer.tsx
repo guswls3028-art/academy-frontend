@@ -7,6 +7,7 @@ import { FolderOpen, FileText, Image, FilePlus, FolderPlus } from "lucide-react"
 import { Button, CloseButton } from "@/shared/ui/ds";
 import {
   fetchInventoryList,
+  fetchStorageQuota,
   createFolder,
   uploadFile,
   deleteFolder,

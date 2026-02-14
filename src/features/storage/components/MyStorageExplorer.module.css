@@ -136,6 +136,11 @@
 .itemAdd:hover {
   color: var(--color-brand-primary);
 }
+.itemAdd.itemLocked {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 .modalBackdrop {
   position: fixed;
