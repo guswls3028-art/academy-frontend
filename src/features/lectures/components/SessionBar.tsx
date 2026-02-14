@@ -1,20 +1,12 @@
 // PATH: src/features/lectures/components/SessionBar.tsx
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import api from "@/shared/api/axios";
 import SessionCreateModal from "./SessionCreateModal";
 import { useLectureParams } from "../hooks/useLectureParams";
-import "@/shared/ui/session-block/session-block.css";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
-
-function isSupplement(title: string | null | undefined): boolean {
-  return Boolean(title?.includes?.("보강"));
-}
+import { SessionBlockView, isSupplement } from "@/shared/ui/session-block";
 
 export default function SessionBar() {
   const { lectureId } = useLectureParams();
