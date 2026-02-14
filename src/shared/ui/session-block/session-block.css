@@ -187,30 +187,31 @@
 
 .session-block--n1.session-block--selected {
   border-color: var(--color-brand-primary);
-  --session-block-bottom: var(--session-block-n1-selected-bottom);
   background: var(--session-block-n1-selected-bg);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom),
-    0 var(--session-block-drop) color-mix(in srgb, var(--color-brand-primary) 25%, transparent),
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer),
     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
 .session-block--n1.session-block--selected:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px-hover) 0 0 var(--session-block-bottom),
-    0 var(--session-block-drop-hover) color-mix(in srgb, var(--color-brand-primary) 28%, transparent),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.14),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer-hover),
     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
 }
 
 .session-block--n1.session-block--selected:active {
-  transform: translateY(3px);
+  transform: translateY(1px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px-active) 0 0 var(--session-block-bottom),
-    0 var(--session-block-drop-active) color-mix(in srgb, var(--color-brand-primary) 20%, transparent),
+    inset 0 2px 4px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    var(--session-block-outer-active),
     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
