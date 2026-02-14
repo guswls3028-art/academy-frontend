@@ -50,26 +50,3 @@
   padding: 10px 12px;
   font-size: 12px;
 }
-
-/* Status badge — 레거시: .ds-status-badge + data-status 사용 (shared/ui/ds/styles/status.css SSOT) */
-[data-app="admin"] .table-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-2) var(--space-3);
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  border: none;
-  background: var(--color-bg-surface-soft);
-  color: var(--color-text-secondary);
-}
-
-[data-app="admin"] .table-badge[data-state="active"] {
-  background: var(--color-success);
-  color: #fff;
-}
-
-[data-app="admin"] .table-badge[data-state="inactive"] {
-  background: var(--color-danger);
-  color: #fff;
-}
