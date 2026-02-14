@@ -613,11 +613,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               aria-pressed={form.active}
               onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
               disabled={busy}
-              className="modal-option-row"
               style={{
                 padding: "var(--space-2) var(--space-3)",
                 fontSize: 12,
                 fontWeight: 700,
+                borderRadius: "var(--radius-md)",
                 color: "#fff",
                 backgroundColor: form.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
                 border: "none",
