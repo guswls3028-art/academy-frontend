@@ -2,12 +2,9 @@
 import { Modal } from "antd";
 import React from "react";
 
-export type AdminModalType = "action" | "confirm" | "inspect";
+import { BRAND_AND_LIGHT_THEMES, MODAL_DEFAULT_WIDTH } from "./constants";
 
-const BRAND_AND_LIGHT_THEMES = new Set([
-  "modern-white", "navy-pro", "ivory-office", "minimal-mono",
-  "kakao-business", "naver-works", "samsung-admin", "purple-insight",
-]);
+export type AdminModalType = "action" | "confirm" | "inspect";
 
 function getModalBackground(): string {
   const theme = document.documentElement.getAttribute("data-theme") || "";
@@ -26,7 +23,7 @@ export default function AdminModal({
   open,
   onClose,
   type = "action",
-  width = 520,
+  width = MODAL_DEFAULT_WIDTH,
   children,
 }: AdminModalProps) {
   const isConfirm = type === "confirm";
