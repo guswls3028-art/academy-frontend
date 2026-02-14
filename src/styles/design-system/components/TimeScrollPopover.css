@@ -1,0 +1,135 @@
+/* PATH: src/shared/ui/time/TimeScrollPopover.css
+   원통형 롤러 — 입체감, 곡면 시각 효과 */
+
+.time-picker {
+  padding: var(--space-3);
+  background: var(--ui-control-bg, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--ui-control-border, var(--color-border-divider)) 70%, transparent);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-family: inherit;
+}
+
+.time-picker__body {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--ui-control-border, var(--color-border-divider)) 80%, transparent);
+  background: var(--color-bg-surface);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.time-picker__period {
+  flex: 0 0 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 var(--space-2);
+  background: transparent;
+}
+
+.time-picker__period-btn {
+  padding: 12px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 150ms, background 150ms;
+  font-family: inherit;
+}
+
+.time-picker__period-btn:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 6%, transparent);
+}
+
+.time-picker__period-btn--active {
+  color: var(--color-brand-primary, var(--color-primary));
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
+}
+
+.time-picker__divider {
+  width: 1px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--color-border-divider) 40%, transparent);
+}
+
+.time-picker__roller {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* 중앙 선택선 — 은은한 강조 */
+.time-picker__highlight {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 48px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, white 15%, transparent) inset;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.time-picker__list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: auto;
+  scrollbar-width: none;
+  scroll-snap-type: y proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.time-picker__list::-webkit-scrollbar {
+  display: none;
+}
+
+.time-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 150ms, background 150ms;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.time-picker__item:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 5%, transparent);
+}
+
+/* 선택된 아이템 시각적 강조 */
+.time-picker__item:focus-visible {
+  outline: 2px solid var(--color-brand-primary, var(--color-primary));
+  outline-offset: -2px;
+}

@@ -1,0 +1,155 @@
+/* PATH: src/shared/ui/time/TimeRangeInput.css
+   전역 SSOT: 시간 구간 선택 — 사용감·디자인 통일, +/− 30분·1시간 버튼 */
+
+.shared-time-range {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.shared-time-range-card {
+  padding: var(--space-4);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-0);
+}
+
+.shared-time-range-grid {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) 140px;
+  gap: var(--space-3) var(--space-3);
+  align-items: center;
+  max-width: 100%;
+}
+
+.shared-time-range-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.shared-time-range-input-wrap {
+  min-width: 0;
+  position: relative;
+}
+
+/* 기본 표시: 시간 영역 — 내부 시계 아이콘 + 텍스트 + 펼침 아이콘, 정렬·고급화 */
+.shared-time-range-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 52px;
+  padding: 0 var(--space-3) 0 var(--space-3);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+  color: var(--ui-control-text, var(--color-text-primary));
+  background: var(--ui-control-bg, var(--color-bg-surface));
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.shared-time-range-trigger:active:not(:disabled) {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.06),
+    0 1px 1px rgba(0, 0, 0, 0.03) !important;
+}
+
+.shared-time-range-trigger-clock {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.9;
+}
+
+.shared-time-range-trigger:hover:not(:disabled) {
+  border-color: var(--ui-control-border-hover, var(--color-border-focus));
+  background: var(--ui-control-bg-hover, var(--color-bg-surface-hover));
+}
+
+.shared-time-range-trigger:focus {
+  outline: none;
+  border-color: var(--ui-control-border-focus, var(--color-border-focus));
+  box-shadow: var(--state-focus-ring, 0 0 0 2px var(--color-border-focus)) !important;
+}
+
+.shared-time-range-trigger:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.shared-time-range-trigger--placeholder .shared-time-range-trigger-text {
+  color: var(--ui-control-placeholder, var(--color-text-muted));
+  font-weight: 400;
+}
+
+.shared-time-range-trigger-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.shared-time-range-trigger-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.75;
+}
+
+.shared-time-range-quick {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* 전역 DS(button 등) 우선순위 확보를 위해 !important 사용 */
+.shared-time-range-btn {
+  min-height: 52px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 var(--space-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ui-control-text, var(--color-text-primary));
+  background: var(--color-bg-surface);
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.shared-time-range-btn:hover:not(:disabled) {
+  background: var(--ui-control-bg-hover, var(--color-bg-surface-hover));
+  border-color: var(--ui-control-border-hover, var(--color-border-focus));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+.shared-time-range-btn:active:not(:disabled) {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.06),
+    0 1px 1px rgba(0, 0, 0, 0.03) !important;
+}
+
+.shared-time-range-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
