@@ -15,6 +15,8 @@ type StorageTab = "mine" | "students";
 export default function StoragePage() {
   const { studentPs } = useParams<{ studentPs?: string }>();
   const [tab, setTab] = useState<StorageTab>(studentPs ? "students" : "mine");
+  // URL에 studentPs가 있으면 학생 인벤토리 탭으로
+  if (studentPs && tab !== "students") setTab("students");
 
   return (
     <DomainLayout

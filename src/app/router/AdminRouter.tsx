@@ -53,6 +53,9 @@ import StaffRoutes from "@/features/staff/StaffRoutes";
 /* ================= Materials ================= */
 import { MaterialsRoutes } from "@/features/materials";
 
+/* ================= Storage ================= */
+import StorageRoutes from "@/features/storage/StorageRoutes";
+
 /* ================= Messages ================= */
 import { MessageRoutes } from "@/features/messages/routes";
 
