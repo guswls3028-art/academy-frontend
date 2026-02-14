@@ -1,7 +1,7 @@
 // PATH: src/features/students/components/StudentsTable.tsx
 import { useMemo } from "react";
 import { EmptyState } from "@/shared/ui/ds";
-import { DomainTable, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { DomainTable } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
 
