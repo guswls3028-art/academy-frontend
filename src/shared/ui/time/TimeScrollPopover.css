@@ -50,7 +50,7 @@
 /* 오전/오후 롤러 — 2개만, 영역 안에 */
 .shared-time-scroll-popover-list--period {
   overflow-y: auto;
-  height: VISIBLE_HEIGHT;
+  height: 240px; /* 시간 롤러와 동일 높이 */
 }
 
 .shared-time-scroll-popover-cylinder--period .shared-time-scroll-popover-mask {

@@ -234,7 +234,7 @@ export function TimeScrollPopover({
           <div
             ref={periodScrollRef}
             className="shared-time-scroll-popover-list shared-time-scroll-popover-list--period"
-            style={{ height: PERIOD_VISIBLE_HEIGHT }}
+            style={{ height: VISIBLE_HEIGHT }}
           >
             {PERIOD_SLOTS.map((label) => (
               <button
