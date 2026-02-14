@@ -190,26 +190,32 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
             <div className="text-[13px] font-semibold text-[var(--color-text-secondary)] mb-3">
               차시 유형
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-5">
               <button
                 type="button"
                 onClick={() => setSessionType("n+1")}
                 className={cx(
-                  "session-type-block",
+                  "session-type-block session-type-block--n1",
                   sessionType === "n+1" && "session-type-block--selected"
                 )}
+                aria-pressed={sessionType === "n+1"}
               >
+                <span className="session-type-block__check" aria-hidden>✓</span>
                 <span className="session-type-block__title">{nextOrder}차시</span>
+                <span className="session-type-block__desc">정규 차시 추가 · 기본 날짜/시간 사용</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSessionType("supplement")}
                 className={cx(
-                  "session-type-block",
+                  "session-type-block session-type-block--supplement",
                   sessionType === "supplement" && "session-type-block--selected"
                 )}
+                aria-pressed={sessionType === "supplement"}
               >
+                <span className="session-type-block__check" aria-hidden>✓</span>
                 <span className="session-type-block__title">보강</span>
+                <span className="session-type-block__desc">보강 차시 · 날짜·시간 직접 선택</span>
               </button>
             </div>
           </div>
