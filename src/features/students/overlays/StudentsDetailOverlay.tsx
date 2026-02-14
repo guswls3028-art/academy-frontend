@@ -66,6 +66,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addFileTabRef = useRef<"score" | "misc">("score");
 
+  type InventoryFolder = { id: string; name: string; parentId: string | null };
   type UploadedInventoryItem = {
     id: string;
     title: string;
@@ -74,12 +75,19 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     fileUrl: string;
     fileType: "pdf" | "image";
     iconPreset?: string;
+    folderId: string | null;
   };
+  const [scoreFolders, setScoreFolders] = useState<InventoryFolder[]>([]);
+  const [miscFolders, setMiscFolders] = useState<InventoryFolder[]>([]);
+  const [scoreCurrentFolderId, setScoreCurrentFolderId] = useState<string | null>(null);
+  const [miscCurrentFolderId, setMiscCurrentFolderId] = useState<string | null>(null);
   const [uploadedScoreItems, setUploadedScoreItems] = useState<UploadedInventoryItem[]>([]);
   const [uploadedMiscItems, setUploadedMiscItems] = useState<UploadedInventoryItem[]>([]);
+  const [addChoiceModal, setAddChoiceModal] = useState<"score" | "misc" | null>(null);
+  const [newFolderModal, setNewFolderModal] = useState<{ tab: "score" | "misc"; name: string } | null>(null);
   const [addFileModal, setAddFileModal] = useState<{
     tab: "score" | "misc";
-    file: File;
+    file: File | null;
     title: string;
     description: string;
     iconPreset: string;
@@ -88,6 +96,12 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const [inventoryMultiSelect, setInventoryMultiSelect] = useState(false);
   const [inventorySelectedId, setInventorySelectedId] = useState<string | null>(null);
   const [inventorySelectedIds, setInventorySelectedIds] = useState<Set<string>>(new Set());
+  const [inventorySelectedFolderIds, setInventorySelectedFolderIds] = useState<Set<string>>(new Set());
+
+  const currentFolders = inventoryTab === "score" ? scoreFolders : miscFolders;
+  const setCurrentFolders = inventoryTab === "score" ? setScoreFolders : setMiscFolders;
+  const currentFolderId = inventoryTab === "score" ? scoreCurrentFolderId : miscCurrentFolderId;
+  const setCurrentFolderId = inventoryTab === "score" ? setScoreCurrentFolderId : setMiscCurrentFolderId;
 
   const handleInventoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
