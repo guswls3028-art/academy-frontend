@@ -163,12 +163,15 @@ export default function TimeRangeInput({
               ref={endAnchorRef}
               role="button"
               tabIndex={disabled ? -1 : 0}
-              className={`shared-time-range-input shared-time-range-input-trigger ${!end ? "shared-time-range-input--placeholder" : ""}`}
+              className={`shared-time-range-trigger ${!end ? "shared-time-range-trigger--placeholder" : ""}`}
               onClick={() => !disabled && setOpenEnd(true)}
               onKeyDown={(e) => e.key === "Enter" && !disabled && setOpenEnd(true)}
               aria-label="종료 시간 선택"
             >
-              {end || endPlaceholder}
+              <span className="shared-time-range-trigger-text">
+                {end ? format24To12Display(end) : endPlaceholder}
+              </span>
+              <ChevronDown className="shared-time-range-trigger-icon" size={20} aria-hidden />
             </div>
             {openEnd && endAnchorRef.current && (
               <TimeScrollPopover
