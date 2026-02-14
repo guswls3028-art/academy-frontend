@@ -68,6 +68,8 @@ function parseValueToNearest(value: string): { periodIndex: number; timeIndex: n
 
 export function TimeScrollPopover({
   value,
+  slots: _slots,
+  slotMinutes: _slotMinutes,
   anchorEl,
   onSelect,
   onClose,
