@@ -169,10 +169,11 @@ export default function TimeRangeInput({
               onKeyDown={(e) => e.key === "Enter" && !disabled && setOpenEnd(true)}
               aria-label="종료 시간 선택"
             >
+              <Clock className="shared-time-range-trigger-clock" size={20} aria-hidden />
               <span className="shared-time-range-trigger-text">
                 {end ? format24To12Display(end) : (endPlaceholder === "00:00" ? "오전 12:00" : endPlaceholder)}
               </span>
-              <ChevronDown className="shared-time-range-trigger-icon" size={20} aria-hidden />
+              <ChevronDown className="shared-time-range-trigger-icon" size={18} aria-hidden />
             </div>
             {openEnd && endAnchorRef.current && (
               <TimeScrollPopover
