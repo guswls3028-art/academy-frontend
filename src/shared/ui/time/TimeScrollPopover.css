@@ -30,6 +30,19 @@
   width: 72px;
 }
 
+/* 오전/오후 롤러 — 2개만 표시, 높이 맞춤 */
+.shared-time-scroll-popover-list--period {
+  overflow-y: auto;
+}
+
+.shared-time-scroll-popover-cylinder--period .shared-time-scroll-popover-mask {
+  height: 24px;
+}
+
+.shared-time-scroll-popover-cylinder--period::before {
+  height: 48px;
+}
+
 .shared-time-scroll-popover-divider {
   display: flex;
   align-items: center;
