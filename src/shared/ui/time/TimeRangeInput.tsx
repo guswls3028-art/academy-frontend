@@ -132,10 +132,7 @@ export default function TimeRangeInput({
                 slots={SLOTS}
                 slotMinutes={SLOT_MINUTES}
                 anchorEl={startAnchorRef.current}
-                onSelect={(v) => {
-                  setStart(v);
-                  setOpenStart(false);
-                }}
+                onSelect={(v) => setStart(v)}
                 onClose={() => setOpenStart(false)}
               />
             )}
@@ -190,10 +187,7 @@ export default function TimeRangeInput({
                 slots={SLOTS}
                 slotMinutes={SLOT_MINUTES}
                 anchorEl={endAnchorRef.current}
-                onSelect={(v) => {
-                  setEnd(v);
-                  setOpenEnd(false);
-                }}
+                onSelect={(v) => setEnd(v)}
                 onClose={() => setOpenEnd(false)}
               />
             )}
