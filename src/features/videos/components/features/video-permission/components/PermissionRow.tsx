@@ -1,6 +1,7 @@
 // PATH: src/features/videos/components/features/video-permission/components/PermissionRow.tsx
 
-// // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { RULE_COLORS, RULE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
 
