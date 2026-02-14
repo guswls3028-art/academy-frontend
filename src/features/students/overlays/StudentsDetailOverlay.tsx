@@ -338,44 +338,31 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 </div>
               </div>
 
-              {/* Right panel — 탭 + 콘텐츠 */}
+              {/* Right panel — 탭 + 콘텐츠 (페이지형 플랫탭) */}
               <div
                 style={{
-                  borderRadius: 16,
-                  padding: 20,
-                  background: "color-mix(in srgb, var(--color-primary) 4%, var(--bg-surface-soft))",
+                  borderRadius: 12,
+                  padding: 16,
+                  background: "color-mix(in srgb, var(--color-brand-primary) 4%, var(--bg-surface-soft))",
                   border: "1px solid var(--color-border-divider)",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    padding: 6,
-                    marginBottom: 16,
-                    borderRadius: 12,
-                    background: "var(--color-bg-surface)",
-                    border: "1px solid var(--color-border-divider)",
-                  }}
-                >
-                  {TABS.map((t) => {
-                    const active = tab === t.key;
-                    return (
-                      <Button
+                <div className="ds-overlay-tabs">
+                  <div className="ds-tabs ds-tabs--flat">
+                    {TABS.map((t) => (
+                      <button
                         key={t.key}
                         type="button"
-                        intent={active ? "primary" : "ghost"}
-                        size="sm"
+                        className={`ds-tab ${tab === t.key ? "is-active" : ""}`}
                         onClick={() => setTab(t.key)}
                       >
                         {t.label}
-                      </Button>
-                    );
-                  })}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div style={{ minHeight: 260 }}>
+                <div style={{ minHeight: 260, marginTop: 16 }}>
                   {tab === "enroll" ? (
                     <EnrollmentsTab enrollments={student.enrollments} />
                   ) : (
