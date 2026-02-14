@@ -180,21 +180,10 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
       />
 
       <ModalBody>
-        <div
-          className="grid gap-6 w-full max-w-full box-border"
-          style={{
-            width: "100%",
-            minWidth: 0,
-            overflowX: "hidden",
-            overflowY: "auto",
-            maxHeight: "calc(100vh - 200px)",
-          }}
-        >
-          {/* 차시 유형: 2차시 / 보강 — 카드형 블록으로 직관적 선택 */}
+        <div className="modal-scroll-body grid gap-6 w-full max-w-full box-border">
+          {/* 차시 유형: 2차시 / 보강 (전역 SessionBlockView SSOT) */}
           <div>
-            <div className="text-[13px] font-semibold text-[var(--color-text-secondary)] mb-3">
-              차시 유형
-            </div>
+            <div className="modal-section-label mb-3">차시 유형</div>
             <div className="grid grid-cols-2 gap-5">
               <SessionBlockView
                 variant="n1"
@@ -219,132 +208,36 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
             </div>
           </div>
 
-          {/* 차시 유형 선택 후에만 날짜·시간 섹션 표시 */}
           {sessionType && (
-          <>
-          {/* 날짜: 강의 기본값 사용 | 직접선택 (보강 시 기본값 비활성화) */}
-          <div>
-            <label className="block text-[13px] font-semibold text-[var(--color-text-secondary)] mb-2">
-              날짜
-            </label>
-            <div className="flex flex-col gap-2">
-              {showDefaultDateOption && (
-                <label
-                  className={cx(
-                    "session-option-row flex items-center gap-3 rounded-xl border p-3 transition",
-                    isSupplement
-                      ? "cursor-not-allowed border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] opacity-60"
-                      : "cursor-pointer border-[var(--border-divider)] hover:bg-[var(--color-bg-surface-soft)]"
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="dateMode"
-                    checked={dateMode === "default"}
-                    onChange={() => setDateMode("default")}
-                    disabled={isSupplement}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-[14px] font-medium text-[var(--color-text-primary)] shrink-0">
-                    강의 기본값 사용
-                  </span>
-                  <span className="text-[13px] text-[var(--color-text-muted)] truncate">
-                    {defaultDateFromLecture ? `다음 주 같은 요일 (${defaultDateFromLecture})` : "미설정"}
-                  </span>
-                </label>
-              )}
-              <label className="session-option-row flex flex-col gap-2 rounded-xl border border-[var(--border-divider)] p-3 hover:bg-[var(--color-bg-surface-soft)]">
-                <div className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="dateMode"
-                    checked={dateMode === "custom" || isSupplement}
-                    onChange={() => setDateMode("custom")}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-[14px] font-medium text-[var(--color-text-primary)]">
-                    직접선택
-                  </span>
-                </div>
-                {(dateMode === "custom" || isSupplement) && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <DatePicker
-                      value={date}
-                      onChange={setDate}
-                      placeholder="날짜 선택"
-                      disabled={busy}
-                    />
-                  </div>
-                )}
-              </label>
-            </div>
-          </div>
-
-          {/* 시간: 강의 기본값 사용 | 직접선택 (보강 시 기본값 비활성화) */}
-          <div>
-            <div className="text-[13px] font-semibold text-[var(--color-text-secondary)] mb-2">
-              시간
-            </div>
-            <div className="flex flex-col gap-2">
-              {showDefaultTimeOption && (
-                <label
-                  className={cx(
-                    "session-option-row flex items-center gap-3 rounded-xl border p-3 transition",
-                    isSupplement
-                      ? "cursor-not-allowed border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] opacity-60"
-                      : "cursor-pointer border-[var(--border-divider)] hover:bg-[var(--color-bg-surface-soft)]"
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="timeMode"
-                    checked={timeMode === "default"}
-                    onChange={() => setTimeMode("default")}
-                    disabled={isSupplement}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-[14px] font-medium text-[var(--color-text-primary)] shrink-0">
-                    강의 기본값 사용
-                  </span>
-                  <span className="text-[13px] text-[var(--color-text-muted)] truncate">
-                    {lectureTimeRaw || "미설정"}
-                  </span>
-                </label>
-              )}
-              <label className="session-option-row flex flex-col gap-2 rounded-xl border border-[var(--border-divider)] p-3 hover:bg-[var(--color-bg-surface-soft)]">
-                <div className="flex items-center gap-3 cursor-pointer" onClick={() => setTimeMode("custom")}>
-                  <input
-                    type="radio"
-                    name="timeMode"
-                    checked={timeMode === "custom" || isSupplement}
-                    onChange={() => setTimeMode("custom")}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-[14px] font-medium text-[var(--color-text-primary)]">
-                    직접선택
-                  </span>
-                </div>
-                {(timeMode === "custom" || isSupplement) && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    role="group"
-                    aria-label="시간 선택"
-                  >
-                    <TimeRangeInput
-                      value={timeInput}
-                      onChange={setTimeInput}
-                      disabled={busy}
-                    />
-                  </div>
-                )}
-              </label>
-            </div>
-          </div>
-          </>
+            <>
+              <ModalDateSection
+                name="dateMode"
+                useDefault={dateMode === "default"}
+                onUseDefaultChange={(use) => setDateMode(use ? "default" : "custom")}
+                customDate={date}
+                onCustomDateChange={setDate}
+                showDefaultOption={showDefaultDateOption}
+                disableDefaultOption={isSupplement}
+                defaultLabel={
+                  defaultDateFromLecture
+                    ? `다음 주 같은 요일 (${defaultDateFromLecture})`
+                    : "미설정"
+                }
+                placeholder="날짜 선택"
+                disabled={busy}
+              />
+              <ModalTimeSection
+                name="timeMode"
+                useDefault={timeMode === "default"}
+                onUseDefaultChange={(use) => setTimeMode(use ? "default" : "custom")}
+                customTime={timeInput}
+                onCustomTimeChange={setTimeInput}
+                showDefaultOption={showDefaultTimeOption}
+                disableDefaultOption={isSupplement}
+                defaultLabel={lectureTimeRaw || "미설정"}
+                disabled={busy}
+              />
+            </>
           )}
         </div>
       </ModalBody>
