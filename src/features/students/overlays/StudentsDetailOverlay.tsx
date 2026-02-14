@@ -159,6 +159,8 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     setAddFileModal(null);
   };
 
+  const currentList = inventoryTab === "score" ? uploadedScoreItems : uploadedMiscItems;
+  const setCurrentList = inventoryTab === "score" ? setUploadedScoreItems : setUploadedMiscItems;
   const subFolders = currentFolders.filter((f) => f.parentId === currentFolderId);
   const currentListFiltered = currentList.filter((i) => (i.folderId ?? null) === currentFolderId);
 
@@ -168,10 +170,8 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     return hasSub || hasFiles;
   };
 
-  const currentList = inventoryTab === "score" ? uploadedScoreItems : uploadedMiscItems;
-  const setCurrentList = inventoryTab === "score" ? setUploadedScoreItems : setUploadedMiscItems;
   const selectedIds = inventoryMultiSelect ? inventorySelectedIds : (inventorySelectedId ? new Set([inventorySelectedId]) : new Set());
-  const hasSelection = selectedIds.size > 0;
+  const hasSelection = selectedIds.size > 0 || inventorySelectedFolderIds.size > 0;
 
   const toggleInventorySelection = (id: string) => {
     if (inventoryMultiSelect) {
