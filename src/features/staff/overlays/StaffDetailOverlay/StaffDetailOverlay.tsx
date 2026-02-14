@@ -146,12 +146,8 @@ export default function StaffDetailOverlay() {
                     )}
                   </div>
                   <span
-                    className={[
-                      "px-2 py-0.5 rounded-full text-xs font-semibold border",
-                      staff.is_active
-                        ? "bg-[var(--color-success-soft)] text-[var(--color-success)] border-[color-mix(in_srgb,var(--color-success)_45%,transparent)]"
-                        : "bg-[var(--bg-surface-muted)] text-[var(--text-disabled)] border-[var(--border-divider)]",
-                    ].join(" ")}
+                    className="ds-status-badge"
+                    data-status={staff.is_active ? "active" : "inactive"}
                   >
                     {staff.is_active ? "활성" : "비활성"}
                   </span>
