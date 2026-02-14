@@ -84,36 +84,6 @@
   background: transparent;
 }
 
-/* 롤러 위·아래 페이드 — 스크롤 슬롯감 */
-.time-picker__roller-mask {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 56px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.time-picker__roller-mask--top {
-  top: 0;
-  background: linear-gradient(
-    180deg,
-    var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 75%, transparent) 60%,
-    transparent 100%
-  );
-}
-
-.time-picker__roller-mask--bottom {
-  bottom: 0;
-  background: linear-gradient(
-    0deg,
-    var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 75%, transparent) 60%,
-    transparent 100%
-  );
-}
-
 /* 중앙 선택선 — 은은한 강조 */
 .time-picker__highlight {
   position: absolute;
