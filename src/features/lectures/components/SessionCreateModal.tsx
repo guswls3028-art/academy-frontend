@@ -76,13 +76,17 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     [sessionsList]
   );
   const nextOrder = sortedSessions.length + 1;
-  const lastSessionWithDate = useMemo(
-    () => sortedSessions.filter((s) => s.date).slice(-1)[0],
-    [sortedSessions]
-  );
+  // 정규차시끼리만 날짜 연속 — 보강은 제외하고 마지막 정규차시 날짜 + 7일
+  const lastRegularSessionWithDate = useMemo(() => {
+    const regular = (sortedSessions as { title?: string; date?: string | null }[]).filter(
+      (s) => s.date && !s.title?.includes?.("보강")
+    );
+    return regular.slice(-1)[0];
+  }, [sortedSessions]);
   const defaultDateFromLecture = useMemo(
-    () => nextWeekDate(lastSessionWithDate?.date ?? lecture?.start_date ?? null),
-    [lastSessionWithDate?.date, lecture?.start_date]
+    () =>
+      nextWeekDate(lastRegularSessionWithDate?.date ?? (lecture as { start_date?: string | null })?.start_date ?? null),
+    [lastRegularSessionWithDate?.date, lecture?.start_date]
   );
 
   const defaultTitle =
@@ -95,6 +99,10 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     if (sessionType === "supplement") {
       setDateMode("custom");
       setTimeMode("custom");
+    } else if (sessionType === "n+1") {
+      // N차시 선택 시 항상 기본 선택값으로 초기화 (보강→2차시 전환 시 복원)
+      setDateMode("default");
+      setTimeMode("default");
     }
   }, [sessionType]);
 
