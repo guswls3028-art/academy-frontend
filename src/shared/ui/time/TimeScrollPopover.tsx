@@ -98,16 +98,16 @@ export function TimeScrollPopover({
     emit(periodIdx, timeIdx);
   }, [periodIdx, timeIdx, emit]);
 
-  // ===== 시간 롤러: 초기 스크롤 위치 =====
+  // ===== 시간 롤러: 초기 스크롤 위치 (마운트 시 1회) =====
   useLayoutEffect(() => {
     const el = timeListRef.current;
     if (!el) return;
-    const blockLen = TIME_12_SLOTS.length;
-    const blockHeight = blockLen * ROW_HEIGHT;
+    const blockHeight = TIME_12_SLOTS.length * ROW_HEIGHT;
     const targetScroll =
       blockHeight + timeIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
     el.scrollTop = Math.max(0, Math.min(targetScroll, el.scrollHeight - VISIBLE_HEIGHT));
-  }, [timeIdx]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ===== 시간 롤러: 스크롤 이벤트 → 인덱스 반영 + 무한 순환 =====
   useEffect(() => {
