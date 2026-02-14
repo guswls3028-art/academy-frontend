@@ -19,7 +19,7 @@ import {
 import StudentFormModal from "../components/EditStudentModal";
 import TagCreateModal from "../components/TagCreateModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { EmptyState, Button } from "@/shared/ui/ds";
+import { EmptyState, Button, CloseButton } from "@/shared/ui/ds";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode } from "@/shared/utils/formatPhone";
 
 const TABS = [
