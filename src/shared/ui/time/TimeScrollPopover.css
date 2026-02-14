@@ -1,5 +1,5 @@
 /* PATH: src/shared/ui/time/TimeScrollPopover.css
-   단일 롤러: 오전 12:00 ~ 오후 11:30 한 줄 스크롤 */
+   원통형 롤러 — 입체감, 곡면 시각 효과 */
 
 .time-picker {
   padding: var(--space-3);
@@ -14,16 +14,13 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-bg-surface-soft) 50%, transparent) 0%,
-    var(--color-bg-surface) 25%,
-    var(--color-bg-surface) 75%,
-    color-mix(in srgb, var(--color-bg-surface-soft) 50%, transparent) 100%
-  );
+  background: var(--color-bg-surface);
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .time-picker__period {
@@ -74,18 +71,29 @@
   opacity: 0.6;
 }
 
+/* 원통형 롤러 — 곡면·입체 시각 효과 */
 .time-picker__roller {
   position: relative;
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  /* 원통 몸체: 좌우 곡면 느낌 — 중앙 밝고 가장자리 어둡게 */
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, black 8%, var(--color-bg-surface)) 0%,
+    var(--color-bg-surface) 15%,
+    var(--color-bg-surface) 85%,
+    color-mix(in srgb, black 8%, var(--color-bg-surface)) 100%
+  );
+  border-radius: 0 20px 20px 0;
 }
 
+/* 위·아래 페이드 — 원통 안쪽으로 들어가는 깊이감 */
 .time-picker__mask {
   position: absolute;
   left: 0;
   right: 0;
-  height: 48px;
+  height: 72px;
   pointer-events: none;
   z-index: 2;
 }
@@ -95,7 +103,9 @@
   background: linear-gradient(
     180deg,
     var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 80%, transparent) 100%
+    color-mix(in srgb, var(--color-bg-surface) 95%, transparent) 20%,
+    color-mix(in srgb, var(--color-bg-surface) 60%, transparent) 50%,
+    transparent 100%
   );
 }
 
@@ -104,20 +114,32 @@
   background: linear-gradient(
     0deg,
     var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 80%, transparent) 100%
+    color-mix(in srgb, var(--color-bg-surface) 95%, transparent) 20%,
+    color-mix(in srgb, var(--color-bg-surface) 60%, transparent) 50%,
+    transparent 100%
   );
 }
 
+/* 중앙 선택선 — 원통 표면에 새겨진 홈 느낌 */
 .time-picker__highlight {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 4px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  height: 48px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 25%, transparent);
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 18%, transparent) 0%,
+    color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 10%, transparent) 50%,
+    color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 14%, transparent) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 35%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 30%, var(--color-brand-primary, var(--color-primary))),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.08),
+    0 2px 8px color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 25%, transparent);
   pointer-events: none;
   z-index: 1;
 }
@@ -128,6 +150,13 @@
   overscroll-behavior: contain;
   scrollbar-width: none;
   scroll-snap-type: y mandatory;
+  /* 원통 내부 깊이감 */
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, black 2%, var(--color-bg-surface)) 50%,
+    transparent 100%
+  );
 }
 
 .time-picker__list::-webkit-scrollbar {
@@ -153,6 +182,7 @@
   font-variant-numeric: tabular-nums;
   scroll-snap-align: center;
   scroll-snap-stop: always;
+  text-shadow: 0 1px 0 color-mix(in srgb, white 50%, transparent);
 }
 
 .time-picker__item:hover {
