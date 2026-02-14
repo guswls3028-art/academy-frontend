@@ -17,29 +17,43 @@
     0 0 0 1px color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
 }
 
-/* [ 오전 롤링 | 시간 롤링 ] — 둘 다 같은 원통형 디자인 */
+/* [ 오전 롤링 | 시간 롤링 ] — 하나의 태두리 안에 둘 다 */
 .shared-time-scroll-popover-layout {
   display: flex;
   align-items: stretch;
   gap: 0;
   min-width: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 0%,
+    var(--color-bg-surface) 20%,
+    var(--color-bg-surface) 80%,
+    color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 100%
+  );
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
 }
 
 .shared-time-scroll-popover-cylinder--period {
   flex: 0 0 72px;
   width: 72px;
-}
-
-/* 오전/오후 롤러 — 2개만 표시, 높이 맞춤 */
-.shared-time-scroll-popover-list--period {
-  overflow-y: auto;
-}
-
-.shared-time-scroll-popover-cylinder--period .shared-time-scroll-popover-mask {
-  height: 24px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
 
 .shared-time-scroll-popover-cylinder--period::before {
+  height: 48px;
+}
+
+/* 오전/오후 롤러 — 2개만, 영역 안에 */
+.shared-time-scroll-popover-list--period {
+  overflow-y: auto;
+  height: VISIBLE_HEIGHT;
+}
+
+.shared-time-scroll-popover-cylinder--period .shared-time-scroll-popover-mask {
   height: 48px;
 }
 
@@ -53,14 +67,18 @@
   font-weight: 600;
   color: var(--color-text-muted);
   opacity: 0.6;
+  background: transparent;
+  border: none;
 }
 
 .shared-time-scroll-popover-cylinder {
   position: relative;
   flex: 1;
   min-width: 0;
-  border-radius: 16px;
+  border-radius: 0;
   overflow: hidden;
+  border: none;
+  background: transparent;
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 0%,
