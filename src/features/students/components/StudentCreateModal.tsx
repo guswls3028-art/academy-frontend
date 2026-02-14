@@ -462,47 +462,49 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
       <ModalBody key={activeTab}>
         {activeTab === "single" ? (
-        <div className="modal-scroll-body">
+        <div className="modal-scroll-body modal-scroll-body--compact">
           <div className="modal-form-group">
             <span className="modal-section-label">필수 입력</span>
-            <input
-              name="name"
-              placeholder="이름"
-              value={form.name ?? ""}
-              onChange={handleChange}
-              className="ds-input"
-              data-required="true"
-              data-invalid={!String(form.name || "").trim() ? "true" : "false"}
-              disabled={busy}
-              autoFocus
-            />
-            <input
-              name="initialPassword"
-              type="password"
-              placeholder="초기 비밀번호"
-              value={form.initialPassword ?? ""}
-              onChange={handleChange}
-              className="ds-input"
-              data-required="true"
-              data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
-              disabled={busy}
-            />
-            <input
-              placeholder="학부모 전화번호 (010-XXXX-XXXX)"
-              value={formatPhoneForInput(form.parentPhone ?? "")}
-              onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
-              className="ds-input"
-              data-required="true"
-              data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
-              disabled={busy}
-              maxLength={13}
-              inputMode="numeric"
-              pattern="[0-9\-]*"
-            />
+            <div className="modal-form-row modal-form-row--3">
+              <input
+                name="name"
+                placeholder="이름"
+                value={form.name ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                data-required="true"
+                data-invalid={!String(form.name || "").trim() ? "true" : "false"}
+                disabled={busy}
+                autoFocus
+              />
+              <input
+                name="initialPassword"
+                type="password"
+                placeholder="초기 비밀번호"
+                value={form.initialPassword ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                data-required="true"
+                data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
+                disabled={busy}
+              />
+              <input
+                placeholder="학부모 전화 (010-XXXX-XXXX)"
+                value={formatPhoneForInput(form.parentPhone ?? "")}
+                onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
+                className="ds-input"
+                data-required="true"
+                data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
+                disabled={busy}
+                maxLength={13}
+                inputMode="numeric"
+                pattern="[0-9\-]*"
+              />
+            </div>
           </div>
 
           <input
-            placeholder="학생 전화번호 (선택, 없으면 부모 전화로 OMR 식별)"
+            placeholder="학생 전화 (선택, 없으면 부모 전화로 OMR)"
             value={formatPhoneForInput(form.studentPhone ?? "")}
             onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
             className="ds-input"
@@ -512,23 +514,22 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             pattern="[0-9\-]*"
           />
 
-          <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", padding: "var(--space-3)", flexWrap: "wrap" }}>
-            {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
-              <Button
-                key={g.key}
-                intent={form.gender === g.key ? "secondary" : "ghost"}
-                aria-pressed={form.gender === g.key}
-                onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
-                disabled={busy}
-              >
-                {g.label}
-              </Button>
-            ))}
-          </div>
-
-          <div className="modal-option-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)", padding: "var(--space-3)" }}>
-            {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
-              (t) => (
+          <div className="modal-form-row modal-form-row--2">
+            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+              {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                <Button
+                  key={g.key}
+                  intent={form.gender === g.key ? "secondary" : "ghost"}
+                  aria-pressed={form.gender === g.key}
+                  onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                  disabled={busy}
+                >
+                  {g.label}
+                </Button>
+              ))}
+            </div>
+            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+              {[{ key: "HIGH", label: "고등" }, { key: "MIDDLE", label: "중등" }].map((t) => (
                 <Button
                   key={t.key}
                   intent={form.schoolType === t.key ? "secondary" : "ghost"}
@@ -546,11 +547,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 >
                   {t.label}
                 </Button>
-              )
-            )}
+              ))}
+            </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)" }}>
+          <div className="modal-form-row modal-form-row--1-auto">
             <input
               name="school"
               placeholder="학교명"
@@ -559,7 +560,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               className="ds-input"
               disabled={busy}
             />
-            <div style={{ display: "flex", gap: "var(--space-2)" }}>
+            <div className="modal-actions-inline">
               {["1", "2", "3"].map((g) => (
                 <Button
                   key={g}
@@ -574,7 +575,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+          <div className="modal-form-row modal-form-row--2">
             <input
               name="schoolClass"
               placeholder="반"
@@ -595,7 +596,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
           <textarea
             name="memo"
-            rows={4}
+            rows={3}
             placeholder="메모"
             value={form.memo ?? ""}
             onChange={handleChange}
@@ -603,20 +604,20 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             disabled={busy}
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)", alignItems: "center" }}>
-            <span className="modal-section-label" style={{ marginBottom: 0, fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)" }}>
-              등록 후 상세 화면에서 태그/메모/상태를 추가로 관리할 수 있습니다.
+          <div className="modal-form-row modal-form-row--1-auto">
+            <span className="modal-hint modal-hint--block" style={{ marginBottom: 0 }}>
+              등록 후 상세에서 태그/메모/상태를 관리할 수 있습니다.
             </span>
             <button
               type="button"
               aria-pressed={form.active}
               onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
               disabled={busy}
+              className="modal-option-row"
               style={{
                 padding: "var(--space-2) var(--space-3)",
                 fontSize: 12,
                 fontWeight: 700,
-                borderRadius: "var(--radius-md)",
                 color: "#fff",
                 backgroundColor: form.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
                 border: "none",
