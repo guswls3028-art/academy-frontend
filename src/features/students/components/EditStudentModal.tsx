@@ -215,7 +215,7 @@ export default function EditStudentModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <input
               name="psNumber"
               placeholder="아이디(PS 번호)"
@@ -226,38 +226,18 @@ export default function EditStudentModal({
               data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
               disabled={busy}
             />
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "0 12px",
-                borderRadius: 12,
-                border: "1px solid var(--color-border-divider)",
-                background: "var(--color-bg-surface-soft)",
-                height: 44,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 900,
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                상태
-              </span>
+            <div className="modal-form-group" style={{ flexDirection: "row", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-3)" }}>
+              <span className="modal-section-label" style={{ marginBottom: 0 }}>상태</span>
               <button
                 type="button"
                 aria-pressed={form.active}
                 onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
                 disabled={busy}
                 style={{
-                  padding: "6px 12px",
+                  padding: "var(--space-2) var(--space-3)",
                   fontSize: 12,
                   fontWeight: 700,
-                  borderRadius: 8,
+                  borderRadius: "var(--radius-md)",
                   color: "#fff",
                   backgroundColor: form.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
                   border: "none",
@@ -268,7 +248,7 @@ export default function EditStudentModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)" }}>
             {noPhone ? (
               <input
                 placeholder="식별자 (XXXX-XXXX)"
