@@ -251,7 +251,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                   </span>
                 </label>
               )}
-              <label className="flex flex-col gap-2 rounded-xl border border-[var(--border-divider)] p-3 hover:bg-[var(--color-bg-surface-soft)]">
+              <label className="session-option-row flex flex-col gap-2 rounded-xl border border-[var(--border-divider)] p-3 hover:bg-[var(--color-bg-surface-soft)]">
                 <div className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
