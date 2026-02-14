@@ -264,14 +264,8 @@ export default function StudentsTable({
               {!isDeletedTab && (
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
                   <span
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: 999,
-                      fontWeight: 800,
-                      fontSize: 11,
-                      color: "white",
-                      backgroundColor: s.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
-                    }}
+                    className="ds-status-badge"
+                    data-status={s.active ? "active" : "inactive"}
                   >
                     {s.active ? "활성" : "비활성"}
                   </span>
