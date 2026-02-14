@@ -17,18 +17,17 @@
   --session-block-supplement-selected-bottom: color-mix(in srgb, var(--session-block-supplement) 55%, transparent);
   --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, white) 100%);
 
-  /* ----- 디자인 토큰 (모달·세션 동일) ----- */
-  --session-block-radius: var(--radius-lg);
+  /* ----- 디자인 토큰 (세션페이지 블록 디자인 = 모달에도 동일, 색상은 위 모달 색상 사용) ----- */
+  --session-block-radius: var(--radius-md);
   --session-block-highlight: rgba(255, 255, 255, 0.12);
   --session-block-shadow-subtle: var(--color-shadow-subtle, rgba(0, 0, 0, 0.18));
   --session-block-shadow-soft: var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
-  /* 기본(모달) 크기 그림자 */
-  --session-block-bottom-px: 5px;
-  --session-block-drop: 6px 14px;
-  --session-block-bottom-px-hover: 6px;
-  --session-block-drop-hover: 10px 24px;
-  --session-block-bottom-px-active: 2px;
-  --session-block-drop-active: 3px 8px;
+  --session-block-bottom-px: 3px;
+  --session-block-drop: 4px 10px;
+  --session-block-bottom-px-hover: 4px;
+  --session-block-drop-hover: 6px 14px;
+  --session-block-bottom-px-active: 1px;
+  --session-block-drop-active: 2px 6px;
 }
 
 /* ----- 공통 블록 (모달·세션 동일 구조, 변수만 사용) ----- */
