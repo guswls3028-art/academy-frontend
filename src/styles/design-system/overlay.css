@@ -146,6 +146,12 @@
   align-items: start;
 }
 
+/* 좌측 정보 행 — 타이트한 위아래 간격 */
+.ds-overlay-info-rows {
+  display: grid;
+  gap: var(--space-2);
+}
+
 /* 오버레이 내 탭 — 페이지 플랫탭과 동일 */
 .ds-overlay-tabs {
   margin-top: var(--space-4);

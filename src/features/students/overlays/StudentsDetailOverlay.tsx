@@ -174,17 +174,17 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   border: "1px solid var(--color-border-divider)",
                 }}
               >
-                <div style={{ display: "grid", gap: 10 }}>
+                <div className="ds-overlay-info-rows">
                   <InfoRow
-                    label="학생 전화"
-                    value={formatStudentPhoneDisplay(student.studentPhone)}
-                  />
-                  <InfoRow
-                    label="시험 식별코드"
+                    label="식별코드"
                     value={formatOmrCode(student.omrCode)}
                     accent
                   />
                   <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} />
+                  <InfoRow
+                    label="학생 전화"
+                    value={formatStudentPhoneDisplay(student.studentPhone)}
+                  />
                   <InfoRow label="성별" value={student.gender} />
                   <InfoRow label="학교" value={student.school} />
                   <InfoRow
