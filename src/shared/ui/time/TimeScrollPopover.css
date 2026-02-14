@@ -2,9 +2,6 @@
    30분 단위 원통형(roller) 시간 선택 — 순환 스크롤, 위아래 페이드로 원통감 */
 
 .shared-time-scroll-popover {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   padding: var(--space-4);
   background: var(--ui-control-bg, var(--color-bg-surface));
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
@@ -20,14 +17,36 @@
     0 0 0 1px color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
 }
 
-.shared-time-scroll-popover-period {
+/* 오전 | 롤링, 오후 | 레이아웃 */
+.shared-time-scroll-popover-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+}
+
+.shared-time-scroll-popover-periods {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding-right: var(--space-3);
+  border-right: 1px solid var(--color-border-divider);
   flex-shrink: 0;
-  text-align: center;
+}
+
+.shared-time-scroll-popover-period-item {
   font-size: 13px;
-  font-weight: 700;
-  color: var(--color-brand-primary, var(--color-primary));
+  font-weight: 600;
+  color: var(--color-text-muted);
   letter-spacing: 0.04em;
   font-family: inherit;
+  padding: var(--space-1) 0;
+  transition: color 120ms ease, font-weight 120ms ease;
+}
+
+.shared-time-scroll-popover-period-item--active {
+  color: var(--color-brand-primary, var(--color-primary));
+  font-weight: 700;
 }
 
 .shared-time-scroll-popover-cylinder {
