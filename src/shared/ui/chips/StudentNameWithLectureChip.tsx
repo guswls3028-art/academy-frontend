@@ -38,6 +38,7 @@ export default function StudentNameWithLectureChip({
   const list = Array.isArray(lectures) && lectures.length > 0
     ? lectures
     : [];
+  const chipSizeResolved = avatarSize != null && avatarSize > 0 ? avatarSize : chipSize;
 
   return (
     <span className={`inline-flex items-center gap-2 min-w-0 ${className ?? ""}`.trim()}>
@@ -62,7 +63,7 @@ export default function StudentNameWithLectureChip({
           key={`${lec.lectureName ?? ""}-${i}`}
           lectureName={lec.lectureName || "??"}
           color={lec.color ?? DEFAULT_COLOR}
-          size={chipSize}
+          size={chipSizeResolved}
         />
       ))}
     </span>
