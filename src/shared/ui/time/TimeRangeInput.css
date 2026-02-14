@@ -82,7 +82,7 @@
 .shared-time-range-trigger:focus {
   outline: none;
   border-color: var(--ui-control-border-focus, var(--color-border-focus));
-  box-shadow: var(--state-focus-ring, 0 0 0 2px var(--color-border-focus));
+  box-shadow: var(--state-focus-ring, 0 0 0 2px var(--color-border-focus)) !important;
 }
 
 .shared-time-range-trigger:disabled {
