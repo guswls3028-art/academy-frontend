@@ -117,3 +117,56 @@ export async function getPresignedUrl(r2Key: string, expiresIn?: number): Promis
   });
   return data;
 }
+
+export type MoveParams = {
+  scope: "admin" | "student";
+  type: "file" | "folder";
+  sourceId: string;
+  targetFolderId: string | null;
+  studentPs?: string;
+  onDuplicate?: "overwrite" | "rename";
+};
+
+export type MoveConflictError = {
+  status: number;
+  code: string;
+  existing_name: string;
+  detail: string;
+};
+
+export async function moveInventoryItem(params: MoveParams): Promise<{ ok: true }> {
+  const body: Record<string, unknown> = {
+    type: params.type,
+    source_id: params.sourceId,
+    target_folder_id: params.targetFolderId ?? null,
+    scope: params.scope,
+  };
+  if (params.scope === "student" && params.studentPs) body.student_ps = params.studentPs;
+  if (params.onDuplicate) body.on_duplicate = params.onDuplicate;
+
+  try {
+    const { data, status } = await api.post<{ ok?: boolean }>("/storage/inventory/move/", body);
+    if (status === 409) {
+      const err = new Error((data as { detail?: string }).detail ?? "Conflict") as Error & MoveConflictError;
+      err.status = 409;
+      err.code = (data as { code?: string }).code ?? "duplicate";
+      err.existing_name = (data as { existing_name?: string }).existing_name ?? "";
+      err.detail = (data as { detail?: string }).detail ?? "";
+      throw err;
+    }
+    return data as { ok: true };
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "response" in e) {
+      const ax = (e as { response?: { status?: number; data?: Record<string, unknown> } }).response;
+      if (ax?.status === 409 && ax?.data) {
+        const err = new Error(String(ax.data.detail ?? "Conflict")) as Error & MoveConflictError;
+        err.status = 409;
+        err.code = String(ax.data.code ?? "duplicate");
+        err.existing_name = String(ax.data.existing_name ?? "");
+        err.detail = String(ax.data.detail ?? "");
+        throw err;
+      }
+    }
+    throw e;
+  }
+}
