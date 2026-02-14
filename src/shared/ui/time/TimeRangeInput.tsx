@@ -120,7 +120,7 @@ export default function TimeRangeInput({
               aria-label="시작 시간 선택"
             >
               <span className="shared-time-range-trigger-text">
-                {start ? format24To12Display(start) : startPlaceholder}
+                {start ? format24To12Display(start) : (startPlaceholder === "00:00" ? "오전 12:00" : startPlaceholder)}
               </span>
               <ChevronDown className="shared-time-range-trigger-icon" size={20} aria-hidden />
             </div>
