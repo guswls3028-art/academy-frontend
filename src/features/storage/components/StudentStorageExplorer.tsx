@@ -126,6 +126,74 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
 
   const hasSelection = selectedFolderIds.size > 0 || selectedFileId != null;
 
+  const handleMove = useCallback(
+    async (
+      targetFolderId: string | null,
+      type: "file" | "folder",
+      sourceId: string,
+      onDuplicate?: "overwrite" | "rename"
+    ) => {
+      setMovingId(sourceId);
+      const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>([
+        "storage-inventory",
+        SCOPE,
+        studentPs,
+      ]);
+      const applyOptimistic = () => {
+        if (!prev) return;
+        if (type === "file") {
+          const files = prev.files.map((f) =>
+            f.id === sourceId ? { ...f, folderId: targetFolderId } : f
+          );
+          qc.setQueryData(["storage-inventory", SCOPE, studentPs], { ...prev, files });
+        } else {
+          const folders = prev.folders.map((f) =>
+            f.id === sourceId ? { ...f, parentId: targetFolderId } : f
+          );
+          qc.setQueryData(["storage-inventory", SCOPE, studentPs], { ...prev, folders });
+        }
+      };
+      applyOptimistic();
+      try {
+        await moveInventoryItem({
+          scope: SCOPE,
+          type,
+          sourceId,
+          targetFolderId,
+          studentPs,
+          onDuplicate,
+        });
+        await qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
+      } catch (e) {
+        if (prev) qc.setQueryData(["storage-inventory", SCOPE, studentPs], prev);
+        const ce = e as MoveConflictError & Error;
+        if (ce.status === 409 && ce.code === "duplicate") {
+          setConflict({
+            type,
+            sourceId,
+            targetFolderId,
+            existingName: ce.existing_name || "항목",
+          });
+        } else {
+          alert(ce?.message ?? "이동에 실패했습니다.");
+        }
+      } finally {
+        setMovingId(null);
+      }
+    },
+    [qc, studentPs]
+  );
+
+  const resolveConflict = useCallback(
+    (choice: "overwrite" | "rename") => {
+      if (!conflict) return;
+      const { targetFolderId, type, sourceId } = conflict;
+      setConflict(null);
+      handleMove(targetFolderId, type, sourceId, choice);
+    },
+    [conflict, handleMove]
+  );
+
   const openFileUrl = async (r2Key: string) => {
     try {
       const { url } = await getPresignedUrl(r2Key);
