@@ -181,8 +181,8 @@ export default function StudentsTable({
               role="button"
               className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
             >
-              {/* 체크박스 — 타이트 */}
-              <td onClick={(e) => e.stopPropagation()} style={{ width: 36 }} className="ds-checkbox-cell text-center align-middle">
+              {/* 체크박스 — 타이트, 칸과 위치 일치 */}
+              <td onClick={(e) => e.stopPropagation()} style={{ width: 28 }} className="ds-checkbox-cell">
                 {onSelectionChange ? (
                   <input
                     type="checkbox"
