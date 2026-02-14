@@ -199,51 +199,40 @@ export default function StaffDetailOverlay() {
               </div>
             </div>
 
-            {/* RIGHT */}
-            <div className="flex-1">
-              <Tabs
-                activeKey={tab}
-                onChange={setTab}
-                items={[
-                  {
-                    key: "summary",
-                    label: "요약",
-                    children: <StaffSummaryTab staffId={sid} />,
-                  },
-                  {
-                    key: "worktype",
-                    label: "시급·근무유형",
-                    children: <StaffWorkTypeTab staffId={sid} />,
-                  },
-                  {
-                    key: "records",
-                    label: "근무기록",
-                    children: <StaffWorkRecordsTab staffId={sid} />,
-                  },
-                  {
-                    key: "expenses",
-                    label: "비용",
-                    children: <StaffExpensesTab staffId={sid} />,
-                  },
-                  {
-                    key: "history",
-                    label: "급여 히스토리",
-                    children: <StaffPayrollHistoryTab />,
-                  },
-                  {
-                    key: "report",
-                    label: "리포트",
-                    children: <StaffReportTab />,
-                  },
-                  canManage
-                    ? {
-                        key: "settings",
-                        label: "설정",
-                        children: <StaffSettingsTab />,
-                      }
-                    : null,
-                ].filter(Boolean) as any}
-              />
+            {/* RIGHT — 플랫탭 + 패널 */}
+            <div className="flex-1 flex flex-col min-h-0">
+              {(() => {
+                const items = [
+                  { key: "summary", label: "요약", children: <StaffSummaryTab staffId={sid} /> },
+                  { key: "worktype", label: "시급·근무유형", children: <StaffWorkTypeTab staffId={sid} /> },
+                  { key: "records", label: "근무기록", children: <StaffWorkRecordsTab staffId={sid} /> },
+                  { key: "expenses", label: "비용", children: <StaffExpensesTab staffId={sid} /> },
+                  { key: "history", label: "급여 히스토리", children: <StaffPayrollHistoryTab /> },
+                  { key: "report", label: "리포트", children: <StaffReportTab /> },
+                  ...(canManage ? [{ key: "settings", label: "설정", children: <StaffSettingsTab /> }] : []),
+                ];
+                return (
+                  <>
+                    <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)] mb-3" role="tablist">
+                      {items.map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={tab === t.key}
+                          onClick={() => setTab(t.key)}
+                          className={`ds-tab ${tab === t.key ? "is-active" : ""}`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-auto">
+                      {items.find((i) => i.key === tab)?.children}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
