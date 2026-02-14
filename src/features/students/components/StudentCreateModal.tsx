@@ -687,7 +687,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                           />
                           복원
                         </label>
-                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginBottom: 0, cursor: "pointer", fontSize: 13 }}>
                           <input
                             type="radio"
                             name={`conflict-${item.row}`}
