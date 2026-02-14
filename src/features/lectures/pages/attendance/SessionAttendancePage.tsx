@@ -259,7 +259,7 @@ export default function SessionAttendancePage({
         >
           {statusFilter ? (
             <span className="inline-flex items-center gap-1.5">
-              <AttendanceStatusBadge status={statusFilter as AttendanceStatus} variant="compact" />
+              <AttendanceStatusBadge status={statusFilter as AttendanceStatus} variant="2ch" />
             </span>
           ) : (
             "상태"
@@ -303,7 +303,7 @@ export default function SessionAttendancePage({
                     boxShadow: selected ? "0 0 0 2px var(--color-primary)" : undefined,
                   }}
                 >
-                  <AttendanceStatusBadge status={code} variant="compact" />
+                  <AttendanceStatusBadge status={code} variant="2ch" />
                 </button>
               );
             })}
@@ -419,7 +419,7 @@ export default function SessionAttendancePage({
                       />
                     </td>
                     <td className="text-center align-middle">
-                      <AttendanceStatusBadge status={att.status} variant="compact" />
+                      <AttendanceStatusBadge status={att.status} variant="2ch" />
                     </td>
                     <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
                       {formatPhone(att.parent_phone)}
@@ -443,7 +443,7 @@ export default function SessionAttendancePage({
                               className="cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 disabled:cursor-default"
                               style={{ opacity: active ? 1 : 0.4, filter: active ? "none" : "grayscale(1)" }}
                             >
-                              <AttendanceStatusBadge status={code} variant="compact" />
+                              <AttendanceStatusBadge status={code} variant="2ch" />
                             </button>
                           );
                         })}

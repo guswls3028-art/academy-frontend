@@ -247,7 +247,7 @@ export default function LectureStudentsPage() {
                               onClick={(e) => e.stopPropagation()}
                             >
                               {cell?.status ? (
-                                <AttendanceStatusBadge status={cell.status as any} variant="short" />
+                                <AttendanceStatusBadge status={cell.status as any} variant="1ch" />
                               ) : (
                                 <span className="text-[var(--color-text-muted)] text-[10px]">－</span>
                               )}
