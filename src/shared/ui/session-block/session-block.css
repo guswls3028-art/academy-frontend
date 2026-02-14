@@ -1,4 +1,8 @@
 /* 차시 블록 전역 스타일 — 모달 유형 선택, 세션바, 세션 목록 공용. 입체 블록 디자인 */
+/* 색상: N차시 = --color-brand-primary, 보강 = --session-block-supplement(테마 변수 없으면 fallback) */
+:root {
+  --session-block-supplement: var(--color-supplement, #0d9488);
+}
 
 /* ----- 베이스 블록 ----- */
 .session-block {
