@@ -110,7 +110,7 @@ export default function DomainLayout({
         </div>
 
         {tabs != null && tabs.length > 0 && (
-          <div style={{ marginTop: "var(--space-4)" }}>
+          <div className="domain-header__tabs-wrap">
             <DomainTabs
               tabs={tabs}
               pathname={location.pathname}
