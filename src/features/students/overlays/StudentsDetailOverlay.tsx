@@ -435,10 +435,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
                 className="sr-only"
                 aria-hidden
-                onChange={(e) => {
-                  if (inventoryTab === "score") handleInventoryFileChange("score")(e);
-                  else if (inventoryTab === "misc") handleInventoryFileChange("misc")(e);
-                }}
+                onChange={handleInventoryFileChange}
               />
               <div className="ds-inventory-panel__tabs">
                 {(["score", "misc", "video", "image"] as const).map((key) => (
