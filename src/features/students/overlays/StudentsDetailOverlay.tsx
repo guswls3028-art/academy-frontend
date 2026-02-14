@@ -112,13 +112,12 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                       avatarSize={40}
                       lectures={
                         Array.isArray(student.enrollments) && student.enrollments.length > 0
-                          ? student.enrollments.map((en: { lecture_name?: string; lecture_color?: string }) => ({
-                              lectureName: en.lecture_name ?? "??",
-                              color: en.lecture_color ?? undefined,
+                          ? student.enrollments.map((en: { lectureName?: string | null; lectureColor?: string | null }) => ({
+                              lectureName: en.lectureName ?? "—",
+                              color: en.lectureColor ?? undefined,
                             }))
                           : undefined
                       }
-                      chipSize={16}
                     />
                   </h1>
                   <div className="ds-overlay-header__meta">
