@@ -155,7 +155,7 @@ export default function LectureAttendanceMatrixPage() {
                         {cell?.status ? (
                           <AttendanceStatusBadge
                             status={cell.status as any}
-                            variant="short"
+                            variant="1ch"
                           />
                         ) : (
                           <span className="text-[var(--color-text-muted)] text-[10px]">－</span>
