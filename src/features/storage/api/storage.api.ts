@@ -145,15 +145,7 @@ export async function moveInventoryItem(params: MoveParams): Promise<{ ok: true 
   if (params.onDuplicate) body.on_duplicate = params.onDuplicate;
 
   try {
-    const { data, status } = await api.post<{ ok?: boolean }>("/storage/inventory/move/", body);
-    if (status === 409) {
-      const err = new Error((data as { detail?: string }).detail ?? "Conflict") as Error & MoveConflictError;
-      err.status = 409;
-      err.code = (data as { code?: string }).code ?? "duplicate";
-      err.existing_name = (data as { existing_name?: string }).existing_name ?? "";
-      err.detail = (data as { detail?: string }).detail ?? "";
-      throw err;
-    }
+    const { data } = await api.post<{ ok?: boolean }>("/storage/inventory/move/", body);
     return data as { ok: true };
   } catch (e: unknown) {
     if (e && typeof e === "object" && "response" in e) {
