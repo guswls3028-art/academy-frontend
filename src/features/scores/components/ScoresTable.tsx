@@ -16,23 +16,12 @@ import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLecture
    - 공용 컴포넌트 ❌
 ================================ */
 
+/** 사이즈 SSOT: ds-status-badge (2ch) */
 function StatusCell({ status }: { status: "success" | "error" | "info" }) {
+  const tone = status === "success" ? "success" : status === "error" ? "danger" : "neutral";
   return (
-    <span
-      className={[
-        "inline-flex rounded px-2 py-0.5 text-xs font-semibold",
-        status === "success" && "status-success",
-        status === "error" && "status-error",
-        status === "info" && "status-info",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      {status === "success"
-        ? "PASS"
-        : status === "error"
-        ? "FAIL"
-        : "-"}
+    <span className="ds-status-badge" data-tone={tone}>
+      {status === "success" ? "PASS" : status === "error" ? "FAIL" : "-"}
     </span>
   );
 }

@@ -17,7 +17,7 @@ const TABS: { key: ExamTabKey; label: string }[] = [
 
 export default function ExamTabs({ activeTab, onChange }: Props) {
   return (
-    <div className="ds-tabs ds-tabs--flat border-b border-[var(--border-divider)]" role="tablist">
+    <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)]" role="tablist">
       {TABS.map((t) => (
         <button
           key={t.key}

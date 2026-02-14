@@ -140,7 +140,7 @@ export default function StaffDetailOverlay() {
                   <div className="text-lg font-semibold flex items-center gap-2">
                     {staff.name}
                     {staff.user_is_staff && (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--color-primary-soft)] text-[var(--color-primary)] border border-[color-mix(in_srgb,var(--color-primary)_45%,transparent)]">
+                      <span className="ds-status-badge" data-tone="primary">
                         STAFF
                       </span>
                     )}
