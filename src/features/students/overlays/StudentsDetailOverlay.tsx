@@ -570,7 +570,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                         +
                       </div>
                       {uploadedScoreItems.map((item) => {
-                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === item.iconPreset) ?? INVENTORY_ICON_PRESETS[0];
+                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === (item.iconPreset ?? "misc")) ?? INVENTORY_ICON_PRESETS[0];
                         const isSelected = selectedIds.has(item.id);
                         return (
                           <div
@@ -610,7 +610,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                         +
                       </div>
                       {uploadedMiscItems.map((item) => {
-                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === item.iconPreset) ?? INVENTORY_ICON_PRESETS[0];
+                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === (item.iconPreset ?? "misc")) ?? INVENTORY_ICON_PRESETS[0];
                         const isSelected = selectedIds.has(item.id);
                         return (
                           <div
