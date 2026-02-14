@@ -220,6 +220,9 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
             </div>
           </div>
 
+          {/* 차시 유형 선택 후에만 날짜·시간 섹션 표시 */}
+          {sessionType && (
+          <>
           {/* 날짜: 강의 기본값 사용 | 직접선택 (보강 시 기본값 비활성화) */}
           <div>
             <label className="block text-[13px] font-semibold text-[var(--color-text-secondary)] mb-2">
@@ -342,6 +345,8 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
               </label>
             </div>
           </div>
+          </>
+          )}
         </div>
       </ModalBody>
 
