@@ -127,20 +127,21 @@ button.ds-status-badge:disabled {
   transform: scale(0.98);
 }
 
-/* 색상 SSOT: 버튼과 동일 톤 — 연한 success/neutral, hover 시 강해짐 */
+/* 색상 SSOT: 버튼과 동일 톤 — 연한 success/neutral, hover 시 강해짐 (preflight 등 초기화 우선 덮기) */
 button.ds-status-badge.ds-status-badge--action[data-status="active"] {
-  background: color-mix(in srgb, var(--color-success) 20%, var(--color-bg-surface, #fff));
-  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 20%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-success) !important;
 }
 button.ds-status-badge.ds-status-badge--action[data-status="active"]:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-success) 28%, var(--color-bg-surface, #fff));
+  background: color-mix(in srgb, var(--color-success) 28%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-success) !important;
 }
 
 button.ds-status-badge.ds-status-badge--action[data-status="inactive"] {
-  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
-  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface)) !important;
+  color: var(--color-text-secondary) !important;
 }
 button.ds-status-badge.ds-status-badge--action[data-status="inactive"]:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface));
-  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface)) !important;
+  color: var(--color-text-primary) !important;
 }
