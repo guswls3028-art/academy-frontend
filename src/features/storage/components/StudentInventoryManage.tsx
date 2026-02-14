@@ -24,15 +24,10 @@ export default function StudentInventoryManage({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedPs, setSelectedPs] = useState<string | null>(initialStudentPs ?? null);
 
-  // Debounce search
-  useState(() => {
+  useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
-  });
-  if (typeof window !== "undefined") {
-    const id = setTimeout(() => setDebouncedSearch(search), 300);
-    () => clearTimeout(id);
-  }
+  }, [search]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["storage-student-search", debouncedSearch],
