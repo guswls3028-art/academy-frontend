@@ -62,6 +62,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     setEndDate("");
     setLectureTime("");
     setColor(getDefaultColorForPicker(usedColors));
+    setChipLabel("");
   }, [isOpen, usedColors]);
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, title, name, subject, description, startDate, endDate, lectureTime, color, isPending]);
+  }, [isOpen, title, name, subject, description, startDate, endDate, lectureTime, color, chipLabel, isPending]);
 
   if (!isOpen) return null;
 
