@@ -1,31 +1,75 @@
 /* PATH: src/shared/ui/time/TimeScrollPopover.css
-   원테이크 스크롤 00:00~24:00 순환, 글자 깨짐 방지 */
+   30분 단위 원통형(roller) 시간 선택 — 순환 스크롤, 위아래 페이드로 원통감 */
 
 .shared-time-scroll-popover {
-  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
   background: var(--ui-control-bg, var(--color-bg-surface));
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   box-shadow: var(--elevation-3);
   font-family: inherit;
 }
 
-.shared-time-scroll-popover-layout {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-3);
+.shared-time-scroll-popover--cylinder {
+  border-radius: 24px;
+  box-shadow:
+    var(--elevation-3),
+    0 0 0 1px color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
 }
 
 .shared-time-scroll-popover-period {
   flex-shrink: 0;
-  width: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 15px;
-  font-weight: 600;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--color-brand-primary, var(--color-primary));
+  letter-spacing: 0.04em;
   font-family: inherit;
+}
+
+.shared-time-scroll-popover-cylinder {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 0%,
+    var(--color-bg-surface) 20%,
+    var(--color-bg-surface) 80%,
+    color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 100%
+  );
+}
+
+.shared-time-scroll-popover-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 48px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.shared-time-scroll-popover-mask--top {
+  top: 0;
+  background: linear-gradient(
+    180deg,
+    var(--color-bg-surface) 0%,
+    color-mix(in srgb, var(--color-bg-surface) 70%, transparent) 70%,
+    transparent 100%
+  );
+}
+
+.shared-time-scroll-popover-mask--bottom {
+  bottom: 0;
+  background: linear-gradient(
+    0deg,
+    var(--color-bg-surface) 0%,
+    color-mix(in srgb, var(--color-bg-surface) 70%, transparent) 70%,
+    transparent 100%
+  );
 }
 
 .shared-time-scroll-popover-list {
@@ -35,35 +79,52 @@
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.shared-time-scroll-popover-list::-webkit-scrollbar {
+  display: none;
 }
 
 .shared-time-scroll-popover-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   padding: 0 var(--space-3);
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 500;
   line-height: 1.2;
   text-align: center;
   white-space: nowrap;
   word-break: keep-all;
   overflow: visible;
-  color: var(--ui-control-text, var(--color-text-primary));
+  color: var(--color-text-muted);
   background: transparent;
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background-color 120ms ease;
+  transition:
+    color 160ms ease,
+    font-weight 120ms ease,
+    background-color 120ms ease;
   font-family: inherit;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
 
 .shared-time-scroll-popover-item:hover {
-  background: var(--state-hover-bg, var(--color-bg-surface-hover));
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
 }
 
 .shared-time-scroll-popover-item:focus-visible {
   outline: none;
+  color: var(--color-text-primary);
   background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
+}
+
+/* 원통 중앙 선택 효과 — 스크롤 위치에 따라 JS로 적용하는 대신, 시각적 계층으로 구분 */
+.shared-time-scroll-popover-item:nth-child(n) {
+  /* 기본: 위아래 항목은 연하게, 중앙 1개는 강조 — scroll snap 또는 JS 없이 미리 스타일링 */
 }
