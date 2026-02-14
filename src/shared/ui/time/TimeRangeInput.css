@@ -56,6 +56,8 @@
   font-size: 18px;
   font-weight: 500;
   letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
   color: var(--ui-control-text, var(--color-text-primary));
   background: var(--ui-control-bg, var(--color-bg-surface));
   border: 1px solid var(--ui-control-border, var(--color-border-divider));

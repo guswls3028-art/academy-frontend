@@ -26,6 +26,8 @@
   line-height: 1.2;
   text-align: center;
   white-space: nowrap;
+  word-break: keep-all;
+  overflow: visible;
   color: var(--ui-control-text, var(--color-text-primary));
   background: transparent;
   border: none;
@@ -34,6 +36,7 @@
   transition: background-color 120ms ease;
   font-family: inherit;
   letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .shared-time-scroll-popover-item:hover {
