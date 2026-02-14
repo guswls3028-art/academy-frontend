@@ -569,19 +569,32 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                       >
                         +
                       </div>
-                      {uploadedScoreItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className="ds-inventory-panel__item ds-inventory-panel__item--uploaded"
-                          title="더블클릭하여 보기"
-                          onDoubleClick={() => setViewerItem({ type: item.fileType, url: item.fileUrl, name: item.title })}
-                        >
-                          <span className="ds-inventory-panel__item-icon">{item.fileType === "pdf" ? "📄" : "🖼️"}</span>
-                          <span className="ds-inventory-panel__item-title">{item.title}</span>
-                          {item.description && <span className="ds-inventory-panel__item-desc">{item.description}</span>}
-                          <span className="ds-inventory-panel__item-filename">{item.fileName}</span>
-                        </div>
-                      ))}
+                      {uploadedScoreItems.map((item) => {
+                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === item.iconPreset) ?? INVENTORY_ICON_PRESETS[0];
+                        const isSelected = selectedIds.has(item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--uploaded ${isSelected ? "is-selected" : ""}`}
+                            title={item.description || item.title}
+                            onClick={() => toggleInventorySelection(item.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setViewerItem({ type: item.fileType, url: item.fileUrl, name: item.title });
+                            }}
+                          >
+                            <span
+                              className="ds-inventory-panel__item-icon-badge"
+                              style={{ backgroundColor: preset.color + "22", color: preset.color }}
+                            >
+                              {preset.emoji}
+                            </span>
+                            <span className="ds-inventory-panel__item-title">{item.title}</span>
+                            {item.description && <span className="ds-inventory-panel__item-desc">{item.description}</span>}
+                            <span className="ds-inventory-panel__item-filename">{item.fileName}</span>
+                          </div>
+                        );
+                      })}
                     </>
                   )}
                   {inventoryTab === "misc" && (
