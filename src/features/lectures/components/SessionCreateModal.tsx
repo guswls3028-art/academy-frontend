@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { createSession } from "../api/sessions";
-import "./SessionTypeBlock.css";
+import "@/shared/ui/session-block/session-block.css";
 
 type SessionType = "n+1" | "supplement";
 type DateMode = "default" | "custom";
@@ -195,27 +195,27 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                 type="button"
                 onClick={() => setSessionType("n+1")}
                 className={cx(
-                  "session-type-block session-type-block--n1",
-                  sessionType === "n+1" && "session-type-block--selected"
+                  "session-block session-block--n1",
+                  sessionType === "n+1" && "session-block--selected"
                 )}
                 aria-pressed={sessionType === "n+1"}
               >
-                <span className="session-type-block__check" aria-hidden>✓</span>
-                <span className="session-type-block__title">{nextOrder}차시</span>
-                <span className="session-type-block__desc">정규 차시 추가 · 기본 날짜/시간 사용</span>
+                <span className="session-block__check" aria-hidden>✓</span>
+                <span className="session-block__title">{nextOrder}차시</span>
+                <span className="session-block__desc">정규 차시 추가 · 기본 날짜/시간 사용</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSessionType("supplement")}
                 className={cx(
-                  "session-type-block session-type-block--supplement",
-                  sessionType === "supplement" && "session-type-block--selected"
+                  "session-block session-block--supplement",
+                  sessionType === "supplement" && "session-block--selected"
                 )}
                 aria-pressed={sessionType === "supplement"}
               >
-                <span className="session-type-block__check" aria-hidden>✓</span>
-                <span className="session-type-block__title">보강</span>
-                <span className="session-type-block__desc">보강 차시 · 날짜·시간 직접 선택</span>
+                <span className="session-block__check" aria-hidden>✓</span>
+                <span className="session-block__title">보강</span>
+                <span className="session-block__desc">보강 차시 · 날짜·시간 직접 선택</span>
               </button>
             </div>
           </div>
