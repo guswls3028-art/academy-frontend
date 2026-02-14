@@ -40,7 +40,7 @@ export default function DeleteConfirmModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="confirm" width={520}>
+    <AdminModal open={open} onClose={onClose} type="confirm" width={MODAL_DEFAULT_WIDTH}>
       <ModalHeader
         type="confirm"
         title={title}
