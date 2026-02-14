@@ -33,7 +33,7 @@ function highlight(text: string, keyword: string) {
   );
 }
 
-function StudentsTable({
+export default function StudentsTable({
   data = [],
   search,
   sort,
