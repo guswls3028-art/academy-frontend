@@ -1,11 +1,22 @@
-/* 차시 블록 전역 스타일 — 모달 유형 선택, 세션바, 세션 목록 공용. 입체 블록 디자인 */
-/* 색상: N차시 = --color-brand-primary, 보강 = --session-block-supplement, 차시추가 = --session-block-add */
+/* 차시 블록 전역 스타일 — 모달·세션페이지 동일 색상(모달 기준), 모달은 세션페이지 디자인(확장판) */
+/* 색상 단일 소스: 모달에 보이는 블록 색상을 :root에 두고 모달·세션페이지 공통 적용 */
 :root {
   --session-block-supplement: var(--color-supplement, #0d9488);
   --session-block-add: var(--color-text-muted);
+  /* N차시·보강 블록 색상 (모달 색상 = 세션페이지에도 동일 적용) */
+  --session-block-n1-bottom: color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
+  --session-block-n1-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 14%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 8%, white) 100%);
+  --session-block-n1-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 18%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, white) 100%);
+  --session-block-n1-selected-bottom: color-mix(in srgb, var(--color-brand-primary) 55%, transparent);
+  --session-block-n1-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 22%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 12%, white) 100%);
+  --session-block-supplement-bottom: color-mix(in srgb, var(--session-block-supplement) 45%, transparent);
+  --session-block-supplement-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 14%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 8%, white) 100%);
+  --session-block-supplement-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 18%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 10%, white) 100%);
+  --session-block-supplement-selected-bottom: color-mix(in srgb, var(--session-block-supplement) 55%, transparent);
+  --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, white) 100%);
 }
 
-/* ----- 베이스 블록 (모달용 큰 블록 — 4:3 비율 유지) ----- */
+/* ----- 베이스 블록 (모달용) — 세션페이지 차시블록 디자인 확장판: radius·그림자 비율 맞춤 ----- */
 .session-block {
   position: relative;
   aspect-ratio: 4 / 3;
@@ -16,7 +27,7 @@
   justify-content: center;
   align-items: flex-start;
   text-align: left;
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition:
     transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
@@ -126,23 +137,15 @@
   display: none;
 }
 
-/* ----- N차시 (정규) ----- */
+/* ----- N차시 (정규) — :root 색상 단일 소스로 모달·세션페이지 동일 ----- */
 .session-block--n1 {
-  --session-block-bottom: color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--color-brand-primary) 14%, white) 0%,
-    color-mix(in srgb, var(--color-brand-primary) 8%, white) 100%
-  );
+  --session-block-bottom: var(--session-block-n1-bottom);
+  background: var(--session-block-n1-bg);
   color: var(--color-text-primary);
 }
 
 .session-block--n1:hover {
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--color-brand-primary) 18%, white) 0%,
-    color-mix(in srgb, var(--color-brand-primary) 10%, white) 100%
-  );
+  background: var(--session-block-n1-bg-hover);
 }
 
 .session-block--n1.session-block--selected {
