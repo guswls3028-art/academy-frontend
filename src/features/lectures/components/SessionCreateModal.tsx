@@ -160,7 +160,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
       />
 
       <ModalBody>
-        <div className="grid gap-6">
+        <div className="grid gap-6 w-full max-w-full box-border" style={{ width: "100%" }}>
           {/* 차시 유형: 2차시 / 보강 — 카드형 블록으로 직관적 선택 */}
           <div>
             <div className="text-[13px] font-semibold text-[var(--color-text-secondary)] mb-3">
