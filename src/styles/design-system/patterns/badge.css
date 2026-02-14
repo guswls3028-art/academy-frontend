@@ -1,8 +1,8 @@
 /* PATH: src/styles/design-system/patterns/badge.css */
 /* ============================================================================
- * DS BADGE — TAG / CHIP
- * - uses CSS vars: --badge-bg, --badge-text
- * - safe remove button / hover / focus
+ * DS BADGE — TAG / CHIP (선택·필터 칩 등)
+ * - 상태 뱃지(활성/비활성/출결 등)는 shared/ui/ds/styles/status.css SSOT (1ch/2ch 2종만)
+ * - 본 파일: --badge-bg, --badge-text, remove 버튼
  * ============================================================================ */
 
 .ds-badge {
