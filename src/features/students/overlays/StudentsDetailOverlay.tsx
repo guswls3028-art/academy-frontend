@@ -801,7 +801,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 <div className="ds-inventory-panel__footer">
                   {hasSelection && (
                     <>
-                      {!inventoryMultiSelect && selectedIds.size === 1 && (
+                      {!inventoryMultiSelect && selectedIds.size === 1 && inventorySelectedFolderIds.size === 0 && (
                         <Button type="button" intent="secondary" size="sm" onClick={openEditModal}>
                           수정
                         </Button>
