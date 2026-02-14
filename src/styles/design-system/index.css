@@ -15,6 +15,7 @@
 @import "./ds/status.css";
 @import "./ds/tabs.css";
 @import "./modal.css";
+@import "./overlay.css";
 
 /* ===============================
    Component patterns
