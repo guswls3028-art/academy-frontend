@@ -74,9 +74,20 @@
   background: var(--color-modal-bg);
 }
 
-/* 탭 영역 (헤더와 본문 사이) — 본문과 동일 수평 패딩 */
+/* 탭 영역 (헤더와 본문 사이) — 모달 톤과 어울리게 */
 .modal-tabs-area {
-  padding: 0 var(--space-5) var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-modal-bg));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.modal-tabs-area .ds-tabs {
+  margin-bottom: var(--space-3);
+}
+
+.modal-tabs-area .ds-tab.is-active {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-modal-bg));
 }
 
 /* ========== 푸터 (헤더와 대칭되는 구분감) ========== */
