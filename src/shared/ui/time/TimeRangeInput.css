@@ -32,18 +32,17 @@
   position: relative;
 }
 
-/* 기본 표시: 시간 영역 (아까 스타일 고급화 — 입력 박스 + 우측 인디케이터) */
+/* 기본 표시: 시간 영역 — 내부 시계 아이콘 + 텍스트 + 펼침 아이콘, 정렬·고급화 */
 .shared-time-range-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
   width: 100%;
-  min-width: 180px;
+  min-width: 0;
   box-sizing: border-box;
   height: 52px;
-  padding: 0 var(--space-4);
-  font-size: 17px;
+  padding: 0 var(--space-3) 0 var(--space-3);
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
@@ -55,6 +54,12 @@
   cursor: pointer;
   user-select: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.shared-time-range-trigger-clock {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.9;
 }
 
 .shared-time-range-trigger:hover:not(:disabled) {
