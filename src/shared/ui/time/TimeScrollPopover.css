@@ -47,9 +47,19 @@
   height: 48px;
 }
 
-/* 오전/오후 롤러 — 시간과 동일한 롤링 방식 */
+/* 오전/오후 롤러 — 2개만, 휠로 롤링 전환 */
 .shared-time-scroll-popover-list--period {
-  /* time과 동일 스타일 상속 */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+}
+
+.shared-time-scroll-popover-item--selected {
+  color: var(--color-brand-primary, var(--color-primary));
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
 }
 
 .shared-time-scroll-popover-cylinder--period .shared-time-scroll-popover-mask {
