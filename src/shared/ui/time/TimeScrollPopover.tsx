@@ -250,7 +250,7 @@ export function TimeScrollPopover({
       const currentlyAfternoon = isAfternoon(selectedIdx);
       if (currentlyAfternoon === wantAfternoon) return;
       const newIdx = flipPeriod(selectedIdx);
-      scrollToIdx(newIdx);
+      scrollToIdx(newIdx, { smooth: true });
     },
     [selectedIdx, scrollToIdx]
   );
