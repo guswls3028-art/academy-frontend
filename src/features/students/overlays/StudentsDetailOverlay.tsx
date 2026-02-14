@@ -391,16 +391,17 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
             </div>
           </div>
 
-          {/* 우측 하단 인벤토리 버튼 — 후에 R2 연동 */}
+          {/* 우하단 인벤토리 트리거 — 아이콘만 큼지막하게, 클릭 시 좌측 패널 */}
           <div className="ds-overlay-inventory-wrap">
-            <Button
+            <button
               type="button"
-              intent="primary"
-              size="md"
+              className="ds-inventory-trigger-btn"
               onClick={() => setInventoryOpen(true)}
+              title="인벤토리"
+              aria-label="인벤토리 열기"
             >
-              📁 인벤토리
-            </Button>
+              📁
+            </button>
           </div>
         </div>
       </div>
