@@ -93,7 +93,7 @@
 .shared-time-range-trigger-icon {
   flex-shrink: 0;
   color: var(--color-text-muted);
-  opacity: 0.85;
+  opacity: 0.75;
 }
 
 .shared-time-range-quick {
