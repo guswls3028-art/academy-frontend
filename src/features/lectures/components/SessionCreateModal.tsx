@@ -25,10 +25,6 @@ interface Props {
   onClose: () => void;
 }
 
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
-
 /** lecture_time에서 시간 부분만 추출 (예: "매주 토요일 12:30~14:30" → "12:30~14:30") */
 function extractTimeFromLectureTime(lectureTime: string | null | undefined): string {
   if (!lectureTime?.trim()) return "";
