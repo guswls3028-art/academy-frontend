@@ -75,7 +75,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     fileUrl: string;
     fileType: "pdf" | "image";
     iconPreset?: string;
-    folderId: string | null;
+    folderId?: string | null;
   };
   const [scoreFolders, setScoreFolders] = useState<InventoryFolder[]>([]);
   const [miscFolders, setMiscFolders] = useState<InventoryFolder[]>([]);
