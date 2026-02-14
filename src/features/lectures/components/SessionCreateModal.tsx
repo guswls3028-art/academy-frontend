@@ -98,6 +98,13 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     }
   }, [sessionType]);
 
+  // 직접선택으로 전환 시 시간이 비어 있으면 강의 기본 시간을 초기값으로 설정 (버튼 활성화용)
+  useEffect(() => {
+    if ((timeMode === "custom" || sessionType === "supplement") && !timeInput.trim() && lectureTimeExtract) {
+      setTimeInput(lectureTimeExtract);
+    }
+  }, [timeMode, sessionType, lectureTimeExtract]); // timeInput 제외하여 무한 루프 방지
+
   // N+1 + 날짜 기본값 사용 시 날짜 자동 채우기 (다음 주 같은 요일)
   useEffect(() => {
     if (sessionType === "n+1" && dateMode === "default" && defaultDateFromLecture) {
@@ -152,7 +159,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
   const showDefaultTimeOption = sessionType === "n+1";
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={580}>
+    <AdminModal open={true} onClose={onClose} type="action" width={620}>
       <ModalHeader
         type="action"
         title="차시 추가"
@@ -160,7 +167,10 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
       />
 
       <ModalBody>
-        <div className="grid gap-6 w-full max-w-full box-border" style={{ width: "100%" }}>
+        <div
+          className="grid gap-6 w-full max-w-full box-border"
+          style={{ width: "100%", minWidth: 0, overflowY: "auto", maxHeight: "calc(100vh - 200px)" }}
+        >
           {/* 차시 유형: 2차시 / 보강 — 카드형 블록으로 직관적 선택 */}
           <div>
             <div className="text-[13px] font-semibold text-[var(--color-text-secondary)] mb-3">
