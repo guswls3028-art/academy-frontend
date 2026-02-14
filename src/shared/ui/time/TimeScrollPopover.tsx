@@ -113,11 +113,32 @@ export function TimeScrollPopover({
       const target = e.target as Node;
       if (anchorEl.contains(target)) return;
       if (scrollRef.current?.contains(target)) return;
+      const popover = (e.target as HTMLElement).closest(".shared-time-scroll-popover");
+      if (popover?.contains(target)) return;
       onClose();
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [anchorEl, onClose]);
+
+  function scrollToSlotAndSelect(index: number) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const blockHeight = blockLen * ROW_HEIGHT;
+    const targetScroll = blockHeight + index * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+    el.scrollTop = Math.max(0, Math.min(targetScroll, el.scrollHeight - VISIBLE_HEIGHT));
+    const slot = slots[index % blockLen];
+    if (slot) onSelect(slot);
+  }
+
+  function handlePeriodClick(period: "오전" | "오후") {
+    const idx = selectedIndex % SLOTS_PER_PERIOD; // 0~23
+    if (period === "오전") {
+      scrollToSlotAndSelect(idx);
+    } else {
+      scrollToSlotAndSelect(SLOTS_PER_PERIOD + idx);
+    }
+  }
 
   const rect = anchorEl.getBoundingClientRect();
 
@@ -136,22 +157,31 @@ export function TimeScrollPopover({
     >
       <div className="shared-time-scroll-popover-layout">
         <div className="shared-time-scroll-popover-periods">
-          <div
-            className={`shared-time-scroll-popover-period-item ${
-              periodLabel === "오전" ? "shared-time-scroll-popover-period-item--active" : ""
+          <button
+            type="button"
+            className={`shared-time-scroll-popover-period-btn ${
+              periodLabel === "오전" ? "shared-time-scroll-popover-period-btn--active" : ""
             }`}
-            aria-hidden
+            onClick={() => handlePeriodClick("오전")}
+            aria-pressed={periodLabel === "오전"}
+            aria-label="오전 선택"
           >
             오전
-          </div>
-          <div
-            className={`shared-time-scroll-popover-period-item ${
-              periodLabel === "오후" ? "shared-time-scroll-popover-period-item--active" : ""
+          </button>
+          <span className="shared-time-scroll-popover-period-sep" aria-hidden>
+            ,
+          </span>
+          <button
+            type="button"
+            className={`shared-time-scroll-popover-period-btn ${
+              periodLabel === "오후" ? "shared-time-scroll-popover-period-btn--active" : ""
             }`}
-            aria-hidden
+            onClick={() => handlePeriodClick("오후")}
+            aria-pressed={periodLabel === "오후"}
+            aria-label="오후 선택"
           >
             오후
-          </div>
+          </button>
         </div>
         <div className="shared-time-scroll-popover-cylinder">
           <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top" aria-hidden />
