@@ -129,6 +129,9 @@ export default function AdminRouter() {
         {/* ================= Materials ================= */}
         <Route path="materials/*" element={<MaterialsRoutes />} />
 
+        {/* ================= Storage (저장소 통합) ================= */}
+        <Route path="storage/*" element={<StorageRoutes />} />
+
         {/* ================= Clinic ================= */}
         <Route path="clinic/*" element={<ClinicRoutes />} />
 
