@@ -122,7 +122,14 @@ export default function MyStorageExplorer() {
         <Breadcrumb path={breadcrumbPath} onSelect={setCurrentFolderId} />
         <div className={styles.actions}>
           <div className={styles.addWrap}>
-            <Button type="button" intent="primary" size="sm" onClick={() => setAddChoiceOpen(true)}>
+            <Button
+              type="button"
+              intent="primary"
+              size="sm"
+              onClick={() => !isLocked && setAddChoiceOpen(true)}
+              disabled={isLocked}
+              title={isLocked ? "Lite 플랜에서는 인벤토리를 사용할 수 없습니다." : undefined}
+            >
               <FilePlus size={16} style={{ marginRight: 6 }} />
               추가
             </Button>
