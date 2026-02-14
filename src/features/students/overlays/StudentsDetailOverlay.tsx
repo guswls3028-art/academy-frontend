@@ -411,14 +411,15 @@ function InfoRow({
 }) {
   return (
     <div
+      className="ds-overlay-info-row"
       style={{
         display: "grid",
         gridTemplateColumns: "1fr auto",
         alignItems: "center",
-        padding: "10px 12px",
-        borderRadius: 10,
+        padding: "6px 10px",
+        borderRadius: 8,
         background: accent
-          ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))"
+          ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
           : "var(--color-bg-surface)",
         border: "1px solid var(--color-border-divider)",
         fontSize: 13,
