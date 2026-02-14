@@ -558,3 +558,19 @@
   font-size: 13px;
   color: var(--color-text-muted);
 }
+
+.ds-inventory-viewer__body .ds-inventory-viewer__iframe,
+.ds-inventory-viewer__body .ds-inventory-viewer__img,
+.ds-inventory-viewer__body .ds-inventory-viewer__video {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+}
+.ds-inventory-viewer__body .ds-inventory-viewer__iframe {
+  width: 100%;
+  min-height: 50vh;
+  border: none;
+}
+.ds-inventory-viewer__body .ds-inventory-viewer__video {
+  width: 100%;
+}
