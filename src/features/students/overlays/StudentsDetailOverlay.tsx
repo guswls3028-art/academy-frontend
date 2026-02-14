@@ -525,20 +525,35 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 aria-hidden
                 onChange={handleInventoryFileChange}
               />
-              <div className="ds-inventory-panel__tabs">
-                {(["score", "misc", "video", "image"] as const).map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`ds-inventory-panel__tab ${inventoryTab === key ? "is-active" : ""}`}
-                    onClick={() => setInventoryTab(key)}
-                  >
-                    {key === "score" && "성적표"}
-                    {key === "misc" && "기타"}
-                    {key === "video" && "제출영상"}
-                    {key === "image" && "제출이미지"}
-                  </button>
-                ))}
+              <div className="ds-inventory-panel__tabs-wrap">
+                <div className="ds-inventory-panel__multi-check">
+                  <input
+                    id="inv-multi"
+                    type="checkbox"
+                    checked={inventoryMultiSelect}
+                    onChange={(e) => {
+                      setInventoryMultiSelect(e.target.checked);
+                      if (!e.target.checked) setInventorySelectedIds(new Set());
+                    }}
+                    aria-label="다중 선택"
+                  />
+                  <label htmlFor="inv-multi">다중</label>
+                </div>
+                <div className="ds-inventory-panel__tabs">
+                  {(["score", "misc", "video", "image"] as const).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`ds-inventory-panel__tab ${inventoryTab === key ? "is-active" : ""}`}
+                      onClick={() => setInventoryTab(key)}
+                    >
+                      {key === "score" && "성적표"}
+                      {key === "misc" && "기타"}
+                      {key === "video" && "제출영상"}
+                      {key === "image" && "제출이미지"}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="ds-inventory-panel__body">
                 <div className="ds-inventory-panel__grid">
