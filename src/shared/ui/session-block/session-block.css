@@ -278,6 +278,20 @@
   text-shadow: 0 1px 0 var(--session-block-highlight, rgba(255, 255, 255, 0.4));
 }
 
+/* 모달용 큰 블록: 타이틀만 크게, 설명은 작게 (차시블록 확장판) */
+.session-block:not(.session-block--compact) .session-block__title {
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 800;
+}
+
+.session-block:not(.session-block--compact) .session-block__desc {
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+  opacity: 0.9;
+}
+
 .session-block__desc {
   margin-top: 4px;
   font-size: 12px;
