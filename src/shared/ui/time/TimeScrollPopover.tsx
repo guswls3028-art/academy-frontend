@@ -125,6 +125,17 @@ export function TimeScrollPopover({
     setSelectedIdx(idx);
   }, [value]);
 
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (scrollEndTimeoutRef.current) {
+        clearTimeout(scrollEndTimeoutRef.current);
+        scrollEndTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   // 초기 스크롤 (마운트 시 1회)
   useLayoutEffect(() => {
     const el = listRef.current;
