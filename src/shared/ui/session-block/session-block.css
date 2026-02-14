@@ -18,17 +18,17 @@
   --session-block-supplement-selected-bottom: color-mix(in srgb, var(--session-block-supplement) 55%, transparent);
   --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, var(--scale-Neutral0)) 100%);
 
-  /* 디자인: DS radius·elevation·spacing */
+  /* 디자인: 블록 = 내부 볼록 효과(inset) 위주, 외부 그림자 최소화 */
   --session-block-radius: var(--radius-md);
-  --session-block-highlight: rgba(255, 255, 255, 0.12);
-  --session-block-shadow-subtle: rgba(0, 0, 0, 0.18);
-  --session-block-shadow-soft: var(--elevation-1);
-  --session-block-bottom-px: 3px;
-  --session-block-drop: 4px 10px;
-  --session-block-bottom-px-hover: 4px;
-  --session-block-drop-hover: 6px 14px;
-  --session-block-bottom-px-active: 1px;
-  --session-block-drop-active: 2px 6px;
+  /* 상단 하이라이트(볼록한 면이 빛 받는 느낌) */
+  --session-block-inset-top: inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+  --session-block-inset-glow: inset 0 2px 6px rgba(255, 255, 255, 0.12);
+  /* 하단 내부 살짝 어둡게(블록 두께감) */
+  --session-block-inset-bottom: inset 0 -1px 0 0 rgba(0, 0, 0, 0.08);
+  /* 외부 그림자 최소(블록 자체가 튀어나온 느낌만) */
+  --session-block-outer: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --session-block-outer-hover: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --session-block-outer-active: 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
 /* ----- 공통 블록 (모달·세션 동일 구조, 변수만 사용) ----- */
