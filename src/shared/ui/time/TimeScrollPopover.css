@@ -28,10 +28,12 @@
 .shared-time-scroll-popover-periods {
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
+  justify-content: space-between;
   padding-right: var(--space-3);
+  margin-right: var(--space-2);
   border-right: 1px solid var(--color-border-divider);
   flex-shrink: 0;
+  min-height: 240px;
 }
 
 .shared-time-scroll-popover-period-item {
