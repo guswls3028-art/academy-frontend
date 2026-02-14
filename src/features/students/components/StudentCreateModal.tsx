@@ -442,36 +442,14 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         description={activeTab === "single" ? "⌘/Ctrl + Enter 로 등록" : "엑셀 파일로 학생을 일괄 등록합니다"}
       />
 
-      <div style={{ padding: "0 24px 12px" }}>
+      <div className="modal-tabs-area">
         <Tabs value={activeTab} items={TAB_ITEMS} onChange={setActiveTab} />
         {progress && activeTab === "excel" && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: "10px 14px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--color-primary)",
-              background: "color-mix(in srgb, var(--color-primary) 10%, transparent)",
-              borderRadius: 8,
-              border: "1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)",
-            }}
-          >
-            창을 닫아도 진행됩니다
+          <div className="modal-form-group" style={{ marginTop: "var(--space-3)", padding: "var(--space-3) var(--space-4)" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-brand-primary)" }}>창을 닫아도 진행됩니다</span>
           </div>
         )}
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 12,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--color-text-secondary)",
-            cursor: "pointer",
-          }}
-        >
+        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: "var(--space-3)", marginBottom: 0, cursor: "pointer" }}>
           <input
             type="checkbox"
             checked={Boolean(sendWelcomeMessage)}
