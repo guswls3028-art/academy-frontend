@@ -7,7 +7,7 @@ function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
 
-type Tone = "neutral" | "success" | "danger" | "primary";
+type Tone = "neutral" | "success" | "danger" | "warning" | "primary";
 
 function Dot({ tone }: { tone: Tone }) {
   const cls =
@@ -15,6 +15,8 @@ function Dot({ tone }: { tone: Tone }) {
       ? "bg-[var(--color-danger)]"
       : tone === "success"
       ? "bg-[var(--color-success)]"
+      : tone === "warning"
+      ? "bg-[var(--color-warning)]"
       : tone === "primary"
       ? "bg-[var(--color-brand-primary)]"
       : "bg-[var(--color-text-muted)]";
