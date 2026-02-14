@@ -1,6 +1,0 @@
-/* PATH: src/shared/ui/ds/styles/page-header.css */
-
-.page-header[data-variant="hero"] {
-  background: var(--ui-hero-bg);
-  border: 1px solid var(--ui-hero-border);
-}
