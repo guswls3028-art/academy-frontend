@@ -25,7 +25,7 @@ export default function DomainTabs({
   onNavigate,
 }: DomainTabsProps) {
   return (
-    <div className="ds-tabs">
+    <div className="ds-tabs ds-tabs--flat" role="tablist">
       {tabs.map((tab) =>
         tab.locked ? (
           <button
