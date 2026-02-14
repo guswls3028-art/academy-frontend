@@ -471,146 +471,137 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       <ModalBody key={activeTab}>
         {activeTab === "single" ? (
         <div className="modal-scroll-body modal-scroll-body--compact">
+          {/* 필수 입력 — 세션 모달과 동일 구조·입체감 */}
           <div className="modal-form-group">
             <span className="modal-section-label">필수 입력</span>
-            <div className="modal-form-row modal-form-row--3">
+            <input
+              name="name"
+              placeholder="이름"
+              value={form.name ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.name || "").trim() ? "true" : "false"}
+              disabled={busy}
+              autoFocus
+            />
+            <input
+              name="initialPassword"
+              type="password"
+              placeholder="초기 비밀번호"
+              value={form.initialPassword ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
+              disabled={busy}
+            />
+            <input
+              placeholder="학부모 전화 (010-XXXX-XXXX)"
+              value={formatPhoneForInput(form.parentPhone ?? "")}
+              onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
+              disabled={busy}
+              maxLength={13}
+              inputMode="numeric"
+              pattern="[0-9\-]*"
+            />
+          </div>
+
+          {/* 선택 입력 — 세션 모달과 동일 구조·입체감 */}
+          <div className="modal-form-group">
+            <span className="modal-section-label">선택 입력</span>
+            <div className="modal-form-row modal-form-row--1-auto">
               <input
-                name="name"
-                placeholder="이름"
-                value={form.name ?? ""}
-                onChange={handleChange}
+                placeholder="학생 전화 (없으면 부모 전화로 OMR)"
+                value={formatPhoneForInput(form.studentPhone ?? "")}
+                onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
                 className="ds-input"
-                data-required="true"
-                data-invalid={!String(form.name || "").trim() ? "true" : "false"}
-                disabled={busy}
-                autoFocus
-              />
-              <input
-                name="initialPassword"
-                type="password"
-                placeholder="초기 비밀번호"
-                value={form.initialPassword ?? ""}
-                onChange={handleChange}
-                className="ds-input"
-                data-required="true"
-                data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
-                disabled={busy}
-              />
-              <input
-                placeholder="학부모 전화 (010-XXXX-XXXX)"
-                value={formatPhoneForInput(form.parentPhone ?? "")}
-                onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
-                className="ds-input"
-                data-required="true"
-                data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
                 disabled={busy}
                 maxLength={13}
                 inputMode="numeric"
                 pattern="[0-9\-]*"
               />
+              <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                  <Button
+                    key={g.key}
+                    intent={form.gender === g.key ? "secondary" : "ghost"}
+                    aria-pressed={form.gender === g.key}
+                    onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                    disabled={busy}
+                  >
+                    {g.label}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
-
-          <input
-            placeholder="학생 전화 (선택, 없으면 부모 전화로 OMR)"
-            value={formatPhoneForInput(form.studentPhone ?? "")}
-            onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
-            className="ds-input"
-            disabled={busy}
-            maxLength={13}
-            inputMode="numeric"
-            pattern="[0-9\-]*"
-          />
-
-          <div className="modal-form-row modal-form-row--2">
-            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-              {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
-                <Button
-                  key={g.key}
-                  intent={form.gender === g.key ? "secondary" : "ghost"}
-                  aria-pressed={form.gender === g.key}
-                  onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
-                  disabled={busy}
-                >
-                  {g.label}
-                </Button>
-              ))}
+            <div className="modal-form-row modal-form-row--1-auto" style={{ gridTemplateColumns: "1fr auto auto" }}>
+              <input
+                name="school"
+                placeholder="학교명 (XX고·XX중 입력 시 자동 선택)"
+                value={form.school ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                {[{ key: "HIGH", label: "고등" }, { key: "MIDDLE", label: "중등" }].map((t) => (
+                  <Button
+                    key={t.key}
+                    intent={form.schoolType === t.key ? "secondary" : "ghost"}
+                    aria-pressed={form.schoolType === t.key}
+                    onClick={() => setForm((p) => ({ ...p, schoolType: t.key }))}
+                    disabled={busy}
+                  >
+                    {t.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+                {["1", "2", "3"].map((g) => (
+                  <Button
+                    key={g}
+                    intent={form.grade === g ? "secondary" : "ghost"}
+                    aria-pressed={form.grade === g}
+                    onClick={() => setForm((p) => ({ ...p, grade: g }))}
+                    disabled={busy}
+                  >
+                    {g}학년
+                  </Button>
+                ))}
+              </div>
             </div>
-            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-              {[{ key: "HIGH", label: "고등" }, { key: "MIDDLE", label: "중등" }].map((t) => (
-                <Button
-                  key={t.key}
-                  intent={form.schoolType === t.key ? "secondary" : "ghost"}
-                  aria-pressed={form.schoolType === t.key}
-                  onClick={() =>
-                    setForm((p) => ({
-                      ...p,
-                      schoolType: t.key,
-                      school: "",
-                      schoolClass: "",
-                      major: "",
-                    }))
-                  }
-                  disabled={busy}
-                >
-                  {t.label}
-                </Button>
-              ))}
+            <div className="modal-form-row modal-form-row--2">
+              <input
+                name="schoolClass"
+                placeholder="반"
+                value={form.schoolClass ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <input
+                name="major"
+                placeholder="계열(고등만)"
+                value={form.major ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
             </div>
-          </div>
-
-          <div className="modal-form-row modal-form-row--1-auto">
-            <input
-              name="school"
-              placeholder="학교명"
-              value={form.school ?? ""}
+            <textarea
+              name="memo"
+              rows={3}
+              placeholder="메모"
+              value={form.memo ?? ""}
               onChange={handleChange}
-              className="ds-input"
-              disabled={busy}
-            />
-            <div className="modal-actions-inline">
-              {["1", "2", "3"].map((g) => (
-                <Button
-                  key={g}
-                  intent={form.grade === g ? "secondary" : "ghost"}
-                  aria-pressed={form.grade === g}
-                  onClick={() => setForm((p) => ({ ...p, grade: g }))}
-                  disabled={busy}
-                >
-                  {g}학년
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div className="modal-form-row modal-form-row--2">
-            <input
-              name="schoolClass"
-              placeholder="반"
-              value={form.schoolClass ?? ""}
-              onChange={handleChange}
-              className="ds-input"
-              disabled={busy}
-            />
-            <input
-              name="major"
-              placeholder="계열(고등만)"
-              value={form.major ?? ""}
-              onChange={handleChange}
-              className="ds-input"
+              className="ds-textarea"
               disabled={busy}
             />
           </div>
-
-          <textarea
-            name="memo"
-            rows={3}
-            placeholder="메모"
-            value={form.memo ?? ""}
-            onChange={handleChange}
-            className="ds-textarea"
-            disabled={busy}
-          />
 
           <div className="modal-form-row modal-form-row--1-auto">
             <span className="modal-hint modal-hint--block" style={{ marginBottom: 0 }}>
