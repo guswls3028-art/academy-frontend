@@ -202,16 +202,24 @@ export default function TimeRangeInput({
             <button
               type="button"
               className="shared-time-range-btn"
-              onClick={() => subtractFromEnd(30)}
-              disabled={disabled || !end || (!!start && !!end && end <= start)}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                subtractFromEnd(30);
+              }}
+              disabled={disabled}
             >
               −30분
             </button>
             <button
               type="button"
               className="shared-time-range-btn"
-              onClick={() => subtractFromEnd(60)}
-              disabled={disabled || !end || (!!start && !!end && end <= start)}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                subtractFromEnd(60);
+              }}
+              disabled={disabled}
             >
               −1시간
             </button>

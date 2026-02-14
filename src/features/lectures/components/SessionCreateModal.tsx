@@ -309,7 +309,12 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                   </span>
                 </div>
                 {(timeMode === "custom" || isSupplement) && (
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    role="group"
+                    aria-label="시간 선택"
+                  >
                     <TimeRangeInput
                       value={timeInput}
                       onChange={setTimeInput}
