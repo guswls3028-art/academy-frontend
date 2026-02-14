@@ -49,11 +49,12 @@
 /* ----- 컴팩트 (세션바·목록용) — 차시 블록과 차시 추가 버튼 동일 규격 ----- */
 .session-block--compact {
   min-width: 168px;
+  width: 168px;
   height: 64px;
   min-height: 64px;
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
-  flex-shrink: 0;
+  flex: 0 0 auto;
   box-shadow:
     0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.1)),
     0 3px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.18))),
