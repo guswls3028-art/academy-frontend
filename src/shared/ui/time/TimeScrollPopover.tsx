@@ -195,11 +195,10 @@ export function TimeScrollPopover({
       while (Math.abs(wheelAccumRef.current) >= threshold) {
         const step = wheelAccumRef.current > 0 ? 1 : -1;
         wheelAccumRef.current -= step * threshold;
-        const blockHeight = blockLen * ROW_HEIGHT;
-        let next = el.scrollTop + step * ROW_HEIGHT;
-        if (next < blockHeight * 0.5) next += blockHeight;
-        else if (next > blockHeight * 2 - blockHeight * 0.5) next -= blockHeight;
-        el.scrollTop = Math.max(0, Math.min(next, el.scrollHeight - VISIBLE_HEIGHT));
+        el.scrollTop = Math.max(
+          0,
+          Math.min(el.scrollTop + step * ROW_HEIGHT, el.scrollHeight - VISIBLE_HEIGHT)
+        );
       }
     };
 
