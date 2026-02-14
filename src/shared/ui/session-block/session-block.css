@@ -150,12 +150,8 @@
 
 .session-block--n1.session-block--selected {
   border-color: var(--color-brand-primary);
-  --session-block-bottom: color-mix(in srgb, var(--color-brand-primary) 55%, transparent);
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--color-brand-primary) 22%, white) 0%,
-    color-mix(in srgb, var(--color-brand-primary) 12%, white) 100%
-  );
+  --session-block-bottom: var(--session-block-n1-selected-bottom);
+  background: var(--session-block-n1-selected-bg);
   box-shadow:
     0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.2)),
     0 5px 0 0 var(--session-block-bottom),
@@ -181,33 +177,21 @@
     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
-/* ----- 보강 ----- */
+/* ----- 보강 — :root 색상 단일 소스로 모달·세션페이지 동일 ----- */
 .session-block--supplement {
-  --session-block-bottom: color-mix(in srgb, var(--session-block-supplement) 45%, transparent);
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--session-block-supplement) 14%, white) 0%,
-    color-mix(in srgb, var(--session-block-supplement) 8%, white) 100%
-  );
+  --session-block-bottom: var(--session-block-supplement-bottom);
+  background: var(--session-block-supplement-bg);
   color: var(--color-text-primary);
 }
 
 .session-block--supplement:hover {
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--session-block-supplement) 18%, white) 0%,
-    color-mix(in srgb, var(--session-block-supplement) 10%, white) 100%
-  );
+  background: var(--session-block-supplement-bg-hover);
 }
 
 .session-block--supplement.session-block--selected {
   border-color: var(--session-block-supplement);
-  --session-block-bottom: color-mix(in srgb, var(--session-block-supplement) 55%, transparent);
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--session-block-supplement) 22%, white) 0%,
-    color-mix(in srgb, var(--session-block-supplement) 12%, white) 100%
-  );
+  --session-block-bottom: var(--session-block-supplement-selected-bottom);
+  background: var(--session-block-supplement-selected-bg);
   box-shadow:
     0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.2)),
     0 5px 0 0 var(--session-block-bottom),
