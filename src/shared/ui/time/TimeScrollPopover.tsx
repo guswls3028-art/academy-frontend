@@ -102,6 +102,7 @@ export function TimeScrollPopover({
   const scrollToIdx = useCallback((idx: number) => {
     const el = listRef.current;
     if (!el) return;
+    lastIdxRef.current = idx;
     const blockHeight = ALL_SLOTS.length * ROW_HEIGHT;
     const top = blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
     el.scrollTop = Math.max(0, Math.min(top, el.scrollHeight - VISIBLE_HEIGHT));
