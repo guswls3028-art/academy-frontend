@@ -139,7 +139,7 @@ export default function StudentsTable({
 
   return (
     <div style={{ width: "fit-content" }}>
-    <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: 921 }}>
+    <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: 913 }}>
       <colgroup>
         {columns.map((c) => (
           <col key={c.key} style={{ width: c.w }} />
