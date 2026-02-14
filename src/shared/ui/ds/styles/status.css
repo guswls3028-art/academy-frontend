@@ -127,19 +127,20 @@ button.ds-status-badge:disabled {
   transform: scale(0.98);
 }
 
-.ds-status-badge--action[data-status="active"] {
+/* 색상 SSOT: 버튼과 동일 톤 — 연한 success/neutral, hover 시 강해짐 */
+button.ds-status-badge.ds-status-badge--action[data-status="active"] {
   background: color-mix(in srgb, var(--color-success) 20%, var(--color-bg-surface, #fff));
   color: var(--color-success);
 }
-.ds-status-badge--action[data-status="active"]:hover:not(:disabled) {
+button.ds-status-badge.ds-status-badge--action[data-status="active"]:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-success) 28%, var(--color-bg-surface, #fff));
 }
 
-.ds-status-badge--action[data-status="inactive"] {
+button.ds-status-badge.ds-status-badge--action[data-status="inactive"] {
   background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
   color: var(--color-text-secondary);
 }
-.ds-status-badge--action[data-status="inactive"]:hover:not(:disabled) {
+button.ds-status-badge.ds-status-badge--action[data-status="inactive"]:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface));
   color: var(--color-text-primary);
 }
