@@ -120,7 +120,7 @@
   font-family: inherit;
   font-variant-numeric: tabular-nums;
   scroll-snap-align: center;
-  scroll-snap-stop: normal;
+  scroll-snap-stop: always;
 }
 
 .time-picker__item:hover {
