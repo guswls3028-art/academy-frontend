@@ -328,6 +328,12 @@ export default function StudentsHomePage() {
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               isDeletedTab={isDeletedTab}
+              onToggleActive={
+                !isDeletedTab
+                  ? (id, nextActive) => toggleActiveMutation.mutate({ id, nextActive })
+                  : undefined
+              }
+              togglingId={togglingId ?? undefined}
             />
           ) : (
             <EmptyState
