@@ -86,6 +86,8 @@ export function TimeScrollPopover({
   const popoverRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(false);
+  const isJumpingRef = useRef(false);
+  const lastIdxRef = useRef(slotIndex(value));
 
   const initialIdx = slotIndex(value);
   const [selectedIdx, setSelectedIdx] = useState(initialIdx);
