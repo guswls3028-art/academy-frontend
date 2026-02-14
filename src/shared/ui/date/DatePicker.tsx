@@ -54,7 +54,11 @@ export default function DatePicker({
 
   // 포털로 body에 렌더해 overflow 잘림 방지. position: fixed 좌표 계산
   useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
+    if (!open) {
+      setDropdownStyle(null);
+      return;
+    }
+    if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const space = 8;
     const dropdownHeight = 380; // 대략적 달력 높이
