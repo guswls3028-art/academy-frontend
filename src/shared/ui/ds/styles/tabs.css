@@ -66,3 +66,13 @@
   border-bottom-color: var(--color-brand-primary);
   background: transparent;
 }
+
+/* 도메인 헤더 내 탭 영역 — 탭만큼만 배경으로 탭처럼 보이게 */
+.domain-header__tabs-wrap {
+  margin-top: var(--space-4);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  width: fit-content;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
