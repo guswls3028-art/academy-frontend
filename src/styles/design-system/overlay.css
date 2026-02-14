@@ -1,0 +1,158 @@
+/* ============================================================================
+ * OVERLAY SSOT — 페이지와 유사한 디자인 (상세 오버레이 공통)
+ * PATH: src/styles/design-system/overlay.css
+ * - 백드롭 + 패널 크기 제한
+ * - 컴팩트 헤더 (두껍지 않게, 도메인 헤더와 톤 통일)
+ * - 아이디·식별코드 눈에 띄게 (.ds-overlay-header__id, __code)
+ * ============================================================================ */
+
+/* 백드롭 */
+.ds-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.2s ease;
+}
+
+/* 래퍼 — 패널 중앙, 헤더 높이만큼 상단 여백 */
+.ds-overlay-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  padding-top: calc(var(--panel-header, 64px) + 12px);
+  padding-bottom: 12px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* 패널 — 페이지 패널과 유사, 크기 제한 */
+.ds-overlay-panel {
+  width: 100%;
+  max-width: 960px;
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 12px 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+/* 헤더 — 컴팩트 (도메인 헤더와 유사한 톤·높이) */
+.ds-overlay-header {
+  position: relative;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.ds-overlay-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.ds-overlay-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* 좌측 액센트 바 (도메인 헤더와 동일) */
+.ds-overlay-header__accent {
+  flex-shrink: 0;
+  width: 4px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--color-brand-primary);
+}
+
+.ds-overlay-header__title-block {
+  min-width: 0;
+}
+
+.ds-overlay-header__title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* 아이디·식별코드 — 눈에 잘 띄게 */
+.ds-overlay-header__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.ds-overlay-header__id,
+.ds-overlay-header__code {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+}
+
+.ds-overlay-header__code {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+}
+
+.ds-overlay-header__meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+
+.ds-overlay-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* 본문 */
+.ds-overlay-body {
+  padding: var(--space-5);
+}
+
+/* 오버레이 내 탭 — 페이지 플랫탭과 동일 */
+.ds-overlay-tabs {
+  margin-top: var(--space-4);
+  padding: var(--space-1) 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-surface);
+  width: fit-content;
+}
+
+.ds-overlay-tabs .ds-tabs {
+  gap: var(--space-1);
+}
+
+.ds-overlay-tabs .ds-tab {
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+}
