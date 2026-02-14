@@ -237,6 +237,9 @@ table.ds-table {
   text-align: left;
   vertical-align: middle;
 }
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th:nth-child(2) {
+  text-align: center;
+}
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th {
   padding: 4px 18px;
 }
