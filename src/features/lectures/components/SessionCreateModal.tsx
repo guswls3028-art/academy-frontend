@@ -290,7 +290,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
               {showDefaultTimeOption && (
                 <label
                   className={cx(
-                    "flex items-center gap-3 rounded-xl border p-3 transition",
+                    "session-option-row flex items-center gap-3 rounded-xl border p-3 transition",
                     isSupplement
                       ? "cursor-not-allowed border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] opacity-60"
                       : "cursor-pointer border-[var(--border-divider)] hover:bg-[var(--color-bg-surface-soft)]"
@@ -312,7 +312,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                   </span>
                 </label>
               )}
-              <label className="flex flex-col gap-2 rounded-xl border border-[var(--border-divider)] p-3 hover:bg-[var(--color-bg-surface-soft)]">
+              <label className="session-option-row flex flex-col gap-2 rounded-xl border border-[var(--border-divider)] p-3 hover:bg-[var(--color-bg-surface-soft)]">
                 <div className="flex items-center gap-3 cursor-pointer" onClick={() => setTimeMode("custom")}>
                   <input
                     type="radio"
