@@ -11,7 +11,8 @@ export type StorageQuota = {
 
 export async function fetchStorageQuota(): Promise<StorageQuota> {
   try {
-    return await request<StorageQuota>("/quota/");
+    const { data } = await api.get<StorageQuota>("/storage/quota/");
+    return data;
   } catch {
     return { usedBytes: 0, limitBytes: 10 * 1e9, plan: "basic" };
   }
