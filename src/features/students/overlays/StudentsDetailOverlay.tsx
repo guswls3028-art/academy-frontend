@@ -30,6 +30,19 @@ const TABS = [
   { key: "schoolScore", label: "학교 성적" },
 ];
 
+/** 인벤토리 아이콘 프리셋 — 시험/자료 종류별 시각 구분 */
+const INVENTORY_ICON_PRESETS = [
+  { id: "mid1", label: "1학기 중간", emoji: "📄", color: "#c62828" },
+  { id: "final1", label: "1학기 기말", emoji: "📄", color: "#ad1457" },
+  { id: "mid2", label: "2학기 중간", emoji: "📄", color: "#6a1b9a" },
+  { id: "final2", label: "2학기 기말", emoji: "📄", color: "#1565c0" },
+  { id: "mock3", label: "모의고사 3월", emoji: "📋", color: "#00838f" },
+  { id: "mock6", label: "모의고사 6월", emoji: "📋", color: "#2e7d32" },
+  { id: "mock9", label: "모의고사 9월", emoji: "📋", color: "#ef6c00" },
+  { id: "custom", label: "학원 사설", emoji: "📌", color: "#37474f" },
+  { id: "misc", label: "기타", emoji: "📎", color: "#757575" },
+] as const;
+
 type StudentsDetailOverlayProps = {
   /** 라우트가 아닌 곳(예: 모달)에서 띄울 때 전달. 있으면 onClose로만 닫고 라우트 변경 없음 */
   studentId?: number;
