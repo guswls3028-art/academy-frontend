@@ -54,7 +54,6 @@ export default function SessionBar() {
                 supplement ? "session-block--supplement" : "session-block--n1",
                 active && "session-block--selected"
               )}
-              style={{ flex: "0 0 auto", minWidth: 168 }}
             >
               <span className="session-block__title">{s.order ?? "?"}차시</span>
               <span className="session-block__desc">{s.date || "-"}</span>
@@ -66,7 +65,6 @@ export default function SessionBar() {
           type="button"
           onClick={() => setShowModal(true)}
           className="session-block session-block--compact session-block--add"
-          style={{ flex: "0 0 auto", minWidth: 168 }}
         >
           <span className="session-block__title">+ 차시 추가</span>
         </button>
