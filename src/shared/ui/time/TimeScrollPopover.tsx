@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/time/TimeScrollPopover.tsx
-// 단일 롤러: 00:00~23:30 48슬롯, "오전 9:30" 등으로 표시. 스크롤·클릭으로 선택.
+// [ 오전 | 24h롤러 ] — 우측 24h 48슬롯 롤링, 좌측 오전/오후 시각+클릭(같은 시각 AM↔PM ±12h).
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./TimeScrollPopover.css";
@@ -8,7 +8,7 @@ const ROW_HEIGHT = 48;
 const VISIBLE_ROWS = 5;
 const VISIBLE_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
 
-/** 24h 30분 단위 48슬롯 */
+/** 24h 30분 단위 48슬롯 (00:00~23:30) */
 const ALL_SLOTS = (() => {
   const out: string[] = [];
   for (let h = 0; h < 24; h++) {
@@ -19,7 +19,7 @@ const ALL_SLOTS = (() => {
   return out;
 })();
 
-/** 24h "HH:mm" → "오전 9:30" / "오후 2:00" */
+/** 24h "HH:mm" → "오전 9:30" / "오후 2:00" (오후 = +12h 표현) */
 export function format24To12Display(hhmm: string): string {
   if (!hhmm) return "오전 12:00";
   const [hStr, mStr] = hhmm.split(":");
@@ -45,6 +45,17 @@ function slotTo24h(idx: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/** idx 0-23 = 오전, 24-47 = 오후 */
+function isAfternoon(idx: number): boolean {
+  return idx >= 24;
+}
+
+/** 오전↔오후 토글: 같은 12h 시각, ±12h */
+function flipPeriod(idx: number): number {
+  if (idx < 24) return idx + 24; // 오전 → 오후
+  return idx - 24; // 오후 → 오전
+}
+
 export interface TimeScrollPopoverProps {
   value: string;
   slots: string[];
@@ -64,6 +75,7 @@ export function TimeScrollPopover({
 }: TimeScrollPopoverProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(false);
 
   const initialIdx = slotIndex(value);
   const [selectedIdx, setSelectedIdx] = useState(initialIdx);
@@ -75,15 +87,31 @@ export function TimeScrollPopover({
     onSelectRef.current(slotTo24h(idx));
   }, []);
 
+  const scrollToIdx = useCallback((idx: number) => {
+    const el = listRef.current;
+    if (!el) return;
+    const blockHeight = ALL_SLOTS.length * ROW_HEIGHT;
+    const top = blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+    el.scrollTop = Math.max(0, Math.min(top, el.scrollHeight - VISIBLE_HEIGHT));
+    setSelectedIdx(idx);
+  }, []);
+
+  // 외부 value 변경 시 동기화
   useEffect(() => {
-    setSelectedIdx(slotIndex(value));
+    const idx = slotIndex(value);
+    setSelectedIdx(idx);
   }, [value]);
 
+  // 선택 변경 시 부모에 전달 (마운트 직후 1회 제외)
   useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
     emit(selectedIdx);
   }, [selectedIdx, emit]);
 
-  // 초기 스크롤
+  // 초기 스크롤 (마운트 시 1회)
   useLayoutEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -92,7 +120,7 @@ export function TimeScrollPopover({
       blockHeight + initialIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
   }, [initialIdx]);
 
-  // 스크롤 → 인덱스 + 무한 순환
+  // 스크롤 → 인덱스 반영 + 무한 순환
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -128,16 +156,18 @@ export function TimeScrollPopover({
     return () => document.removeEventListener("mousedown", handler);
   }, [anchorEl, onClose]);
 
-  const scrollTo = useCallback((idx: number) => {
-    const el = listRef.current;
-    if (!el) return;
-    const blockHeight = ALL_SLOTS.length * ROW_HEIGHT;
-    const top = blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
-    el.scrollTo({ top, behavior: "smooth" });
-    setSelectedIdx(idx);
-  }, []);
+  const handlePeriodClick = useCallback(
+    (wantAfternoon: boolean) => {
+      const currentlyAfternoon = isAfternoon(selectedIdx);
+      if (currentlyAfternoon === wantAfternoon) return;
+      const newIdx = flipPeriod(selectedIdx);
+      scrollToIdx(newIdx);
+    },
+    [selectedIdx, scrollToIdx]
+  );
 
   const rect = anchorEl.getBoundingClientRect();
+  const isPM = isAfternoon(selectedIdx);
 
   return (
     <div
@@ -147,13 +177,36 @@ export function TimeScrollPopover({
         position: "fixed",
         left: rect.left,
         bottom: window.innerHeight - rect.top + 8,
-        width: Math.max(rect.width, 220),
+        width: Math.max(rect.width, 260),
         zIndex: 1100,
       }}
       role="listbox"
       aria-label="시간 선택"
     >
       <div className="time-picker__body">
+        {/* 좌측: 오전/오후 시각 + 클릭(같은 시각 AM↔PM) */}
+        <div className="time-picker__period">
+          <button
+            type="button"
+            className={`time-picker__period-btn ${!isPM ? "time-picker__period-btn--active" : ""}`}
+            onClick={() => handlePeriodClick(false)}
+          >
+            오전
+          </button>
+          <button
+            type="button"
+            className={`time-picker__period-btn ${isPM ? "time-picker__period-btn--active" : ""}`}
+            onClick={() => handlePeriodClick(true)}
+          >
+            오후
+          </button>
+        </div>
+
+        <div className="time-picker__divider" aria-hidden>
+          |
+        </div>
+
+        {/* 우측: 24h 롤러 (표시는 오전/오후 12h) */}
         <div className="time-picker__roller">
           <div className="time-picker__mask time-picker__mask--top" />
           <div className="time-picker__mask time-picker__mask--bottom" />
@@ -170,7 +223,7 @@ export function TimeScrollPopover({
                   type="button"
                   className="time-picker__item"
                   style={{ height: ROW_HEIGHT }}
-                  onClick={() => scrollTo(i)}
+                  onClick={() => scrollToIdx(i)}
                 >
                   {format24To12Display(slot)}
                 </button>
