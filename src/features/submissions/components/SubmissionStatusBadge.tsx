@@ -20,15 +20,20 @@ export default function SubmissionStatusBadge({
 }) {
   if (!status) {
     return (
-      <span className="inline-flex items-center rounded-full border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-300">
+      <span className="ds-status-badge" data-tone="neutral">
         -
       </span>
     );
   }
   const key = (SUBMISSION_STATUS_COLOR as any)[status] ?? "gray";
+  const toneMap: Record<string, "success" | "danger" | "primary" | "neutral"> = {
+    green: "success", red: "danger", blue: "primary", indigo: "primary",
+    yellow: "neutral", gray: "neutral",
+  };
+  const tone = toneMap[key] ?? "neutral";
   const cls = COLOR_CLASS[key] ?? COLOR_CLASS.gray;
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs ${cls}`}>
+    <span className={`ds-status-badge ${cls}`} data-tone={tone} style={{ border: "1px solid transparent" }}>
       {(SUBMISSION_STATUS_LABEL as any)[status] ?? status}
     </span>
   );
