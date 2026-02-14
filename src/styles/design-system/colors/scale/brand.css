@@ -1,5 +1,5 @@
 /* PATH: src/styles/design-system/colors/scale/brand.css */
-/* Brand Scale Tokens (names fixed) */
+/* Brand Scale Tokens (names fixed) — 테마에서만 값 오버라이드 */
 
 :root {
   /* Primary */
@@ -11,6 +11,9 @@
   --scale-Primary500: #3b82f6;
   --scale-Primary600: #2563eb;
   --scale-Primary700: #1d4ed8;
+
+  /* Complement (보색) — 보강 블록 등 보조 강조, 테마별 Primary 보색 */
+  --scale-Complement500: #0d9488;
 
   /* Secondary */
   --scale-Secondary100: #e0e7ff;
