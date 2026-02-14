@@ -122,7 +122,15 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
-    setForm((p) => ({ ...p, [name]: value }));
+    setForm((p) => {
+      const next = { ...p, [name]: value };
+      if (name === "school") {
+        const t = String(value ?? "").trim();
+        if (t.endsWith("고")) next.schoolType = "HIGH";
+        else if (t.endsWith("중")) next.schoolType = "MIDDLE";
+      }
+      return next;
+    });
   }
 
   function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
