@@ -672,13 +672,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
               <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                 {bulkResult.failed.map((item, idx) => (
-                  <div key={idx} className="modal-form-group" style={{ padding: "var(--space-3)" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  <div key={idx} className="modal-form-group modal-form-group--compact">
+                    <div className="modal-section-label" style={{ marginBottom: "var(--space-1)", fontSize: 12 }}>
                       {item.row}행 {item.name} · <span style={{ color: "var(--color-status-error)" }}>{item.error}</span>
                     </div>
                     {item.conflict_student_id && (
-                      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 8 }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                      <div className="modal-actions-inline" style={{ marginBottom: "var(--space-2)" }}>
+                        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginBottom: 0, cursor: "pointer", fontSize: 13 }}>
                           <input
                             type="radio"
                             name={`conflict-${item.row}`}
