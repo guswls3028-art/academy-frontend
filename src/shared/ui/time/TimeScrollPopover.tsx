@@ -108,13 +108,13 @@ export function TimeScrollPopover({
     return () => el.removeEventListener("scroll", onScroll);
   }, [blockLen]);
 
+  const popoverRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
       if (anchorEl.contains(target)) return;
-      if (scrollRef.current?.contains(target)) return;
-      const popover = (e.target as HTMLElement).closest(".shared-time-scroll-popover");
-      if (popover?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
       onClose();
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -144,6 +144,7 @@ export function TimeScrollPopover({
 
   return (
     <div
+      ref={popoverRef}
       className="shared-time-scroll-popover shared-time-scroll-popover--cylinder"
       style={{
         position: "fixed",
