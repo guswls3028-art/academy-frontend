@@ -72,3 +72,23 @@
   color: var(--color-text-muted);
   line-height: 1.35;
 }
+
+/* 날짜/시간 라디오 옵션 블록 — 버튼처럼 볼록한 입체감 */
+.session-option-row {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 160ms ease;
+}
+
+.session-option-row:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.session-option-row:active {
+  box-shadow:
+    inset 0 1px 1px rgba(0, 0, 0, 0.05),
+    0 1px 1px rgba(0, 0, 0, 0.03);
+}
