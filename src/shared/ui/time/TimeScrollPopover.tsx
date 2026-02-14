@@ -99,8 +99,8 @@ export function TimeScrollPopover({
       } else if (st > blockHeight * 2 - ROW_HEIGHT) {
         el.scrollTop = st - blockHeight;
       }
-      const centerIndex = Math.round((st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT) % blockLen;
-      const idx = centerIndex < 0 ? centerIndex + blockLen : centerIndex;
+      const centerRow = (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
+      const idx = (Math.floor(centerRow) % blockLen + blockLen) % blockLen;
       setPeriodLabel(idx < SLOTS_PER_PERIOD ? "오전" : "오후");
     }
     el.addEventListener("scroll", onScroll, { passive: true });
