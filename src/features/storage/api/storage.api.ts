@@ -49,7 +49,8 @@ export async function fetchInventoryList(
   const params: Record<string, string> = { scope };
   if (studentPs) params.student_ps = studentPs;
   try {
-    return await request<InventoryListResponse>("/inventory/", { params });
+    const { data } = await api.get<InventoryListResponse>("/storage/inventory/", { params });
+    return data;
   } catch {
     return { folders: [], files: [] };
   }
