@@ -2,7 +2,7 @@
 
 :root {
   /* 색상: DS --color-brand-primary / role (모달 색상 = 세션페이지 동일) */
-  --session-block-supplement: var(--color-supplement, var(--scale-Primary500));
+  --session-block-supplement: var(--color-supplement, #0d9488);
   --session-block-add: var(--color-text-muted);
 
   --session-block-n1-bottom: color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
@@ -78,15 +78,15 @@
   padding: var(--space-3) var(--space-5);
 }
 
-/* ----- 컴팩트(세션페이지) — 동일 디자인·동일 색상, 16:9 비율 ----- */
+/* ----- 컴팩트(세션페이지) — 모달과 동일 디자인·동일 색상, 16:9, DS spacing으로 크기 확대 ----- */
 .session-block--compact {
-  /* 16:9 (width:height), 높이 45px → width 80px */
-  min-width: 80px;
-  width: 80px;
-  height: 45px;
-  min-height: 45px;
+  /* 16:9, 세션 내 블록 크기 키움 (DS --space-* 기준) */
+  min-width: 128px;
+  width: 128px;
+  height: 72px;
+  min-height: 72px;
   aspect-ratio: unset;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   flex: 0 0 auto;
 }
 
