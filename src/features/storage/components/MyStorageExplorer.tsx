@@ -3,14 +3,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  FolderOpen,
-  FileText,
-  Image,
-  FilePlus,
-  FolderPlus,
-  MoreVertical,
-} from "lucide-react";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
 import {
   fetchInventoryList,
