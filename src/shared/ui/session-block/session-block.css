@@ -2,7 +2,7 @@
 
 :root {
   /* 색상: DS --color-brand-primary / role (모달 색상 = 세션페이지 동일) */
-  --session-block-supplement: var(--color-supplement, #0d9488);
+  --session-block-supplement: var(--color-brand-complement);
   --session-block-add: var(--color-text-muted);
 
   /* 밝은 쪽은 DS 고정값(Neutral0)으로 해서 모달·세션페이지 색상 완전 동일 */
