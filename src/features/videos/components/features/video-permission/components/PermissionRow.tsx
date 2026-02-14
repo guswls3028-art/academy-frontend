@@ -58,10 +58,12 @@ export default function PermissionRow({
         <input type="checkbox" checked={selected} onChange={onToggle} />
       </div>
 
-      {/* NAME + 강의 딱지 (전역 규칙) */}
+      {/* NAME + 아바타 + 강의 딱지 (전역 규칙) */}
       <div className="permission-name text-[var(--text-primary)]">
         <StudentNameWithLectureChip
           name={student.student_name ?? ""}
+          profilePhotoUrl={student.profile_photo_url ?? undefined}
+          avatarSize={24}
           lectures={
             student.lecture_title
               ? [{ lectureName: student.lecture_title, color: student.lecture_color }]

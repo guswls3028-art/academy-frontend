@@ -223,6 +223,8 @@ export default function LectureStudentsPage() {
                         <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: col.name }}>
                           <StudentNameWithLectureChip
                             name={row.name ?? ""}
+                            profilePhotoUrl={row.profile_photo_url ?? undefined}
+                            avatarSize={24}
                             lectures={
                               lecture?.title
                                 ? [{ lectureName: lecture.title, color: lecture.color }]

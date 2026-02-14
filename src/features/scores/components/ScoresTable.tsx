@@ -198,6 +198,8 @@ export default function ScoresTable({
               <div className={`${tdBase} font-semibold min-w-0`}>
                 <StudentNameWithLectureChip
                   name={row.student_name ?? ""}
+                  profilePhotoUrl={row.profile_photo_url ?? undefined}
+                  avatarSize={24}
                   lectures={
                     row.lecture_title
                       ? [{ lectureName: row.lecture_title, color: row.lecture_color }]

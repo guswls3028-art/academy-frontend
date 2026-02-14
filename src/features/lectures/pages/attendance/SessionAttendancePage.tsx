@@ -408,12 +408,14 @@ export default function SessionAttendancePage({
                     <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle">
                       <StudentNameWithLectureChip
                         name={att.name ?? ""}
+                        profilePhotoUrl={att.profile_photo_url ?? undefined}
+                        avatarSize={24}
                         lectures={
                           att.lecture_title
                             ? [{ lectureName: att.lecture_title, color: att.lecture_color }]
                             : lecture
                               ? [{ lectureName: lecture.title, color: lecture.color }]
-                              : []
+                              : undefined
                         }
                         chipSize={16}
                       />

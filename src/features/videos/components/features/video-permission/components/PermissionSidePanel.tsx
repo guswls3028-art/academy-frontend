@@ -182,11 +182,13 @@ export default function PermissionSidePanel({
                     </span>
                   </div>
 
-                  {/* 이름 + 강의 딱지 (전역 규칙) */}
+                  {/* 이름 + 아바타 + 강의 딱지 (전역 규칙) */}
                   <div className="col-span-3 min-w-0">
                     <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
                       <StudentNameWithLectureChip
                         name={s.student_name ?? ""}
+                        profilePhotoUrl={s.profile_photo_url ?? undefined}
+                        avatarSize={24}
                         lectures={
                           s.lecture_title
                             ? [{ lectureName: s.lecture_title, color: s.lecture_color }]

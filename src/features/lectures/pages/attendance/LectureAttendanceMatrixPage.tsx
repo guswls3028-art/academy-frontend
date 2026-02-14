@@ -124,10 +124,12 @@ export default function LectureAttendanceMatrixPage() {
                   >
                     <StudentNameWithLectureChip
                       name={row.name ?? ""}
+                      profilePhotoUrl={row.profile_photo_url ?? undefined}
+                      avatarSize={24}
                       lectures={
                         lectureInfo
                           ? [{ lectureName: lectureInfo.title, color: lectureInfo.color }]
-                          : []
+                          : undefined
                       }
                       chipSize={16}
                     />
