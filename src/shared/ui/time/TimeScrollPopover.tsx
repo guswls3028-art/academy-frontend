@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/time/TimeScrollPopover.tsx
-// 오전 | 시간 롤링 — 둘 다 같은 원통형 롤러, 스크롤/마우스로 선택.
+// [ 오전 | 12h표시(24h기준) ] — 오전/오후: 클릭 + 휠 돌리면 자동순환. 시간: 롤링 선택.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./TimeScrollPopover.css";
