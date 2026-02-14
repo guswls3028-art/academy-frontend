@@ -49,6 +49,12 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryTab, setInventoryTab] = useState<"score" | "misc" | "video" | "image">("score");
   const [viewerItem, setViewerItem] = useState<{ type: "pdf" | "image" | "video"; url: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  type UploadedInventoryItem = { id: string; title: string; description: string; fileName: string; fileUrl: string; fileType: "pdf" | "image" };
+  const [uploadedScoreItems, setUploadedScoreItems] = useState<UploadedInventoryItem[]>([]);
+  const [uploadedMiscItems, setUploadedMiscItems] = useState<UploadedInventoryItem[]>([]);
+  const [addFileModal, setAddFileModal] = useState<{ tab: "score" | "misc"; file: File; title: string; description: string } | null>(null);
 
   const { data: student, isLoading } = useQuery({
     queryKey: ["student", id],
