@@ -15,7 +15,7 @@
 
 .shared-time-range-grid {
   display: grid;
-  grid-template-columns: 88px 1fr auto;
+  grid-template-columns: 92px minmax(200px, 1fr) auto;
   gap: var(--space-4) var(--space-4);
   align-items: center;
 }
