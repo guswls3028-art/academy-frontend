@@ -38,6 +38,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
   const [endDate, setEndDate] = useState("");
   const [lectureTime, setLectureTime] = useState("");
   const [color, setColor] = useState(() => getDefaultColorForPicker(usedColors));
+  const [chipLabel, setChipLabel] = useState("");
 
   const modalTitle = useMemo(() => "강의 추가", []);
 
