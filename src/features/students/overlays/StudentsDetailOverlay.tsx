@@ -105,7 +105,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
             className="ds-overlay-panel__close"
             onClick={onClose}
           />
-          {/* 헤더 — 좌: 아바타 이름 강의딱지 | 우: 아이디블럭 / 식별자블럭 + 액션 */}
+          {/* 헤더 — 1행: 아바타(큼) | 이름 | 강의딱지 | 2행: 아이디·OMR 블럭(SSOT 뱃지 스타일) + 액션 */}
           <header className="ds-overlay-header">
             <div className="ds-overlay-header__inner">
               <div className="ds-overlay-header__left">
@@ -115,7 +115,8 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     <StudentNameWithLectureChip
                       name={student.name ?? ""}
                       profilePhotoUrl={student.profilePhotoUrl}
-                      avatarSize={40}
+                      avatarSize={88}
+                      chipSize={40}
                       lectures={
                         Array.isArray(student.enrollments) && student.enrollments.length > 0
                           ? student.enrollments.map((en: { lectureName?: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
@@ -127,15 +128,17 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                       }
                     />
                   </h1>
+                  <div className="ds-overlay-header__pills">
+                    <span className="ds-overlay-header__pill ds-overlay-header__pill--id" title="아이디">
+                      {student.psNumber ?? "—"}
+                    </span>
+                    <span className="ds-overlay-header__pill ds-overlay-header__pill--code" title="시험 식별코드">
+                      {formatOmrCode(student.omrCode)}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="ds-overlay-header__right">
-                <span className="ds-overlay-header__id-block" title="아이디">
-                  {student.psNumber ?? "—"}
-                </span>
-                <span className="ds-overlay-header__code-block" title="시험 식별코드">
-                  {formatOmrCode(student.omrCode)}
-                </span>
                 <div className="ds-overlay-header__actions">
                   <button
                     type="button"
