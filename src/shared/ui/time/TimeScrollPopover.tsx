@@ -144,8 +144,6 @@ export function TimeScrollPopover({
         isJumpingRef.current = false;
       }
       let st = el.scrollTop;
-      const didJump =
-        st < blockHeight * 0.5 || st > blockHeight * 2 - blockHeight * 0.5;
       if (st < blockHeight * 0.5) {
         isJumpingRef.current = true;
         el.scrollTop = st + blockHeight;
