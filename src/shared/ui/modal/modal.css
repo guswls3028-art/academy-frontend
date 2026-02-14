@@ -351,14 +351,14 @@
   transform: translateY(0);
 }
 
-/* 남자 — 미선택 시에도 파랑 톤 보유 */
+/* 남자 — 미선택 톤 완화 */
 .student-gender-btn--m {
-  background: color-mix(in srgb, #2563eb 14%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, #2563eb 10%, var(--scale-Neutral0, #fff));
   color: #1e40af;
 }
 
 .student-gender-btn--m:hover:not(:disabled) {
-  background: color-mix(in srgb, #2563eb 22%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, #2563eb 16%, var(--scale-Neutral0, #fff));
 }
 
 .student-gender-btn--m.is-selected {
