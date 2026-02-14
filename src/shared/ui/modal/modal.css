@@ -1,0 +1,57 @@
+/* PATH: src/shared/ui/modal/modal.css
+   모달 SSOT — 모든 모달 공통: 스크롤 본문, 날짜/시간 옵션 행(달력·타임스크롤 래퍼) */
+
+/* 스크롤 가능한 모달 본문 (차시 추가 등 폼 모달) */
+.modal-scroll-body {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* 섹션 라벨 (날짜, 시간 등) */
+.modal-section-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+/* 날짜/시간 옵션 행 — 달력·타임스크롤 등이 들어가는 행 (DS 볼록 inset) */
+.modal-option-row {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 160ms ease;
+}
+
+.modal-option-row:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+    inset 0 2px 6px rgba(255, 255, 255, 0.1),
+    0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.modal-option-row:active {
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.modal-option-row--disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.modal-option-row--disabled:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+}
