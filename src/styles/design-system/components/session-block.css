@@ -346,4 +346,4 @@
   transform: scale(1);
 }
 
-/* 날짜/시간 옵션 행 스타일 → shared/ui/modal (modal.css .modal-option-row) SSOT로 이전 */
+/* 날짜/시간 옵션 행 스타일 → styles/design-system/modal.css (.modal-option-row) SSOT */
