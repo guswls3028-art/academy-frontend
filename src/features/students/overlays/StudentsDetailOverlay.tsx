@@ -225,6 +225,17 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   };
 
   const deleteSelectedInventory = () => {
+    const toDeleteFolderIds = Array.from(inventorySelectedFolderIds);
+    for (const fid of toDeleteFolderIds) {
+      if (folderHasChildren(fid)) {
+        alert("비어있지 않은 폴더는 지울 수 없습니다. 먼저 하위 파일·폴더를 비우거나 삭제하세요.");
+        return;
+      }
+    }
+    toDeleteFolderIds.forEach((fid) => setCurrentFolders((prev) => prev.filter((f) => f.id !== fid)));
+    if (currentFolderId && toDeleteFolderIds.includes(currentFolderId)) setCurrentFolderId(null);
+    setInventorySelectedFolderIds(new Set());
+
     const toDelete = Array.from(selectedIds);
     toDelete.forEach((id) => {
       const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === id);
