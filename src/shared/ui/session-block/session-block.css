@@ -139,36 +139,39 @@
   display: none;
 }
 
-/* 컴팩트 호버/액티브 시에도 위에서 덮어쓴 변수로 동일 구조 유지 */
+/* 컴팩트도 동일한 볼록 inset 효과 */
 .session-block--compact.session-block:hover {
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px-hover) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
-    0 var(--session-block-drop-hover) var(--session-block-shadow-soft);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.14),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer-hover);
 }
 
 .session-block--compact.session-block:active {
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px-active) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
-    0 var(--session-block-drop-active) var(--session-block-shadow-soft);
+    inset 0 2px 4px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    var(--session-block-outer-active);
 }
 
 .session-block--compact.session-block--n1.session-block--selected,
 .session-block--compact.session-block--selected {
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom),
-    0 var(--session-block-drop) color-mix(in srgb, var(--color-brand-primary) 25%, transparent),
-    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
 }
 
 .session-block--compact.session-block--supplement.session-block--selected {
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom),
-    0 var(--session-block-drop) color-mix(in srgb, var(--session-block-supplement) 25%, transparent),
-    0 0 0 2px color-mix(in srgb, var(--session-block-supplement) 25%, transparent);
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer),
+    0 0 0 2px color-mix(in srgb, var(--session-block-supplement) 30%, transparent);
 }
 
 /* ----- N차시 ----- */
