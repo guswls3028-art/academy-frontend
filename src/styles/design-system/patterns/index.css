@@ -11,9 +11,8 @@
 @import "./header.css";
 @import "./modal-form.css";
 
-/* ✅ Enterprise primitives */
+/* ✅ Enterprise primitives (상태 뱃지는 shared/ui/ds/styles/status.css SSOT) */
 @import "./badge.css";
-@import "./status.css";
 @import "./modal.css";
 @import "./table.css";
 
