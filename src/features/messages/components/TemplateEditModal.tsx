@@ -2,10 +2,9 @@
 // 템플릿 추가/수정 모달 — 좌: 미리보기+블록 / 우: 본문(게시판형), 뷰 모드(잠금) 지원
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Input, Tabs } from "antd";
-import type { TabsProps } from "antd";
+import { Input } from "antd";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Button, Tabs } from "@/shared/ui/ds";
 import {
   getBlocksForCategory,
   renderPreviewText,
