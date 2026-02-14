@@ -190,16 +190,13 @@ export function TimeScrollPopover({
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      wheelAccumRef.current += e.deltaY;
-      const threshold = ROW_HEIGHT;
-      while (Math.abs(wheelAccumRef.current) >= threshold) {
-        const step = wheelAccumRef.current > 0 ? 1 : -1;
-        wheelAccumRef.current -= step * threshold;
-        el.scrollTop = Math.max(
-          0,
-          Math.min(el.scrollTop + step * ROW_HEIGHT, el.scrollHeight - VISIBLE_HEIGHT)
-        );
-      }
+      const step = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0;
+      if (step === 0) return;
+      const nextTop = Math.max(
+        0,
+        Math.min(el.scrollTop + step * ROW_HEIGHT, el.scrollHeight - VISIBLE_HEIGHT)
+      );
+      el.scrollTo({ top: nextTop, behavior: "smooth" });
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
