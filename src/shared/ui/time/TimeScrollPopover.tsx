@@ -216,8 +216,6 @@ export function TimeScrollPopover({
 
         {/* 우측: 24h 롤러 (시:분만 표시) */}
         <div className="time-picker__roller">
-          <div className="time-picker__roller-mask time-picker__roller-mask--top" aria-hidden />
-          <div className="time-picker__roller-mask time-picker__roller-mask--bottom" aria-hidden />
           <div className="time-picker__highlight" aria-hidden />
           <div
             ref={listRef}
