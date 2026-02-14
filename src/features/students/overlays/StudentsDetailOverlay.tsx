@@ -106,19 +106,41 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const handleInventoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const tab = addFileTabRef.current;
-    const baseName = file.name.replace(/\.[^.]+$/, "") || file.name;
-    setAddFileModal({ tab, file, title: baseName, description: "", iconPreset: INVENTORY_ICON_PRESETS[0].id });
+    setAddFileModal((m) => (m ? { ...m, file, title: m.title || file.name.replace(/\.[^.]+$/, "") || file.name } : null));
     e.target.value = "";
   };
 
-  const triggerAddFile = (tab: "score" | "misc") => {
-    addFileTabRef.current = tab;
-    fileInputRef.current?.click();
+  const openAddChoice = (tab: "score" | "misc") => setAddChoiceModal(tab);
+  const openUploadModal = () => {
+    if (!addChoiceModal) return;
+    setAddFileModal({
+      tab: addChoiceModal,
+      file: null,
+      title: "",
+      description: "",
+      iconPreset: INVENTORY_ICON_PRESETS[0].id,
+    });
+    setAddChoiceModal(null);
+  };
+  const openNewFolderModal = () => {
+    if (!addChoiceModal) return;
+    setNewFolderModal({ tab: addChoiceModal, name: "" });
+    setAddChoiceModal(null);
+  };
+
+  const confirmNewFolder = () => {
+    if (!newFolderModal || !newFolderModal.name.trim()) return;
+    const folder: InventoryFolder = {
+      id: crypto.randomUUID(),
+      name: newFolderModal.name.trim(),
+      parentId: currentFolderId,
+    };
+    setCurrentFolders((prev) => [...prev, folder]);
+    setNewFolderModal(null);
   };
 
   const confirmAddFile = () => {
-    if (!addFileModal) return;
+    if (!addFileModal || !addFileModal.file) return;
     const { tab, file, title, description, iconPreset } = addFileModal;
     const fileUrl = URL.createObjectURL(file);
     const fileType = file.type.startsWith("image/") ? "image" as const : "pdf" as const;
@@ -130,10 +152,20 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
       fileUrl,
       fileType,
       iconPreset,
+      folderId: currentFolderId,
     };
     if (tab === "score") setUploadedScoreItems((prev) => [...prev, item]);
     else setUploadedMiscItems((prev) => [...prev, item]);
     setAddFileModal(null);
+  };
+
+  const subFolders = currentFolders.filter((f) => f.parentId === currentFolderId);
+  const currentListFiltered = currentList.filter((i) => (i.folderId ?? null) === currentFolderId);
+
+  const folderHasChildren = (folderId: string) => {
+    const hasSub = currentFolders.some((f) => f.parentId === folderId);
+    const hasFiles = currentList.some((i) => (i.folderId ?? null) === folderId);
+    return hasSub || hasFiles;
   };
 
   const currentList = inventoryTab === "score" ? uploadedScoreItems : uploadedMiscItems;
