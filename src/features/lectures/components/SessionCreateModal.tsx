@@ -152,7 +152,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
   const showDefaultTimeOption = sessionType === "n+1";
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={560}>
+    <AdminModal open={true} onClose={onClose} type="action" width={580}>
       <ModalHeader
         type="action"
         title="차시 추가"
