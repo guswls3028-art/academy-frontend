@@ -123,16 +123,15 @@ export function TimeScrollPopover({
       blockT + timeIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
   }, []);
 
-  // period 롤러 — 오전/오후 2개만, 휠로 롤링 전환
+  // period — 오전/오후 2개만, 휠 돌리면 자동 순환 (오른쪽=아래로 스크롤=다음)
   useEffect(() => {
-    const el = periodScrollRef.current;
+    const el = periodAreaRef.current;
     if (!el) return;
 
     const handler = (e: WheelEvent) => {
       e.preventDefault();
-      setPeriodIdx((prev) =>
-        e.deltaY > 0 ? (prev + 1) % 2 : (prev - 1 + 2) % 2
-      );
+      e.stopPropagation();
+      setPeriodIdx((prev) => (e.deltaY > 0 ? (prev + 1) % 2 : (prev - 1 + 2) % 2));
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
@@ -204,8 +203,11 @@ export function TimeScrollPopover({
       aria-label="시간 선택"
     >
       <div className="shared-time-scroll-popover-layout">
-        {/* 오전 | 오후 롤러 — 시간과 같은 원통형 디자인 */}
-        <div className="shared-time-scroll-popover-cylinder shared-time-scroll-popover-cylinder--period">
+        {/* 오전 | 오후 — 클릭 + 휠 돌리면 자동순환 (오른쪽 시간은 24h 기준 12h 표시) */}
+        <div
+          ref={periodAreaRef}
+          className="shared-time-scroll-popover-cylinder shared-time-scroll-popover-cylinder--period"
+        >
           <div
             className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top"
             aria-hidden
@@ -215,7 +217,6 @@ export function TimeScrollPopover({
             aria-hidden
           />
           <div
-            ref={periodScrollRef}
             className="shared-time-scroll-popover-list shared-time-scroll-popover-list--period"
             style={{ height: VISIBLE_HEIGHT }}
           >

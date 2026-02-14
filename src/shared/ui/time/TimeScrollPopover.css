@@ -38,9 +38,11 @@
 .shared-time-scroll-popover-cylinder--period {
   flex: 0 0 72px;
   width: 72px;
+  min-height: 240px;
   border-radius: 0;
   border: none;
   background: transparent;
+  cursor: default;
 }
 
 .shared-time-scroll-popover-cylinder--period::before {
