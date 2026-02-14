@@ -2,7 +2,7 @@
    원테이크 스크롤 00:00~24:00 순환, 글자 깨짐 방지 */
 
 .shared-time-scroll-popover {
-  padding: var(--space-2);
+  padding: var(--space-3);
   background: var(--ui-control-bg, var(--color-bg-surface));
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
   border-radius: var(--radius-lg);
@@ -10,7 +10,27 @@
   font-family: inherit;
 }
 
+.shared-time-scroll-popover-layout {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+}
+
+.shared-time-scroll-popover-period {
+  flex-shrink: 0;
+  width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-brand-primary, var(--color-primary));
+  font-family: inherit;
+}
+
 .shared-time-scroll-popover-list {
+  flex: 1;
+  min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
