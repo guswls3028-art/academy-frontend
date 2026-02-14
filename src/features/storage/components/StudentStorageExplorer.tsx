@@ -311,6 +311,16 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       {uploadModalOpen && (
         <UploadModal onClose={() => setUploadModalOpen(false)} onUpload={handleUpload} />
       )}
+
+      {conflict && (
+        <MoveDuplicateModal
+          existingName={conflict.existingName}
+          itemType={conflict.type}
+          onOverwrite={() => resolveConflict("overwrite")}
+          onRename={() => resolveConflict("rename")}
+          onCancel={() => setConflict(null)}
+        />
+      )}
     </div>
   );
 }
