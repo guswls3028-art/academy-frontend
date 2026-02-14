@@ -188,8 +188,9 @@ export default function MyStorageExplorer() {
   const resolveConflict = useCallback(
     (choice: "overwrite" | "rename") => {
       if (!conflict) return;
-      handleMove(conflict.targetFolderId, conflict.type, conflict.sourceId, choice);
+      const { targetFolderId, type, sourceId } = conflict;
       setConflict(null);
+      handleMove(targetFolderId, type, sourceId, choice);
     },
     [conflict, handleMove]
   );
