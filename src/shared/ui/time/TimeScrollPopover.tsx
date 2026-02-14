@@ -230,22 +230,20 @@ export function TimeScrollPopover({
           />
           <div
             ref={periodScrollRef}
-            className="shared-time-scroll-popover-list"
-            style={{ height: VISIBLE_HEIGHT }}
+            className="shared-time-scroll-popover-list shared-time-scroll-popover-list--period"
+            style={{ height: PERIOD_VISIBLE_HEIGHT }}
           >
-            {[0, 1, 2].map((block) =>
-              PERIOD_SLOTS.map((label) => (
-                <button
-                  key={`${block}-${label}`}
-                  type="button"
-                  className="shared-time-scroll-popover-item"
-                  style={{ height: ROW_HEIGHT }}
-                  onClick={() => scrollToPeriod(PERIOD_SLOTS.indexOf(label))}
-                >
-                  {label}
-                </button>
-              ))
-            )}
+            {PERIOD_SLOTS.map((label) => (
+              <button
+                key={label}
+                type="button"
+                className="shared-time-scroll-popover-item"
+                style={{ height: ROW_HEIGHT }}
+                onClick={() => scrollToPeriod(PERIOD_SLOTS.indexOf(label))}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
