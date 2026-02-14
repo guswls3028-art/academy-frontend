@@ -130,7 +130,7 @@ export function TimeScrollPopover({
       blockHeight + initialIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
   }, [initialIdx]);
 
-  // 스크롤 → 인덱스 반영 + 무한 순환
+  // 스크롤 → 인덱스 반영 + 무한 순환 (점프는 rAF로 분리해 끊김 감소)
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -139,17 +139,20 @@ export function TimeScrollPopover({
 
     const handleScroll = () => {
       let st = el.scrollTop;
-      if (st < blockHeight * 0.5) {
-        el.scrollTop = st + blockHeight;
-        st = el.scrollTop;
-      } else if (st > blockHeight * 2 - blockHeight * 0.5) {
-        el.scrollTop = st - blockHeight;
-        st = el.scrollTop;
-      }
       const centerY = st + VISIBLE_HEIGHT / 2;
       const row = Math.floor((centerY - ROW_HEIGHT / 2) / ROW_HEIGHT);
       const idx = ((row % blockLen) + blockLen) % blockLen;
       setSelectedIdx(idx);
+
+      if (st < blockHeight * 0.5) {
+        requestAnimationFrame(() => {
+          el.scrollTop = st + blockHeight;
+        });
+      } else if (st > blockHeight * 2 - blockHeight * 0.5) {
+        requestAnimationFrame(() => {
+          el.scrollTop = st - blockHeight;
+        });
+      }
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
