@@ -26,8 +26,58 @@
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
 }
 
+.time-picker__period {
+  flex: 0 0 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border-right: 1px solid var(--color-border-divider);
+}
+
+.time-picker__period-btn {
+  padding: 10px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color 120ms, background 120ms;
+  font-family: inherit;
+}
+
+.time-picker__period-btn:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 10%, transparent);
+}
+
+.time-picker__period-btn--active {
+  color: var(--color-brand-primary, var(--color-primary));
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
+}
+
+.time-picker__divider {
+  width: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  opacity: 0.6;
+}
+
 .time-picker__roller {
   position: relative;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
 }
 
