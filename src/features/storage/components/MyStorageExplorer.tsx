@@ -13,13 +13,27 @@ import {
   deleteFolder,
   deleteFile,
   getPresignedUrl,
+  moveInventoryItem,
   type InventoryFolder,
   type InventoryFile,
+  type MoveConflictError,
 } from "../api/storage.api";
 import Breadcrumb from "./Breadcrumb";
 import FolderTree from "./FolderTree";
 import UploadModal from "./UploadModal";
+import MoveDuplicateModal from "./MoveDuplicateModal";
 import styles from "./MyStorageExplorer.module.css";
+
+const DRAG_TYPE = "application/x-storage-move";
+
+function getDragPayload(e: React.DragEvent): { type: "file" | "folder"; sourceId: string } | null {
+  try {
+    const raw = e.dataTransfer.getData(DRAG_TYPE);
+    return raw ? (JSON.parse(raw) as { type: "file" | "folder"; sourceId: string }) : null;
+  } catch {
+    return null;
+  }
+}
 
 const SCOPE = "admin" as const;
 
