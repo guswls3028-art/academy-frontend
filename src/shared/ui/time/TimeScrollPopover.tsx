@@ -1,13 +1,26 @@
 // PATH: src/shared/ui/time/TimeScrollPopover.tsx
-// 오전 | 12시간 스크롤 | 오후 — 스크롤 시 오전/오후 자동 반영, 클릭 시 반영.
+// 오전 | 시간 롤링 — 둘 다 같은 원통형 롤러, 스크롤/마우스로 선택.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./TimeScrollPopover.css";
 
 const ROW_HEIGHT = 48;
 const VISIBLE_ROWS = 5;
 const VISIBLE_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
-const SLOTS_PER_PERIOD = 24; // 12h * 2 (30min)
+const PERIOD_SLOTS = ["오전", "오후"] as const;
+
+/** 12시간제 슬롯 (30분 간격): 12:00, 12:30, 1:00, ..., 11:30 */
+const TIME_12_SLOTS = (() => {
+  const out: string[] = [];
+  for (let i = 0; i < 24; i++) {
+    const totalMin = i * 30;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    const h12 = h === 0 ? 12 : h;
+    out.push(`${h12}:${String(m).padStart(2, "0")}`);
+  }
+  return out;
+})();
 
 /** 24h "HH:mm" → "오전/오후 H:mm" (12시간제 표시) */
 export function format24To12Display(hhmm: string): string {
@@ -20,14 +33,28 @@ export function format24To12Display(hhmm: string): string {
   return `${period} ${h12}:${String(m).padStart(2, "0")}`;
 }
 
-/** 24h "HH:mm" → 12시간 부분만 "12:00", "1:00" 등 */
-function format24To12PartOnly(hhmm: string): string {
-  if (!hhmm) return "12:00";
-  const [hStr, mStr] = hhmm.split(":");
+/** periodIndex(0=오전,1=오후) + timeIndex(0~23) → 24h "HH:mm" */
+function to24h(periodIndex: number, timeIndex: number): string {
+  const totalMin = timeIndex * 30;
+  const h12 = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  const h24 =
+    periodIndex === 0
+      ? (h12 === 0 ? 0 : h12)
+      : (h12 === 0 ? 12 : 12 + h12);
+  return `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** 24h "HH:mm" → periodIndex, timeIndex */
+function from24h(hhmm: string): { periodIndex: number; timeIndex: number } {
+  const [hStr, mStr] = (hhmm || "00:00").split(":");
   const h = parseInt(hStr ?? "0", 10);
   const m = parseInt(mStr ?? "0", 10);
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${h12}:${String(m).padStart(2, "0")}`;
+  const totalMin = h * 60 + m;
+  const periodIndex = h < 12 ? 0 : 1;
+  const timeTotalMin = h < 12 ? totalMin : totalMin - 12 * 60;
+  const timeIndex = Math.round(timeTotalMin / 30) % 24;
+  return { periodIndex, timeIndex: Math.max(0, Math.min(23, timeIndex)) };
 }
 
 export interface TimeScrollPopoverProps {
@@ -57,11 +84,6 @@ function timeToNearestSlot(hhmm: string, slots: string[]): string {
   return best;
 }
 
-function slotIndex(slots: string[], slot: string): number {
-  const i = slots.indexOf(slot);
-  return i >= 0 ? i : 0;
-}
-
 export function TimeScrollPopover({
   value,
   slots,
@@ -69,46 +91,106 @@ export function TimeScrollPopover({
   onSelect,
   onClose,
 }: TimeScrollPopoverProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [periodLabel, setPeriodLabel] = useState<"오전" | "오후">("오전");
-  const blockLen = slots.length;
+  const periodScrollRef = useRef<HTMLDivElement>(null);
+  const timeScrollRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   const normalized = timeToNearestSlot(value, slots);
-  const selectedIndex = slotIndex(slots, normalized);
+  const { periodIndex, timeIndex } = from24h(normalized);
+
+  const commitValue = useCallback(
+    (pIdx: number, tIdx: number) => {
+      onSelect(to24h(pIdx, tIdx));
+    },
+    [onSelect]
+  );
+
+  // 무한 순환 스크롤 설정
+  const setupCycleScroll = useCallback(
+    (
+      el: HTMLDivElement | null,
+      itemCount: number,
+      selectedIndex: number,
+      onIndexChange: (idx: number) => void
+    ) => {
+      if (!el) return;
+      const blockHeight = itemCount * ROW_HEIGHT;
+      const initScroll =
+        blockHeight +
+        selectedIndex * ROW_HEIGHT -
+        VISIBLE_HEIGHT / 2 +
+        ROW_HEIGHT / 2;
+      el.scrollTop = Math.max(
+        0,
+        Math.min(initScroll, el.scrollHeight - VISIBLE_HEIGHT)
+      );
+
+      const handler = () => {
+        const st = el.scrollTop;
+        if (st < ROW_HEIGHT) el.scrollTop = st + blockHeight;
+        else if (st > blockHeight * 2 - ROW_HEIGHT) el.scrollTop = st - blockHeight;
+        const centerRow =
+          (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
+        const idx =
+          (Math.floor(centerRow) % itemCount + itemCount) % itemCount;
+        onIndexChange(idx);
+      };
+
+      el.addEventListener("scroll", handler, { passive: true });
+      return () => el.removeEventListener("scroll", handler);
+    },
+    []
+  );
+
+  const [periodIdx, setPeriodIdx] = useState(periodIndex);
+  const [timeIdx, setTimeIdx] = useState(timeIndex);
 
   useEffect(() => {
-    setPeriodLabel(selectedIndex < SLOTS_PER_PERIOD ? "오전" : "오후");
-  }, [selectedIndex]);
+    setPeriodIdx(periodIndex);
+    setTimeIdx(timeIndex);
+  }, [periodIndex, timeIndex, value]);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const blockHeight = blockLen * ROW_HEIGHT;
-    const initialScroll = blockHeight + selectedIndex * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
-    el.scrollTop = Math.max(0, Math.min(initialScroll, el.scrollHeight - VISIBLE_HEIGHT));
-  }, [blockLen, selectedIndex]);
+    const unsubP = setupCycleScroll(
+      periodScrollRef.current,
+      PERIOD_SLOTS.length,
+      periodIdx,
+      setPeriodIdx
+    );
+    return () => unsubP?.();
+  }, [setupCycleScroll, PERIOD_SLOTS.length]);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const blockHeight = blockLen * ROW_HEIGHT;
+    const unsubT = setupCycleScroll(
+      timeScrollRef.current,
+      TIME_12_SLOTS.length,
+      timeIdx,
+      setTimeIdx
+    );
+    return () => unsubT?.();
+  }, [setupCycleScroll, TIME_12_SLOTS.length]);
 
-    function onScroll() {
-      const st = el.scrollTop;
-      if (st < ROW_HEIGHT) {
-        el.scrollTop = st + blockHeight;
-      } else if (st > blockHeight * 2 - ROW_HEIGHT) {
-        el.scrollTop = st - blockHeight;
-      }
-      const centerRow = (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
-      const idx = (Math.floor(centerRow) % blockLen + blockLen) % blockLen;
-      setPeriodLabel(idx < SLOTS_PER_PERIOD ? "오전" : "오후");
-    }
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [blockLen]);
+  useEffect(() => {
+    commitValue(periodIdx, timeIdx);
+  }, [periodIdx, timeIdx, commitValue]);
 
-  const popoverRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const elP = periodScrollRef.current;
+    const elT = timeScrollRef.current;
+    if (!elP || !elT) return;
+    const blockP = PERIOD_SLOTS.length * ROW_HEIGHT;
+    const blockT = TIME_12_SLOTS.length * ROW_HEIGHT;
+    elP.scrollTop =
+      blockP +
+      periodIdx * ROW_HEIGHT -
+      VISIBLE_HEIGHT / 2 +
+      ROW_HEIGHT / 2;
+    elT.scrollTop =
+      blockT +
+      timeIdx * ROW_HEIGHT -
+      VISIBLE_HEIGHT / 2 +
+      ROW_HEIGHT / 2;
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -121,25 +203,6 @@ export function TimeScrollPopover({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [anchorEl, onClose]);
 
-  function scrollToSlotAndSelect(index: number) {
-    const el = scrollRef.current;
-    if (!el) return;
-    const blockHeight = blockLen * ROW_HEIGHT;
-    const targetScroll = blockHeight + index * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
-    el.scrollTop = Math.max(0, Math.min(targetScroll, el.scrollHeight - VISIBLE_HEIGHT));
-    const slot = slots[index % blockLen];
-    if (slot) onSelect(slot);
-  }
-
-  function handlePeriodClick(period: "오전" | "오후") {
-    const idx = selectedIndex % SLOTS_PER_PERIOD; // 0~23
-    if (period === "오전") {
-      scrollToSlotAndSelect(idx);
-    } else {
-      scrollToSlotAndSelect(SLOTS_PER_PERIOD + idx);
-    }
-  }
-
   const rect = anchorEl.getBoundingClientRect();
 
   return (
@@ -150,58 +213,99 @@ export function TimeScrollPopover({
         position: "fixed",
         left: rect.left,
         bottom: window.innerHeight - rect.top + 8,
-        width: Math.max(rect.width, 200),
+        width: Math.max(rect.width, 240),
         zIndex: 1100,
       }}
       role="listbox"
       aria-label="시간 선택"
     >
       <div className="shared-time-scroll-popover-layout">
-        <div className="shared-time-scroll-popover-periods">
-          <button
-            type="button"
-            className={`shared-time-scroll-popover-period-btn ${
-              periodLabel === "오전" ? "shared-time-scroll-popover-period-btn--active" : ""
-            }`}
-            onClick={() => handlePeriodClick("오전")}
-            aria-pressed={periodLabel === "오전"}
-            aria-label="오전 선택"
-          >
-            오전
-          </button>
-          <span className="shared-time-scroll-popover-period-sep" aria-hidden>
-            ,
-          </span>
-          <button
-            type="button"
-            className={`shared-time-scroll-popover-period-btn ${
-              periodLabel === "오후" ? "shared-time-scroll-popover-period-btn--active" : ""
-            }`}
-            onClick={() => handlePeriodClick("오후")}
-            aria-pressed={periodLabel === "오후"}
-            aria-label="오후 선택"
-          >
-            오후
-          </button>
-        </div>
-        <div className="shared-time-scroll-popover-cylinder">
-          <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top" aria-hidden />
-          <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--bottom" aria-hidden />
+        {/* 오전 | 오후 롤러 — 시간과 같은 원통형 디자인 */}
+        <div className="shared-time-scroll-popover-cylinder shared-time-scroll-popover-cylinder--period">
           <div
-            ref={scrollRef}
+            className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top"
+            aria-hidden
+          />
+          <div
+            className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--bottom"
+            aria-hidden
+          />
+          <div
+            ref={periodScrollRef}
             className="shared-time-scroll-popover-list"
             style={{ height: VISIBLE_HEIGHT }}
           >
             {[0, 1, 2].map((block) =>
-              slots.map((t) => (
+              PERIOD_SLOTS.map((label) => (
+                <button
+                  key={`${block}-${label}`}
+                  type="button"
+                  className="shared-time-scroll-popover-item"
+                  style={{ height: ROW_HEIGHT }}
+                  onClick={() => {
+                    const idx = PERIOD_SLOTS.indexOf(label);
+                    setPeriodIdx(idx);
+                    commitValue(idx, timeIdx);
+                    const el = periodScrollRef.current;
+                    if (el) {
+                      const blockHeight = PERIOD_SLOTS.length * ROW_HEIGHT;
+                      el.scrollTop =
+                        blockHeight +
+                        idx * ROW_HEIGHT -
+                        VISIBLE_HEIGHT / 2 +
+                        ROW_HEIGHT / 2;
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="shared-time-scroll-popover-divider" aria-hidden>
+          |
+        </div>
+
+        {/* 시간 롤러 */}
+        <div className="shared-time-scroll-popover-cylinder">
+          <div
+            className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top"
+            aria-hidden
+          />
+          <div
+            className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--bottom"
+            aria-hidden
+          />
+          <div
+            ref={timeScrollRef}
+            className="shared-time-scroll-popover-list"
+            style={{ height: VISIBLE_HEIGHT }}
+          >
+            {[0, 1, 2].map((block) =>
+              TIME_12_SLOTS.map((t) => (
                 <button
                   key={`${block}-${t}`}
                   type="button"
                   className="shared-time-scroll-popover-item"
                   style={{ height: ROW_HEIGHT }}
-                  onClick={() => onSelect(t)}
+                  onClick={() => {
+                    const idx = TIME_12_SLOTS.indexOf(t);
+                    setTimeIdx(idx);
+                    commitValue(periodIdx, idx);
+                    const el = timeScrollRef.current;
+                    if (el) {
+                      const blockHeight = TIME_12_SLOTS.length * ROW_HEIGHT;
+                      el.scrollTop =
+                        blockHeight +
+                        idx * ROW_HEIGHT -
+                        VISIBLE_HEIGHT / 2 +
+                        ROW_HEIGHT / 2;
+                    }
+                  }}
                 >
-                  {format24To12PartOnly(t)}
+                  {t}
                 </button>
               ))
             )}
