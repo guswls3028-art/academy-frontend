@@ -40,6 +40,8 @@ export default function DatePicker({
   const [open, setOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState<Dayjs>(() => toDayjs(value) || dayjs());
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
   const selected = toDayjs(value);
   const today = dayjs();
