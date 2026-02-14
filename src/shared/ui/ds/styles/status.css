@@ -1,17 +1,81 @@
-/* PATH: src/shared/ui/ds/styles/status.css */
+/* ============================================================================
+ * DS STATUS BADGE — 전역 SSOT (단일 진실)
+ * - 형태: 버튼과 비슷 (padding, radius, font) — 구분은 톤으로
+ * - 뱃지는 톤 강함 (solid/높은 채도), 버튼은 soft mix → 색상으로 구분
+ * - data-status: active | inactive | archived
+ * - data-tone: success | danger | primary | neutral (Lock/Role 등)
+ * ============================================================================ */
 
 .ds-status-badge {
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
   font-size: 12px;
-  font-weight: var(--font-title);
-  border-radius: 999px;
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface-soft);
+  font-weight: 600;
+  line-height: 1;
+  border: none;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* 클릭 가능한 뱃지(토글 등) */
+button.ds-status-badge {
+  cursor: pointer;
+  transition: opacity 160ms ease, transform 100ms ease;
+}
+button.ds-status-badge:hover:not(:disabled) {
+  opacity: 0.92;
+}
+button.ds-status-badge:active:not(:disabled) {
+  transform: scale(0.98);
+}
+button.ds-status-badge:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---- data-status: 활성/비활성/종료 (강한 톤) ---- */
+.ds-status-badge[data-status="active"] {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.ds-status-badge[data-status="inactive"] {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.ds-status-badge[data-status="archived"] {
+  background: color-mix(in srgb, var(--color-border-divider) 18%, var(--color-bg-surface));
   color: var(--color-text-secondary);
 }
 
-.ds-status-badge[data-status="active"] {
-  color: var(--color-success);
-  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border-divider));
-  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
+/* ---- data-tone: Lock/Role/기타 (동일 강한 톤) ---- */
+.ds-status-badge[data-tone="success"] {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.ds-status-badge[data-tone="danger"] {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.ds-status-badge[data-tone="primary"] {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+
+.ds-status-badge[data-tone="neutral"] {
+  background: color-mix(in srgb, var(--color-border-divider) 18%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
+}
+
+/* 톤 미지정 시 기본(neutral) */
+.ds-status-badge:not([data-status]):not([data-tone]) {
+  background: color-mix(in srgb, var(--color-border-divider) 18%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
 }
