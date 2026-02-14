@@ -1,13 +1,18 @@
 // PATH: src/features/lectures/components/SessionCreateModal.tsx
-// 차시 추가: 2차시/보강을 큰 블록으로 선택. 날짜·시간은 강의 기본값 사용 | 직접선택(전역 달력/시간 UI).
+// 차시 추가: 2차시/보강 선택 + 날짜·시간 (전역 모달 SSOT: ModalDateSection, ModalTimeSection 사용)
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import {
+  AdminModal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+  ModalDateSection,
+  ModalTimeSection,
+} from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
-import { DatePicker } from "@/shared/ui/date";
-import { TimeRangeInput } from "@/shared/ui/time";
 import { createSession } from "../api/sessions";
 import { SessionBlockView } from "@/shared/ui/session-block";
 
