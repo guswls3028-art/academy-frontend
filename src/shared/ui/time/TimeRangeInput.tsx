@@ -64,7 +64,7 @@ function clampEndAboveStart(endStr: string, startStr: string, deltaMinutes: numb
   return next;
 }
 
-const SLOT_MINUTES = 15;
+const SLOT_MINUTES = 30; // 30분 단위 순환 선택
 const SLOTS = (() => {
   const out: string[] = [];
   for (let h = 0; h < 24; h++) {
