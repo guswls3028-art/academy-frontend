@@ -79,8 +79,8 @@ export default function StudentFilterModal({
       />
 
       <ModalBody>
-        <div className="modal-scroll-body">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          <div className="modal-form-row modal-form-row--3">
             <select
               className="ds-select"
               value={local.school_type ?? ""}
@@ -99,8 +99,17 @@ export default function StudentFilterModal({
               <option value="true">활성</option>
               <option value="false">비활성</option>
             </select>
+            <select
+              className="ds-select"
+              value={local.gender || ""}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">성별 전체</option>
+              <option value="M">남</option>
+              <option value="F">여</option>
+            </select>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+          <div className="modal-form-row modal-form-row--3">
             <input
               className="ds-input"
               placeholder="아이디"
@@ -113,22 +122,20 @@ export default function StudentFilterModal({
               value={local.omr_code || ""}
               onChange={(e) => update("omr_code", e.target.value)}
             />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <input
               className="ds-input"
               placeholder="이름"
               value={local.name || ""}
               onChange={(e) => update("name", e.target.value)}
             />
+          </div>
+          <div className="modal-form-row modal-form-row--3">
             <input
               className="ds-input"
               placeholder="계열(major)"
               value={local.major || ""}
               onChange={(e) => update("major", e.target.value)}
             />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <input
               className="ds-input"
               placeholder="고등학교"
@@ -142,30 +149,22 @@ export default function StudentFilterModal({
               onChange={(e) => update("middle_school", e.target.value)}
             />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
-            <select
-              className="ds-select"
-              value={local.gender || ""}
-              onChange={(e) => update("gender", e.target.value)}
-            >
-              <option value="">성별 전체</option>
-              <option value="M">남</option>
-              <option value="F">여</option>
-            </select>
+          <div className="modal-form-row modal-form-row--1-auto">
             <select
               className="ds-select"
               value={local.grade ?? ""}
               onChange={(e) => update("grade", e.target.value)}
+              style={{ maxWidth: "12rem" }}
             >
               <option value="">학년 전체</option>
               <option value="1">1학년</option>
               <option value="2">2학년</option>
               <option value="3">3학년</option>
             </select>
+            <span className="modal-hint" style={{ marginBottom: 0 }}>
+              필터는 서버 조회에 반영되며, 빈 값은 자동 제거됩니다.
+            </span>
           </div>
-          <span className="modal-section-label" style={{ marginTop: "var(--space-2)", marginBottom: 0, fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", lineHeight: 1.6 }}>
-            팁: 필터는 서버 조회에 반영됩니다. 불필요한 빈 값은 자동 제거됩니다.
-          </span>
         </div>
       </ModalBody>
 

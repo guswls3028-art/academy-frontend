@@ -73,8 +73,8 @@ export default function TagCreateModal({
         description="이름과 색상을 정하면 꼬리표처럼 학생에 붙습니다."
       />
       <ModalBody>
-        <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column" }}>
-          <div>
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="modal-form-group modal-form-group--compact">
             <label className="modal-section-label">태그 이름</label>
             <input
               type="text"
@@ -90,7 +90,7 @@ export default function TagCreateModal({
               autoFocus
             />
             {error && (
-              <div style={{ marginTop: "var(--space-2)", fontSize: 12, color: "var(--color-error)", fontWeight: 600 }}>
+              <div className="modal-hint" style={{ marginTop: "var(--space-2)", color: "var(--color-error)" }}>
                 {error}
               </div>
             )}
