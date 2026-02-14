@@ -745,12 +745,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </Button>
         </div>
         ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+        <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)", alignItems: "end" }}>
             <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>
-                초기 비밀번호 (일괄)
-              </label>
+              <label className="modal-section-label">초기 비밀번호 (일괄)</label>
               <input
                 type="password"
                 placeholder="모든 학생에 적용할 초기 비밀번호 (4자 이상)"
@@ -761,7 +759,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 style={{ width: "100%" }}
               />
             </div>
-            <Button intent="secondary" onClick={downloadStudentExcelTemplate} disabled={busy} style={{ alignSelf: "flex-end" }}>
+            <Button intent="secondary" onClick={downloadStudentExcelTemplate} disabled={busy}>
               엑셀 양식 다운로드
             </Button>
           </div>
@@ -771,10 +769,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             tabIndex={0}
             onClick={() => fileInputRef.current?.click()}
             onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+            className="modal-form-group"
             style={{
               border: "2px dashed var(--color-border-divider)",
-              borderRadius: 12,
-              padding: 40,
+              padding: "var(--space-8)",
               textAlign: "center",
               cursor: "pointer",
               background: "var(--color-bg-surface-soft)",
@@ -803,7 +801,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 if (file) handleExcelFileSelect(file);
               }}
             />
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+            <div className="modal-section-label" style={{ fontSize: 15, marginBottom: "var(--space-2)" }}>
               엑셀 파일을 드래그하거나 클릭하여 업로드
             </div>
             <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
