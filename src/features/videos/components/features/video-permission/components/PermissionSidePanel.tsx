@@ -1,6 +1,7 @@
 // PATH: src/features/videos/components/features/video-permission/components/PermissionSidePanel.tsx
 
-// import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
