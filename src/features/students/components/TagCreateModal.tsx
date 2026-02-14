@@ -73,20 +73,9 @@ export default function TagCreateModal({
         description="이름과 색상을 정하면 꼬리표처럼 학생에 붙습니다."
       />
       <ModalBody>
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column" }}>
           <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                fontWeight: 700,
-                color: "var(--color-text-muted)",
-                marginBottom: 8,
-                letterSpacing: "0.04em",
-              }}
-            >
-              태그 이름
-            </label>
+            <label className="modal-section-label">태그 이름</label>
             <input
               type="text"
               className="ds-input w-full"
@@ -101,19 +90,11 @@ export default function TagCreateModal({
               autoFocus
             />
             {error && (
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 12,
-                  color: "var(--color-error)",
-                  fontWeight: 600,
-                }}
-              >
+              <div style={{ marginTop: "var(--space-2)", fontSize: 12, color: "var(--color-error)", fontWeight: 600 }}>
                 {error}
               </div>
             )}
           </div>
-
           <ColorPickerField label="색상" value={color} onChange={setColor} disabled={busy} />
         </div>
       </ModalBody>

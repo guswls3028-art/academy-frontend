@@ -79,8 +79,8 @@ export default function StudentFilterModal({
       />
 
       <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="modal-scroll-body">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <select
               className="ds-select"
               value={local.school_type ?? ""}
@@ -90,7 +90,6 @@ export default function StudentFilterModal({
               <option value="HIGH">고등</option>
               <option value="MIDDLE">중등</option>
             </select>
-
             <select
               className="ds-select"
               value={local.is_managed ?? ""}
@@ -101,8 +100,7 @@ export default function StudentFilterModal({
               <option value="false">비활성</option>
             </select>
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <input
               className="ds-input"
               placeholder="아이디"
@@ -116,8 +114,7 @@ export default function StudentFilterModal({
               onChange={(e) => update("omr_code", e.target.value)}
             />
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <input
               className="ds-input"
               placeholder="이름"
@@ -131,8 +128,7 @@ export default function StudentFilterModal({
               onChange={(e) => update("major", e.target.value)}
             />
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <input
               className="ds-input"
               placeholder="고등학교"
@@ -146,8 +142,7 @@ export default function StudentFilterModal({
               onChange={(e) => update("middle_school", e.target.value)}
             />
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <select
               className="ds-select"
               value={local.gender || ""}
@@ -157,7 +152,6 @@ export default function StudentFilterModal({
               <option value="M">남</option>
               <option value="F">여</option>
             </select>
-
             <select
               className="ds-select"
               value={local.grade ?? ""}
@@ -169,18 +163,9 @@ export default function StudentFilterModal({
               <option value="3">3학년</option>
             </select>
           </div>
-
-          <div
-            style={{
-              marginTop: 2,
-              fontSize: 11,
-              fontWeight: 850,
-              color: "var(--color-text-muted)",
-              lineHeight: 1.6,
-            }}
-          >
+          <span className="modal-section-label" style={{ marginTop: "var(--space-2)", marginBottom: 0, fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)", lineHeight: 1.6 }}>
             팁: 필터는 서버 조회에 반영됩니다. 불필요한 빈 값은 자동 제거됩니다.
-          </div>
+          </span>
         </div>
       </ModalBody>
 

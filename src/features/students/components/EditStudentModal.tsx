@@ -298,7 +298,7 @@ export default function EditStudentModal({
             pattern="[0-9\-]*"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="modal-option-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)", padding: "var(--space-3)" }}>
             {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
               (t) => (
                 <Button
