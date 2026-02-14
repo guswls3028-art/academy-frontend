@@ -62,12 +62,13 @@ export default function DatePicker({
     const rect = triggerRef.current.getBoundingClientRect();
     const space = 8;
     const dropdownHeight = 380; // 대략적 달력 높이
-    const viewportBottom = window.innerHeight - rect.bottom;
-    const fitsBelow = viewportBottom >= dropdownHeight + space;
-    if (fitsBelow) {
-      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
-    } else {
+    const viewportTop = rect.top;
+    const fitsAbove = viewportTop >= dropdownHeight + space;
+    // 기본: 위로 열림. 공간 부족 시에만 아래로
+    if (fitsAbove) {
       setDropdownStyle({ bottom: window.innerHeight - rect.top + space, left: rect.left });
+    } else {
+      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
     }
   }, [open]);
 
