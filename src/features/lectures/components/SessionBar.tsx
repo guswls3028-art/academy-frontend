@@ -66,8 +66,11 @@ export default function SessionBar() {
           type="button"
           onClick={() => setShowModal(true)}
           className="session-block session-block--compact session-block--add"
+          aria-label="차시 추가"
         >
-          <span className="session-block__title">+ 차시 추가</span>
+          <span className="session-block__icon" aria-hidden>
+            <Plus size={22} strokeWidth={2.5} />
+          </span>
         </button>
       </div>
 

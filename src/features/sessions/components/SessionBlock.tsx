@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 
 import { fetchSessions } from "@/features/lectures/api/sessions";
 import SessionCreateModal from "@/features/lectures/components/SessionCreateModal";
@@ -84,8 +85,11 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               type="button"
               onClick={() => setShowCreate(true)}
               className="session-block session-block--compact session-block--add"
+              aria-label="차시 추가"
             >
-              <span className="session-block__title">+ 차시 추가</span>
+              <span className="session-block__icon" aria-hidden>
+                <Plus size={22} strokeWidth={2.5} />
+              </span>
             </button>
           </>
         )}
