@@ -150,13 +150,6 @@
   overscroll-behavior: contain;
   scrollbar-width: none;
   scroll-snap-type: y mandatory;
-  /* 원통 내부 깊이감 */
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, black 2%, var(--color-bg-surface)) 50%,
-    transparent 100%
-  );
 }
 
 .time-picker__list::-webkit-scrollbar {
