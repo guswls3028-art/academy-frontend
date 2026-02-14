@@ -18,20 +18,8 @@
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--ui-control-border, var(--color-border-divider)) 80%, transparent);
-  /* 가로 원통: 부드러운 위아래 곡면 */
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, black 6%, var(--color-bg-surface)) 0%,
-    color-mix(in srgb, black 2%, var(--color-bg-surface)) 12%,
-    var(--color-bg-surface) 30%,
-    var(--color-bg-surface) 70%,
-    color-mix(in srgb, black 2%, var(--color-bg-surface)) 88%,
-    color-mix(in srgb, black 6%, var(--color-bg-surface)) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.03),
-    0 2px 12px rgba(0, 0, 0, 0.06);
+  background: var(--color-bg-surface);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .time-picker__period {
