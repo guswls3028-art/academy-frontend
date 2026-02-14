@@ -265,15 +265,28 @@ function StudentsTable({
                 )}
               </td>
 
-              {/* 상태 */}
+              {/* 상태 — 학생 도메인 예외: 클릭 시 토글(버튼형 연한 톤 뱃지) */}
               {!isDeletedTab && (
                 <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                  <span
-                    className="ds-status-badge"
-                    data-status={s.active ? "active" : "inactive"}
-                  >
-                    {s.active ? "활성" : "비활성"}
-                  </span>
+                  {onToggleActive ? (
+                    <button
+                      type="button"
+                      className="ds-status-badge ds-status-badge--action"
+                      data-status={s.active ? "active" : "inactive"}
+                      disabled={togglingId === s.id}
+                      onClick={() => onToggleActive(s.id, !s.active)}
+                      aria-label={s.active ? "비활성으로 변경" : "활성으로 변경"}
+                    >
+                      {togglingId === s.id ? "…" : s.active ? "활성" : "비활성"}
+                    </button>
+                  ) : (
+                    <span
+                      className="ds-status-badge"
+                      data-status={s.active ? "active" : "inactive"}
+                    >
+                      {s.active ? "활성" : "비활성"}
+                    </span>
+                  )}
                 </td>
               )}
             </tr>
