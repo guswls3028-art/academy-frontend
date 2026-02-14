@@ -78,20 +78,58 @@
   background: var(--color-modal-bg);
 }
 
-/* 탭 영역 (헤더와 본문 사이) — 모달 톤과 어울리게 */
+/* 탭 영역 (헤더와 본문 사이) — 모달 전용 입체감 탭 */
 .modal-tabs-area {
   padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-modal-bg));
+  background: color-mix(in srgb, var(--color-border-divider) 5%, var(--color-modal-bg));
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 }
 
 .modal-tabs-area .ds-tabs {
+  display: flex;
+  gap: var(--space-2);
   margin-bottom: var(--space-3);
 }
 
+.modal-tabs-area .ds-tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  border-bottom: none;
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+}
+
+.modal-tabs-area .ds-tab:hover:not(.is-active):not(:disabled) {
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
 .modal-tabs-area .ds-tab.is-active {
-  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-modal-bg));
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-modal-bg));
+  color: var(--color-text-primary);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+}
+
+.modal-tabs-area .ds-tab.is-active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-modal-bg));
+  transform: translateY(-1px);
 }
 
 /* ========== 푸터 (헤더와 대칭되는 구분감) ========== */
