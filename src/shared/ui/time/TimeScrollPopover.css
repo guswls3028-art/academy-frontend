@@ -1,0 +1,46 @@
+/* PATH: src/shared/ui/time/TimeScrollPopover.css
+   원테이크 스크롤 00:00~24:00 순환, 글자 깨짐 방지 */
+
+.shared-time-scroll-popover {
+  padding: var(--space-2);
+  background: var(--ui-control-bg, var(--color-bg-surface));
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+  font-family: inherit;
+}
+
+.shared-time-scroll-popover-list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shared-time-scroll-popover-item {
+  display: block;
+  width: 100%;
+  padding: 0 var(--space-3);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--ui-control-text, var(--color-text-primary));
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 120ms ease;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+
+.shared-time-scroll-popover-item:hover {
+  background: var(--state-hover-bg, var(--color-bg-surface-hover));
+}
+
+.shared-time-scroll-popover-item:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
+}
