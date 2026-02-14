@@ -57,7 +57,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           <span style={{ fontSize: 14, color: "var(--color-text-muted)" }}>불러오는 중…</span>
         ) : (
           <>
-            {(sessions as { id: number; order?: number; title?: string | null }[]).map((s) => {
+            {(sessions as { id: number; order?: number; date?: string | null; title?: string | null }[]).map((s) => {
               const isActive =
                 currentSessionId != null && Number(s.id) === Number(currentSessionId);
               const supplement = isSupplement(s.title);
@@ -76,6 +76,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   )}
                 >
                   <span className="session-block__title">{s.order ?? "-"}차시</span>
+                  <span className="session-block__desc">{s.date ?? "-"}</span>
                 </button>
               );
             })}
