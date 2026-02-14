@@ -1,7 +1,8 @@
 /* 차시 블록 전역 스타일 — 모달 유형 선택, 세션바, 세션 목록 공용. 입체 블록 디자인 */
-/* 색상: N차시 = --color-brand-primary, 보강 = --session-block-supplement(테마 변수 없으면 fallback) */
+/* 색상: N차시 = --color-brand-primary, 보강 = --session-block-supplement, 차시추가 = --session-block-add */
 :root {
   --session-block-supplement: var(--color-supplement, #0d9488);
+  --session-block-add: var(--color-text-muted);
 }
 
 /* ----- 베이스 블록 ----- */
@@ -232,27 +233,31 @@
   background: var(--session-block-supplement);
 }
 
-/* ----- + 차시 추가 (아웃라인, 아이콘) ----- */
+/* ----- + 차시 추가 (동일 입체 블록, 색상만 --session-block-add) ----- */
 .session-block--add {
-  --session-block-bottom: var(--color-shadow-subtle, rgba(0, 0, 0, 0.12));
-  background: var(--color-bg-surface);
-  border-style: dashed;
-  border-color: var(--color-border-divider);
-  color: var(--color-text-muted);
+  --session-block-bottom: color-mix(in srgb, var(--session-block-add) 45%, transparent);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--session-block-add) 14%, white) 0%,
+    color-mix(in srgb, var(--session-block-add) 8%, white) 100%
+  );
+  color: var(--color-text-primary);
   align-items: center;
   justify-content: center;
 }
 
 .session-block--add:hover {
-  border-color: var(--color-brand-primary);
-  color: var(--color-text-primary);
-  background: var(--color-bg-surface-hover);
-  --session-block-bottom: color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--session-block-add) 18%, white) 0%,
+    color-mix(in srgb, var(--session-block-add) 10%, white) 100%
+  );
+  --session-block-bottom: color-mix(in srgb, var(--session-block-add) 50%, transparent);
 }
 
 .session-block--add .session-block__title {
   color: inherit;
-  text-shadow: none;
+  text-shadow: 0 1px 0 var(--session-block-highlight, rgba(255, 255, 255, 0.4));
 }
 
 .session-block--add .session-block__icon {
