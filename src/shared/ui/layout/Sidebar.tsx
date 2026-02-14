@@ -130,6 +130,11 @@ export default function Sidebar() {
             icon: <Icon d="M3 6h14v12H3zM17 10l4-2v8l-4-2z" />,
           },
           {
+            to: `${BASE}/storage`,
+            label: "저장소",
+            icon: <Icon d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />,
+          },
+          {
             to: `${BASE}/community`,
             label: "커뮤니티",
             icon: <Icon d="M4 4h16v12H7l-3 3z" />,
