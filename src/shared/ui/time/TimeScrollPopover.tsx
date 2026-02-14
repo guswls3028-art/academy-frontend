@@ -129,7 +129,7 @@ export function TimeScrollPopover({
               style={{ height: ROW_HEIGHT }}
               onClick={() => onSelect(t)}
             >
-              {t}
+              {format24To12Display(t)}
             </button>
           ))
         )}
