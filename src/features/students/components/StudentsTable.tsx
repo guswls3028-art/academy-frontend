@@ -241,7 +241,7 @@ export default function StudentsTable({
               {/* 태그 */}
               <td className="text-[12px] leading-5 text-center align-middle">
                 {Array.isArray(s.tags) && s.tags.length > 0 ? (
-                  <span className="flex flex-wrap gap-1">
+                  <span className="flex flex-wrap gap-1 justify-center">
                     {s.tags.slice(0, 3).map((t: { id: number; name: string; color: string }) => (
                       <span
                         key={t.id}
