@@ -103,9 +103,10 @@
 .time-picker__list {
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   scrollbar-width: none;
-  scroll-snap-type: y mandatory;
+  scroll-snap-type: y proximity;
+  -webkit-overflow-scrolling: touch;
 }
 
 .time-picker__list::-webkit-scrollbar {
@@ -131,7 +132,7 @@
   font-family: inherit;
   font-variant-numeric: tabular-nums;
   scroll-snap-align: center;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
 }
 
 .time-picker__item:hover {
