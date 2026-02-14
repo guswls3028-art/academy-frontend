@@ -461,9 +461,10 @@ export default function SessionEnrollModal({
                                         avatarSize={24}
                                         lectures={
                                           Array.isArray(row.enrollments) && row.enrollments.length > 0
-                                            ? row.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => ({
+                                            ? row.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
                                                 lectureName: en.lectureName ?? "??",
                                                 color: en.lectureColor ?? undefined,
+                                                chipLabel: en.lectureChipLabel ?? undefined,
                                               }))
                                             : undefined
                                         }

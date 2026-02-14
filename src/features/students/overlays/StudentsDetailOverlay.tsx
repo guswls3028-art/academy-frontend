@@ -118,9 +118,10 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                       avatarSize={40}
                       lectures={
                         Array.isArray(student.enrollments) && student.enrollments.length > 0
-                          ? student.enrollments.map((en: { lectureName?: string | null; lectureColor?: string | null }) => ({
+                          ? student.enrollments.map((en: { lectureName?: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
                               lectureName: en.lectureName ?? "—",
                               color: en.lectureColor ?? undefined,
+                              chipLabel: en.lectureChipLabel ?? undefined,
                             }))
                           : undefined
                       }

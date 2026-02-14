@@ -200,14 +200,15 @@ export default function StudentsTable({
                   name={s.name ?? "-"}
                   profilePhotoUrl={s.profilePhotoUrl}
                   avatarSize={24}
-                  lectures={
-                    Array.isArray(s.enrollments) && s.enrollments.length > 0
-                      ? s.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => ({
-                          lectureName: en.lectureName ?? "??",
-                          color: en.lectureColor ?? undefined,
-                        }))
-                      : undefined
-                  }
+                    lectures={
+                      Array.isArray(s.enrollments) && s.enrollments.length > 0
+                        ? s.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
+                            lectureName: en.lectureName ?? "??",
+                            color: en.lectureColor ?? undefined,
+                            chipLabel: en.lectureChipLabel ?? undefined,
+                          }))
+                        : undefined
+                    }
                   chipSize={16}
                   highlight={(text) => highlight(text, search)}
                 />
