@@ -162,7 +162,7 @@ export default function StudentsTable({
                 ) : null}
               </th>
             ) : c.key === "tags" ? (
-              <th key="tags" scope="col">
+              <th key="tags" scope="col" className="text-center align-middle">
                 태그
               </th>
             ) : (
