@@ -706,8 +706,26 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   id="inv-add-desc"
                   value={addFileModal.description}
                   onChange={(e) => setAddFileModal((m) => (m ? { ...m, description: e.target.value } : null))}
-                  placeholder="설명 (선택)"
+                  placeholder="설명 (호버 시 표시)"
                 />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <span className="ds-inventory-add-modal__icon-label">아이콘 (종류·색상)</span>
+                <div className="ds-inventory-add-modal__icon-grid">
+                  {INVENTORY_ICON_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`ds-inventory-add-modal__icon-opt ${addFileModal.iconPreset === p.id ? "is-selected" : ""}`}
+                      onClick={() => setAddFileModal((m) => (m ? { ...m, iconPreset: p.id } : null))}
+                      title={p.label}
+                    >
+                      <span className="ds-inventory-add-modal__icon-opt-emoji">{p.emoji}</span>
+                      <span className="ds-inventory-add-modal__icon-opt-swatch" style={{ backgroundColor: p.color }} />
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="ds-inventory-add-modal__actions">
                 <Button type="button" intent="secondary" size="sm" onClick={() => setAddFileModal(null)}>
@@ -715,6 +733,62 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 </Button>
                 <Button type="button" intent="primary" size="sm" onClick={confirmAddFile}>
                   추가
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {editItem &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setEditItem(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="자료 수정" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">자료 수정</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-edit-title">제목</label>
+                <input
+                  id="inv-edit-title"
+                  type="text"
+                  value={editItem.item.title}
+                  onChange={(e) => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, title: e.target.value } })}
+                  placeholder="제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-edit-desc">설명</label>
+                <textarea
+                  id="inv-edit-desc"
+                  value={editItem.item.description}
+                  onChange={(e) => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, description: e.target.value } })}
+                  placeholder="설명 (호버 시 표시)"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <span className="ds-inventory-add-modal__icon-label">아이콘 (종류·색상)</span>
+                <div className="ds-inventory-add-modal__icon-grid">
+                  {INVENTORY_ICON_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`ds-inventory-add-modal__icon-opt ${editItem.item.iconPreset === p.id ? "is-selected" : ""}`}
+                      onClick={() => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, iconPreset: p.id } })}
+                      title={p.label}
+                    >
+                      <span className="ds-inventory-add-modal__icon-opt-emoji">{p.emoji}</span>
+                      <span className="ds-inventory-add-modal__icon-opt-swatch" style={{ backgroundColor: p.color }} />
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setEditItem(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmEditItem}>
+                  저장
                 </Button>
               </div>
             </div>
