@@ -43,6 +43,22 @@
   );
 }
 
+/* 원통 중앙 선택 영역 표시 — 돌리는 휠의 현재 선택선 */
+.shared-time-scroll-popover-cylinder::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 48px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 28%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .shared-time-scroll-popover-mask {
   position: absolute;
   left: 0;
