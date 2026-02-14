@@ -205,7 +205,7 @@
   transition: box-shadow 160ms ease;
 }
 
-/* 폼 그룹 (선택 입력) — 보색 톤 */
+/* 폼 그룹 (선택 입력 등) — 보색 사용 금지. 필수만 primary 강조. 동급 선택지 구분 시에만 보색. */
 .modal-form-group--complement {
   background: color-mix(in srgb, var(--color-brand-complement) 6%, var(--color-modal-bg));
 }
