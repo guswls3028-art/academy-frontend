@@ -628,7 +628,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </div>
         </div>
         ) : bulkResult ? (
-        <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column" }}>
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
           <div className="modal-section-label" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "var(--space-2)" }}>
             {bulkResult.created}명 등록 완료
             {bulkResult.failed.length > 0 && ` · 실패 ${bulkResult.failed.length}건`}
@@ -636,19 +636,19 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
           {bulkResult.failed.length > 0 && (
             <>
-              <div className="modal-form-group" style={{ padding: "var(--space-3) var(--space-4)" }}>
-                <span style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
-                필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR 식별). 아이디 6자리 자동 부여.
-                {conflictedItems.length > 0 && (
-                  <span style={{ display: "block", marginTop: "var(--space-2)" }}>
-                    <strong>삭제된 학생과 번호 충돌</strong> 시 복원 또는 삭제 후 재등록을 선택하세요.
-                  </span>
-                )}
+              <div className="modal-form-group modal-form-group--row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                <span className="modal-hint" style={{ lineHeight: 1.5 }}>
+                  필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR). 아이디 6자리 자동 부여.
+                  {conflictedItems.length > 0 && (
+                    <span className="modal-hint--block">
+                      <strong>삭제된 학생과 번호 충돌</strong> 시 복원 또는 삭제 후 재등록을 선택하세요.
+                    </span>
+                  )}
                 </span>
               </div>
 
               {conflictedItems.length > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
+                <div className="modal-actions-inline" style={{ gap: "var(--space-3)" }}>
                   <span className="modal-section-label" style={{ marginBottom: 0 }}>일괄 적용:</span>
                   <Button
                     intent={batchConflictAction === "restore" ? "secondary" : "ghost"}
