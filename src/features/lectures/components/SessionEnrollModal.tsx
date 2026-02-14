@@ -298,13 +298,15 @@ export default function SessionEnrollModal({
               maxHeight: "min(78vh, 620px)",
             }}
           >
-            {/* 좌측: 탭 + 테이블 (스크롤 없음, 페이지네이션만) */}
+            {/* 좌측: 탭 + 테이블 (스크롤 없음, 페이지네이션만) — 모달 내 입체탭 */}
             <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
-              <Tabs
-                value={activeTab}
-                items={ENROLL_TABS}
-                onChange={(key) => setActiveTab(key)}
-              />
+              <div className="modal-tabs-elevated">
+                <Tabs
+                  value={activeTab}
+                  items={ENROLL_TABS}
+                  onChange={(key) => setActiveTab(key)}
+                />
+              </div>
 
               {activeTab === "existing" && (
                 <>

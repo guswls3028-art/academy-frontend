@@ -1,5 +1,5 @@
 // PATH: src/features/sessions/components/SessionTabs.tsx
-import { Button } from "@/shared/ui/ds";
+// SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
 
 type SessionTab =
   | "attendance"
@@ -26,29 +26,19 @@ export default function SessionTabs({
   onChange: (tab: SessionTab) => void;
 }) {
   return (
-    <div className="mb-6 border-b border-[var(--color-border-divider)]">
-      <div className="flex gap-2">
-        {TABS.map((tab) => {
-          const active = activeTab === tab.id;
-          return (
-            <Button
-              key={tab.id}
-              type="button"
-              intent={active ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => onChange(tab.id)}
-              className="-mb-px rounded-none border-b-2 px-4 py-2"
-              style={{
-                borderColor: active
-                  ? "var(--color-primary)"
-                  : "transparent",
-              }}
-            >
-              {tab.label}
-            </Button>
-          );
-        })}
-      </div>
+    <div className="ds-tabs ds-tabs--flat mb-6 border-b border-[var(--color-border-divider)]" role="tablist">
+      {TABS.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          onClick={() => onChange(tab.id)}
+          className={`ds-tab ${activeTab === tab.id ? "is-active" : ""}`}
+        >
+          {tab.label}
+        </button>
+      ))}
     </div>
   );
 }
