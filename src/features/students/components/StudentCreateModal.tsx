@@ -639,15 +639,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 <span style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
                 필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR 식별). 아이디 6자리 자동 부여.
                 {conflictedItems.length > 0 && (
-                  <span style={{ display: "block", marginTop: 8 }}>
+                  <span style={{ display: "block", marginTop: "var(--space-2)" }}>
                     <strong>삭제된 학생과 번호 충돌</strong> 시 복원 또는 삭제 후 재등록을 선택하세요.
                   </span>
                 )}
+                </span>
               </div>
 
               {conflictedItems.length > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>일괄 적용:</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
+                  <span className="modal-section-label" style={{ marginBottom: 0 }}>일괄 적용:</span>
                   <Button
                     intent={batchConflictAction === "restore" ? "secondary" : "ghost"}
                     size="sm"
