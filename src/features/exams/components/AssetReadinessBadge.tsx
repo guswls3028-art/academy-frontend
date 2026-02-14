@@ -7,12 +7,7 @@ export default function AssetReadinessBadge({ assets }: { assets: ExamAsset[] })
 
   return (
     <span
-      className={[
-        "rounded-full px-3 py-1 text-xs",
-        ready
-          ? "bg-emerald-600/10 text-emerald-600"
-          : "bg-red-600/10 text-red-600",
-      ].join(" ")}
+      className={`ds-status-badge ${ready ? "!bg-emerald-600/10 !text-emerald-600" : "!bg-red-600/10 !text-red-600"}`}
     >
       {ready ? "운영 준비 완료" : "자산 누락"}
     </span>
