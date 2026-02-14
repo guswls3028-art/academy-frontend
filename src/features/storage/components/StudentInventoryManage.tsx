@@ -25,6 +25,10 @@ export default function StudentInventoryManage({
   const [selectedPs, setSelectedPs] = useState<string | null>(initialStudentPs ?? null);
 
   useEffect(() => {
+    setSelectedPs(initialStudentPs ?? null);
+  }, [initialStudentPs]);
+
+  useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
