@@ -138,6 +138,10 @@
   grid-template-columns: 1fr auto;
 }
 
+.modal-form-row--1-auto-auto {
+  grid-template-columns: 1fr auto auto;
+}
+
 /* 폼 그룹 컴팩트 (패딩 축소) */
 .modal-form-group--compact {
   padding: var(--space-3);

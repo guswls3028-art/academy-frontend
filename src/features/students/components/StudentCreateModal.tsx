@@ -538,7 +538,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 ))}
               </div>
             </div>
-            <div className="modal-form-row modal-form-row--1-auto" style={{ gridTemplateColumns: "1fr auto auto" }}>
+            <div className="modal-form-row modal-form-row--1-auto-auto">
               <input
                 name="school"
                 placeholder="학교명 (XX고·XX중 입력 시 자동 선택)"
