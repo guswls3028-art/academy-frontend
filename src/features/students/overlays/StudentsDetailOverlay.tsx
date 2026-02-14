@@ -818,12 +818,61 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
           document.body
         )}
 
+      {addChoiceModal && (
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setAddChoiceModal(null)} aria-hidden />
+            <div className="ds-inventory-choice-modal" role="dialog" aria-label="추가" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-choice-modal__title">추가</div>
+              <div className="ds-inventory-choice-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={openNewFolderModal}>
+                  폴더생성
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={openUploadModal}>
+                  업로드
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )
+      )}
+
+      {newFolderModal &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setNewFolderModal(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="폴더 생성" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">폴더 생성</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-folder-name">폴더 제목</label>
+                <input
+                  id="inv-folder-name"
+                  type="text"
+                  value={newFolderModal.name}
+                  onChange={(e) => setNewFolderModal((m) => (m ? { ...m, name: e.target.value } : null))}
+                  placeholder="폴더 제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setNewFolderModal(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmNewFolder}>
+                  생성
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
       {addFileModal &&
         createPortal(
           <>
             <div className="ds-overlay-backdrop" onClick={() => setAddFileModal(null)} aria-hidden />
-            <div className="ds-inventory-add-modal" role="dialog" aria-label="파일 추가" onClick={(e) => e.stopPropagation()}>
-              <div className="ds-inventory-add-modal__title">{addFileModal.tab === "score" ? "성적표 추가" : "기타 자료 추가"}</div>
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="파일 업로드" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">{addFileModal.tab === "score" ? "성적표 업로드" : "기타 자료 업로드"}</div>
               <div className="ds-inventory-add-modal__field">
                 <label htmlFor="inv-add-title">제목</label>
                 <input
@@ -861,12 +910,25 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   ))}
                 </div>
               </div>
+              <div className="ds-inventory-add-modal__field">
+                <label>파일</label>
+                <div className="ds-inventory-add-modal__file-btn">
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {addFileModal.file ? addFileModal.file.name : "파일 선택"}
+                  </Button>
+                </div>
+              </div>
               <div className="ds-inventory-add-modal__actions">
                 <Button type="button" intent="secondary" size="sm" onClick={() => setAddFileModal(null)}>
                   취소
                 </Button>
-                <Button type="button" intent="primary" size="sm" onClick={confirmAddFile}>
-                  추가
+                <Button type="button" intent="primary" size="sm" onClick={confirmAddFile} disabled={!addFileModal.file}>
+                  업로드
                 </Button>
               </div>
             </div>
