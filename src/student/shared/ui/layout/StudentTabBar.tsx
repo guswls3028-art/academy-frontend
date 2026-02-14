@@ -203,6 +203,20 @@ function IconPlay() {
   );
 }
 
+function IconUser() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M5 20c0-4 3.5-6 7-6s7 2 7 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function IconCheck() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
