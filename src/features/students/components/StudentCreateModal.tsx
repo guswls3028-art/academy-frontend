@@ -560,7 +560,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 </button>
                 <button
                   type="button"
-                  className={`ds-choice-btn ds-choice-btn--complement${form.schoolType === "MIDDLE" ? " is-selected" : ""}`}
+                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "MIDDLE" ? " is-selected" : ""}`}
                   aria-pressed={form.schoolType === "MIDDLE"}
                   onClick={() => setForm((p) => ({ ...p, schoolType: "MIDDLE" }))}
                   disabled={busy}

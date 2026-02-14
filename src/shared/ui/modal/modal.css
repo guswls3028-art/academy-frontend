@@ -371,14 +371,14 @@
     0 0 0 2px color-mix(in srgb, #2563eb 30%, transparent);
 }
 
-/* 여자 — 미선택 시에도 분홍 톤 보유 */
+/* 여자 — 미선택 톤 완화 */
 .student-gender-btn--f {
-  background: color-mix(in srgb, #db2777 14%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, #db2777 10%, var(--scale-Neutral0, #fff));
   color: #9d174d;
 }
 
 .student-gender-btn--f:hover:not(:disabled) {
-  background: color-mix(in srgb, #db2777 22%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, #db2777 16%, var(--scale-Neutral0, #fff));
 }
 
 .student-gender-btn--f.is-selected {
