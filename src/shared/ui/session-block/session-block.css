@@ -1,44 +1,56 @@
-/* 차시 블록 전역 스타일 — 모달·세션페이지 동일 색상(모달 기준), 모달은 세션페이지 디자인(확장판) */
-/* 색상 단일 소스: 모달에 보이는 블록 색상을 :root에 두고 모달·세션페이지 공통 적용 */
+/* 차시 블록 전역 — 모달·세션페이지 완전 동일 디자인 (토큰만 :root, 크기만 compact 여부로 구분) */
+
 :root {
+  /* ----- 색상 (단일 소스) ----- */
   --session-block-supplement: var(--color-supplement, #0d9488);
   --session-block-add: var(--color-text-muted);
-  /* N차시·보강 블록 색상 (모달 색상 = 세션페이지에도 동일 적용) */
+
   --session-block-n1-bottom: color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
   --session-block-n1-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 14%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 8%, white) 100%);
   --session-block-n1-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 18%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, white) 100%);
   --session-block-n1-selected-bottom: color-mix(in srgb, var(--color-brand-primary) 55%, transparent);
   --session-block-n1-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 22%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 12%, white) 100%);
+
   --session-block-supplement-bottom: color-mix(in srgb, var(--session-block-supplement) 45%, transparent);
   --session-block-supplement-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 14%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 8%, white) 100%);
   --session-block-supplement-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 18%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 10%, white) 100%);
   --session-block-supplement-selected-bottom: color-mix(in srgb, var(--session-block-supplement) 55%, transparent);
   --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, white) 100%);
+
+  /* ----- 디자인 토큰 (모달·세션 동일) ----- */
+  --session-block-radius: var(--radius-lg);
+  --session-block-highlight: rgba(255, 255, 255, 0.12);
+  --session-block-shadow-subtle: var(--color-shadow-subtle, rgba(0, 0, 0, 0.18));
+  --session-block-shadow-soft: var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
+  /* 기본(모달) 크기 그림자 */
+  --session-block-bottom-px: 5px;
+  --session-block-drop: 6px 14px;
+  --session-block-bottom-px-hover: 6px;
+  --session-block-drop-hover: 10px 24px;
+  --session-block-bottom-px-active: 2px;
+  --session-block-drop-active: 3px 8px;
 }
 
-/* ----- 베이스 블록 (모달용) — 세션페이지 차시블록 디자인 확장판: radius·그림자 비율 맞춤 ----- */
+/* ----- 공통 블록 (모달·세션 동일 구조, 변수만 사용) ----- */
 .session-block {
   position: relative;
-  aspect-ratio: 4 / 3;
-  min-height: 88px;
-  padding: var(--space-5) var(--space-5);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
   text-align: left;
-  border-radius: var(--radius-lg);
+  border-radius: var(--session-block-radius);
   cursor: pointer;
+  border: 2px solid transparent;
   transition:
     transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
     box-shadow 180ms ease,
     border-color 160ms ease,
     background 160ms ease;
-  border: 2px solid transparent;
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.12)),
-    0 5px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.18))),
-    0 6px 14px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
+    0 var(--session-block-drop) var(--session-block-shadow-soft);
   text-decoration: none;
   color: inherit;
 }
@@ -46,78 +58,42 @@
 .session-block:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.14)),
-    0 6px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.2))),
-    0 10px 24px var(--color-shadow-soft, rgba(0, 0, 0, 0.16));
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px-hover) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
+    0 var(--session-block-drop-hover) var(--session-block-shadow-soft);
 }
 
 .session-block:active {
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.08)),
-    0 2px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.22))),
-    0 3px 8px var(--color-shadow-soft, rgba(0, 0, 0, 0.14));
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px-active) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
+    0 var(--session-block-drop-active) var(--session-block-shadow-soft);
 }
 
-/* ----- 컴팩트 (세션바·목록용) — 차시 블록과 차시 추가 버튼 동일 규격, 4:3 비율 ----- */
+/* ----- 기본(모달) 크기 ----- */
+.session-block {
+  aspect-ratio: 4 / 3;
+  min-height: 88px;
+  padding: var(--space-5) var(--space-5);
+}
+
+/* ----- 컴팩트(세션페이지) — 같은 디자인, 크기·그림자 스케일만 축소 ----- */
 .session-block--compact {
-  /* 4:3 비율: width 80 → height 60 (작게) */
+  --session-block-bottom-px: 3px;
+  --session-block-drop: 4px 10px;
+  --session-block-bottom-px-hover: 4px;
+  --session-block-drop-hover: 6px 14px;
+  --session-block-bottom-px-active: 1px;
+  --session-block-drop-active: 2px 6px;
+
   min-width: 80px;
   width: 80px;
   height: 60px;
   min-height: 60px;
+  aspect-ratio: unset;
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
   flex: 0 0 auto;
-  box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.1)),
-    0 3px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.18))),
-    0 4px 10px var(--color-shadow-soft, rgba(0, 0, 0, 0.1));
-}
-
-.session-block--compact:hover {
-  box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.12)),
-    0 4px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.2))),
-    0 6px 14px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
-}
-
-.session-block--compact:active {
-  box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.06)),
-    0 1px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.22))),
-    0 2px 6px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
-}
-
-.session-block--compact.session-block--selected {
-  box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.18)),
-    0 3px 0 0 var(--session-block-bottom),
-    0 4px 10px var(--color-shadow-soft, rgba(0, 0, 0, 0.1)),
-    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
-}
-
-.session-block--compact.session-block--supplement.session-block--selected {
-  box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.18)),
-    0 3px 0 0 var(--session-block-bottom),
-    0 4px 10px var(--color-shadow-soft, rgba(0, 0, 0, 0.1)),
-    0 0 0 2px color-mix(in srgb, var(--session-block-supplement) 25%, transparent);
-}
-
-/* 컴팩트는 호버/액티브 시에도 얇은 블록 유지 (n1/supplement 스타일보다 우선) */
-.session-block--compact.session-block:hover {
-  box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.12)),
-    0 4px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.2))),
-    0 6px 14px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
-}
-
-.session-block--compact.session-block:active {
-  box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.06)),
-    0 1px 0 0 var(--session-block-bottom, var(--color-shadow-subtle, rgba(0, 0, 0, 0.22))),
-    0 2px 6px var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
 }
 
 .session-block--compact .session-block__title {
@@ -131,13 +107,46 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: inherit;
+  opacity: 0.9;
 }
 
 .session-block--compact .session-block__check {
   display: none;
 }
 
-/* ----- N차시 (정규) — :root 색상 단일 소스로 모달·세션페이지 동일 ----- */
+/* 컴팩트 호버/액티브 시에도 위에서 덮어쓴 변수로 동일 구조 유지 */
+.session-block--compact.session-block:hover {
+  box-shadow:
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px-hover) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
+    0 var(--session-block-drop-hover) var(--session-block-shadow-soft);
+}
+
+.session-block--compact.session-block:active {
+  box-shadow:
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px-active) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
+    0 var(--session-block-drop-active) var(--session-block-shadow-soft);
+}
+
+.session-block--compact.session-block--selected {
+  box-shadow:
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom),
+    0 var(--session-block-drop) var(--session-block-shadow-soft),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
+.session-block--compact.session-block--supplement.session-block--selected {
+  box-shadow:
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom),
+    0 var(--session-block-drop) var(--session-block-shadow-soft),
+    0 0 0 2px color-mix(in srgb, var(--session-block-supplement) 25%, transparent);
+}
+
+/* ----- N차시 ----- */
 .session-block--n1 {
   --session-block-bottom: var(--session-block-n1-bottom);
   background: var(--session-block-n1-bg);
@@ -153,31 +162,31 @@
   --session-block-bottom: var(--session-block-n1-selected-bottom);
   background: var(--session-block-n1-selected-bg);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.2)),
-    0 5px 0 0 var(--session-block-bottom),
-    0 6px 14px color-mix(in srgb, var(--color-brand-primary) 25%, transparent),
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom),
+    0 var(--session-block-drop) color-mix(in srgb, var(--color-brand-primary) 25%, transparent),
     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
 .session-block--n1.session-block--selected:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.22)),
-    0 6px 0 0 var(--session-block-bottom),
-    0 10px 24px color-mix(in srgb, var(--color-brand-primary) 28%, transparent),
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px-hover) 0 0 var(--session-block-bottom),
+    0 var(--session-block-drop-hover) color-mix(in srgb, var(--color-brand-primary) 28%, transparent),
     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
 }
 
 .session-block--n1.session-block--selected:active {
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.1)),
-    0 2px 0 0 var(--session-block-bottom),
-    0 3px 8px color-mix(in srgb, var(--color-brand-primary) 20%, transparent),
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px-active) 0 0 var(--session-block-bottom),
+    0 var(--session-block-drop-active) color-mix(in srgb, var(--color-brand-primary) 20%, transparent),
     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
-/* ----- 보강 — :root 색상 단일 소스로 모달·세션페이지 동일 ----- */
+/* ----- 보강 ----- */
 .session-block--supplement {
   --session-block-bottom: var(--session-block-supplement-bottom);
   background: var(--session-block-supplement-bg);
@@ -193,27 +202,27 @@
   --session-block-bottom: var(--session-block-supplement-selected-bottom);
   background: var(--session-block-supplement-selected-bg);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.2)),
-    0 5px 0 0 var(--session-block-bottom),
-    0 6px 14px color-mix(in srgb, var(--session-block-supplement) 25%, transparent),
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom),
+    0 var(--session-block-drop) color-mix(in srgb, var(--session-block-supplement) 25%, transparent),
     0 0 0 3px color-mix(in srgb, var(--session-block-supplement) 25%, transparent);
 }
 
 .session-block--supplement.session-block--selected:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.22)),
-    0 6px 0 0 var(--session-block-bottom),
-    0 10px 24px color-mix(in srgb, var(--session-block-supplement) 28%, transparent),
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px-hover) 0 0 var(--session-block-bottom),
+    0 var(--session-block-drop-hover) color-mix(in srgb, var(--session-block-supplement) 28%, transparent),
     0 0 0 3px color-mix(in srgb, var(--session-block-supplement) 30%, transparent);
 }
 
 .session-block--supplement.session-block--selected:active {
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.1)),
-    0 2px 0 0 var(--session-block-bottom),
-    0 3px 8px color-mix(in srgb, var(--session-block-supplement) 20%, transparent),
+    0 1px 0 0 var(--session-block-highlight),
+    0 var(--session-block-bottom-px-active) 0 0 var(--session-block-bottom),
+    0 var(--session-block-drop-active) color-mix(in srgb, var(--session-block-supplement) 20%, transparent),
     0 0 0 3px color-mix(in srgb, var(--session-block-supplement) 20%, transparent);
 }
 
@@ -221,31 +230,23 @@
   background: var(--session-block-supplement);
 }
 
-/* ----- + 차시 추가 (동일 입체 블록, 색상만 --session-block-add) ----- */
+/* ----- + 차시 추가 ----- */
 .session-block--add {
   --session-block-bottom: color-mix(in srgb, var(--session-block-add) 45%, transparent);
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--session-block-add) 14%, white) 0%,
-    color-mix(in srgb, var(--session-block-add) 8%, white) 100%
-  );
+  background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 14%, white) 0%, color-mix(in srgb, var(--session-block-add) 8%, white) 100%);
   color: var(--color-text-primary);
   align-items: center;
   justify-content: center;
 }
 
 .session-block--add:hover {
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--session-block-add) 18%, white) 0%,
-    color-mix(in srgb, var(--session-block-add) 10%, white) 100%
-  );
+  background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 18%, white) 0%, color-mix(in srgb, var(--session-block-add) 10%, white) 100%);
   --session-block-bottom: color-mix(in srgb, var(--session-block-add) 50%, transparent);
 }
 
 .session-block--add .session-block__title {
   color: inherit;
-  text-shadow: 0 1px 0 var(--session-block-highlight, rgba(255, 255, 255, 0.4));
+  text-shadow: 0 1px 0 var(--session-block-highlight);
 }
 
 .session-block--add .session-block__icon {
@@ -262,7 +263,7 @@
   letter-spacing: -0.02em;
   line-height: 1.2;
   color: inherit;
-  text-shadow: 0 1px 0 var(--session-block-highlight, rgba(255, 255, 255, 0.4));
+  text-shadow: 0 1px 0 var(--session-block-highlight);
 }
 
 .session-block__desc {
@@ -273,7 +274,6 @@
   opacity: 0.92;
 }
 
-/* 모달용 큰 블록(확장판): 타이틀만 크게, 설명은 작게 */
 .session-block:not(.session-block--compact) .session-block__title {
   font-size: clamp(1.25rem, 4vw, 1.75rem);
   font-weight: 800;
@@ -282,11 +282,6 @@
 .session-block:not(.session-block--compact) .session-block__desc {
   font-size: 11px;
   margin-top: 6px;
-  opacity: 0.9;
-}
-
-.session-block--compact .session-block__desc {
-  color: inherit;
   opacity: 0.9;
 }
 
@@ -317,19 +312,19 @@
 /* ----- 모달 전용: 날짜/시간 옵션 행 ----- */
 .session-option-row {
   box-shadow:
-    inset 0 1px 0 var(--session-block-highlight, rgba(255, 255, 255, 0.06)),
-    0 2px 4px var(--color-shadow-soft, rgba(0, 0, 0, 0.05)) !important;
+    inset 0 1px 0 var(--session-block-highlight),
+    0 2px 4px var(--session-block-shadow-soft) !important;
   transition: box-shadow 160ms ease;
 }
 
 .session-option-row:hover {
   box-shadow:
-    inset 0 1px 0 var(--session-block-highlight, rgba(255, 255, 255, 0.08)),
-    0 3px 8px var(--color-shadow-soft, rgba(0, 0, 0, 0.07)) !important;
+    inset 0 1px 0 var(--session-block-highlight),
+    0 3px 8px var(--session-block-shadow-soft) !important;
 }
 
 .session-option-row:active {
   box-shadow:
-    inset 0 1px 2px var(--color-shadow-subtle, rgba(0, 0, 0, 0.04)),
-    0 1px 3px var(--color-shadow-soft, rgba(0, 0, 0, 0.05)) !important;
+    inset 0 1px 2px var(--session-block-shadow-subtle),
+    0 1px 3px var(--session-block-shadow-soft) !important;
 }
