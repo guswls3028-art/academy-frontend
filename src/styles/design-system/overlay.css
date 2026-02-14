@@ -490,6 +490,18 @@
   word-break: break-all;
 }
 
+.ds-inventory-panel__item-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1;
+  margin-bottom: var(--space-1);
+}
+
 /* 인벤토리 — 파일 추가 모달 (제목/설명 입력) */
 .ds-inventory-add-modal {
   position: fixed;
