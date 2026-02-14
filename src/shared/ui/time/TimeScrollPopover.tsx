@@ -196,30 +196,30 @@ export function TimeScrollPopover({
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
+      const now = performance.now();
+      const timeSinceLast = now - lastWheelTimeRef.current;
+      lastWheelTimeRef.current = now;
       wheelAccumRef.current += e.deltaY;
-      if (wheelRafRef.current != null) return;
-      wheelRafRef.current = requestAnimationFrame(() => {
-        wheelRafRef.current = null;
-        const threshold = 100;
-        const steps: number[] = [];
-        while (Math.abs(wheelAccumRef.current) >= threshold) {
-          const step = wheelAccumRef.current > 0 ? 1 : -1;
-          wheelAccumRef.current -= step * threshold;
-          steps.push(step);
-        }
-        if (steps.length === 0 && Math.abs(wheelAccumRef.current) < 15) return;
-        if (steps.length === 0) {
-          const step = wheelAccumRef.current > 0 ? 1 : -1;
-          wheelAccumRef.current = 0;
-          steps.push(step);
-        }
-        const totalDelta = steps.reduce((a, b) => a + b, 0) * ROW_HEIGHT;
-        const nextTop = Math.max(
-          0,
-          Math.min(el.scrollTop + totalDelta, el.scrollHeight - VISIBLE_HEIGHT)
-        );
-        el.scrollTo({ top: nextTop, behavior: "smooth" });
-      });
+      const isBurst = timeSinceLast < 100;
+      const threshold = isBurst ? 25 : 100;
+      const steps: number[] = [];
+      while (Math.abs(wheelAccumRef.current) >= threshold) {
+        const step = wheelAccumRef.current > 0 ? 1 : -1;
+        wheelAccumRef.current -= step * threshold;
+        steps.push(step);
+      }
+      if (steps.length === 0 && Math.abs(wheelAccumRef.current) < 12) return;
+      if (steps.length === 0) {
+        const step = wheelAccumRef.current > 0 ? 1 : -1;
+        wheelAccumRef.current = 0;
+        steps.push(step);
+      }
+      const totalDelta = steps.reduce((a, b) => a + b, 0) * ROW_HEIGHT;
+      const nextTop = Math.max(
+        0,
+        Math.min(el.scrollTop + totalDelta, el.scrollHeight - VISIBLE_HEIGHT)
+      );
+      el.scrollTo({ top: nextTop, behavior: "smooth" });
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
@@ -227,7 +227,6 @@ export function TimeScrollPopover({
     return () => {
       el.removeEventListener("wheel", handleWheel);
       el.removeEventListener("scroll", handleScroll);
-      if (wheelRafRef.current != null) cancelAnimationFrame(wheelRafRef.current);
       if (scrollEndTimeoutRef.current) {
         clearTimeout(scrollEndTimeoutRef.current);
         scrollEndTimeoutRef.current = null;
