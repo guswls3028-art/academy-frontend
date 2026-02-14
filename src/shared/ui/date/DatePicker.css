@@ -46,17 +46,26 @@
   bottom: calc(100% + var(--space-2));
   left: 0;
   padding: var(--space-4);
-  background: var(--ui-control-bg, var(--color-bg-surface));
+  background-color: var(--ui-control-bg, var(--color-bg-surface, #ffffff));
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3);
-  /* 질감: 아주 은은한 그라데이션 + 미세 패턴 */
+  /* 질감: 은은한 그라데이션 + 미세 패턴 (투명 없이 불투명 배경) */
   background-image:
-    linear-gradient(175deg, color-mix(in srgb, var(--color-bg-surface) 92%, white) 0%, transparent 40%),
+    linear-gradient(175deg, color-mix(in srgb, var(--color-bg-surface, #fff) 95%, white) 0%, color-mix(in srgb, var(--color-bg-surface, #fff) 98%, white) 100%),
     linear-gradient(0deg, color-mix(in srgb, var(--color-border-divider) 4%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--color-border-divider) 4%, transparent) 1px, transparent 1px);
   background-size: 100% 100%, 8px 8px, 8px 8px;
   background-position: 0 0, 0 0, 0 0;
+}
+
+/* 포털 렌더 시 body에 변수 상속 없을 수 있음 → 불투명 배경 강제 */
+.shared-date-picker-dropdown--portaled {
+  background-color: var(--color-bg-surface, #ffffff) !important;
+  background-image:
+    linear-gradient(175deg, color-mix(in srgb, var(--color-bg-surface, #fff) 95%, white) 0%, color-mix(in srgb, var(--color-bg-surface, #fff) 98%, white) 100%),
+    linear-gradient(0deg, color-mix(in srgb, var(--color-border-divider, #e5e7eb) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-border-divider, #e5e7eb) 4%, transparent) 1px, transparent 1px);
 }
 
 .shared-date-picker-header {
