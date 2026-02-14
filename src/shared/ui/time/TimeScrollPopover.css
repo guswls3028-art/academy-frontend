@@ -114,36 +114,6 @@
   );
 }
 
-/* 좌·우 페이드 — 부드러운 가로 원통 깊이감 */
-.time-picker__body .time-picker__mask {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 32px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.time-picker__mask--left {
-  left: 0;
-  background: linear-gradient(
-    90deg,
-    var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 85%, transparent) 40%,
-    transparent 100%
-  );
-}
-
-.time-picker__mask--right {
-  right: 0;
-  background: linear-gradient(
-    270deg,
-    var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 85%, transparent) 40%,
-    transparent 100%
-  );
-}
-
 /* 중앙 선택선 — 은은한 강조 */
 .time-picker__highlight {
   position: absolute;
