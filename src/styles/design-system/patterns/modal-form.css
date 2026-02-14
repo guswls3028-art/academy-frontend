@@ -1,5 +1,5 @@
 /* PATH: src/styles/design-system/patterns/modal-form.css */
-/* Modal Form Vertical Rhythm (SSOT) */
+/* Modal Form Vertical Rhythm — @/shared/ui/modal(AdminModal) 내부 폼 레이아웃용 */
 
 [data-app="admin"] .modal-form {
   display: flex;

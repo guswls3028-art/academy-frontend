@@ -1,8 +1,8 @@
 /* PATH: src/styles/design-system/patterns/modal.css */
 /* ============================================================================
- * DS MODAL — overlay / dialog shell
- * - consistent backdrop, elevation, spacing
- * - used by Students modals
+ * DS MODAL — 레거시/커스텀 다이얼로그 셸 (AntD 미사용 시)
+ * - Admin 앱 모달 SSOT: @/shared/ui/modal (AdminModal + ModalHeader/Body/Footer)
+ * - 아래 .ds-backdrop / .ds-dialog 는 해당 SSOT 사용 전 패턴 보존용
  * ============================================================================ */
 
 .ds-backdrop {
