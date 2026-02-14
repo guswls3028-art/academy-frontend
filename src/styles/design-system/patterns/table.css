@@ -231,11 +231,14 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 4%, transparent);
 }
 
-/* 학생 테이블 — 컬럼/내용 중앙정렬 + 체크박스 칸 타이트 + 세로 간격 줄임 */
+/* 학생 테이블 — 내용물 좌측정렬, 체크박스만 중앙 + 체크박스 칸 타이트 + 세로 간격 줄임 */
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th,
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center tbody td {
-  text-align: center;
+  text-align: left;
   vertical-align: middle;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell {
+  text-align: center;
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th {
   padding: 4px 18px;
