@@ -654,6 +654,35 @@
   gap: var(--space-2);
   margin-top: var(--space-4);
 }
+.ds-inventory-add-modal__file-btn {
+  margin-top: var(--space-2);
+}
+
+/* 인벤토리 + 선택 모달 (폴더생성 / 업로드) */
+.ds-inventory-choice-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 73;
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ds-inventory-choice-modal__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.ds-inventory-choice-modal__actions {
+  display: flex;
+  gap: var(--space-2);
+}
 
 /* 화면에서만 숨기기 (파일 input 등) */
 .ds-sr-only {
