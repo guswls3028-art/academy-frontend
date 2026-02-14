@@ -134,14 +134,19 @@ export function TimeScrollPopover({
       blockHeight + initialIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
   }, [initialIdx]);
 
-  // 스크롤 → 인덱스 반영 + 무한 순환 (점프 시 setState 억제로 무한 업데이트 방지)
+  // 스크롤 → 인덱스 반영 + 무한 순환 + 스크롤 종료 시에만 emit
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
     const blockLen = ALL_SLOTS.length;
     const blockHeight = blockLen * ROW_HEIGHT;
+    const EMIT_DELAY_MS = 120;
 
     const handleScroll = () => {
+      isUserScrollingRef.current = true;
+      if (scrollEndTimeoutRef.current) {
+        clearTimeout(scrollEndTimeoutRef.current);
+      }
       if (isJumpingRef.current) {
         isJumpingRef.current = false;
       }
@@ -162,11 +167,24 @@ export function TimeScrollPopover({
         lastIdxRef.current = idx;
         setSelectedIdx(idx);
       }
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        scrollEndTimeoutRef.current = null;
+        isUserScrollingRef.current = false;
+        if (isMountedRef.current) {
+          emit(lastIdxRef.current);
+        }
+      }, EMIT_DELAY_MS);
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, []);
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+      if (scrollEndTimeoutRef.current) {
+        clearTimeout(scrollEndTimeoutRef.current);
+        scrollEndTimeoutRef.current = null;
+      }
+    };
+  }, [emit]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
