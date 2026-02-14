@@ -220,11 +220,13 @@ export default function MessageTemplatesPage() {
     <>
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="ds-tabs">
+          <div className="ds-tabs ds-tabs--flat" role="tablist">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 type="button"
+                role="tab"
+                aria-selected={activeCategory === cat}
                 className={`ds-tab ${activeCategory === cat ? "is-active" : ""}`}
                 onClick={() => setActiveCategory(cat)}
               >
