@@ -212,7 +212,6 @@
 
 /* ----- 보강 ----- */
 .session-block--supplement {
-  --session-block-bottom: var(--session-block-supplement-bottom);
   background: var(--session-block-supplement-bg);
   color: var(--color-text-primary);
 }
@@ -257,7 +256,6 @@
 
 /* ----- + 차시 추가 (DS 동일 방식) ----- */
 .session-block--add {
-  --session-block-bottom: color-mix(in srgb, var(--session-block-add) 45%, transparent);
   background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-add) 8%, var(--scale-Neutral0)) 100%);
   color: var(--color-text-primary);
   align-items: center;
@@ -266,7 +264,6 @@
 
 .session-block--add:hover {
   background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-add) 10%, var(--scale-Neutral0)) 100%);
-  --session-block-bottom: color-mix(in srgb, var(--session-block-add) 50%, transparent);
 }
 
 .session-block--add .session-block__title {
