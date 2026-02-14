@@ -194,6 +194,11 @@ export function TimeScrollPopover({
       aria-label="시간 선택"
     >
       <div className="time-picker__body">
+        {/* 전체 원통: 위·아래 페이드 (좌측+우측 통합) */}
+        <div className="time-picker__mask time-picker__mask--top" aria-hidden />
+        <div className="time-picker__mask time-picker__mask--bottom" aria-hidden />
+        <div className="time-picker__highlight" aria-hidden />
+
         {/* 좌측: 오전/오후 시각 + 클릭(같은 시각 AM↔PM) */}
         <div className="time-picker__period">
           <button
@@ -212,15 +217,10 @@ export function TimeScrollPopover({
           </button>
         </div>
 
-        <div className="time-picker__divider" aria-hidden>
-          |
-        </div>
+        <div className="time-picker__divider" aria-hidden />
 
-        {/* 우측: 24h 롤러 (표시는 오전/오후 12h) */}
+        {/* 우측: 24h 롤러 (시:분만 표시) */}
         <div className="time-picker__roller">
-          <div className="time-picker__mask time-picker__mask--top" />
-          <div className="time-picker__mask time-picker__mask--bottom" />
-          <div className="time-picker__highlight" />
           <div
             ref={listRef}
             className="time-picker__list"
