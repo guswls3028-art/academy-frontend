@@ -130,6 +130,7 @@ export default function DatePicker({
             width: "max-content",
             position: "fixed",
             zIndex: 1200,
+            backgroundColor: "var(--color-bg-surface, #ffffff)",
             ...(dropdownStyle.top != null
               ? { top: dropdownStyle.top, left: dropdownStyle.left }
               : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
