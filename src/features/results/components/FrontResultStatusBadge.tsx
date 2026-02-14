@@ -12,30 +12,17 @@
  */
 
 import type { FrontResultStatus } from "../types/frontResultStatus";
-import {
-  FRONT_RESULT_STATUS_COLOR,
-  FRONT_RESULT_STATUS_LABEL,
-} from "../containers/frontResultStatusMaps";
-
-/** 색상만 (사이즈는 ds-status-badge SSOT) */
-const COLOR_CLASS: Record<string, string> = {
-  gray: "!bg-neutral-800 !text-neutral-200",
-  yellow: "!bg-yellow-950 !text-yellow-200",
-  blue: "!bg-blue-950 !text-blue-200",
-  green: "!bg-emerald-950 !text-emerald-200",
-  red: "!bg-red-950 !text-red-200",
-};
+import { FRONT_RESULT_STATUS_LABEL, FRONT_RESULT_STATUS_TONE } from "../containers/frontResultStatusMaps";
 
 export default function FrontResultStatusBadge({
   status,
 }: {
   status: FrontResultStatus;
 }) {
-  const key = FRONT_RESULT_STATUS_COLOR[status];
-  const cls = COLOR_CLASS[key] ?? COLOR_CLASS.gray;
+  const tone = FRONT_RESULT_STATUS_TONE[status];
 
   return (
-    <span className={`ds-status-badge ${cls}`}>
+    <span className="ds-status-badge" data-tone={tone}>
       {FRONT_RESULT_STATUS_LABEL[status]}
     </span>
   );

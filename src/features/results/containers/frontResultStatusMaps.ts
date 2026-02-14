@@ -26,3 +26,12 @@ export const FRONT_RESULT_STATUS_COLOR: Record<FrontResultStatus, string> = {
   done: "green",
   failed: "red",
 };
+
+/** 공용 톤 SSOT: success | danger | warning | primary | neutral */
+export const FRONT_RESULT_STATUS_TONE: Record<FrontResultStatus, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  waiting: "neutral",
+  processing: "warning",
+  partial_done: "primary",
+  done: "success",
+  failed: "danger",
+};
