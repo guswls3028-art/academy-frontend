@@ -111,6 +111,7 @@ export function TimeScrollPopover({
   // 외부 value 변경 시 동기화
   useEffect(() => {
     const idx = slotIndex(value);
+    lastIdxRef.current = idx;
     setSelectedIdx(idx);
   }, [value]);
 
