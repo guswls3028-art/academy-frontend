@@ -5,9 +5,10 @@
   --session-block-add: var(--color-text-muted);
 }
 
-/* ----- 베이스 블록 ----- */
+/* ----- 베이스 블록 (모달용 큰 블록 — 4:3 비율 유지) ----- */
 .session-block {
   position: relative;
+  aspect-ratio: 4 / 3;
   min-height: 88px;
   padding: var(--space-5) var(--space-5);
   display: flex;
