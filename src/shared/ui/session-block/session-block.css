@@ -6,16 +6,17 @@
   --session-block-add: var(--color-text-muted);
 
   --session-block-n1-bottom: color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
-  --session-block-n1-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface)) 100%);
-  --session-block-n1-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface)) 100%);
+  /* 밝은 쪽은 DS 고정값(Neutral0)으로 해서 모달·세션페이지 색상 완전 동일 */
+  --session-block-n1-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--color-brand-primary) 8%, var(--scale-Neutral0)) 100%);
+  --session-block-n1-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, var(--scale-Neutral0)) 100%);
   --session-block-n1-selected-bottom: color-mix(in srgb, var(--color-brand-primary) 55%, transparent);
-  --session-block-n1-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface)) 100%);
+  --session-block-n1-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--color-brand-primary) 12%, var(--scale-Neutral0)) 100%);
 
   --session-block-supplement-bottom: color-mix(in srgb, var(--session-block-supplement) 45%, transparent);
-  --session-block-supplement-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 14%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--session-block-supplement) 8%, var(--color-bg-surface)) 100%);
-  --session-block-supplement-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 18%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--session-block-supplement) 10%, var(--color-bg-surface)) 100%);
+  --session-block-supplement-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 8%, var(--scale-Neutral0)) 100%);
+  --session-block-supplement-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 10%, var(--scale-Neutral0)) 100%);
   --session-block-supplement-selected-bottom: color-mix(in srgb, var(--session-block-supplement) 55%, transparent);
-  --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, var(--color-bg-surface)) 100%);
+  --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, var(--scale-Neutral0)) 100%);
 
   /* 디자인: DS radius·elevation·spacing */
   --session-block-radius: var(--radius-md);
