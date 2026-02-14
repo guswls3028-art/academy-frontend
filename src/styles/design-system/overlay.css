@@ -496,6 +496,19 @@
   margin-top: var(--space-4);
 }
 
+/* 화면에서만 숨기기 (파일 input 등) */
+.ds-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* 인벤토리 뷰어 — 더블클릭 시 내용물 보기 */
 .ds-inventory-viewer {
   position: fixed;
