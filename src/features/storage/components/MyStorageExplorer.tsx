@@ -100,6 +100,15 @@ export default function MyStorageExplorer() {
 
   const hasSelection = selectedFolderIds.size > 0 || selectedFileId != null;
 
+  const openFileUrl = async (r2Key: string) => {
+    try {
+      const { url } = await getPresignedUrl(r2Key);
+      if (url) window.open(url, "_blank");
+    } catch {
+      window.open(r2Key, "_blank");
+    }
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.toolbar}>
