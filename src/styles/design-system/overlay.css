@@ -252,18 +252,18 @@
   font-size: 13px;
 }
 
-/* 학생 상세 오버레이 — 우측 하단 인벤토리 버튼 */
+/* 학생 상세 오버레이 — 좌측 하단 인벤토리 버튼 */
 .ds-overlay-inventory-wrap {
   position: absolute;
-  right: var(--space-5);
+  left: var(--space-5);
   bottom: var(--space-5);
   z-index: 2;
 }
 
-/* 인벤토리 패널 — 게임 인벤토리처럼 우하단 고정 */
+/* 인벤토리 패널 — 좌하단 고정 */
 .ds-inventory-panel {
   position: fixed;
-  right: var(--space-5);
+  left: var(--space-5);
   bottom: var(--space-5);
   z-index: 71;
   width: 380px;

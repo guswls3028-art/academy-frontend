@@ -392,7 +392,22 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
             >
               <div className="ds-inventory-panel__header">
                 <span className="ds-inventory-panel__title">인벤토리 — {student.name}</span>
-                <CloseButton onClick={() => setInventoryOpen(false)} />
+                <div className="ds-inventory-panel__header-actions">
+                  {(inventoryTab === "score" || inventoryTab === "misc") && (
+                    <Button
+                      type="button"
+                      intent="secondary"
+                      size="sm"
+                      onClick={() => {
+                        /* TODO: 선생님 추가 모달 (성적표/기타 파일 업로드 또는 URL) */
+                      }}
+                      title={inventoryTab === "score" ? "성적표 추가" : "기타 자료 추가"}
+                    >
+                      + 추가
+                    </Button>
+                  )}
+                  <CloseButton onClick={() => setInventoryOpen(false)} />
+                </div>
               </div>
               <div className="ds-inventory-panel__tabs">
                 {(["score", "misc", "video", "image"] as const).map((key) => (
