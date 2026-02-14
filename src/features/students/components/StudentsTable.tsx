@@ -116,11 +116,11 @@ export default function StudentsTable({
       <th
         key={colKey}
         onClick={() => onSortChange(next)}
-        className="cursor-pointer select-none"
+        className="cursor-pointer select-none text-center align-middle"
         aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
         scope="col"
       >
-        <span className="inline-flex items-center gap-2">
+        <span className="inline-flex items-center justify-center gap-2">
           {label}
           <span
             aria-hidden
