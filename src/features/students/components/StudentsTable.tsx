@@ -150,7 +150,7 @@ export default function StudentsTable({
         <tr>
           {columns.map((c) =>
             c.key === "_checkbox" ? (
-              <th key="_checkbox" scope="col" style={{ width: 48 }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+              <th key="_checkbox" scope="col" style={{ width: 36 }} className="ds-checkbox-cell text-center align-middle" onClick={(e) => e.stopPropagation()}>
                 {onSelectionChange ? (
                   <input
                     type="checkbox"
