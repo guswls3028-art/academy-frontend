@@ -462,22 +462,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
       <ModalBody key={activeTab}>
         {activeTab === "single" ? (
-        <div style={{ display: "grid", gap: 16 }}>
-          {/* 필수 입력 3개 — 테두리로 강조 */}
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              border: "2px solid color-mix(in srgb, var(--color-primary) 35%, transparent)",
-              background: "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))",
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
-          >
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-primary)", letterSpacing: "-0.02em" }}>
-              필수 입력
-            </div>
+        <div className="modal-scroll-body">
+          <div className="modal-form-group">
+            <span className="modal-section-label">필수 입력</span>
             <input
               name="name"
               placeholder="이름"
@@ -525,7 +512,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             pattern="[0-9\-]*"
           />
 
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", padding: "var(--space-3)", flexWrap: "wrap" }}>
             {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
               <Button
                 key={g.key}
@@ -539,7 +526,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="modal-option-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)", padding: "var(--space-3)" }}>
             {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
               (t) => (
                 <Button
@@ -563,7 +550,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             )}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)" }}>
             <input
               name="school"
               placeholder="학교명"
@@ -572,7 +559,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               className="ds-input"
               disabled={busy}
             />
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: "var(--space-2)" }}>
               {["1", "2", "3"].map((g) => (
                 <Button
                   key={g}
@@ -587,7 +574,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <input
               name="schoolClass"
               placeholder="반"
@@ -616,35 +603,20 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             disabled={busy}
           />
 
-          <div
-            style={{
-              marginTop: 2,
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              gap: 10,
-              alignItems: "center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 850,
-                color: "var(--color-text-muted)",
-              }}
-            >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)", alignItems: "center" }}>
+            <span className="modal-section-label" style={{ marginBottom: 0, fontSize: 11, fontWeight: 700, color: "var(--color-text-muted)" }}>
               등록 후 상세 화면에서 태그/메모/상태를 추가로 관리할 수 있습니다.
-            </div>
-
+            </span>
             <button
               type="button"
               aria-pressed={form.active}
               onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
               disabled={busy}
               style={{
-                padding: "6px 12px",
+                padding: "var(--space-2) var(--space-3)",
                 fontSize: 12,
                 fontWeight: 700,
-                borderRadius: 8,
+                borderRadius: "var(--radius-md)",
                 color: "#fff",
                 backgroundColor: form.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
                 border: "none",
