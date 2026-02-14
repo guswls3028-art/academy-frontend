@@ -631,6 +631,28 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   ))}
                 </div>
               </div>
+              <div className="ds-inventory-panel__main">
+                {(inventoryTab === "score" || inventoryTab === "misc") && (
+                  <div className="ds-inventory-panel__tree">
+                    <div
+                      className={`ds-inventory-panel__tree-root ${currentFolderId === null ? "is-current" : ""}`}
+                      onClick={() => setCurrentFolderId(null)}
+                    >
+                      루트
+                    </div>
+                    {currentFolders
+                      .filter((f) => !f.parentId)
+                      .map((folder) => (
+                        <InventoryTreeFolder
+                          key={folder.id}
+                          folder={folder}
+                          allFolders={currentFolders}
+                          currentFolderId={currentFolderId}
+                          onSelect={setCurrentFolderId}
+                        />
+                      ))}
+                  </div>
+                )}
               <div className="ds-inventory-panel__body">
                 <div className="ds-inventory-panel__grid">
                   {inventoryTab === "score" && (
@@ -639,13 +661,31 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                         className="ds-inventory-panel__item ds-inventory-panel__item--add"
                         role="button"
                         tabIndex={0}
-                        onClick={() => triggerAddFile("score")}
-                        onKeyDown={(e) => e.key === "Enter" && triggerAddFile("score")}
-                        title="파일 추가"
+                        onClick={() => openAddChoice("score")}
+                        onKeyDown={(e) => e.key === "Enter" && openAddChoice("score")}
+                        title="폴더 추가 또는 업로드"
                       >
                         +
                       </div>
-                      {uploadedScoreItems.map((item) => {
+                      {subFolders.map((folder) => {
+                        const isSelected = inventorySelectedFolderIds.has(folder.id);
+                        return (
+                          <div
+                            key={folder.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--folder ${isSelected ? "is-selected" : ""}`}
+                            title={folder.name}
+                            onClick={() => toggleFolderSelection(folder.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentFolderId(folder.id);
+                            }}
+                          >
+                            <span className="ds-inventory-panel__item-icon">📁</span>
+                            <span className="ds-inventory-panel__item-title">{folder.name}</span>
+                          </div>
+                        );
+                      })}
+                      {currentListFiltered.map((item) => {
                         const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === (item.iconPreset ?? "misc")) ?? INVENTORY_ICON_PRESETS[0];
                         const isSelected = selectedIds.has(item.id);
                         return (
@@ -679,13 +719,31 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                         className="ds-inventory-panel__item ds-inventory-panel__item--add"
                         role="button"
                         tabIndex={0}
-                        onClick={() => triggerAddFile("misc")}
-                        onKeyDown={(e) => e.key === "Enter" && triggerAddFile("misc")}
-                        title="파일 추가"
+                        onClick={() => openAddChoice("misc")}
+                        onKeyDown={(e) => e.key === "Enter" && openAddChoice("misc")}
+                        title="폴더 추가 또는 업로드"
                       >
                         +
                       </div>
-                      {uploadedMiscItems.map((item) => {
+                      {subFolders.map((folder) => {
+                        const isSelected = inventorySelectedFolderIds.has(folder.id);
+                        return (
+                          <div
+                            key={folder.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--folder ${isSelected ? "is-selected" : ""}`}
+                            title={folder.name}
+                            onClick={() => toggleFolderSelection(folder.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentFolderId(folder.id);
+                            }}
+                          >
+                            <span className="ds-inventory-panel__item-icon">📁</span>
+                            <span className="ds-inventory-panel__item-title">{folder.name}</span>
+                          </div>
+                        );
+                      })}
+                      {currentListFiltered.map((item) => {
                         const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === (item.iconPreset ?? "misc")) ?? INVENTORY_ICON_PRESETS[0];
                         const isSelected = selectedIds.has(item.id);
                         return (
