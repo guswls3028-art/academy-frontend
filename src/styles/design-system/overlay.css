@@ -17,24 +17,27 @@
   transition: opacity 0.2s ease;
 }
 
-/* 래퍼 — 패널 중앙, 헤더 높이만큼 상단 여백 */
+/* 래퍼 — 패널 중앙, 하단 여백 없이 맞춤 */
 .ds-overlay-wrap {
   position: fixed;
   inset: 0;
   z-index: 70;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   overflow: auto;
-  padding-top: calc(var(--panel-header, 64px) + 12px);
-  padding-bottom: 12px;
+  padding-top: calc(var(--panel-header, 64px) + 8px);
+  padding-bottom: 0;
   padding-left: 16px;
   padding-right: 16px;
 }
 
-/* 패널 — 페이지 패널과 유사, 크기 제한 */
+/* 패널 — 크기 맞춤, 하단 여백 없음 */
 .ds-overlay-panel {
+  position: relative;
   width: 100%;
   max-width: 960px;
+  min-height: 0;
   border-radius: var(--radius-xl);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-divider);
@@ -43,12 +46,40 @@
     0 2px 4px rgba(0, 0, 0, 0.04),
     0 12px 24px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+  margin-bottom: 0;
 }
 
-/* 헤더 — 컴팩트 (도메인 헤더와 유사한 톤·높이) */
+/* 우상단 닫기 X 버튼 — 모달·오버레이 공통 SSOT */
+.ds-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.ds-close-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.ds-close-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+/* 헤더 — 컴팩트(두께 줄임), 좌: 아바타 이름 강의딱지 | 우: 아이디블럭 / 식별자블럭 */
 .ds-overlay-header {
   position: relative;
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-5) var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border-divider);
   background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
@@ -69,11 +100,10 @@
   min-width: 0;
 }
 
-/* 좌측 액센트 바 (도메인 헤더와 동일) */
 .ds-overlay-header__accent {
   flex-shrink: 0;
   width: 4px;
-  height: 22px;
+  height: 20px;
   border-radius: 999px;
   background: var(--color-brand-primary);
 }
@@ -83,7 +113,7 @@
 }
 
 .ds-overlay-header__title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.25;
@@ -91,7 +121,41 @@
   margin: 0;
 }
 
-/* 아이디·식별코드 — 눈에 잘 띄게 */
+/* 우측: 아이디 블럭 / 식별자 블럭 세로 배치 */
+.ds-overlay-header__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.ds-overlay-header__id-block,
+.ds-overlay-header__code-block {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+}
+
+.ds-overlay-header__code-block {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+}
+
+.ds-overlay-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* 레거시 메타(인라인 id/code) — 우측 블럭으로 대체 시 제거 가능 */
 .ds-overlay-header__meta {
   display: flex;
   align-items: center;
@@ -125,13 +189,6 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-right: 4px;
-}
-
-.ds-overlay-header__right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-shrink: 0;
 }
 
 /* 본문 */
