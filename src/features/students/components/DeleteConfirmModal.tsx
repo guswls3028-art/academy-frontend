@@ -1,6 +1,6 @@
 // PATH: src/features/students/components/DeleteConfirmModal.tsx
 import { useEffect, useMemo, useState } from "react";
-import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_DEFAULT_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { deleteStudent } from "../api/students";
 

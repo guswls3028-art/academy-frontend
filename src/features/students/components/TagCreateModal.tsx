@@ -67,7 +67,7 @@ export default function TagCreateModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} width={400}>
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.sm}>
       <ModalHeader
         title="태그 생성"
         description="이름과 색상을 정하면 꼬리표처럼 학생에 붙습니다."
