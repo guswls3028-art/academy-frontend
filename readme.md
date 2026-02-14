@@ -77,13 +77,13 @@ pnpm dev
 - **[DEPLOYMENT_MASTER_GUIDE.md](docs/DEPLOYMENT_MASTER_GUIDE.md)** ⭐ **메인 문서**
 - [FRONT_BACKEND_SPEC_ANALYSIS.md](docs/FRONT_BACKEND_SPEC_ANALYSIS.md) - 프론트-백엔드 스펙 분석
 
-### 디자인 시스템
-- [DESIGN_SSOT.md](docs/DESIGN_SSOT.md) - 디자인 시스템 SSOT
+### 디자인 시스템 (최신 문서만 유효)
+- [DESIGN_SSOT.md](docs/DESIGN_SSOT.md) - 디자인 시스템 SSOT (모달 §5 포함)
 - [TABS_PREMIUM_SPEC.md](docs/TABS_PREMIUM_SPEC.md) - 탭 컴포넌트 스펙
 - [PREMIUM_SAAS_AUDIT.md](docs/PREMIUM_SAAS_AUDIT.md) - 프리미엄 SaaS 감사
 
 ### 도메인별 문서
-- [STUDENTS_DOMAIN_UI_SSOT.md](docs/STUDENTS_DOMAIN_UI_SSOT.md) - 학생 도메인 UI SSOT
+- [STUDENTS_DOMAIN_UI_SSOT.md](docs/STUDENTS_DOMAIN_UI_SSOT.md) - 학생 도메인 UI SSOT (모달 SSOT 반영)
 - [EXAMS_README.md](docs/EXAMS_README.md) - 시험 기능 문서
 
 ---
