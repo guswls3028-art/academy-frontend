@@ -126,74 +126,6 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
 
   const hasSelection = selectedFolderIds.size > 0 || selectedFileId != null;
 
-  const handleMove = useCallback(
-    async (
-      targetFolderId: string | null,
-      type: "file" | "folder",
-      sourceId: string,
-      onDuplicate?: "overwrite" | "rename"
-    ) => {
-      setMovingId(sourceId);
-      const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>([
-        "storage-inventory",
-        SCOPE,
-        studentPs,
-      ]);
-      const applyOptimistic = () => {
-        if (!prev) return;
-        if (type === "file") {
-          const files = prev.files.map((f) =>
-            f.id === sourceId ? { ...f, folderId: targetFolderId } : f
-          );
-          qc.setQueryData(["storage-inventory", SCOPE, studentPs], { ...prev, files });
-        } else {
-          const folders = prev.folders.map((f) =>
-            f.id === sourceId ? { ...f, parentId: targetFolderId } : f
-          );
-          qc.setQueryData(["storage-inventory", SCOPE, studentPs], { ...prev, folders });
-        }
-      };
-      applyOptimistic();
-      try {
-        await moveInventoryItem({
-          scope: SCOPE,
-          type,
-          sourceId,
-          targetFolderId,
-          studentPs,
-          onDuplicate,
-        });
-        await qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
-      } catch (e) {
-        if (prev) qc.setQueryData(["storage-inventory", SCOPE, studentPs], prev);
-        const ce = e as MoveConflictError & Error;
-        if (ce.status === 409 && ce.code === "duplicate") {
-          setConflict({
-            type,
-            sourceId,
-            targetFolderId,
-            existingName: ce.existing_name || "항목",
-          });
-        } else {
-          alert(ce?.message ?? "이동에 실패했습니다.");
-        }
-      } finally {
-        setMovingId(null);
-      }
-    },
-    [qc, studentPs]
-  );
-
-  const resolveConflict = useCallback(
-    (choice: "overwrite" | "rename") => {
-      if (!conflict) return;
-      const { targetFolderId, type, sourceId } = conflict;
-      setConflict(null);
-      handleMove(targetFolderId, type, sourceId, choice);
-    },
-    [conflict, handleMove]
-  );
-
   const openFileUrl = async (r2Key: string) => {
     try {
       const { url } = await getPresignedUrl(r2Key);
@@ -247,7 +179,23 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
           {isLoading ? (
             <div className={styles.placeholder}>로딩 중...</div>
           ) : (
-            <div className={styles.grid}>
+            <div
+              className={styles.grid}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropTargetFolderId(currentFolderId);
+              }}
+              onDragLeave={() => setDropTargetFolderId(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropTargetFolderId(null);
+                const payload = getDragPayload(e);
+                if (payload && payload.sourceId) {
+                  handleMove(currentFolderId, payload.type, payload.sourceId);
+                }
+              }}
+            >
               <div
                 className={styles.item + " " + styles.itemAdd}
                 onClick={() => setAddChoiceOpen(true)}
@@ -259,9 +207,12 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
               {subFolders.map((f) => (
                 <div
                   key={f.id}
+                  draggable
                   className={
                     styles.item +
-                    (selectedFolderIds.has(f.id) ? " " + styles.itemSelected : "")
+                    (selectedFolderIds.has(f.id) ? " " + styles.itemSelected : "") +
+                    (dropTargetFolderId === f.id ? " " + styles.dropTarget : "") +
+                    (movingId === f.id ? " " + styles.itemMoving : "")
                   }
                   onClick={(e) => {
                     e.stopPropagation();
@@ -269,17 +220,39 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
                     setSelectedFileId(null);
                   }}
                   onDoubleClick={() => setCurrentFolderId(f.id)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "folder" as const, sourceId: f.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    setDropTargetFolderId(f.id);
+                  }}
+                  onDragLeave={() => setDropTargetFolderId((id) => (id === f.id ? null : id))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDropTargetFolderId(null);
+                    const payload = getDragPayload(e);
+                    if (payload && payload.sourceId && payload.sourceId !== f.id) {
+                      handleMove(f.id, payload.type, payload.sourceId);
+                    }
+                  }}
                 >
                   <FolderOpen size={36} />
                   <span>{f.name}</span>
+                  {movingId === f.id && <span className={styles.movingLabel}>이동 중...</span>}
                 </div>
               ))}
               {subFiles.map((file) => (
                 <div
                   key={file.id}
+                  draggable
                   className={
                     styles.item +
-                    (selectedFileId === file.id ? " " + styles.itemSelected : "")
+                    (selectedFileId === file.id ? " " + styles.itemSelected : "") +
+                    (movingId === file.id ? " " + styles.itemMoving : "")
                   }
                   onClick={(e) => {
                     e.stopPropagation();
@@ -288,6 +261,10 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
                   }}
                   onDoubleClick={() => openFileUrl(file.r2Key)}
                   title={file.description || file.displayName}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
                 >
                   {file.contentType?.startsWith("image/") ? (
                     <Image size={36} />
@@ -295,6 +272,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
                     <FileText size={36} />
                   )}
                   <span>{file.displayName}</span>
+                  {movingId === file.id && <span className={styles.movingLabel}>이동 중...</span>}
                 </div>
               ))}
             </div>
