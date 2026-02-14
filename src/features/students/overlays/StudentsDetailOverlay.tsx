@@ -385,29 +385,114 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
           <>
             <div className="ds-overlay-backdrop" onClick={() => setInventoryOpen(false)} aria-hidden />
             <div
-              className="ds-inventory-window"
+              className="ds-inventory-panel"
               role="dialog"
               aria-label="학생 인벤토리"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="ds-inventory-window__header">
-                <span className="ds-inventory-window__title">인벤토리 — {student.name}</span>
+              <div className="ds-inventory-panel__header">
+                <span className="ds-inventory-panel__title">인벤토리 — {student.name}</span>
                 <CloseButton onClick={() => setInventoryOpen(false)} />
               </div>
-              <div className="ds-inventory-window__body">
-                <p className="ds-inventory-window__placeholder">
-                  선생이 올린 학생 성적표·자료 등이 여기 표시됩니다. (R2 연동 예정)
-                </p>
-                <div className="ds-inventory-window__grid">
-                  <div className="ds-inventory-window__item" title="플레이스홀더">
-                    <span className="ds-inventory-window__icon">📄</span>
-                    <span>학생성적표</span>
-                  </div>
-                  <div className="ds-inventory-window__item" title="플레이스홀더">
-                    <span className="ds-inventory-window__icon">📎</span>
-                    <span>기타 자료</span>
-                  </div>
+              <div className="ds-inventory-panel__tabs">
+                {(["score", "misc", "video", "image"] as const).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`ds-inventory-panel__tab ${inventoryTab === key ? "is-active" : ""}`}
+                    onClick={() => setInventoryTab(key)}
+                  >
+                    {key === "score" && "성적표"}
+                    {key === "misc" && "기타"}
+                    {key === "video" && "제출영상"}
+                    {key === "image" && "제출이미지"}
+                  </button>
+                ))}
+              </div>
+              <div className="ds-inventory-panel__body">
+                <div className="ds-inventory-panel__grid">
+                  {inventoryTab === "score" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="더블클릭하여 보기"
+                        onDoubleClick={() => setViewerItem({ type: "pdf", url: "#", name: "중간고사 성적표" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">📄</span>
+                        <span>중간고사 성적표</span>
+                      </div>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="더블클릭하여 보기"
+                        onDoubleClick={() => setViewerItem({ type: "image", url: "#", name: "기말 성적" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">🖼️</span>
+                        <span>기말 성적</span>
+                      </div>
+                    </>
+                  )}
+                  {inventoryTab === "misc" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="더블클릭하여 보기"
+                        onDoubleClick={() => setViewerItem({ type: "pdf", url: "#", name: "기타 자료" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">📎</span>
+                        <span>기타 자료</span>
+                      </div>
+                    </>
+                  )}
+                  {inventoryTab === "video" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="학생 앱 제출분 (더블클릭)"
+                        onDoubleClick={() => setViewerItem({ type: "video", url: "#", name: "제출 영상 1" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">🎬</span>
+                        <span>제출 영상 1</span>
+                      </div>
+                    </>
+                  )}
+                  {inventoryTab === "image" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="학생 앱 제출분 (더블클릭)"
+                        onDoubleClick={() => setViewerItem({ type: "image", url: "#", name: "제출 이미지 1" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">🖼️</span>
+                        <span>제출 이미지 1</span>
+                      </div>
+                    </>
+                  )}
                 </div>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {viewerItem &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setViewerItem(null)} aria-hidden />
+            <div className="ds-inventory-viewer" role="dialog" aria-label="보기" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-viewer__header">
+                <span className="ds-inventory-viewer__title">{viewerItem.name}</span>
+                <CloseButton onClick={() => setViewerItem(null)} />
+              </div>
+              <div className="ds-inventory-viewer__body">
+                {viewerItem.type === "pdf" && (
+                  <div className="ds-inventory-viewer__placeholder">PDF 뷰어 (URL 연동 시 iframe 표시)</div>
+                )}
+                {viewerItem.type === "image" && (
+                  <div className="ds-inventory-viewer__placeholder">이미지 뷰어 (URL 연동 시 img 표시)</div>
+                )}
+                {viewerItem.type === "video" && (
+                  <div className="ds-inventory-viewer__placeholder">영상 뷰어 (URL 연동 시 video 표시)</div>
+                )}
               </div>
             </div>
           </>,
