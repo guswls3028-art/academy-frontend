@@ -71,7 +71,7 @@ export default function StudentFilterModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.wide}>
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
       <ModalHeader
         type="action"
         title={title}
