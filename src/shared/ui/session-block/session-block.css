@@ -10,10 +10,8 @@
   --session-block-n1-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, var(--scale-Neutral0)) 100%);
   --session-block-n1-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--color-brand-primary) 12%, var(--scale-Neutral0)) 100%);
 
-  --session-block-supplement-bottom: color-mix(in srgb, var(--session-block-supplement) 45%, transparent);
   --session-block-supplement-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 8%, var(--scale-Neutral0)) 100%);
   --session-block-supplement-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 10%, var(--scale-Neutral0)) 100%);
-  --session-block-supplement-selected-bottom: color-mix(in srgb, var(--session-block-supplement) 55%, transparent);
   --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, var(--scale-Neutral0)) 100%);
 
   /* 디자인: 블록 = 내부 볼록 효과(inset) 위주, 외부 그림자 최소화 */
@@ -174,7 +172,6 @@
 
 /* ----- N차시 ----- */
 .session-block--n1 {
-  --session-block-bottom: var(--session-block-n1-bottom);
   background: var(--session-block-n1-bg);
   color: var(--color-text-primary);
 }
