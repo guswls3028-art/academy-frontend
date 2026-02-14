@@ -2,7 +2,7 @@
 // 학생 상세 오버레이 — 고급 SaaS 스타일, 기능·구성 동일
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 
