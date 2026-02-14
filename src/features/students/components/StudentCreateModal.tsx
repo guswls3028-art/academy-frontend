@@ -698,9 +698,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                         </label>
                       </div>
                     )}
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div className="modal-form-row modal-form-row--1-auto">
                       <input
-                        placeholder="학생 전화(010-XXXX-XXXX, 선택) · 없으면 학부모 전화로 OMR"
+                        placeholder="학생 전화(선택) · 없으면 학부모 전화로 OMR"
                         value={
                           (() => {
                             const raw = String(item.student?.phone ?? "").replace(/\D/g, "");
@@ -724,7 +724,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 ))}
               </div>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="modal-actions-inline">
                 {conflictedItems.length > 0 && (
                   <Button
                     intent="primary"
