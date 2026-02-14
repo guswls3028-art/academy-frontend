@@ -50,6 +50,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const [inventoryTab, setInventoryTab] = useState<"score" | "misc" | "video" | "image">("score");
   const [viewerItem, setViewerItem] = useState<{ type: "pdf" | "image" | "video"; url: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const addFileTabRef = useRef<"score" | "misc">("score");
 
   type UploadedInventoryItem = { id: string; title: string; description: string; fileName: string; fileUrl: string; fileType: "pdf" | "image" };
   const [uploadedScoreItems, setUploadedScoreItems] = useState<UploadedInventoryItem[]>([]);
