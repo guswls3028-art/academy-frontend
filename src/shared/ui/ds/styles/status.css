@@ -50,23 +50,23 @@ button.ds-status-badge:disabled {
   cursor: not-allowed;
 }
 
-/* ---- data-status: 활성/비활성/종료 (강한 톤) ---- */
+/* ---- data-status: 활성(초록) / 비활·폐기(회색) / 종료(회색) ---- */
 .ds-status-badge[data-status="active"] {
   background: var(--color-success);
   color: #fff;
 }
 
 .ds-status-badge[data-status="inactive"] {
-  background: var(--color-danger);
-  color: #fff;
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
+  color: var(--status-badge-neutral-text, var(--color-text-secondary));
 }
 
 .ds-status-badge[data-status="archived"] {
-  background: color-mix(in srgb, var(--color-border-divider) 18%, var(--color-bg-surface));
-  color: var(--color-text-secondary);
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
+  color: var(--status-badge-neutral-text, var(--color-text-secondary));
 }
 
-/* ---- data-tone: Lock/Role/기타 (동일 강한 톤) ---- */
+/* ---- data-tone: 공용 4톤 (하드코딩 대신 반드시 사용) ---- */
 .ds-status-badge[data-tone="success"] {
   background: var(--color-success);
   color: #fff;
@@ -77,14 +77,19 @@ button.ds-status-badge:disabled {
   color: #fff;
 }
 
+.ds-status-badge[data-tone="warning"] {
+  background: var(--color-warning);
+  color: #fff;
+}
+
 .ds-status-badge[data-tone="primary"] {
   background: var(--color-brand-primary);
   color: #fff;
 }
 
 .ds-status-badge[data-tone="neutral"] {
-  background: color-mix(in srgb, var(--color-border-divider) 18%, var(--color-bg-surface));
-  color: var(--color-text-secondary);
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
+  color: var(--status-badge-neutral-text, var(--color-text-secondary));
 }
 
 /* 톤 미지정 시 기본(neutral) */
