@@ -237,9 +237,6 @@ table.ds-table {
   text-align: left;
   vertical-align: middle;
 }
-.ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell {
-  text-align: center;
-}
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th {
   padding: 4px 18px;
 }
@@ -247,6 +244,7 @@ table.ds-table {
   padding: 6px 18px;
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell {
+  text-align: center;
   padding: 4px 4px;
   box-sizing: border-box;
 }
