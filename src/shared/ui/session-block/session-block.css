@@ -303,7 +303,7 @@
 }
 
 .session-block:not(.session-block--compact) .session-block__title {
-  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
   font-weight: 800;
   text-align: center;
 }
