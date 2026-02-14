@@ -174,6 +174,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const hasSelection = selectedIds.size > 0 || inventorySelectedFolderIds.size > 0;
 
   const toggleInventorySelection = (id: string) => {
+    setInventorySelectedFolderIds(new Set());
     if (inventoryMultiSelect) {
       setInventorySelectedIds((prev) => {
         const next = new Set(prev);
@@ -183,6 +184,21 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
       });
     } else {
       setInventorySelectedId((prev) => (prev === id ? null : id));
+    }
+  };
+
+  const toggleFolderSelection = (folderId: string) => {
+    setInventorySelectedId(null);
+    setInventorySelectedIds(new Set());
+    if (inventoryMultiSelect) {
+      setInventorySelectedFolderIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(folderId)) next.delete(folderId);
+        else next.add(folderId);
+        return next;
+      });
+    } else {
+      setInventorySelectedFolderIds((prev) => (prev.has(folderId) ? new Set() : new Set([folderId])));
     }
   };
 
