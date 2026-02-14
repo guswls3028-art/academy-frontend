@@ -1,5 +1,5 @@
 // PATH: src/features/sessions/components/SessionBlock.tsx
-// 차시 = 세션 — lecture 기준 세션 목록 + 추가 (LectureLayout, SessionLayout 공용). 전역 차시 블록 디자인 사용
+// 차시 = 세션 — lecture 기준 세션 목록 + 추가 (LectureLayout, SessionLayout 공용). 차시 블록 SSOT 사용
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -8,15 +8,7 @@ import { Plus } from "lucide-react";
 
 import { fetchSessions } from "@/features/lectures/api/sessions";
 import SessionCreateModal from "@/features/lectures/components/SessionCreateModal";
-import "@/shared/ui/session-block/session-block.css";
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
-
-function isSupplement(title: string | null | undefined): boolean {
-  return Boolean(title?.includes?.("보강"));
-}
+import { SessionBlockView, isSupplement } from "@/shared/ui/session-block";
 
 interface Props {
   lectureId: number;

@@ -191,32 +191,26 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
               차시 유형
             </div>
             <div className="grid grid-cols-2 gap-5">
-              <button
-                type="button"
+              <SessionBlockView
+                variant="n1"
+                compact={false}
+                selected={sessionType === "n+1"}
+                showCheck
+                title={`${nextOrder}차시`}
+                desc="정규 차시 추가 · 기본 날짜/시간 사용"
                 onClick={() => setSessionType("n+1")}
-                className={cx(
-                  "session-block session-block--n1",
-                  sessionType === "n+1" && "session-block--selected"
-                )}
-                aria-pressed={sessionType === "n+1"}
-              >
-                <span className="session-block__check" aria-hidden>✓</span>
-                <span className="session-block__title">{nextOrder}차시</span>
-                <span className="session-block__desc">정규 차시 추가 · 기본 날짜/시간 사용</span>
-              </button>
-              <button
-                type="button"
+                ariaPressed={sessionType === "n+1"}
+              />
+              <SessionBlockView
+                variant="supplement"
+                compact={false}
+                selected={sessionType === "supplement"}
+                showCheck
+                title="보강"
+                desc="보강 차시 · 날짜·시간 직접 선택"
                 onClick={() => setSessionType("supplement")}
-                className={cx(
-                  "session-block session-block--supplement",
-                  sessionType === "supplement" && "session-block--selected"
-                )}
-                aria-pressed={sessionType === "supplement"}
-              >
-                <span className="session-block__check" aria-hidden>✓</span>
-                <span className="session-block__title">보강</span>
-                <span className="session-block__desc">보강 차시 · 날짜·시간 직접 선택</span>
-              </button>
+                ariaPressed={sessionType === "supplement"}
+              />
             </div>
           </div>
 
