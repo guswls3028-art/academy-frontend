@@ -4,13 +4,14 @@
 import type { SubmissionStatus } from "@/features/submissions/types";
 import { SUBMISSION_STATUS_COLOR, SUBMISSION_STATUS_LABEL } from "@/features/submissions/statusMaps";
 
+/** 색상만 (사이즈는 ds-status-badge SSOT) */
 const COLOR_CLASS: Record<string, string> = {
-  gray: "bg-neutral-800 text-neutral-200 border-neutral-700",
-  blue: "bg-blue-950 text-blue-200 border-blue-800",
-  indigo: "bg-indigo-950 text-indigo-200 border-indigo-800",
-  yellow: "bg-yellow-950 text-yellow-200 border-yellow-800",
-  green: "bg-emerald-950 text-emerald-200 border-emerald-800",
-  red: "bg-red-950 text-red-200 border-red-800",
+  gray: "!bg-neutral-800 !text-neutral-200",
+  blue: "!bg-blue-950 !text-blue-200",
+  indigo: "!bg-indigo-950 !text-indigo-200",
+  yellow: "!bg-yellow-950 !text-yellow-200",
+  green: "!bg-emerald-950 !text-emerald-200",
+  red: "!bg-red-950 !text-red-200",
 };
 
 export default function SubmissionStatusBadge({
