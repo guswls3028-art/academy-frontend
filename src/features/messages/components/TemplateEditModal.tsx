@@ -119,21 +119,23 @@ export default function TemplateEditModal({
             className="template-editor__left shrink-0 flex flex-col gap-4 p-4 overflow-hidden"
             style={{ width: 300 }}
           >
-            {/* 카테고리: 기본 | 강의 | 클리닉 (모달 내 자유 전환) */}
+            {/* 카테고리: 기본 | 강의 | 클리닉 (모달 내 입체탭) */}
             <section>
               <div className="template-editor__blocks-title mb-2">카테고리</div>
-              <div className="ds-tabs">
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    className={`ds-tab ${selectedCategory === cat ? "is-active" : ""}`}
-                    onClick={() => !locked && setSelectedCategory(cat)}
-                    disabled={locked}
-                  >
-                    {TEMPLATE_CATEGORY_LABELS[cat]}
-                  </button>
-                ))}
+              <div className="modal-tabs-elevated">
+                <div className="ds-tabs">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className={`ds-tab ${selectedCategory === cat ? "is-active" : ""}`}
+                      onClick={() => !locked && setSelectedCategory(cat)}
+                      disabled={locked}
+                    >
+                      {TEMPLATE_CATEGORY_LABELS[cat]}
+                    </button>
+                  ))}
+                </div>
               </div>
             </section>
 
