@@ -210,10 +210,15 @@
     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
-/* ----- 보강 ----- */
+/* ----- 보강 (테마 보색 --color-brand-complement 사용) ----- */
 .session-block--supplement {
   background: var(--session-block-supplement-bg);
   color: var(--color-text-primary);
+}
+
+/* 차시 추가 모달 내 보강 블록: 테마 보색이 확실히 반영되도록 재선언 */
+.admin-modal .session-block--supplement {
+  --session-block-supplement: var(--color-brand-complement);
 }
 
 .session-block--supplement:hover {
