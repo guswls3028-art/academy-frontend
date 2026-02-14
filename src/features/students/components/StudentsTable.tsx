@@ -81,10 +81,10 @@ export default function StudentsTable({
     }
   }
 
-  // 컬럼: 선택 타이트, 이름은 딱지 2개+아바타+이름 정도
+  // 컬럼: 체크박스 타이트(28), 이름은 딱지 2개+아바타+이름, 전체 중앙정렬
   const columns = useMemo(
     () => [
-      { key: "_checkbox", label: "", w: 36 },
+      { key: "_checkbox", label: "", w: 28 },
       { key: "name", label: "이름", w: 168 },
       { key: "parentPhone", label: "학부모 전화", w: 130 },
       { key: "studentPhone", label: "학생 전화", w: 130 },

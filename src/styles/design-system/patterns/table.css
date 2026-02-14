@@ -238,14 +238,12 @@ table.ds-table {
   vertical-align: middle;
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell {
-  padding-left: 4px;
-  padding-right: 4px;
-  width: 1%;
+  padding: 6px 4px;
+  width: 28px;
   min-width: 28px;
-  box-sizing: content-box;
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell input[type="checkbox"] {
-  margin: 0;
+  margin: 0 auto;
   display: block;
 }
 
