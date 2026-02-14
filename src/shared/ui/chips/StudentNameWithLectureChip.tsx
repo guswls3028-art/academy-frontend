@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/chips/StudentNameWithLectureChip.tsx
-// 전역 규칙: 학생 이름이 등장하는 모든 곳에서 [아바타] + 강의 딱지(수강 강의 1:1) + 이름
+// 전역 규칙: 학생 이름이 등장하는 모든 곳에서 [강의 딱지] + [아바타] + [이름]
 // 강의 없으면 딱지 없음. 학생 1명이 N개 강의 수강 시 딱지 N개 표시.
 
 import React from "react";
