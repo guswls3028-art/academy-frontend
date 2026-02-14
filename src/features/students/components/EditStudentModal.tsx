@@ -298,50 +298,49 @@ export default function EditStudentModal({
             pattern="[0-9\-]*"
           />
 
-          <div className="modal-form-row modal-form-row--2">
-            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-              {[{ key: "HIGH", label: "고등" }, { key: "MIDDLE", label: "중등" }].map((t) => (
+          <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+            {[{ key: "HIGH", label: "고등" }, { key: "MIDDLE", label: "중등" }].map((t) => (
+              <Button
+                key={t.key}
+                intent={form.schoolType === t.key ? "secondary" : "ghost"}
+                aria-pressed={form.schoolType === t.key}
+                onClick={() =>
+                  setForm((p) => ({
+                    ...p,
+                    schoolType: t.key,
+                    school: "",
+                    schoolClass: "",
+                    major: "",
+                  }))
+                }
+                disabled={busy}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="modal-form-row modal-form-row--1-auto">
+            <input
+              name="school"
+              placeholder="학교명"
+              value={form.school}
+              onChange={handleChange}
+              className="ds-input"
+              disabled={busy}
+            />
+            <div className="modal-actions-inline">
+              {["1", "2", "3"].map((g) => (
                 <Button
-                  key={t.key}
-                  intent={form.schoolType === t.key ? "secondary" : "ghost"}
-                  aria-pressed={form.schoolType === t.key}
-                  onClick={() =>
-                    setForm((p) => ({
-                      ...p,
-                      schoolType: t.key,
-                      school: "",
-                      schoolClass: "",
-                      major: "",
-                    }))
-                  }
+                  key={g}
+                  intent={form.grade === g ? "secondary" : "ghost"}
+                  aria-pressed={form.grade === g}
+                  onClick={() => setForm((p) => ({ ...p, grade: g }))}
                   disabled={busy}
                 >
-                  {t.label}
+                  {g}학년
                 </Button>
               ))}
-            </div>
-            <div className="modal-form-row modal-form-row--1-auto" style={{ gap: 0 }}>
-              <input
-                name="school"
-                placeholder="학교명"
-                value={form.school}
-                onChange={handleChange}
-                className="ds-input"
-                disabled={busy}
-              />
-              <div className="modal-actions-inline">
-                {["1", "2", "3"].map((g) => (
-                  <Button
-                    key={g}
-                    intent={form.grade === g ? "secondary" : "ghost"}
-                    aria-pressed={form.grade === g}
-                    onClick={() => setForm((p) => ({ ...p, grade: g }))}
-                    disabled={busy}
-                  >
-                    {g}학년
-                  </Button>
-                ))}
-              </div>
             </div>
           </div>
 
