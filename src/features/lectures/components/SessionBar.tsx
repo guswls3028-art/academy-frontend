@@ -5,7 +5,15 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import SessionCreateModal from "./SessionCreateModal";
 import { useLectureParams } from "../hooks/useLectureParams";
-import { Button } from "@/shared/ui/ds";
+import "@/shared/ui/session-block/session-block.css";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function isSupplement(title: string | null | undefined): boolean {
+  return Boolean(title?.includes?.("보강"));
+}
 
 export default function SessionBar() {
   const { lectureId } = useLectureParams();
@@ -33,74 +41,40 @@ export default function SessionBar() {
           paddingBottom: 6,
         }}
       >
-        {sessions.map((s: any) => {
+        {sessions.map((s: { id: number; order?: number; date?: string | null; title?: string | null }) => {
           const active = location.pathname.includes(`/sessions/${s.id}`);
+          const supplement = isSupplement(s.title);
 
           return (
             <Link
               key={s.id}
               to={`sessions/${s.id}`}
-              style={{
-                flex: "0 0 auto",
-                minWidth: 168,
-                borderRadius: 999,
-                border: active ? "1px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
-                background: active ? "var(--color-primary)" : "var(--color-bg-surface)",
-                padding: "10px 14px",
-                textDecoration: "none",
-                boxShadow: active ? "0 1px 0 rgba(0,0,0,0.06)" : "none",
-              }}
+              className={cx(
+                "session-block session-block--compact",
+                supplement ? "session-block--supplement" : "session-block--n1",
+                active && "session-block--selected"
+              )}
+              style={{ flex: "0 0 auto", minWidth: 168 }}
             >
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 950,
-                  color: active ? "#fff" : "var(--color-text-primary)",
-                  lineHeight: 1.1,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {s.order ?? "?"}차시
-              </div>
-
-              <div
-                style={{
-                  marginTop: 4,
-                  fontSize: 11,
-                  fontWeight: 850,
-                  color: active ? "rgba(255,255,255,0.85)" : "var(--color-text-muted)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {s.date || "-"}
-              </div>
+              <span className="session-block__title">{s.order ?? "?"}차시</span>
+              <span className="session-block__desc">{s.date || "-"}</span>
             </Link>
           );
         })}
 
-        <Button
-          intent="ghost"
+        <button
+          type="button"
           onClick={() => setShowModal(true)}
-          style={{
-            flex: "0 0 auto",
-            minWidth: 168,
-            borderRadius: 999,
-            border: "1px dashed var(--color-border-divider)",
-            background: "var(--color-bg-surface)",
-            color: "var(--color-text-muted)",
-            fontWeight: 900,
-          }}
+          className="session-block session-block--compact session-block--add"
+          style={{ flex: "0 0 auto", minWidth: 168 }}
         >
-          + 차시 추가
-        </Button>
+          <span className="session-block__title">+ 차시 추가</span>
+        </button>
       </div>
 
       {showModal && (
         <SessionCreateModal
           lectureId={lectureId}
-          sessionCount={sessions.length}
           onClose={() => setShowModal(false)}
         />
       )}
