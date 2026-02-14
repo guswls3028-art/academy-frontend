@@ -102,7 +102,7 @@ export function TimeScrollPopover({
     onSelectRef.current(slotTo24h(idx));
   }, []);
 
-  const scrollToIdx = useCallback((idx: number) => {
+  const scrollToIdx = useCallback((idx: number, options?: { smooth?: boolean }) => {
     const el = listRef.current;
     if (!el) return;
     isUserScrollingRef.current = false;
@@ -113,9 +113,14 @@ export function TimeScrollPopover({
     lastIdxRef.current = idx;
     const blockHeight = ALL_SLOTS.length * ROW_HEIGHT;
     const top = blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
-    el.scrollTop = Math.max(0, Math.min(top, el.scrollHeight - VISIBLE_HEIGHT));
+    const clampedTop = Math.max(0, Math.min(top, el.scrollHeight - VISIBLE_HEIGHT));
     setSelectedIdx(idx);
     emit(idx);
+    if (options?.smooth) {
+      el.scrollTo({ top: clampedTop, behavior: "smooth" });
+    } else {
+      el.scrollTop = clampedTop;
+    }
   }, [emit]);
 
   // 외부 value 변경 시 동기화 (스크롤 중에는 덮어쓰지 않음)
@@ -191,7 +196,7 @@ export function TimeScrollPopover({
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       wheelAccumRef.current += e.deltaY;
-      const threshold = 100;
+      const threshold = 40;
       const steps: number[] = [];
       while (Math.abs(wheelAccumRef.current) >= threshold) {
         const step = wheelAccumRef.current > 0 ? 1 : -1;
