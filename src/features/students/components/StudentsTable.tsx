@@ -116,7 +116,7 @@ export default function StudentsTable({
       <th
         key={colKey}
         onClick={() => onSortChange(next)}
-        className="cursor-pointer select-none text-center align-middle"
+        className="cursor-pointer select-none"
         aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
         scope="col"
       >
@@ -194,8 +194,8 @@ export default function StudentsTable({
                   />
                 ) : null}
               </td>
-              {/* 이름 — 강의딱지·아바타·이름, 넓은 영역 */}
-              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate text-center align-middle">
+              {/* 이름 — 강의딱지·아바타·이름 */}
+              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
                 <StudentNameWithLectureChip
                   name={s.name ?? "-"}
                   profilePhotoUrl={s.profilePhotoUrl}
