@@ -404,6 +404,98 @@
   line-height: 1;
 }
 
+/* + 추가 슬롯 (성적표/기타 탭) */
+.ds-inventory-panel__item--add {
+  border-style: dashed;
+  color: var(--color-text-muted);
+  font-size: 24px;
+}
+.ds-inventory-panel__item--add:hover {
+  color: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+}
+
+/* 업로드된 항목 카드 — 제목 / 설명 / 파일아이콘 / 원본파일명 */
+.ds-inventory-panel__item--uploaded {
+  align-items: flex-start;
+  text-align: left;
+  min-height: 80px;
+  padding: var(--space-2) var(--space-3);
+}
+.ds-inventory-panel__item--uploaded .ds-inventory-panel__item-icon {
+  font-size: 20px;
+  margin-bottom: var(--space-1);
+}
+.ds-inventory-panel__item-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+.ds-inventory-panel__item-desc {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  line-height: 1.3;
+  margin-bottom: var(--space-1);
+}
+.ds-inventory-panel__item-filename {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  word-break: break-all;
+}
+
+/* 인벤토리 — 파일 추가 모달 (제목/설명 입력) */
+.ds-inventory-add-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 73;
+  width: 90%;
+  max-width: 360px;
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+}
+.ds-inventory-add-modal__title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-primary);
+}
+.ds-inventory-add-modal__field {
+  margin-bottom: var(--space-4);
+}
+.ds-inventory-add-modal__field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+.ds-inventory-add-modal__field input,
+.ds-inventory-add-modal__field textarea {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  font-size: 13px;
+}
+.ds-inventory-add-modal__field textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+.ds-inventory-add-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
 /* 인벤토리 뷰어 — 더블클릭 시 내용물 보기 */
 .ds-inventory-viewer {
   position: fixed;
