@@ -95,110 +95,34 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
 
   return (
     <>
-      {/* Backdrop — 부드러운 블러 + 딤 */}
-      <div
-        className="fixed inset-0 z-[60]"
-        style={{
-          background: "rgba(0,0,0,0.45)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          transition: "opacity 0.2s ease",
-        }}
-        onClick={onClose}
-        aria-hidden
-      />
+      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
 
-      {/* Overlay panel */}
-      <div
-        className="fixed inset-0 z-[70] flex justify-center overflow-auto"
-        style={{
-          paddingTop: "calc(var(--panel-header, 64px) + 16px)",
-          paddingBottom: 16,
-          paddingLeft: 24,
-          paddingRight: 24,
-        }}
-      >
-        <div
-          className="w-full max-w-[1100px]"
-          style={{
-            borderRadius: 24,
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-divider)",
-            boxShadow:
-              "0 0 0 1px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.04), 0 12px 24px rgba(0,0,0,0.08), 0 24px 48px rgba(0,0,0,0.12)",
-            overflow: "hidden",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header — 프리미엄 인스펙트 스타일, 유리 질감 */}
-          <header
-            className="relative overflow-hidden"
-            style={{
-              background:
-                "linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface)) 50%, var(--color-bg-surface) 100%)",
-              borderBottom: "1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider))",
-              padding: "28px 32px 24px",
-              boxShadow:
-                "0 1px 0 0 color-mix(in srgb, var(--color-primary) 6%, transparent)",
-            }}
-          >
-            {/* 유리 반사 (gloss) — 상단 흰줄 없이 은은하게 */}
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 50%)",
-                pointerEvents: "none",
-              }}
-            />
-            {/* 질감 (노이즈) */}
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                opacity: 0.04,
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                pointerEvents: "none",
-              }}
-            />
-            <div className="relative flex items-start justify-between gap-6 flex-wrap">
-              {/* Left: 아바타 + 타이틀 블록 */}
-              <div className="flex items-center gap-4 min-w-0">
+      <div className="ds-overlay-wrap">
+        <div className="ds-overlay-panel" onClick={(e) => e.stopPropagation()}>
+          {/* 헤더 — SSOT: overlay.css (페이지형 컴팩트, ID/식별코드 강조) */}
+          <header className="ds-overlay-header">
+            <div className="ds-overlay-header__inner">
+              <div className="ds-overlay-header__left">
+                <div className="ds-overlay-header__accent" aria-hidden />
                 <div
                   style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 14,
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
                     flexShrink: 0,
                     display: "grid",
                     placeItems: "center",
-                    background:
-                      "linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface)), color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface)))",
-                    border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))",
-                    boxShadow:
-                      "0 2px 8px color-mix(in srgb, var(--color-primary) 12%, transparent), inset 0 1px 0 0 rgba(255,255,255,0.5)",
-                    fontSize: 18,
-                    fontWeight: 800,
-                    letterSpacing: "-0.04em",
-                    color: "var(--color-primary)",
+                    background: "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))",
+                    border: "1px solid var(--color-border-divider)",
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "var(--color-brand-primary)",
                   }}
                 >
                   {student.name?.[0] ?? "?"}
                 </div>
-                <div className="min-w-0">
-                  <h1
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                      letterSpacing: "-0.03em",
-                      lineHeight: 1.2,
-                      color: "var(--color-text-primary)",
-                      margin: 0,
-                    }}
-                  >
+                <div className="ds-overlay-header__title-block">
+                  <h1 className="ds-overlay-header__title">
                     <StudentNameWithLectureChip
                       name={student.name ?? ""}
                       lectures={
@@ -209,38 +133,20 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                             }))
                           : undefined
                       }
-                      chipSize={20}
-                      className="text-[22px] font-extrabold"
+                      chipSize={16}
                     />
                   </h1>
-                  <p
-                    style={{
-                      marginTop: 4,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "var(--color-text-muted)",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    <span style={{ opacity: 0.85 }}>아이디</span> · {student.psNumber ?? "—"}
-                    <span style={{ marginLeft: 16, opacity: 0.85 }}>시험 식별코드</span>
-                    <span
-                      style={{
-                        marginLeft: 6,
-                        fontFamily: "ui-monospace, monospace",
-                        fontWeight: 700,
-                        color: "var(--color-primary)",
-                        letterSpacing: "0.02em",
-                      }}
-                    >
+                  <div className="ds-overlay-header__meta">
+                    <span className="ds-overlay-header__id" title="아이디">
+                      {student.psNumber ?? "—"}
+                    </span>
+                    <span className="ds-overlay-header__code" title="시험 식별코드">
                       {formatOmrCode(student.omrCode)}
                     </span>
-                  </p>
+                  </div>
                 </div>
               </div>
-
-              {/* Right: 액션 영역 */}
-              <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="ds-overlay-header__right">
                 <button
                   type="button"
                   onClick={() => toggleActive.mutate(!student.active)}
@@ -250,42 +156,20 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 >
                   {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
                 </button>
-                <span
-                  style={{
-                    width: 1,
-                    height: 20,
-                    background: "var(--color-border-divider)",
-                    opacity: 0.7,
-                  }}
-                  aria-hidden
-                />
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    intent="primary"
-                    size="sm"
-                    onClick={() => setEditOpen(true)}
-                  >
-                    수정
-                  </Button>
-                  <Button type="button" intent="danger" size="sm" onClick={handleDelete}>
-                    삭제
-                  </Button>
-                  <Button
-                    type="button"
-                    intent="secondary"
-                    size="sm"
-                    onClick={onClose}
-                  >
-                    닫기
-                  </Button>
-                </div>
+                <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
+                  수정
+                </Button>
+                <Button type="button" intent="danger" size="sm" onClick={handleDelete}>
+                  삭제
+                </Button>
+                <Button type="button" intent="secondary" size="sm" onClick={onClose}>
+                  닫기
+                </Button>
               </div>
             </div>
           </header>
 
-          {/* Body */}
-          <div style={{ padding: "28px 28px 32px" }}>
+          <div className="ds-overlay-body">
             <div
               style={{
                 display: "grid",
