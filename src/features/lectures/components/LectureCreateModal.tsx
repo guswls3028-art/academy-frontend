@@ -177,6 +177,16 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             onChange={setColor}
             disabled={isPending}
           />
+
+          <input
+            className="ds-input"
+            placeholder="딱지 (2글자, 선택) — 미입력 시 강의 이름 앞 2자"
+            value={chipLabel}
+            onChange={(e) => setChipLabel(e.target.value.slice(0, 2))}
+            maxLength={2}
+            disabled={isPending}
+            style={{ maxWidth: 160 }}
+          />
         </div>
       </ModalBody>
 
