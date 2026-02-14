@@ -91,7 +91,7 @@ export function TimeScrollPopover({
   onSelect,
   onClose,
 }: TimeScrollPopoverProps) {
-  const periodScrollRef = useRef<HTMLDivElement>(null);
+  const periodAreaRef = useRef<HTMLDivElement>(null); // 오전/오후 영역 — 휠·클릭
   const timeScrollRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
