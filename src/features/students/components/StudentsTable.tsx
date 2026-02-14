@@ -42,6 +42,8 @@ function StudentsTable({
   selectedIds = [],
   onSelectionChange,
   isDeletedTab = false,
+  onToggleActive,
+  togglingId = null,
 }: {
   data: any[];
   search: string;
@@ -51,6 +53,9 @@ function StudentsTable({
   selectedIds?: number[];
   onSelectionChange?: (ids: number[]) => void;
   isDeletedTab?: boolean;
+  /** 학생 도메인 예외: 테이블에서 활성/비활성 클릭 토글 */
+  onToggleActive?: (id: number, nextActive: boolean) => void;
+  togglingId?: number | null;
 }) {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => data.map((s) => s.id), [data]);
