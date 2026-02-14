@@ -62,12 +62,10 @@ export async function createFolder(
   name: string,
   studentPs?: string
 ): Promise<InventoryFolder> {
-  const body: Record<string, unknown> = { parent_id: parentId, name };
+  const body: Record<string, unknown> = { scope, parent_id: parentId, name };
   if (studentPs) body.student_ps = studentPs;
-  return request<InventoryFolder>("/inventory/folders/", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  const { data } = await api.post<InventoryFolder>("/storage/inventory/folders/", body);
+  return data;
 }
 
 export type UploadFilePayload = {
