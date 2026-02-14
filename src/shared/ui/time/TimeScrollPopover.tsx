@@ -123,21 +123,23 @@ export function TimeScrollPopover({
 
   return (
     <div
-      className="shared-time-scroll-popover"
+      className="shared-time-scroll-popover shared-time-scroll-popover--cylinder"
       style={{
         position: "fixed",
         left: rect.left,
-        bottom: window.innerHeight - rect.top + 6,
-        width: Math.max(rect.width, 180),
+        bottom: window.innerHeight - rect.top + 8,
+        width: Math.max(rect.width, 200),
         zIndex: 1100,
       }}
       role="listbox"
       aria-label="시간 선택"
     >
-      <div className="shared-time-scroll-popover-layout">
-        <div className="shared-time-scroll-popover-period" aria-live="polite">
-          {periodLabel}
-        </div>
+      <div className="shared-time-scroll-popover-period" aria-live="polite">
+        {periodLabel}
+      </div>
+      <div className="shared-time-scroll-popover-cylinder">
+        <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top" aria-hidden />
+        <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--bottom" aria-hidden />
         <div
           ref={scrollRef}
           className="shared-time-scroll-popover-list"
