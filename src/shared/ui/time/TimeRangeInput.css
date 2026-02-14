@@ -64,35 +64,6 @@
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
-.shared-time-range-picker-trigger {
-  flex-shrink: 0;
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-bg-surface);
-  border: 1px solid var(--ui-control-border, var(--color-border-divider));
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color 160ms ease, border-color 160ms ease;
-}
-
-.shared-time-range-picker-trigger:hover:not(:disabled) {
-  background: var(--ui-control-bg-hover, var(--color-bg-surface-hover));
-  border-color: var(--ui-control-border-hover, var(--color-border-focus));
-}
-
-.shared-time-range-picker-trigger:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.shared-time-range-picker-icon {
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
-}
-
 .shared-time-range-input:hover:not(:disabled) {
   border-color: var(--ui-control-border-hover, var(--color-border-focus));
   background: var(--ui-control-bg-hover, var(--color-bg-surface-hover));

@@ -159,7 +159,7 @@ export default function TimeRangeInput({
               ref={endAnchorRef}
               role="button"
               tabIndex={disabled ? -1 : 0}
-              className="shared-time-range-input shared-time-range-input-trigger"
+              className={`shared-time-range-input shared-time-range-input-trigger ${!end ? "shared-time-range-input--placeholder" : ""}`}
               onClick={() => !disabled && setOpenEnd(true)}
               onKeyDown={(e) => e.key === "Enter" && !disabled && setOpenEnd(true)}
               aria-label="종료 시간 선택"
