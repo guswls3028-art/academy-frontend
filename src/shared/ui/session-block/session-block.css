@@ -1,27 +1,27 @@
-/* 차시 블록 전역 — 모달·세션페이지 완전 동일 디자인 (토큰만 :root, 크기만 compact 여부로 구분) */
+/* 차시 블록 전역 — DS(design-system) 토큰만 사용, 모달·세션페이지 완전 동일 디자인·색상 */
 
 :root {
-  /* ----- 색상 (단일 소스) ----- */
-  --session-block-supplement: var(--color-supplement, #0d9488);
+  /* 색상: DS --color-brand-primary / role (모달 색상 = 세션페이지 동일) */
+  --session-block-supplement: var(--color-supplement, var(--scale-Primary500));
   --session-block-add: var(--color-text-muted);
 
   --session-block-n1-bottom: color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
-  --session-block-n1-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 14%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 8%, white) 100%);
-  --session-block-n1-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 18%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, white) 100%);
+  --session-block-n1-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface)) 100%);
+  --session-block-n1-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface)) 100%);
   --session-block-n1-selected-bottom: color-mix(in srgb, var(--color-brand-primary) 55%, transparent);
-  --session-block-n1-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 22%, white) 0%, color-mix(in srgb, var(--color-brand-primary) 12%, white) 100%);
+  --session-block-n1-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface)) 100%);
 
   --session-block-supplement-bottom: color-mix(in srgb, var(--session-block-supplement) 45%, transparent);
-  --session-block-supplement-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 14%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 8%, white) 100%);
-  --session-block-supplement-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 18%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 10%, white) 100%);
+  --session-block-supplement-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 14%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--session-block-supplement) 8%, var(--color-bg-surface)) 100%);
+  --session-block-supplement-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 18%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--session-block-supplement) 10%, var(--color-bg-surface)) 100%);
   --session-block-supplement-selected-bottom: color-mix(in srgb, var(--session-block-supplement) 55%, transparent);
-  --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, white) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, white) 100%);
+  --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, var(--color-bg-surface)) 100%);
 
-  /* ----- 디자인 토큰 (세션페이지 블록 디자인 = 모달에도 동일, 색상은 위 모달 색상 사용) ----- */
+  /* 디자인: DS radius·elevation·spacing */
   --session-block-radius: var(--radius-md);
   --session-block-highlight: rgba(255, 255, 255, 0.12);
-  --session-block-shadow-subtle: var(--color-shadow-subtle, rgba(0, 0, 0, 0.18));
-  --session-block-shadow-soft: var(--color-shadow-soft, rgba(0, 0, 0, 0.12));
+  --session-block-shadow-subtle: rgba(0, 0, 0, 0.18);
+  --session-block-shadow-soft: var(--elevation-1);
   --session-block-bottom-px: 3px;
   --session-block-drop: 4px 10px;
   --session-block-bottom-px-hover: 4px;
