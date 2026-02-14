@@ -72,7 +72,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     fileName: string;
     fileUrl: string;
     fileType: "pdf" | "image";
-    iconPreset: string;
+    iconPreset?: string;
   };
   const [uploadedScoreItems, setUploadedScoreItems] = useState<UploadedInventoryItem[]>([]);
   const [uploadedMiscItems, setUploadedMiscItems] = useState<UploadedInventoryItem[]>([]);
