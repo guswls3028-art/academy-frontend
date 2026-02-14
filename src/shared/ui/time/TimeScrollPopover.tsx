@@ -114,15 +114,11 @@ export function TimeScrollPopover({
     setTimeIdx(timeIndex);
   }, [periodIndex, timeIndex]);
 
-  // 초기 스크롤 위치 설정
+  // 초기 스크롤 위치 설정 (period는 스크롤 없음, time만)
   useEffect(() => {
-    const elP = periodScrollRef.current;
     const elT = timeScrollRef.current;
-    if (!elP || !elT) return;
-    const blockP = PERIOD_SLOTS.length * ROW_HEIGHT;
+    if (!elT) return;
     const blockT = TIME_12_SLOTS.length * ROW_HEIGHT;
-    elP.scrollTop =
-      blockP + periodIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
     elT.scrollTop =
       blockT + timeIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
   }, []);
@@ -134,8 +130,9 @@ export function TimeScrollPopover({
 
     const handler = (e: WheelEvent) => {
       e.preventDefault();
-      const next = e.deltaY > 0 ? 1 : 0;
-      setPeriodIdx((prev) => (e.deltaY > 0 ? Math.min(1, prev + 1) : Math.max(0, prev - 1)));
+      setPeriodIdx((prev) =>
+        e.deltaY > 0 ? (prev + 1) % 2 : (prev - 1 + 2) % 2
+      );
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
