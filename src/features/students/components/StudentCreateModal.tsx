@@ -669,17 +669,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 </div>
               )}
 
-              <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                 {bulkResult.failed.map((item, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: 12,
-                      border: "1px solid var(--color-border-divider)",
-                      borderRadius: 8,
-                      background: "var(--color-bg-surface)",
-                    }}
-                  >
+                  <div key={idx} className="modal-form-group" style={{ padding: "var(--space-3)" }}>
                     <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                       {item.row}행 {item.name} · <span style={{ color: "var(--color-status-error)" }}>{item.error}</span>
                     </div>
