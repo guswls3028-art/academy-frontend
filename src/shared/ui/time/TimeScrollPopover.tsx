@@ -98,6 +98,9 @@ export function TimeScrollPopover({
   const normalized = timeToNearestSlot(value, slots);
   const { periodIndex, timeIndex } = from24h(normalized);
 
+  const [periodIdx, setPeriodIdx] = useState(periodIndex);
+  const [timeIdx, setTimeIdx] = useState(timeIndex);
+
   const commitValue = useCallback(
     (pIdx: number, tIdx: number) => {
       onSelect(to24h(pIdx, tIdx));
@@ -105,75 +108,13 @@ export function TimeScrollPopover({
     [onSelect]
   );
 
-  // 무한 순환 스크롤 설정
-  const setupCycleScroll = useCallback(
-    (
-      el: HTMLDivElement | null,
-      itemCount: number,
-      selectedIndex: number,
-      onIndexChange: (idx: number) => void
-    ) => {
-      if (!el) return;
-      const blockHeight = itemCount * ROW_HEIGHT;
-      const initScroll =
-        blockHeight +
-        selectedIndex * ROW_HEIGHT -
-        VISIBLE_HEIGHT / 2 +
-        ROW_HEIGHT / 2;
-      el.scrollTop = Math.max(
-        0,
-        Math.min(initScroll, el.scrollHeight - VISIBLE_HEIGHT)
-      );
-
-      const handler = () => {
-        const st = el.scrollTop;
-        if (st < ROW_HEIGHT) el.scrollTop = st + blockHeight;
-        else if (st > blockHeight * 2 - ROW_HEIGHT) el.scrollTop = st - blockHeight;
-        const centerRow =
-          (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
-        const idx =
-          (Math.floor(centerRow) % itemCount + itemCount) % itemCount;
-        onIndexChange(idx);
-      };
-
-      el.addEventListener("scroll", handler, { passive: true });
-      return () => el.removeEventListener("scroll", handler);
-    },
-    []
-  );
-
-  const [periodIdx, setPeriodIdx] = useState(periodIndex);
-  const [timeIdx, setTimeIdx] = useState(timeIndex);
-
+  // value가 외부에서 바뀌면 동기화
   useEffect(() => {
     setPeriodIdx(periodIndex);
     setTimeIdx(timeIndex);
-  }, [periodIndex, timeIndex, value]);
+  }, [periodIndex, timeIndex]);
 
-  useEffect(() => {
-    const unsubP = setupCycleScroll(
-      periodScrollRef.current,
-      PERIOD_SLOTS.length,
-      periodIdx,
-      setPeriodIdx
-    );
-    return () => unsubP?.();
-  }, [setupCycleScroll, PERIOD_SLOTS.length]);
-
-  useEffect(() => {
-    const unsubT = setupCycleScroll(
-      timeScrollRef.current,
-      TIME_12_SLOTS.length,
-      timeIdx,
-      setTimeIdx
-    );
-    return () => unsubT?.();
-  }, [setupCycleScroll, TIME_12_SLOTS.length]);
-
-  useEffect(() => {
-    commitValue(periodIdx, timeIdx);
-  }, [periodIdx, timeIdx, commitValue]);
-
+  // 초기 스크롤 위치 설정
   useEffect(() => {
     const elP = periodScrollRef.current;
     const elT = timeScrollRef.current;
@@ -181,16 +122,55 @@ export function TimeScrollPopover({
     const blockP = PERIOD_SLOTS.length * ROW_HEIGHT;
     const blockT = TIME_12_SLOTS.length * ROW_HEIGHT;
     elP.scrollTop =
-      blockP +
-      periodIdx * ROW_HEIGHT -
-      VISIBLE_HEIGHT / 2 +
-      ROW_HEIGHT / 2;
+      blockP + periodIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
     elT.scrollTop =
-      blockT +
-      timeIdx * ROW_HEIGHT -
-      VISIBLE_HEIGHT / 2 +
-      ROW_HEIGHT / 2;
+      blockT + timeIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
   }, []);
+
+  // period 롤러 무한 순환 + 인덱스 반영
+  useEffect(() => {
+    const el = periodScrollRef.current;
+    if (!el) return;
+    const blockLen = PERIOD_SLOTS.length;
+    const blockHeight = blockLen * ROW_HEIGHT;
+
+    const handler = () => {
+      const st = el.scrollTop;
+      if (st < ROW_HEIGHT) el.scrollTop = st + blockHeight;
+      else if (st > blockHeight * 2 - ROW_HEIGHT) el.scrollTop = st - blockHeight;
+      const centerRow =
+        (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
+      const idx = (Math.floor(centerRow) % blockLen + blockLen) % blockLen;
+      setPeriodIdx(idx);
+    };
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => el.removeEventListener("scroll", handler);
+  }, []);
+
+  // time 롤러 무한 순환 + 인덱스 반영
+  useEffect(() => {
+    const el = timeScrollRef.current;
+    if (!el) return;
+    const blockLen = TIME_12_SLOTS.length;
+    const blockHeight = blockLen * ROW_HEIGHT;
+
+    const handler = () => {
+      const st = el.scrollTop;
+      if (st < ROW_HEIGHT) el.scrollTop = st + blockHeight;
+      else if (st > blockHeight * 2 - ROW_HEIGHT) el.scrollTop = st - blockHeight;
+      const centerRow =
+        (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
+      const idx = (Math.floor(centerRow) % blockLen + blockLen) % blockLen;
+      setTimeIdx(idx);
+    };
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => el.removeEventListener("scroll", handler);
+  }, []);
+
+  // periodIdx, timeIdx 변경 시 onSelect 호출
+  useEffect(() => {
+    commitValue(periodIdx, timeIdx);
+  }, [periodIdx, timeIdx, commitValue]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -203,6 +183,24 @@ export function TimeScrollPopover({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [anchorEl, onClose]);
 
+  const scrollToPeriod = (idx: number) => {
+    const el = periodScrollRef.current;
+    if (!el) return;
+    const blockHeight = PERIOD_SLOTS.length * ROW_HEIGHT;
+    el.scrollTop =
+      blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+    setPeriodIdx(idx);
+  };
+
+  const scrollToTime = (idx: number) => {
+    const el = timeScrollRef.current;
+    if (!el) return;
+    const blockHeight = TIME_12_SLOTS.length * ROW_HEIGHT;
+    el.scrollTop =
+      blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+    setTimeIdx(idx);
+  };
+
   const rect = anchorEl.getBoundingClientRect();
 
   return (
@@ -213,7 +211,7 @@ export function TimeScrollPopover({
         position: "fixed",
         left: rect.left,
         bottom: window.innerHeight - rect.top + 8,
-        width: Math.max(rect.width, 240),
+        width: Math.max(rect.width, 260),
         zIndex: 1100,
       }}
       role="listbox"
@@ -242,20 +240,7 @@ export function TimeScrollPopover({
                   type="button"
                   className="shared-time-scroll-popover-item"
                   style={{ height: ROW_HEIGHT }}
-                  onClick={() => {
-                    const idx = PERIOD_SLOTS.indexOf(label);
-                    setPeriodIdx(idx);
-                    commitValue(idx, timeIdx);
-                    const el = periodScrollRef.current;
-                    if (el) {
-                      const blockHeight = PERIOD_SLOTS.length * ROW_HEIGHT;
-                      el.scrollTop =
-                        blockHeight +
-                        idx * ROW_HEIGHT -
-                        VISIBLE_HEIGHT / 2 +
-                        ROW_HEIGHT / 2;
-                    }
-                  }}
+                  onClick={() => scrollToPeriod(PERIOD_SLOTS.indexOf(label))}
                 >
                   {label}
                 </button>
@@ -290,20 +275,7 @@ export function TimeScrollPopover({
                   type="button"
                   className="shared-time-scroll-popover-item"
                   style={{ height: ROW_HEIGHT }}
-                  onClick={() => {
-                    const idx = TIME_12_SLOTS.indexOf(t);
-                    setTimeIdx(idx);
-                    commitValue(periodIdx, idx);
-                    const el = timeScrollRef.current;
-                    if (el) {
-                      const blockHeight = TIME_12_SLOTS.length * ROW_HEIGHT;
-                      el.scrollTop =
-                        blockHeight +
-                        idx * ROW_HEIGHT -
-                        VISIBLE_HEIGHT / 2 +
-                        ROW_HEIGHT / 2;
-                    }
-                  }}
+                  onClick={() => scrollToTime(TIME_12_SLOTS.indexOf(t))}
                 >
                   {t}
                 </button>
