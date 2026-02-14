@@ -1,12 +1,12 @@
-/** 사이즈 SSOT: ds-status-badge (2ch) — shared/ui/ds/styles/status.css */
+/** 사이즈·색상 SSOT: ds-status-badge + data-tone (success/danger/warning/primary/neutral) */
 type Props = { status: string };
 
-const STYLE: Record<string, string> = {
-  PROCESSING: "!bg-blue-100 !text-blue-700",
-  ANSWERS_READY: "!bg-amber-100 !text-amber-700",
-  NEEDS_IDENTIFICATION: "!bg-red-100 !text-red-700",
-  GRADED: "!bg-emerald-100 !text-emerald-700",
-  FAILED: "!bg-gray-200 !text-gray-600",
+const TONE: Record<string, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  PROCESSING: "primary",
+  ANSWERS_READY: "warning",
+  NEEDS_IDENTIFICATION: "danger",
+  GRADED: "success",
+  FAILED: "neutral",
 };
 
 const LABEL: Record<string, string> = {
@@ -18,9 +18,9 @@ const LABEL: Record<string, string> = {
 };
 
 export default function SubmissionStatusBadge({ status }: Props) {
-  const cls = STYLE[status] ?? "!bg-gray-100 !text-gray-500";
+  const tone = TONE[status] ?? "neutral";
   return (
-    <span className={`ds-status-badge ${cls}`}>
+    <span className="ds-status-badge" data-tone={tone}>
       {LABEL[status] ?? status}
     </span>
   );
