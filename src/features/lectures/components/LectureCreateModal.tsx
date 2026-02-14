@@ -93,6 +93,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
       end_date: endDate,
       lecture_time: lectureTime.trim(),
       color,
+      chip_label: chipLabel.trim().slice(0, 2),
       is_active: true,
     });
   }
