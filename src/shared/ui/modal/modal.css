@@ -288,14 +288,14 @@
   transform: translateY(0);
 }
 
-/* 고등·중등·1,2,3 학년 — primary 톤, 미선택 시 톤 완화 */
+/* 고등·중등·1,2,3 학년 — 미선택 시 강조색 없음(중립), 선택 시에만 primary 강조 */
 .ds-choice-btn--primary {
-  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--scale-Neutral0, #fff));
   color: var(--color-text-primary);
 }
 
 .ds-choice-btn--primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--scale-Neutral0, #fff));
 }
 
 .ds-choice-btn--primary.is-selected {
@@ -307,14 +307,14 @@
     0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
-/* 보색 — 동급 선택지 구분 시에만 사용 (예: A vs B). 미선택 톤 완화. */
+/* 보색 — 동급 선택지 구분 시에만 사용. 미선택 시 강조색 없음(중립). */
 .ds-choice-btn--complement {
-  background: color-mix(in srgb, var(--color-brand-complement) 10%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--scale-Neutral0, #fff));
   color: var(--color-text-primary);
 }
 
 .ds-choice-btn--complement:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-brand-complement) 16%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--scale-Neutral0, #fff));
 }
 
 .ds-choice-btn--complement.is-selected {
