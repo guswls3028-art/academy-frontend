@@ -294,13 +294,14 @@
     0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
-/* 중등 — 보색 톤 (차시 보강과 동일) */
+/* 중등 — 보색 톤, 미선택 시에도 색상 보유 (차시 보강과 동일) */
 .ds-choice-btn--complement {
-  background: color-mix(in srgb, var(--color-brand-complement) 12%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--color-brand-complement) 14%, var(--scale-Neutral0, #fff));
+  color: var(--color-text-primary);
 }
 
 .ds-choice-btn--complement:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-brand-complement) 18%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--color-brand-complement) 20%, var(--scale-Neutral0, #fff));
 }
 
 .ds-choice-btn--complement.is-selected {
