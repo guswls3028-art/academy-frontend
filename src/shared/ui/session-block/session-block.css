@@ -70,29 +70,27 @@
     0 var(--session-block-drop-active) var(--session-block-shadow-soft);
 }
 
-/* ----- 기본(모달) 크기 ----- */
+/* ----- 비율 9:1 (가로로 넓은 블록), 기본(모달) 크기 ----- */
 .session-block {
-  aspect-ratio: 4 / 3;
-  min-height: 88px;
-  padding: var(--space-5) var(--space-5);
+  aspect-ratio: 9 / 1;
+  min-height: 48px;
+  padding: var(--space-3) var(--space-5);
 }
 
-/* ----- 컴팩트(세션페이지) — 같은 디자인, 크기·그림자 스케일만 축소 ----- */
+/* ----- 컴팩트(세션페이지) — 동일 디자인·동일 색상, 9:1 비율 작은 블록 ----- */
 .session-block--compact {
-  --session-block-bottom-px: 3px;
-  --session-block-drop: 4px 10px;
-  --session-block-bottom-px-hover: 4px;
-  --session-block-drop-hover: 6px 14px;
-  --session-block-bottom-px-active: 1px;
-  --session-block-drop-active: 2px 6px;
-
-  min-width: 80px;
-  width: 80px;
-  height: 60px;
-  min-height: 60px;
+  min-width: 144px;
+  width: 144px;
+  height: 16px;
+  min-height: 16px;
   aspect-ratio: unset;
   padding: var(--space-2) var(--space-3);
   flex: 0 0 auto;
+}
+
+.session-block--compact {
+  min-height: 44px;
+  height: 44px;
 }
 
 .session-block--compact .session-block__title {
