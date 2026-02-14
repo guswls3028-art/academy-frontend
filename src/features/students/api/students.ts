@@ -20,6 +20,8 @@ export interface ClientEnrollmentLite {
 export interface ClientStudent {
   id: number;
   name: string;
+  /** 학생앱에서 업로드한 프로필 사진 URL (없으면 null) */
+  profilePhotoUrl?: string | null;
 
   psNumber: string;
   omrCode: string;
