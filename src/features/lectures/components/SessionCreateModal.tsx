@@ -251,7 +251,10 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                   </span>
                 </div>
                 {(dateMode === "custom" || isSupplement) && (
-                  <div onClick={(e) => e.stopPropagation()}>
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
                     <DatePicker
                       value={date}
                       onChange={setDate}
