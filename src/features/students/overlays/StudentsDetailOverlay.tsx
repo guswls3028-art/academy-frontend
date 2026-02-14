@@ -539,6 +539,44 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
           document.body
         )}
 
+      {addFileModal &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setAddFileModal(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="파일 추가" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">{addFileModal.tab === "score" ? "성적표 추가" : "기타 자료 추가"}</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-add-title">제목</label>
+                <input
+                  id="inv-add-title"
+                  type="text"
+                  value={addFileModal.title}
+                  onChange={(e) => setAddFileModal((m) => (m ? { ...m, title: e.target.value } : null))}
+                  placeholder="제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-add-desc">설명</label>
+                <textarea
+                  id="inv-add-desc"
+                  value={addFileModal.description}
+                  onChange={(e) => setAddFileModal((m) => (m ? { ...m, description: e.target.value } : null))}
+                  placeholder="설명 (선택)"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setAddFileModal(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmAddFile}>
+                  추가
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
       {viewerItem &&
         createPortal(
           <>
@@ -550,13 +588,25 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
               </div>
               <div className="ds-inventory-viewer__body">
                 {viewerItem.type === "pdf" && (
-                  <div className="ds-inventory-viewer__placeholder">PDF 뷰어 (URL 연동 시 iframe 표시)</div>
+                  viewerItem.url.startsWith("blob:") ? (
+                    <iframe src={viewerItem.url} title={viewerItem.name} className="ds-inventory-viewer__iframe" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">PDF 뷰어 (URL 연동 시 iframe 표시)</div>
+                  )
                 )}
                 {viewerItem.type === "image" && (
-                  <div className="ds-inventory-viewer__placeholder">이미지 뷰어 (URL 연동 시 img 표시)</div>
+                  viewerItem.url.startsWith("blob:") ? (
+                    <img src={viewerItem.url} alt={viewerItem.name} className="ds-inventory-viewer__img" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">이미지 뷰어 (URL 연동 시 img 표시)</div>
+                  )
                 )}
                 {viewerItem.type === "video" && (
-                  <div className="ds-inventory-viewer__placeholder">영상 뷰어 (URL 연동 시 video 표시)</div>
+                  viewerItem.url.startsWith("blob:") ? (
+                    <video src={viewerItem.url} controls className="ds-inventory-viewer__video" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">영상 뷰어 (URL 연동 시 video 표시)</div>
+                  )
                 )}
               </div>
             </div>
