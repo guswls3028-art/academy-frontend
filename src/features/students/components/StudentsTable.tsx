@@ -81,11 +81,11 @@ export default function StudentsTable({
     }
   }
 
-  // 컬럼 순서: 이름, 학부모 전화, 학생 전화, ... (학생 테이블 공통)
+  // 컬럼: 선택 타이트, 이름 넓게, 셀 중앙정렬
   const columns = useMemo(
     () => [
-      { key: "_checkbox", label: "", w: 48 },
-      { key: "name", label: "이름", w: 122 },
+      { key: "_checkbox", label: "", w: 36 },
+      { key: "name", label: "이름", w: 200 },
       { key: "parentPhone", label: "학부모 전화", w: 130 },
       { key: "studentPhone", label: "학생 전화", w: 130 },
       { key: "school", label: "학교", w: 110 },
@@ -139,7 +139,7 @@ export default function StudentsTable({
 
   return (
     <div style={{ width: "fit-content" }}>
-    <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: 887 }}>
+    <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: 953 }}>
       <colgroup>
         {columns.map((c) => (
           <col key={c.key} style={{ width: c.w }} />
