@@ -157,23 +157,24 @@ export default function PermissionSidePanel({
                   key={s.enrollment}
                   className="grid grid-cols-12 px-3 py-2 items-center border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
                 >
-                  {/* 출석 */}
+                  {/* 출석 — SSOT: AttendanceStatusBadge 1ch */}
                   <div className="col-span-2 flex justify-center">
-                    <div className="scale-[0.92] origin-center">
-                      <AttendanceBadge
-                        status={s.attendance_status ?? "UNKNOWN"}
-                      />
-                    </div>
+                    <AttendanceStatusBadge
+                      status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
+                      variant="1ch"
+                    />
                   </div>
 
-                  {/* 접근 모드 */}
+                  {/* 접근 모드 — SSOT: ds-status-badge (2ch) */}
                   <div className="col-span-2 flex justify-center">
                     <span
                       className={cx(
-                        "inline-flex items-center justify-center",
-                        "h-[22px] px-2 rounded-full",
-                        "text-[11px] font-semibold leading-none text-white",
+                        "ds-status-badge",
                         getAccessColor(s.access_mode, s.effective_rule)
+                          .split(/\s+/)
+                          .map((c) => (c.startsWith("bg-") || c.startsWith("text-") ? `!${c}` : c))
+                          .join(" "),
+                        "!text-white"
                       )}
                     >
                       {getAccessLabel(s.access_mode, s.effective_rule)}
