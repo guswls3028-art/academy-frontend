@@ -10,11 +10,11 @@ export const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {
   FAILED: "처리 실패",
 };
 
-/** 색상만 (사이즈는 ds-status-badge SSOT) */
-export const VIDEO_STATUS_STYLE: Record<VideoStatus, string> = {
-  PENDING: "!bg-gray-100 !text-gray-600",
-  UPLOADED: "!bg-blue-100 !text-blue-700",
-  PROCESSING: "!bg-yellow-100 !text-yellow-700",
-  READY: "!bg-green-100 !text-green-700",
-  FAILED: "!bg-red-100 !text-red-700",
+/** 공용 톤 SSOT: success(초록) | danger(빨강) | warning(노랑) | primary(강조) | neutral(회색) */
+export const VIDEO_STATUS_TONE: Record<VideoStatus, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  PENDING: "neutral",
+  UPLOADED: "primary",
+  PROCESSING: "warning",
+  READY: "success",
+  FAILED: "danger",
 };
