@@ -73,14 +73,32 @@ export const RULE_COLORS: Record<string, string> = {
   blocked: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
 };
 
-// New access mode colors
+// New access mode colors (레거시; 가능하면 getAccessTone 사용)
 export const ACCESS_MODE_COLORS: Record<string, string> = {
   FREE_REVIEW: "bg-[color-mix(in_srgb,var(--color-primary)_85%,black)]",
   PROCTORED_CLASS: "bg-yellow-400 text-black",
   BLOCKED: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
 };
 
-// Combined colors (access_mode takes precedence)
+/** 공용 톤 SSOT: 상태 뱃지 색상 하드코딩 대신 data-tone 사용 */
+export const ACCESS_MODE_TONE: Record<string, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  FREE_REVIEW: "primary",
+  PROCTORED_CLASS: "warning",
+  BLOCKED: "danger",
+};
+export const RULE_TONE: Record<string, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  free: "primary",
+  once: "warning",
+  blocked: "danger",
+};
+
+export function getAccessTone(accessMode?: string, rule?: string): "success" | "danger" | "warning" | "primary" | "neutral" {
+  if (accessMode && ACCESS_MODE_TONE[accessMode]) return ACCESS_MODE_TONE[accessMode];
+  if (rule && RULE_TONE[rule]) return RULE_TONE[rule];
+  return "neutral";
+}
+
+// Combined colors (access_mode takes precedence) — 레거시
 export const getAccessColor = (accessMode?: string, rule?: string): string => {
   if (accessMode && ACCESS_MODE_COLORS[accessMode]) {
     return ACCESS_MODE_COLORS[accessMode];
