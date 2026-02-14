@@ -1,5 +1,5 @@
 /* PATH: src/shared/ui/time/TimeScrollPopover.css
-   롤링 방식 완전 재작성 — [ 오전 | 시간 ] 원통형 픽커 */
+   단일 롤러: 오전 12:00 ~ 오후 11:30 한 줄 스크롤 */
 
 .time-picker {
   padding: var(--space-3);
@@ -11,10 +11,6 @@
 }
 
 .time-picker__body {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  min-width: 0;
   border-radius: 16px;
   overflow: hidden;
   background: linear-gradient(
@@ -27,75 +23,12 @@
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
 }
 
-/* 오전/오후 — 2개만, 클릭+휠 순환 */
-.time-picker__period {
-  flex: 0 0 72px;
-  width: 72px;
-  min-height: 240px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: transparent;
-}
-
-.time-picker__period-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  align-items: stretch;
-}
-
-.time-picker__period-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 48px;
-  padding: 12px 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: color 120ms, background 120ms;
-  font-family: inherit;
-}
-
-.time-picker__period-item:hover {
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 10%, transparent);
-}
-
-.time-picker__period-item--active {
-  color: var(--color-brand-primary, var(--color-primary));
-  font-weight: 700;
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 14%, transparent);
-}
-
-.time-picker__divider {
-  width: 24px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  opacity: 0.6;
-}
-
-/* 시간 롤러 */
-.time-picker__time {
+.time-picker__roller {
   position: relative;
-  flex: 1;
-  min-width: 0;
   overflow: hidden;
-  background: transparent;
 }
 
-.time-picker__time-mask {
+.time-picker__mask {
   position: absolute;
   left: 0;
   right: 0;
@@ -104,25 +37,25 @@
   z-index: 2;
 }
 
-.time-picker__time-mask--top {
+.time-picker__mask--top {
   top: 0;
   background: linear-gradient(
     180deg,
     var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 75%, transparent) 100%
+    color-mix(in srgb, var(--color-bg-surface) 80%, transparent) 100%
   );
 }
 
-.time-picker__time-mask--bottom {
+.time-picker__mask--bottom {
   bottom: 0;
   background: linear-gradient(
     0deg,
     var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 75%, transparent) 100%
+    color-mix(in srgb, var(--color-bg-surface) 80%, transparent) 100%
   );
 }
 
-.time-picker__time-highlight {
+.time-picker__highlight {
   position: absolute;
   left: 0;
   right: 0;
@@ -136,7 +69,7 @@
   z-index: 1;
 }
 
-.time-picker__time-list {
+.time-picker__list {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
@@ -144,18 +77,18 @@
   scroll-snap-type: y mandatory;
 }
 
-.time-picker__time-list::-webkit-scrollbar {
+.time-picker__list::-webkit-scrollbar {
   display: none;
 }
 
-.time-picker__time-item {
+.time-picker__item {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   min-height: 48px;
-  padding: 0 var(--space-3);
-  font-size: 18px;
+  padding: 0 var(--space-4);
+  font-size: 17px;
   font-weight: 500;
   color: var(--color-text-muted);
   background: transparent;
@@ -169,7 +102,7 @@
   scroll-snap-stop: always;
 }
 
-.time-picker__time-item:hover {
+.time-picker__item:hover {
   color: var(--color-text-primary);
   background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
 }
