@@ -56,6 +56,25 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const [uploadedMiscItems, setUploadedMiscItems] = useState<UploadedInventoryItem[]>([]);
   const [addFileModal, setAddFileModal] = useState<{ tab: "score" | "misc"; file: File; title: string; description: string } | null>(null);
 
+  const handleInventoryFileChange = (tab: "score" | "misc") => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const baseName = file.name.replace(/\.[^.]+$/, "") || file.name;
+    setAddFileModal({ tab, file, title: baseName, description: "" });
+    e.target.value = "";
+  };
+
+  const confirmAddFile = () => {
+    if (!addFileModal) return;
+    const { tab, file, title, description } = addFileModal;
+    const fileUrl = URL.createObjectURL(file);
+    const fileType = file.type.startsWith("image/") ? "image" as const : "pdf" as const;
+    const item: UploadedInventoryItem = { id: crypto.randomUUID(), title: title.trim() || file.name, description, fileName: file.name, fileUrl, fileType };
+    if (tab === "score") setUploadedScoreItems((prev) => [...prev, item]);
+    else setUploadedMiscItems((prev) => [...prev, item]);
+    setAddFileModal(null);
+  };
+
   const { data: student, isLoading } = useQuery({
     queryKey: ["student", id],
     queryFn: () => getStudentDetail(id),
