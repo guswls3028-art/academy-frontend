@@ -33,7 +33,7 @@ function highlight(text: string, keyword: string) {
   );
 }
 
-export default function StudentsTable({
+function StudentsTable({
   data = [],
   search,
   sort,
@@ -278,3 +278,5 @@ export default function StudentsTable({
     </div>
   );
 }
+
+export default StudentsTable;
