@@ -112,6 +112,8 @@
   font-family: inherit;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
 }
 
 .shared-time-scroll-popover-item:hover {
@@ -125,7 +127,3 @@
   background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
 }
 
-/* 원통 중앙 선택 효과 — 스크롤 위치에 따라 JS로 적용하는 대신, 시각적 계층으로 구분 */
-.shared-time-scroll-popover-item:nth-child(n) {
-  /* 기본: 위아래 항목은 연하게, 중앙 1개는 강조 — scroll snap 또는 JS 없이 미리 스타일링 */
-}
