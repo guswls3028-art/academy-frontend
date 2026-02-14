@@ -346,7 +346,7 @@ export default function EditStudentModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
             <input
               name="schoolClass"
               placeholder="반"
