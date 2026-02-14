@@ -1,7 +1,7 @@
 // PATH: src/features/storage/pages/StoragePage.tsx
 // 저장소 통합 — 뷰 스위처: 내 저장소(선생님) | 학생 인벤토리 관리
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { DomainLayout } from "@/shared/ui/domain/DomainLayout";
 import { Button } from "@/shared/ui/ds";
