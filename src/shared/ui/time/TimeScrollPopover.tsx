@@ -127,24 +127,18 @@ export function TimeScrollPopover({
       blockT + timeIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
   }, []);
 
-  // period 롤러 — 시간과 동일한 롤링 선택 (무한 순환 스크롤)
+  // period 롤러 — 오전/오후 2개만, 휠로 롤링 전환
   useEffect(() => {
     const el = periodScrollRef.current;
     if (!el) return;
-    const blockLen = PERIOD_SLOTS.length;
-    const blockHeight = blockLen * ROW_HEIGHT;
 
-    const handler = () => {
-      const st = el.scrollTop;
-      if (st < ROW_HEIGHT) el.scrollTop = st + blockHeight;
-      else if (st > blockHeight * 2 - ROW_HEIGHT) el.scrollTop = st - blockHeight;
-      const centerRow =
-        (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
-      const idx = (Math.floor(centerRow) % blockLen + blockLen) % blockLen;
-      setPeriodIdx(idx);
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const next = e.deltaY > 0 ? 1 : 0;
+      setPeriodIdx((prev) => (e.deltaY > 0 ? Math.min(1, prev + 1) : Math.max(0, prev - 1)));
     };
-    el.addEventListener("scroll", handler, { passive: true });
-    return () => el.removeEventListener("scroll", handler);
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
   }, []);
 
   // time 롤러 무한 순환 + 인덱스 반영
