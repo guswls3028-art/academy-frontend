@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
-import "./AsyncStatusBar.css";
+import "@/styles/design-system/components/AsyncStatusBar.css";
 
 function StatusIcon({ status }: { status: AsyncTaskStatus }) {
   if (status === "pending")
