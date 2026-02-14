@@ -15,71 +15,65 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid var(--ui-control-border, var(--color-border-divider));
-  /* 가로 원통: 위아래 곡면 — 위·아래 어둡고 중앙 밝게 */
+  border: 1px solid color-mix(in srgb, var(--ui-control-border, var(--color-border-divider)) 80%, transparent);
+  /* 가로 원통: 부드러운 위아래 곡면 */
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, black 14%, var(--color-bg-surface)) 0%,
-    color-mix(in srgb, black 6%, var(--color-bg-surface)) 8%,
-    var(--color-bg-surface) 25%,
-    var(--color-bg-surface) 75%,
-    color-mix(in srgb, black 6%, var(--color-bg-surface)) 92%,
-    color-mix(in srgb, black 14%, var(--color-bg-surface)) 100%
+    color-mix(in srgb, black 6%, var(--color-bg-surface)) 0%,
+    color-mix(in srgb, black 2%, var(--color-bg-surface)) 12%,
+    var(--color-bg-surface) 30%,
+    var(--color-bg-surface) 70%,
+    color-mix(in srgb, black 2%, var(--color-bg-surface)) 88%,
+    color-mix(in srgb, black 6%, var(--color-bg-surface)) 100%
   );
   box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.04),
-    inset 0 4px 12px rgba(0, 0, 0, 0.04),
-    inset 0 -4px 12px rgba(0, 0, 0, 0.04),
-    0 1px 2px rgba(0, 0, 0, 0.06);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.03),
+    0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .time-picker__period {
-  flex: 0 0 72px;
+  flex: 0 0 68px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   padding: 0 var(--space-2);
   background: transparent;
 }
 
 .time-picker__period-btn {
-  padding: 10px 8px;
-  font-size: 14px;
+  padding: 12px 10px;
+  font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--color-text-muted);
   background: transparent;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   cursor: pointer;
-  transition: color 120ms, background 120ms;
+  transition: color 150ms, background 150ms;
   font-family: inherit;
 }
 
 .time-picker__period-btn:hover {
   color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 10%, transparent);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 6%, transparent);
 }
 
 .time-picker__period-btn--active {
   color: var(--color-brand-primary, var(--color-primary));
-  font-weight: 700;
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
 }
 
 .time-picker__divider {
-  width: 8px;
+  width: 1px;
   flex-shrink: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, black 6%, var(--color-bg-surface)) 50%,
-    transparent 100%
-  );
-  opacity: 0.6;
+  background: color-mix(in srgb, var(--color-border-divider) 40%, transparent);
 }
 
 .time-picker__roller {
