@@ -2,7 +2,7 @@
 // SSOT: 오버레이 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import {
   fetchStaffDetail,
