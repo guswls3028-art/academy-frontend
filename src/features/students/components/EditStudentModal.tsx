@@ -187,8 +187,8 @@ export default function EditStudentModal({
       />
 
       <ModalBody>
-        <div className="modal-scroll-body">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)" }}>
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          <div className="modal-form-row modal-form-row--1-auto">
             <input
               name="name"
               placeholder="이름"
@@ -200,7 +200,7 @@ export default function EditStudentModal({
               disabled={busy}
               autoFocus
             />
-            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", padding: "var(--space-3)", flexWrap: "wrap" }}>
+            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
               {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
                 <Button
                   key={g.key}
@@ -215,7 +215,7 @@ export default function EditStudentModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+          <div className="modal-form-row modal-form-row--2">
             <input
               name="psNumber"
               placeholder="아이디(PS 번호)"
@@ -226,7 +226,7 @@ export default function EditStudentModal({
               data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
               disabled={busy}
             />
-            <div className="modal-form-group" style={{ flexDirection: "row", alignItems: "center", gap: "var(--space-2)", padding: "var(--space-3)" }}>
+            <div className="modal-form-group modal-form-group--row">
               <span className="modal-section-label" style={{ marginBottom: 0 }}>상태</span>
               <button
                 type="button"
@@ -248,7 +248,7 @@ export default function EditStudentModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)" }}>
+          <div className="modal-form-row modal-form-row--1-auto">
             {noPhone ? (
               <input
                 placeholder="식별자 (XXXX-XXXX)"
@@ -263,7 +263,7 @@ export default function EditStudentModal({
               />
             ) : (
               <input
-                placeholder="학생 전화번호 (010-XXXX-XXXX)"
+                placeholder="학생 전화 (010-XXXX-XXXX)"
                 value={formatPhoneForInput(form.studentPhone)}
                 onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
                 className="ds-input"
@@ -282,12 +282,12 @@ export default function EditStudentModal({
               }}
               disabled={busy}
             >
-              {noPhone ? "전화번호 입력" : "없음(식별자사용)"}
+              {noPhone ? "전화 입력" : "식별자 사용"}
             </Button>
           </div>
 
           <input
-            placeholder="학부모 전화번호 (010-XXXX-XXXX)"
+            placeholder="학부모 전화 (010-XXXX-XXXX)"
             value={formatPhoneForInput(form.parentPhone)}
             onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
             className="ds-input"
@@ -298,9 +298,9 @@ export default function EditStudentModal({
             pattern="[0-9\-]*"
           />
 
-          <div className="modal-option-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)", padding: "var(--space-3)" }}>
-            {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
-              (t) => (
+          <div className="modal-form-row modal-form-row--2">
+            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+              {[{ key: "HIGH", label: "고등" }, { key: "MIDDLE", label: "중등" }].map((t) => (
                 <Button
                   key={t.key}
                   intent={form.schoolType === t.key ? "secondary" : "ghost"}
@@ -318,35 +318,34 @@ export default function EditStudentModal({
                 >
                   {t.label}
                 </Button>
-              )
-            )}
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)" }}>
-            <input
-              name="school"
-              placeholder="학교명"
-              value={form.school}
-              onChange={handleChange}
-              className="ds-input"
-              disabled={busy}
-            />
-            <div style={{ display: "flex", gap: "var(--space-2)" }}>
-              {["1", "2", "3"].map((g) => (
-                <Button
-                  key={g}
-                  intent={form.grade === g ? "secondary" : "ghost"}
-                  aria-pressed={form.grade === g}
-                  onClick={() => setForm((p) => ({ ...p, grade: g }))}
-                  disabled={busy}
-                >
-                  {g}학년
-                </Button>
               ))}
+            </div>
+            <div className="modal-form-row modal-form-row--1-auto" style={{ gap: 0 }}>
+              <input
+                name="school"
+                placeholder="학교명"
+                value={form.school}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <div className="modal-actions-inline">
+                {["1", "2", "3"].map((g) => (
+                  <Button
+                    key={g}
+                    intent={form.grade === g ? "secondary" : "ghost"}
+                    aria-pressed={form.grade === g}
+                    onClick={() => setForm((p) => ({ ...p, grade: g }))}
+                    disabled={busy}
+                  >
+                    {g}학년
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+          <div className="modal-form-row modal-form-row--2">
             <input
               name="schoolClass"
               placeholder="반"
@@ -367,7 +366,7 @@ export default function EditStudentModal({
 
           <textarea
             name="memo"
-            rows={4}
+            rows={3}
             placeholder="메모"
             value={form.memo}
             onChange={handleChange}
