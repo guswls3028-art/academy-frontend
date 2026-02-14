@@ -1,28 +1,24 @@
 // PATH: src/shared/ui/time/TimeScrollPopover.tsx
-// [ 오전 | 12h표시(24h기준) ] — 오전/오후: 클릭 + 휠 돌리면 자동순환. 시간: 롤링 선택.
+// 롤링 방식 완전 재작성: [ 오전 | 시간 ] — 오전/오후 클릭+휠 순환, 시간 스크롤 롤러.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./TimeScrollPopover.css";
 
 const ROW_HEIGHT = 48;
 const VISIBLE_ROWS = 5;
 const VISIBLE_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
 const PERIOD_SLOTS = ["오전", "오후"] as const;
-
-/** 12시간제 슬롯 (30분 간격): 12:00, 12:30, 1:00, ..., 11:30 */
 const TIME_12_SLOTS = (() => {
   const out: string[] = [];
   for (let i = 0; i < 24; i++) {
     const totalMin = i * 30;
     const h = Math.floor(totalMin / 60);
     const m = totalMin % 60;
-    const h12 = h === 0 ? 12 : h;
-    out.push(`${h12}:${String(m).padStart(2, "0")}`);
+    out.push(`${h === 0 ? 12 : h}:${String(m).padStart(2, "0")}`);
   }
   return out;
 })();
 
-/** 24h "HH:mm" → "오전/오후 H:mm" (12시간제 표시) */
 export function format24To12Display(hhmm: string): string {
   if (!hhmm) return "오전 12:00";
   const [hStr, mStr] = hhmm.split(":");
@@ -33,7 +29,6 @@ export function format24To12Display(hhmm: string): string {
   return `${period} ${h12}:${String(m).padStart(2, "0")}`;
 }
 
-/** periodIndex(0=오전,1=오후) + timeIndex(0~23) → 24h "HH:mm" */
 function to24h(periodIndex: number, timeIndex: number): string {
   const totalMin = timeIndex * 30;
   const h12 = Math.floor(totalMin / 60);
@@ -45,14 +40,12 @@ function to24h(periodIndex: number, timeIndex: number): string {
   return `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-/** 24h "HH:mm" → periodIndex, timeIndex */
 function from24h(hhmm: string): { periodIndex: number; timeIndex: number } {
   const [hStr, mStr] = (hhmm || "00:00").split(":");
   const h = parseInt(hStr ?? "0", 10);
   const m = parseInt(mStr ?? "0", 10);
-  const totalMin = h * 60 + m;
   const periodIndex = h < 12 ? 0 : 1;
-  const timeTotalMin = h < 12 ? totalMin : totalMin - 12 * 60;
+  const timeTotalMin = h < 12 ? h * 60 + m : (h - 12) * 60 + m;
   const timeIndex = Math.round(timeTotalMin / 30) % 24;
   return { periodIndex, timeIndex: Math.max(0, Math.min(23, timeIndex)) };
 }
@@ -66,132 +59,117 @@ export interface TimeScrollPopoverProps {
   onClose: () => void;
 }
 
-function timeToNearestSlot(hhmm: string, slots: string[]): string {
-  if (!hhmm) return slots[0] ?? "00:00";
-  const [h, m] = hhmm.split(":").map((x) => parseInt(x, 10));
-  const totalM = (h ?? 0) * 60 + (m ?? 0);
-  let best = slots[0];
-  let bestDiff = 24 * 60;
-  for (const s of slots) {
-    const [sh, sm] = s.split(":").map((x) => parseInt(x, 10));
-    const stotal = sh * 60 + sm;
-    const diff = Math.abs(totalM - stotal);
-    if (diff < bestDiff) {
-      bestDiff = diff;
-      best = s;
-    }
-  }
-  return best;
+function parseValueToNearest(value: string): { periodIndex: number; timeIndex: number } {
+  const [hStr, mStr] = (value || "00:00").split(":");
+  const h = parseInt(hStr ?? "0", 10);
+  const m = parseInt(mStr ?? "0", 10);
+  return from24h(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
 }
 
 export function TimeScrollPopover({
   value,
-  slots,
   anchorEl,
   onSelect,
   onClose,
 }: TimeScrollPopoverProps) {
-  const periodAreaRef = useRef<HTMLDivElement>(null); // 오전/오후 영역 — 휠·클릭
-  const timeScrollRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const timeListRef = useRef<HTMLDivElement>(null);
 
-  const normalized = timeToNearestSlot(value, slots);
-  const { periodIndex, timeIndex } = from24h(normalized);
+  const parsed = parseValueToNearest(value);
+  const [periodIdx, setPeriodIdx] = useState(parsed.periodIndex);
+  const [timeIdx, setTimeIdx] = useState(parsed.timeIndex);
 
-  const [periodIdx, setPeriodIdx] = useState(periodIndex);
-  const [timeIdx, setTimeIdx] = useState(timeIndex);
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
 
-  const commitValue = useCallback(
-    (pIdx: number, tIdx: number) => {
-      onSelect(to24h(pIdx, tIdx));
-    },
-    [onSelect]
-  );
+  const emit = useCallback((p: number, t: number) => {
+    onSelectRef.current(to24h(p, t));
+  }, []);
 
-  // value가 외부에서 바뀌면 동기화
+  // 외부 value 변경 시 동기화
   useEffect(() => {
+    const { periodIndex, timeIndex } = parseValueToNearest(value);
     setPeriodIdx(periodIndex);
     setTimeIdx(timeIndex);
-  }, [periodIndex, timeIndex]);
+  }, [value]);
 
-  // 초기 스크롤 위치 설정 (period는 스크롤 없음, time만)
+  // 선택값 변경 시 부모에 전달
   useEffect(() => {
-    const elT = timeScrollRef.current;
-    if (!elT) return;
-    const blockT = TIME_12_SLOTS.length * ROW_HEIGHT;
-    elT.scrollTop =
-      blockT + timeIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
-  }, []);
+    emit(periodIdx, timeIdx);
+  }, [periodIdx, timeIdx, emit]);
 
-  // period — 오전/오후 2개만, 휠 돌리면 자동 순환 (오른쪽=아래로 스크롤=다음)
-  useEffect(() => {
-    const el = periodAreaRef.current;
+  // ===== 시간 롤러: 초기 스크롤 위치 =====
+  useLayoutEffect(() => {
+    const el = timeListRef.current;
     if (!el) return;
+    const blockLen = TIME_12_SLOTS.length;
+    const blockHeight = blockLen * ROW_HEIGHT;
+    const targetScroll =
+      blockHeight + timeIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+    el.scrollTop = Math.max(0, Math.min(targetScroll, el.scrollHeight - VISIBLE_HEIGHT));
+  }, [timeIdx]);
 
-    const handler = (e: WheelEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setPeriodIdx((prev) => (e.deltaY > 0 ? (prev + 1) % 2 : (prev - 1 + 2) % 2));
-    };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-  }, []);
-
-  // time 롤러 무한 순환 + 인덱스 반영
+  // ===== 시간 롤러: 스크롤 이벤트 → 인덱스 반영 + 무한 순환 =====
   useEffect(() => {
-    const el = timeScrollRef.current;
+    const el = timeListRef.current;
     if (!el) return;
     const blockLen = TIME_12_SLOTS.length;
     const blockHeight = blockLen * ROW_HEIGHT;
 
-    const handler = () => {
-      const st = el.scrollTop;
-      if (st < ROW_HEIGHT) el.scrollTop = st + blockHeight;
-      else if (st > blockHeight * 2 - ROW_HEIGHT) el.scrollTop = st - blockHeight;
-      const centerRow =
-        (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
-      const idx = (Math.floor(centerRow) % blockLen + blockLen) % blockLen;
+    const handleScroll = () => {
+      let st = el.scrollTop;
+      // 무한 순환: 양 끝에서 중간 블록으로 점프
+      if (st < blockHeight * 0.5) {
+        el.scrollTop = st + blockHeight;
+        st = el.scrollTop;
+      } else if (st > blockHeight * 2 - blockHeight * 0.5) {
+        el.scrollTop = st - blockHeight;
+        st = el.scrollTop;
+      }
+      const centerY = st + VISIBLE_HEIGHT / 2;
+      const rowIndex = Math.floor((centerY - ROW_HEIGHT / 2) / ROW_HEIGHT);
+      const idx = ((rowIndex % blockLen) + blockLen) % blockLen;
       setTimeIdx(idx);
     };
-    el.addEventListener("scroll", handler, { passive: true });
-    return () => el.removeEventListener("scroll", handler);
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // periodIdx, timeIdx 변경 시 onSelect 호출
-  useEffect(() => {
-    commitValue(periodIdx, timeIdx);
-  }, [periodIdx, timeIdx, commitValue]);
+  // ===== 오전/오후: 휠 이벤트 → 순환 =====
+  const handlePeriodWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPeriodIdx((prev) => (e.deltaY > 0 ? (prev + 1) % 2 : (prev - 1 + 2) % 2));
+  }, []);
 
+  // ===== 바깥 클릭 시 닫기 =====
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      const target = e.target as Node;
-      if (anchorEl.contains(target)) return;
-      if (popoverRef.current?.contains(target)) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (anchorEl.contains(t) || popoverRef.current?.contains(t)) return;
       onClose();
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [anchorEl, onClose]);
 
-  const scrollToPeriod = (idx: number) => {
-    setPeriodIdx(idx);
-  };
-
-  const scrollToTime = (idx: number) => {
-    const el = timeScrollRef.current;
+  // ===== 시간 클릭 시 해당 슬롯으로 스크롤 =====
+  const scrollToTime = useCallback((idx: number) => {
+    const el = timeListRef.current;
     if (!el) return;
     const blockHeight = TIME_12_SLOTS.length * ROW_HEIGHT;
-    el.scrollTop =
-      blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+    const target = blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+    el.scrollTo({ top: target, behavior: "smooth" });
     setTimeIdx(idx);
-  };
+  }, []);
 
   const rect = anchorEl.getBoundingClientRect();
 
   return (
     <div
       ref={popoverRef}
-      className="shared-time-scroll-popover shared-time-scroll-popover--cylinder"
+      className="time-picker"
       style={{
         position: "fixed",
         left: rect.left,
@@ -202,35 +180,22 @@ export function TimeScrollPopover({
       role="listbox"
       aria-label="시간 선택"
     >
-      <div className="shared-time-scroll-popover-layout">
-        {/* 오전 | 오후 — 클릭 + 휠 돌리면 자동순환 (오른쪽 시간은 24h 기준 12h 표시) */}
+      <div className="time-picker__body">
+        {/* 왼쪽: 오전/오후 — 클릭 + 휠 순환 */}
         <div
-          ref={periodAreaRef}
-          className="shared-time-scroll-popover-cylinder shared-time-scroll-popover-cylinder--period"
+          className="time-picker__period"
+          onWheel={handlePeriodWheel}
+          style={{ touchAction: "none" }}
         >
-          <div
-            className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top"
-            aria-hidden
-          />
-          <div
-            className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--bottom"
-            aria-hidden
-          />
-          <div
-            className="shared-time-scroll-popover-list shared-time-scroll-popover-list--period"
-            style={{ height: VISIBLE_HEIGHT }}
-          >
-            {PERIOD_SLOTS.map((label) => (
+          <div className="time-picker__period-list">
+            {PERIOD_SLOTS.map((label, i) => (
               <button
                 key={label}
                 type="button"
-                className={`shared-time-scroll-popover-item ${
-                  periodIdx === PERIOD_SLOTS.indexOf(label)
-                    ? "shared-time-scroll-popover-item--selected"
-                    : ""
+                className={`time-picker__period-item ${
+                  periodIdx === i ? "time-picker__period-item--active" : ""
                 }`}
-                style={{ height: ROW_HEIGHT }}
-                onClick={() => scrollToPeriod(PERIOD_SLOTS.indexOf(label))}
+                onClick={() => setPeriodIdx(i)}
               >
                 {label}
               </button>
@@ -238,33 +203,28 @@ export function TimeScrollPopover({
           </div>
         </div>
 
-        <div className="shared-time-scroll-popover-divider" aria-hidden>
+        <div className="time-picker__divider" aria-hidden>
           |
         </div>
 
-        {/* 시간 롤러 */}
-        <div className="shared-time-scroll-popover-cylinder">
+        {/* 오른쪽: 시간 롤러 — 12h 표시, 24h 내부 */}
+        <div className="time-picker__time">
+          <div className="time-picker__time-mask time-picker__time-mask--top" />
+          <div className="time-picker__time-mask time-picker__time-mask--bottom" />
+          <div className="time-picker__time-highlight" />
           <div
-            className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top"
-            aria-hidden
-          />
-          <div
-            className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--bottom"
-            aria-hidden
-          />
-          <div
-            ref={timeScrollRef}
-            className="shared-time-scroll-popover-list"
+            ref={timeListRef}
+            className="time-picker__time-list"
             style={{ height: VISIBLE_HEIGHT }}
           >
             {[0, 1, 2].map((block) =>
-              TIME_12_SLOTS.map((t) => (
+              TIME_12_SLOTS.map((t, i) => (
                 <button
                   key={`${block}-${t}`}
                   type="button"
-                  className="shared-time-scroll-popover-item"
+                  className="time-picker__time-item"
                   style={{ height: ROW_HEIGHT }}
-                  onClick={() => scrollToTime(TIME_12_SLOTS.indexOf(t))}
+                  onClick={() => scrollToTime(i)}
                 >
                   {t}
                 </button>
