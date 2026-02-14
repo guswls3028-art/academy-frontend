@@ -46,12 +46,13 @@
     0 3px 8px var(--color-shadow-soft, rgba(0, 0, 0, 0.14));
 }
 
-/* ----- 컴팩트 (세션바·목록용) — 차시 블록과 차시 추가 버튼 동일 규격 ----- */
+/* ----- 컴팩트 (세션바·목록용) — 차시 블록과 차시 추가 버튼 동일 규격, 4:3 비율 ----- */
 .session-block--compact {
-  min-width: 168px;
-  width: 168px;
-  height: 64px;
-  min-height: 64px;
+  /* 4:3 비율: width 120 → height 90 */
+  min-width: 120px;
+  width: 120px;
+  height: 90px;
+  min-height: 90px;
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-lg);
   flex: 0 0 auto;
