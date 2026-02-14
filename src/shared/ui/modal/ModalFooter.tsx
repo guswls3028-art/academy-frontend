@@ -9,16 +9,7 @@ export default function ModalFooter({
   right?: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        padding: "12px 20px",
-        borderTop: "1px solid var(--color-border-divider)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        background: "var(--color-modal-bg)",
-      }}
-    >
+    <div className="modal-footer">
       <div>{left}</div>
       <div style={{ display: "flex", gap: 8 }}>{right}</div>
     </div>

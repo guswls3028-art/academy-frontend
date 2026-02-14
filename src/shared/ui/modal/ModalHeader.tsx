@@ -97,33 +97,11 @@ export default function ModalHeader({
       ? "var(--color-text-muted)"
       : "var(--color-brand-primary)";
 
-  const bg =
-    type === "confirm"
-      ? "color-mix(in srgb, var(--color-error) 12%, var(--color-modal-bg))"
-      : "var(--color-modal-bg)";
-
   return (
     <div
-      style={{
-        padding: "12px 20px",
-        background: bg,
-        borderBottom: "1px solid var(--color-border-divider)",
-        position: "relative",
-      }}
+      className={`modal-header modal-header--${type}`}
     >
-      {/* top accent rail (very thin, enterprise) */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          right: 0,
-          height: 2,
-          background: accentColor,
-          opacity: isConfirm ? 0.9 : 0.55,
-        }}
-      />
+      <div aria-hidden className="modal-header__accent" />
 
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div

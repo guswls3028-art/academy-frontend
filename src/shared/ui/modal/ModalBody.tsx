@@ -6,14 +6,5 @@ export default function ModalBody({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div
-      style={{
-        padding: "16px 20px",
-        background: "var(--color-modal-bg)",
-      }}
-    >
-      {children}
-    </div>
-  );
+  return <div className="modal-body">{children}</div>;
 }
