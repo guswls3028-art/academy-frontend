@@ -59,30 +59,24 @@ export function getAttendanceStyle(status: string | null | undefined): React.CSS
   return meta?.style ?? null;
 }
 
+/** 사이즈 SSOT: 1ch(한글자) | 2ch(두글자) — shared/ui/ds/styles/status.css */
 export default function AttendanceStatusBadge({
   status,
-  variant = "full",
+  variant = "2ch",
 }: {
   status: AttendanceStatus;
-  /** full: 두글자 라벨(기본), short: 한글자(매트릭스용), compact: 두글자 작은 크기(출결 테이블용) */
-  variant?: "full" | "short" | "compact";
+  /** 1ch: 한글자(매트릭스 셀 등), 2ch: 두글자(출결 테이블·라벨) */
+  variant?: "1ch" | "2ch";
 }) {
   const meta = STATUS_META[status];
   if (!meta) return null;
 
-  const text = variant === "short" ? meta.short : meta.label;
-  const isShort = variant === "short";
-  const isCompact = variant === "compact";
-
-  const sizeClass = isShort
-    ? "rounded px-1.5 py-0.5 text-[10px] min-w-[1.25rem]"
-    : isCompact
-      ? "rounded-md px-2 py-0.5 text-[11px] font-semibold"
-      : "rounded-full px-3 py-1.5 text-sm";
+  const text = variant === "1ch" ? meta.short : meta.label;
+  const sizeClass = variant === "1ch" ? "ds-status-badge ds-status-badge--1ch" : "ds-status-badge";
 
   return (
     <span
-      className={`inline-flex items-center justify-center font-semibold ${sizeClass}`}
+      className={sizeClass}
       style={meta.style}
       title={meta.label}
     >
