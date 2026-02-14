@@ -3,8 +3,8 @@
 
 .session-type-block {
   /* 블록 크기·간격 */
-  min-height: 96px;
-  padding: var(--space-5);
+  min-height: 64px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -64,13 +64,6 @@
   font-weight: 700;
   color: var(--color-text-primary);
   line-height: 1.25;
-}
-
-.session-type-block__desc {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  line-height: 1.35;
 }
 
 /* 날짜/시간 라디오 옵션 블록 — 버튼처럼 볼록한 입체감 (전역 DS 우선순위 확보) */
