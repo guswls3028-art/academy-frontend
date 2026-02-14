@@ -433,7 +433,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                 ref={fileInputRef}
                 type="file"
                 accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
-                className="sr-only"
+                className="ds-sr-only"
                 aria-hidden
                 onChange={handleInventoryFileChange}
               />
