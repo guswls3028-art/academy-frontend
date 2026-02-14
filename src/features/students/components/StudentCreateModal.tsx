@@ -627,24 +627,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </div>
         </div>
         ) : bulkResult ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
+        <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="modal-section-label" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "var(--space-2)" }}>
             {bulkResult.created}명 등록 완료
             {bulkResult.failed.length > 0 && ` · 실패 ${bulkResult.failed.length}건`}
           </div>
 
           {bulkResult.failed.length > 0 && (
             <>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  padding: "10px 12px",
-                  background: "var(--color-bg-surface-soft)",
-                  borderRadius: 8,
-                  lineHeight: 1.5,
-                }}
-              >
+              <div className="modal-form-group" style={{ padding: "var(--space-3) var(--space-4)" }}>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5 }}>
                 필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR 식별). 아이디 6자리 자동 부여.
                 {conflictedItems.length > 0 && (
                   <span style={{ display: "block", marginTop: 8 }}>
