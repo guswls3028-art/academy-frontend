@@ -123,13 +123,12 @@ export function TimeScrollPopover({
     const blockP = PERIOD_SLOTS.length * ROW_HEIGHT;
     const blockT = TIME_12_SLOTS.length * ROW_HEIGHT;
     elP.scrollTop =
-      periodIdx * ROW_HEIGHT - PERIOD_VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
-    elP.scrollTop = Math.max(0, elP.scrollTop);
+      blockP + periodIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
     elT.scrollTop =
       blockT + timeIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
   }, []);
 
-  // period 롤러 — 2개만, 클릭/스크롤로 선택
+  // period 롤러 — 시간과 동일한 롤링 선택 (무한 순환 스크롤)
   useEffect(() => {
     const el = periodScrollRef.current;
     if (!el) return;
@@ -138,12 +137,11 @@ export function TimeScrollPopover({
 
     const handler = () => {
       const st = el.scrollTop;
+      if (st < ROW_HEIGHT) el.scrollTop = st + blockHeight;
+      else if (st > blockHeight * 2 - ROW_HEIGHT) el.scrollTop = st - blockHeight;
       const centerRow =
-        (st + PERIOD_VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
-      const idx = Math.max(
-        0,
-        Math.min(blockLen - 1, Math.round(centerRow))
-      );
+        (st + VISIBLE_HEIGHT / 2 - ROW_HEIGHT / 2) / ROW_HEIGHT;
+      const idx = (Math.floor(centerRow) % blockLen + blockLen) % blockLen;
       setPeriodIdx(idx);
     };
     el.addEventListener("scroll", handler, { passive: true });
