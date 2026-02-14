@@ -232,13 +232,15 @@
   background: var(--session-block-supplement);
 }
 
-/* ----- + 차시 추가 (아웃라인) ----- */
+/* ----- + 차시 추가 (아웃라인, 아이콘) ----- */
 .session-block--add {
   --session-block-bottom: var(--color-shadow-subtle, rgba(0, 0, 0, 0.12));
   background: var(--color-bg-surface);
   border-style: dashed;
   border-color: var(--color-border-divider);
   color: var(--color-text-muted);
+  align-items: center;
+  justify-content: center;
 }
 
 .session-block--add:hover {
@@ -251,6 +253,13 @@
 .session-block--add .session-block__title {
   color: inherit;
   text-shadow: none;
+}
+
+.session-block--add .session-block__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
 }
 
 /* ----- 타이틀 / 설명 / 체크 ----- */
