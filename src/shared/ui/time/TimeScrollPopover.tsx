@@ -188,8 +188,25 @@ export function TimeScrollPopover({
       }, EMIT_DELAY_MS);
     };
 
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      wheelAccumRef.current += e.deltaY;
+      const threshold = ROW_HEIGHT;
+      while (Math.abs(wheelAccumRef.current) >= threshold) {
+        const step = wheelAccumRef.current > 0 ? 1 : -1;
+        wheelAccumRef.current -= step * threshold;
+        const blockHeight = blockLen * ROW_HEIGHT;
+        let next = el.scrollTop + step * ROW_HEIGHT;
+        if (next < blockHeight * 0.5) next += blockHeight;
+        else if (next > blockHeight * 2 - blockHeight * 0.5) next -= blockHeight;
+        el.scrollTop = Math.max(0, Math.min(next, el.scrollHeight - VISIBLE_HEIGHT));
+      }
+    };
+
     el.addEventListener("scroll", handleScroll, { passive: true });
+    el.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
+      el.removeEventListener("wheel", handleWheel);
       el.removeEventListener("scroll", handleScroll);
       if (scrollEndTimeoutRef.current) {
         clearTimeout(scrollEndTimeoutRef.current);
