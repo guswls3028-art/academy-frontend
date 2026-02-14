@@ -23,6 +23,7 @@ interface CreateLecturePayload {
   end_date: string;
   lecture_time: string;
   color: string;
+  chip_label: string;
   is_active: boolean;
 }
 
