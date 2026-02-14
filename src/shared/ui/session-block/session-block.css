@@ -109,6 +109,15 @@
   background: var(--session-block-supplement-bg-hover);
 }
 
+.session-block.session-block--compact.session-block--add {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-add) 8%, var(--scale-Neutral0)) 100%);
+  color: var(--color-text-primary);
+}
+
+.session-block.session-block--compact.session-block--add:hover {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-add) 10%, var(--scale-Neutral0)) 100%);
+}
+
 .session-block--compact .session-block__title {
   font-size: 14px;
   font-weight: 700;
