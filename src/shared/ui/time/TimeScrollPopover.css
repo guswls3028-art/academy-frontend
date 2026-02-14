@@ -1,7 +1,7 @@
 /* PATH: src/shared/ui/time/TimeScrollPopover.css
-   30분 단위 원통형(roller) 시간 선택 — 순환 스크롤, 위아래 페이드로 원통감 */
+   롤링 방식 완전 재작성 — [ 오전 | 시간 ] 원통형 픽커 */
 
-.shared-time-scroll-popover {
+.time-picker {
   padding: var(--space-3);
   background: var(--ui-control-bg, var(--color-bg-surface));
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
@@ -10,15 +10,7 @@
   font-family: inherit;
 }
 
-.shared-time-scroll-popover--cylinder {
-  border-radius: 24px;
-  box-shadow:
-    var(--elevation-3),
-    0 0 0 1px color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
-}
-
-/* [ 오전 롤링 | 시간 롤링 ] — 하나의 태두리 안에 둘 다 */
-.shared-time-scroll-popover-layout {
+.time-picker__body {
   display: flex;
   align-items: stretch;
   gap: 0;
@@ -27,95 +19,83 @@
   overflow: hidden;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 0%,
-    var(--color-bg-surface) 20%,
-    var(--color-bg-surface) 80%,
-    color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 100%
+    color-mix(in srgb, var(--color-bg-surface-soft) 50%, transparent) 0%,
+    var(--color-bg-surface) 25%,
+    var(--color-bg-surface) 75%,
+    color-mix(in srgb, var(--color-bg-surface-soft) 50%, transparent) 100%
   );
   border: 1px solid var(--ui-control-border, var(--color-border-divider));
 }
 
-.shared-time-scroll-popover-cylinder--period {
+/* 오전/오후 — 2개만, 클릭+휠 순환 */
+.time-picker__period {
   flex: 0 0 72px;
   width: 72px;
   min-height: 240px;
-  border-radius: 0;
-  border: none;
-  background: transparent;
-  cursor: default;
-}
-
-.shared-time-scroll-popover-cylinder--period::before {
-  height: 48px;
-}
-
-/* 오전/오후 롤러 — 2개만, 휠로 롤링 전환 */
-.shared-time-scroll-popover-list--period {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0;
-}
-
-.shared-time-scroll-popover-item--selected {
-  color: var(--color-brand-primary, var(--color-primary));
-  font-weight: 700;
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
-}
-
-.shared-time-scroll-popover-cylinder--period .shared-time-scroll-popover-mask {
-  height: 48px;
-}
-
-.shared-time-scroll-popover-divider {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
+  padding: 0;
+  background: transparent;
+}
+
+.time-picker__period-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+}
+
+.time-picker__period-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color 120ms, background 120ms;
+  font-family: inherit;
+}
+
+.time-picker__period-item:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 10%, transparent);
+}
+
+.time-picker__period-item--active {
+  color: var(--color-brand-primary, var(--color-primary));
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 14%, transparent);
+}
+
+.time-picker__divider {
+  width: 24px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-muted);
   opacity: 0.6;
-  background: transparent;
-  border: none;
 }
 
-.shared-time-scroll-popover-cylinder {
+/* 시간 롤러 */
+.time-picker__time {
   position: relative;
   flex: 1;
   min-width: 0;
-  border-radius: 0;
   overflow: hidden;
-  border: none;
   background: transparent;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 0%,
-    var(--color-bg-surface) 20%,
-    var(--color-bg-surface) 80%,
-    color-mix(in srgb, var(--color-bg-surface-soft) 60%, transparent) 100%
-  );
 }
 
-/* 원통 중앙 선택 영역 표시 — 돌리는 휠의 현재 선택선 */
-.shared-time-scroll-popover-cylinder::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 48px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 28%, transparent);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.shared-time-scroll-popover-mask {
+.time-picker__time-mask {
   position: absolute;
   left: 0;
   right: 0;
@@ -124,78 +104,72 @@
   z-index: 2;
 }
 
-.shared-time-scroll-popover-mask--top {
+.time-picker__time-mask--top {
   top: 0;
   background: linear-gradient(
     180deg,
     var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 70%, transparent) 70%,
-    transparent 100%
+    color-mix(in srgb, var(--color-bg-surface) 75%, transparent) 100%
   );
 }
 
-.shared-time-scroll-popover-mask--bottom {
+.time-picker__time-mask--bottom {
   bottom: 0;
   background: linear-gradient(
     0deg,
     var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 70%, transparent) 70%,
-    transparent 100%
+    color-mix(in srgb, var(--color-bg-surface) 75%, transparent) 100%
   );
 }
 
-.shared-time-scroll-popover-list {
-  flex: 1;
-  min-width: 0;
+.time-picker__time-highlight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 48px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 25%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.time-picker__time-list {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   scroll-snap-type: y mandatory;
 }
 
-.shared-time-scroll-popover-list::-webkit-scrollbar {
+.time-picker__time-list::-webkit-scrollbar {
   display: none;
 }
 
-.shared-time-scroll-popover-item {
+.time-picker__time-item {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
+  min-height: 48px;
   padding: 0 var(--space-3);
   font-size: 18px;
   font-weight: 500;
-  line-height: 1.2;
-  text-align: center;
-  white-space: nowrap;
-  word-break: keep-all;
-  overflow: visible;
   color: var(--color-text-muted);
   background: transparent;
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition:
-    color 160ms ease,
-    font-weight 120ms ease,
-    background-color 120ms ease;
+  transition: color 120ms, background 120ms;
   font-family: inherit;
-  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
   scroll-snap-align: center;
   scroll-snap-stop: always;
 }
 
-.shared-time-scroll-popover-item:hover {
+.time-picker__time-item:hover {
   color: var(--color-text-primary);
   background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
 }
-
-.shared-time-scroll-popover-item:focus-visible {
-  outline: none;
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
-}
-
