@@ -229,7 +229,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
               {showDefaultDateOption && (
                 <label
                   className={cx(
-                    "flex items-center gap-3 rounded-xl border p-3 transition",
+                    "session-option-row flex items-center gap-3 rounded-xl border p-3 transition",
                     isSupplement
                       ? "cursor-not-allowed border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] opacity-60"
                       : "cursor-pointer border-[var(--border-divider)] hover:bg-[var(--color-bg-surface-soft)]"
