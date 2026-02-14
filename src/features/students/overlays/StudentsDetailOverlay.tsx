@@ -663,6 +663,22 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   )}
                 </div>
               </div>
+              {(inventoryTab === "score" || inventoryTab === "misc") && (
+                <div className="ds-inventory-panel__footer">
+                  {hasSelection && (
+                    <>
+                      {!inventoryMultiSelect && selectedIds.size === 1 && (
+                        <Button type="button" intent="secondary" size="sm" onClick={openEditModal}>
+                          수정
+                        </Button>
+                      )}
+                      <Button type="button" intent="danger" size="sm" onClick={deleteSelectedInventory}>
+                        삭제
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </>,
           document.body
