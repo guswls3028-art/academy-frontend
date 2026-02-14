@@ -510,8 +510,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             />
           </div>
 
-          {/* 선택 입력 — 세션 모달과 동일 구조·입체감 */}
-          <div className="modal-form-group">
+          {/* 선택 입력 — 보색 톤, 단일 버튼(차시색·성별) */}
+          <div className="modal-form-group modal-form-group--complement">
             <span className="modal-section-label">선택 입력</span>
             <div className="modal-form-row modal-form-row--1-auto">
               <input
@@ -524,17 +524,18 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 inputMode="numeric"
                 pattern="[0-9\-]*"
               />
-              <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+              <div className="modal-actions-inline" style={{ height: 36 }}>
                 {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
-                  <Button
+                  <button
                     key={g.key}
-                    intent={form.gender === g.key ? "secondary" : "ghost"}
+                    type="button"
+                    className={`student-gender-btn student-gender-btn--${g.key === "M" ? "m" : "f"}${form.gender === g.key ? " is-selected" : ""}`}
                     aria-pressed={form.gender === g.key}
                     onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
                     disabled={busy}
                   >
                     {g.label}
-                  </Button>
+                  </button>
                 ))}
               </div>
             </div>
@@ -547,30 +548,38 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 className="ds-input"
                 disabled={busy}
               />
-              <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-                {[{ key: "HIGH", label: "고등" }, { key: "MIDDLE", label: "중등" }].map((t) => (
-                  <Button
-                    key={t.key}
-                    intent={form.schoolType === t.key ? "secondary" : "ghost"}
-                    aria-pressed={form.schoolType === t.key}
-                    onClick={() => setForm((p) => ({ ...p, schoolType: t.key }))}
-                    disabled={busy}
-                  >
-                    {t.label}
-                  </Button>
-                ))}
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "HIGH" ? " is-selected" : ""}`}
+                  aria-pressed={form.schoolType === "HIGH"}
+                  onClick={() => setForm((p) => ({ ...p, schoolType: "HIGH" }))}
+                  disabled={busy}
+                >
+                  고등
+                </button>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--complement${form.schoolType === "MIDDLE" ? " is-selected" : ""}`}
+                  aria-pressed={form.schoolType === "MIDDLE"}
+                  onClick={() => setForm((p) => ({ ...p, schoolType: "MIDDLE" }))}
+                  disabled={busy}
+                >
+                  중등
+                </button>
               </div>
-              <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+              <div className="modal-actions-inline" style={{ height: 36 }}>
                 {["1", "2", "3"].map((g) => (
-                  <Button
+                  <button
                     key={g}
-                    intent={form.grade === g ? "secondary" : "ghost"}
+                    type="button"
+                    className={`ds-choice-btn ds-choice-btn--primary${form.grade === g ? " is-selected" : ""}`}
                     aria-pressed={form.grade === g}
                     onClick={() => setForm((p) => ({ ...p, grade: g }))}
                     disabled={busy}
                   >
                     {g}학년
-                  </Button>
+                  </button>
                 ))}
               </div>
             </div>
