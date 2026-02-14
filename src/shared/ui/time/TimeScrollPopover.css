@@ -47,10 +47,13 @@
   height: 48px;
 }
 
-/* 오전/오후 롤러 — 2개만, 영역 안에 */
+/* 오전/오후 롤러 — 2개만, 영역 안에, 시간 롤러와 동일 높이 */
 .shared-time-scroll-popover-list--period {
   overflow-y: auto;
-  height: 240px; /* 시간 롤러와 동일 높이 */
+  height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .shared-time-scroll-popover-cylinder--period .shared-time-scroll-popover-mask {
