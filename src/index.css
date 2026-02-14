@@ -4,4 +4,4 @@
 @import "tailwindcss";
 @import "./styles/design-system/index.css";
 /* 상태 뱃지 SSOT — 진입점에서 한 번 더 로드해 Tailwind/기타 덮어쓰기 방지 */
-@import "./shared/ui/ds/styles/status.css";
+@import "./styles/design-system/ds/status.css";

@@ -1,15 +1,14 @@
 // PATH: src/shared/ui/ds/index.ts
 
 /* ===============================
- * DS GLOBAL STYLES (SSOT)
- * status.css는 design-system/index.css에서 단일 로드 (레거시 덮어쓰기 방지)
+ * DS GLOBAL STYLES — design-system에서 단일 로드 (src/styles/design-system/)
  * =============================== */
-import "./styles/input.css";
-import "./styles/action-bar.css";
-import "./styles/panel.css";
-import "./styles/page.css";
-import "./styles/page-header.css";
-import "./styles/list-page.css";
+import "@/styles/design-system/ds/input.css";
+import "@/styles/design-system/ds/action-bar.css";
+import "@/styles/design-system/ds/panel.css";
+import "@/styles/design-system/ds/page.css";
+import "@/styles/design-system/ds/page-header.css";
+import "@/styles/design-system/ds/list-page.css";
 
 /* ===============================
  * DS COMPONENT EXPORTS
