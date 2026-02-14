@@ -140,8 +140,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   };
 
   const openEditModal = () => {
-    const singleId = inventoryMultiSelect ? (selectedIds.size === 1 ? Array.from(selectedIds)[0] : null) : inventorySelectedId;
-    if (!singleId || selectedIds.size !== 1) return;
+    if (!inventoryMultiSelect && selectedIds.size !== 1) return;
+    const singleId = Array.from(selectedIds)[0];
+    if (!singleId) return;
     const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === singleId);
     if (item)
       setEditItem({
