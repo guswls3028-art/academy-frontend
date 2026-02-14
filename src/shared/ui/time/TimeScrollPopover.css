@@ -90,34 +90,34 @@
   background: transparent;
 }
 
-/* 위·아래 페이드 — 전체 원통 안쪽으로 들어가는 깊이감 (좌·우 통합) */
+/* 좌·우 페이드 — 가로 원통 안쪽으로 들어가는 깊이감 */
 .time-picker__body .time-picker__mask {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 72px;
+  top: 0;
+  bottom: 0;
+  width: 48px;
   pointer-events: none;
   z-index: 2;
 }
 
-.time-picker__mask--top {
-  top: 0;
+.time-picker__mask--left {
+  left: 0;
   background: linear-gradient(
-    180deg,
+    90deg,
     color-mix(in srgb, var(--color-bg-surface) 98%, transparent) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 90%, transparent) 15%,
-    color-mix(in srgb, var(--color-bg-surface) 50%, transparent) 40%,
+    color-mix(in srgb, var(--color-bg-surface) 90%, transparent) 20%,
+    color-mix(in srgb, var(--color-bg-surface) 50%, transparent) 50%,
     transparent 100%
   );
 }
 
-.time-picker__mask--bottom {
-  bottom: 0;
+.time-picker__mask--right {
+  right: 0;
   background: linear-gradient(
-    0deg,
+    270deg,
     color-mix(in srgb, var(--color-bg-surface) 98%, transparent) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 90%, transparent) 15%,
-    color-mix(in srgb, var(--color-bg-surface) 50%, transparent) 40%,
+    color-mix(in srgb, var(--color-bg-surface) 90%, transparent) 20%,
+    color-mix(in srgb, var(--color-bg-surface) 50%, transparent) 50%,
     transparent 100%
   );
 }
