@@ -50,8 +50,8 @@ export default function StoragePage() {
         {tab === "mine" && <MyStorageExplorer />}
         {tab === "students" && (
           <StudentInventoryManage
-            initialStudentPs={studentPs}
-            onOpenStudent={(ps) => setTab("students")}
+            initialStudentPs={studentPs ?? undefined}
+            onOpenStudent={() => setTab("students")}
           />
         )}
       </div>
