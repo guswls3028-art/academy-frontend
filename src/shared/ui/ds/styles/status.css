@@ -1,9 +1,12 @@
 /* ============================================================================
  * DS STATUS BADGE — 전역 SSOT (단일 진실)
- * - 사이즈: 1글자(--1ch) / 2글자(기본) 딱 2종만 사용. 출결 뱃지 기준.
- * - 형태: 버튼과 비슷, 뱃지는 톤 강함(solid) → 색상으로 버튼과 구분
+ * - 사이즈: 1ch / 2ch 딱 2종. 색상은 아래 4톤만 사용 (하드코딩 금지)
+ * - 긍정(승인·성공·활성) → success (초록)
+ * - 비활·폐기·비활성화 → neutral (회색/검정계열)
+ * - 위험·금지 → danger (빨강)
+ * - 경고·주의 → warning (노랑)
  * - data-status: active | inactive | archived
- * - data-tone: success | danger | primary | neutral (Lock/Role 등)
+ * - data-tone: success | danger | warning | primary | neutral
  * ============================================================================ */
 
 /* ---- 사이즈 SSOT: 2글자(기본) / 1글자(--1ch) ---- */
