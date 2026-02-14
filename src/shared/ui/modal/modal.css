@@ -127,6 +127,11 @@
   grid-template-columns: 1fr auto;
 }
 
+/* 폼 그룹 컴팩트 (패딩 축소) */
+.modal-form-group--compact {
+  padding: var(--space-3);
+}
+
 /* 폼 그룹 가로 배치 (상태+버튼 등) */
 .modal-form-group--row {
   flex-direction: row;
