@@ -4,9 +4,9 @@
 .time-picker {
   padding: var(--space-3);
   background: var(--ui-control-bg, var(--color-bg-surface));
-  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border: 1px solid color-mix(in srgb, var(--ui-control-border, var(--color-border-divider)) 70%, transparent);
   border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
   font-family: inherit;
 }
 
