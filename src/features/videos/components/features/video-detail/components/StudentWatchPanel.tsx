@@ -93,13 +93,8 @@ export default function StudentWatchPanel({
                   variant="1ch"
                 />
                 <span
-                  className={[
-                    "ds-status-badge",
-                    getAccessColor(s.access_mode, s.effective_rule)
-                      .split(/\s+/)
-                      .map((c) => (c.startsWith("bg-") || c.startsWith("text-") ? `!${c}` : c))
-                      .join(" "),
-                  ].join(" ")}
+                  className="ds-status-badge"
+                  data-tone={getAccessTone(s.access_mode, s.effective_rule)}
                 >
                   {getAccessLabel(s.access_mode, s.effective_rule)}
                 </span>
