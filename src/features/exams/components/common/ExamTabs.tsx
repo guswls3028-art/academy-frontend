@@ -1,4 +1,4 @@
-import { Button } from "@/shared/ui/ds";
+// SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
 import type { ExamTabKey } from "../../types";
 
 type Props = {
@@ -17,24 +17,19 @@ const TABS: { key: ExamTabKey; label: string }[] = [
 
 export default function ExamTabs({ activeTab, onChange }: Props) {
   return (
-    <div className="flex gap-6 border-b border-[var(--border-divider)]">
-      {TABS.map((t) => {
-        const isActive = activeTab === t.key;
-
-        return (
-          <Button
-            key={t.key}
-            type="button"
-            intent={isActive ? "primary" : "ghost"}
-            size="sm"
-            onClick={() => onChange(t.key)}
-            className="-mb-px rounded-none border-b-2 border-transparent pb-2"
-            style={isActive ? { borderColor: "var(--color-primary)" } : undefined}
-          >
-            {t.label}
-          </Button>
-        );
-      })}
+    <div className="ds-tabs ds-tabs--flat border-b border-[var(--border-divider)]" role="tablist">
+      {TABS.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === t.key}
+          onClick={() => onChange(t.key)}
+          className={`ds-tab ${activeTab === t.key ? "is-active" : ""}`}
+        >
+          {t.label}
+        </button>
+      ))}
     </div>
   );
 }

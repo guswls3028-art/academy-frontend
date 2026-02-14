@@ -1,4 +1,5 @@
 // PATH: src/features/homework/components/common/HomeworkTabs.tsx
+// SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
 import type { HomeworkTabKey } from "../../types";
 
 const TABS: { key: HomeworkTabKey; label: string }[] = [
@@ -16,26 +17,19 @@ export default function HomeworkTabs({
   onChange: (tab: HomeworkTabKey) => void;
 }) {
   return (
-    <div className="flex gap-6 border-b border-[var(--border-divider)]">
-      {TABS.map((tab) => {
-        const isActive = activeTab === tab.key;
-
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChange(tab.key)}
-            className={[
-              "pb-2 text-sm border-b-2 transition-colors",
-              isActive
-                ? "border-[var(--color-primary)] font-semibold text-[var(--text-primary)]"
-                : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-            ].join(" ")}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
+    <div className="ds-tabs ds-tabs--flat border-b border-[var(--border-divider)]" role="tablist">
+      {TABS.map((tab) => (
+        <button
+          key={tab.key}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === tab.key}
+          onClick={() => onChange(tab.key)}
+          className={`ds-tab ${activeTab === tab.key ? "is-active" : ""}`}
+        >
+          {tab.label}
+        </button>
+      ))}
     </div>
   );
 }

@@ -1,19 +1,16 @@
 // src/features/community/components/BoardTabs.tsx
+// SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
 import { NavLink } from "react-router-dom";
 
 export default function BoardTabs() {
   const base = "/admin/community";
 
-  const tabClass = ({ isActive }: any) =>
-    `px-3 py-2 text-sm font-medium border-b-2 ${
-      isActive 
-        ? "border-blue-600 text-blue-600"
-        : "border-transparent text-gray-600 hover:text-gray-800"
-    }`;
+  const tabClass = ({ isActive }: { isActive: boolean }) =>
+    `ds-tab ${isActive ? "is-active" : ""}`;
 
   return (
-    <div className="flex gap-6 border-b mb-6">
-      <NavLink to={`${base}/admin?tab=notice`} className={tabClass}>공지사항</NavLink>
+    <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)] mb-6" role="tablist">
+      <NavLink to={`${base}/admin?tab=notice`} className={tabClass} end>공지사항</NavLink>
       <NavLink to={`${base}/qna`} className={tabClass}>질의응답</NavLink>
       <NavLink to={`${base}/review`} className={tabClass}>수강후기</NavLink>
     </div>
