@@ -94,6 +94,6 @@ button.ds-status-badge:disabled {
 
 /* 톤 미지정 시 기본(neutral) */
 .ds-status-badge:not([data-status]):not([data-tone]) {
-  background: color-mix(in srgb, var(--color-border-divider) 18%, var(--color-bg-surface));
-  color: var(--color-text-secondary);
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
+  color: var(--status-badge-neutral-text, var(--color-text-secondary));
 }
