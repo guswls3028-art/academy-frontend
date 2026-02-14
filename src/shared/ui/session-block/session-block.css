@@ -118,11 +118,11 @@
 
 /* ----- N차시 (정규) ----- */
 .session-block--n1 {
-  --session-block-bottom: rgba(30, 64, 175, 0.45);
+  --session-block-bottom: color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
   background: linear-gradient(
     165deg,
-    color-mix(in srgb, var(--color-brand-primary, #2563eb) 14%, white) 0%,
-    color-mix(in srgb, var(--color-brand-primary, #2563eb) 8%, white) 100%
+    color-mix(in srgb, var(--color-brand-primary) 14%, white) 0%,
+    color-mix(in srgb, var(--color-brand-primary) 8%, white) 100%
   );
   color: var(--color-text-primary);
 }
@@ -130,42 +130,42 @@
 .session-block--n1:hover {
   background: linear-gradient(
     165deg,
-    color-mix(in srgb, var(--color-brand-primary, #2563eb) 18%, white) 0%,
-    color-mix(in srgb, var(--color-brand-primary, #2563eb) 10%, white) 100%
+    color-mix(in srgb, var(--color-brand-primary) 18%, white) 0%,
+    color-mix(in srgb, var(--color-brand-primary) 10%, white) 100%
   );
 }
 
 .session-block--n1.session-block--selected {
-  border-color: var(--color-brand-primary, #2563eb);
-  --session-block-bottom: rgba(30, 64, 175, 0.55);
+  border-color: var(--color-brand-primary);
+  --session-block-bottom: color-mix(in srgb, var(--color-brand-primary) 55%, transparent);
   background: linear-gradient(
     165deg,
-    color-mix(in srgb, var(--color-brand-primary, #2563eb) 22%, white) 0%,
-    color-mix(in srgb, var(--color-brand-primary, #2563eb) 12%, white) 100%
+    color-mix(in srgb, var(--color-brand-primary) 22%, white) 0%,
+    color-mix(in srgb, var(--color-brand-primary) 12%, white) 100%
   );
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.2),
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.2)),
     0 5px 0 0 var(--session-block-bottom),
-    0 6px 14px rgba(37, 99, 235, 0.25),
-    0 0 0 3px color-mix(in srgb, var(--color-brand-primary, #2563eb) 25%, transparent);
+    0 6px 14px color-mix(in srgb, var(--color-brand-primary) 25%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
 .session-block--n1.session-block--selected:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.22),
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.22)),
     0 6px 0 0 var(--session-block-bottom),
-    0 10px 24px rgba(37, 99, 235, 0.28),
-    0 0 0 3px color-mix(in srgb, var(--color-brand-primary, #2563eb) 30%, transparent);
+    0 10px 24px color-mix(in srgb, var(--color-brand-primary) 28%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
 }
 
 .session-block--n1.session-block--selected:active {
   transform: translateY(3px);
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.1),
+    0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.1)),
     0 2px 0 0 var(--session-block-bottom),
-    0 3px 8px rgba(37, 99, 235, 0.2),
-    0 0 0 3px color-mix(in srgb, var(--color-brand-primary, #2563eb) 20%, transparent);
+    0 3px 8px color-mix(in srgb, var(--color-brand-primary) 20%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
 }
 
 /* ----- 보강 ----- */
