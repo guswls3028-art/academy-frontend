@@ -77,6 +77,7 @@ function mapStudent(item: any): ClientStudent {
   return {
     id: Number(item?.id),
     name: safeStr(item?.name),
+    profilePhotoUrl: item?.profile_photo_url ?? null,
 
     psNumber: safeStr(item?.ps_number),
     omrCode: safeStr(omrCode),
