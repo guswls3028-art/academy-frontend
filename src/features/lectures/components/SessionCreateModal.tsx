@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { createSession } from "../api/sessions";
-import "@/shared/ui/session-block/session-block.css";
+import { SessionBlockView } from "@/shared/ui/session-block";
 
 type SessionType = "n+1" | "supplement";
 type DateMode = "default" | "custom";

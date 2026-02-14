@@ -39,31 +39,26 @@ export default function SessionBar() {
           const supplement = isSupplement(s.title);
 
           return (
-            <Link
+            <SessionBlockView
               key={s.id}
+              variant={supplement ? "supplement" : "n1"}
+              compact
               to={`sessions/${s.id}`}
-              className={cx(
-                "session-block session-block--compact",
-                supplement ? "session-block--supplement" : "session-block--n1",
-                active && "session-block--selected"
-              )}
-            >
-              <span className="session-block__title">{s.order ?? "?"}차시</span>
-              <span className="session-block__desc">{s.date || "-"}</span>
-            </Link>
+              selected={active}
+              title={`${s.order ?? "?"}차시`}
+              desc={s.date || "-"}
+            />
           );
         })}
 
-        <button
-          type="button"
+        <SessionBlockView
+          variant="add"
+          compact
           onClick={() => setShowModal(true)}
-          className="session-block session-block--compact session-block--add"
-          aria-label="차시 추가"
+          ariaLabel="차시 추가"
         >
-          <span className="session-block__icon" aria-hidden>
-            <Plus size={22} strokeWidth={2.5} />
-          </span>
-        </button>
+          <Plus size={22} strokeWidth={2.5} />
+        </SessionBlockView>
       </div>
 
       {showModal && (
