@@ -95,12 +95,9 @@ export async function uploadFile(payload: UploadFilePayload): Promise<InventoryF
 }
 
 export async function deleteFile(scope: "admin" | "student", fileId: string, studentPs?: string): Promise<void> {
-  const params: Record<string, string> = {};
+  const params: Record<string, string> = { scope };
   if (studentPs) params.student_ps = studentPs;
-  await request(`/inventory/files/${fileId}/`, {
-    method: "DELETE",
-    params,
-  });
+  await api.delete(`/storage/inventory/files/${fileId}/`, { params });
 }
 
 export async function deleteFolder(
@@ -108,17 +105,15 @@ export async function deleteFolder(
   folderId: string,
   studentPs?: string
 ): Promise<void> {
-  const params: Record<string, string> = {};
+  const params: Record<string, string> = { scope };
   if (studentPs) params.student_ps = studentPs;
-  await request(`/inventory/folders/${folderId}/`, {
-    method: "DELETE",
-    params,
-  });
+  await api.delete(`/storage/inventory/folders/${folderId}/`, { params });
 }
 
 export async function getPresignedUrl(r2Key: string, expiresIn?: number): Promise<{ url: string }> {
-  return request<{ url: string }>("/inventory/presign/", {
-    method: "POST",
-    body: JSON.stringify({ r2_key: r2Key, expires_in: expiresIn ?? 3600 }),
+  const { data } = await api.post<{ url: string }>("/storage/inventory/presign/", {
+    r2_key: r2Key,
+    expires_in: expiresIn ?? 3600,
   });
+  return data;
 }
