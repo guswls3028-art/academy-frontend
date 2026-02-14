@@ -58,6 +58,7 @@
   --scale-Primary600: #1d4ed8;
   --scale-Primary700: #1e40af;
   --color-primary-rgb: 37, 99, 235;
+  --color-brand-complement: #0d9488; /* teal (primary blue 보색 톤) */
 
   /* Space */
   --layout-page-bg: #f6f8fc;
