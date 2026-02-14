@@ -2,17 +2,22 @@
    모달 SSOT — 태두리·헤더·배경·푸터 + 스크롤 본문, 옵션 행(달력·타임스크롤)
    내부 블록(차시 블록, option-row)과 같은 DS 톤으로 통일 */
 
-/* ========== 모달 셸 (내부 블록과 같은 볼록·테두리 느낌) ========== */
+/* ========== 모달 셸 — 최외곽 마감 (내부 블록과 같은 둥근·부드러운 톤) ========== */
 .admin-modal .ant-modal-content {
-  border-radius: var(--radius-xl);
+  /* 모서리 둥글게 (플랫·각짐 방지) */
+  border-radius: var(--radius-2xl);
   overflow: hidden;
+  /* 테두리: 단선보다 부드럽게 — 얇은 외곽선 + 살짝 블러된 그림자로 마감감 */
   border: 1px solid var(--color-border-divider);
-  /* 블록과 동일: 상단 하이라이트 + 내부 글로우 + 하단 살짝 어둡게 + 외부 그림자 */
   box-shadow:
+    /* 내부 블록과 동일: 상단 하이라이트 + 글로우 + 하단 두께감 */
     inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
     inset 0 2px 8px rgba(255, 255, 255, 0.06),
     inset 0 -1px 0 0 rgba(0, 0, 0, 0.04),
-    var(--elevation-3);
+    /* 최외곽: 부드러운 떠있는 느낌 (각진 플랫 방지) */
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    var(--elevation-3),
+    0 24px 48px -12px rgba(0, 0, 0, 0.18);
   background: var(--color-modal-bg);
 }
 
