@@ -1,11 +1,22 @@
 // PATH: src/shared/ui/time/TimeScrollPopover.tsx
-// 원테이크 스크롤: 00:00~24:00(23:45) 순환 시간 선택. 글자 깨짐 방지(폰트·줄바꿈 명시).
+// 원스크롤 순환: 오전 12:00 ~ 오후 11:45 (12시간제). 글자 깨짐 방지.
 
 import { useEffect, useRef } from "react";
 import "./TimeScrollPopover.css";
 
 const ROW_HEIGHT = 44;
 const VISIBLE_HEIGHT = 220;
+
+/** 24h "HH:mm" → "오전/오후 H:mm" (12시간제 표시) */
+export function format24To12Display(hhmm: string): string {
+  if (!hhmm) return "오전 12:00";
+  const [hStr, mStr] = hhmm.split(":");
+  const h = parseInt(hStr ?? "0", 10);
+  const m = parseInt(mStr ?? "0", 10);
+  const period = h < 12 ? "오전" : "오후";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${period} ${h12}:${String(m).padStart(2, "0")}`;
+}
 
 export interface TimeScrollPopoverProps {
   value: string;
