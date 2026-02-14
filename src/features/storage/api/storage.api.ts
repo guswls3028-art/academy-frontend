@@ -1,21 +1,7 @@
 // PATH: src/features/storage/api/storage.api.ts
 // 저장소 API (멀티테넌트 인벤토리)
 
-const BASE = "/api/v1/storage";
-
-async function request<T>(
-  url: string,
-  options?: RequestInit & { params?: Record<string, string> }
-): Promise<T> {
-  const { params, ...rest } = options ?? {};
-  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-  const res = await fetch(BASE + url + qs, {
-    ...rest,
-    headers: { "Content-Type": "application/json", ...rest.headers },
-  });
-  if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-  return res.json();
-}
+import api from "@/shared/api/axios";
 
 export type StorageQuota = {
   usedBytes: number;
