@@ -203,7 +203,12 @@ export function TimeScrollPopover({
         wheelAccumRef.current -= step * threshold;
         steps.push(step);
       }
-      if (steps.length === 0) return;
+      if (steps.length === 0 && Math.abs(wheelAccumRef.current) < 10) return;
+      if (steps.length === 0) {
+        const step = wheelAccumRef.current > 0 ? 1 : -1;
+        wheelAccumRef.current = 0;
+        steps.push(step);
+      }
       const totalDelta = steps.reduce((a, b) => a + b, 0) * ROW_HEIGHT;
       const nextTop = Math.max(
         0,
@@ -297,7 +302,7 @@ export function TimeScrollPopover({
                   type="button"
                   className="time-picker__item"
                   style={{ height: ROW_HEIGHT }}
-                  onClick={() => scrollToIdx(i)}
+                  onClick={() => scrollToIdx(i, { smooth: true })}
                 >
                   {format24To12TimeOnly(slot)}
                 </button>
