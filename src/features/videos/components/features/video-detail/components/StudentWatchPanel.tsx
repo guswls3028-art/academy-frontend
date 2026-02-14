@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-// import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import {
   RULE_COLORS,
   RULE_LABELS,
