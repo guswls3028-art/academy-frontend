@@ -65,10 +65,28 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addFileTabRef = useRef<"score" | "misc">("score");
 
-  type UploadedInventoryItem = { id: string; title: string; description: string; fileName: string; fileUrl: string; fileType: "pdf" | "image" };
+  type UploadedInventoryItem = {
+    id: string;
+    title: string;
+    description: string;
+    fileName: string;
+    fileUrl: string;
+    fileType: "pdf" | "image";
+    iconPreset: string;
+  };
   const [uploadedScoreItems, setUploadedScoreItems] = useState<UploadedInventoryItem[]>([]);
   const [uploadedMiscItems, setUploadedMiscItems] = useState<UploadedInventoryItem[]>([]);
-  const [addFileModal, setAddFileModal] = useState<{ tab: "score" | "misc"; file: File; title: string; description: string } | null>(null);
+  const [addFileModal, setAddFileModal] = useState<{
+    tab: "score" | "misc";
+    file: File;
+    title: string;
+    description: string;
+    iconPreset: string;
+  } | null>(null);
+  const [editItem, setEditItem] = useState<{ item: UploadedInventoryItem; tab: "score" | "misc" } | null>(null);
+  const [inventoryMultiSelect, setInventoryMultiSelect] = useState(false);
+  const [inventorySelectedId, setInventorySelectedId] = useState<string | null>(null);
+  const [inventorySelectedIds, setInventorySelectedIds] = useState<Set<string>>(new Set());
 
   const handleInventoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
