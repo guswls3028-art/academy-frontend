@@ -36,22 +36,18 @@ function formatSeconds(sec: number) {
   return `${r}초`;
 }
 
+/** 사이즈 SSOT: ds-status-badge (2ch) */
 function StatusBadge({ status }: { status: Row["status"] }) {
-  const map: Record<Row["status"], string> = {
-    completed: "bg-green-600",
-    warning: "bg-yellow-500",
-    danger: "bg-red-600",
-  };
+  const tone = status === "completed" ? "success" : status === "danger" ? "danger" : "neutral";
+  const colorClass =
+    status === "completed" ? "!bg-green-600 !text-white" : status === "danger" ? "!bg-red-600 !text-white" : "!bg-yellow-500 !text-white";
   const label: Record<Row["status"], string> = {
     completed: "완료",
     warning: "주의",
     danger: "위험",
   };
-
   return (
-    <span
-      className={`px-2 py-0.5 rounded-full text-[11px] text-white ${map[status]}`}
-    >
+    <span className={`ds-status-badge ${colorClass}`} data-tone={tone}>
       {label[status]}
     </span>
   );
