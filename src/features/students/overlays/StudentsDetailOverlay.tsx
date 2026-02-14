@@ -376,38 +376,35 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
 
       {inventoryOpen &&
         createPortal(
-          <div className="ds-overlay-backdrop" onClick={() => setInventoryOpen(false)} aria-hidden />
-          ,
-          document.body
-        )}
-      {inventoryOpen &&
-        createPortal(
-          <div
-            className="ds-inventory-window"
-            role="dialog"
-            aria-label="학생 인벤토리"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="ds-inventory-window__header">
-              <span className="ds-inventory-window__title">인벤토리 — {student.name}</span>
-              <CloseButton onClick={() => setInventoryOpen(false)} />
-            </div>
-            <div className="ds-inventory-window__body">
-              <p className="ds-inventory-window__placeholder">
-                선생이 올린 학생 성적표·자료 등이 여기 표시됩니다. (R2 연동 예정)
-              </p>
-              <div className="ds-inventory-window__grid">
-                <div className="ds-inventory-window__item" title="플레이스홀더">
-                  <span className="ds-inventory-window__icon">📄</span>
-                  <span>학생성적표</span>
-                </div>
-                <div className="ds-inventory-window__item" title="플레이스홀더">
-                  <span className="ds-inventory-window__icon">📎</span>
-                  <span>기타 자료</span>
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setInventoryOpen(false)} aria-hidden />
+            <div
+              className="ds-inventory-window"
+              role="dialog"
+              aria-label="학생 인벤토리"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ds-inventory-window__header">
+                <span className="ds-inventory-window__title">인벤토리 — {student.name}</span>
+                <CloseButton onClick={() => setInventoryOpen(false)} />
+              </div>
+              <div className="ds-inventory-window__body">
+                <p className="ds-inventory-window__placeholder">
+                  선생이 올린 학생 성적표·자료 등이 여기 표시됩니다. (R2 연동 예정)
+                </p>
+                <div className="ds-inventory-window__grid">
+                  <div className="ds-inventory-window__item" title="플레이스홀더">
+                    <span className="ds-inventory-window__icon">📄</span>
+                    <span>학생성적표</span>
+                  </div>
+                  <div className="ds-inventory-window__item" title="플레이스홀더">
+                    <span className="ds-inventory-window__icon">📎</span>
+                    <span>기타 자료</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>,
+          </>,
           document.body
         )}
 
