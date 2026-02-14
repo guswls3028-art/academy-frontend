@@ -49,6 +49,14 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{
+    type: "file" | "folder";
+    sourceId: string;
+    targetFolderId: string | null;
+    existingName: string;
+  } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["storage-inventory", SCOPE, studentPs],
