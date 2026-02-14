@@ -29,14 +29,22 @@
 
 .shared-time-range-input-wrap {
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  position: relative;
 }
 
 .shared-time-range-input-wrap .shared-time-range-input {
   flex: 1;
   min-width: 0;
+}
+
+.shared-time-range-input-trigger {
+  cursor: pointer;
+  user-select: none;
+}
+
+.shared-time-range-input--placeholder {
+  color: var(--ui-control-placeholder, var(--color-text-muted));
+  font-weight: 400;
 }
 
 .shared-time-range-input {
