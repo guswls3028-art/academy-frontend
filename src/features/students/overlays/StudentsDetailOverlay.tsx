@@ -100,7 +100,12 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
 
       <div className="ds-overlay-wrap">
         <div className="ds-overlay-panel" onClick={(e) => e.stopPropagation()}>
-          {/* 헤더 — SSOT: overlay.css (페이지형 컴팩트, ID/식별코드 강조) */}
+          {/* 우상단 닫기 X — 전역 SSOT */}
+          <CloseButton
+            className="ds-overlay-panel__close"
+            onClick={onClose}
+          />
+          {/* 헤더 — 좌: 아바타 이름 강의딱지 | 우: 아이디블럭 / 식별자블럭 + 액션 */}
           <header className="ds-overlay-header">
             <div className="ds-overlay-header__inner">
               <div className="ds-overlay-header__left">
@@ -121,35 +126,32 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                       }
                     />
                   </h1>
-                  <div className="ds-overlay-header__meta">
-                    <span className="ds-overlay-header__id" title="아이디">
-                      {student.psNumber ?? "—"}
-                    </span>
-                    <span className="ds-overlay-header__code" title="시험 식별코드">
-                      {formatOmrCode(student.omrCode)}
-                    </span>
-                  </div>
                 </div>
               </div>
               <div className="ds-overlay-header__right">
-                <button
-                  type="button"
-                  onClick={() => toggleActive.mutate(!student.active)}
-                  disabled={toggleActive.isPending}
-                  className="ds-status-badge"
-                  data-status={student.active ? "active" : "inactive"}
-                >
-                  {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
-                </button>
-                <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
-                  수정
-                </Button>
-                <Button type="button" intent="danger" size="sm" onClick={handleDelete}>
-                  삭제
-                </Button>
-                <Button type="button" intent="secondary" size="sm" onClick={onClose}>
-                  닫기
-                </Button>
+                <span className="ds-overlay-header__id-block" title="아이디">
+                  {student.psNumber ?? "—"}
+                </span>
+                <span className="ds-overlay-header__code-block" title="시험 식별코드">
+                  {formatOmrCode(student.omrCode)}
+                </span>
+                <div className="ds-overlay-header__actions">
+                  <button
+                    type="button"
+                    onClick={() => toggleActive.mutate(!student.active)}
+                    disabled={toggleActive.isPending}
+                    className="ds-status-badge"
+                    data-status={student.active ? "active" : "inactive"}
+                  >
+                    {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
+                  </button>
+                  <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
+                    수정
+                  </Button>
+                  <Button type="button" intent="danger" size="sm" onClick={handleDelete}>
+                    삭제
+                  </Button>
+                </div>
               </div>
             </div>
           </header>
