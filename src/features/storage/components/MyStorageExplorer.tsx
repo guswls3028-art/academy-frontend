@@ -39,8 +39,8 @@ export default function MyStorageExplorer() {
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery({
-    queryKey: ["storage-inventory", SCOPE, currentFolderId],
-    queryFn: () => fetchInventoryList(SCOPE, currentFolderId),
+    queryKey: ["storage-inventory", SCOPE],
+    queryFn: () => fetchInventoryList(SCOPE),
   });
 
   const folders = data?.folders ?? [];

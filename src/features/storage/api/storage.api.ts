@@ -57,11 +57,9 @@ export type InventoryListResponse = {
 
 export async function fetchInventoryList(
   scope: "admin" | "student",
-  folderId: string | null,
   studentPs?: string
 ): Promise<InventoryListResponse> {
   const params: Record<string, string> = { scope };
-  if (folderId) params.folder_id = folderId;
   if (studentPs) params.student_ps = studentPs;
   try {
     return await request<InventoryListResponse>("/inventory/", { params });
