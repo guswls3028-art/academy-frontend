@@ -46,6 +46,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   const [tab, setTab] = useState("enroll");
   const [editOpen, setEditOpen] = useState(false);
   const [tagCreateOpen, setTagCreateOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
 
   const { data: student, isLoading } = useQuery({
     queryKey: ["student", id],
