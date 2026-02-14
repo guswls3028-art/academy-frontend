@@ -39,7 +39,11 @@ const tabs: TabItem[] = [
     icon: <IconPlay />,
   },
   {
-    // 🔴 핵심 수정: auth → idcard
+    to: "/student/profile",
+    label: "프로필",
+    icon: <IconUser />,
+  },
+  {
     to: "/student/idcard",
     label: "인증",
     icon: <IconCheck />,

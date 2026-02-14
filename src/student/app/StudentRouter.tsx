@@ -36,6 +36,7 @@ import MediaPlayerPage from "@/student/domains/media/pages/MediaPlayerPage";
 import MediaDemoPage from "@/student/domains/media/pages/MediaDemoPage";
 
 import ClinicIDCardPage from "@/student/domains/clinic-idcard/pages/ClinicIDCardPage";
+import ProfilePage from "@/student/domains/profile/pages/ProfilePage";
 
 export default function StudentRouter() {
   return (
@@ -45,6 +46,9 @@ export default function StudentRouter() {
 
         {/* ✅ Dashboard (행동 허브) */}
         <Route path="dashboard" element={<DashboardPage />} />
+
+        {/* ✅ 내 정보 (프로필 사진 업로드) */}
+        <Route path="profile" element={<ProfilePage />} />
 
         {/* ✅ Sessions (허브) */}
         <Route path="sessions" element={<SessionListPage />} />
