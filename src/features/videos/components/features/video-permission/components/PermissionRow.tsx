@@ -71,18 +71,28 @@ export default function PermissionRow({
         />
       </div>
 
-      {/* ✅ ATTENDANCE (공용 컴포넌트로 통일) */}
+      {/* ✅ ATTENDANCE (SSOT: AttendanceStatusBadge 1ch) */}
       <div className="w-[90px] flex justify-center">
-        <div className="scale-[0.92] origin-center">
-          <AttendanceBadge status={student.attendance_status ?? "UNKNOWN"} />
-        </div>
+        <AttendanceStatusBadge
+          status={(student.attendance_status ?? "INACTIVE") as AttendanceStatus}
+          variant="1ch"
+        />
       </div>
 
-      {/* ACCESS MODE */}
+      {/* ACCESS MODE — SSOT: ds-status-badge (2ch) */}
       <div className="w-[90px] flex justify-center">
-        <Pill className={[getAccessColor(student.access_mode, student.effective_rule), "text-white"].join(" ")}>
+        <span
+          className={[
+            "ds-status-badge",
+            getAccessColor(student.access_mode, student.effective_rule)
+              .split(/\s+/)
+              .map((c) => (c.startsWith("bg-") || c.startsWith("text-") ? `!${c}` : c))
+              .join(" "),
+            "!text-white",
+          ].join(" ")}
+        >
           {getAccessLabel(student.access_mode, student.effective_rule)}
-        </Pill>
+        </span>
       </div>
 
       {/* COMPLETED */}
