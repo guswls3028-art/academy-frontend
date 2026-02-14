@@ -67,36 +67,27 @@
 }
 
 .time-picker__divider {
-  width: 20px;
+  width: 8px;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-muted);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, black 6%, var(--color-bg-surface)) 50%,
+    transparent 100%
+  );
   opacity: 0.6;
 }
 
-/* 원통형 롤러 — 곡면·입체 시각 효과 */
 .time-picker__roller {
   position: relative;
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  /* 원통 몸체: 좌우 곡면 느낌 — 중앙 밝고 가장자리 어둡게 */
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, black 8%, var(--color-bg-surface)) 0%,
-    var(--color-bg-surface) 15%,
-    var(--color-bg-surface) 85%,
-    color-mix(in srgb, black 8%, var(--color-bg-surface)) 100%
-  );
-  border-radius: 0 20px 20px 0;
+  background: transparent;
 }
 
-/* 위·아래 페이드 — 원통 안쪽으로 들어가는 깊이감 */
-.time-picker__mask {
+/* 위·아래 페이드 — 전체 원통 안쪽으로 들어가는 깊이감 (좌·우 통합) */
+.time-picker__body .time-picker__mask {
   position: absolute;
   left: 0;
   right: 0;
