@@ -56,33 +56,27 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               const supplement = isSupplement(s.title);
 
               return (
-                <button
+                <SessionBlockView
                   key={s.id}
-                  type="button"
+                  variant={supplement ? "supplement" : "n1"}
+                  compact
+                  selected={isActive}
+                  title={`${s.order ?? "-"}차시`}
+                  desc={s.date ?? "-"}
                   onClick={() =>
                     navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)
                   }
-                  className={cx(
-                    "session-block session-block--compact",
-                    supplement ? "session-block--supplement" : "session-block--n1",
-                    isActive && "session-block--selected"
-                  )}
-                >
-                  <span className="session-block__title">{s.order ?? "-"}차시</span>
-                  <span className="session-block__desc">{s.date ?? "-"}</span>
-                </button>
+                />
               );
             })}
-            <button
-              type="button"
+            <SessionBlockView
+              variant="add"
+              compact
               onClick={() => setShowCreate(true)}
-              className="session-block session-block--compact session-block--add"
-              aria-label="차시 추가"
+              ariaLabel="차시 추가"
             >
-              <span className="session-block__icon" aria-hidden>
-                <Plus size={22} strokeWidth={2.5} />
-              </span>
-            </button>
+              <Plus size={22} strokeWidth={2.5} />
+            </SessionBlockView>
           </>
         )}
       </div>
