@@ -71,7 +71,7 @@
 /* 도메인 헤더 내 탭 영역 — 배경 있는 플랫 탭, 헤더 맨 바닥에 여백 없이 */
 .domain-header__tabs-wrap {
   margin-top: auto;
-  padding: var(--space-2) var(--space-2) 0;
+  padding: var(--space-4) var(--space-2) 0;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: var(--color-bg-surface, var(--bg-surface, #fff));
   width: fit-content;
