@@ -510,8 +510,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             />
           </div>
 
-          {/* 선택 입력 — 필수 강조 유지 위해 보색 미사용, 단일 버튼(차시색·성별) */}
-          <div className="modal-form-group">
+          {/* 선택 입력 — 강조색 없음, 입체감만 유지 */}
+          <div className="modal-form-group modal-form-group--neutral">
             <span className="modal-section-label">선택 입력</span>
             <div className="modal-form-row modal-form-row--1-auto">
               <input
