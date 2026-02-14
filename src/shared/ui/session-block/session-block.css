@@ -31,7 +31,7 @@
   --session-block-outer-active: 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
-/* ----- 공통 블록 (모달·세션 동일 구조, 변수만 사용) ----- */
+/* ----- 공통 블록: 내부 볼록 효과(inset)로 블록/버튼 느낌, 외부 그림자 최소 ----- */
 .session-block {
   position: relative;
   display: flex;
@@ -41,34 +41,36 @@
   text-align: left;
   border-radius: var(--session-block-radius);
   cursor: pointer;
-  border: 2px solid transparent;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   transition:
     transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
     box-shadow 180ms ease,
     border-color 160ms ease,
     background 160ms ease;
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
-    0 var(--session-block-drop) var(--session-block-shadow-soft);
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer);
   text-decoration: none;
   color: inherit;
 }
 
 .session-block:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px-hover) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
-    0 var(--session-block-drop-hover) var(--session-block-shadow-soft);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.14),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer-hover);
 }
 
 .session-block:active {
-  transform: translateY(3px);
+  transform: translateY(1px);
   box-shadow:
-    0 1px 0 0 var(--session-block-highlight),
-    0 var(--session-block-bottom-px-active) 0 0 var(--session-block-bottom, var(--session-block-shadow-subtle)),
-    0 var(--session-block-drop-active) var(--session-block-shadow-soft);
+    inset 0 2px 4px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    var(--session-block-outer-active);
 }
 
 /* ----- 비율 16:9, 기본(모달) 크기 ----- */
