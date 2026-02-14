@@ -797,6 +797,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   )}
                 </div>
               </div>
+              </div>
               {(inventoryTab === "score" || inventoryTab === "misc") && (
                 <div className="ds-inventory-panel__footer">
                   {hasSelection && (
