@@ -91,6 +91,19 @@ export default function StudentsHomePage() {
     [filters]
   );
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, nextActive }: { id: number; nextActive: boolean }) =>
+      toggleStudentActive(id, nextActive),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+  });
+  const togglingId =
+    toggleActiveMutation.isPending && toggleActiveMutation.variables
+      ? toggleActiveMutation.variables.id
+      : null;
+
   const selectionBar = (
     <div className="flex flex-col gap-2">
     <div className="flex flex-wrap items-center gap-2 pl-1">
