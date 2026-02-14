@@ -9,7 +9,7 @@ import {
   RULE_COLORS,
   RULE_LABELS,
   getAccessLabel,
-  getAccessColor,
+  getAccessTone,
 } from "@/features/videos/components/features/video-permission/permission.constants";
 
 interface Props {

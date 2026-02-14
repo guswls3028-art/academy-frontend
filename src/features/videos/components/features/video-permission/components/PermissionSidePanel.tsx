@@ -5,7 +5,7 @@ import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge"
 import { Button } from "@/shared/ui/ds";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
-import { RULE_COLORS, RULE_LABELS, ACCESS_MODE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
+import { RULE_COLORS, RULE_LABELS, ACCESS_MODE_LABELS, getAccessLabel, getAccessTone } from "../permission.constants";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
