@@ -810,17 +810,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </div>
 
           {excelParsedRows && excelParsedRows.length > 0 && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--color-bg-surface-soft)",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
+            <div className="modal-form-group" style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 14, fontWeight: 600 }}>
                 {excelParsedRows.length}명 등록 예정
               </span>
