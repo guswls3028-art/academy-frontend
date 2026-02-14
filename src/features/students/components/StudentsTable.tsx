@@ -214,32 +214,32 @@ export default function StudentsTable({
               </td>
 
               {/* 학부모 전화 */}
-              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate text-center align-middle">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {highlight(formatPhone(s.parentPhone), search)}
               </td>
 
               {/* 학생 전화 */}
-              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate text-center align-middle">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {highlight(formatStudentPhoneDisplay(s.studentPhone), search)}
               </td>
 
               {/* 학교 */}
-              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate text-center align-middle">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {s.school || "-"}
               </td>
 
               {/* 반 */}
-              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate text-center align-middle">
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {s.schoolClass || "-"}
               </td>
 
               {/* 등록일 / 삭제일 */}
-              <td className="text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate text-center align-middle">
+              <td className="text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
                 {(isDeletedTab ? s.deletedAt : s.registeredAt)?.slice(0, 10) || "-"}
               </td>
 
               {/* 태그 */}
-              <td className="text-[12px] leading-5 text-center align-middle">
+              <td className="text-[12px] leading-5">
                 {Array.isArray(s.tags) && s.tags.length > 0 ? (
                   <span className="flex flex-wrap gap-1 justify-center">
                     {s.tags.slice(0, 3).map((t: { id: number; name: string; color: string }) => (
