@@ -88,12 +88,10 @@ export async function uploadFile(payload: UploadFilePayload): Promise<InventoryF
   if (payload.folderId) form.append("folder_id", payload.folderId);
   if (payload.studentPs) form.append("student_ps", payload.studentPs);
 
-  const res = await fetch(BASE + "/inventory/upload/", {
-    method: "POST",
-    body: form,
+  const { data } = await api.post<InventoryFile>("/storage/inventory/upload/", form, {
+    headers: { "Content-Type": "multipart/form-data" },
   });
-  if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-  return res.json();
+  return data;
 }
 
 export async function deleteFile(scope: "admin" | "student", fileId: string, studentPs?: string): Promise<void> {
