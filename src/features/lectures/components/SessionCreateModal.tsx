@@ -200,9 +200,6 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                 )}
               >
                 <span className="session-type-block__title">{nextOrder}차시</span>
-                <span className="session-type-block__desc">
-                  이 블록을 누르면 정규 차시가 추가됩니다
-                </span>
               </button>
               <button
                 type="button"
@@ -213,9 +210,6 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                 )}
               >
                 <span className="session-type-block__title">보강</span>
-                <span className="session-type-block__desc">
-                  이 블록을 누르면 보강 차시가 추가됩니다
-                </span>
               </button>
             </div>
           </div>
