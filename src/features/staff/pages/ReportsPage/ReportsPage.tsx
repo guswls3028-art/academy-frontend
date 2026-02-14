@@ -1,5 +1,5 @@
-﻿// PATH: src/features/staff/pages/ReportsPage/ReportsPage.tsx
-import { Tabs } from "antd";
+// PATH: src/features/staff/pages/ReportsPage/ReportsPage.tsx
+// SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
 import { useMemo, useState } from "react";
 import PayrollSnapshotList from "./PayrollSnapshotList";
 import PayrollHistoryTable from "./PayrollHistoryTable";
@@ -9,12 +9,21 @@ function ymLabel(y: number, m: number) {
   return `${y}-${String(m).padStart(2, "0")}`;
 }
 
+type ReportTabKey = "snapshot" | "history" | "lock";
+
+const REPORT_TABS: { key: ReportTabKey; label: string }[] = [
+  { key: "snapshot", label: "Payroll Snapshot" },
+  { key: "history", label: "Payroll History" },
+  { key: "lock", label: "Month Lock History" },
+];
+
 export default function ReportsPage() {
   const now = useMemo(() => new Date(), []);
   const [ym, setYm] = useState({
     year: now.getFullYear(),
     month: now.getMonth() + 1,
   });
+  const [activeTab, setActiveTab] = useState<ReportTabKey>("snapshot");
 
   return (
     <div className="p-6 space-y-4">
