@@ -128,31 +128,49 @@
   margin: 0;
 }
 
-/* 우측: 아이디 블럭 / 식별자 블럭 세로 배치 */
-.ds-overlay-header__right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+/* 2행: 아이디·OMR 블럭 — SSOT 뱃지/버튼과 동일 방식 */
+.ds-overlay-header__pills {
+  display: inline-flex;
+  align-items: center;
   gap: var(--space-2);
-  flex-shrink: 0;
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
 }
 
-.ds-overlay-header__id-block,
-.ds-overlay-header__code-block {
-  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+.ds-overlay-header__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 4px 10px;
+  font-weight: 600;
+  line-height: 1;
   border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.ds-overlay-header__pill--id {
   background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
   color: var(--color-brand-primary);
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+  border-color: color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.ds-overlay-header__code-block {
-  color: var(--color-text-primary);
+.ds-overlay-header__pill--code {
   background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border-divider));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ds-overlay-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .ds-overlay-header__actions {
