@@ -98,13 +98,24 @@
   gap: var(--space-6);
 }
 
-/* 섹션 라벨 (날짜, 시간 등) */
+/* 섹션 라벨 (날짜, 시간, 필수 입력 등) — 세션 모달과 동일 */
 .modal-section-label {
   display: block;
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-secondary);
   margin-bottom: var(--space-2);
+}
+
+/* 폼 그룹 (필수 입력 등 블록) — 헤더/푸터와 동일 톤 */
+.modal-form-group {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-modal-bg));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 /* 날짜/시간 옵션 행 — 달력·타임스크롤 등이 들어가는 행 (DS 볼록 inset) */
