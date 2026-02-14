@@ -90,19 +90,38 @@
   flex: 0 0 auto;
 }
 
+/* 세션페이지(compact)에도 모달과 동일 배경 강제 — 전역 button/link 스타일 덮어쓰기 방지 */
+.session-block.session-block--compact.session-block--n1 {
+  background: var(--session-block-n1-bg);
+  color: var(--color-text-primary);
+}
+
+.session-block.session-block--compact.session-block--n1:hover {
+  background: var(--session-block-n1-bg-hover);
+}
+
+.session-block.session-block--compact.session-block--supplement {
+  background: var(--session-block-supplement-bg);
+  color: var(--color-text-primary);
+}
+
+.session-block.session-block--compact.session-block--supplement:hover {
+  background: var(--session-block-supplement-bg-hover);
+}
+
 .session-block--compact .session-block__title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .session-block--compact .session-block__desc {
-  margin-top: 1px;
-  font-size: 10px;
+  margin-top: var(--space-1);
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: inherit;
-  opacity: 0.9;
+  color: var(--color-text-secondary);
+  opacity: 0.92;
 }
 
 .session-block--compact .session-block__check {
