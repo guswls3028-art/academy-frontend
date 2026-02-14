@@ -103,6 +103,59 @@
   gap: var(--space-6);
 }
 
+/* 컴팩트 본문 — 학생/필터 등 필드 많을 때 영역 절약 */
+.modal-scroll-body--compact {
+  gap: var(--space-4);
+}
+
+/* 폼 행 — 2열·3열·1+auto 등 SSOT 배치 (할당 크기에 맞게 정렬) */
+.modal-form-row {
+  display: grid;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.modal-form-row--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.modal-form-row--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.modal-form-row--1-auto {
+  grid-template-columns: 1fr auto;
+}
+
+/* 폼 그룹 가로 배치 (상태+버튼 등) */
+.modal-form-group--row {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+}
+
+/* 인라인 버튼/액션 묶음 */
+.modal-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* 안내 문구 — 톤 통일 */
+.modal-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.modal-hint--block {
+  display: block;
+  margin-top: var(--space-2);
+}
+
 /* 섹션 라벨 (날짜, 시간, 필수 입력 등) — 세션 모달과 동일 */
 .modal-section-label {
   display: block;
