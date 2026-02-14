@@ -92,16 +92,17 @@ export default function TimeRangeInput({
   const setEnd = (v: string) => onChange(formatRange(start, toHHmm(v) || v));
 
   const addToEnd = (deltaMinutes: number) => {
-    const base = end || start;
-    if (!base) return;
+    const base = end || start || "09:00";
+    const effectiveStart = start || base;
     const nextEnd = addMinutes(base, deltaMinutes);
-    onChange(formatRange(start, nextEnd));
+    onChange(formatRange(effectiveStart, nextEnd));
   };
 
   const subtractFromEnd = (deltaMinutes: number) => {
-    if (!end) return;
-    const nextEnd = clampEndAboveStart(end, start, deltaMinutes);
-    onChange(formatRange(start, nextEnd));
+    const effectiveEnd = end || start || "09:30";
+    const effectiveStart = start || "09:00";
+    const nextEnd = clampEndAboveStart(effectiveEnd, effectiveStart, deltaMinutes);
+    onChange(formatRange(effectiveStart, nextEnd));
   };
 
   return (
@@ -143,16 +144,24 @@ export default function TimeRangeInput({
             <button
               type="button"
               className="shared-time-range-btn"
-              onClick={() => addToEnd(30)}
-              disabled={disabled || !start}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                addToEnd(30);
+              }}
+              disabled={disabled}
             >
               +30분
             </button>
             <button
               type="button"
               className="shared-time-range-btn"
-              onClick={() => addToEnd(60)}
-              disabled={disabled || !start}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                addToEnd(60);
+              }}
+              disabled={disabled}
             >
               +1시간
             </button>
