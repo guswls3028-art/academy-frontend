@@ -2,7 +2,7 @@
 // 태그 생성 모달 — 이름 + 색상
 
 import { useState, useEffect } from "react";
-import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import { createTag } from "../api/students";
