@@ -74,29 +74,27 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      <Tabs
-        items={[
-          {
-            key: "snapshot",
-            label: "Payroll Snapshot",
-            children: (
-              <PayrollSnapshotList year={ym.year} month={ym.month} />
-            ),
-          },
-          {
-            key: "history",
-            label: "Payroll History",
-            children: <PayrollHistoryTable />,
-          },
-          {
-            key: "lock",
-            label: "Month Lock History",
-            children: (
-              <WorkMonthLockHistory year={ym.year} month={ym.month} />
-            ),
-          },
-        ]}
-      />
+      <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)] mb-4" role="tablist">
+        {REPORT_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === t.key}
+            onClick={() => setActiveTab(t.key)}
+            className={`ds-tab ${activeTab === t.key ? "is-active" : ""}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {activeTab === "snapshot" && (
+        <PayrollSnapshotList year={ym.year} month={ym.month} />
+      )}
+      {activeTab === "history" && <PayrollHistoryTable />}
+      {activeTab === "lock" && (
+        <WorkMonthLockHistory year={ym.year} month={ym.month} />
+      )}
     </div>
   );
 }
