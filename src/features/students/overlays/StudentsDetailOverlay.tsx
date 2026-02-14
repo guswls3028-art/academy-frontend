@@ -104,24 +104,15 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
             <div className="ds-overlay-header__inner">
               <div className="ds-overlay-header__left">
                 <div className="ds-overlay-header__accent" aria-hidden />
-                <div
-                  className="flex-shrink-0 rounded-[10px] overflow-hidden bg-[color-mix(in_srgb,var(--color-brand-primary)_12%,var(--color-bg-surface))] border border-[var(--color-border-divider)] text-[var(--color-brand-primary)] text-base font-bold flex items-center justify-center"
-                  style={{ width: 40, height: 40 }}
-                  aria-hidden
-                >
-                  {student.profilePhotoUrl ? (
-                    <img src={student.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    student.name?.[0] ?? "?"
-                  )}
-                </div>
                 <div className="ds-overlay-header__title-block">
                   <h1 className="ds-overlay-header__title">
                     <StudentNameWithLectureChip
                       name={student.name ?? ""}
+                      profilePhotoUrl={student.profilePhotoUrl}
+                      avatarSize={40}
                       lectures={
                         Array.isArray(student.enrollments) && student.enrollments.length > 0
-                          ? student.enrollments.slice(0, 5).map((en: { lecture_name?: string; lecture_color?: string }) => ({
+                          ? student.enrollments.map((en: { lecture_name?: string; lecture_color?: string }) => ({
                               lectureName: en.lecture_name ?? "??",
                               color: en.lecture_color ?? undefined,
                             }))
