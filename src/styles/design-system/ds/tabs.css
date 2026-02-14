@@ -1,0 +1,80 @@
+/* ============================================================================
+ * DS TABS — SSOT: 탭은 두 종류만 사용
+ * PATH: src/styles/design-system/ds/tabs.css
+ * (1) 플랫탭: 페이지·오버레이 → .ds-tabs.ds-tabs--flat + .ds-tab / .is-active
+ * (2) 입체탭: 모달 → .modal-tabs-area 또는 .modal-tabs-elevated 내부의 .ds-tabs
+ * 레거시(antd Tabs, 커스텀 버튼 탭 등) 사용 금지. 위 두 가지로 통일.
+ * ============================================================================ */
+
+.ds-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.ds-tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.ds-tab:hover:not(.is-active):not(:disabled) {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-border-divider) 6%, transparent);
+}
+
+.ds-tab.is-active {
+  color: var(--color-brand-primary);
+  font-weight: 600;
+  border-bottom-color: var(--color-brand-primary);
+  background: transparent;
+}
+
+.ds-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 페이지·도메인 헤더 전용 플랫 탭 — 다른 스타일 덮어쓰기 방지 */
+.ds-tabs--flat .ds-tab {
+  appearance: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.ds-tabs--flat .ds-tab:hover:not(.is-active):not(:disabled) {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-border-divider) 6%, transparent);
+}
+
+.ds-tabs--flat .ds-tab.is-active {
+  color: var(--color-brand-primary);
+  font-weight: 600;
+  border-bottom-color: var(--color-brand-primary);
+  background: transparent;
+}
+
+/* 도메인 헤더 내 탭 영역 — 배경은 탭 행만 컴팩트하게, 헤더–탭 간격은 margin으로 */
+.domain-header__tabs-wrap {
+  margin-top: var(--space-4);
+  padding: var(--space-1) var(--space-2) 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-surface, var(--bg-surface, #fff));
+  width: fit-content;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}

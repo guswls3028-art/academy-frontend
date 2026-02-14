@@ -1,0 +1,5 @@
+/* PATH: src/styles/design-system/ds/page.css */
+
+[data-page-root] {
+  background: var(--ui-page-bg);
+}
