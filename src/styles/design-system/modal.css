@@ -29,6 +29,25 @@
   border-color: color-mix(in srgb, var(--color-error) 28%, var(--color-border-divider));
 }
 
+/* 모달 닫기 버튼 — 전역 X SSOT (오버레이 .ds-close-btn과 동일 톤) */
+.admin-modal .ant-modal-close {
+  inset-inline-end: var(--space-4);
+  top: var(--space-4);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.admin-modal .ant-modal-close:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
 /* ========== 헤더 (상단 액센트 + 블록감) ========== */
 .modal-header {
   position: relative;
