@@ -19,21 +19,12 @@ export default function SubmissionStatusBadge({
   status: SubmissionStatus | "graded" | null;
 }) {
   if (!status) {
-    return (
-      <span className="ds-status-badge" data-tone="neutral">
-        -
-      </span>
-    );
+    return <span className="ds-status-badge" data-tone="neutral">-</span>;
   }
   const key = (SUBMISSION_STATUS_COLOR as any)[status] ?? "gray";
-  const toneMap: Record<string, "success" | "danger" | "primary" | "neutral"> = {
-    green: "success", red: "danger", blue: "primary", indigo: "primary",
-    yellow: "neutral", gray: "neutral",
-  };
-  const tone = toneMap[key] ?? "neutral";
   const cls = COLOR_CLASS[key] ?? COLOR_CLASS.gray;
   return (
-    <span className={`ds-status-badge ${cls}`} data-tone={tone} style={{ border: "1px solid transparent" }}>
+    <span className={`ds-status-badge ${cls}`}>
       {(SUBMISSION_STATUS_LABEL as any)[status] ?? status}
     </span>
   );
