@@ -4,9 +4,10 @@
 import { useEffect, useRef, useState } from "react";
 import "./TimeScrollPopover.css";
 
-const ROW_HEIGHT = 44;
-const VISIBLE_HEIGHT = 220;
-const SLOTS_PER_PERIOD = 48; // 12h * 4 (15min)
+const ROW_HEIGHT = 48;
+const VISIBLE_ROWS = 5;
+const VISIBLE_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
+const SLOTS_PER_PERIOD = 24; // 12h * 2 (30min)
 
 /** 24h "HH:mm" → "오전/오후 H:mm" (12시간제 표시) */
 export function format24To12Display(hhmm: string): string {
