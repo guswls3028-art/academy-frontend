@@ -390,6 +390,16 @@ export default function MyStorageExplorer() {
           onUpload={handleUpload}
         />
       )}
+
+      {conflict && (
+        <MoveDuplicateModal
+          existingName={conflict.existingName}
+          itemType={conflict.type}
+          onOverwrite={() => resolveConflict("overwrite")}
+          onRename={() => resolveConflict("rename")}
+          onCancel={() => setConflict(null)}
+        />
+      )}
     </div>
   );
 }

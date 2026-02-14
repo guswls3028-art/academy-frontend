@@ -142,6 +142,22 @@
   pointer-events: none;
 }
 
+.dropTarget {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-bg-surface));
+}
+
+.itemMoving {
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.movingLabel {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-brand-primary);
+}
+
 .modalBackdrop {
   position: fixed;
   inset: 0;
