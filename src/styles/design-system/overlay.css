@@ -286,14 +286,14 @@
   transform: scale(0.97);
 }
 
-/* 인벤토리 패널 — 아이콘 기준 좌측 열림 (우하단 아이콘 옆) */
+/* 인벤토리 패널 — 아이콘 기준 좌측 열림 (우하단 아이콘 옆), 좌측 트리 + 우측 콘텐츠 */
 .ds-inventory-panel {
   position: fixed;
   right: calc(56px + var(--space-5) + 8px);
   left: auto;
   bottom: var(--space-5);
   z-index: 71;
-  width: 380px;
+  width: 460px;
   height: 440px;
   border-radius: var(--radius-xl);
   background: var(--color-bg-surface);
