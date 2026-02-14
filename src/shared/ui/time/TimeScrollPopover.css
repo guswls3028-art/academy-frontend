@@ -65,6 +65,11 @@
   background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 12%, transparent);
 }
 
+.shared-time-scroll-popover-period-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}
+
 .shared-time-scroll-popover-period-sep {
   font-size: 14px;
   font-weight: 500;
