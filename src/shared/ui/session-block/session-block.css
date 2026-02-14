@@ -1,7 +1,9 @@
 /* 차시 블록 전역 — DS(design-system) 토큰만 사용, 모달·세션페이지 완전 동일 디자인·색상 */
 
 :root {
-  /* 색상: DS --color-brand-primary / role (모달 색상 = 세션페이지 동일) */
+  /* 색상: 전역 DS 역할 토큰만 사용 (하드코딩 없음)
+     - N차시: --color-brand-primary (scale Primary)
+     - 보강:  --color-brand-complement (scale Complement, 테마별 보색) */
   --session-block-supplement: var(--color-brand-complement);
   --session-block-add: var(--color-text-muted);
 
