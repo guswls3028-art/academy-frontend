@@ -286,10 +286,11 @@
   transform: scale(0.97);
 }
 
-/* 인벤토리 패널 — 좌하단 고정 */
+/* 인벤토리 패널 — 아이콘 기준 좌측 열림 (우하단 아이콘 옆) */
 .ds-inventory-panel {
   position: fixed;
-  left: var(--space-5);
+  right: calc(56px + var(--space-5) + 8px);
+  left: auto;
   bottom: var(--space-5);
   z-index: 71;
   width: 380px;
