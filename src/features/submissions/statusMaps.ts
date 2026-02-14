@@ -29,3 +29,18 @@ export const SUBMISSION_STATUS_COLOR: Record<SubmissionStatus | "graded" | "pend
   pending: "gray",
   processing: "blue",
 };
+
+/** 공용 톤 SSOT: success | danger | warning | primary | neutral (하드코딩 색상 대신 사용) */
+export const SUBMISSION_STATUS_TONE: Record<SubmissionStatus | "graded" | "pending" | "processing", "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  submitted: "neutral",
+  dispatched: "primary",
+  extracting: "primary",
+  needs_identification: "warning",
+  answers_ready: "warning",
+  grading: "warning",
+  done: "success",
+  failed: "danger",
+  graded: "success",
+  pending: "neutral",
+  processing: "primary",
+};
