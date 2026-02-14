@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
-import { STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
 import {
   formatPhoneForInput,
   formatIdentifierForInput,
