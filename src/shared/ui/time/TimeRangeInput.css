@@ -3,6 +3,8 @@
 
 .shared-time-range {
   display: block;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .shared-time-range-card {
