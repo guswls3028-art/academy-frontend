@@ -225,6 +225,7 @@
   --scale-Primary500: #60a5fa;
   --scale-Primary600: #7dd3fc;
   --scale-Primary700: #93c5fd;
+  --color-brand-complement: #0d9488;
 
   --layout-page-bg: color-mix(in srgb, #0d1117 92%, #111827);
   --layout-header-bg: color-mix(in srgb, #111827 78%, transparent);
@@ -267,6 +268,7 @@
   --scale-Primary500: #3b82f6;
   --scale-Primary600: #60a5fa;
   --scale-Primary700: #93c5fd;
+  --color-brand-complement: #0d9488;
 
   --layout-page-bg: color-mix(in srgb, #071024 92%, #0b1730);
   --layout-header-bg: color-mix(in srgb, #0b1730 78%, transparent);
