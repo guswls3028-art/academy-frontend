@@ -1,7 +1,7 @@
 /* PATH: src/styles/design-system/patterns/badge.css */
 /* ============================================================================
  * DS BADGE — TAG / CHIP (선택·필터 칩 등)
- * - 상태 뱃지(활성/비활성/출결 등)는 shared/ui/ds/styles/status.css SSOT (1ch/2ch 2종만)
+ * - 상태 뱃지(활성/비활성/출결 등)는 styles/design-system/ds/status.css SSOT (1ch/2ch 2종만)
  * - 본 파일: --badge-bg, --badge-text, remove 버튼
  * ============================================================================ */
 

@@ -1,5 +1,5 @@
 /* PATH: src/styles/design-system/antd/tabs.css */
-/* 레거시: antd Tabs 사용 금지. SSOT는 shared/ui/ds/styles/tabs.css + modal 입체탭. */
+/* 레거시: antd Tabs 사용 금지. SSOT는 styles/design-system/ds/tabs.css + modal 입체탭. */
 
 .ant-tabs,
 .ant-tabs-nav,

@@ -59,7 +59,7 @@ export function getAttendanceStyle(status: string | null | undefined): React.CSS
   return meta?.style ?? null;
 }
 
-/** 사이즈 SSOT: 1ch(한글자) | 2ch(두글자) — shared/ui/ds/styles/status.css */
+/** 사이즈 SSOT: 1ch(한글자) | 2ch(두글자) — styles/design-system/ds/status.css */
 export default function AttendanceStatusBadge({
   status,
   variant = "2ch",

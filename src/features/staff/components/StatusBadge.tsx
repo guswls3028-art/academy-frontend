@@ -1,5 +1,5 @@
 // PATH: src/features/staff/components/StatusBadge.tsx
-// 전역 SSOT: .ds-status-badge + data-tone (shared/ui/ds/styles/status.css)
+// 전역 SSOT: .ds-status-badge + data-tone (styles/design-system/ds/status.css)
 
 import React from "react";
 

@@ -1,7 +1,7 @@
 /* PATH: src/styles/design-system/antd/modal.css
    AntD Modal — admin 모달 제외 (admin은 @/shared/ui/modal SSOT만 사용) */
 
-/* Admin 모달(.admin-modal)은 shared/ui/modal/modal.css에서 전담 */
+/* Admin 모달(.admin-modal)은 styles/design-system/modal.css에서 전담 */
 .ant-modal:not(.admin-modal) .ant-modal-content {
   border-radius: var(--radius-xl);
 }
