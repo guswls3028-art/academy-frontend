@@ -91,7 +91,7 @@ export function TimeScrollPopover({
   const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isUserScrollingRef = useRef(false);
   const wheelAccumRef = useRef(0);
-  const wheelRafRef = useRef<number | null>(null);
+  const lastWheelTimeRef = useRef(0);
 
   const initialIdx = slotIndex(value);
   const [selectedIdx, setSelectedIdx] = useState(initialIdx);
