@@ -71,6 +71,9 @@
 
 /* ========== 푸터 (헤더와 대칭되는 구분감) ========== */
 .modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--color-border-divider);
   background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-modal-bg));
