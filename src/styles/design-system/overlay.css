@@ -433,6 +433,12 @@
   border-color: color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
 }
 
+.ds-inventory-panel__item.is-selected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
 .ds-inventory-panel__item:active {
   transform: scale(0.98);
 }
