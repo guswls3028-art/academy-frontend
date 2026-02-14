@@ -567,10 +567,15 @@
   border: 2px solid var(--color-border-divider);
   background: var(--color-bg-surface);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   color: var(--color-text-secondary);
   transition: border-color 0.15s, background 0.15s;
+  line-height: 1.2;
+  text-align: center;
+}
+.ds-inventory-add-modal__icon-opt span:last-child {
+  word-break: keep-all;
 }
 .ds-inventory-add-modal__icon-opt:hover {
   border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
