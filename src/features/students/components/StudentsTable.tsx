@@ -296,5 +296,3 @@ export default function StudentsTable({
     </div>
   );
 }
-
-export default StudentsTable;
