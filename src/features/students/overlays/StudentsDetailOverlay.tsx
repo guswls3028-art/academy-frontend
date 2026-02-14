@@ -140,12 +140,13 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
   };
 
   const openEditModal = () => {
-    if (!inventorySelectedId || selectedIds.size !== 1) return;
-    const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === inventorySelectedId);
+    const singleId = inventoryMultiSelect ? (selectedIds.size === 1 ? Array.from(selectedIds)[0] : null) : inventorySelectedId;
+    if (!singleId || selectedIds.size !== 1) return;
+    const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === singleId);
     if (item)
       setEditItem({
-        item,
-        tab: uploadedScoreItems.some((i) => i.id === inventorySelectedId) ? "score" : "misc",
+        item: { ...item, iconPreset: item.iconPreset ?? "misc" },
+        tab: uploadedScoreItems.some((i) => i.id === singleId) ? "score" : "misc",
       });
   };
 
