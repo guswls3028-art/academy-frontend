@@ -134,30 +134,47 @@ export function TimeScrollPopover({
       role="listbox"
       aria-label="시간 선택"
     >
-      <div className="shared-time-scroll-popover-period" aria-live="polite">
-        {periodLabel}
-      </div>
-      <div className="shared-time-scroll-popover-cylinder">
-        <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top" aria-hidden />
-        <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--bottom" aria-hidden />
-        <div
-          ref={scrollRef}
-          className="shared-time-scroll-popover-list"
-          style={{ height: VISIBLE_HEIGHT }}
-        >
-          {[0, 1, 2].map((block) =>
-            slots.map((t) => (
-              <button
-                key={`${block}-${t}`}
-                type="button"
-                className="shared-time-scroll-popover-item"
-                style={{ height: ROW_HEIGHT }}
-                onClick={() => onSelect(t)}
-              >
-                {format24To12PartOnly(t)}
-              </button>
-            ))
-          )}
+      <div className="shared-time-scroll-popover-layout">
+        <div className="shared-time-scroll-popover-periods">
+          <div
+            className={`shared-time-scroll-popover-period-item ${
+              periodLabel === "오전" ? "shared-time-scroll-popover-period-item--active" : ""
+            }`}
+            aria-hidden
+          >
+            오전
+          </div>
+          <div
+            className={`shared-time-scroll-popover-period-item ${
+              periodLabel === "오후" ? "shared-time-scroll-popover-period-item--active" : ""
+            }`}
+            aria-hidden
+          >
+            오후
+          </div>
+        </div>
+        <div className="shared-time-scroll-popover-cylinder">
+          <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--top" aria-hidden />
+          <div className="shared-time-scroll-popover-mask shared-time-scroll-popover-mask--bottom" aria-hidden />
+          <div
+            ref={scrollRef}
+            className="shared-time-scroll-popover-list"
+            style={{ height: VISIBLE_HEIGHT }}
+          >
+            {[0, 1, 2].map((block) =>
+              slots.map((t) => (
+                <button
+                  key={`${block}-${t}`}
+                  type="button"
+                  className="shared-time-scroll-popover-item"
+                  style={{ height: ROW_HEIGHT }}
+                  onClick={() => onSelect(t)}
+                >
+                  {format24To12PartOnly(t)}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
