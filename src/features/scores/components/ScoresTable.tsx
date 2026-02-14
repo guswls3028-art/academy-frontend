@@ -58,31 +58,20 @@ function toStatus(passed: boolean | null | undefined) {
   return passed ? "success" : "error";
 }
 
+/** 사이즈 SSOT: ds-status-badge (2ch) */
 function HomeworkStateBadge({
   status,
 }: {
   status: "UNSET" | "NOT_SUBMITTED" | "ZERO" | "SCORED";
 }) {
   if (status === "NOT_SUBMITTED") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">
-        미제출
-      </span>
-    );
+    return <span className="ds-status-badge !bg-red-50 !text-red-700">미제출</span>;
   }
   if (status === "UNSET") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-600">
-        미입력
-      </span>
-    );
+    return <span className="ds-status-badge !bg-gray-50 !text-gray-600">미입력</span>;
   }
   if (status === "ZERO") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
-        0점
-      </span>
-    );
+    return <span className="ds-status-badge !bg-amber-50 !text-amber-700">0점</span>;
   }
   return null;
 }
