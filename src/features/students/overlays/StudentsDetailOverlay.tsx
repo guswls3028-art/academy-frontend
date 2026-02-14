@@ -170,22 +170,14 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
           </header>
 
           <div className="ds-overlay-body">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "300px 1fr",
-                gap: 24,
-                alignItems: "start",
-              }}
-            >
+            <div className="ds-overlay-body__grid">
               {/* Left panel — 정보·태그·메모 */}
               <div
                 style={{
-                  borderRadius: 16,
-                  padding: 20,
+                  borderRadius: 12,
+                  padding: 16,
                   background: "var(--bg-surface-soft)",
                   border: "1px solid var(--color-border-divider)",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 }}
               >
                 <div style={{ display: "grid", gap: 10 }}>
