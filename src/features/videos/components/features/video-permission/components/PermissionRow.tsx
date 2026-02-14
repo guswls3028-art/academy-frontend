@@ -79,17 +79,11 @@ export default function PermissionRow({
         />
       </div>
 
-      {/* ACCESS MODE — SSOT: ds-status-badge (2ch) */}
+      {/* ACCESS MODE — SSOT: ds-status-badge + data-tone */}
       <div className="w-[90px] flex justify-center">
         <span
-          className={[
-            "ds-status-badge",
-            getAccessColor(student.access_mode, student.effective_rule)
-              .split(/\s+/)
-              .map((c) => (c.startsWith("bg-") || c.startsWith("text-") ? `!${c}` : c))
-              .join(" "),
-            "!text-white",
-          ].join(" ")}
+          className="ds-status-badge"
+          data-tone={getAccessTone(student.access_mode, student.effective_rule)}
         >
           {getAccessLabel(student.access_mode, student.effective_rule)}
         </span>

@@ -165,17 +165,11 @@ export default function PermissionSidePanel({
                     />
                   </div>
 
-                  {/* 접근 모드 — SSOT: ds-status-badge (2ch) */}
+                  {/* 접근 모드 — SSOT: ds-status-badge + data-tone */}
                   <div className="col-span-2 flex justify-center">
                     <span
-                      className={cx(
-                        "ds-status-badge",
-                        getAccessColor(s.access_mode, s.effective_rule)
-                          .split(/\s+/)
-                          .map((c) => (c.startsWith("bg-") || c.startsWith("text-") ? `!${c}` : c))
-                          .join(" "),
-                        "!text-white"
-                      )}
+                      className="ds-status-badge"
+                      data-tone={getAccessTone(s.access_mode, s.effective_rule)}
                     >
                       {getAccessLabel(s.access_mode, s.effective_rule)}
                     </span>
