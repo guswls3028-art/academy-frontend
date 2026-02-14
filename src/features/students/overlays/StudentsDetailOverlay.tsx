@@ -93,7 +93,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     if (!file) return;
     const tab = addFileTabRef.current;
     const baseName = file.name.replace(/\.[^.]+$/, "") || file.name;
-    setAddFileModal({ tab, file, title: baseName, description: "" });
+    setAddFileModal({ tab, file, title: baseName, description: "", iconPreset: INVENTORY_ICON_PRESETS[0].id });
     e.target.value = "";
   };
 
@@ -104,13 +104,70 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
 
   const confirmAddFile = () => {
     if (!addFileModal) return;
-    const { tab, file, title, description } = addFileModal;
+    const { tab, file, title, description, iconPreset } = addFileModal;
     const fileUrl = URL.createObjectURL(file);
     const fileType = file.type.startsWith("image/") ? "image" as const : "pdf" as const;
-    const item: UploadedInventoryItem = { id: crypto.randomUUID(), title: title.trim() || file.name, description, fileName: file.name, fileUrl, fileType };
+    const item: UploadedInventoryItem = {
+      id: crypto.randomUUID(),
+      title: title.trim() || file.name,
+      description,
+      fileName: file.name,
+      fileUrl,
+      fileType,
+      iconPreset,
+    };
     if (tab === "score") setUploadedScoreItems((prev) => [...prev, item]);
     else setUploadedMiscItems((prev) => [...prev, item]);
     setAddFileModal(null);
+  };
+
+  const currentList = inventoryTab === "score" ? uploadedScoreItems : uploadedMiscItems;
+  const setCurrentList = inventoryTab === "score" ? setUploadedScoreItems : setUploadedMiscItems;
+  const selectedIds = inventoryMultiSelect ? inventorySelectedIds : (inventorySelectedId ? new Set([inventorySelectedId]) : new Set());
+  const hasSelection = selectedIds.size > 0;
+
+  const toggleInventorySelection = (id: string) => {
+    if (inventoryMultiSelect) {
+      setInventorySelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    } else {
+      setInventorySelectedId((prev) => (prev === id ? null : id));
+    }
+  };
+
+  const openEditModal = () => {
+    if (!inventorySelectedId || selectedIds.size !== 1) return;
+    const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === inventorySelectedId);
+    if (item)
+      setEditItem({
+        item,
+        tab: uploadedScoreItems.some((i) => i.id === inventorySelectedId) ? "score" : "misc",
+      });
+  };
+
+  const confirmEditItem = () => {
+    if (!editItem) return;
+    const { item, tab } = editItem;
+    const updater = (prev: UploadedInventoryItem[]) =>
+      prev.map((i) => (i.id === item.id ? { ...i, title: editItem.item.title, description: editItem.item.description, iconPreset: editItem.item.iconPreset } : i));
+    if (tab === "score") setUploadedScoreItems(updater);
+    else setUploadedMiscItems(updater);
+    setEditItem(null);
+  };
+
+  const deleteSelectedInventory = () => {
+    const toDelete = Array.from(selectedIds);
+    toDelete.forEach((id) => {
+      const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === id);
+      if (item?.fileUrl.startsWith("blob:")) URL.revokeObjectURL(item.fileUrl);
+    });
+    setCurrentList((prev) => prev.filter((i) => !toDelete.includes(i.id)));
+    setInventorySelectedId(null);
+    setInventorySelectedIds(new Set());
   };
 
   const { data: student, isLoading } = useQuery({
