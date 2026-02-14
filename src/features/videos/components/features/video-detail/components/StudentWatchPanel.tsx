@@ -88,14 +88,12 @@ export default function StudentWatchPanel({
 
               {/* BADGES */}
               <div className="w-[140px] flex items-center gap-1 shrink-0">
-                <AttendanceBadge status={s.attendance_status ?? "UNKNOWN"} />
-
+                <AttendanceStatusBadge
+                  status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
+                  variant="1ch"
+                />
                 <span
-                  className={[
-                    "inline-flex items-center rounded-full px-2 py-0.5",
-                    "text-[11px] font-semibold text-white",
-                    getAccessColor(s.access_mode, s.effective_rule),
-                  ].join(" ")}
+                  className={`ds-status-badge ${getAccessColor(s.access_mode, s.effective_rule)}`}
                 >
                   {getAccessLabel(s.access_mode, s.effective_rule)}
                 </span>
