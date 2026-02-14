@@ -66,6 +66,7 @@ export default function StudentNameWithLectureChip({
           lectureName={lec.lectureName || "??"}
           color={lec.color ?? DEFAULT_COLOR}
           size={chipSizeResolved}
+          chipLabel={lec.chipLabel}
         />
       ))}
     </span>

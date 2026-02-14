@@ -112,6 +112,7 @@ function mapStudent(item: any): ClientStudent {
           id: Number(en?.id),
           lectureName: en?.lecture_name ?? null,
           lectureColor: en?.lecture_color ?? "#3b82f6",
+          lectureChipLabel: en?.lecture_chip_label ?? null,
         }))
       : [],
     deletedAt: item?.deleted_at ?? null,
