@@ -48,13 +48,13 @@
 
 /* ----- 컴팩트 (세션바·목록용) — 차시 블록과 차시 추가 버튼 동일 규격, 4:3 비율 ----- */
 .session-block--compact {
-  /* 4:3 비율: width 120 → height 90 */
-  min-width: 120px;
-  width: 120px;
-  height: 90px;
-  min-height: 90px;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
+  /* 4:3 비율: width 80 → height 60 (작게) */
+  min-width: 80px;
+  width: 80px;
+  height: 60px;
+  min-height: 60px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
   flex: 0 0 auto;
   box-shadow:
     0 1px 0 0 var(--session-block-highlight, rgba(255, 255, 255, 0.1)),
@@ -108,13 +108,13 @@
 }
 
 .session-block--compact .session-block__title {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .session-block--compact .session-block__desc {
-  margin-top: 2px;
-  font-size: 11px;
+  margin-top: 1px;
+  font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
