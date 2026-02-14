@@ -8,6 +8,8 @@ import LectureChip from "./LectureChip";
 export type LectureInfo = {
   lectureName: string;
   color?: string | null;
+  /** 강의 생성 모달에서 지정한 2글자 딱지 (미지정 시 제목 앞 2자) */
+  chipLabel?: string | null;
 };
 
 type Props = {

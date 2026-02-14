@@ -12,14 +12,19 @@ export default function LectureChip({
   lectureName,
   color,
   size = 18,
+  chipLabel,
 }: {
   lectureName: string;
   color?: string;
   size?: number;
+  /** 강의 생성 시 지정한 2글자 (미지정 시 제목 앞 2자) */
+  chipLabel?: string | null;
 }) {
   const bg = color || DEFAULT_LECTURE_COLOR;
   const textColor = isLightColor(bg) ? "#1a1a1a" : "#fff";
-  const two = (lectureName || "??").slice(0, 2);
+  const two = (chipLabel && chipLabel.length >= 1)
+    ? String(chipLabel).slice(0, 2)
+    : (lectureName || "??").slice(0, 2);
   const fontSize = size <= 18 ? 10 : size <= 24 ? 11 : 12;
 
   return (
