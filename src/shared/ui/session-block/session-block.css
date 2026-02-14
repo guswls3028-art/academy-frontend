@@ -73,7 +73,7 @@
 /* ----- 비율 9:1 (가로로 넓은 블록), 기본(모달) 크기 ----- */
 .session-block {
   aspect-ratio: 9 / 1;
-  min-height: 48px;
+  min-height: 40px;
   padding: var(--space-3) var(--space-5);
 }
 
