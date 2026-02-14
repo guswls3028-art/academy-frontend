@@ -769,9 +769,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             tabIndex={0}
             onClick={() => fileInputRef.current?.click()}
             onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-            className="modal-form-group"
             style={{
               border: "2px dashed var(--color-border-divider)",
+              borderRadius: "var(--radius-lg)",
               padding: "var(--space-8)",
               textAlign: "center",
               cursor: "pointer",
