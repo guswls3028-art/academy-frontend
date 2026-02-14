@@ -245,20 +245,8 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   type="button"
                   onClick={() => toggleActive.mutate(!student.active)}
                   disabled={toggleActive.isPending}
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    borderRadius: 10,
-                    letterSpacing: "-0.01em",
-                    cursor: toggleActive.isPending ? "wait" : "pointer",
-                    color: "#fff",
-                    backgroundColor: student.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
-                    border: "none",
-                    transition: "all 0.15s ease",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-                  }}
-                  className="hover:opacity-90 disabled:opacity-60"
+                  className="ds-status-badge"
+                  data-status={student.active ? "active" : "inactive"}
                 >
                   {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
                 </button>
