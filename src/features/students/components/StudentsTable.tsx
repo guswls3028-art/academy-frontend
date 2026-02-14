@@ -194,21 +194,34 @@ export default function StudentsTable({
                   />
                 ) : null}
               </td>
-              {/* 이름 + 강의 딱지 (전역 규칙: 학생 이름 앞 강의 딱지) */}
+              {/* 이름 + 강의 딱지 (이름 왼쪽 작은 프로필 사진/이니셜) */}
               <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
-                <StudentNameWithLectureChip
-                  name={s.name ?? "-"}
-                  lectures={
-                    Array.isArray(s.enrollments) && s.enrollments.length > 0
-                      ? s.enrollments.slice(0, 5).map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => ({
-                          lectureName: en.lectureName ?? "??",
-                          color: en.lectureColor ?? undefined,
-                        }))
-                      : undefined
-                  }
-                  chipSize={16}
-                  highlight={(text) => highlight(text, search)}
-                />
+                <span className="inline-flex items-center gap-2 min-w-0">
+                  <span
+                    className="flex-shrink-0 rounded-full overflow-hidden bg-[var(--color-brand-primary)]/15 text-[var(--color-brand-primary)] text-xs font-bold flex items-center justify-center"
+                    style={{ width: 24, height: 24 }}
+                    aria-hidden
+                  >
+                    {s.profilePhotoUrl ? (
+                      <img src={s.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (s.name ?? "?")[0]
+                    )}
+                  </span>
+                  <StudentNameWithLectureChip
+                    name={s.name ?? "-"}
+                    lectures={
+                      Array.isArray(s.enrollments) && s.enrollments.length > 0
+                        ? s.enrollments.slice(0, 5).map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => ({
+                            lectureName: en.lectureName ?? "??",
+                            color: en.lectureColor ?? undefined,
+                          }))
+                        : undefined
+                    }
+                    chipSize={16}
+                    highlight={(text) => highlight(text, search)}
+                  />
+                </span>
               </td>
 
               {/* 학부모 전화 */}

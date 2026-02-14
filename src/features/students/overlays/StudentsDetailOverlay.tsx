@@ -105,21 +105,15 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
               <div className="ds-overlay-header__left">
                 <div className="ds-overlay-header__accent" aria-hidden />
                 <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    flexShrink: 0,
-                    display: "grid",
-                    placeItems: "center",
-                    background: "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))",
-                    border: "1px solid var(--color-border-divider)",
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: "var(--color-brand-primary)",
-                  }}
+                  className="flex-shrink-0 rounded-[10px] overflow-hidden bg-[color-mix(in_srgb,var(--color-brand-primary)_12%,var(--color-bg-surface))] border border-[var(--color-border-divider)] text-[var(--color-brand-primary)] text-base font-bold flex items-center justify-center"
+                  style={{ width: 40, height: 40 }}
+                  aria-hidden
                 >
-                  {student.name?.[0] ?? "?"}
+                  {student.profilePhotoUrl ? (
+                    <img src={student.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    student.name?.[0] ?? "?"
+                  )}
                 </div>
                 <div className="ds-overlay-header__title-block">
                   <h1 className="ds-overlay-header__title">
