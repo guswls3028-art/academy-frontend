@@ -70,18 +70,18 @@
     0 var(--session-block-drop-active) var(--session-block-shadow-soft);
 }
 
-/* ----- 비율 9:1 (가로로 넓은 블록), 기본(모달) 크기 ----- */
+/* ----- 비율 16:9, 기본(모달) 크기 ----- */
 .session-block {
-  aspect-ratio: 9 / 1;
+  aspect-ratio: 16 / 9;
   min-height: 40px;
   padding: var(--space-3) var(--space-5);
 }
 
-/* ----- 컴팩트(세션페이지) — 동일 디자인·동일 색상, 9:1 비율 ----- */
+/* ----- 컴팩트(세션페이지) — 동일 디자인·동일 색상, 16:9 비율 ----- */
 .session-block--compact {
-  /* 9:1 (width:height), 터치 가능 높이 36px → width 324px */
-  min-width: 324px;
-  width: 324px;
+  /* 16:9 (width:height), 높이 36px → width 64px */
+  min-width: 64px;
+  width: 64px;
   height: 36px;
   min-height: 36px;
   aspect-ratio: unset;
