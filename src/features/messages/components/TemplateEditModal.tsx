@@ -204,13 +204,13 @@ export default function TemplateEditModal({
               />
             </div>
 
-            <Tabs
-              activeKey={activeTab}
-              onChange={(k) => setActiveTab(k as EditorTab)}
-              items={tabItems}
-              size="small"
-              className="template-editor__tabs"
-            />
+            <div className="modal-tabs-elevated template-editor__tabs">
+              <Tabs
+                value={activeTab}
+                onChange={(k) => setActiveTab(k as EditorTab)}
+                items={editorTabItems}
+              />
+            </div>
 
             {/* 제목 영역 고정 높이 — 메시지↔알림톡 전환 시 레이아웃 흔들림 방지 */}
             <div className="template-editor__subject-slot">
