@@ -746,8 +746,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </Button>
         </div>
         ) : (
-        <div className="modal-scroll-body" style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "var(--space-2)", alignItems: "end" }}>
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
             <div>
               <label className="modal-section-label">초기 비밀번호 (일괄)</label>
               <input
@@ -805,14 +805,14 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             <div className="modal-section-label" style={{ fontSize: 15, marginBottom: "var(--space-2)" }}>
               엑셀 파일을 드래그하거나 클릭하여 업로드
             </div>
-            <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-              .xlsx, .xls · 필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR). 아이디 6자리 자동 부여.
+            <div className="modal-hint" style={{ marginTop: "var(--space-1)" }}>
+              .xlsx, .xls · 필수: 이름, 학부모 전화. 학생 전화 선택(없으면 학부모 8자리 OMR). 아이디 6자리 자동.
             </div>
           </div>
 
           {excelParsedRows && excelParsedRows.length > 0 && (
-            <div className="modal-form-group" style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 14, fontWeight: 600 }}>
+            <div className="modal-form-group modal-form-group--row" style={{ justifyContent: "space-between" }}>
+              <span className="modal-section-label" style={{ marginBottom: 0 }}>
                 {excelParsedRows.length}명 등록 예정
               </span>
               <Button
