@@ -74,6 +74,11 @@
   background: var(--color-modal-bg);
 }
 
+/* 탭 영역 (헤더와 본문 사이) — 본문과 동일 수평 패딩 */
+.modal-tabs-area {
+  padding: 0 var(--space-5) var(--space-3);
+}
+
 /* ========== 푸터 (헤더와 대칭되는 구분감) ========== */
 .modal-footer {
   display: flex;
