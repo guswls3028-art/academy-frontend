@@ -30,6 +30,16 @@ export function format24To12Display(hhmm: string): string {
   return `${period} ${h12}:${String(m).padStart(2, "0")}`;
 }
 
+/** 24h "HH:mm" → 시:분만 "12:00", "1:30" (좌측 오전/오후와 중복 방지용) */
+function format24To12TimeOnly(hhmm: string): string {
+  if (!hhmm) return "12:00";
+  const [hStr, mStr] = hhmm.split(":");
+  const h = parseInt(hStr ?? "0", 10);
+  const m = parseInt(mStr ?? "0", 10);
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2, "0")}`;
+}
+
 function slotIndex(hhmm: string): number {
   const [hStr, mStr] = (hhmm || "00:00").split(":");
   const h = parseInt(hStr ?? "0", 10);
@@ -225,7 +235,7 @@ export function TimeScrollPopover({
                   style={{ height: ROW_HEIGHT }}
                   onClick={() => scrollToIdx(i)}
                 >
-                  {format24To12Display(slot)}
+                  {format24To12TimeOnly(slot)}
                 </button>
               ))
             )}
