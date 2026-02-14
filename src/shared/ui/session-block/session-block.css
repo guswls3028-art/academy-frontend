@@ -79,20 +79,14 @@
 
 /* ----- 컴팩트(세션페이지) — 동일 디자인·동일 색상, 9:1 비율 ----- */
 .session-block--compact {
-  /* 9:1 → height 40px면 width 360px. 터치용 min-height 유지 */
-  min-width: 120px;
-  width: 120px;
-  height: 40px;
-  min-height: 40px;
+  /* 9:1 width:height → 180:20 (터치를 위해 min-height 36으로 조정 가능) */
+  min-width: 180px;
+  width: 180px;
+  height: 20px;
+  min-height: 36px;
   aspect-ratio: unset;
   padding: var(--space-2) var(--space-3);
   flex: 0 0 auto;
-}
-
-.session-block--compact {
-  width: 180px;
-  height: 20px;
-  min-height: 20px;
 }
 
 .session-block--compact .session-block__title {
@@ -274,15 +268,23 @@
   opacity: 0.92;
 }
 
+/* 모달: 차시/보강 타이틀 크게 + 중앙 정렬 */
+.session-block:not(.session-block--compact) {
+  align-items: center;
+  text-align: center;
+}
+
 .session-block:not(.session-block--compact) .session-block__title {
-  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-size: clamp(1.5rem, 5vw, 2rem);
   font-weight: 800;
+  text-align: center;
 }
 
 .session-block:not(.session-block--compact) .session-block__desc {
   font-size: 11px;
   margin-top: 6px;
   opacity: 0.9;
+  text-align: center;
 }
 
 .session-block__check {
