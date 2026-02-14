@@ -58,7 +58,7 @@
   --scale-Primary600: #1d4ed8;
   --scale-Primary700: #1e40af;
   --color-primary-rgb: 37, 99, 235;
-  --color-brand-complement: #0d9488; /* teal (primary blue 보색 톤) */
+  --scale-Complement500: #0d9488;
 
   /* Space */
   --layout-page-bg: #f6f8fc;
@@ -98,7 +98,7 @@
   --scale-Primary600: #2563eb;
   --scale-Primary700: #1d4ed8;
   --color-primary-rgb: 59, 130, 246;
-  --color-brand-complement: #0d9488;
+  --scale-Complement500: #0d9488;
 
   /* Space */
   --layout-page-bg: #f3f6fb;
@@ -138,7 +138,7 @@
   --scale-Primary500: #b45309;
   --scale-Primary600: #92400e;
   --scale-Primary700: #78350f;
-  --color-brand-complement: #0284c7;
+  --scale-Complement500: #0284c7;
 
   /* Space */
   --layout-page-bg: #fbfaf7;
@@ -178,7 +178,7 @@
   --scale-Primary500: #0a0a0a;
   --scale-Primary600: #0a0a0a;
   --scale-Primary700: #0a0a0a;
-  --color-brand-complement: #0d9488;
+  --scale-Complement500: #0d9488;
 
   --layout-page-bg: #ffffff;
   --layout-header-bg: color-mix(in srgb, #ffffff 92%, transparent);
@@ -225,7 +225,7 @@
   --scale-Primary500: #60a5fa;
   --scale-Primary600: #7dd3fc;
   --scale-Primary700: #93c5fd;
-  --color-brand-complement: #0d9488;
+  --scale-Complement500: #0d9488;
 
   --layout-page-bg: color-mix(in srgb, #0d1117 92%, #111827);
   --layout-header-bg: color-mix(in srgb, #111827 78%, transparent);
@@ -268,7 +268,7 @@
   --scale-Primary500: #3b82f6;
   --scale-Primary600: #60a5fa;
   --scale-Primary700: #93c5fd;
-  --color-brand-complement: #0d9488;
+  --scale-Complement500: #0d9488;
 
   --layout-page-bg: color-mix(in srgb, #071024 92%, #0b1730);
   --layout-header-bg: color-mix(in srgb, #0b1730 78%, transparent);
@@ -312,7 +312,7 @@
   --scale-Primary500: #ff0000;
   --scale-Primary600: #ff3b3b;
   --scale-Primary700: #ff6b6b;
-  --color-brand-complement: #22c55e;
+  --scale-Complement500: #22c55e;
 
   --layout-page-bg: color-mix(in srgb, #0b0b0c 92%, #111113);
   --layout-header-bg: color-mix(in srgb, #111113 78%, transparent);
@@ -357,7 +357,7 @@
   --scale-Primary500: #00ffcc;
   --scale-Primary600: #22d3ee;
   --scale-Primary700: #7dd3fc;
-  --color-brand-complement: #f97316;
+  --scale-Complement500: #f97316;
 
   --layout-page-bg: color-mix(in srgb, #030407 92%, #050507);
   --layout-header-bg: color-mix(in srgb, #050507 78%, transparent);
@@ -429,7 +429,7 @@
   --sidebar-item-active-bg: var(--kakao-brown);
   --sidebar-item-active-text: #ffffff;
 
-  --color-brand-complement: #0d9488; /* teal (갈색 보색 톤) */
+  --scale-Complement500: #0d9488; /* teal (갈색 보색 톤) */
   --color-modal-bg: #ffffff;
 }
 
@@ -457,7 +457,7 @@
   --scale-Primary500: #013619;
   --scale-Primary600: #14532d;
   --scale-Primary700: #0b2b17;
-  --color-brand-complement: #c026d3;
+  --scale-Complement500: #c026d3;
 
   /* 👉 필터 제거 */
   --layout-page-bg: #ffffff;

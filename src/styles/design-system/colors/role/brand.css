@@ -6,6 +6,6 @@
   --color-brand-primary-hover:  var(--scale-Primary600);
   --color-brand-primary-active: var(--scale-Primary700);
   --color-brand-primary-subtle: var(--scale-Primary100);
-  /* 보강 등 보조 강조용 — 테마별 Primary 보색(complement) */
-  --color-brand-complement:     var(--scale-Complement500, #0d9488);
+  /* 보강 등 보조 강조용 — scale Complement (테마별 보색), 하드코딩 없음 */
+  --color-brand-complement:     var(--scale-Complement500);
 }
