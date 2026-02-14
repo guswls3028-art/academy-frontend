@@ -231,6 +231,24 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 4%, transparent);
 }
 
+/* 학생 테이블 — 컬럼/내용 중앙정렬 + 체크박스 칸 타이트 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th,
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center tbody td {
+  text-align: center;
+  vertical-align: middle;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell {
+  padding-left: 4px;
+  padding-right: 4px;
+  width: 1%;
+  min-width: 28px;
+  box-sizing: content-box;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell input[type="checkbox"] {
+  margin: 0;
+  display: block;
+}
+
 /* 출결 테이블 — 패딩·세로 간격만 축소, 폰트는 students(SSOT)와 동일하게 셀 단위로 적용 */
 .ds-table-wrap .ds-table.ds-table--attendance.ds-table--flat thead th {
   padding: 4px 12px;
