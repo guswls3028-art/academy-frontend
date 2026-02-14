@@ -10,11 +10,11 @@
 
 | 구분 | 경로 | 설명 |
 |------|------|------|
-| **학생 앱** | `src/student/**` | 학생 전용 — 완전히 분리된 라우터·도메인·스타일 |
-| **관리자 앱** | 그 외 전부 | `src/app/`, `src/features/`, `src/shared/` 등 모든 관리자 기능 |
+| **학생 앱** | `src/student/**` | 별개 앱 — 자체 `shared/`, 테마·디자인 시스템 보유. 관리자용 `shared/`·`styles/` 사용 금지 |
+| **관리자 앱** | 그 외 전부 | `src/app/`, `src/features/`, `src/shared/`, `src/styles/` 등 전부 관리자 전용 |
 
-- 학생 앱: `src/student/` 아래만 사용 (라우터·페이지·도메인·테마).
-- 관리자 앱: `src/app/`, `src/features/`, `src/shared/`, `src/context/`, `src/styles/` 등.
+- **관리자 앱**: `src/shared/`, `src/styles/`(design-system) 포함해 루트의 공통 코드 전부 관리자용. 학생 앱에서 참조하지 않음.
+- **학생 앱**: `src/student/` 안에서만 동작. 학생 전용 `student/shared/`, `student/…/theme/`, `student/…/presets/` 등 자체 디자인·공용 코드 사용. 별개 앱 취급.
 
 ---
 
@@ -23,13 +23,19 @@
 ```
 src/
 ├── app/                    # 관리자 앱 라우터·진입
-├── student/                # 학생 앱 (완전 분리)
-│   ├── app/                # 학생 앱 라우터
-│   └── domains/            # 학생 도메인 (예: media 재생)
 ├── features/               # 관리자 기능 모듈 (학생·강의·시험·비디오 등)
-├── shared/                 # 공통 UI·유틸 (관리자 앱 기준)
-├── styles/                 # 디자인 시스템 (design-system) — 모든 디자인 파일 SSOT
-└── index.css               # 전역 스타일 진입
+├── shared/                 # 관리자 전용 — 공통 UI·유틸 (학생 앱에서 사용 금지)
+├── styles/                 # 관리자 전용 — 디자인 시스템 (design-system) (학생 앱에서 사용 금지)
+├── index.css               # 관리자 앱 전역 스타일 진입
+│
+└── student/                # 학생 앱 (별개 앱)
+    ├── app/                # 학생 앱 라우터·진입
+    ├── shared/             # 학생 앱 전용 shared (API, UI, theme, presets 등)
+    │   └── ui/
+    │       ├── theme/      # tokens, palette, typography, shadow
+    │       ├── presets/    # 테마 프리셋 (dark-neon, light-blue 등)
+    │       └── layout/     # StudentLayout, TabBar 등
+    └── domains/            # 학생 도메인 (media, sessions, exams, dashboard 등)
 ```
 
 ---
