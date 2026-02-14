@@ -8,7 +8,6 @@ const ROW_HEIGHT = 48;
 const VISIBLE_ROWS = 5;
 const VISIBLE_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
 const PERIOD_SLOTS = ["오전", "오후"] as const;
-const PERIOD_VISIBLE_HEIGHT = ROW_HEIGHT * 2; // 오전/오후 두 개만 보이게
 
 /** 12시간제 슬롯 (30분 간격): 12:00, 12:30, 1:00, ..., 11:30 */
 const TIME_12_SLOTS = (() => {

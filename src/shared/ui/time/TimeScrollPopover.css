@@ -47,13 +47,9 @@
   height: 48px;
 }
 
-/* 오전/오후 롤러 — 2개만, 영역 안에, 시간 롤러와 동일 높이 */
+/* 오전/오후 롤러 — 시간과 동일한 롤링 방식 */
 .shared-time-scroll-popover-list--period {
-  overflow-y: auto;
-  height: 240px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  /* time과 동일 스타일 상속 */
 }
 
 .shared-time-scroll-popover-cylinder--period .shared-time-scroll-popover-mask {
