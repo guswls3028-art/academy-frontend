@@ -104,9 +104,9 @@
   top: 0;
   background: linear-gradient(
     180deg,
-    var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 95%, transparent) 20%,
-    color-mix(in srgb, var(--color-bg-surface) 60%, transparent) 50%,
+    color-mix(in srgb, var(--color-bg-surface) 98%, transparent) 0%,
+    color-mix(in srgb, var(--color-bg-surface) 90%, transparent) 15%,
+    color-mix(in srgb, var(--color-bg-surface) 50%, transparent) 40%,
     transparent 100%
   );
 }
@@ -115,9 +115,9 @@
   bottom: 0;
   background: linear-gradient(
     0deg,
-    var(--color-bg-surface) 0%,
-    color-mix(in srgb, var(--color-bg-surface) 95%, transparent) 20%,
-    color-mix(in srgb, var(--color-bg-surface) 60%, transparent) 50%,
+    color-mix(in srgb, var(--color-bg-surface) 98%, transparent) 0%,
+    color-mix(in srgb, var(--color-bg-surface) 90%, transparent) 15%,
+    color-mix(in srgb, var(--color-bg-surface) 50%, transparent) 40%,
     transparent 100%
   );
 }
