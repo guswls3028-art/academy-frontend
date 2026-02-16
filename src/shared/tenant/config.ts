@@ -5,7 +5,7 @@
  * - tchul.com = 2, limglish.kr = 3, ymath.co.kr = 4
  */
 
-export type TenantId = 1 | 2 | 3 | 4;
+export type TenantId = 1 | 2 | 3 | 4 | 9999;
 
 const HOST_TO_ID: Record<string, TenantId> = {
   "hakwonplus.com": 1,
@@ -16,6 +16,8 @@ const HOST_TO_ID: Record<string, TenantId> = {
   "www.limglish.kr": 3,
   "ymath.co.kr": 4,
   "www.ymath.co.kr": 4,
+  localhost: 9999,
+  "127.0.0.1": 9999,
 };
 
 /** 테넌트 코드 → TenantId (호스트 없이 tenantCode만 올 때 사용) */
@@ -24,9 +26,10 @@ const CODE_TO_ID: Record<string, TenantId> = {
   tchul: 2,
   limglish: 3,
   ymath: 4,
+  "9999": 9999,
 };
 
-/** 호스트명 → 백엔드 테넌트 코드 (X-Tenant-Code 헤더용 SSOT) */
+/** 호스트명 → 백엔드 테넌트 코드 (X-Tenant-Code 헤더용 SSOT). 로컬 개발용 9999 포함. */
 export const HOSTNAME_TO_TENANT_CODE: Record<string, string> = {
   "hakwonplus.com": "hakwonplus",
   "www.hakwonplus.com": "hakwonplus",
@@ -36,6 +39,8 @@ export const HOSTNAME_TO_TENANT_CODE: Record<string, string> = {
   "www.limglish.kr": "limglish",
   "ymath.co.kr": "ymath",
   "www.ymath.co.kr": "ymath",
+  localhost: "9999",
+  "127.0.0.1": "9999",
 };
 
 export type TenantBranding = {

@@ -84,8 +84,10 @@ export function getTenantCodeFromHostname(hostname?: string): TenantResolveResul
   const host = normalizeHost(hostname ?? safeGetHostname());
   if (!host) return { ok: false, reason: "invalid_host" };
 
-  // Local/dev hosts: require explicit override (avoid guessing).
+  // Local/dev: use dev tenant 9999 from config so localhost works without env/storage.
   if (host === "localhost" || host === "127.0.0.1") {
+    const devCode = HOSTNAME_TO_TENANT_CODE[host];
+    if (devCode) return { ok: true, code: devCode, source: "hostname" };
     return { ok: false, reason: "missing" };
   }
 
