@@ -98,17 +98,48 @@ export default function TenantBrandingPage() {
       setMessage("코드와 이름을 입력해주세요.");
       return;
     }
+    
+    if (createOwnerWithTenant) {
+      if (!newOwnerUsername || !newOwnerPassword) {
+        setMessage("오너 계정 생성 시 사용자명과 비밀번호는 필수입니다.");
+        return;
+      }
+    }
+    
     try {
-      await createTenant({
+      const tenant = await createTenant({
         code: newTenantCode,
         name: newTenantName,
         domain: newTenantDomain || undefined,
       });
-      setMessage(`테넌트 ${newTenantName} 생성 완료.`);
+      
+      // 오너 계정도 함께 생성
+      if (createOwnerWithTenant && newOwnerUsername && newOwnerPassword) {
+        try {
+          await registerTenantOwner(tenant.id, {
+            username: newOwnerUsername,
+            password: newOwnerPassword,
+            name: newOwnerName || undefined,
+            phone: newOwnerPhone || undefined,
+          });
+          setMessage(`테넌트 ${newTenantName} 생성 완료. 오너 계정(${newOwnerUsername})도 함께 생성되었습니다.`);
+        } catch (ownerError: unknown) {
+          const error = ownerError as { response?: { data?: { detail?: string } } };
+          setMessage(`테넌트는 생성되었지만 오너 계정 생성 실패: ${error.response?.data?.detail || String(ownerError)}`);
+        }
+      } else {
+        setMessage(`테넌트 ${newTenantName} 생성 완료.`);
+      }
+      
       setShowCreateForm(false);
       setNewTenantCode("");
       setNewTenantName("");
       setNewTenantDomain("");
+      setCreateOwnerWithTenant(false);
+      setNewOwnerUsername("");
+      setNewOwnerPassword("");
+      setNewOwnerName("");
+      setNewOwnerPhone("");
       loadTenants();
     } catch (e: unknown) {
       const error = e as { response?: { data?: { detail?: string } } };
