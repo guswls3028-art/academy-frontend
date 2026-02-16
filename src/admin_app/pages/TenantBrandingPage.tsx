@@ -16,6 +16,7 @@ import {
   type TenantDto,
 } from "@/admin_app/api/tenants";
 import "@/styles/design-system/index.css";
+import "@/styles/design-system/ds/input.css";
 
 export default function TenantBrandingPage() {
   const [tenants, setTenants] = useState<TenantDto[]>([]);
