@@ -73,6 +73,12 @@ export default function TenantBrandingPage() {
           setLoginSubtitles((prev) =>
             branding.loginSubtitle != null ? { ...prev, [tenant.id]: branding.loginSubtitle! } : prev
           );
+          setWindowTitles((prev) =>
+            branding.windowTitle != null ? { ...prev, [tenant.id]: branding.windowTitle! } : prev
+          );
+          setDisplayNames((prev) =>
+            branding.displayName != null ? { ...prev, [tenant.id]: branding.displayName! } : prev
+          );
         }).catch(() => {});
       });
     } catch (e) {
@@ -165,13 +171,19 @@ export default function TenantBrandingPage() {
   const handleSaveTitle = useCallback(async (tenantId: number) => {
     const title = loginTitles[tenantId];
     const subtitle = loginSubtitles[tenantId];
+    const windowTitle = windowTitles[tenantId];
+    const displayName = displayNames[tenantId];
     setMessage(null);
     try {
       await patchTenantBranding(tenantId, { 
         loginTitle: title,
         loginSubtitle: subtitle,
+        windowTitle: windowTitle,
+        displayName: displayName,
       });
-      setMessage(`Tenant ${tenantId} 로그인 타이틀 저장됨.`);
+      setMessage(`Tenant ${tenantId} 브랜딩 설정 저장됨.`);
+      // Program 데이터 리로드
+      window.location.reload();
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 404 || status === 501) {
@@ -182,7 +194,7 @@ export default function TenantBrandingPage() {
         setMessage("저장 실패: " + String(e));
       }
     }
-  }, [loginTitles, loginSubtitles]);
+  }, [loginTitles, loginSubtitles, windowTitles, displayNames]);
 
   if (loading) {
     return (
@@ -289,6 +301,8 @@ export default function TenantBrandingPage() {
           const logoUrl = logoUrls[id] ?? fallback.logoUrl;
           const loginTitle = loginTitles[id] ?? fallback.loginTitle ?? "";
           const loginSubtitle = loginSubtitles[id] ?? fallback.loginSubtitle ?? "";
+          const windowTitle = windowTitles[id] ?? fallback.windowTitle ?? "";
+          const displayName = displayNames[id] ?? fallback.displayName ?? name;
           const ownerForm = ownerForms[id] || { username: "", password: "", name: "", phone: "" };
 
           return (
