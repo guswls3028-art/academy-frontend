@@ -3,9 +3,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { getTenants, getTenantOwners, type TenantDto, type TenantOwnerDto } from "@/admin_app/api/tenants";
+import { getTenants, getTenantOwners, removeTenantOwner, updateTenantOwner, type TenantDto, type TenantOwnerDto } from "@/admin_app/api/tenants";
 import OwnerFormCompact from "@/admin_app/components/OwnerFormCompact";
 import "@/styles/design-system/index.css";
+import "@/styles/design-system/ds/input.css";
 
 export default function TenantDetailMenuPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
