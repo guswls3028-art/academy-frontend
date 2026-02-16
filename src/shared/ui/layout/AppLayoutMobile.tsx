@@ -45,6 +45,7 @@ export default function AppLayoutMobile() {
           overflowY: "auto",
           overflowX: "hidden",
           WebkitOverflowScrolling: "touch",
+          background: "var(--layout-page-bg)",
           padding: "var(--space-4)",
           paddingBottom: `calc(${TABBAR_HEIGHT}px + ${SAFE_BOTTOM} + var(--space-4))`,
         }}
