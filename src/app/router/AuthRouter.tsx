@@ -1,4 +1,5 @@
 // PATH: src/app/router/AuthRouter.tsx
+import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginEntry from "@/features/auth/pages/login/LoginEntry";
 import HakwonPlusLoginPage from "@/features/auth/pages/login/HakwonPlusLoginPage";
@@ -12,7 +13,7 @@ function TenantLoginOrRedirect({
   children,
 }: {
   tenantId: 2 | 3 | 4;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const resolved = resolveTenantCode();
   const fromHostId =
