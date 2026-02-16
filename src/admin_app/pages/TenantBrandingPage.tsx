@@ -12,6 +12,8 @@ import {
   getTenantOwners,
   createTenant,
   registerTenantOwner,
+  removeTenantOwner,
+  updateTenantOwner,
   type TenantDto,
 } from "@/admin_app/api/tenants";
 import TenantListPanel from "@/admin_app/features/tenants/TenantListPanel";
