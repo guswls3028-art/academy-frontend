@@ -20,13 +20,6 @@ import AdminOwnerBottomSheet from "@/admin_app/components/AdminOwnerBottomSheet"
 import "@/styles/design-system/index.css";
 import "@/styles/design-system/ds/input.css";
 
-const defaultOwnerForm = () => ({
-  username: "",
-  password: "",
-  name: "",
-  phone: "",
-});
-
 export default function TenantBrandingPage() {
   const [tenants, setTenants] = useState<TenantDto[]>([]);
   const [loading, setLoading] = useState(true);
