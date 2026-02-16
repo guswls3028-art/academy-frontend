@@ -35,7 +35,7 @@ export default function TenantListPanel({
   }, [tenants, search]);
 
   return (
-    <div className="admin-tenant-list-panel flex flex-col h-full min-h-0 bg-white border-r border-slate-200">
+    <div className="admin-tenant-list-panel flex flex-col h-full min-h-0 bg-white border-r border-slate-200 md:rounded-l-lg">
       <div className="shrink-0 p-3 border-b border-slate-200 space-y-2">
         <input
           type="search"
