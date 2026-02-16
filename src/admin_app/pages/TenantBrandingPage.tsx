@@ -232,8 +232,8 @@ export default function TenantBrandingPage() {
                 type="text"
                 value={newTenantCode}
                 onChange={(e) => setNewTenantCode(e.target.value)}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                style={{ color: '#111827' }}
+                className="ds-input"
+                data-required="true"
                 placeholder="예: tchul"
               />
             </div>
@@ -245,8 +245,8 @@ export default function TenantBrandingPage() {
                 type="text"
                 value={newTenantName}
                 onChange={(e) => setNewTenantName(e.target.value)}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                style={{ color: '#111827' }}
+                className="ds-input"
+                data-required="true"
                 placeholder="예: 천안학원"
               />
             </div>
@@ -354,8 +354,8 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, password: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                          style={{ color: '#111827' }}
+                          className="ds-input"
+                          data-required="true"
                           placeholder="비밀번호 입력"
                         />
                       </div>
@@ -372,8 +372,7 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, name: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                          style={{ color: '#111827' }}
+                          className="ds-input"
                           placeholder="예: 홍길동"
                         />
                       </div>
@@ -390,8 +389,7 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, phone: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                          style={{ color: '#111827' }}
+                          className="ds-input"
                           placeholder="예: 01012345678"
                         />
                       </div>
@@ -399,7 +397,9 @@ export default function TenantBrandingPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleRegisterOwner(id)}
-                        className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+                        className="ds-button"
+                        data-intent="primary"
+                        data-size="md"
                       >
                         등록
                       </button>
@@ -408,7 +408,9 @@ export default function TenantBrandingPage() {
                           setOwnerForms((prev) => ({ ...prev, [id]: { username: "", password: "", name: "", phone: "" } }));
                           setShowOwnerForms((prev) => ({ ...prev, [id]: false }));
                         }}
-                        className="px-4 py-2 bg-slate-200 text-slate-700 text-sm rounded hover:bg-slate-300"
+                        className="ds-button"
+                        data-intent="secondary"
+                        data-size="md"
                       >
                         취소
                       </button>
@@ -425,13 +427,14 @@ export default function TenantBrandingPage() {
                           [id]: { ...ownerForm, username: e.target.value },
                         }))
                       }
-                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                      style={{ color: '#111827' }}
+                      className="ds-input flex-1"
                       placeholder="사용자명 (기존 사용자)"
                     />
                     <button
                       onClick={() => handleRegisterOwner(id)}
-                      className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600 font-medium"
+                      className="ds-button"
+                      data-intent="primary"
+                      data-size="md"
                     >
                       등록
                     </button>
