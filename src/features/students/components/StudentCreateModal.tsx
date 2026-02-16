@@ -170,11 +170,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
       <div className="modal-tabs-area">
         <Tabs value={activeTab} items={TAB_ITEMS} onChange={setActiveTab} />
-        {progress && activeTab === "excel" && (
-          <div className="modal-form-group" style={{ marginTop: "var(--space-3)", padding: "var(--space-3) var(--space-4)" }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-brand-primary)" }}>창을 닫아도 진행됩니다</span>
-          </div>
-        )}
         <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: "var(--space-3)", marginBottom: 0, cursor: "pointer" }}>
           <input
             type="checkbox"
