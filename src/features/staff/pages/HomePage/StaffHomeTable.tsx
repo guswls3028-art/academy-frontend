@@ -382,8 +382,49 @@ export function StaffHomeTable({
                   </span>
                 )}
               </td>
-              <td className="align-middle">
-                <WorkTypeTags workTypes={r.staff_work_types} />
+              <td className="align-middle" onClick={(e) => e.stopPropagation()} ref={openAddForStaffId === r.id ? addDropdownRef : undefined}>
+                <div className="inline-flex items-center gap-1.5 flex-wrap min-w-0">
+                  <WorkTypeTags workTypes={r.staff_work_types} />
+                  {canManage && (
+                    <>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded border border-[var(--color-border-divider)] bg-[var(--bg-surface-soft)] text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--color-border-strong)] transition-colors"
+                        onClick={() => setOpenAddForStaffId((prev) => (prev === r.id ? null : r.id))}
+                        aria-label={`${r.name} 시급태그 추가`}
+                        disabled={addTagM.isPending}
+                      >
+                        <Plus size={14} strokeWidth={2.5} />
+                      </button>
+                      {openAddForStaffId === r.id && (
+                        <div className="absolute z-10 mt-1 py-1 min-w-[160px] rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] shadow-lg">
+                          {(allWorkTypes.filter(
+                            (wt) => !(r.staff_work_types || []).some((swt) => swt.work_type?.id === wt.id)
+                          ).length === 0 ? (
+                            <div className="px-3 py-2 text-[13px] text-[var(--color-text-muted)]">
+                              추가할 시급태그가 없습니다.
+                            </div>
+                          ) : (
+                            allWorkTypes
+                              .filter((wt) => !(r.staff_work_types || []).some((swt) => swt.work_type?.id === wt.id))
+                              .map((wt) => (
+                                <button
+                                  key={wt.id}
+                                  type="button"
+                                  className="block w-full text-left px-3 py-2 text-[13px] hover:bg-[var(--bg-surface-hover)]"
+                                  onClick={() => addTagM.mutate({ staffId: r.id, work_type_id: wt.id })}
+                                  disabled={addTagM.isPending}
+                                >
+                                  {wt.name}
+                                  {wt.base_hourly_wage != null ? ` (${(wt.base_hourly_wage / 10000).toFixed(1)}만/시)` : ""}
+                                </button>
+                              ))
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
                 <span className="inline-flex items-center gap-2">
