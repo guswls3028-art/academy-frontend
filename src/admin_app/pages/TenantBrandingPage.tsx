@@ -73,7 +73,7 @@ export default function TenantBrandingPage() {
     setMessage(null);
     try {
       await patchTenantBranding(tenantId, { loginTitle: title });
-      setMessage(`Tenant ${tenantId} 로그인 타이틀 저장됨. (API 연동 후 반영)`);
+      setMessage(`Tenant ${tenantId} 로그인 타이틀 저장됨.`);
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 404 || status === 501) {
@@ -92,7 +92,7 @@ export default function TenantBrandingPage() {
         Tenant branding
       </h1>
       <p className="text-slate-600 mb-6">
-        테넌트별 로고·로그인 타이틀. 로고는 R2 업로드 API 연동 후 저장됩니다.
+        테넌트별 로고·로그인 타이틀. 로고는 R2(academy-admin)에 저장됩니다.
       </p>
 
       {message && (
