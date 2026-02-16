@@ -382,8 +382,8 @@ export function StaffHomeTable({
                   </span>
                 )}
               </td>
-              <td className="align-middle" onClick={(e) => e.stopPropagation()} ref={openAddForStaffId === r.id ? addDropdownRef : undefined}>
-                <div className="inline-flex items-center gap-1.5 flex-wrap min-w-0">
+              <td className="align-middle relative" onClick={(e) => e.stopPropagation()} ref={openAddForStaffId === r.id ? addDropdownRef : undefined}>
+                <div className="inline-flex items-center gap-1.5 flex-wrap min-w-0 relative">
                   <WorkTypeTags workTypes={r.staff_work_types} />
                   {canManage && (
                     <>
