@@ -4,6 +4,8 @@
 
 **문서 SSOT**: 이 README가 최상위 문서입니다. 배포·인프라는 백엔드 `academy/docs/README.md`, `academy/docs/배포.md` 참고.
 
+**Cursor 작업 시**: [docs_cursor/README.md](docs_cursor/README.md) — 문서만으로 필요한 정보를 얻을 수 있도록 정리된 SSOT.
+
 ---
 
 ## 앱 구분 (SSOT)
