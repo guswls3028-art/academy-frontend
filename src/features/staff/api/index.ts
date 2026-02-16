@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PATH: src/features/staff/api/index.ts
  * Staff Domain API – Single Source of Truth
  */
@@ -12,6 +12,6 @@ export * from "./expenses.api";
 export * from "./workMonthLocks.api";
 
 export * from "./payrollSnapshots.api";
-export * from "./payrollSnapshotPDF.api";
+export * from "./payrollSnapshotPdf.api";
 
 export * from "./staffWorkType.api";

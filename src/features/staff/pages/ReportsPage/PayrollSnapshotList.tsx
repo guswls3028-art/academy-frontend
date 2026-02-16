@@ -1,4 +1,4 @@
-﻿// PATH: src/features/staff/pages/ReportsPage/PayrollSnapshotList.tsx
+// PATH: src/features/staff/pages/ReportsPage/PayrollSnapshotList.tsx
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import {
   fetchPayrollSnapshots,
   exportPayrollSnapshotExcel,
 } from "../../api/payrollSnapshots.api";
-import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
 import ActionButton from "../../components/ActionButton";
 
 export default function PayrollSnapshotList({
