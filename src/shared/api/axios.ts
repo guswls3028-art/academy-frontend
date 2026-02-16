@@ -88,21 +88,21 @@ const api: AxiosInstance = axios.create({
   withCredentials: false,
 });
 
-/** hostname → 테넌트 코드 (최초 진입 시 / 또는 /login 일 때 사용) */
+/** hostname → 테넌트 코드 (중앙 API로 요청할 때만 사용) */
 const HOSTNAME_TO_TENANT_CODE: Record<string, string> = {
   "tchul.com": "tchul",
   "www.tchul.com": "tchul",
   "limglish.kr": "limglish",
   "www.limglish.kr": "limglish",
-  "ymath.kr": "ymath",
-  "www.ymath.kr": "ymath",
+  "ymath.co.kr": "ymath",
+  "www.ymath.co.kr": "ymath",
   "hakwonplus.com": "hakwonplus",
   "www.hakwonplus.com": "hakwonplus",
 };
 
 /**
  * 테넌트 코드 추출: 1) /login/tchul 2) hostname 3) sessionStorage
- * 로그인 후 /admin 이동해도 sessionStorage로 유지.
+ * 중앙 API(다른 호스트)로 요청할 때만 사용.
  */
 function getTenantCodeForRequest(): string | null {
   try {
@@ -130,9 +130,24 @@ function getTenantCodeForRequest(): string | null {
 }
 
 /**
+ * 1테넌트 = 1도메인이면 API 요청 Host와 페이지 Host가 같음 → request.get_host()로 테넌트 판별 가능.
+ * 중앙 API(다른 호스트)로 요청할 때만 X-Tenant-Code 전송.
+ */
+function isCrossOriginApi(): boolean {
+  if (typeof window === "undefined" || !API_BASE) return false;
+  try {
+    const apiHost = new URL(API_BASE.replace(/\/$/, "") || "http://x").hostname;
+    const pageHost = window.location.hostname;
+    return apiHost !== pageHost;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Request interceptor
  * - attach JWT Bearer (if available)
- * - attach X-Tenant-Code when SPA is on tenant domain (e.g. tchul.com) but API is api.hakwonplus.com
+ * - X-Tenant-Code: 중앙 API(다른 호스트)로 요청할 때만 전송. 1테넌트=1도메인이면 Host만으로 판별하므로 미전송.
  */
 api.interceptors.request.use((config) => {
   const cfg = config;
@@ -153,10 +168,13 @@ api.interceptors.request.use((config) => {
     import.meta.env.VITE_APP_VERSION || "dev"
   );
 
-  // 중앙 API(api.hakwonplus.com)로 요청 시 테넌트 식별용 (백엔드 resolver가 Host 대신 이걸 사용)
-  const tenantCode = getTenantCodeForRequest();
-  if (tenantCode) {
-    (cfg.headers as any)["X-Tenant-Code"] = tenantCode;
+  // 1테넌트=1도메인(tchul.com, ymath.co.kr 등)이면 API도 같은 도메인 → Host로 테넌트 판별, 헤더 불필요.
+  // 중앙 API(api.hakwonplus.com 등 다른 호스트)로 요청할 때만 X-Tenant-Code 전송.
+  if (isCrossOriginApi()) {
+    const tenantCode = getTenantCodeForRequest();
+    if (tenantCode) {
+      (cfg.headers as any)["X-Tenant-Code"] = tenantCode;
+    }
   }
 
   // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록
