@@ -185,10 +185,10 @@ export default function TenantBrandingPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800 mb-2">
+          <h1 className="text-xl font-bold text-slate-900 mb-2">
             Tenant Management
           </h1>
-          <p className="text-slate-600">
+          <p className="text-slate-700">
             테넌트 관리, 브랜딩 설정, Owner 등록
           </p>
         </div>
@@ -214,41 +214,41 @@ export default function TenantBrandingPage() {
 
       {showCreateForm && (
         <div className="mb-6 bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-lg font-medium text-slate-800 mb-4">새 테넌트 생성</h2>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">새 테넌트 생성</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-900 mb-2">
                 코드 *
               </label>
               <input
                 type="text"
                 value={newTenantCode}
                 onChange={(e) => setNewTenantCode(e.target.value)}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                 placeholder="예: tchul"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-900 mb-2">
                 이름 *
               </label>
               <input
                 type="text"
                 value={newTenantName}
                 onChange={(e) => setNewTenantName(e.target.value)}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                 placeholder="예: 천안학원"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-900 mb-2">
                 도메인 (선택)
               </label>
               <input
                 type="text"
                 value={newTenantDomain}
                 onChange={(e) => setNewTenantDomain(e.target.value)}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                 placeholder="예: tchul.hakwonplus.com"
               />
             </div>
@@ -281,10 +281,10 @@ export default function TenantBrandingPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-medium text-slate-800">
+                  <h2 className="text-lg font-semibold text-slate-900">
                     {name} ({tenant.code})
                   </h2>
-                  <div className="text-sm text-slate-500 mt-1">
+                  <div className="text-sm text-slate-600 mt-1">
                     ID: {id} | 도메인: {tenant.primaryDomain || "없음"} |{" "}
                     {tenant.isActive ? (
                       <span className="text-green-600">활성</span>
