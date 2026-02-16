@@ -393,7 +393,8 @@ export default function Header() {
           )}
         </div>
 
-        {/* CENTER */}
+        {/* CENTER: PC에서만 검색창 표시 */}
+        {!isMobile && (
         <div className="app-header__center">
           <div style={{ width: "min(720px, 100%)" }}>
             <Input
@@ -416,9 +417,11 @@ export default function Header() {
             />
           </div>
         </div>
+        )}
 
         {/* RIGHT */}
         <div className="app-header__right">
+          {!isMobile && (
           <Dropdown menu={quickMenu} trigger={["click"]} placement="bottomRight">
             <span>
               <Button
@@ -431,6 +434,7 @@ export default function Header() {
               </Button>
             </span>
           </Dropdown>
+          )}
 
           <Button
             intent="secondary"
