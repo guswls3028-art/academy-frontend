@@ -356,19 +356,6 @@ export default function Header() {
             leftIcon={<IconMenu />}
           />
 
-          {teacherView && (
-            <Button
-              intent="ghost"
-              size="lg"
-              iconOnly
-              className="app-header__iconBtn"
-              onClick={() => teacherView.setForceView(isMobile ? "desktop" : "mobile")}
-              aria-label={isMobile ? "PC 버전으로 보기" : "모바일 버전으로 보기"}
-              title={isMobile ? "PC 버전으로 보기" : "모바일 버전으로 보기"}
-              leftIcon={isMobile ? <IconMonitor /> : <IconSmartphone />}
-            />
-          )}
-
           <div className="app-header__brand">
             <span className="app-header__brandMark" aria-hidden>
               {logoUrl ? (
