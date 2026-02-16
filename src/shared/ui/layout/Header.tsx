@@ -8,6 +8,7 @@ import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
 import { useNotices } from "@/features/notice/context/NoticeContext";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
+import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
 import { Button } from "@/shared/ui/ds";
 import { fetchLecture, fetchSession } from "@/features/lectures/api/sessions";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
