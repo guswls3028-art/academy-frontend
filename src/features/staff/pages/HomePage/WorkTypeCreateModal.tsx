@@ -63,14 +63,14 @@ export default function WorkTypeCreateModal({
   return (
     <AdminModal open={open} onClose={onClose} type="action">
       <ModalHeader
-        title="근무유형 생성"
-        description="직원 근무 기록에 사용될 근무유형을 추가합니다."
+        title="시급태그 생성"
+        description="직원 시급태그로 사용할 유형을 추가합니다. 생성 후 테이블 시급태그 영역에서 직원별로 적용할 수 있습니다."
         type="action"
       />
 
       <ModalBody>
         <div className="grid gap-3">
-          <Field label="근무유형명 *">
+          <Field label="시급태그명 *">
             <input
               className="ds-input"
               value={form.name}
