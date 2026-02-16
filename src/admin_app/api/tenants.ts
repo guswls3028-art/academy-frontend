@@ -62,10 +62,13 @@ export async function updateTenant(
 /** POST register owner for tenant */
 export async function registerTenantOwner(
   tenantId: number,
-  username: string
+  payload: {
+    username: string;
+    password?: string;
+    name?: string;
+    phone?: string;
+  }
 ): Promise<TenantOwnerDto> {
-  const res = await api.post<TenantOwnerDto>(`/core/tenants/${tenantId}/owner/`, {
-    username,
-  });
+  const res = await api.post<TenantOwnerDto>(`/core/tenants/${tenantId}/owner/`, payload);
   return res.data;
 }
