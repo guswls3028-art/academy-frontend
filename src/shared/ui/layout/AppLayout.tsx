@@ -67,6 +67,11 @@ export default function AppLayout() {
               },
             }}
           >
+            {isMobile ? (
+              <AdminLayoutProvider>
+                <AppLayoutMobile />
+              </AdminLayoutProvider>
+            ) : (
             <div
               data-app="admin"
               style={{
@@ -77,7 +82,7 @@ export default function AppLayout() {
                 color: "var(--color-text-primary)",
               }}
             >
-              {/* ===== ROOT GRID: 높이 고정으로 main 영역만 스크롤 ===== */}
+              {/* ===== ROOT GRID: PC 레이아웃 ===== */}
               <div
                 style={{
                   display: "grid",
@@ -87,7 +92,6 @@ export default function AppLayout() {
                   minHeight: 0,
                 }}
               >
-                {/* ===== 공용 헤더: 사이드바 링크된 모든 admin 페이지에 동일 적용 ===== */}
                 <header
                   style={{
                     gridColumn: "1 / -1",
@@ -103,7 +107,6 @@ export default function AppLayout() {
                   <Header />
                 </header>
 
-                {/* ===== SIDEBAR ===== */}
                 <aside
                   className="sidebar"
                   style={{
@@ -117,7 +120,6 @@ export default function AppLayout() {
                   <Sidebar />
                 </aside>
 
-                {/* ===== MAIN: 스크롤 컨테이너 (그리드 1fr로 높이 제한됨) ===== */}
                 <main
                   style={{
                     gridRow: "2",
@@ -141,9 +143,9 @@ export default function AppLayout() {
                   </div>
                 </main>
               </div>
-              {/* 우하단 비동기 상태 SSOT (Windows 알림 스타일, 접기/펼치기) */}
               <AsyncStatusBar />
             </div>
+            )}
           </ConfigProvider>
         </NoticeProvider>
       </ProgramProvider>
