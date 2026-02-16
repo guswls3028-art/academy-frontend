@@ -6,6 +6,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import AdminRouter from "./AdminRouter";
 import StudentRouter from "@/student/app/StudentRouter";
 import AuthRouter from "./AuthRouter";
+import AdminAppRouter from "@/admin_app/router/AdminAppRouter";
 
 import TenantRequiredPage from "@/features/auth/pages/TenantRequiredPage";
 import useAuth from "@/features/auth/hooks/useAuth";
@@ -79,6 +80,7 @@ export default function AppRouter() {
         }
       >
         <Route path="/admin/*" element={<AdminRouter />} />
+        <Route path="/dev/*" element={<AdminAppRouter />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

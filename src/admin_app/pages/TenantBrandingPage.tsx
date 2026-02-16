@@ -6,10 +6,8 @@ import { getTenantBranding } from "@/shared/tenant/config";
 import type { TenantId } from "@/shared/tenant/config";
 import {
   uploadTenantLogo,
-  getTenantBranding as fetchBranding,
   patchTenantBranding,
 } from "@/admin_app/api/branding";
-import api from "@/shared/api/axios";
 
 const TENANTS: { id: TenantId; name: string }[] = [
   { id: 1, name: "hakwonplus" },
