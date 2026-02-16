@@ -86,7 +86,7 @@
 
 **대상**: `src/app/`, `src/features/`, `src/shared/` (선생/관리자 앱). 개발앱(admin_app)·학생앱(student) 제외.
 
-- **뷰포트**: `useIsMobile()` (768px 이하 = 모바일). `src/shared/hooks/useIsMobile.ts`.
+- **뷰포트**: `useIsMobile()` (1024px 이하 = 모바일). `src/shared/hooks/useIsMobile.ts`.
 - **PC**: 기존과 동일. `AppLayout` → Header + Sidebar + Main.
 - **모바일**: `AppLayout`에서 `isMobile`이면 `AdminLayoutProvider` + `AppLayoutMobile`.
   - 상단 Header(로고·메뉴 버튼·알림·테마·계정). 브레드크럼·중앙 검색·만들기 버튼은 모바일에서 숨김.
