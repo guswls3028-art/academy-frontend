@@ -332,7 +332,8 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, username: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                          style={{ color: '#111827' }}
                           placeholder="예: admin97"
                         />
                       </div>
@@ -349,7 +350,8 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, password: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                          style={{ color: '#111827' }}
                           placeholder="비밀번호 입력"
                         />
                       </div>
