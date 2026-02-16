@@ -7,6 +7,7 @@ import useAuth from "@/features/auth/hooks/useAuth";
 import { Button } from "@/shared/ui/ds";
 import { useProgram } from "@/shared/program";
 import { type TenantId, getTenantBranding } from "@/shared/tenant";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 
 type Props = { tenantId: TenantId };
 
