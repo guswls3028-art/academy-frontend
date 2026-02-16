@@ -109,9 +109,11 @@ export function StaffHomeTable({
     ? onSelectionChange
     : setInternalSelected;
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const allIds = useMemo(() => dataSource.map((r) => r.id), [dataSource]);
-  const allSelected =
-    dataSource.length > 0 && allIds.every((id) => selectedSet.has(id));
+  const allIds = useMemo(
+    () => (hasOwner ? [OWNER_SELECTION_ID] : []).concat(dataSource.map((r) => r.id)),
+    [hasOwner, dataSource]
+  );
+  const allSelected = allIds.length > 0 && allIds.every((id) => selectedSet.has(id));
 
   const toggleSelect = (id: number) => {
     if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
