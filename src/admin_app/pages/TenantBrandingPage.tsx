@@ -272,24 +272,26 @@ export default function TenantBrandingPage() {
           <p className="text-slate-500 text-sm">로딩 중...</p>
         ) : (
           <ul className="space-y-3">
-            {tenants.flatMap((t) => {
-              const domains = t.domains?.length ? t.domains : (t.primaryDomain ? [t.primaryDomain] : []);
-              return domains.map((host) => (
-                <li
-                  key={`${t.id}-${host}`}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"
-                >
-                  <span className="font-medium text-slate-900">{host}</span>
-                  <span className="text-xs text-slate-600">
-                    <span className="inline-flex items-center gap-1 text-green-600">Active</span>
-                    <span className="ml-2 inline-flex items-center gap-1 text-slate-500">SSL enabled</span>
-                  </span>
-                </li>
-              ));
-            })}
-            {tenants.length > 0 && tenants.every((t) => !(t.domains?.length || t.primaryDomain)) && (
-              <li className="text-slate-500 text-sm">등록된 커스텀 도메인이 없습니다.</li>
-            )}
+            {(() => {
+              const items = tenants.flatMap((t) => {
+                const domains = t.domains?.length ? t.domains : (t.primaryDomain ? [t.primaryDomain] : []);
+                return domains.map((host) => (
+                  <li
+                    key={`${t.id}-${host}`}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"
+                  >
+                    <span className="font-medium text-slate-900">{host}</span>
+                    <span className="text-xs text-slate-600">
+                      <span className="inline-flex items-center gap-1 text-green-600">Active</span>
+                      <span className="ml-2 inline-flex items-center gap-1 text-slate-500">SSL enabled</span>
+                    </span>
+                  </li>
+                ));
+              });
+              if (items.length === 0)
+                return <li className="text-slate-500 text-sm">등록된 커스텀 도메인이 없습니다.</li>;
+              return items;
+            })()}
           </ul>
         )}
       </div>
