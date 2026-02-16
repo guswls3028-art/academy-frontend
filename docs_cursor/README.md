@@ -16,7 +16,8 @@
 
 ## 날짜별 스냅샷
 
-- **docs/SSOT_0217/**: 2025-02-17 현시점 문서 스냅샷. 이후 SSOT_0218, SSOT_0219 … 생성하여 섞이지 않게 관리.
+- **docs/SSOT_0217/**: 2025-02-17 현시점 문서 스냅샷.
+- **SSOT_0218 이후**: `docs/SSOT_MMDD/` 안에 **cursor_only/** (AI 전용) + **admin97/** (사람용) 필수. 사람이 보는 문서는 admin97에만. 규칙: `.cursor/rules/ssot-folder-structure.mdc`
 
 ## 원본 문서 위치
 
