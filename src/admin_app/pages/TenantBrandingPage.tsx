@@ -55,6 +55,16 @@ export default function TenantBrandingPage() {
     loadTenants();
   }, []);
 
+  // 성공 메시지 5초 후 자동 제거
+  useEffect(() => {
+    if (!message || messageType !== "success") return;
+    const t = setTimeout(() => {
+      setMessage(null);
+      setMessageType(null);
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [message, messageType]);
+
   const loadTenants = async () => {
     try {
       setLoading(true);
@@ -82,6 +92,7 @@ export default function TenantBrandingPage() {
       });
     } catch (e) {
       setMessage("테넌트 목록을 불러오는데 실패했습니다: " + String(e));
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
@@ -90,16 +101,16 @@ export default function TenantBrandingPage() {
   const handleCreateTenant = async () => {
     if (!newTenantCode || !newTenantName) {
       setMessage("코드와 이름을 입력해주세요.");
+      setMessageType("error");
       return;
     }
-    
     if (createOwnerWithTenant) {
       if (!newOwnerUsername || !newOwnerPassword) {
         setMessage("오너 계정 생성 시 사용자명과 비밀번호는 필수입니다.");
+        setMessageType("error");
         return;
       }
     }
-    
     try {
       const tenant = await createTenant({
         code: newTenantCode,
