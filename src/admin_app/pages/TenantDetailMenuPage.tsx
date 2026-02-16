@@ -14,6 +14,10 @@ export default function TenantDetailMenuPage() {
   const [tenant, setTenant] = useState<TenantDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [owners, setOwners] = useState<TenantOwnerDto[]>([]);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [removingId, setRemovingId] = useState<number | null>(null);
 
   const loadTenant = useCallback(() => {
     const id = tenantId ? parseInt(tenantId, 10) : NaN;
