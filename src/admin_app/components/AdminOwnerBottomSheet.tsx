@@ -47,7 +47,7 @@ export default function AdminOwnerBottomSheet({ open, onClose, tenantId, tenantN
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} aria-hidden />
-      <div className="fixed left-0 right-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-xl max-h-[85vh] flex flex-col pb-env(safe-area-inset-bottom)">
+      <div className="fixed left-0 right-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-xl max-h-[85vh] flex flex-col pb-8">
         <div className="shrink-0 flex items-center justify-between p-4 border-b border-slate-200">
           <h2 className="text-lg font-semibold text-slate-900">Owner 등록</h2>
           <button type="button" onClick={onClose} className="p-2 -m-2 rounded-lg text-slate-500 min-w-[48px] min-h-[48px] flex items-center justify-center" aria-label="닫기">✕</button>
