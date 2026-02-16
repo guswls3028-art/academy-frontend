@@ -253,8 +253,20 @@ export default function TenantListPage() {
                     onTouchMove={(e) => onSwipeMove(e, tenant.id)}
                     onTouchEnd={() => onSwipeEnd(tenant.id)}
                   >
-                    <Link
-                      to={`/dev/branding/${tenant.id}`}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (openSwipeId === tenant.id) setOpenSwipeId(null);
+                        else navigate(`/dev/branding/${tenant.id}`);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          if (openSwipeId === tenant.id) setOpenSwipeId(null);
+                          else navigate(`/dev/branding/${tenant.id}`);
+                        }
+                      }}
                       className="absolute inset-0 z-0"
                       aria-label={`${tenant.name} 설정`}
                     />
