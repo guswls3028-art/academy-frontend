@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 import { asyncStatusStore } from "./asyncStatusStore";
 import { getJobStatus } from "@/shared/api/jobStatus";
 
-const POLL_INTERVAL_MS = 2000;
+const POLL_INTERVAL_MS = 1000;
 
 function pollExcelJob(
   taskId: string,
