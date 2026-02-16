@@ -202,7 +202,9 @@ export default function TenantBrandingPage() {
         </div>
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+          className="ds-button"
+          data-intent="primary"
+          data-size="md"
         >
           {showCreateForm ? "취소" : "+ 새 테넌트"}
         </button>
