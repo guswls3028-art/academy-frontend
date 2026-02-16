@@ -1,6 +1,7 @@
 // PATH: src/admin_app/layout/AdminAppLayout.tsx
 // Mobile-first fullscreen layout: full viewport, bottom nav, no sidebar.
 
+import "./AdminAppLayout.css";
 import { Outlet, Link, useLocation } from "react-router-dom";
 
 const NAV = [
