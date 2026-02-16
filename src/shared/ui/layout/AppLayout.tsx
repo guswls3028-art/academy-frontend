@@ -3,12 +3,17 @@ import { Outlet } from "react-router-dom";
 import { ConfigProvider } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import AppLayoutMobile from "./AppLayoutMobile";
+import { AdminLayoutProvider } from "./AdminLayoutContext";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@/features/notice/context/NoticeContext";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
 export default function AppLayout() {
+  const isMobile = useIsMobile();
+
   return (
     <ThemeProvider>
       <ProgramProvider>
