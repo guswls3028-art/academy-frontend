@@ -17,17 +17,23 @@ export default function HomePage() {
   const qc = useQueryClient();
   const { data: staffData, isLoading } = useStaffs();
   const staffs = staffData?.staffs ?? [];
-  const owner = staffData?.owner ?? null;
+  const meQ = useQuery({
+    queryKey: ["staff-me"],
+    queryFn: fetchStaffMe,
+  });
+  /** 목록 API의 owner 우선, 없으면 현재 사용자가 원장일 때 /staffs/me 의 이름으로 표시 */
+  const owner = (() => {
+    if (staffData?.owner?.name) return staffData.owner;
+    if (meQ.data?.is_owner && (meQ.data?.owner_display_name ?? "원장")) {
+      return { id: null, name: meQ.data.owner_display_name || "원장", role: "OWNER" as const, is_owner: true as const };
+    }
+    return null;
+  })();
   const [openCreate, setOpenCreate] = useState(false);
   const [openWorkType, setOpenWorkType] = useState(false);
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
-
-  const meQ = useQuery({
-    queryKey: ["staff-me"],
-    queryFn: fetchStaffMe,
-  });
 
   const canManage = !!meQ.data?.is_payroll_manager;
 
