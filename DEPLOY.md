@@ -10,7 +10,7 @@
 | 출력 디렉터리 | `dist` |
 | Node | 20 (권장) |
 
-빌드 시 자동으로 `dist/index.html` → `dist/404.html` 복사되어, SPA 라우트 직접 접근 시에도 정상 동작합니다.
+Cloudflare Pages는 **루트에 404.html이 없으면** SPA로 간주해 모든 경로(`/admin/students/home` 등)를 루트로 매칭하므로, 빌드에서 404.html을 만들지 않습니다. SPA 라우트 직접 접근 시 정상 동작합니다.
 
 ---
 
