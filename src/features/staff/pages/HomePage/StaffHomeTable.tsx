@@ -76,7 +76,7 @@ const COL = {
   status: TABLE_COL.statusBadge,
   manager: TABLE_COL.statusBadge,
   payType: TABLE_COL.medium,
-  workTypeTags: 180,
+  workTypeTags: 260,
   actions: 120,
 } as const;
 

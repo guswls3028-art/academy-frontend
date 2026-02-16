@@ -142,7 +142,7 @@ export default function HomePage() {
                 intent="secondary"
                 onClick={() => setOpenWorkType(true)}
               >
-                + 근무유형 생성
+                시급태그 생성
               </Button>
               <Button
                 type="button"
