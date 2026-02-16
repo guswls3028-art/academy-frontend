@@ -465,7 +465,7 @@ export default function TenantBrandingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">
                     로그인 타이틀
                   </label>
                   <div className="flex gap-2 mb-3">
@@ -478,19 +478,19 @@ export default function TenantBrandingPage() {
                           [id]: e.target.value,
                         }))
                       }
-                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
+                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                       placeholder="로그인 화면 상단 문구"
                     />
                     <button
                       type="button"
                       onClick={() => handleSaveTitle(id)}
-                      className="px-3 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+                      className="px-3 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600 font-medium"
                     >
                       Save
                     </button>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
                       로그인 서브타이틀
                     </label>
                     <div className="flex gap-2">
@@ -503,13 +503,13 @@ export default function TenantBrandingPage() {
                             [id]: e.target.value,
                           }))
                         }
-                        className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
+                        className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                         placeholder="로그인 화면 하단 문구"
                       />
                       <button
                         type="button"
                         onClick={() => handleSaveTitle(id)}
-                        className="px-3 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+                        className="px-3 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600 font-medium"
                       >
                         Save
                       </button>
