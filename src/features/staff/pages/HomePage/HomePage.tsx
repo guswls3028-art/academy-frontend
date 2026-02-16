@@ -87,20 +87,20 @@ export default function HomePage() {
       <Button
         intent="danger"
         size="sm"
-        disabled={selectedIds.length === 0 || deleting}
+        disabled={selectedIds.filter((id) => id > 0).length === 0 || deleting}
         onClick={async () => {
-          if (selectedIds.length === 0) return;
-          if (!window.confirm(`선택한 ${selectedIds.length}명을 삭제하시겠습니까?`)) return;
+          const staffIds = selectedIds.filter((id) => id > 0);
+          if (staffIds.length === 0) return;
+          if (!window.confirm(`선택한 직원 ${staffIds.length}명을 삭제하시겠습니까? (대표는 삭제되지 않습니다)`)) return;
           setDeleting(true);
-          const count = selectedIds.length;
           try {
-            for (const id of selectedIds) {
+            for (const id of staffIds) {
               await deleteStaff(id);
             }
-            setSelectedIds([]);
+            setSelectedIds(selectedIds.filter((id) => id <= 0));
             qc.invalidateQueries({ queryKey: ["staffs"] });
             qc.invalidateQueries({ queryKey: ["staff"] });
-            feedback.success(`${count}명 삭제되었습니다.`);
+            feedback.success(`${staffIds.length}명 삭제되었습니다.`);
           } catch (e: unknown) {
             feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
           } finally {
