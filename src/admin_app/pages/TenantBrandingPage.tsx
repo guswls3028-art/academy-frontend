@@ -59,6 +59,9 @@ export default function TenantBrandingPage() {
           setLoginTitles((prev) =>
             branding.loginTitle != null ? { ...prev, [tenant.id]: branding.loginTitle! } : prev
           );
+          setLoginSubtitles((prev) =>
+            branding.loginSubtitle != null ? { ...prev, [tenant.id]: branding.loginSubtitle! } : prev
+          );
         }).catch(() => {});
       });
     } catch (e) {
@@ -92,15 +95,29 @@ export default function TenantBrandingPage() {
   };
 
   const handleRegisterOwner = async (tenantId: number) => {
-    const username = ownerForms[tenantId];
-    if (!username) {
+    const form = ownerForms[tenantId];
+    if (!form || !form.username) {
       setMessage("사용자명을 입력해주세요.");
       return;
     }
+    
+    // 새 사용자 생성 시 비밀번호 필수
+    const isNewUser = !form.password;
+    if (isNewUser) {
+      setMessage("새 사용자 생성 시 비밀번호가 필요합니다.");
+      return;
+    }
+    
     try {
-      await registerTenantOwner(tenantId, username);
-      setMessage(`테넌트 ${tenantId}에 ${username}을(를) owner로 등록했습니다.`);
-      setOwnerForms((prev) => ({ ...prev, [tenantId]: "" }));
+      await registerTenantOwner(tenantId, {
+        username: form.username,
+        password: form.password,
+        name: form.name || undefined,
+        phone: form.phone || undefined,
+      });
+      setMessage(`테넌트 ${tenantId}에 ${form.username}을(를) owner로 등록했습니다.`);
+      setOwnerForms((prev) => ({ ...prev, [tenantId]: { username: "", password: "", name: "", phone: "" } }));
+      setShowOwnerForms((prev) => ({ ...prev, [tenantId]: false }));
     } catch (e: unknown) {
       const error = e as { response?: { data?: { detail?: string } } };
       setMessage("Owner 등록 실패: " + (error.response?.data?.detail || String(e)));
