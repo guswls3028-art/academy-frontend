@@ -196,10 +196,11 @@
 }
 
 .async-status-bar__progress {
-  height: 4px;
-  border-radius: 2px;
+  height: 6px;
+  border-radius: 3px;
   background: var(--color-border-divider, #e5e7eb);
   overflow: hidden;
+  margin-top: 6px;
 }
 
 .async-status-bar__progress-fill {
