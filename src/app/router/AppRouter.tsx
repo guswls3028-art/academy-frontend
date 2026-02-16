@@ -86,6 +86,13 @@ export default function AppRouter() {
         }
       >
         <Route path="/admin/*" element={<AdminRouter />} />
+      </Route>
+
+      <Route
+        element={
+          <ProtectedRoute allow={["owner"]} />
+        }
+      >
         <Route path="/dev/*" element={<AdminAppRouter />} />
       </Route>
 
