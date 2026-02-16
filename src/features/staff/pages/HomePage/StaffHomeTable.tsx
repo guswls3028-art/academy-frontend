@@ -262,7 +262,7 @@ export function StaffHomeTable({
               <td onClick={(e) => e.stopPropagation()} style={{ width: COL.checkbox }} className="ds-checkbox-cell align-middle">
                 <input
                   type="checkbox"
-                  checked={selectedSet.has(r.id)}
+                  checked={!!selectedSet.has(r.id)}
                   onChange={() => toggleSelect(r.id)}
                   onClick={(e) => e.stopPropagation()}
                   aria-label={`${r.name} 선택`}
