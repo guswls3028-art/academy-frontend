@@ -51,7 +51,7 @@ export default function OwnerFormCompact({
       if (index < refs.length - 1) {
         refs[index + 1].current?.focus();
       } else {
-        (e.target as HTMLFormElement).form?.requestSubmit();
+        (e.target as HTMLInputElement).form?.requestSubmit();
       }
     },
     []
