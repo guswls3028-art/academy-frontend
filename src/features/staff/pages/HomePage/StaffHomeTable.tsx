@@ -58,6 +58,7 @@ interface Props {
 const COL = {
   checkbox: TABLE_COL.checkbox,
   role: TABLE_COL.status,
+  owner: 56,
   name: TABLE_COL.name,
   phone: TABLE_COL.phone,
   status: TABLE_COL.statusBadge,
@@ -70,6 +71,7 @@ const COL = {
 const TABLE_WIDTH =
   COL.checkbox +
   COL.role +
+  COL.owner +
   COL.name +
   COL.phone +
   COL.status +
@@ -160,6 +162,7 @@ export function StaffHomeTable({
         <colgroup>
           <col style={{ width: COL.checkbox }} />
           <col style={{ width: COL.role }} />
+          <col style={{ width: COL.owner }} />
           <col style={{ width: COL.name }} />
           <col style={{ width: COL.phone }} />
           <col style={{ width: COL.status }} />
@@ -184,6 +187,7 @@ export function StaffHomeTable({
               />
             </th>
             <th scope="col">직위</th>
+            <th scope="col">원장</th>
             <th scope="col">이름</th>
             <th scope="col">전화번호</th>
             <th scope="col">상태</th>
