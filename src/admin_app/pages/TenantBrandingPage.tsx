@@ -258,8 +258,7 @@ export default function TenantBrandingPage() {
                 type="text"
                 value={newTenantDomain}
                 onChange={(e) => setNewTenantDomain(e.target.value)}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                style={{ color: '#111827' }}
+                className="ds-input"
                 placeholder="예: tchul.hakwonplus.com"
               />
             </div>
@@ -267,7 +266,9 @@ export default function TenantBrandingPage() {
           <div className="mt-4">
             <button
               onClick={handleCreateTenant}
-              className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+              className="ds-button"
+              data-intent="primary"
+              data-size="md"
             >
               생성
             </button>
@@ -497,14 +498,15 @@ export default function TenantBrandingPage() {
                           [id]: e.target.value,
                         }))
                       }
-                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                      style={{ color: '#111827' }}
+                      className="ds-input flex-1"
                       placeholder="로그인 화면 상단 문구"
                     />
                     <button
                       type="button"
                       onClick={() => handleSaveTitle(id)}
-                      className="px-3 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600 font-medium"
+                      className="ds-button"
+                      data-intent="primary"
+                      data-size="md"
                     >
                       Save
                     </button>
@@ -523,8 +525,7 @@ export default function TenantBrandingPage() {
                             [id]: e.target.value,
                           }))
                         }
-                        className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                        style={{ color: '#111827' }}
+                        className="ds-input flex-1"
                         placeholder="로그인 화면 하단 문구"
                       />
                       <button
