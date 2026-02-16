@@ -40,10 +40,23 @@ export default function TenantDetailMenuPage() {
     return () => { cancelled = true; };
   }, [tenantId]);
 
-  if (loading || !tenant) {
+  if (loading) {
+    return (
+      <div className="pb-24">
+        <div className="mb-6 h-6 w-20 rounded bg-slate-100 animate-pulse" />
+        <div className="h-12 rounded-lg bg-slate-100 animate-pulse mb-2" />
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (!tenant) {
     return (
       <div className="pb-24 flex items-center justify-center min-h-[40vh]">
-        {loading ? <div className="text-slate-500">로딩 중...</div> : <div className="text-slate-500">테넌트를 찾을 수 없습니다.</div>}
+        <div className="text-slate-500">테넌트를 찾을 수 없습니다.</div>
       </div>
     );
   }
