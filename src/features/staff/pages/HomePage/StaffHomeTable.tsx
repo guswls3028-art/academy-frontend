@@ -123,6 +123,8 @@ export function StaffHomeTable({
     if (allSelected) setSelectedIds(selectedIds.filter((id) => !allIds.includes(id)));
     else setSelectedIds([...new Set([...selectedIds, ...allIds])]);
   };
+  /** 삭제 대상: 원장(OWNER_SELECTION_ID) 제외한 직원 id만 */
+  const staffOnlyIds = useMemo(() => selectedIds.filter((id) => id > 0), [selectedIds]);
 
   const patchPayTypeM = useMutation({
     mutationFn: ({ staffId, pay_type }: { staffId: number; pay_type: "HOURLY" | "MONTHLY" }) =>
