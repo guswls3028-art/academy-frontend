@@ -172,12 +172,12 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     if (busy) return;
     setBusy(true);
     try {
-      const rows = await parseStudentExcel(file);
-      if (!rows.length) {
+      const result = await parseStudentExcel(file);
+      if (!result.rows?.length) {
         alert("등록할 학생 데이터가 없습니다.");
         return;
       }
-      setExcelParsedRows(rows);
+      setExcelParsedRows(result.rows);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "엑셀 파일을 읽는 중 오류가 발생했습니다.";
       alert(msg);
