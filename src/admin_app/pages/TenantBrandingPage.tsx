@@ -479,140 +479,69 @@ export default function TenantBrandingPage() {
                 </div>
               </div>
 
-              {/* Owner 등록 */}
+              {/* Owner 등록 — 사용자명, 비밀번호, 이름, 전화번호만 입력 */}
               <div className="mb-6 p-4 bg-slate-50 rounded border border-slate-200">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-semibold text-slate-900">
-                    Owner 등록
-                  </label>
-                  <button
-                    onClick={() => setShowOwnerForms((prev) => ({ ...prev, [id]: !prev[id] }))}
-                    className="text-xs font-medium text-slate-700 hover:text-slate-900 underline"
-                  >
-                    {showOwnerForms[id] === false ? "상세 모드" : "간단 모드"}
-                  </button>
-                </div>
-                
-                {showOwnerForms[id] !== false ? (
-                  <div className="space-y-3">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-900 mb-1">
-                          사용자명 *
-                        </label>
-                        <input
-                          type="text"
-                          value={ownerForm.username}
-                          onChange={(e) =>
-                            setOwnerForms((prev) => ({
-                              ...prev,
-                              [id]: { ...ownerForm, username: e.target.value },
-                            }))
-                          }
-                          className="ds-input"
-                          data-required="true"
-                          placeholder="예: admin97"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-900 mb-1">
-                          비밀번호 * (새 사용자 생성 시 필수)
-                        </label>
-                        <input
-                          type="password"
-                          value={ownerForm.password}
-                          onChange={(e) =>
-                            setOwnerForms((prev) => ({
-                              ...prev,
-                              [id]: { ...ownerForm, password: e.target.value },
-                            }))
-                          }
-                          className="ds-input"
-                          data-required="true"
-                          placeholder="비밀번호 입력"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-900 mb-1">
-                          이름
-                        </label>
-                        <input
-                          type="text"
-                          value={ownerForm.name}
-                          onChange={(e) =>
-                            setOwnerForms((prev) => ({
-                              ...prev,
-                              [id]: { ...ownerForm, name: e.target.value },
-                            }))
-                          }
-                          className="ds-input"
-                          placeholder="예: 홍길동"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-900 mb-1">
-                          전화번호
-                        </label>
-                        <input
-                          type="text"
-                          value={ownerForm.phone}
-                          onChange={(e) =>
-                            setOwnerForms((prev) => ({
-                              ...prev,
-                              [id]: { ...ownerForm, phone: e.target.value },
-                            }))
-                          }
-                          className="ds-input"
-                          placeholder="예: 01012345678"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleRegisterOwner(id)}
-                        className="ds-button"
-                        data-intent="primary"
-                        data-size="md"
-                      >
-                        등록
-                      </button>
-                      <button
-                        onClick={() => {
-                          setOwnerForms((prev) => ({ ...prev, [id]: { username: "", password: "", name: "", phone: "" } }));
-                          setShowOwnerForms((prev) => ({ ...prev, [id]: false }));
-                        }}
-                        className="ds-button"
-                        data-intent="secondary"
-                        data-size="md"
-                      >
-                        취소
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
+                <h3 className="block text-sm font-semibold text-slate-900 mb-3">Owner 등록</h3>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-900 mb-1">사용자명 *</label>
                     <input
                       type="text"
                       value={ownerForm.username}
                       onChange={(e) =>
-                        setOwnerForms((prev) => ({
-                          ...prev,
-                          [id]: { ...ownerForm, username: e.target.value },
-                        }))
+                        setOwnerForms((prev) => ({ ...prev, [id]: { ...ownerForm, username: e.target.value } }))
                       }
-                      className="ds-input flex-1"
-                      placeholder="사용자명 (기존 사용자)"
+                      className="ds-input"
+                      placeholder="예: admin97"
                     />
-                    <button
-                      onClick={() => handleRegisterOwner(id)}
-                      className="ds-button"
-                      data-intent="primary"
-                      data-size="md"
-                    >
-                      등록
-                    </button>
                   </div>
-                )}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-900 mb-1">비밀번호 *</label>
+                    <input
+                      type="password"
+                      value={ownerForm.password}
+                      onChange={(e) =>
+                        setOwnerForms((prev) => ({ ...prev, [id]: { ...ownerForm, password: e.target.value } }))
+                      }
+                      className="ds-input"
+                      placeholder="비밀번호 입력"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-900 mb-1">이름</label>
+                    <input
+                      type="text"
+                      value={ownerForm.name}
+                      onChange={(e) =>
+                        setOwnerForms((prev) => ({ ...prev, [id]: { ...ownerForm, name: e.target.value } }))
+                      }
+                      className="ds-input"
+                      placeholder="예: 홍길동"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-900 mb-1">전화번호</label>
+                    <input
+                      type="text"
+                      value={ownerForm.phone}
+                      onChange={(e) =>
+                        setOwnerForms((prev) => ({ ...prev, [id]: { ...ownerForm, phone: e.target.value } }))
+                      }
+                      className="ds-input"
+                      placeholder="예: 01012345678"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <button
+                    onClick={() => handleRegisterOwner(id)}
+                    className="ds-button"
+                    data-intent="primary"
+                    data-size="md"
+                  >
+                    Owner 등록
+                  </button>
+                </div>
               </div>
 
               <div className="border-t border-slate-200 pt-4">
