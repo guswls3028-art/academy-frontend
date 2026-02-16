@@ -103,7 +103,15 @@ export default function HomePage() {
   return (
     <div className="flex flex-col gap-4">
       <DomainListToolbar
-        totalLabel={isLoading ? "…" : Array.isArray(staffs) ? `총 ${staffs.length}명` : "—"}
+        totalLabel={
+          isLoading
+            ? "…"
+            : owner
+              ? `총 ${staffs.length + 1}명 (원장 1명 포함)`
+              : Array.isArray(staffs)
+                ? `총 ${staffs.length}명`
+                : "—"
+        }
         searchSlot={
           <input
             className="ds-input"
