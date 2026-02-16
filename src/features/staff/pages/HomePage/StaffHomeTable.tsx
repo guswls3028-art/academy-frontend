@@ -243,6 +243,7 @@ export function StaffHomeTable({
                   {r.role === "TEACHER" ? "강사" : "조교"}
                 </span>
               </td>
+              <td className="align-middle text-[var(--color-text-muted)]">—</td>
               <td className="text-[15px] font-semibold leading-6 text-[var(--color-text-primary)] truncate align-middle">
                 {r.name}
               </td>
