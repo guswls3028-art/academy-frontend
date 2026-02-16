@@ -147,14 +147,32 @@ export default function TenantBrandingPage() {
     }
   }, [loginTitles]);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-slate-600">테넌트 목록을 불러오는 중...</div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-800 mb-2">
-        Tenant branding
-      </h1>
-      <p className="text-slate-600 mb-6">
-        테넌트별 로고·로그인 타이틀. 로고는 R2(academy-admin)에 저장됩니다.
-      </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-800 mb-2">
+            Tenant Management
+          </h1>
+          <p className="text-slate-600">
+            테넌트 관리, 브랜딩 설정, Owner 등록
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+        >
+          {showCreateForm ? "취소" : "+ 새 테넌트"}
+        </button>
+      </div>
 
       {message && (
         <div
@@ -168,8 +186,62 @@ export default function TenantBrandingPage() {
         </div>
       )}
 
+      {showCreateForm && (
+        <div className="mb-6 bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-medium text-slate-800 mb-4">새 테넌트 생성</h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                코드 *
+              </label>
+              <input
+                type="text"
+                value={newTenantCode}
+                onChange={(e) => setNewTenantCode(e.target.value)}
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                placeholder="예: tchul"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                이름 *
+              </label>
+              <input
+                type="text"
+                value={newTenantName}
+                onChange={(e) => setNewTenantName(e.target.value)}
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                placeholder="예: 천안학원"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                도메인 (선택)
+              </label>
+              <input
+                type="text"
+                value={newTenantDomain}
+                onChange={(e) => setNewTenantDomain(e.target.value)}
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                placeholder="예: tchul.hakwonplus.com"
+              />
+            </div>
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={handleCreateTenant}
+              className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+            >
+              생성
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-8">
-        {TENANTS.map(({ id, name }) => {
+        {tenants.map((tenant) => {
+          const id = tenant.id;
+          const name = tenant.name;
           const fallback = getTenantBranding(id);
           const logoUrl = logoUrls[id] ?? fallback.logoUrl;
           const loginTitle = loginTitles[id] ?? fallback.loginTitle;
