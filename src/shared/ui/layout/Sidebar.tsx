@@ -1,34 +1,13 @@
 // PATH: src/shared/ui/layout/Sidebar.tsx
 import { NavLink, useLocation } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  ADMIN_NAV_BASE,
+  ADMIN_NAV_GROUPS,
+  NavIcon,
+} from "./adminNavConfig";
 
-const BASE = "/admin";
 const SIDEBAR_STORAGE_KEY = "ui.sidebar.collapsed";
-
-type NavItem = {
-  to: string;
-  label: string;
-  icon: React.ReactNode;
-};
-
-type NavGroup = {
-  title?: string;
-  items: NavItem[];
-};
-
-function Icon({ d }: { d: string }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d={d}
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function safeGetCollapsed(): boolean {
   try {
