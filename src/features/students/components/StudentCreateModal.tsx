@@ -1,5 +1,5 @@
 // PATH: src/features/students/components/StudentCreateModal.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
 import {
@@ -7,6 +7,7 @@ import {
   formatIdentifierForInput,
   parsePhoneInput,
 } from "@/shared/utils/phoneInput";
+import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { createStudent, bulkCreateStudents, bulkResolveConflicts } from "../api/students";
 import {
   downloadStudentExcelTemplate,
@@ -61,7 +62,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [excelParsedRows, setExcelParsedRows] = useState<ParsedStudentRow[] | null>(null);
   const [conflictResolutions, setConflictResolutions] = useState<Record<number, "restore" | "delete">>({});
   const [batchConflictAction, setBatchConflictAction] = useState<"restore" | "delete" | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [form, setForm] = useState({
@@ -183,7 +183,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       alert(msg);
     } finally {
       setBusy(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -764,50 +763,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </Button>
           </div>
 
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-            style={{
-              border: "2px dashed var(--color-border-divider)",
-              borderRadius: "var(--radius-lg)",
-              padding: "var(--space-8)",
-              textAlign: "center",
-              cursor: "pointer",
-              background: "var(--color-bg-surface-soft)",
-              color: "var(--color-text-secondary)",
-            }}
-            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-primary)"; }}
-            onDragLeave={(e) => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border-divider)"; }}
-            onDrop={(e) => {
-              e.preventDefault();
-              (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border-divider)";
-              const file = e.dataTransfer.files[0];
-              if (file && /\.(xlsx|xls)$/i.test(file.name)) {
-                handleExcelFileSelect(file);
-              } else {
-                alert("엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.");
-              }
-            }}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleExcelFileSelect(file);
-              }}
-            />
-            <div className="modal-section-label" style={{ fontSize: 15, marginBottom: "var(--space-2)" }}>
-              엑셀 파일을 드래그하거나 클릭하여 업로드
-            </div>
-            <div className="modal-hint" style={{ marginTop: "var(--space-1)" }}>
-              .xlsx, .xls · 필수: 이름, 학부모 전화. 학생 전화 선택(없으면 학부모 8자리 OMR). 아이디 6자리 자동.
-            </div>
-          </div>
+          <ExcelUploadZone onFileSelect={handleExcelFileSelect} disabled={busy} />
 
           {excelParsedRows && excelParsedRows.length > 0 && (
             <div className="modal-form-group modal-form-group--row" style={{ justifyContent: "space-between" }}>

@@ -1,5 +1,6 @@
 // PATH: src/shared/ui/time/TimeRangeInput.tsx
 // 전역 SSOT: 시작/종료 시간 — 12시간제(오전/오후) 원스크롤 순환, 시간 영역 클릭 시 피커, [+−30분·1시간].
+// 모달 SSOT: startLabel "시작" / endLabel "종료" 시 트리거 빈값 문구는 "시작 시간" / "종료 시간" 단일진실.
 
 import { useRef, useState } from "react";
 import { Clock, ChevronDown } from "lucide-react";
@@ -14,6 +15,9 @@ export interface TimeRangeInputProps {
   disabled?: boolean;
   startPlaceholder?: string;
   endPlaceholder?: string;
+  /** 레이블 짧게 쓸 때 (모달 등): "시작" "종료" → 줄바꿈 방지 */
+  startLabel?: string;
+  endLabel?: string;
 }
 
 function parseRange(value: string): { start: string; end: string } {
@@ -81,12 +85,20 @@ export default function TimeRangeInput({
   disabled = false,
   startPlaceholder = "00:00",
   endPlaceholder = "00:00",
+  startLabel = "시작시간",
+  endLabel = "종료시간",
 }: TimeRangeInputProps) {
   const startAnchorRef = useRef<HTMLDivElement>(null);
   const endAnchorRef = useRef<HTMLDivElement>(null);
   const [openStart, setOpenStart] = useState(false);
   const [openEnd, setOpenEnd] = useState(false);
   const { start, end } = parseRange(value);
+
+  /** 모달 SSOT: 레이블 "시작"/"종료"일 때 트리거 빈값 문구 "시작 시간"/"종료 시간" */
+  const startTriggerPlaceholder =
+    startLabel === "시작" ? "시작 시간" : startPlaceholder === "00:00" ? "오전 12:00" : startPlaceholder;
+  const endTriggerPlaceholder =
+    endLabel === "종료" ? "종료 시간" : endPlaceholder === "00:00" ? "오전 12:00" : endPlaceholder;
 
   const setStart = (v: string) => onChange(formatRange(toHHmm(v) || v, end));
   const setEnd = (v: string) => onChange(formatRange(start, toHHmm(v) || v));
@@ -109,20 +121,29 @@ export default function TimeRangeInput({
     <div className="shared-time-range">
       <div className="shared-time-range-card">
         <div className="shared-time-range-grid">
-          <label className="shared-time-range-label">시작시간</label>
+          <label className="shared-time-range-label">{startLabel}</label>
           <div className="shared-time-range-input-wrap">
             <div
               ref={startAnchorRef}
               role="button"
               tabIndex={disabled ? -1 : 0}
               className={`shared-time-range-trigger ${!start ? "shared-time-range-trigger--placeholder" : ""}`}
-              onClick={() => !disabled && setOpenStart(true)}
-              onKeyDown={(e) => e.key === "Enter" && !disabled && setOpenStart(true)}
+              onClick={() => {
+                if (disabled) return;
+                setOpenEnd(false);
+                setOpenStart((prev) => !prev);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !disabled) {
+                  setOpenEnd(false);
+                  setOpenStart((prev) => !prev);
+                }
+              }}
               aria-label="시작 시간 선택"
             >
               <Clock className="shared-time-range-trigger-clock" size={20} aria-hidden />
               <span className="shared-time-range-trigger-text">
-                {start ? format24To12Display(start) : (startPlaceholder === "00:00" ? "오전 12:00" : startPlaceholder)}
+                {start ? format24To12Display(start) : startTriggerPlaceholder}
               </span>
               <ChevronDown className="shared-time-range-trigger-icon" size={18} aria-hidden />
             </div>
@@ -164,20 +185,29 @@ export default function TimeRangeInput({
             </button>
           </div>
 
-          <label className="shared-time-range-label">종료시간</label>
+          <label className="shared-time-range-label">{endLabel}</label>
           <div className="shared-time-range-input-wrap">
             <div
               ref={endAnchorRef}
               role="button"
               tabIndex={disabled ? -1 : 0}
               className={`shared-time-range-trigger ${!end ? "shared-time-range-trigger--placeholder" : ""}`}
-              onClick={() => !disabled && setOpenEnd(true)}
-              onKeyDown={(e) => e.key === "Enter" && !disabled && setOpenEnd(true)}
+              onClick={() => {
+                if (disabled) return;
+                setOpenStart(false);
+                setOpenEnd((prev) => !prev);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !disabled) {
+                  setOpenStart(false);
+                  setOpenEnd((prev) => !prev);
+                }
+              }}
               aria-label="종료 시간 선택"
             >
               <Clock className="shared-time-range-trigger-clock" size={20} aria-hidden />
               <span className="shared-time-range-trigger-text">
-                {end ? format24To12Display(end) : (endPlaceholder === "00:00" ? "오전 12:00" : endPlaceholder)}
+                {end ? format24To12Display(end) : endTriggerPlaceholder}
               </span>
               <ChevronDown className="shared-time-range-trigger-icon" size={18} aria-hidden />
             </div>

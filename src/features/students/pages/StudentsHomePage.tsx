@@ -10,6 +10,8 @@ import {
   bulkDeleteStudents,
   bulkRestoreStudents,
   bulkPermanentDeleteStudents,
+  checkDeletedStudentDuplicates,
+  fixDeletedStudentDuplicates,
   toggleStudentActive,
 } from "../api/students";
 import StudentsTable from "../components/StudentsTable";
@@ -46,6 +48,7 @@ export default function StudentsHomePage() {
     return [];
   });
   const [deleting, setDeleting] = useState(false);
+  const [duplicateFixing, setDuplicateFixing] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   useEffect(() => {
@@ -128,8 +131,8 @@ export default function StudentsHomePage() {
           <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
             엑셀 다운로드
           </Button>
-          <Button intent="secondary" size="sm" onClick={() => feedback.info("태그 추가 기능 준비 중입니다.")}>
-            태그 추가
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("시급 태그 추가 기능 준비 중입니다.")}>
+            시급 태그 추가
           </Button>
           <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
             비밀번호 변경
@@ -248,7 +251,60 @@ export default function StudentsHomePage() {
     <>
       <div className="flex flex-col gap-4">
         <DomainListToolbar
-          totalLabel={isLoading ? "…" : `총 ${totalCount}명${isDeletedTab ? " (30일 후 자동 삭제)" : ""}`}
+          totalLabel={
+            isLoading ? (
+              "…"
+            ) : isDeletedTab ? (
+              // SSOT 디자인 예외: 삭제된 학생 탭에서만 총계 좌측에 중복 정리(새로고침) 아이콘 노출
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <button
+                  type="button"
+                  title="중복 정리"
+                  aria-label="중복 정리"
+                  disabled={deleting || duplicateFixing}
+                  onClick={async () => {
+                    try {
+                      const r = await checkDeletedStudentDuplicates();
+                      if (r.records_to_remove === 0) return;
+                      setDuplicateFixing(true);
+                      await fixDeletedStudentDuplicates();
+                      qc.invalidateQueries({ queryKey: ["students"] });
+                    } catch {
+                      // 조용히 실패 — 사용자에게 버그 존재를 노출하지 않음
+                    } finally {
+                      setDuplicateFixing(false);
+                    }
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 28,
+                    height: 28,
+                    padding: 0,
+                    border: "1px solid var(--color-border-divider)",
+                    borderRadius: 6,
+                    background: "var(--color-bg-surface)",
+                    color: "var(--color-text-secondary)",
+                    cursor: deleting || duplicateFixing ? "not-allowed" : "pointer",
+                    opacity: deleting || duplicateFixing ? 0.6 : 1,
+                  }}
+                >
+                  {duplicateFixing ? (
+                    <span style={{ fontSize: 12 }}>…</span>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M23 4v6h-6M1 20v-6h6" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                  )}
+                </button>
+                <span>총 {totalCount}명 (30일 후 자동 삭제)</span>
+              </span>
+            ) : (
+              `총 ${totalCount}명`
+            )
+          }
           searchSlot={
             <input
               className="ds-input"

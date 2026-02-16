@@ -1,5 +1,6 @@
 // PATH: src/features/staff/api/payrollSnapshots.api.ts
 import api from "@/shared/api/axios";
+import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
 
 /** Backend: PayrollSnapshotSerializer (work_hours Decimal, no updated_at) */
 export type PayrollSnapshot = {
@@ -40,30 +41,24 @@ export async function fetchPayrollSnapshots(params: {
 }
 
 /**
- * GET /staffs/payroll-snapshots/export-excel/
+ * POST /staffs/payroll-snapshots/export-excel/ → job_id → 폴링 → download_url 다운로드
  */
 export async function exportPayrollSnapshotExcel(params: {
   year: number;
   month: number;
-}) {
-  const res = await api.get(
+}): Promise<void> {
+  const res = await api.post<{ job_id: string; status: string }>(
     "/staffs/payroll-snapshots/export-excel/",
-    {
-      params,
-      responseType: "blob",
-    }
+    params
   );
+  const jobId = res.data?.job_id;
+  if (!jobId) throw new Error("Export job could not be started.");
 
-  const blob = new Blob([res.data], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `payroll_${params.year}_${String(params.month).padStart(2, "0")}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  const data = await pollJobUntilDone(jobId);
+  const url = data.result?.download_url;
+  const filename =
+    data.result?.filename ||
+    `payroll_${params.year}_${String(params.month).padStart(2, "0")}.xlsx`;
+  if (!url) throw new Error("Export completed but no download link.");
+  downloadFromUrl(url, filename);
 }

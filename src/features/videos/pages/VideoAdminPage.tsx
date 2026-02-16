@@ -1,176 +1,139 @@
-// PATH: src/features/videos/pages/VideoControlCenter.tsx
+/**
+ * 영상 (사이드바) — 강의별 영상 진입점 · 차시 내 영상은 각 강의 > 차시에서 관리
+ * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
+ */
 
-import {
-  Panel,
-  Section,
-  KPI,
-  Button,
-  StatusBadge,
-} from "@/shared/ui/ds";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchLectures } from "@/features/lectures/api/sessions";
 import { DomainLayout } from "@/shared/ui/layout";
+import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
-export default function VideoControlCenter() {
+export default function VideoAdminPage() {
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  const { data: lectures = [], isLoading } = useQuery({
+    queryKey: ["admin-videos-lectures"],
+    queryFn: () => fetchLectures({ is_active: undefined }),
+  });
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return lectures;
+    const k = search.trim().toLowerCase();
+    return lectures.filter(
+      (l) =>
+        (l.title && l.title.toLowerCase().includes(k)) ||
+        (l.name && l.name.toLowerCase().includes(k)) ||
+        (l.subject && l.subject.toLowerCase().includes(k))
+    );
+  }, [lectures, search]);
+
+  const totalWidth = TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.status + TABLE_COL.actions;
+
   return (
     <DomainLayout
-      title="생명과학 영상 관리"
-      description="생명과학 전 강의 영상 자산을 통합 관리합니다."
+      title="영상"
+      description="강의·차시 단위 영상을 관리합니다. 영상 업로드·재생 정책은 각 강의 > 차시에서 설정하세요."
     >
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-end">
-          <Button intent="primary" size="md">
-            영상 업로드
-          </Button>
-        </div>
-
-        {/* KPI */}
-        <Section level="primary" title="운영 요약">
-        <div className="grid grid-cols-4 gap-6">
-          <KPI label="총 영상 수" value="40" hint="생명과학 전체" />
-          <KPI label="총 재생 시간" value="62h" hint="순수 콘텐츠 기준" />
-          <KPI label="운영 강의" value="6" hint="고1~고3" />
-          <KPI label="최근 업데이트" value="3" hint="7일 기준" />
-        </div>
-      </Section>
-
-      {/* ===============================
-          MAIN CONTROL PANEL
-      =============================== */}
-      <Panel
-        title="영상 목록"
-        description="강의·차시 구분 없이 모든 생명과학 영상을 관리합니다."
-        right={
-          <div className="flex items-center gap-3">
-            {/* === CONTROL STRIP === */}
-            <div
-              className="flex items-center gap-2 px-2 py-1 rounded-xl border"
-              style={{
-                borderColor: "var(--color-border-divider)",
-                background:
-                  "var(--bg-surface)",
-              }}
-            >
-              <ControlTab label="전체" count={40} active />
-              <ControlTab label="활성" count={34} tone="active" />
-              <ControlTab label="비활성" count={4} tone="inactive" />
-              <ControlTab label="보관" count={2} tone="archived" />
-            </div>
-
-            <Button intent="ghost" size="sm">
-              필터
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={isLoading ? "…" : `총 ${filtered.length}개 강의`}
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="강의명 · 과목 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onBlur={() => setSearch(searchInput)}
+              onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
+              style={{ maxWidth: 280 }}
+            />
+          }
+          primaryAction={
+            <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+              강의 목록
             </Button>
-          </div>
-        }
-      >
-        <div>
-          <table className="w-full text-sm">
+          }
+        />
+
+        {isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : !filtered.length ? (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="강의가 없습니다"
+            description="강의를 추가한 뒤, 각 강의 > 차시에서 영상을 업로드하고 재생 정책을 설정할 수 있습니다."
+            actions={
+              <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+                강의 목록
+              </Button>
+            }
+          />
+        ) : (
+          <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
+            <colgroup>
+              <col style={{ width: TABLE_COL.title }} />
+              <col style={{ width: TABLE_COL.subject }} />
+              <col style={{ width: TABLE_COL.medium }} />
+              <col style={{ width: TABLE_COL.status }} />
+              <col style={{ width: TABLE_COL.actions }} />
+            </colgroup>
             <thead>
-              <tr className="text-left text-[var(--color-text-muted)]">
-                <th className="py-3">강의</th>
-                <th>차시</th>
-                <th>영상 제목</th>
-                <th>길이</th>
-                <th>상태</th>
-                <th>최근 수정</th>
-                <th />
+              <tr>
+                <th scope="col">강의명</th>
+                <th scope="col">과목</th>
+                <th scope="col">기간</th>
+                <th scope="col">상태</th>
+                <th scope="col" />
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-[var(--color-border-divider)]">
-              {[
-                {
-                  lecture: "고3 생명과학Ⅰ",
-                  session: "12강",
-                  title: "유전자 발현 조절 핵심 정리",
-                  duration: "42:10",
-                  status: "active",
-                  updated: "2026-02-08",
-                },
-                {
-                  lecture: "고2 생명과학 내신",
-                  session: "5강",
-                  title: "세포 주기와 분열",
-                  duration: "35:48",
-                  status: "active",
-                  updated: "2026-02-05",
-                },
-                {
-                  lecture: "고1 생명과학 기초",
-                  session: "2강",
-                  title: "효소와 대사 작용",
-                  duration: "29:22",
-                  status: "inactive",
-                  updated: "2026-01-26",
-                },
-              ].map((v, i) => (
-                <tr key={i} className="hover:bg-[var(--color-bg-surface-hover)]">
-                  <td className="py-4 font-semibold">{v.lecture}</td>
-                  <td>{v.session}</td>
-                  <td className="font-medium">{v.title}</td>
-                  <td>{v.duration}</td>
-                  <td>
-                    <StatusBadge status={v.status as any} />
+            <tbody>
+              {filtered.map((l) => (
+                <tr
+                  key={l.id}
+                  className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"
+                  onClick={() => navigate(`/admin/lectures/${l.id}`)}
+                >
+                  <td className="font-semibold text-[var(--color-text-primary)] truncate" title={l.title || l.name}>
+                    {l.title || l.name || "—"}
                   </td>
-                  <td>{v.updated}</td>
-                  <td className="text-right">
-                    <Button intent="ghost" size="sm">
-                      관리
+                  <td className="text-[var(--color-text-secondary)] truncate">{l.subject || "—"}</td>
+                  <td className="text-[var(--color-text-muted)]">
+                    {l.start_date && l.end_date
+                      ? `${l.start_date} ~ ${l.end_date}`
+                      : l.start_date || "—"}
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: l.is_active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                      }}
+                    >
+                      {l.is_active ? "활성" : "비활성"}
+                    </span>
+                  </td>
+                  <td onClick={(ev) => ev.stopPropagation()}>
+                    <Button
+                      intent="primary"
+                      size="sm"
+                      onClick={() => navigate(`/admin/lectures/${l.id}`)}
+                    >
+                      영상 관리
                     </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      </Panel>
-
-        <div className="text-center text-xs font-semibold text-[var(--color-text-muted)]">
-          HakwonPlus · Biology Video Platform
-        </div>
+          </DomainTable>
+        )}
       </div>
     </DomainLayout>
-  );
-}
-
-/* ===============================
-   INTERNAL CONTROL TAB
-=============================== */
-function ControlTab({
-  label,
-  count,
-  active,
-  tone = "default",
-}: {
-  label: string;
-  count: number;
-  active?: boolean;
-  tone?: "default" | "active" | "inactive" | "archived";
-}) {
-  const toneColor =
-    tone === "active"
-      ? "var(--color-success)"
-      : tone === "inactive"
-      ? "var(--color-text-muted)"
-      : tone === "archived"
-      ? "var(--color-text-secondary)"
-      : "var(--color-text-primary)";
-
-  return (
-    <Button
-      type="button"
-      intent={active ? "primary" : "ghost"}
-      size="sm"
-      className="!gap-2 !text-xs"
-    >
-      <span>{label}</span>
-      <span
-        className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-        style={{
-          background: "var(--color-bg-surface-hover)",
-          color: active ? "var(--text-on-primary)" : toneColor,
-        }}
-      >
-        {count}
-      </span>
-    </Button>
   );
 }

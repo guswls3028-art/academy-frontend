@@ -1,23 +1,27 @@
 // PATH: src/shared/ui/asyncStatus/asyncStatusStore.ts
-// 전역 비동기 상태 SSOT — API/SSE/WS 진행률 추적, 구독 기반 갱신
+// 전역 비동기 상태 SSOT — 워커 작업 프로그래스바만 우하단에 표시
 //
-// 장시간 작업(알림톡 발송, OMR 대량 생성 등)에서 진행률 반영 예시:
-//   const taskId = asyncStatusStore.addTask('알림톡 발송 중');
-//   // SSE/WebSocket 수신 시:
-//   asyncStatusStore.updateProgress(taskId, percent);
-//   // 완료 시:
-//   asyncStatusStore.completeTask(taskId, 'success');
+// 워커 작업(엑셀 수강등록, 비디오 인코딩 등): 업로드 후 모달 닫고 우하단에서 진행률 표시
+//   const taskId = asyncStatusStore.addWorkerJob('엑셀 수강등록', jobId, 'excel_parsing');
+//   // 전역 폴링이 progress/status 갱신 후 completeTask 호출
 
 export type AsyncTaskStatus = "pending" | "success" | "error";
+
+export interface AsyncTaskMeta {
+  jobId: string;
+  jobType: string;
+}
 
 export interface AsyncTask {
   id: string;
   label: string;
   status: AsyncTaskStatus;
-  /** 0..100, 진행 중일 때만 사용 (SSE/WS 연동) */
+  /** 0..100, 진행 중일 때만 사용 (워커 Redis progress) */
   progress?: number;
   error?: string;
   createdAt: number;
+  /** 있으면 워커 작업 — 우하단 작업 알람창에만 표시, 폴링 대상 */
+  meta?: AsyncTaskMeta;
 }
 
 type Listener = (tasks: AsyncTask[]) => void;
@@ -56,9 +60,7 @@ export const asyncStatusStore = {
   },
 
   /**
-   * 새 작업 추가 (API 요청 시작 시 또는 장시간 작업 시작 시)
-   * @param label 표시 라벨
-   * @param id 지정 시 해당 id 사용 (SSE/WS 진행률 연동 시 동일 id로 updateProgress 호출)
+   * 새 작업 추가 (일반)
    */
   addTask(label: string, id?: string): string {
     const taskId = id ?? generateId();
@@ -73,6 +75,25 @@ export const asyncStatusStore = {
     ];
     emit();
     return taskId;
+  },
+
+  /**
+   * 워커 작업 추가 — 우하단 작업 알람창에 실시간 프로그래스바로 표시됨.
+   * jobId를 id로 사용하여 폴링 시 status/progress 갱신.
+   */
+  addWorkerJob(label: string, jobId: string, jobType: string): string {
+    tasks = [
+      ...tasks.filter((t) => t.id !== jobId),
+      {
+        id: jobId,
+        label,
+        status: "pending" as const,
+        createdAt: Date.now(),
+        meta: { jobId, jobType },
+      },
+    ];
+    emit();
+    return jobId;
   },
 
   /** 완료 처리 (성공/실패) */
@@ -109,8 +130,9 @@ export const asyncStatusStore = {
     emit();
   },
 
-  /** API 요청용: config에서 id/라벨 읽어서 등록, config에 _asyncId 붙여서 반환 */
-  trackRequest(method: string, url?: string, config?: { meta?: { asyncLabel?: string }; _asyncId?: string }): string | null {
+  /** API 요청용: meta.asyncTrack === true 일 때만 등록 (기본은 미등록 — 워커 작업만 알람창에 표시) */
+  trackRequest(method: string, url?: string, config?: { meta?: { asyncLabel?: string; asyncTrack?: boolean }; _asyncId?: string }): string | null {
+    if (!config?.meta?.asyncTrack) return null;
     const id = config?._asyncId ?? generateId();
     const label = config?.meta?.asyncLabel ?? defaultLabel(method, url);
     this.addTask(label, id);

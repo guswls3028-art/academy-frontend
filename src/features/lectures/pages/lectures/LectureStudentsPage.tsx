@@ -7,17 +7,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
 import { fetchAttendanceMatrix, downloadAttendanceExcel } from "@/features/lectures/api/attendance";
+import { sortSessionsByDateDesc } from "@/features/lectures/api/sessions";
 import LectureEnrollStudentModal from "@/features/lectures/components/LectureEnrollStudentModal";
+import LectureEnrollExcelModal from "@/features/lectures/components/LectureEnrollExcelModal";
+import SessionCreateModal from "@/features/lectures/components/SessionCreateModal";
 
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
-
-/** 출결 1글자 뱃지 한 칸 — 최대 10차시까지 잘리지 않게 */
-const SESSION_COL_WIDTH = 34;
 
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
@@ -28,6 +28,8 @@ export default function LectureStudentsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showLectureEnroll, setShowLectureEnroll] = useState(false);
+  const [showSessionCreateModal, setShowSessionCreateModal] = useState(false);
+  const [showEnrollExcelModal, setShowEnrollExcelModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   useEffect(() => {
@@ -49,10 +51,7 @@ export default function LectureStudentsPage() {
 
   const students = matrix?.students ?? [];
   const sessions = matrix?.sessions ?? [];
-  const sessionsReversed = useMemo(
-    () => [...sessions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).reverse(),
-    [sessions]
-  );
+  const sessionsByDateDesc = useMemo(() => sortSessionsByDateDesc(sessions), [sessions]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return students;
@@ -66,10 +65,9 @@ export default function LectureStudentsPage() {
     );
   }, [students, search]);
 
-  // 이름(딱지 2개+이름), 전화번호 전체 표시, 출결 1글자 블록 여유
-  const col = { checkbox: 44, name: 116, parentPhone: 116, studentPhone: 116 };
+  const col = STUDENTS_TABLE_COL;
   const tableMinWidth =
-    col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionsReversed.length * SESSION_COL_WIDTH;
+    col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionsByDateDesc.length * col.sessionCol;
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => filtered.map((s) => s.student_id), [filtered]);
@@ -85,19 +83,24 @@ export default function LectureStudentsPage() {
   }
 
   const selectionBar = (
-    <div className="flex flex-wrap items-center gap-2 pl-1">
-      <span
-        className="text-[13px] font-semibold"
-        style={{
-          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
-        }}
-      >
-        {selectedIds.length}명 선택됨
-      </span>
-      <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
-        메시지 발송
-      </Button>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2 pl-1">
+        <span
+          className="text-[13px] font-semibold"
+          style={{
+            color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+          }}
+        >
+          {selectedIds.length}명 선택됨
+        </span>
+        <span className="text-[var(--color-border-divider)]">|</span>
+        <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+          선택 해제
+        </Button>
+        <span className="text-[var(--color-border-divider)]">|</span>
+        <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
+          메시지 발송
+        </Button>
       <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)}>
         엑셀 다운로드
       </Button>
@@ -110,6 +113,7 @@ export default function LectureStudentsPage() {
       <Button intent="danger" size="sm" onClick={() => feedback.info("일괄 삭제 기능 준비 중입니다.")}>
         삭제
       </Button>
+      </div>
     </div>
   );
 
@@ -125,7 +129,7 @@ export default function LectureStudentsPage() {
     <>
       <div className="flex flex-col gap-4">
         <DomainListToolbar
-          totalLabel={isLoading ? "…" : `총 ${filtered.length}명 (차시에 등록된 수강생)`}
+          totalLabel={isLoading ? "…" : `총 ${filtered.length}명`}
           searchSlot={
             <input
               className="ds-input"
@@ -170,8 +174,8 @@ export default function LectureStudentsPage() {
                     <col style={{ width: col.name }} />
                     <col style={{ width: col.parentPhone }} />
                     <col style={{ width: col.studentPhone }} />
-                    {sessionsReversed.map((s) => (
-                      <col key={s.id} style={{ width: SESSION_COL_WIDTH }} />
+                    {sessionsByDateDesc.map((s) => (
+                      <col key={s.id} style={{ width: col.sessionCol }} />
                     ))}
                   </colgroup>
                   <thead>
@@ -188,12 +192,12 @@ export default function LectureStudentsPage() {
                       <th scope="col" style={{ width: col.name }}>이름</th>
                       <th scope="col" style={{ width: col.parentPhone }}>학부모 전화번호</th>
                       <th scope="col" style={{ width: col.studentPhone }}>학생 전화번호</th>
-                      {sessionsReversed.map((s) => (
+                      {sessionsByDateDesc.map((s) => (
                         <th
                           key={s.id}
                           scope="col"
                           className="text-center"
-                          style={{ width: SESSION_COL_WIDTH }}
+                          style={{ width: col.sessionCol }}
                           title={`${s.order ?? "-"}차시${s.date ? ` (${s.date})` : ""}`}
                         >
                           {s.order ?? "-"}차
@@ -239,13 +243,13 @@ export default function LectureStudentsPage() {
                         <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: col.studentPhone }}>
                           {formatPhone(row.phone)}
                         </td>
-                        {sessionsReversed.map((s) => {
+                        {sessionsByDateDesc.map((s) => {
                           const cell = row.attendance[String(s.id)];
                           return (
                             <td
                               key={s.id}
                               className="text-center align-middle px-0"
-                              style={{ width: SESSION_COL_WIDTH }}
+                              style={{ width: col.sessionCol }}
                               onClick={(e) => e.stopPropagation()}
                             >
                               {cell?.status ? (
@@ -273,6 +277,26 @@ export default function LectureStudentsPage() {
         onSuccess={() => {
           qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureIdNum] });
           setShowLectureEnroll(false);
+        }}
+        onChooseSessionCreate={() => setShowSessionCreateModal(true)}
+        onChooseExcelUpload={() => setShowEnrollExcelModal(true)}
+      />
+
+      {showSessionCreateModal && (
+        <SessionCreateModal
+          lectureId={lectureIdNum}
+          onClose={() => setShowSessionCreateModal(false)}
+        />
+      )}
+
+      <LectureEnrollExcelModal
+        lectureId={lectureIdNum}
+        lectureTitle={lecture?.title ?? lecture?.name ?? ""}
+        open={showEnrollExcelModal}
+        onClose={() => setShowEnrollExcelModal(false)}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureIdNum] });
+          setShowEnrollExcelModal(false);
         }}
       />
     </>

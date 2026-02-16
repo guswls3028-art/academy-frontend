@@ -1,4 +1,4 @@
-﻿// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffSettingsTab.tsx
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffSettingsTab.tsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,14 +90,32 @@ export default function StaffSettingsTab() {
         </Field>
 
         <Field label="급여 유형">
-          <select
-            value={form.pay_type}
-            onChange={(e) => setForm((p) => ({ ...p, pay_type: e.target.value as any }))}
-            className="form-input"
-          >
-            <option value="HOURLY">시급</option>
-            <option value="MONTHLY">월급</option>
-          </select>
+          <span className="inline-flex rounded-md border border-[var(--border-divider)] p-0.5 bg-[var(--bg-surface-soft)]">
+            <button
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, pay_type: "HOURLY" }))}
+              className={[
+                "px-3 py-1.5 text-sm font-semibold rounded transition-colors",
+                form.pay_type === "HOURLY"
+                  ? "bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface)]",
+              ].join(" ")}
+            >
+              시급
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, pay_type: "MONTHLY" }))}
+              className={[
+                "px-3 py-1.5 text-sm font-semibold rounded transition-colors",
+                form.pay_type === "MONTHLY"
+                  ? "bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface)]",
+              ].join(" ")}
+            >
+              월급
+            </button>
+          </span>
         </Field>
 
         <label className="flex items-center gap-2 text-sm">

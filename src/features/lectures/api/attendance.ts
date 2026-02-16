@@ -1,5 +1,6 @@
 // PATH: src/features/lectures/api/attendance.ts
 import api from "@/shared/api/axios";
+import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
 
 /* =========================================================
  * 1️⃣ 세션 단위 출결 목록 조회 (SessionDetailPage)
@@ -88,8 +89,20 @@ export async function fetchAttendanceMatrix(
 }
 
 /* =========================================================
- * 5️⃣ 출결 엑셀 다운로드
+ * 5️⃣ 출결 엑셀 내보내기 (비동기 job → 폴링 후 다운로드)
+ * POST /lectures/attendance/excel/ → job_id → GET /jobs/<id>/ 폴링 → download_url
  * ======================================================= */
-export function downloadAttendanceExcel(lectureId: number) {
-  window.location.href = `/api/v1/lectures/attendance/excel/?lecture=${lectureId}`;
+export async function downloadAttendanceExcel(lectureId: number): Promise<void> {
+  const res = await api.post<{ job_id: string; status: string }>(
+    "/lectures/attendance/excel/",
+    { lecture_id: lectureId }
+  );
+  const jobId = res.data?.job_id;
+  if (!jobId) throw new Error("Export job could not be started.");
+
+  const data = await pollJobUntilDone(jobId);
+  const url = data.result?.download_url;
+  const filename = data.result?.filename;
+  if (!url) throw new Error("Export completed but no download link.");
+  downloadFromUrl(url, filename || "attendance.xlsx");
 }

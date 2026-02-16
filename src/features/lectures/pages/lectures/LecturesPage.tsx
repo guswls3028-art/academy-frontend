@@ -1,5 +1,5 @@
 // PATH: src/features/lectures/pages/lectures/LecturesPage.tsx
-// Design SSOT — students 도메인 패턴 준수
+// Design: docs/DESIGN_SSOT.md (강의 관리만 체크박스 없음 — 유일 예외)
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable, DEFAULT_PRESET_COLOR } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, DEFAULT_PRESET_COLOR, TABLE_COL } from "@/shared/ui/domain";
 import LectureCreateModal from "../../components/LectureCreateModal";
 
 type LecturesPageProps = {
@@ -136,14 +136,20 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
             <EmptyState scope="panel" tone="empty" title="표시할 강의가 없습니다." />
           ) : (
             <div style={{ width: "fit-content" }}>
-              <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "auto" }}>
+              <DomainTable
+                tableClassName="ds-table--flat"
+                tableStyle={{
+                  tableLayout: "fixed",
+                  width: TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.timeRange + TABLE_COL.dateRange + TABLE_COL.subject,
+                }}
+              >
                 <colgroup>
-                  <col style={{ width: 192 }} />
-                  <col />
-                  <col />
-                  <col style={{ width: 160 }} />
-                  <col />
-                  <col style={{ width: 140 }} />
+                  <col style={{ width: TABLE_COL.title }} />
+                  <col style={{ width: TABLE_COL.subject }} />
+                  <col style={{ width: TABLE_COL.medium }} />
+                  <col style={{ width: TABLE_COL.timeRange }} />
+                  <col style={{ width: TABLE_COL.dateRange }} />
+                  <col style={{ width: TABLE_COL.subject }} />
                 </colgroup>
                 <thead>
                   <tr>

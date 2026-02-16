@@ -53,7 +53,7 @@ button.ds-status-badge:disabled {
 
 /* ---- data-status: 활성(초록) / 비활·폐기(회색) / 종료(회색) ---- */
 .ds-status-badge[data-status="active"] {
-  background: var(--color-success);
+  background: var(--color-success, #22c55e);
   color: #fff;
 }
 

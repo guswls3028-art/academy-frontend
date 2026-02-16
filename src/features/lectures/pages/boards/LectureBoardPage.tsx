@@ -84,6 +84,7 @@ export default function LectureBoardPage() {
             <EmptyState
               mode="embedded"
               scope="panel"
+              tone="empty"
               title="카테고리가 없습니다."
               description="카테고리를 먼저 추가해 주세요."
             />
@@ -130,7 +131,7 @@ export default function LectureBoardPage() {
           {loadingPosts ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
           ) : !selectedCategory || posts.length === 0 ? (
-            <EmptyState title="등록된 글이 없습니다." description="게시글을 작성하면 여기에 표시됩니다." scope="panel" />
+            <EmptyState scope="panel" tone="empty" title="등록된 글이 없습니다." description="게시글을 작성하면 여기에 표시됩니다." />
           ) : (
             <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--color-border-divider)" }}>
               <table className="w-full" style={{ tableLayout: "fixed" }}>

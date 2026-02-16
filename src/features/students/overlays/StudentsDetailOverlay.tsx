@@ -295,24 +295,29 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
       <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
 
       <div className="ds-overlay-wrap">
-        <div className="ds-overlay-panel" onClick={(e) => e.stopPropagation()}>
-          {/* 우상단 닫기 X — 전역 SSOT */}
+        <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
           <CloseButton
             className="ds-overlay-panel__close"
             onClick={onClose}
           />
-          {/* 헤더 — 1행: 아바타(큼) | 이름 | 강의딱지 | 2행: 아이디·OMR 블럭(SSOT 뱃지 스타일) + 액션 */}
           <header className="ds-overlay-header">
             <div className="ds-overlay-header__inner">
               <div className="ds-overlay-header__left">
-                <div className="ds-overlay-header__accent" aria-hidden />
+                <div className="ds-overlay-header__avatar-wrap" aria-hidden>
+                  <span className="ds-overlay-header__avatar">
+                    {student.profilePhotoUrl ? (
+                      <img src={student.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (student.name || "?")[0]
+                    )}
+                  </span>
+                </div>
                 <div className="ds-overlay-header__title-block">
                   <h1 className="ds-overlay-header__title">
                     <StudentNameWithLectureChip
                       name={student.name ?? ""}
-                      profilePhotoUrl={student.profilePhotoUrl}
-                      avatarSize={88}
-                      chipSize={40}
+                      avatarSize={0}
+                      chipSize={36}
                       lectures={
                         Array.isArray(student.enrollments) && student.enrollments.length > 0
                           ? student.enrollments.map((en: { lectureName?: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
@@ -325,10 +330,10 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     />
                   </h1>
                   <div className="ds-overlay-header__pills">
-                    <span className="ds-overlay-header__pill ds-overlay-header__pill--id" title="아이디">
+                    <span className="ds-badge ds-overlay-header__badge-id" title="아이디">
                       {student.psNumber ?? "—"}
                     </span>
-                    <span className="ds-overlay-header__pill ds-overlay-header__pill--code" title="시험 식별코드">
+                    <span className="ds-badge ds-overlay-header__badge-code" title="시험 식별코드">
                       {formatOmrCode(student.omrCode)}
                     </span>
                   </div>
@@ -553,7 +558,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   {tab === "enroll" ? (
                     <EnrollmentsTab enrollments={student.enrollments} />
                   ) : (
-                    <EmptyState title="데이터가 없습니다." />
+                    <EmptyState scope="panel" tone="empty" title="데이터가 없습니다." />
                   )}
                 </div>
               </div>
@@ -1141,7 +1146,7 @@ function InventoryTreeFolder({
 }
 
 function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
-  if (!enrollments?.length) return <EmptyState title="수강 이력이 없습니다." />;
+  if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
 
   return (
     <div style={{ display: "grid", gap: 10 }}>

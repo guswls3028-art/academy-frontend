@@ -16,6 +16,12 @@ alwaysApply: false
 3. **DomainLayout**: DomainHeader + Tabs + DomainPanel (카드 없이 플랫)
 4. **모달**: AdminModal + ModalHeader + ModalBody + ModalFooter — 헤더/바디/푸터 **얇은 패딩** SSOT(shared/ui/modal): 헤더 12px 20px·아이콘 28px·제목 14px·설명 marginTop 4px, 바디 16px 20px, 푸터 12px 20px
 
+## 엑셀 업로드 영역 (ExcelUploadZone)
+
+- **SSOT**: `src/styles/design-system/modal.css` — `.excel-upload-zone`, `.excel-upload-zone--filled`
+- **채워진 상태**: 파일 선택 후 같은 영역 안에 파일명·초기 비밀번호·버튼 표시. 보색(`--color-brand-complement`)으로 배경·테두리 진하게 구분 (선택 영역 시각적 변화).
+- **사용처**: 강의 수강생 엑셀(LectureEnrollExcelModal), 차시 수강생 등록(SessionEnrollModal — 파일 선택 시 영역 내부에 폼 표시 + `excel-upload-zone--filled`).
+
 ## Import
 
 ```ts

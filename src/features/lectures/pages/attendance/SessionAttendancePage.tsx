@@ -11,7 +11,7 @@ import {
 } from "@/features/lectures/api/attendance";
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import AttendanceStatusBadge, {
   ORDERED_ATTENDANCE_STATUS,
@@ -144,7 +144,7 @@ export default function SessionAttendancePage({
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (!attendance || attendance.length === 0) return <EmptyState scope="panel" title="출결 데이터 없음" />;
+  if (!attendance) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
 
   const allIds = sorted.map((att: any) => att.id);
   const allSelected = sorted.length > 0 && allIds.every((id: number) => selectedSet.has(id));
@@ -226,17 +226,8 @@ export default function SessionAttendancePage({
     </div>
   );
 
-  // 컬럼별 영역: 출결변경 10개 뱃지 한 줄 유지(줄바꿈 없음)
-  const col = {
-    checkbox: 48,
-    name: 100,
-    status: 68,
-    parentPhone: 120,
-    studentPhone: 120,
-    attendanceChange: 460,
-    memo: 336,
-  };
-  const tableMinWidth = col.checkbox + col.name + col.status + col.parentPhone + col.studentPhone + col.attendanceChange + col.memo;
+  const col = STUDENTS_TABLE_COL;
+  const tableMinWidth = col.checkbox + col.name + col.statusBadge + col.parentPhone + col.studentPhone + col.attendanceChange + col.memo;
 
   const primaryAction =
     onOpenEnrollModal ? (
@@ -355,45 +346,61 @@ export default function SessionAttendancePage({
         belowSlot={selectionBar}
       />
       <div className="overflow-x-auto w-full">
-        <div style={{ width: "fit-content" }}>
-          <DomainTable tableClassName="ds-table--flat ds-table--attendance" tableStyle={{ minWidth: tableMinWidth, width: "100%", tableLayout: "fixed" }}>
-            <colgroup>
-              <col style={{ width: col.checkbox }} />
-              <col style={{ width: col.name }} />
-              <col style={{ width: col.status }} />
-              <col style={{ width: col.parentPhone }} />
-              <col style={{ width: col.studentPhone }} />
-              <col style={{ width: col.attendanceChange }} />
-              <col style={{ width: col.memo }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
-                    aria-label="전체 선택"
-                    className="cursor-pointer"
-                  />
-                </th>
-                {sortHeader("name", "이름")}
-                {sortHeader("status", "상태")}
-                {sortHeader("parent_phone", "학부모 전화번호")}
-                {sortHeader("phone", "학생 전화번호")}
-                <th scope="col">출결 변경</th>
-                <th scope="col">메모</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.length === 0 ? (
+        {sorted.length === 0 ? (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title={
+              attendance.length === 0 && !search && !statusFilter
+                ? "이 차시에 수강생이 없습니다."
+                : "검색 결과가 없습니다."
+            }
+            description={
+              attendance.length === 0 && !search && !statusFilter
+                ? "위 '수강생 등록' 버튼으로 추가해 주세요."
+                : "검색어나 필터를 변경해 보세요."
+            }
+            actions={
+              attendance.length === 0 && !search && !statusFilter && onOpenEnrollModal ? (
+                <Button type="button" intent="primary" onClick={onOpenEnrollModal}>
+                  수강생 등록
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div style={{ width: "fit-content" }}>
+            <DomainTable tableClassName="ds-table--flat ds-table--attendance" tableStyle={{ minWidth: tableMinWidth, width: "100%", tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: col.checkbox }} />
+                <col style={{ width: col.name }} />
+                <col style={{ width: col.statusBadge }} />
+                <col style={{ width: col.parentPhone }} />
+                <col style={{ width: col.studentPhone }} />
+                <col style={{ width: col.attendanceChange }} />
+                <col style={{ width: col.memo }} />
+              </colgroup>
+              <thead>
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-[var(--color-text-muted)]">
-                    검색 결과가 없습니다.
-                  </td>
+                  <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="전체 선택"
+                      className="cursor-pointer"
+                    />
+                  </th>
+                  {sortHeader("name", "이름")}
+                  {sortHeader("status", "상태")}
+                  {sortHeader("parent_phone", "학부모 전화번호")}
+                  {sortHeader("phone", "학생 전화번호")}
+                  <th scope="col">출결 변경</th>
+                  <th scope="col">메모</th>
                 </tr>
-              ) : (
-                sorted.map((att: any) => (
+              </thead>
+              <tbody>
+                {sorted.map((att: any) => (
                   <tr key={att.id} className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
                     <td className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
                       <input
@@ -460,11 +467,11 @@ export default function SessionAttendancePage({
                       />
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </DomainTable>
-        </div>
+                ))}
+              </tbody>
+            </DomainTable>
+          </div>
+        )}
       </div>
     </div>
   );

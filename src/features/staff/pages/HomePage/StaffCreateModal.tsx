@@ -16,7 +16,7 @@ type Props = {
   onClose: () => void;
 };
 
-type PermissionRole = "ADMIN" | "TEACHER" | "ASSISTANT" | "OWNER";
+type PermissionRole = "TEACHER" | "ASSISTANT";
 
 export default function StaffCreateModal({ open, onClose }: Props) {
   const qc = useQueryClient();
@@ -31,17 +31,12 @@ export default function StaffCreateModal({ open, onClose }: Props) {
 
   const createM = useMutation({
     mutationFn: async () => {
-      const role =
-        form.permission_role === "OWNER"
-          ? undefined
-          : form.permission_role;
-
       const res = await api.post("/staffs/", {
         username: form.username,
         password: form.password,
         name: form.name,
         phone: form.phone || undefined,
-        role,
+        role: form.permission_role,
       });
 
       return res.data;
@@ -141,13 +136,10 @@ export default function StaffCreateModal({ open, onClose }: Props) {
                 }))
               }
               data-required="true"
+              aria-label="권한 선택"
             >
               <option value="ASSISTANT">조교 (일반 직원)</option>
               <option value="TEACHER">강사</option>
-              <option value="ADMIN">관리자</option>
-              <option value="OWNER" disabled>
-                오너 (백엔드 지정)
-              </option>
             </select>
           </Field>
         </div>

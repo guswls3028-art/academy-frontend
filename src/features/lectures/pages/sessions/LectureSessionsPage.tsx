@@ -3,10 +3,10 @@ import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchSessions, type Session } from "../../api/sessions";
+import { fetchSessions, sortSessionsByDateDesc, type Session } from "../../api/sessions";
 import SessionCreateModal from "../../components/SessionCreateModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, TABLE_COL } from "@/shared/ui/domain";
 
 export default function LectureSessionsPage() {
   const navigate = useNavigate();
@@ -17,11 +17,12 @@ export default function LectureSessionsPage() {
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  const { data: sessions = [], isLoading, isError } = useQuery<Session[]>({
+  const { data: rawSessions = [], isLoading, isError } = useQuery<Session[]>({
     queryKey: ["lecture-sessions", lecId],
     queryFn: () => fetchSessions(lecId),
     enabled: Number.isFinite(lecId),
   });
+  const sessions = useMemo(() => sortSessionsByDateDesc(rawSessions), [rawSessions]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
@@ -96,6 +97,7 @@ export default function LectureSessionsPage() {
         ) : sessions.length === 0 ? (
           <EmptyState
             scope="panel"
+            tone="empty"
             title="등록된 차시가 없습니다."
             description="차시를 추가하면 여기에 표시됩니다."
             actions={
@@ -116,17 +118,24 @@ export default function LectureSessionsPage() {
               }
               belowSlot={selectionBar}
             />
-            <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed" }}>
+            <DomainTable
+              tableClassName="ds-table--flat"
+              tableStyle={{
+                tableLayout: "fixed",
+                width:
+                  TABLE_COL.checkbox + TABLE_COL.mediumAlt + TABLE_COL.title + TABLE_COL.timeRange + TABLE_COL.tag,
+              }}
+            >
               <colgroup>
-                <col style={{ width: 48 }} />
-                <col style={{ width: 120 }} />
-                <col style={{ width: 192 }} />
-                <col style={{ width: 160 }} />
-                <col style={{ width: 100 }} />
+                <col style={{ width: TABLE_COL.checkbox }} />
+                <col style={{ width: TABLE_COL.mediumAlt }} />
+                <col style={{ width: TABLE_COL.title }} />
+                <col style={{ width: TABLE_COL.timeRange }} />
+                <col style={{ width: TABLE_COL.tag }} />
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col" className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                  <th scope="col" className="ds-checkbox-cell" style={{ width: TABLE_COL.checkbox }} onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -148,7 +157,7 @@ export default function LectureSessionsPage() {
                     className={`cursor-pointer hover:bg-[var(--color-bg-surface-hover)] ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
                     onClick={() => navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)}
                   >
-                    <td className="ds-checkbox-cell" style={{ width: 48 }} onClick={(e) => e.stopPropagation()}>
+                    <td className="ds-checkbox-cell" style={{ width: TABLE_COL.checkbox }} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedSet.has(s.id)}

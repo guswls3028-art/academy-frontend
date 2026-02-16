@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
-import { fetchSessions } from "@/features/lectures/api/sessions";
+import { fetchSessions, sortSessionsByDateDesc } from "@/features/lectures/api/sessions";
 import SessionCreateModal from "@/features/lectures/components/SessionCreateModal";
 import { SessionBlockView, isSupplement } from "@/shared/ui/session-block";
 
@@ -21,11 +21,12 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
 
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: rawSessions = [], isLoading } = useQuery({
     queryKey: ["lecture-sessions", lectureId],
     queryFn: () => fetchSessions(lectureId),
     enabled: Number.isFinite(lectureId),
   });
+  const sessions = sortSessionsByDateDesc(rawSessions);
 
   const handleClose = () => {
     setShowCreate(false);
@@ -61,7 +62,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
                   variant={supplement ? "supplement" : "n1"}
                   compact
                   selected={isActive}
-                  title={`${s.order ?? "-"}차시`}
+                  title={supplement ? "보강" : `${s.order ?? "-"}차시`}
                   desc={s.date ?? "-"}
                   onClick={() =>
                     navigate(`/admin/lectures/${lectureId}/sessions/${s.id}`)

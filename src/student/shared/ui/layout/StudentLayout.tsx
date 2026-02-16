@@ -1,84 +1,55 @@
-// PATH: src/student/shared/ui/layout/StudentLayout.tsx
 /**
- * ✅ StudentLayout (LOCK v3)
- *
- * 책임:
- * - 학생앱 전역 레이아웃 "디자인" SSOT
- * - 상단바 + (Dashboard 한정 공지/일정) + 페이지 컨텐츠 + 하단탭바
- *
- * 원칙:
- * - 도메인 로직/데이터 판단 ❌
- * - UI 구조만 제공 ✅
+ * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
+ * 상단바 + 스크롤 영역 + 하단 탭바
  */
-
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import "../theme/tokens.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
-import StudentHomeStrip from "./StudentHomeStrip";
 
 export default function StudentLayout() {
-  const location = useLocation();
-  const isDashboard =
-    location.pathname === "/student" ||
-    location.pathname.startsWith("/student/dashboard");
-
   return (
     <div
       style={{
+        minHeight: "100dvh",
         minHeight: "100vh",
         background: "var(--stu-bg)",
         color: "var(--stu-text)",
+        display: "flex",
+        flexDirection: "column",
+        paddingTop: "var(--stu-safe-top)",
       }}
     >
-      {/* ===== Header ===== */}
-      <div
+      <header
         style={{
+          flexShrink: 0,
           position: "sticky",
           top: 0,
-          zIndex: "var(--stu-z-header)" as any,
-          background: "color-mix(in srgb, var(--stu-surface) 88%, transparent)",
+          zIndex: "var(--stu-z-header)",
+          background: "rgba(11, 15, 25, 0.85)",
           backdropFilter: "blur(12px)",
           borderBottom: "1px solid var(--stu-border)",
         }}
       >
-        <div className="stu-page" style={{ padding: "0 var(--stu-space-8)" }}>
-          <StudentTopBar />
-        </div>
-      </div>
+        <StudentTopBar />
+      </header>
 
-      {/* ===== Main ===== */}
       <main
         style={{
-          display: "flex",
-          justifyContent: "center",
-          paddingBottom: `calc(var(--stu-tabbar-h) + var(--stu-space-12) + var(--stu-safe-bottom))`,
+          flex: 1,
+          overflow: "auto",
+          WebkitOverflowScrolling: "touch",
+          paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
         }}
       >
-        <div
-          className="stu-page"
-          style={{ padding: "var(--stu-space-10) var(--stu-space-8)" }}
-        >
-          {/* ✅ Dashboard에서만 공지/일정 노출 */}
-          {isDashboard && <StudentHomeStrip />}
-
-          {/* Page content */}
-          <div
-            style={{
-              marginTop: isDashboard ? "var(--stu-space-10)" : 0,
-            }}
-          >
-            <Outlet />
-          </div>
+        <div style={{ maxWidth: "var(--stu-page-max-w)", margin: "0 auto", padding: "var(--stu-space-4)" }}>
+          <Outlet />
         </div>
       </main>
 
-      {/* ===== Bottom TabBar ===== */}
       <StudentTabBar />
-
-      {/* 우하단 비동기 상태 SSOT (Windows 알림 스타일) */}
       <AsyncStatusBar />
     </div>
   );

@@ -1,7 +1,7 @@
 // PATH: src/features/students/components/StudentsTable.tsx
 import { useMemo } from "react";
 import { EmptyState } from "@/shared/ui/ds";
-import { DomainTable } from "@/shared/ui/domain";
+import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
 
@@ -81,28 +81,33 @@ export default function StudentsTable({
     }
   }
 
-  // 컬럼: 체크박스 타이트(28), 이름은 딱지 2개+아바타+이름, 전체 중앙정렬
+  // TABLE_COL SSOT: tableColumnSpec
   const columns = useMemo(
     () => [
-      { key: "_checkbox", label: "", w: 28 },
-      { key: "name", label: "이름", w: 168 },
-      { key: "parentPhone", label: "학부모 전화", w: 130 },
-      { key: "studentPhone", label: "학생 전화", w: 130 },
-      { key: "school", label: "학교", w: 110 },
-      { key: "schoolClass", label: "반", w: 65 },
-      { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: 110 },
-      { key: "tags", label: "태그", w: 100 },
-      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: 92 }]),
+      { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
+      { key: "name", label: "이름", w: TABLE_COL.name },
+      { key: "parentPhone", label: "학부모 전화", w: TABLE_COL.phone },
+      { key: "studentPhone", label: "학생 전화", w: TABLE_COL.phone },
+      { key: "school", label: "학교", w: TABLE_COL.medium },
+      { key: "schoolClass", label: "반", w: TABLE_COL.short },
+      { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: TABLE_COL.medium },
+      { key: "tags", label: "태그", w: TABLE_COL.tag },
+      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: TABLE_COL.status }]),
     ],
     [isDeletedTab]
+  );
+  const tableWidth = useMemo(
+    () => columns.reduce((sum, c) => sum + c.w, 0),
+    [columns]
   );
 
   if (!data.length) {
     return (
       <EmptyState
+        scope="panel"
+        tone="empty"
         title="학생 정보가 없습니다."
         description="검색/필터 조건을 확인하거나, 새 학생을 등록해 주세요."
-        scope="panel"
       />
     );
   }
@@ -139,7 +144,7 @@ export default function StudentsTable({
 
   return (
     <div style={{ width: "fit-content" }}>
-    <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: 913 }}>
+    <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: tableWidth }}>
       <colgroup>
         {columns.map((c) => (
           <col key={c.key} style={{ width: c.w }} />
@@ -150,7 +155,7 @@ export default function StudentsTable({
         <tr>
           {columns.map((c) =>
             c.key === "_checkbox" ? (
-              <th key="_checkbox" scope="col" style={{ width: 28 }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+              <th key="_checkbox" scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                 {onSelectionChange ? (
                   <input
                     type="checkbox"
@@ -182,7 +187,7 @@ export default function StudentsTable({
               className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
             >
               {/* 체크박스 — 타이트, 칸과 위치 일치 */}
-              <td onClick={(e) => e.stopPropagation()} style={{ width: 28 }} className="ds-checkbox-cell">
+              <td onClick={(e) => e.stopPropagation()} style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
                 {onSelectionChange ? (
                   <input
                     type="checkbox"

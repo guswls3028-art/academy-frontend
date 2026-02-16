@@ -1,12 +1,13 @@
 // PATH: src/features/staff/overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
-// SSOT: 오버레이 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
+// Design: docs/DESIGN_SSOT.md
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
   fetchStaffDetail,
   fetchStaffSummaryByRange,
+  patchStaffDetail,
 } from "../../api/staff.detail.api";
 import {
   fetchWorkMonthLocks,
@@ -15,7 +16,7 @@ import {
 import { fetchStaffMe } from "../../api/staffMe.api";
 
 import ActionButton from "../../components/ActionButton";
-import { LockBadge, RoleBadge } from "../../components/StatusBadge";
+import { LockBadge } from "../../components/StatusBadge";
 
 import StaffSummaryTab from "./StaffSummaryTab";
 import StaffWorkTypeTab from "./StaffWorkTypeTab";
@@ -24,6 +25,36 @@ import StaffExpensesTab from "./StaffExpensesTab";
 import StaffPayrollHistoryTab from "./StaffPayrollHistoryTab";
 import StaffReportTab from "./StaffReportTab";
 import StaffSettingsTab from "./StaffSettingsTab";
+
+function StaffManagerToggle({
+  staffId,
+  isManager,
+}: {
+  staffId: number;
+  isManager: boolean;
+}) {
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (payload: { is_manager: boolean }) =>
+      patchStaffDetail(staffId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: ["staff", staffId] });
+    },
+  });
+  return (
+    <button
+      type="button"
+      className="ds-status-badge cursor-pointer"
+      data-status={isManager ? "active" : "inactive"}
+      disabled={mutation.isPending}
+      onClick={() => mutation.mutate({ is_manager: !isManager })}
+      aria-label={isManager ? "관리자 해제" : "관리자 부여"}
+    >
+      {mutation.isPending ? "…" : isManager ? "ON" : "OFF"}
+    </button>
+  );
+}
 
 function getThisMonthRange() {
   const d = new Date();
@@ -163,8 +194,20 @@ export default function StaffDetailOverlay() {
                 />
 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--text-muted)]">역할</span>
-                  <RoleBadge isManager={!!staff.is_manager} />
+                  <span className="text-[var(--color-text-muted)]">역할</span>
+                  <span className="ds-status-badge" data-tone={staff.role === "TEACHER" ? "primary" : "neutral"}>
+                    {staff.role === "TEACHER" ? "강사" : "조교"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--color-text-muted)]">관리자</span>
+                  {canManage ? (
+                    <StaffManagerToggle staffId={staff.id} isManager={!!staff.is_manager} />
+                  ) : (
+                    <span className="ds-status-badge" data-status={staff.is_manager ? "active" : "inactive"}>
+                      {staff.is_manager ? "ON" : "OFF"}
+                    </span>
+                  )}
                 </div>
               </div>
 

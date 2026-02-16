@@ -3,6 +3,9 @@
 
 .shared-date-picker-trigger {
   appearance: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   width: 100%;
   min-height: var(--control-lg, 40px);
   padding: 0 var(--space-3);
@@ -16,6 +19,12 @@
   text-align: left;
   cursor: pointer;
   transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.shared-date-picker-trigger-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.9;
 }
 
 .shared-date-picker-trigger:hover:not(:disabled) {

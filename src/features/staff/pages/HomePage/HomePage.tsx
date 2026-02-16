@@ -1,20 +1,26 @@
-﻿// PATH: src/features/staff/pages/HomePage/HomePage.tsx
+// PATH: src/features/staff/pages/HomePage/HomePage.tsx
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { StaffHomeTable } from "./StaffHomeTable";
 import { useStaffs } from "../../hooks/useStaffs";
 import StaffCreateModal from "./StaffCreateModal";
 import WorkTypeCreateModal from "./WorkTypeCreateModal";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
-import { Input } from "antd";
+import { deleteStaff } from "../../api/staff.api";
+import { DomainListToolbar } from "@/shared/ui/domain";
+import { Button, EmptyState } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data: staffs, isLoading } = useStaffs();
   const [openCreate, setOpenCreate] = useState(false);
   const [openWorkType, setOpenWorkType] = useState(false);
   const [q, setQ] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   const meQ = useQuery({
     queryKey: ["staff-me"],
@@ -36,53 +42,110 @@ export default function HomePage() {
     });
   }, [staffs, q]);
 
-  if (isLoading) {
-    return <div className="text-sm text-gray-500">Loading...</div>;
-  }
+  const selectionBar = (
+    <div className="flex flex-wrap items-center gap-2 pl-1">
+      <span
+        className="text-[13px] font-semibold"
+        style={{
+          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+        }}
+      >
+        {selectedIds.length}명 선택됨
+      </span>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        선택 해제
+      </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
+        메시지 발송
+      </Button>
+      <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
+        엑셀 다운로드
+      </Button>
+      <Button intent="secondary" size="sm" onClick={() => feedback.info("시급 태그 추가 기능 준비 중입니다.")}>
+        시급 태그 추가
+      </Button>
+      <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
+        비밀번호 변경
+      </Button>
+      <Button
+        intent="danger"
+        size="sm"
+        disabled={selectedIds.length === 0 || deleting}
+        onClick={async () => {
+          if (selectedIds.length === 0) return;
+          if (!window.confirm(`선택한 ${selectedIds.length}명을 삭제하시겠습니까?`)) return;
+          setDeleting(true);
+          const count = selectedIds.length;
+          try {
+            for (const id of selectedIds) {
+              await deleteStaff(id);
+            }
+            setSelectedIds([]);
+            qc.invalidateQueries({ queryKey: ["staffs"] });
+            qc.invalidateQueries({ queryKey: ["staff"] });
+            feedback.success(`${count}명 삭제되었습니다.`);
+          } catch (e: unknown) {
+            feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+          } finally {
+            setDeleting(false);
+          }
+        }}
+      >
+        {deleting ? "삭제 중…" : "삭제"}
+      </Button>
+    </div>
+  );
 
   return (
-    <div className="space-y-4 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="text-lg font-semibold">직원 관리</div>
-          <div className="text-xs text-[var(--text-muted)]">
-            * 급여/시간/합계는 백엔드 기준 · 마감된 월은 변경 불가
-          </div>
-        </div>
-
-        {canManage && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setOpenWorkType(true)}
-              className="btn-outline"
-            >
-              + 근무유형 생성
-            </button>
-            <button
-              onClick={() => setOpenCreate(true)}
-              className="btn-primary"
-            >
-              + 직원 등록
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="max-w-[420px]">
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          allowClear
-          placeholder="이름/전화번호 검색"
-        />
-      </div>
-
-      <StaffHomeTable
-        staffs={rows}
-        canManage={canManage}
-        onOperate={(id) => navigate(`/admin/staff/operations?staffId=${id}`)}
-        onDetail={(id) => navigate(`/admin/staff/${id}`)}
+    <div className="flex flex-col gap-4">
+      <DomainListToolbar
+        totalLabel={isLoading ? "…" : Array.isArray(staffs) ? `총 ${staffs.length}명` : "—"}
+        searchSlot={
+          <input
+            className="ds-input"
+            placeholder="이름/전화번호 검색"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ maxWidth: 360 }}
+          />
+        }
+        primaryAction={
+          canManage ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                intent="secondary"
+                onClick={() => setOpenWorkType(true)}
+              >
+                + 근무유형 생성
+              </Button>
+              <Button
+                type="button"
+                intent="primary"
+                onClick={() => setOpenCreate(true)}
+              >
+                + 직원 등록
+              </Button>
+            </div>
+          ) : null
+        }
+        belowSlot={selectionBar}
       />
+
+      {isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : (
+        <StaffHomeTable
+          staffs={rows}
+          canManage={canManage}
+          onOperate={(id) => navigate(`/admin/staff/operations?staffId=${id}`)}
+          onDetail={(id) => navigate(`/admin/staff/${id}`)}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+        />
+      )}
 
       <StaffCreateModal open={openCreate} onClose={() => setOpenCreate(false)} />
       <WorkTypeCreateModal

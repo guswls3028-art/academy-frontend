@@ -11,6 +11,7 @@ export default defineConfig({
 
   server: {
     host: "0.0.0.0", // 🔥 외부 접근 허용 (필수)
+    port: 5174, // run-dev-single.ps1 과 동일 포트 (로컬 접속: http://localhost:5174)
     allowedHosts: [
       "dev-web.hakwonplus.com", // 🔥 Cloudflare 고정 도메인
     ],

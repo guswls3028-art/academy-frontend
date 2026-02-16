@@ -1,8 +1,10 @@
 // PATH: src/shared/ui/asyncStatus/AsyncStatusBar.tsx
-// 우하단 Windows 스타일 비동기 상태 바 — 접기/펼치기, 진행률 표시
+// 우하단 Windows 스타일 비동기 상태 바 — 워커 작업 프로그래스바만 표시
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAsyncStatus } from "./useAsyncStatus";
+import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import "@/styles/design-system/components/AsyncStatusBar.css";
 
@@ -59,12 +61,22 @@ function TaskItem({ task }: { task: AsyncTask }) {
 }
 
 export default function AsyncStatusBar() {
+  const queryClient = useQueryClient();
   const tasks = useAsyncStatus();
   const [expanded, setExpanded] = useState(false);
+  const workerTasks = tasks.filter((t) => t.meta?.jobId);
+  useWorkerJobPoller(tasks, {
+    onExcelSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lecture-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-matrix"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["lecture"] });
+    },
+  });
 
-  if (tasks.length === 0) return null;
+  if (workerTasks.length === 0) return null;
 
-  const pendingCount = tasks.filter((t) => t.status === "pending").length;
+  const pendingCount = workerTasks.filter((t) => t.status === "pending").length;
 
   return (
     <div
@@ -83,7 +95,7 @@ export default function AsyncStatusBar() {
           <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
         </svg>
         <span className="async-status-bar__trigger-count">
-          {pendingCount > 0 ? `진행 중 ${tasks.length}건` : `${tasks.length}건 완료`}
+          {pendingCount > 0 ? `진행 중 ${workerTasks.length}건` : `${workerTasks.length}건 완료`}
         </span>
       </button>
 
@@ -114,10 +126,10 @@ export default function AsyncStatusBar() {
           </div>
         </div>
         <div className="async-status-bar__list">
-          {tasks.length === 0 ? (
+          {workerTasks.length === 0 ? (
             <div className="async-status-bar__empty">진행 중인 작업이 없습니다.</div>
           ) : (
-            tasks.map((task) => <TaskItem key={task.id} task={task} />)
+            workerTasks.map((task) => <TaskItem key={task.id} task={task} />)
           )}
         </div>
       </div>

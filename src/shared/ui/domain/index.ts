@@ -1,5 +1,5 @@
 // src/shared/ui/domain/index.ts
-// 도메인 공통 UI (Design SSOT — students 기준)
+// 도메인 공통 UI · Design SSOT: docs/DESIGN_SSOT.md
 
 export { default as DomainLayout } from "./DomainLayout";
 export { default as DomainTabs } from "./DomainTabs";
@@ -16,3 +16,5 @@ export {
   getDefaultColorForPicker,
 } from "./constants";
 export { default as ColorPickerField } from "./ColorPickerField";
+export { TABLE_COL, STUDENTS_TABLE_COL } from "./tableColumnSpec";
+export type { TableColKey } from "./tableColumnSpec";

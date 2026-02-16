@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DatePicker } from "antd";
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
+
+import { DatePicker } from "@/shared/ui/date";
 
 import { Button, KPI } from "@/shared/ui/ds";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
@@ -83,11 +84,9 @@ export default function ClinicHomePage() {
         {/* 툴바: 날짜 선택 (도메인 타이틀은 Layout에서) */}
         <div className="flex items-center justify-end">
           <DatePicker
-            value={dayjs(date)}
-            onChange={(d: Dayjs | null) => d && setDate(d.format("YYYY-MM-DD"))}
-            allowClear={false}
-            size="large"
-            style={{ width: 200 }}
+            value={date}
+            onChange={setDate}
+            placeholder="날짜 선택"
           />
         </div>
 

@@ -98,6 +98,8 @@ export function TimeScrollPopover({
 
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const emit = useCallback((idx: number) => {
     onSelectRef.current(slotTo24h(idx));
@@ -307,7 +309,10 @@ export function TimeScrollPopover({
                   type="button"
                   className="time-picker__item"
                   style={{ height: ROW_HEIGHT }}
-                  onClick={() => scrollToIdx(i, { smooth: true })}
+                  onClick={() => {
+                    scrollToIdx(i, { smooth: true });
+                    onCloseRef.current();
+                  }}
                 >
                   {format24To12TimeOnly(slot)}
                 </button>

@@ -1,5 +1,5 @@
 // PATH: src/features/lectures/pages/attendance/LectureAttendanceMatrixPage.tsx
-// Design: 출결 페이지(SessionAttendancePage)와 동일 — DomainTable, ds-table--attendance, students SSOT 폰트
+// Design: docs/DESIGN_SSOT.md
 // 컬럼: 체크박스, 이름, 학부모 전화, 학생 전화, 출결블록(N차 → 1차 역순, 1글자)
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -8,14 +8,12 @@ import {
   downloadAttendanceExcel,
   type AttendanceMatrixResponse,
 } from "@/features/lectures/api/attendance";
+import { sortSessionsByDateDesc } from "@/features/lectures/api/sessions";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
-
-/** 출결 1글자 뱃지 한 칸 — 최대 10차시까지 잘리지 않게 */
-const SESSION_COL_WIDTH = 34;
 
 export default function LectureAttendanceMatrixPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
@@ -32,24 +30,18 @@ export default function LectureAttendanceMatrixPage() {
     return (
       <EmptyState
         scope="panel"
+        tone="empty"
         title="출결 데이터가 없습니다."
         description="차시에 수강생을 등록한 뒤 출결을 기록하면 표시됩니다."
       />
     );
 
   const { lecture: lectureInfo, sessions, students } = data;
-  // 차시 출결 페이지와 동일 정합: order 기준 1…N 정렬 후 역순 → N차, N-1차, …, 1차 (왼쪽이 최신)
-  const sessionsReversed = [...sessions]
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .reverse();
+  // 차시 블록: sortSessionsByDateDesc (날짜 내림차순)
+  const sessionsByDateDesc = sortSessionsByDateDesc(sessions);
 
-  const col = {
-    checkbox: 44,
-    name: 116,
-    parentPhone: 116,
-    studentPhone: 116,
-  };
-  const sessionColsTotal = sessionsReversed.length * SESSION_COL_WIDTH;
+  const col = STUDENTS_TABLE_COL;
+  const sessionColsTotal = sessionsByDateDesc.length * col.sessionCol;
   const tableMinWidth = col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionColsTotal;
 
   const primaryAction = (
@@ -81,8 +73,8 @@ export default function LectureAttendanceMatrixPage() {
               <col style={{ width: col.name }} />
               <col style={{ width: col.parentPhone }} />
               <col style={{ width: col.studentPhone }} />
-              {sessionsReversed.map((s) => (
-                <col key={s.id} style={{ width: SESSION_COL_WIDTH }} />
+              {sessionsByDateDesc.map((s) => (
+                <col key={s.id} style={{ width: col.sessionCol }} />
               ))}
             </colgroup>
             <thead>
@@ -99,12 +91,12 @@ export default function LectureAttendanceMatrixPage() {
                 <th scope="col" style={{ width: col.studentPhone }}>
                   학생 전화번호
                 </th>
-                {sessionsReversed.map((s) => (
+                {sessionsByDateDesc.map((s) => (
                   <th
                     key={s.id}
                     scope="col"
                     className="text-center"
-                    style={{ width: SESSION_COL_WIDTH }}
+                    style={{ width: col.sessionCol }}
                     title={`${s.order ?? "-"}차시${s.date ? ` (${s.date})` : ""}`}
                   >
                     {s.order ?? "-"}차
@@ -146,13 +138,13 @@ export default function LectureAttendanceMatrixPage() {
                   >
                     {formatPhone(row.phone)}
                   </td>
-                  {sessionsReversed.map((s) => {
+                  {sessionsByDateDesc.map((s) => {
                     const cell = row.attendance[String(s.id)];
                     return (
                       <td
                         key={s.id}
                         className="text-center align-middle px-0"
-                        style={{ width: SESSION_COL_WIDTH }}
+                        style={{ width: col.sessionCol }}
                       >
                         {cell?.status ? (
                           <AttendanceStatusBadge

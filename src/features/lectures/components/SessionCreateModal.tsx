@@ -77,23 +77,26 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     [sessionsList]
   );
   const nextOrder = sortedSessions.length + 1;
-  // 정규차시끼리만 날짜 연속 — 보강은 제외하고 마지막 정규차시 날짜 + 7일
+  // 정규 차시 기본 날짜: 강의 생성 모달 start_date 연결
+  // — 기존 정규 차시 없음 → 강의 시작일(lecture.start_date) / 있음 → 마지막 정규 차시 날짜 + 7일
   const lastRegularSessionWithDate = useMemo(() => {
     const regular = (sortedSessions as { title?: string; date?: string | null }[]).filter(
       (s) => s.date && !s.title?.includes?.("보강")
     );
     return regular.slice(-1)[0];
   }, [sortedSessions]);
-  const defaultDateFromLecture = useMemo(
-    () =>
-      nextWeekDate(lastRegularSessionWithDate?.date ?? (lecture as { start_date?: string | null })?.start_date ?? null),
-    [lastRegularSessionWithDate?.date, lecture?.start_date]
-  );
+  const defaultDateFromLecture = useMemo(() => {
+    const lectureStart = (lecture as { start_date?: string | null })?.start_date ?? null;
+    if (lastRegularSessionWithDate?.date) return nextWeekDate(lastRegularSessionWithDate.date);
+    return lectureStart?.trim() ? lectureStart : nextWeekDate(lectureStart);
+  }, [lastRegularSessionWithDate?.date, lecture]);
+
+  const lectureTimeRaw = lecture?.lecture_time?.trim() || "";
+  // 정규 차시 기본 시간: 강의 생성 모달 lecture_time(시작~종료) 연결
+  const lectureTimeExtract = useMemo(() => extractTimeFromLectureTime(lecture?.lecture_time), [lecture?.lecture_time]);
 
   const defaultTitle =
     sessionType === "n+1" ? `${nextOrder}차시` : sessionType === "supplement" ? "보강" : "";
-  const lectureTimeRaw = lecture?.lecture_time?.trim() || "";
-  const lectureTimeExtract = useMemo(() => extractTimeFromLectureTime(lecture?.lecture_time), [lecture?.lecture_time]);
 
   // 보강 선택 시 날짜·시간 모두 직접선택만 가능
   useEffect(() => {
@@ -216,7 +219,9 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
                 disableDefaultOption={isSupplement}
                 defaultLabel={
                   defaultDateFromLecture
-                    ? `다음 주 같은 요일 (${defaultDateFromLecture})`
+                    ? lastRegularSessionWithDate?.date
+                      ? `다음 주 같은 요일 (${defaultDateFromLecture})`
+                      : `강의 시작일 (${defaultDateFromLecture})`
                     : "미설정"
                 }
                 placeholder="날짜 선택"

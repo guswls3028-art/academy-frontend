@@ -44,6 +44,16 @@ export async function fetchLectures(params?: {
 }
 
 // ----------------------------------------
+// 강의 담당자 선택지 (오너 + 강사)
+// ----------------------------------------
+export type LectureInstructorOption = { name: string; type: "owner" | "teacher" };
+
+export async function fetchLectureInstructorOptions(): Promise<LectureInstructorOption[]> {
+  const res = await api.get("/lectures/lectures/instructor-options/");
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+// ----------------------------------------
 // LECTURE 상세 가져오기
 // ----------------------------------------
 export async function fetchLecture(lectureId: number): Promise<Lecture> {
@@ -93,6 +103,20 @@ export async function deleteLecture(lectureId: number): Promise<void> {
 export async function fetchSession(sessionId: number): Promise<Session> {
   const res = await api.get(`/lectures/sessions/${sessionId}/`);
   return res.data;
+}
+
+// ----------------------------------------
+// SESSION 목록 정렬 — 블록/테이블 표시용 SSOT
+// ----------------------------------------
+/** 차시 블록 배치: 블록 내부 날짜 기준 내림차순(최신→과거). 정규·보강 섞어서. 날짜 없으면 맨 뒤 */
+export function sortSessionsByDateDesc<T extends { date?: string | null }>(sessions: T[]): T[] {
+  return [...sessions].sort((a, b) => {
+    const da = a.date || "";
+    const db = b.date || "";
+    if (!da) return 1;
+    if (!db) return -1;
+    return db.localeCompare(da);
+  });
 }
 
 // ----------------------------------------

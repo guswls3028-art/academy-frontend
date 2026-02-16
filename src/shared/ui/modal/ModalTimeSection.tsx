@@ -58,6 +58,10 @@ export default function ModalTimeSection({
                 value={customTime}
                 onChange={onCustomTimeChange}
                 disabled={disabled}
+                startLabel="시작"
+                endLabel="종료"
+                startPlaceholder="시작"
+                endPlaceholder="종료"
               />
             </div>
           }

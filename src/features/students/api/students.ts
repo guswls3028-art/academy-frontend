@@ -185,10 +185,12 @@ export async function fetchStudents(
     ? res.data
     : [];
   const count = typeof res.data?.count === "number" ? res.data.count : items.length;
+  const pageSize = typeof res.data?.page_size === "number" ? res.data.page_size : 50;
 
   return {
     data: items.map(mapStudent),
     count,
+    pageSize,
   };
 }
 
@@ -367,6 +369,18 @@ export async function bulkRestoreStudents(ids: number[]) {
 export async function bulkPermanentDeleteStudents(ids: number[]) {
   const res = await api.post("/students/bulk_permanent_delete/", { ids });
   return res.data as { deleted: number };
+}
+
+/** 삭제된 학생 중 (이름+학부모전화) 중복 검사 — 고객 셀프 복구용 */
+export async function checkDeletedStudentDuplicates() {
+  const res = await api.get("/students/deleted_duplicates_check/");
+  return res.data as { duplicate_groups: number; records_to_remove: number };
+}
+
+/** 삭제된 학생 중복 정리 — 그룹당 1명만 유지, 나머지 영구 삭제 */
+export async function fixDeletedStudentDuplicates() {
+  const res = await api.post("/students/deleted_duplicates_fix/");
+  return res.data as { removed: number };
 }
 
 /** 충돌 해결 후 재등록 (삭제된 학생과 번호 충돌 시 복원 또는 영구 삭제 후 재등록) */

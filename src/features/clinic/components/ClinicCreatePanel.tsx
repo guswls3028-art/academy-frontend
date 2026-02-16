@@ -7,11 +7,12 @@ import {
   Checkbox,
   Segmented,
   Select,
-  DatePicker,
   message,
   Divider,
 } from "antd";
 import dayjs from "dayjs";
+
+import { DatePicker } from "@/shared/ui/date";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useClinicTargets } from "../hooks/useClinicTargets";
@@ -228,10 +229,9 @@ export default function ClinicCreatePanel({
       <div className="p-5 space-y-4">
         {!hideDatePicker && (
           <DatePicker
-            value={selectedDate}
-            onChange={(d) => d && setSelectedDate(d)}
-            allowClear={false}
-            className="w-full bg-[var(--bg-surface)]"
+            value={selectedDate.format("YYYY-MM-DD")}
+            onChange={(s) => setSelectedDate(dayjs(s))}
+            placeholder="날짜 선택"
           />
         )}
 

@@ -2,7 +2,7 @@
 import api from "@/shared/api/axios";
 import type { StaffWorkType } from "./staffWorkType.api";
 
-/** Backend: StaffListSerializer */
+/** Backend: StaffListSerializer — role: TEACHER(강사) | ASSISTANT(조교) */
 export type Staff = {
   id: number;
   name: string;
@@ -10,6 +10,7 @@ export type Staff = {
   is_active: boolean;
   is_manager: boolean;
   pay_type: "HOURLY" | "MONTHLY";
+  role: "TEACHER" | "ASSISTANT";
   staff_work_types: StaffWorkType[];
   created_at: string;
   updated_at: string;

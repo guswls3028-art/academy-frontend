@@ -1,120 +1,138 @@
-import {
-  Panel,
-  Section,
-  KPI,
-  Button,
-  StatusBadge,
-} from "@/shared/ui/ds";
-import { DomainLayout } from "@/shared/ui/layout";
+/**
+ * 성적 (사이드바) — 강의별 성적 진입점 · 차시 내 성적은 각 강의 > 차시에서 운영
+ * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
+ */
 
-export default function ResultControlCenter() {
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchLectures } from "@/features/lectures/api/sessions";
+import { DomainLayout } from "@/shared/ui/layout";
+import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { Button, EmptyState } from "@/shared/ui/ds";
+
+export default function ResultsAdminPage() {
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  const { data: lectures = [], isLoading } = useQuery({
+    queryKey: ["admin-results-lectures"],
+    queryFn: () => fetchLectures({ is_active: undefined }),
+  });
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return lectures;
+    const k = search.trim().toLowerCase();
+    return lectures.filter(
+      (l) =>
+        (l.title && l.title.toLowerCase().includes(k)) ||
+        (l.name && l.name.toLowerCase().includes(k)) ||
+        (l.subject && l.subject.toLowerCase().includes(k))
+    );
+  }, [lectures, search]);
+
+  const totalWidth = TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.status + TABLE_COL.actions;
+
   return (
     <DomainLayout
-      title="성적·결과 통합 관리"
-      description="시험 · 과제 · 클리닉 결과를 한 번에 분석합니다."
+      title="성적"
+      description="강의·시험 단위 성적을 통합 조회합니다. 차시별 채점·성적은 각 강의 > 차시에서 확인하세요."
     >
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-end">
-          <Button intent="primary" size="md">
-            리포트 다운로드
-          </Button>
-        </div>
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={isLoading ? "…" : `총 ${filtered.length}개 강의`}
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="강의명 · 과목 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onBlur={() => setSearch(searchInput)}
+              onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
+              style={{ maxWidth: 280 }}
+            />
+          }
+          primaryAction={
+            <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+              강의 목록
+            </Button>
+          }
+        />
 
-        {/* KPI */}
-        <Section level="primary" title="성과 요약">
-        <div className="grid grid-cols-4 gap-6">
-          <KPI label="평균 점수" value="84.6" hint="최근 시험" />
-          <KPI label="합격률" value="78%" hint="커리큘럼 기준" />
-          <KPI label="클리닉 대상" value="92" hint="자동 분류" />
-          <KPI label="재시험 비율" value="14%" hint="운영 지표" />
-        </div>
-      </Section>
-
-      {/* ===============================
-          RESULTS TABLE
-      =============================== */}
-      <Panel
-        title="학생 결과 현황"
-        description="강의·시험 단위 성적을 통합 조회합니다."
-        right={
-          <div className="flex items-center gap-3">
-            <Button intent="ghost" size="sm">시험 선택</Button>
-            <Button intent="ghost" size="sm">학교 선택</Button>
-          </div>
-        }
-      >
-        <div>
-          <table className="w-full text-sm">
+        {isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : !filtered.length ? (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="강의가 없습니다"
+            description="강의를 추가한 뒤, 각 강의 > 차시 > 성적 탭에서 시험·과제 성적을 관리할 수 있습니다."
+            actions={
+              <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+                강의 목록
+              </Button>
+            }
+          />
+        ) : (
+          <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
+            <colgroup>
+              <col style={{ width: TABLE_COL.title }} />
+              <col style={{ width: TABLE_COL.subject }} />
+              <col style={{ width: TABLE_COL.medium }} />
+              <col style={{ width: TABLE_COL.status }} />
+              <col style={{ width: TABLE_COL.actions }} />
+            </colgroup>
             <thead>
-              <tr className="text-left text-[var(--color-text-muted)]">
-                <th className="py-3">학생</th>
-                <th>강의</th>
-                <th>점수</th>
-                <th>판정</th>
-                <th>클리닉</th>
-                <th />
+              <tr>
+                <th scope="col">강의명</th>
+                <th scope="col">과목</th>
+                <th scope="col">기간</th>
+                <th scope="col">상태</th>
+                <th scope="col" />
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-[var(--color-border-divider)]">
-              {[
-                {
-                  name: "김○○",
-                  lecture: "고3 생명과학Ⅰ",
-                  score: "92 / 100",
-                  passed: true,
-                  clinic: false,
-                },
-                {
-                  name: "이○○",
-                  lecture: "고2 생명과학 내신",
-                  score: "71 / 100",
-                  passed: false,
-                  clinic: true,
-                },
-                {
-                  name: "박○○",
-                  lecture: "고1 생명과학 기초",
-                  score: "88 / 100",
-                  passed: true,
-                  clinic: false,
-                },
-              ].map((r, i) => (
-                <tr key={i} className="hover:bg-[var(--color-bg-surface-hover)]">
-                  <td className="py-4 font-semibold">{r.name}</td>
-                  <td>{r.lecture}</td>
-                  <td className="font-medium">{r.score}</td>
-                  <td>
-                    <StatusBadge
-                      status={r.passed ? "success" : "inactive"}
-                    />
+            <tbody>
+              {filtered.map((l) => (
+                <tr
+                  key={l.id}
+                  className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"
+                  onClick={() => navigate(`/admin/lectures/${l.id}`)}
+                >
+                  <td className="font-semibold text-[var(--color-text-primary)] truncate" title={l.title || l.name}>
+                    {l.title || l.name || "—"}
+                  </td>
+                  <td className="text-[var(--color-text-secondary)] truncate">{l.subject || "—"}</td>
+                  <td className="text-[var(--color-text-muted)]">
+                    {l.start_date && l.end_date
+                      ? `${l.start_date} ~ ${l.end_date}`
+                      : l.start_date || "—"}
                   </td>
                   <td>
-                    {r.clinic ? (
-                      <span className="text-sm font-semibold" style={{ color: "var(--color-error)" }}>
-                        필요
-                      </span>
-                    ) : (
-                      <span className="text-sm text-[var(--color-text-muted)]">
-                        -
-                      </span>
-                    )}
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: l.is_active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                      }}
+                    >
+                      {l.is_active ? "활성" : "비활성"}
+                    </span>
                   </td>
-                  <td className="text-right">
-                    <Button intent="ghost" size="sm">
-                      상세
+                  <td onClick={(ev) => ev.stopPropagation()}>
+                    <Button
+                      intent="primary"
+                      size="sm"
+                      onClick={() => navigate(`/admin/lectures/${l.id}`)}
+                    >
+                      성적 보기
                     </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      </Panel>
-
-        <div className="text-center text-xs font-semibold text-[var(--color-text-muted)]">
-          HakwonPlus · Biology Results Intelligence Platform
-        </div>
+          </DomainTable>
+        )}
       </div>
     </DomainLayout>
   );

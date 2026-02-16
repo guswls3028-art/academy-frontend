@@ -39,16 +39,16 @@ export function useStudentsQuery(
   return useQuery({
     queryKey: ["students", search, filters, sort, page, deleted],
     queryFn: async () => {
-      const { data, count } = await fetchStudents(search, filters, sort, page, deleted);
+      const { data, count, pageSize } = await fetchStudents(search, filters, sort, page, deleted);
 
-      if (!sort) return { data, count, pageSize: PAGE_SIZE };
+      if (!sort) return { data, count, pageSize: pageSize ?? PAGE_SIZE };
 
       const isDesc = sort.startsWith("-");
       const key = isDesc ? sort.slice(1) : sort;
 
       const sorted = [...data].sort((a, b) => compare(a, b, key));
       const sortedData = isDesc ? sorted.reverse() : sorted;
-      return { data: sortedData, count, pageSize: PAGE_SIZE };
+      return { data: sortedData, count, pageSize: pageSize ?? PAGE_SIZE };
     },
     staleTime: 1000 * 5,
   });

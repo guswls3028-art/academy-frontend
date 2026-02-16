@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
+import { TimeRangeInput } from "@/shared/ui/time";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
+import LectureChip from "@/shared/ui/chips/LectureChip";
+import { fetchLectureInstructorOptions } from "@/features/lectures/api/sessions";
 
 interface Props {
   isOpen: boolean;
@@ -42,6 +45,12 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
 
   const modalTitle = useMemo(() => "강의 추가", []);
 
+  const { data: instructorOptions = [] } = useQuery({
+    queryKey: ["lecture-instructor-options"],
+    queryFn: fetchLectureInstructorOptions,
+    enabled: isOpen,
+  });
+
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async (payload: CreateLecturePayload) => {
       await api.post("/lectures/lectures/", payload);
@@ -64,6 +73,12 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     setColor(getDefaultColorForPicker(usedColors));
     setChipLabel("");
   }, [isOpen, usedColors]);
+
+  useEffect(() => {
+    if (isOpen && instructorOptions.length > 0 && !name) {
+      setName(instructorOptions[0].name);
+    }
+  }, [isOpen, instructorOptions, name]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -99,18 +114,58 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
   }
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={820}>
+    <AdminModal open={true} onClose={onClose} type="action" width={480}>
       <ModalHeader type="action" title={modalTitle} description="⌘/Ctrl + Enter 로 등록" />
 
       <ModalBody>
         {isError && (
-          <div style={{ marginBottom: 10, fontSize: 12, fontWeight: 900, color: "var(--color-error)" }}>
+          <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 900, color: "var(--color-error)" }}>
             등록 중 오류가 발생했습니다.
           </div>
         )}
 
-        {/* ⬇️ students 모달과 동일한 입력 래퍼 구조 */}
-        <div style={{ display: "grid", gap: 12 }}>
+        <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
+          {/* 딱지 영역: 좌측=미리보기+아이콘, 우측=팔레트 (방향 고정) */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "auto 1fr",
+              gridTemplateRows: "auto auto",
+              gap: "10px 14px",
+              alignItems: "center",
+              direction: "ltr",
+            }}
+          >
+            <div style={{ gridColumn: 1, gridRow: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <LectureChip
+                lectureName=""
+                color={color}
+                chipLabel={chipLabel || undefined}
+                size={36}
+              />
+            </div>
+            <div style={{ gridColumn: 2, gridRow: "1 / -1", minWidth: 0 }}>
+              <ColorPickerField
+                label=""
+                value={color}
+                onChange={setColor}
+                disabled={isPending}
+              />
+            </div>
+            <div style={{ gridColumn: 1, gridRow: 2 }}>
+              <input
+                className="ds-input"
+                placeholder="아이콘"
+                value={chipLabel}
+                onChange={(e) => setChipLabel(e.target.value.slice(0, 2))}
+                maxLength={2}
+                disabled={isPending}
+                style={{ width: 56, textAlign: "center", padding: "6px 4px" }}
+                aria-label="아이콘(딱지 2글자)"
+              />
+            </div>
+          </div>
+
           <input
             className="ds-input"
             placeholder="강의 이름"
@@ -121,14 +176,26 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             autoFocus
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <input
-              className="ds-input"
-              placeholder="담당 강사"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isPending}
-            />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+                담당 강사
+              </label>
+              <select
+                className="ds-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isPending}
+                aria-label="담당 강사 선택"
+              >
+                <option value="">선택</option>
+                {instructorOptions.map((opt) => (
+                  <option key={`${opt.type}-${opt.name}`} value={opt.name}>
+                    {opt.type === "owner" ? `오너 · ${opt.name}` : opt.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <input
               className="ds-input"
               placeholder="과목"
@@ -140,7 +207,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
 
           <textarea
             className="ds-textarea"
-            rows={5}
+            rows={3}
             placeholder="설명"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -148,7 +215,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             style={{ resize: "none" }}
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <DatePicker
               value={startDate}
               onChange={setStartDate}
@@ -163,30 +230,18 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             />
           </div>
 
-          <input
-            className="ds-input"
-            placeholder="강의 시간 (예: 토 12:00 ~ 13:00)"
-            value={lectureTime}
-            onChange={(e) => setLectureTime(e.target.value)}
-            disabled={isPending}
-          />
-
-          <ColorPickerField
-            label="아이콘 색상"
-            value={color}
-            onChange={setColor}
-            disabled={isPending}
-          />
-
-          <input
-            className="ds-input"
-            placeholder="딱지 (2글자, 선택) — 미입력 시 강의 이름 앞 2자"
-            value={chipLabel}
-            onChange={(e) => setChipLabel(e.target.value.slice(0, 2))}
-            maxLength={2}
-            disabled={isPending}
-            style={{ maxWidth: 160 }}
-          />
+          <div style={{ minWidth: 320 }}>
+            <div className="modal-section-label" style={{ marginBottom: 6 }}>강의 시간</div>
+            <TimeRangeInput
+              value={lectureTime}
+              onChange={setLectureTime}
+              disabled={isPending}
+              startPlaceholder="시작"
+              endPlaceholder="종료"
+              startLabel="시작"
+              endLabel="종료"
+            />
+          </div>
         </div>
       </ModalBody>
 

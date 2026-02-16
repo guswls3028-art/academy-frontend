@@ -4,23 +4,25 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  fetchSessionEnrollments,
-  bulkCreateSessionEnrollments,
-} from "../api/enrollments";
+import { fetchSessionEnrollments, lectureEnrollFromExcelUpload } from "../api/enrollments";
+import type { SessionEnrollmentRow } from "../api/enrollments";
 import { fetchSessions } from "../api/sessions";
-import { bulkCreateAttendance } from "../api/attendance";
+import { bulkCreateAttendance, updateAttendance } from "../api/attendance";
 import { fetchStudents } from "@/features/students/api/students";
 import type { ClientStudent } from "@/features/students/api/students";
 import StudentCreateModal from "@/features/students/components/StudentCreateModal";
 import StudentsDetailOverlay from "@/features/students/overlays/StudentsDetailOverlay";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState, Tabs } from "@/shared/ui/ds";
+import { TABLE_COL } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 
 const PAGE_SIZE = 10;
+/** 탭 디자인 유지. '신규 학생 추가' 클릭 시 탭 전환 없이 학생추가 모달만 연다 */
 const ENROLL_TABS = [
   { key: "existing", label: "기존 학생 추가" },
   { key: "new", label: "신규 학생 추가" },
@@ -46,6 +48,36 @@ function TrashIcon({ className }: { className?: string }) {
   );
 }
 
+const PAGINATION_ICON_SIZE = 22;
+function FirstPageIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden width={PAGINATION_ICON_SIZE} height={PAGINATION_ICON_SIZE}>
+      <path d="M18.41 16.59L13.82 12l4.59-4.59L17 6l-6 6 6 6zM6 6h2v12H6z" />
+    </svg>
+  );
+}
+function PrevPageIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden width={PAGINATION_ICON_SIZE} height={PAGINATION_ICON_SIZE}>
+      <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+    </svg>
+  );
+}
+function NextPageIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden width={PAGINATION_ICON_SIZE} height={PAGINATION_ICON_SIZE}>
+      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+    </svg>
+  );
+}
+function LastPageIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden width={PAGINATION_ICON_SIZE} height={PAGINATION_ICON_SIZE}>
+      <path d="M5.59 7.41L10.18 12l-4.59 4.59L7 18l6-6-6-6zM18 6v12h-2V6z" />
+    </svg>
+  );
+}
+
 interface Props {
   lectureId: number;
   sessionId: number;
@@ -54,7 +86,13 @@ interface Props {
   onSuccess?: () => void;
 }
 
-type SelectedItem = { id: number; name: string };
+type LectureChipInfo = { lectureName: string; color?: string | null; chipLabel?: string | null };
+type SelectedItem = {
+  id: number;
+  name: string;
+  profilePhotoUrl?: string | null;
+  enrollments?: LectureChipInfo[];
+};
 
 export default function SessionEnrollModal({
   lectureId,
@@ -76,6 +114,12 @@ export default function SessionEnrollModal({
   const [popover, setPopover] = useState<"school" | "grade" | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
   const [selectingAll, setSelectingAll] = useState(false);
+  const [excelUploading, setExcelUploading] = useState(false);
+  /** 엑셀에서 파싱한 출결 값 (학생 ID → API status). 등록 후 PATCH에 사용 */
+  const [excelStatusByStudentId, setExcelStatusByStudentId] = useState<Record<number, string>>({});
+  /** 차시 엑셀 일괄등록: 선택된 파일 + 초기 비밀번호 (동일 워커 로직) */
+  const [excelPendingFile, setExcelPendingFile] = useState<File | null>(null);
+  const [excelInitialPassword, setExcelInitialPassword] = useState("");
   const popoverRef = useRef<HTMLDivElement>(null);
   const schoolTriggerRef = useRef<HTMLTableCellElement>(null);
   const gradeTriggerRef = useRef<HTMLTableCellElement>(null);
@@ -135,6 +179,17 @@ export default function SessionEnrollModal({
     [sessionEnrollments]
   );
 
+  /** 이미 해당 차시에 등록된 학생 ID — 목록에서 제외·선택 목록 중복 방지용 */
+  const alreadyEnrolledStudentIds = useMemo(
+    () =>
+      new Set(
+        sessionEnrollments
+          .map((se) => se.student_id)
+          .filter((id): id is number => id != null && Number.isFinite(id))
+      ),
+    [sessionEnrollments]
+  );
+
   const apiFilters = useMemo(() => {
     const base: Record<string, unknown> = { page_size: PAGE_SIZE };
     if (filters.school_type != null && String(filters.school_type).trim() !== "") {
@@ -155,6 +210,18 @@ export default function SessionEnrollModal({
   const students = studentsData?.data ?? [];
   const totalCount = studentsData?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  /** 테이블에 표시할 학생만 (이미 해당 차시 등록된 학생 제외) */
+  const studentsToShow = useMemo(
+    () => students.filter((s) => !alreadyEnrolledStudentIds.has(s.id)),
+    [students, alreadyEnrolledStudentIds]
+  );
+
+  /** 실제로 추가할 학생 ID만 (이미 등록된 학생 제외) */
+  const idsToAdd = useMemo(
+    () => selectedItems.map((s) => s.id).filter((id) => !alreadyEnrolledStudentIds.has(id)),
+    [selectedItems, alreadyEnrolledStudentIds]
+  );
 
   const handleSort = (colKey: string) => {
     setSort((prev) => {
@@ -177,61 +244,84 @@ export default function SessionEnrollModal({
   };
 
   const addByStudentMutation = useMutation({
-    mutationFn: (studentIds: number[]) => bulkCreateAttendance(sessionId, studentIds),
-    onSuccess: () => {
+    mutationFn: async (payload: {
+      studentIds: number[];
+      statusByStudentId?: Record<number, string>;
+    }) => {
+      const created = await bulkCreateAttendance(sessionId, payload.studentIds);
+      return { created: Array.isArray(created) ? created : created?.results ?? [], payload };
+    },
+    onSuccess: async (result) => {
+      const { created, payload } = result;
+      const { studentIds, statusByStudentId } = payload;
       qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
       qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
       qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
       qc.invalidateQueries({ queryKey: ["lecture-enrollments", lectureId] });
+      if (statusByStudentId && created.length) {
+        for (let i = 0; i < created.length; i++) {
+          const studentId = studentIds[i];
+          const status = statusByStudentId[studentId];
+          if (status && created[i]?.id) {
+            try {
+              await updateAttendance(created[i].id, { status });
+            } catch {
+              // 개별 PATCH 실패 시 무시(목록은 이미 반영됨)
+            }
+          }
+        }
+      }
+      setExcelStatusByStudentId({});
+      setSelectedItems([]);
       onSuccess?.();
       onClose();
-      setSelectedItems([]);
     },
   });
 
-  const copyFromPrevMutation = useMutation({
-    mutationFn: async () => {
-      if (!prevSession) throw new Error("직전 차시가 없습니다.");
+  const [copyFromPrevLoading, setCopyFromPrevLoading] = useState(false);
+
+  const handleCopyFromPrevToSelection = async () => {
+    if (!prevSession) return;
+    setCopyFromPrevLoading(true);
+    try {
       const prevList = await fetchSessionEnrollments(prevSession.id);
-      const toAdd = prevList
-        .map((se) => se.enrollment)
-        .filter((eid) => !alreadyEnrolledIds.has(eid));
-      if (toAdd.length === 0) return { added: 0 };
-      await bulkCreateSessionEnrollments(sessionId, toAdd);
-      return { added: toAdd.length };
-    },
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: ["session-enrollments", sessionId] });
-      qc.invalidateQueries({ queryKey: ["attendance", sessionId] });
-      qc.invalidateQueries({ queryKey: ["attendance-matrix", lectureId] });
-      onSuccess?.();
-      if (result && "added" in result) {
-        if (result.added > 0) {
-          feedback.success(`직전 차시에서 ${result.added}명을 가져왔습니다.`);
-          onClose();
-        } else {
-          feedback.info("가져올 새 수강생이 없습니다. (이미 모두 등록됨)");
-        }
+      const toAddRows = prevList.filter((se) => !alreadyEnrolledIds.has(se.enrollment));
+      const itemsToAdd: SelectedItem[] = toAddRows
+        .filter((se): se is SessionEnrollmentRow & { student_id: number } => se.student_id != null)
+        .map((se) => ({ id: se.student_id, name: se.student_name ?? "-" })); /* 직전 차시는 id/name만 있음 */
+      if (itemsToAdd.length === 0) {
+        feedback.info("가져올 새 수강생이 없습니다. (이미 모두 등록됨)");
+        return;
       }
-    },
-    onError: (e) => {
+      setSelectedItems((prev) => {
+        const byId = new Map(prev.map((s) => [s.id, s]));
+        itemsToAdd.forEach((item) => byId.set(item.id, item));
+        return Array.from(byId.values());
+      });
+      feedback.success(`직전 차시에서 ${itemsToAdd.length}명을 선택 목록에 추가했습니다. 아래에서 확인 후 'N명 추가'로 등록하세요.`);
+    } catch (e) {
       feedback.error(e instanceof Error ? e.message : "가져오기 실패");
-    },
-  });
+    } finally {
+      setCopyFromPrevLoading(false);
+    }
+  };
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!isOpen) return;
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        if (selectedItems.length > 0 && activeTab === "existing" && !addByStudentMutation.isPending) {
-          addByStudentMutation.mutate(selectedItems.map((s) => s.id));
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          if (idsToAdd.length > 0 && !addByStudentMutation.isPending) {
+            addByStudentMutation.mutate({
+            studentIds: idsToAdd,
+            statusByStudentId: excelStatusByStudentId,
+          });
         }
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, selectedItems, activeTab, addByStudentMutation]);
+  }, [isOpen, idsToAdd, excelStatusByStudentId, addByStudentMutation]);
 
   if (!isOpen) return null;
 
@@ -240,9 +330,17 @@ export default function SessionEnrollModal({
   const toggleSelect = (student: ClientStudent) => {
     const id = student.id;
     const name = student.name ?? "-";
+    const profilePhotoUrl = student.profilePhotoUrl ?? undefined;
+    const enrollments: LectureChipInfo[] = Array.isArray(student.enrollments)
+      ? student.enrollments.map((en) => ({
+          lectureName: en.lectureName ?? "??",
+          color: en.lectureColor ?? undefined,
+          chipLabel: (en as { lectureChipLabel?: string | null }).lectureChipLabel ?? undefined,
+        }))
+      : [];
     setSelectedItems((prev) => {
       if (prev.some((s) => s.id === id)) return prev.filter((s) => s.id !== id);
-      return [...prev, { id, name }];
+      return [...prev, { id, name, profilePhotoUrl, enrollments }];
     });
   };
 
@@ -264,7 +362,22 @@ export default function SessionEnrollModal({
         if (data.length < PAGE_SIZE) break;
         p += 1;
       }
-      setSelectedItems(all.map((s) => ({ id: s.id, name: s.name ?? "-" })));
+      setSelectedItems(
+        all
+          .filter((s) => !alreadyEnrolledStudentIds.has(s.id))
+          .map((s) => ({
+            id: s.id,
+            name: s.name ?? "-",
+            profilePhotoUrl: s.profilePhotoUrl ?? undefined,
+            enrollments: Array.isArray(s.enrollments)
+              ? s.enrollments.map((en) => ({
+                  lectureName: en.lectureName ?? "??",
+                  color: en.lectureColor ?? undefined,
+                  chipLabel: (en as { lectureChipLabel?: string | null }).lectureChipLabel ?? undefined,
+                }))
+              : [],
+          }))
+      );
       if (all.length > 0) feedback.success(`전체 ${all.length}명 선택됨`);
     } catch (e) {
       feedback.error("전체 선택 중 오류가 났습니다.");
@@ -277,13 +390,44 @@ export default function SessionEnrollModal({
     setSelectedItems((prev) => prev.filter((s) => s.id !== id));
   };
 
-  const handleExcelFile = () => {
-    feedback.info("엑셀에서 불러오기 기능은 준비 중입니다.");
+  /** 엑셀 파일 선택 시 선택 목록에 넣지 않고, 동일 워커 로직(업로드→job)으로 보낼 파일만 저장 */
+  const handleExcelFileSelect = (file: File) => {
+    if (excelUploading) return;
+    setExcelPendingFile(file);
+    setExcelInitialPassword("");
+  };
+
+  /** 차시 엑셀 일괄등록 — 강의 엑셀 수강등록과 동일 API·워커 로직 (session_id만 추가) */
+  const handleExcelEnrollSubmit = async () => {
+    if (!excelPendingFile || excelUploading) return;
+    const pwd = excelInitialPassword.trim();
+    if (pwd.length < 4) {
+      feedback.error("초기 비밀번호는 4자 이상이어야 합니다. (신규 생성 학생 로그인용)");
+      return;
+    }
+    setExcelUploading(true);
+    try {
+      const { job_id } = await lectureEnrollFromExcelUpload(lectureId, excelPendingFile, pwd, {
+        sessionId,
+      });
+      asyncStatusStore.addWorkerJob("엑셀 수강등록", job_id, "excel_parsing");
+      feedback.success(
+        "작업이 백그라운드에서 진행됩니다. 우하단에서 진행 상황을 확인할 수 있습니다."
+      );
+      onSuccess?.();
+      onClose();
+      setExcelPendingFile(null);
+      setExcelInitialPassword("");
+    } catch (e) {
+      feedback.error(e instanceof Error ? e.message : "등록 요청 중 오류가 발생했습니다.");
+    } finally {
+      setExcelUploading(false);
+    }
   };
 
   return (
     <>
-      <AdminModal open={true} onClose={onClose} type="action" width={920}>
+      <AdminModal open={true} onClose={onClose} type="action" width={840}>
         <ModalHeader
           type="action"
           title="차시 수강생 등록"
@@ -294,28 +438,32 @@ export default function SessionEnrollModal({
           <div
             className="grid gap-4 min-h-0 overflow-hidden"
             style={{
-              gridTemplateColumns: "1fr 280px",
-              maxHeight: "min(78vh, 620px)",
+              gridTemplateColumns: "1fr 220px",
+              maxHeight: "min(78vh, 600px)",
+              minHeight: activeTab === "existing" ? 480 : undefined,
             }}
           >
-            {/* 좌측: 탭 + 테이블 (스크롤 없음, 페이지네이션만) — 모달 내 입체탭 */}
-            <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
+            {/* 좌측: 탭(신규 탭은 클릭 시 모달만 열림) + 테이블 */}
+            <div className="flex flex-col gap-2 min-h-0 overflow-hidden">
               <div className="modal-tabs-elevated">
                 <Tabs
                   value={activeTab}
                   items={ENROLL_TABS}
-                  onChange={(key) => setActiveTab(key)}
+                  onChange={(key) => {
+                    if (key === "new") setStudentCreateOpen(true);
+                    else setActiveTab(key);
+                  }}
                 />
               </div>
 
               {activeTab === "existing" && (
                 <>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-base font-semibold text-[var(--color-text-primary)]">
+                    <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
                       전체 학생 명단
                     </span>
                     {selectedItems.length > 0 && (
-                      <span className="text-base font-medium text-[var(--color-brand-primary)]">
+                      <span className="text-[13px] font-semibold text-[var(--color-brand-primary)]">
                         {selectedItems.length}명 선택됨
                       </span>
                     )}
@@ -335,7 +483,7 @@ export default function SessionEnrollModal({
                       background: "var(--color-bg-surface)",
                     }}
                   >
-                    <div className="shrink-0">
+                    <div className="shrink-0 modal-inner-table">
                       {loadingStudents ? (
                         <EmptyState
                           mode="embedded"
@@ -345,18 +493,26 @@ export default function SessionEnrollModal({
                         />
                       ) : (
                         <table
-                          className="w-full border-collapse text-sm"
+                          className="w-full border-collapse"
                           style={{ tableLayout: "fixed" }}
                           role="grid"
                           aria-label="전체 학생 명단"
                         >
+                          <colgroup>
+                            <col style={{ width: TABLE_COL.checkbox }} />
+                            <col style={{ width: TABLE_COL.nameCompactModal }} />
+                            <col style={{ width: TABLE_COL.phoneCompact }} />
+                            <col style={{ width: TABLE_COL.phoneCompact }} />
+                            <col style={{ width: TABLE_COL.mediumModal }} />
+                            <col style={{ width: TABLE_COL.shortModal }} />
+                          </colgroup>
                           <thead>
                             <tr
                               className="sticky top-0 z-10"
                               style={{ background: "var(--color-bg-surface)" }}
                             >
                               <th
-                                className="w-10 border-b py-2.5 pl-3 pr-1 text-left text-sm font-semibold text-[var(--color-text-muted)]"
+                                className="modal-inner-table__checkbox-cell border-b py-1.5 pl-2 pr-1 text-left text-[var(--color-text-muted)]"
                                 style={{ borderColor: "var(--color-border-divider)" }}
                               >
                                 <input
@@ -364,13 +520,12 @@ export default function SessionEnrollModal({
                                   checked={isAllSelected}
                                   disabled={selectingAll || loadingStudents}
                                   onChange={() => toggleSelectAllFull()}
-                                  className="cursor-pointer w-4 h-4"
                                   aria-label="전체 선택 (검색·필터 결과 전체)"
-                                  title={isAllSelected ? "선택 해제" : "검색·필터 결과 전체 선택"}
+                                  title={isAllSelected ? "선택택 해제" : "검색·필터 결과 전체 선택"}
                                 />
                               </th>
                               <th
-                                className="border-b py-2.5 px-3 text-left text-sm font-semibold text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)]"
+                                className="modal-inner-table__name-th border-b py-1.5 px-3 text-left text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)]"
                                 style={{ borderColor: "var(--color-border-divider)" }}
                                 onClick={() => handleSort("name")}
                                 aria-sort={sort === "name" ? "ascending" : sort === "-name" ? "descending" : "none"}
@@ -378,7 +533,7 @@ export default function SessionEnrollModal({
                                 이름 {sortIcon("name")}
                               </th>
                               <th
-                                className="border-b py-2.5 px-3 text-left text-sm font-semibold text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)]"
+                                className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)]"
                                 style={{ borderColor: "var(--color-border-divider)" }}
                                 onClick={() => handleSort("parentPhone")}
                                 aria-sort={sort === "parentPhone" ? "ascending" : sort === "-parentPhone" ? "descending" : "none"}
@@ -386,7 +541,7 @@ export default function SessionEnrollModal({
                                 부모님 전화 {sortIcon("parentPhone")}
                               </th>
                               <th
-                                className="border-b py-2.5 px-3 text-left text-sm font-semibold text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)]"
+                                className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)]"
                                 style={{ borderColor: "var(--color-border-divider)" }}
                                 onClick={() => handleSort("studentPhone")}
                                 aria-sort={sort === "studentPhone" ? "ascending" : sort === "-studentPhone" ? "descending" : "none"}
@@ -395,7 +550,7 @@ export default function SessionEnrollModal({
                               </th>
                               <th
                                 ref={schoolTriggerRef}
-                                className="border-b py-2.5 px-3 text-left text-sm font-semibold text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)] relative"
+                                className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)] relative"
                                 style={{ borderColor: "var(--color-border-divider)" }}
                                 onClick={(e) => { e.stopPropagation(); setPopover((p) => (p === "school" ? null : "school")); }}
                                 aria-haspopup="true"
@@ -406,7 +561,7 @@ export default function SessionEnrollModal({
                               </th>
                               <th
                                 ref={gradeTriggerRef}
-                                className="w-16 border-b py-2.5 px-3 text-left text-sm font-semibold text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)] relative"
+                                className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)] cursor-pointer select-none hover:text-[var(--color-text-primary)] relative"
                                 style={{ borderColor: "var(--color-border-divider)" }}
                                 onClick={(e) => { e.stopPropagation(); setPopover((p) => (p === "grade" ? null : "grade")); }}
                                 aria-haspopup="true"
@@ -417,17 +572,17 @@ export default function SessionEnrollModal({
                             </tr>
                           </thead>
                           <tbody>
-                            {students.length === 0 ? (
+                            {studentsToShow.length === 0 ? (
                               <tr>
                                 <td
                                   colSpan={6}
-                                  className="py-8 px-3 text-center text-sm text-[var(--color-text-muted)]"
+                                  className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                                 >
                                   검색 결과 없음. 검색어·필터를 바꿔 보세요.
                                 </td>
                               </tr>
                             ) : (
-                              students.map((row) => {
+                              studentsToShow.map((row) => {
                                 const checked = selectedIds.has(row.id);
                                 const openStudentDetail = () => setOverlayStudentId(row.id);
                                 return (
@@ -437,19 +592,18 @@ export default function SessionEnrollModal({
                                     style={{ borderColor: "var(--color-border-divider)" }}
                                   >
                                     <td
-                                      className="py-2.5 pl-3 pr-1"
+                                      className="modal-inner-table__checkbox-cell py-1.5 pl-2 pr-1"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       <input
                                         type="checkbox"
                                         checked={checked}
                                         onChange={() => toggleSelect(row)}
-                                        className="cursor-pointer w-4 h-4"
                                         aria-label={`${row.name} 선택`}
                                       />
                                     </td>
                                     <td
-                                      className="py-2.5 px-3 font-medium text-[var(--color-text-primary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)]"
+                                      className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)]"
                                       onClick={openStudentDetail}
                                       role="button"
                                       tabIndex={0}
@@ -458,7 +612,7 @@ export default function SessionEnrollModal({
                                       <StudentNameWithLectureChip
                                         name={row.name ?? "-"}
                                         profilePhotoUrl={row.profilePhotoUrl ?? undefined}
-                                        avatarSize={24}
+                                        avatarSize={20}
                                         lectures={
                                           Array.isArray(row.enrollments) && row.enrollments.length > 0
                                             ? row.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
@@ -468,11 +622,11 @@ export default function SessionEnrollModal({
                                               }))
                                             : undefined
                                         }
-                                        chipSize={16}
+                                        chipSize={14}
                                       />
                                     </td>
                                     <td
-                                      className="py-2.5 px-3 text-[var(--color-text-secondary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)]"
+                                      className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)] leading-6"
                                       onClick={openStudentDetail}
                                       role="button"
                                       tabIndex={0}
@@ -481,7 +635,7 @@ export default function SessionEnrollModal({
                                       {formatPhone(row.parentPhone ?? "") || "미입력"}
                                     </td>
                                     <td
-                                      className="py-2.5 px-3 text-[var(--color-text-secondary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)]"
+                                      className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)] leading-6"
                                       onClick={openStudentDetail}
                                       role="button"
                                       tabIndex={0}
@@ -490,7 +644,7 @@ export default function SessionEnrollModal({
                                       {formatPhone(row.studentPhone ?? "") || "미입력"}
                                     </td>
                                     <td
-                                      className="py-2.5 px-3 text-[var(--color-text-secondary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)]"
+                                      className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate cursor-pointer hover:bg-[var(--color-bg-surface-soft)] leading-6"
                                       title="학교 이름"
                                       onClick={openStudentDetail}
                                       role="button"
@@ -500,7 +654,7 @@ export default function SessionEnrollModal({
                                       {row.school || "-"}
                                     </td>
                                     <td
-                                      className="py-2.5 px-3 text-[var(--color-text-secondary)] cursor-pointer hover:bg-[var(--color-bg-surface-soft)]"
+                                      className="py-1.5 px-3 text-[var(--color-text-secondary)] cursor-pointer hover:bg-[var(--color-bg-surface-soft)] leading-6"
                                       onClick={openStudentDetail}
                                       role="button"
                                       tabIndex={0}
@@ -591,16 +745,16 @@ export default function SessionEnrollModal({
                       </div>,
                       document.body
                     )}
-                    {/* 페이지네이션: 항상 표시 (학생 데이터 있을 때), 1페이지여도 1/1 + 비활성 버튼 */}
-                    {(students.length > 0 || totalCount > 0) && (
+                    {/* 페이지네이션: 큼지막한 아이콘, 항상 표시 (학생 데이터 있을 때) */}
+                    {(studentsToShow.length > 0 || totalCount > 0) && (
                       <div
-                        className="flex items-center justify-between gap-2 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
+                        className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
                         style={{ borderColor: "var(--color-border-divider)" }}
                       >
-                        <span className="text-base font-medium text-[var(--color-text-primary)]">
-                          총 {totalCount > 0 ? totalCount.toLocaleString() : students.length}명
+                        <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                          총 {totalCount > 0 ? totalCount.toLocaleString() : studentsToShow.length}명
                         </span>
-                        <div className="flex items-center gap-0.5">
+                        <div className="flex items-center gap-1">
                           <Button
                             type="button"
                             intent="ghost"
@@ -608,9 +762,9 @@ export default function SessionEnrollModal({
                             disabled={page <= 1}
                             onClick={() => setPage(1)}
                             aria-label="첫 페이지"
-                            className="!min-w-9 !px-2 text-base"
+                            className="!min-w-10 !h-10 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
                           >
-                            ‹‹
+                            <FirstPageIcon />
                           </Button>
                           <Button
                             type="button"
@@ -619,11 +773,11 @@ export default function SessionEnrollModal({
                             disabled={page <= 1}
                             onClick={() => setPage((p) => Math.max(1, p - 1))}
                             aria-label="이전 페이지"
-                            className="!min-w-9 !px-2 text-base"
+                            className="!min-w-10 !h-10 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
                           >
-                            ‹
+                            <PrevPageIcon />
                           </Button>
-                          <span className="text-base font-semibold text-[var(--color-text-primary)] px-2 min-w-[4rem] text-center">
+                          <span className="text-[13px] font-semibold text-[var(--color-text-primary)] px-3 min-w-[4.5rem] text-center">
                             {page} / {totalPages}
                           </span>
                           <Button
@@ -633,9 +787,9 @@ export default function SessionEnrollModal({
                             disabled={page >= totalPages}
                             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                             aria-label="다음 페이지"
-                            className="!min-w-9 !px-2 text-base"
+                            className="!min-w-10 !h-10 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
                           >
-                            ›
+                            <NextPageIcon />
                           </Button>
                           <Button
                             type="button"
@@ -644,9 +798,9 @@ export default function SessionEnrollModal({
                             disabled={page >= totalPages}
                             onClick={() => setPage(totalPages)}
                             aria-label="마지막 페이지"
-                            className="!min-w-9 !px-2 text-base"
+                            className="!min-w-10 !h-10 !p-0 flex items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)] disabled:opacity-40"
                           >
-                            ››
+                            <LastPageIcon />
                           </Button>
                         </div>
                       </div>
@@ -654,115 +808,100 @@ export default function SessionEnrollModal({
                   </div>
                 </>
               )}
-
-              {activeTab === "new" && (
-                <div
-                  className="flex flex-col items-center justify-center gap-4 rounded-xl border py-12 px-6"
-                  style={{
-                    borderColor: "var(--color-border-divider)",
-                    background: "var(--color-bg-surface-soft)",
-                    minHeight: 280,
-                  }}
-                >
-                  <p className="text-sm text-[var(--color-text-secondary)] text-center">
-                    신규 학생을 등록한 뒤, 이 차시 수강생 목록에서 선택해 추가할 수 있습니다.
-                  </p>
-                  <Button
-                    type="button"
-                    intent="primary"
-                    size="md"
-                    onClick={() => setStudentCreateOpen(true)}
-                  >
-                    학생 추가
-                  </Button>
-                </div>
-              )}
             </div>
 
-            {/* 우측: 불러오기 + 선택 목록 (모달 높이에 맞춤) */}
+            {/* 우측: 불러오기 + 선택 목록 (고정 높이, 모달 크기 불변) */}
             <div
-              className="flex flex-col gap-4 rounded-xl border p-4 shrink-0 min-h-0 overflow-hidden"
+              className="flex flex-col gap-4 rounded-xl border p-4 w-[220px] shrink-0 self-stretch min-h-0 overflow-hidden"
               style={{
                 borderColor: "var(--color-border-divider)",
                 background: "var(--color-bg-surface)",
               }}
             >
-              <section className="shrink-0">
-                <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
-                  불러오기
-                </h3>
-                <div className="flex flex-col gap-2">
-                  <div>
-                    <Button
-                      type="button"
-                      intent="secondary"
-                      size="sm"
-                      className="w-full"
-                      disabled={!prevSession || copyFromPrevMutation.isPending}
-                      onClick={() => prevSession && copyFromPrevMutation.mutate()}
-                      title={prevSession ? `직전 차시(${prevSession.order ?? "?"}차시) 수강생을 이 차시에 그대로 등록합니다.` : "1차시는 직전 차시가 없습니다."}
-                      aria-label={prevSession ? `직전 차시 ${prevSession.order ?? "?"}차시 수강생 가져오기` : "직전 차시에서 (1차시는 해당 없음)"}
-                    >
-                      {copyFromPrevMutation.isPending
-                        ? "가져오는 중…"
-                        : prevSession
-                          ? `직전 차시(${prevSession.order ?? "?"}차시)에서`
-                          : "직전 차시에서"}
-                    </Button>
-                    {prevSession && (
-                      <p className="mt-1.5 text-sm text-[var(--color-text-secondary)] leading-snug">
-                        직전 차시 수강생을 이 차시에 그대로 등록합니다.
-                      </p>
-                    )}
-                  </div>
+              <section className="shrink-0 space-y-5">
+                <div className="py-0.5">
                   <Button
                     type="button"
                     intent="secondary"
                     size="sm"
-                    className="w-full text-base"
-                    onClick={handleExcelFile}
-                  >
-                    엑셀에서
+                    className="w-full"
+                  disabled={!prevSession || copyFromPrevLoading}
+                  onClick={() => prevSession && handleCopyFromPrevToSelection()}
+                  title={prevSession ? `직전 차시(${prevSession.order ?? "?"}차시) 수강생을 선택 목록에만 넣습니다.` : undefined}
+                  aria-label={prevSession ? `직전 차시 ${prevSession.order ?? "?"}차시 수강생 선택 목록에 추가` : "직전 차시에서 (1차시는 해당 없음)"}
+                >
+                  {copyFromPrevLoading
+                    ? "가져오는 중…"
+                    : prevSession
+                      ? `직전 차시(${prevSession.order ?? "?"}차시)에서 불러오기`
+                      : "직전 차시에서 불러오기"}
                   </Button>
-                  <button
-                    type="button"
-                    onClick={handleExcelFile}
-                    className="w-full text-center rounded-xl border-2 border-dashed py-4 px-3 transition-colors hover:border-[var(--color-brand-primary)] hover:bg-[color-mix(in_srgb,var(--color-brand-primary)_6%,transparent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]"
-                    style={{ borderColor: "var(--color-border-divider)", background: "var(--color-bg-surface-soft)" }}
-                  >
-                    <span className="block text-[11px] text-[var(--color-text-muted)] mb-1" aria-hidden>엑셀 파일</span>
-                    <span className="text-sm font-medium text-[var(--color-text-secondary)]">
-                      파일 선택 / 드래그
-                    </span>
-                    <span className="block text-xs text-[var(--color-text-muted)] mt-0.5">(기능 준비 중)</span>
-                  </button>
                 </div>
+                {excelPendingFile ? (
+                  <div className="excel-upload-zone excel-upload-zone--filled flex flex-col items-stretch justify-center gap-3 py-4 px-3">
+                    <p className="text-[13px] font-medium text-[var(--color-text-primary)] truncate text-center" title={excelPendingFile.name}>
+                      {excelPendingFile.name}
+                    </p>
+                    <label className="text-[12px] font-medium text-[var(--color-text-secondary)]">초기 비밀번호</label>
+                    <input
+                      type="password"
+                      value={excelInitialPassword}
+                      onChange={(e) => setExcelInitialPassword(e.target.value)}
+                      placeholder="4자 이상"
+                      className="ds-input w-full text-[13px]"
+                      minLength={4}
+                      aria-label="초기 비밀번호"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        intent="primary"
+                        size="sm"
+                        onClick={handleExcelEnrollSubmit}
+                        disabled={excelUploading || excelInitialPassword.trim().length < 4}
+                      >
+                        {excelUploading ? "등록 중…" : "엑셀로 일괄 등록"}
+                      </Button>
+                      <Button
+                        type="button"
+                        intent="secondary"
+                        size="sm"
+                        onClick={() => { setExcelPendingFile(null); setExcelInitialPassword(""); }}
+                        disabled={excelUploading}
+                      >
+                        취소
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <ExcelUploadZone onFileSelect={handleExcelFileSelect} disabled={excelUploading} />
+                )}
               </section>
 
-              {/* 선택된 학생 목록 — 모달 내 유일 스크롤 영역 */}
-              <section className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between gap-2 mb-2 shrink-0 flex-wrap">
-                  <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
-                    선택된 학생 목록
-                  </h3>
-                  {selectedItems.length > 0 ? (
-                    <span className="flex items-center gap-2">
-                      <span className="text-base font-medium text-[var(--color-brand-primary)]">
-                        {selectedItems.length}명 선택됨
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedItems([])}
-                        className="text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] underline font-medium"
-                        aria-label="선택 전체 해제"
-                      >
-                        전체 해제
-                      </button>
-                    </span>
-                  ) : null}
+              {/* N명 선택됨 · 선택 해제만 표시 */}
+              <section className="flex flex-col min-h-0 flex-1 overflow-hidden">
+                <div className="flex flex-wrap items-center gap-2 mb-2 shrink-0 pl-0.5">
+                  <span
+                    className="text-[13px] font-semibold"
+                    style={{
+                      color: selectedItems.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+                    }}
+                  >
+                    {selectedItems.length}명 선택됨
+                  </span>
+                  <span className="text-[var(--color-border-divider)]" aria-hidden>|</span>
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => setSelectedItems([])}
+                    disabled={selectedItems.length === 0}
+                    className="!text-[13px]"
+                  >
+                    전체 해제
+                  </Button>
                 </div>
                 <div
-                  className="flex-1 min-h-[100px] overflow-y-auto overflow-x-hidden rounded-lg border p-2"
+                  className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border p-2 max-h-[310px]"
                   style={{
                     borderColor: "var(--color-border-divider)",
                     background: "var(--color-bg-surface-soft)",
@@ -770,21 +909,42 @@ export default function SessionEnrollModal({
                   }}
                 >
                   {selectedItems.length === 0 ? (
-                    <p className="text-sm text-[var(--color-text-muted)] py-4 text-center">
+                    <p className="text-[13px] text-[var(--color-text-muted)] py-4 text-center">
                       선택한 학생이 없어요.
-                      <span className="block mt-1.5 text-xs opacity-90">
+                      <span className="block mt-1.5 text-[11px] text-[var(--color-text-muted)]">
                         왼쪽 테이블에서 체크 후 추가하세요.
                       </span>
                     </p>
                   ) : (
-                    <ul className="space-y-0.5">
+                    <ul className="space-y-0">
                       {selectedItems.map((s) => (
                         <li
                           key={s.id}
-                          className="flex items-center justify-between gap-2 text-sm py-1.5 px-2 rounded hover:bg-[var(--color-bg-surface)] group"
+                          className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-[var(--color-bg-surface)] group min-h-[32px]"
                         >
-                          <span className="truncate min-w-0 text-[var(--color-text-primary)]">
-                            {s.name}
+                          <span className="flex items-center gap-2 min-w-0 flex-1 truncate">
+                            {Array.isArray(s.enrollments) && s.enrollments.length > 0 ? (
+                              <StudentNameWithLectureChip
+                                name={s.name}
+                                profilePhotoUrl={s.profilePhotoUrl}
+                                avatarSize={20}
+                                chipSize={14}
+                                lectures={s.enrollments.map((e) => ({
+                                  lectureName: e.lectureName,
+                                  color: e.color ?? undefined,
+                                  chipLabel: e.chipLabel ?? undefined,
+                                }))}
+                                className="text-[13px] font-semibold leading-6 text-[var(--color-text-primary)]"
+                              />
+                            ) : (
+                              <StudentNameWithLectureChip
+                                name={s.name}
+                                profilePhotoUrl={s.profilePhotoUrl}
+                                avatarSize={20}
+                                chipSize={14}
+                                className="text-[13px] font-semibold leading-6 text-[var(--color-text-primary)]"
+                              />
+                            )}
                           </span>
                           <button
                             type="button"
@@ -800,10 +960,6 @@ export default function SessionEnrollModal({
                     </ul>
                   )}
                 </div>
-                {/* 이 차시에 이미 등록됨 — 우측 하단 (모달 인터페이스) */}
-                <div className="mt-3 pt-3 border-t shrink-0 text-base font-semibold text-[var(--color-text-primary)]" style={{ borderColor: "var(--color-border-divider)" }}>
-                  이 차시에 이미 등록됨: <span className="text-[var(--color-brand-primary)]">{sessionEnrollments.length}명</span>
-                </div>
               </section>
             </div>
           </div>
@@ -811,35 +967,30 @@ export default function SessionEnrollModal({
 
         <ModalFooter
           left={
-            <span className="text-base font-medium text-[var(--color-text-primary)]">
+            <span className="text-[12px] font-semibold text-[var(--color-text-muted)]">
               ESC 닫기 · ⌘/Ctrl + Enter 추가
             </span>
           }
           right={
             <>
-              <Button intent="secondary" onClick={onClose} className="text-base">
+              <Button intent="secondary" onClick={onClose} className="text-[13px]">
                 취소
               </Button>
               <Button
                 intent="primary"
-                className="text-base"
+                className="text-[13px]"
                 onClick={() =>
-                  addByStudentMutation.mutate(selectedItems.map((s) => s.id))
+                  addByStudentMutation.mutate({
+                    studentIds: idsToAdd,
+                    statusByStudentId: excelStatusByStudentId,
+                  })
                 }
-                disabled={
-                  addByStudentMutation.isPending ||
-                  selectedItems.length === 0 ||
-                  activeTab !== "existing"
-                }
-                title={
-                  selectedItems.length === 0 && activeTab === "existing"
-                    ? "왼쪽 테이블에서 학생을 선택하세요"
-                    : undefined
-                }
+                disabled={addByStudentMutation.isPending || idsToAdd.length === 0}
+                title={idsToAdd.length === 0 ? "왼쪽 테이블에서 학생을 선택하세요" : undefined}
               >
                 {addByStudentMutation.isPending
                   ? "등록 중…"
-                  : `${selectedItems.length}명 추가`}
+                  : `${idsToAdd.length}명 추가`}
               </Button>
             </>
           }

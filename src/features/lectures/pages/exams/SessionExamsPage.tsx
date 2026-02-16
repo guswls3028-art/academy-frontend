@@ -25,6 +25,7 @@ export default function SessionExamsPage({ sessionId }: Props) {
     return (
       <EmptyState
         scope="panel"
+        tone="empty"
         title="이 차시에 연결된 시험이 없습니다."
         description="좌측 평가 패널에서 시험을 추가할 수 있습니다."
       />

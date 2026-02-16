@@ -1,9 +1,12 @@
-﻿// PATH: src/features/staff/pages/OperationsPage/StaffOperationTable.tsx
+// PATH: src/features/staff/pages/OperationsPage/StaffOperationTable.tsx
+// Design: docs/DESIGN_SSOT.md
+
 import { useMemo, useState } from "react";
 import { useStaffs } from "../../hooks/useStaffs";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Staff } from "../../api/staff.api";
-import { Input } from "antd";
+import { EmptyState } from "@/shared/ui/ds";
+import { RoleBadge } from "../../components/StatusBadge";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -55,36 +58,35 @@ export default function StaffOperationTable({
 
   return (
     <div className="space-y-3">
-      <Input
+      <input
+        type="search"
+        className="ds-input w-full"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="이름/전화번호 검색"
-        allowClear
-        size="middle"
+        aria-label="직원 검색"
       />
 
       {isLoading && (
-        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-muted)]">
-          불러오는 중...
-        </div>
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       )}
 
       {!isLoading && staffs.length === 0 && (
-        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3">
-          <div className="text-sm font-semibold">직원 없음</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
-            직원이 등록되어야 작업 콘솔을 사용할 수 있습니다.
-          </div>
-        </div>
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="직원 없음"
+          description="직원이 등록되어야 작업 콘솔을 사용할 수 있습니다."
+        />
       )}
 
       {!isLoading && staffs.length > 0 && filtered.length === 0 && (
-        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3">
-          <div className="text-sm font-semibold">검색 결과 없음</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
-            이름 또는 전화번호로 다시 검색해보세요.
-          </div>
-        </div>
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="검색 결과 없음"
+          description="이름 또는 전화번호로 다시 검색해보세요."
+        />
       )}
 
       {!isLoading && filtered.length > 0 && (
@@ -149,7 +151,7 @@ function Section({
       </div>
 
       {!hasItems ? (
-        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-muted)]">
+        <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
           {emptyText}
         </div>
       ) : (
@@ -173,37 +175,31 @@ function Row({
       type="button"
       onClick={onClick}
       className={cx(
-        "w-full text-left rounded-xl border px-4 py-3 transition",
-        "focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]",
+        "w-full text-left rounded-[var(--radius-lg)] border px-4 py-3 transition",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40",
         selected
-          ? "border-[color-mix(in_srgb,var(--color-primary)_45%,transparent)] bg-[var(--color-primary-soft)]"
-          : "border-[var(--border-divider)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)]"
+          ? "border-[color-mix(in_srgb,var(--color-brand-primary)_45%,transparent)] bg-[var(--state-selected-bg)]"
+          : "border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-soft)]"
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="font-semibold truncate">{staff.name}</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold truncate text-[var(--color-text-primary)]">{staff.name}</span>
             {!staff.is_active && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[var(--border-divider)] text-[var(--text-muted)] bg-[var(--bg-surface-muted)]">
-                비활성
-              </span>
+              <span className="ds-status-badge" data-status="inactive" aria-hidden>비활성</span>
             )}
-            {staff.is_manager && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[color-mix(in_srgb,var(--color-primary)_35%,transparent)] text-[var(--color-primary)] bg-[var(--color-primary-soft)]">
-                관리자
-              </span>
-            )}
+            <RoleBadge isManager={!!staff.is_manager} />
           </div>
 
-          <div className="text-xs text-[var(--text-muted)] mt-1 truncate">
+          <div className="text-xs text-[var(--color-text-muted)] mt-1 truncate">
             {staff.phone || "-"}
           </div>
         </div>
 
         <div className="shrink-0 text-right">
-          <div className="text-xs text-[var(--text-muted)]">급여</div>
-          <div className="text-sm font-semibold">{payLabel(staff.pay_type)}</div>
+          <div className="text-xs text-[var(--color-text-muted)]">급여</div>
+          <div className="text-sm font-semibold text-[var(--color-text-primary)]">{payLabel(staff.pay_type)}</div>
         </div>
       </div>
     </button>

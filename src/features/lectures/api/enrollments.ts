@@ -23,12 +23,60 @@ export async function bulkCreateEnrollments(
   return res.data;
 }
 
+/**
+ * 강의/차시 엑셀 수강등록 — 워커 전담. 기존·신규 동일 로직.
+ * API는 파일 수신 → R2 업로드 → SQS job 등록만 하며, 파싱·등록은 워커에서 수행.
+ * sessionId 있으면 해당 차시에만 등록, 없으면 1차시 생성·등록.
+ */
+export async function lectureEnrollFromExcelUpload(
+  lectureId: number,
+  file: File,
+  initialPassword: string,
+  options?: { sessionId?: number }
+) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("lecture_id", String(lectureId));
+  form.append("initial_password", initialPassword);
+  if (options?.sessionId != null) {
+    form.append("session_id", String(options.sessionId));
+  }
+  const res = await api.post("/enrollments/lecture_enroll_from_excel/", form, {
+    headers: { "Content-Type": undefined } as Record<string, unknown>,
+  });
+  return res.data as { job_id: string; status: string };
+}
+
+/** 엑셀 수강등록 job 상태 (폴링용) */
+export type ExcelEnrollJobStatus = {
+  job_id: string;
+  status: string;
+  result?: {
+    enrolled_count: number;
+    created_students_count?: number;
+    session_id?: number;
+    processed_by?: string;
+  };
+  error_message?: string | null;
+  progress?: { step?: string; percent?: number } | null;
+};
+
+export async function getExcelEnrollJobStatus(
+  jobId: string
+): Promise<ExcelEnrollJobStatus> {
+  const res = await api.get(
+    `/enrollments/excel_job_status/${encodeURIComponent(jobId)}/`
+  );
+  return res.data as ExcelEnrollJobStatus;
+}
+
 // ========== 차시(세션) 수강생 (SessionEnrollment) ==========
 
 export type SessionEnrollmentRow = {
   id: number;
   session: number;
   enrollment: number;
+  student_id?: number;
   student_name: string;
   created_at?: string;
 };

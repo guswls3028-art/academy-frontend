@@ -9,6 +9,7 @@ import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import HomeworkQuickInput from "./HomeworkQuickInput";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { TABLE_COL } from "@/shared/ui/domain";
 
 /* ===============================
    Status 표시 (LOCAL / SSOT)
@@ -121,7 +122,7 @@ export default function ScoresTable({
     focusHomeworkInput(selectedEnrollmentId);
   }, [activeColumn, selectedEnrollmentId]);
 
-  const grid = "grid grid-cols-[200px_180px_120px_240px_120px_120px]";
+  const gridTemplateColumns = `${TABLE_COL.name}px ${TABLE_COL.medium}px ${TABLE_COL.statusBadge}px ${TABLE_COL.memo}px ${TABLE_COL.statusBadge}px ${TABLE_COL.medium}px`;
 
   const thBase =
     "px-3 py-3 text-sm font-semibold text-[var(--text-secondary)] tracking-tight";
@@ -145,7 +146,8 @@ export default function ScoresTable({
     >
       {/* HEADER */}
       <div
-        className={`${grid} border-b border-[var(--color-border-divider)]`}
+        className="border-b border-[var(--color-border-divider)]"
+        style={{ display: "grid", gridTemplateColumns }}
         style={{
           background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
         }}
@@ -184,16 +186,17 @@ export default function ScoresTable({
           <Fragment key={row.enrollment_id}>
             <div
               className={[
-                grid,
                 "border-b border-[var(--color-border-divider)] cursor-pointer transition-colors",
                 selected
                   ? "bg-[color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))]"
                   : "hover:bg-[var(--bg-surface-soft)]",
               ].join(" ")}
-              onClick={() => onSelectRow(row)}
               style={{
+                display: "grid",
+                gridTemplateColumns,
                 borderBottomColor: "color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
               }}
+              onClick={() => onSelectRow(row)}
             >
               <div className={`${tdBase} font-semibold min-w-0`}>
                 <StudentNameWithLectureChip

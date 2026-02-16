@@ -1,22 +1,15 @@
 // PATH: src/features/profile/attendance/components/AttendanceTable.tsx
+import { useState, useMemo } from "react";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { Attendance } from "../../api/profile.api";
 import { Button } from "@/shared/ui/ds";
-import { DomainTable } from "@/shared/ui/domain";
+import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
 
 interface Props {
   rows: Attendance[];
   onEdit: (row: Attendance) => void;
   onDelete: (row: Attendance) => void;
 }
-
-/**
- * 컬럼 설계 원칙
- * - 날짜 / 유형 / 시급 / 금액 / 관리: 고정폭
- * - 근무시간: minmax로 "필요한 만큼만"
- */
-const GRID =
-  "grid grid-cols-[110px_90px_minmax(160px,220px)_90px_110px_72px] gap-3 items-start";
 
 function fmtTime(t?: string) {
   return t ? t.slice(0, 5) : "-";
@@ -27,16 +20,63 @@ export default function AttendanceTable({
   onEdit,
   onDelete,
 }: Props) {
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  const allSelected = rows.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  const toggleSelect = (id: number) => {
+    if (selectedSet.has(id)) setSelectedIds((prev) => prev.filter((x) => x !== id));
+    else setSelectedIds((prev) => [...prev, id]);
+  };
+  const toggleSelectAll = () => {
+    if (allSelected) setSelectedIds((prev) => prev.filter((id) => !allIds.includes(id)));
+    else setSelectedIds((prev) => [...new Set([...prev, ...allIds])]);
+  };
+
   if (!rows.length) return null;
 
+  const tableWidth =
+    TABLE_COL.checkbox +
+    TABLE_COL.medium +
+    TABLE_COL.mediumAlt +
+    TABLE_COL.timeRange +
+    TABLE_COL.mediumAlt +
+    TABLE_COL.medium +
+    TABLE_COL.actions;
+
   return (
-    <DomainTable tableClassName="ds-table--flat">
+    <DomainTable
+      tableClassName="ds-table--flat"
+      tableStyle={{ tableLayout: "fixed", width: tableWidth }}
+    >
+      <colgroup>
+        <col style={{ width: TABLE_COL.checkbox }} />
+        <col style={{ width: TABLE_COL.medium }} />
+        <col style={{ width: TABLE_COL.mediumAlt }} />
+        <col style={{ width: TABLE_COL.timeRange }} />
+        <col style={{ width: TABLE_COL.mediumAlt }} />
+        <col style={{ width: TABLE_COL.medium }} />
+        <col style={{ width: TABLE_COL.actions }} />
+      </colgroup>
       <thead>
         <tr
           style={{
             background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
           }}
         >
+          <th style={{ padding: "var(--space-3) var(--space-4)", width: TABLE_COL.checkbox, textAlign: "center" }}>
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(el) => {
+                if (el) el.indeterminate = !allSelected && selectedSet.size > 0;
+              }}
+              onChange={toggleSelectAll}
+              aria-label="전체 선택"
+              className="cursor-pointer"
+            />
+          </th>
           <th
             style={{
               padding: "var(--space-3) var(--space-4)",
@@ -120,6 +160,15 @@ export default function AttendanceTable({
                 borderTop: "1px solid color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
               }}
             >
+              <td style={{ padding: "var(--space-3) var(--space-4)", textAlign: "center", verticalAlign: "middle" }}>
+                <input
+                  type="checkbox"
+                  checked={selectedSet.has(r.id)}
+                  onChange={() => toggleSelect(r.id)}
+                  aria-label={`${r.date} ${r.work_type} 선택`}
+                  className="cursor-pointer"
+                />
+              </td>
               {/* 날짜 */}
               <td
                 style={{

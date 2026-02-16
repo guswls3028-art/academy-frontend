@@ -1,113 +1,155 @@
-import {
-  Panel,
-  Section,
-  KPI,
-  Button,
-  StatusBadge,
-} from "@/shared/ui/ds";
-import { DomainLayout } from "@/shared/ui/layout";
+/**
+ * 시험 (사이드바) — 전체 시험 목록 · 강의·차시 단위 시험 통합 조회
+ * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
+ */
 
-export default function ExamControlCenter() {
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchExams } from "../api/exams";
+import { DomainLayout } from "@/shared/ui/layout";
+import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { Button, EmptyState } from "@/shared/ui/ds";
+
+function formatDate(s: string | null): string {
+  if (!s) return "—";
+  try {
+    const d = new Date(s);
+    return d.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
+  } catch {
+    return "—";
+  }
+}
+
+export default function ExamAdminPage() {
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  const { data: list = [], isLoading } = useQuery({
+    queryKey: ["admin-exams"],
+    queryFn: () => fetchExams(),
+  });
+
+  // 클라이언트 검색: 시험명·과목
+  const filtered = useMemo(() => {
+    if (!search.trim()) return list;
+    const k = search.trim().toLowerCase();
+    return list.filter(
+      (e) =>
+        (e.title && e.title.toLowerCase().includes(k)) ||
+        (e.subject && e.subject.toLowerCase().includes(k))
+    );
+  }, [list, search]);
+
+  const totalWidth =
+    TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.short + TABLE_COL.status + TABLE_COL.medium + TABLE_COL.actions;
+
   return (
     <DomainLayout
-      title="생명과학 시험 운영 센터"
-      description="강의 · 차시 · 학교 단위 시험을 통합 운영합니다."
+      title="시험"
+      description="강의·차시 단위 시험을 한 화면에서 조회합니다. 시험 생성·관리는 각 강의 > 차시에서 진행하세요."
     >
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-end">
-          <Button intent="primary" size="md">
-            신규 시험 생성
-          </Button>
-        </div>
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={isLoading ? "…" : `총 ${filtered.length}건`}
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="시험명 · 과목 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onBlur={() => setSearch(searchInput)}
+              onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
+              style={{ maxWidth: 280 }}
+            />
+          }
+          primaryAction={
+            <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+              강의로 이동
+            </Button>
+          }
+        />
 
-        {/* KPI */}
-        <Section level="primary" title="시험 운영 요약">
-        <div className="grid grid-cols-4 gap-6">
-          <KPI label="운영 중 시험" value="9" hint="전체 강의 기준" />
-          <KPI label="총 응시 인원" value="428" hint="최근 시험 기준" />
-          <KPI label="채점 완료율" value="96%" hint="자동 + 수동" />
-          <KPI label="클리닉 연계" value="7" hint="시험 기준" />
-        </div>
-      </Section>
-
-      {/* ===============================
-          EXAM TABLE
-      =============================== */}
-      <Panel
-        title="시험 목록"
-        description="강의·학교 단위 시험을 한 화면에서 관리합니다."
-        right={
-          <div className="flex items-center gap-3">
-            <Button intent="ghost" size="sm">학교 필터</Button>
-            <Button intent="ghost" size="sm">강의 필터</Button>
-          </div>
-        }
-      >
-        <div>
-          <table className="w-full text-sm">
+        {isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : !filtered.length ? (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="시험이 없습니다"
+            description="각 강의 > 차시에서 시험을 추가하고 운영할 수 있습니다."
+            actions={
+              <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+                강의 목록
+              </Button>
+            }
+          />
+        ) : (
+          <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
+            <colgroup>
+              <col style={{ width: TABLE_COL.title }} />
+              <col style={{ width: TABLE_COL.subject }} />
+              <col style={{ width: TABLE_COL.medium }} />
+              <col style={{ width: TABLE_COL.short }} />
+              <col style={{ width: TABLE_COL.status }} />
+              <col style={{ width: TABLE_COL.medium }} />
+              <col style={{ width: TABLE_COL.actions }} />
+            </colgroup>
             <thead>
-              <tr className="text-left text-[var(--color-text-muted)]">
-                <th className="py-3">강의</th>
-                <th>차시</th>
-                <th>시험명</th>
-                <th>대상 학교</th>
-                <th>응시</th>
-                <th>상태</th>
-                <th />
+              <tr>
+                <th scope="col">시험명</th>
+                <th scope="col">과목</th>
+                <th scope="col">유형</th>
+                <th scope="col">재응시</th>
+                <th scope="col">상태</th>
+                <th scope="col">개설일</th>
+                <th scope="col" />
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-[var(--color-border-divider)]">
-              {[
-                {
-                  lecture: "고3 생명과학Ⅰ",
-                  session: "12강",
-                  title: "유전자 발현 단원 평가",
-                  school: "대치고 · 휘문고",
-                  count: 142,
-                  status: "active",
-                },
-                {
-                  lecture: "고2 생명과학 내신",
-                  session: "5강",
-                  title: "세포 주기 중간 점검",
-                  school: "중동고",
-                  count: 96,
-                  status: "active",
-                },
-                {
-                  lecture: "고1 생명과학 기초",
-                  session: "2강",
-                  title: "효소 단원 확인",
-                  school: "대치고",
-                  count: 54,
-                  status: "inactive",
-                },
-              ].map((e, i) => (
-                <tr key={i} className="hover:bg-[var(--color-bg-surface-hover)]">
-                  <td className="py-4 font-semibold">{e.lecture}</td>
-                  <td>{e.session}</td>
-                  <td className="font-medium">{e.title}</td>
-                  <td>{e.school}</td>
-                  <td>{e.count}</td>
-                  <td>
-                    <StatusBadge status={e.status as any} />
+            <tbody>
+              {filtered.map((e) => (
+                <tr
+                  key={e.id}
+                  className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"
+                  onClick={() => navigate("/admin/lectures")}
+                >
+                  <td className="font-semibold text-[var(--color-text-primary)] truncate" title={e.title}>
+                    {e.title || "—"}
                   </td>
-                  <td className="text-right">
-                    <Button intent="ghost" size="sm">
+                  <td className="text-[var(--color-text-secondary)] truncate">{e.subject || "—"}</td>
+                  <td className="text-[var(--color-text-secondary)]">
+                    {e.exam_type === "template" ? "템플릿" : "일반"}
+                  </td>
+                  <td className="text-[var(--color-text-secondary)]">
+                    {e.allow_retake ? `최대 ${e.max_attempts}회` : "불가"}
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: e.is_active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                      }}
+                    >
+                      {e.is_active ? "활성" : "비활성"}
+                    </span>
+                  </td>
+                  <td className="text-[var(--color-text-muted)]">{formatDate(e.created_at)}</td>
+                  <td onClick={(ev) => ev.stopPropagation()}>
+                    <Button
+                      intent="ghost"
+                      size="sm"
+                      onClick={() => navigate("/admin/lectures")}
+                    >
                       관리
                     </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      </Panel>
-
-        <div className="text-center text-xs font-semibold text-[var(--color-text-muted)]">
-          HakwonPlus · Biology Exam Operations Console
-        </div>
+          </DomainTable>
+        )}
       </div>
     </DomainLayout>
   );

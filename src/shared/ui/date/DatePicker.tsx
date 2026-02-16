@@ -4,6 +4,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import dayjs, { type Dayjs } from "dayjs";
+import { Calendar } from "lucide-react";
 import "@/styles/design-system/components/DatePicker.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -117,6 +118,7 @@ export default function DatePicker({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
+        <Calendar className="shared-date-picker-trigger-icon" size={18} aria-hidden />
         <span className={value ? "" : "shared-date-picker-placeholder"}>{displayText}</span>
       </button>
 

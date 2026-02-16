@@ -1,14 +1,9 @@
 // PATH: src/features/profile/expense/components/ExpenseTable.tsx
+import { useState, useMemo } from "react";
 import { Expense } from "../../api/profile.api";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
-import { DomainTable } from "@/shared/ui/domain";
-
-/**
- * 메모도 1fr 금지 → minmax로 제한
- */
-const GRID =
-  "grid grid-cols-[110px_140px_minmax(160px,240px)_110px_72px] items-center gap-3";
+import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
 
 export default function ExpenseTable({
   rows,
@@ -19,14 +14,64 @@ export default function ExpenseTable({
   onEdit: (r: Expense) => void;
   onDelete: (r: Expense) => void;
 }) {
+  const tableWidth =
+    TABLE_COL.checkbox +
+    TABLE_COL.medium +
+    TABLE_COL.subject +
+    TABLE_COL.memo +
+    TABLE_COL.medium +
+    TABLE_COL.actions;
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
+  const allSelected = rows.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  const toggleSelect = (id: number) => {
+    if (selectedSet.has(id)) setSelectedIds((prev) => prev.filter((x) => x !== id));
+    else setSelectedIds((prev) => [...prev, id]);
+  };
+  const toggleSelectAll = () => {
+    if (allSelected) setSelectedIds((prev) => prev.filter((id) => !allIds.includes(id)));
+    else setSelectedIds((prev) => [...new Set([...prev, ...allIds])]);
+  };
+
   return (
-    <DomainTable tableClassName="ds-table--flat">
+    <DomainTable
+      tableClassName="ds-table--flat"
+      tableStyle={{ tableLayout: "fixed", width: tableWidth }}
+    >
+      <colgroup>
+        <col style={{ width: TABLE_COL.checkbox }} />
+        <col style={{ width: TABLE_COL.medium }} />
+        <col style={{ width: TABLE_COL.subject }} />
+        <col style={{ width: TABLE_COL.memo }} />
+        <col style={{ width: TABLE_COL.medium }} />
+        <col style={{ width: TABLE_COL.actions }} />
+      </colgroup>
       <thead>
         <tr
           style={{
             background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
           }}
         >
+          <th
+            style={{
+              padding: "var(--space-3) var(--space-4)",
+              width: TABLE_COL.checkbox,
+              textAlign: "center",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(el) => {
+                if (el) el.indeterminate = !allSelected && selectedSet.size > 0;
+              }}
+              onChange={toggleSelectAll}
+              aria-label="전체 선택"
+              className="cursor-pointer"
+            />
+          </th>
           <th
             style={{
               padding: "var(--space-3) var(--space-4)",
@@ -93,6 +138,15 @@ export default function ExpenseTable({
               borderTop: "1px solid color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
             }}
           >
+            <td style={{ padding: "var(--space-3) var(--space-4)", textAlign: "center", verticalAlign: "middle" }}>
+              <input
+                type="checkbox"
+                checked={selectedSet.has(r.id)}
+                onChange={() => toggleSelect(r.id)}
+                aria-label={`${r.title} 선택`}
+                className="cursor-pointer"
+              />
+            </td>
             {/* 날짜 */}
             <td
               style={{

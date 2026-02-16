@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import api from "@/shared/api/axios";
 import SessionCreateModal from "./SessionCreateModal";
 import { useLectureParams } from "../hooks/useLectureParams";
+import { sortSessionsByDateDesc } from "../api/sessions";
 import { SessionBlockView, isSupplement } from "@/shared/ui/session-block";
 
 export default function SessionBar() {
@@ -16,13 +17,14 @@ export default function SessionBar() {
 
   const [showModal, setShowModal] = useState(false);
 
-  const { data: sessions = [] } = useQuery({
+  const { data: rawSessions = [] } = useQuery({
     queryKey: ["lecture-sessions", lectureId],
     queryFn: async () => {
       const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
       return res.data.results ?? res.data;
     },
   });
+  const sessions = sortSessionsByDateDesc(Array.isArray(rawSessions) ? rawSessions : []);
 
   return (
     <div style={{ marginBottom: 14 }}>

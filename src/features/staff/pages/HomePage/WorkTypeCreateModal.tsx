@@ -1,4 +1,6 @@
 // PATH: src/features/staff/pages/HomePage/WorkTypeCreateModal.tsx
+// 시급 급여유형: 이름·시급·색상(전역 ColorPickerField)
+
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -10,6 +12,7 @@ import {
   ModalFooter,
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
+import { ColorPickerField } from "@/shared/ui/domain";
 
 export default function WorkTypeCreateModal({
   open,
@@ -92,12 +95,9 @@ export default function WorkTypeCreateModal({
           </Field>
 
           <Field label="색상">
-            <input
-              type="color"
+            <ColorPickerField
               value={form.color}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, color: e.target.value }))
-              }
+              onChange={(color) => setForm((p) => ({ ...p, color: color ?? p.color }))}
             />
           </Field>
 

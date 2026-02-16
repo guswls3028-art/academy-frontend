@@ -65,18 +65,21 @@ export default function AppLayout() {
             <div
               data-app="admin"
               style={{
+                height: "100vh",
                 minHeight: "100vh",
+                overflow: "hidden",
                 background: "var(--layout-canvas-bg)",
                 color: "var(--color-text-primary)",
               }}
             >
-              {/* ===== ROOT GRID ===== */}
+              {/* ===== ROOT GRID: 높이 고정으로 main 영역만 스크롤 ===== */}
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "var(--sidebar-width) 1fr",
                   gridTemplateRows: "auto 1fr",
-                  minHeight: "100vh",
+                  height: "100%",
+                  minHeight: 0,
                 }}
               >
                 {/* ===== 공용 헤더: 사이드바 링크된 모든 admin 페이지에 동일 적용 ===== */}
@@ -109,14 +112,16 @@ export default function AppLayout() {
                   <Sidebar />
                 </aside>
 
-                {/* ===== MAIN ===== */}
+                {/* ===== MAIN: 스크롤 컨테이너 (그리드 1fr로 높이 제한됨) ===== */}
                 <main
                   style={{
                     gridRow: "2",
                     minWidth: 0,
                     minHeight: 0,
-                    overflow: "auto",
+                    overflowY: "auto",
+                    overflowX: "hidden",
                     overscrollBehavior: "contain",
+                    WebkitOverflowScrolling: "touch",
                     background: "var(--layout-page-bg)",
                   }}
                 >

@@ -1,4 +1,5 @@
 // PATH: src/features/lectures/api/materials.ts
+// SSOT: 백엔드 api/v1 에 /interactions 경로가 없음. 추후 백엔드에 material-categories 추가 시 경로 일치시킬 것.
 import api from "@/shared/api/axios";
 
 const PREFIX = "/interactions";

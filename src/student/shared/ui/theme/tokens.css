@@ -1,75 +1,91 @@
-/* PATH: src/student/shared/ui/theme/tokens.css */
-/*
- * 사용 가능한 테마 preset 목록:
- *
- * @import "../presets/light-blue.css";       // 기본 학생용 (화이트+블루)
- * @import "../presets/light-neutral.css";    // 관리자/중립
- * @import "../presets/purple-yellow.css";    // 브랜드 / CTA 강조
- * @import "../presets/dark-navy.css";        // 다크 네이비 (세련된 서비스)
- * @import "../presets/dark-neon.css";   // 🔥 리얼 IDE 네온
+/* PATH: src/student/shared/ui/theme/tokens.css
+ * 단일 모바일 테마 — 프리미엄 대형학원 SaaS
+ * (레가시 프리셋 제거, 단일 SSOT)
  */
 
-/* ✅ 1. 컬러 프리셋 (단 하나만 활성화) */
-@import "../presets/dark-navy.css";
-
-/* ✅ 2. 색상 외 전역 토큰 */
-@import "../theme/typography.css";
-@import "../theme/shadow.css";
-@import "../css/base.css";
-
+/* ========== 1. Color palette ========== */
 :root {
-  /* ===============================
-   * Layout Size
-   * =============================== */
-  --stu-header-h: 56px;
-  --stu-tabbar-h: 64px;
+  --stu-bg: #0b0f19;
+  --stu-surface: #121827;
+  --stu-surface-soft: #1a2235;
+  --stu-border: rgba(255, 255, 255, 0.1);
 
-  /* ===============================
-   * Page Width
-   * =============================== */
-  --stu-page-max-w: 980px;
+  --stu-text: rgba(255, 255, 255, 0.95);
+  --stu-text-muted: rgba(255, 255, 255, 0.65);
+  --stu-text-subtle: rgba(255, 255, 255, 0.45);
 
-  /* ===============================
-   * Spacing Rhythm
-   * =============================== */
+  --stu-primary: #3b82f6;
+  --stu-primary-hover: #2563eb;
+  --stu-primary-contrast: #fff;
+  --stu-glow-primary: 0 0 20px rgba(59, 130, 246, 0.35);
+
+  --stu-success: #22c55e;
+  --stu-success-bg: rgba(34, 197, 94, 0.15);
+  --stu-success-border: rgba(34, 197, 94, 0.4);
+  --stu-success-text: #22c55e;
+
+  --stu-warn: #f59e0b;
+  --stu-warn-bg: rgba(245, 158, 11, 0.15);
+  --stu-warn-border: rgba(245, 158, 11, 0.4);
+  --stu-warn-text: #f59e0b;
+
+  --stu-danger: #ef4444;
+  --stu-danger-hover: #dc2626;
+  --stu-danger-bg: rgba(239, 68, 68, 0.15);
+  --stu-danger-border: rgba(239, 68, 68, 0.4);
+  --stu-danger-text: #ef4444;
+}
+
+/* ========== 2. Typography ========== */
+:root {
+  --stu-font-sans: "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, sans-serif;
+  --stu-font-size-12: 12px;
+  --stu-font-size-13: 13px;
+  --stu-font-size-14: 14px;
+  --stu-font-size-15: 15px;
+  --stu-font-size-16: 16px;
+  --stu-font-size-18: 18px;
+  --stu-font-size-20: 20px;
+  --stu-line-16: 1.35;
+  --stu-line-18: 1.4;
+  --stu-line-20: 1.45;
+}
+
+/* ========== 3. Shadow (shadow.css에서 상세 정의) ========== */
+:root {
+  --stu-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --stu-shadow-2: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --stu-shadow-3: 0 10px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ========== 4. Layout & spacing ========== */
+:root {
+  --stu-header-h: 52px;
+  --stu-tabbar-h: 60px;
+  --stu-page-max-w: 100%;
   --stu-space-1: 2px;
   --stu-space-2: 4px;
   --stu-space-3: 6px;
   --stu-space-4: 8px;
   --stu-space-5: 10px;
   --stu-space-6: 12px;
-  --stu-space-7: 14px;
   --stu-space-8: 16px;
-  --stu-space-9: 18px;
   --stu-space-10: 20px;
   --stu-space-12: 24px;
-  --stu-space-14: 28px;
   --stu-space-16: 32px;
-
-  /* ===============================
-   * Radius
-   * =============================== */
-  --stu-radius-sm: 10px;
+  --stu-radius-sm: 8px;
   --stu-radius-md: 12px;
   --stu-radius-lg: 16px;
   --stu-radius-xl: 20px;
-
-  /* ===============================
-   * Z-index
-   * =============================== */
   --stu-z-header: 200;
   --stu-z-tabbar: 220;
   --stu-z-modal: 500;
   --stu-z-toast: 650;
-
-  /* ===============================
-   * Safe Areas
-   * =============================== */
   --stu-safe-bottom: env(safe-area-inset-bottom, 0px);
   --stu-safe-top: env(safe-area-inset-top, 0px);
-
-  /* ===============================
-   * Touch Targets
-   * =============================== */
   --stu-touch: 44px;
 }
+
+@import "../theme/typography.css";
+@import "../theme/shadow.css";
+@import "../css/base.css";
