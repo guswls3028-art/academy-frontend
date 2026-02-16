@@ -1,12 +1,25 @@
 // PATH: src/features/staff/pages/HomePage/StaffHomeTable.tsx
-// Design: docs/DESIGN_SSOT.md
+// Design: docs/DESIGN_SSOT.md — staff 도메인: 대표(원장) / 강사 / 조교 통일
 
 import { useMemo, useState } from "react";
+import { Crown, GraduationCap, UserCog } from "lucide-react";
 import { EmptyState } from "@/shared/ui/ds";
 import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
 import { Staff, type StaffListOwner } from "../../api/staff.api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { patchStaffDetail } from "../../api/staff.detail.api";
+
+/** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
+export const OWNER_SELECTION_ID = -1;
+
+/** 대표/강사/조교 아바타 — 아이콘만 (이름 컬럼 내 아이콘+이름) */
+function StaffRoleAvatar({ role }: { role: "owner" | "TEACHER" | "ASSISTANT" }) {
+  const size = 24;
+  const className = "shrink-0 text-[var(--color-text-secondary)]";
+  if (role === "owner") return <Crown size={size} className={className} aria-label="대표" />;
+  if (role === "TEACHER") return <GraduationCap size={size} className={className} aria-label="강사" />;
+  return <UserCog size={size} className={className} aria-label="조교" />;
+}
 
 /** 시급태그 — 학생 태그 디자인 카피 (이름 + 색상 뱃지) */
 function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
