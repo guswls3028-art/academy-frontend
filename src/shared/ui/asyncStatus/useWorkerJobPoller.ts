@@ -1,9 +1,10 @@
 // PATH: src/shared/ui/asyncStatus/useWorkerJobPoller.ts
 // 워커 작업(엑셀 등) 상태/진행률 폴링 — 우하단 프로그래스바 갱신 및 완료 처리
+// 엑셀 수강등록·학생 일괄 등록 모두 GET /jobs/<id>/ 단일 진실.
 
 import { useEffect, useRef } from "react";
 import { asyncStatusStore } from "./asyncStatusStore";
-import { getExcelEnrollJobStatus } from "@/features/lectures/api/enrollments";
+import { getJobStatus } from "@/shared/api/jobStatus";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -11,7 +12,7 @@ function pollExcelJob(
   taskId: string,
   onSuccess?: () => void
 ) {
-  getExcelEnrollJobStatus(taskId)
+  getJobStatus(taskId)
     .then((res) => {
       const percent = res.progress?.percent;
       if (typeof percent === "number") {
