@@ -5,9 +5,9 @@ import LoginEntry from "@/features/auth/pages/login/LoginEntry";
 import HakwonPlusLoginPage from "@/features/auth/pages/login/HakwonPlusLoginPage";
 import CustomLoginPage from "@/features/auth/pages/login/CustomLoginPage";
 import TenantLoginPage from "@/features/auth/pages/login/TenantLoginPage";
-import { resolveTenantCode, getTenantIdFromCode } from "@/shared/tenant";
+import { getTenantCodeFromHostname, getTenantIdFromCode } from "@/shared/tenant";
 
-/** 테넌트 도메인에서 /login/코드 로 들어오면 /login 으로 리다이렉트 (URL 통일) */
+/** 테넌트 도메인에서 /login/코드 로 들어오면 /login 으로 리다이렉트 (URL은 항상 도메인/login 만 노출) */
 function TenantLoginOrRedirect({
   tenantId,
   children,
@@ -15,11 +15,8 @@ function TenantLoginOrRedirect({
   tenantId: 2 | 3 | 4;
   children: ReactNode;
 }) {
-  const resolved = resolveTenantCode();
-  const fromHostId =
-    resolved.ok && resolved.source === "hostname"
-      ? getTenantIdFromCode(resolved.code)
-      : null;
+  const fromHost = getTenantCodeFromHostname();
+  const fromHostId = fromHost.ok ? getTenantIdFromCode(fromHost.code) : null;
   if (fromHostId === tenantId) {
     return <Navigate to="/login" replace />;
   }
