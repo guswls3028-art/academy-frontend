@@ -328,6 +328,23 @@ export default function TenantBrandingPage() {
           />
         </div>
       </div>
+
+      {selectedTenant && (
+        <AdminOwnerBottomSheet
+          open={ownerSheetOpen}
+          onClose={() => setOwnerSheetOpen(false)}
+          tenantId={selectedTenant.id}
+          tenantName={selectedTenant.name}
+          onSuccess={(msg) => {
+            if (msg) {
+              setMessage(msg);
+              setMessageType("success");
+            }
+            loadOwnersForTenant(selectedTenant.id);
+            setOwnerSheetOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
