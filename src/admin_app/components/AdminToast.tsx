@@ -31,7 +31,7 @@ export default function AdminToast({ message, kind = "success", visible, onClose
       }`}
     >
       {isSuccess && <span aria-hidden>✓</span>}
-      <span>{message}</span>
+      <span className="whitespace-pre-line">{message}</span>
     </div>
   );
 }

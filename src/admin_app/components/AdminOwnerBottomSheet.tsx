@@ -28,7 +28,7 @@ export default function AdminOwnerBottomSheet({ open, onClose, tenantId, tenantN
     setLoading(true);
     try {
       await registerTenantOwner(tenantId, { username: username.trim(), password, name: name || undefined, phone: phone || undefined });
-      const msg = `✓ ${username.trim()} 계정이\n${tenantName} 테넌트 Owner로 등록되었습니다.`;
+      const msg = `✓ ${username.trim()} 계정이 ${tenantName} 테넌트 Owner로 등록되었습니다.`;
       setUsername("");
       setPassword("");
       setName("");
