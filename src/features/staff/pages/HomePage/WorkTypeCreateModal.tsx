@@ -55,7 +55,7 @@ export default function WorkTypeCreateModal({
       alert(
         e?.response?.data?.detail ||
           e?.response?.data?.message ||
-          "근무유형 생성 실패"
+          "시급태그 생성 실패"
       );
     },
   });
