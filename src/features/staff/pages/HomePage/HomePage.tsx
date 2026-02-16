@@ -15,7 +15,9 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 export default function HomePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: staffs, isLoading } = useStaffs();
+  const { data: staffData, isLoading } = useStaffs();
+  const staffs = staffData?.staffs ?? [];
+  const owner = staffData?.owner ?? null;
   const [openCreate, setOpenCreate] = useState(false);
   const [openWorkType, setOpenWorkType] = useState(false);
   const [q, setQ] = useState("");
