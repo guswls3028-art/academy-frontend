@@ -78,3 +78,46 @@ pnpm run preview
 - [ ] VITE_API_BASE_URL 설정 (프로덕션 API URL)
 - [ ] Custom domain: `hakwonplus.com` (및 필요 시 `www.hakwonplus.com`)
 - [ ] DNS: 루트 CNAME → `academy-frontend-xxx.pages.dev` (이미 적용된 경우 생략)
+
+---
+
+## 7. DNS 스펙 (hakwonplus.com)
+
+Cloudflare **Domains → hakwonplus.com → DNS → Records** 에서 아래와 맞추면 됩니다.
+
+### 현재 적용된 레코드 (유지)
+
+| Type | Name | Content | Proxy | 비고 |
+|------|------|---------|--------|------|
+| A | api | 15.165.147.157 | Proxied (주황) | API 서버 |
+| CNAME | cdn | pub-54ae4dcb984d4491b08f6c57023a1621.r2.dev | Proxied | R2 / 미디어 CDN |
+| CNAME | (루트) hakwonplus.com | academy-frontend-26b.pages.dev | Proxied | 프론트(Cloudflare Pages) |
+
+### 추가 권장 레코드
+
+**www (프론트와 동일하게)**
+
+| Type | Name | Content | Proxy |
+|------|------|---------|--------|
+| CNAME | www | academy-frontend-26b.pages.dev | Proxied |
+
+- 추가 후 **Workers & Pages → academy-frontend → Custom domains** 에서 `www.hakwonplus.com` 도메인 추가.
+- www 없이 쓰려면 이 레코드만 추가해 두고, 나중에 **Rules → Redirect Rules** 로 `www.hakwonplus.com` → `https://hakwonplus.com` 301 리다이렉트 설정 가능.
+
+**메일 (택 1)**
+
+- **@hakwonplus.com 메일 사용 시:** 사용할 메일 업체(Google Workspace, Naver Works 등)에서 안내한 **MX** 레코드 추가.
+- **메일 미사용 / 스푸핑만 방지:** **Email → DNS** 또는 **Security** 에서 SPF, DKIM, DMARC 레코드만 설정 (MX 불필요).
+
+### Nameservers (참고)
+
+- barbara.ns.cloudflare.com  
+- thaddeus.ns.cloudflare.com  
+
+### 요약 체크
+
+- [ ] api → 15.165.147.157 (A, Proxied)
+- [ ] cdn → R2 CNAME (Proxied)
+- [ ] hakwonplus.com → academy-frontend-26b.pages.dev (CNAME, Proxied)
+- [ ] www → academy-frontend-26b.pages.dev (CNAME, Proxied) — 권장
+- [ ] MX 또는 SPF/DKIM/DMARC — 용도에 따라 설정
