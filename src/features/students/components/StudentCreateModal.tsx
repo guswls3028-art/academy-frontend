@@ -65,11 +65,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     if (!open) return;
     setActiveTab("single");
     setBusy(false);
-    setProgress(null);
     onBulkProgress?.(null);
     setExcelBulkPassword("");
-    setBulkResult(null);
-    setExcelParsedRows(null);
+    setSelectedExcelFile(null);
     setSendWelcomeMessage(false);
     setForm({
       name: "",
@@ -87,6 +85,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       active: true,
     });
   }, [open, onBulkProgress]);
+
+  function handleExcelFileSelect(file: File) {
+    setSelectedExcelFile(file);
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
