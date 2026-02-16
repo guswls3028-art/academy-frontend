@@ -9,7 +9,7 @@ type Props = {
   onClose: () => void;
   tenantId: number;
   tenantName: string;
-  onSuccess?: () => void;
+  onSuccess?: (message?: string) => void;
 };
 
 export default function AdminOwnerBottomSheet({ open, onClose, tenantId, tenantName, onSuccess }: Props) {

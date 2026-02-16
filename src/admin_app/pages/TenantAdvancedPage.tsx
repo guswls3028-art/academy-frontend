@@ -1,10 +1,10 @@
 // PATH: src/admin_app/pages/TenantAdvancedPage.tsx
-// 고급 설정 — 상태 토글 등 (추후 확장)
+// 고급 설정 — isActive 토글 연동
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getTenants } from "@/admin_app/api/tenants";
-import type { TenantDto } from "@/admin_app/api/tenants";
+import { getTenants, updateTenant, type TenantDto } from "@/admin_app/api/tenants";
+import AdminToast from "@/admin_app/components/AdminToast";
 import "@/styles/design-system/index.css";
 
 export default function TenantAdvancedPage() {
@@ -12,6 +12,8 @@ export default function TenantAdvancedPage() {
   const navigate = useNavigate();
   const [tenant, setTenant] = useState<TenantDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
+  const [toast, setToast] = useState<{ message: string; kind: "success" | "error" } | null>(null);
 
   useEffect(() => {
     const id = tenantId ? parseInt(tenantId, 10) : NaN;
@@ -25,16 +27,41 @@ export default function TenantAdvancedPage() {
       .finally(() => setLoading(false));
   }, [tenantId]);
 
-  if (loading || !tenant) {
+  const handleToggleActive = async () => {
+    if (!tenant) return;
+    setToggling(true);
+    setToast(null);
+    try {
+      await updateTenant(tenant.id, { isActive: !tenant.isActive });
+      setTenant((t) => (t ? { ...t, isActive: !t.isActive } : t));
+      setToast({ message: tenant.isActive ? "비활성화되었습니다." : "활성화되었습니다.", kind: "success" });
+    } catch {
+      setToast({ message: "상태 변경에 실패했습니다.", kind: "error" });
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="pb-24">
+        <div className="mb-6 h-6 w-24 rounded bg-slate-100 animate-pulse" />
+        <div className="h-20 rounded-xl bg-slate-100 animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!tenant) {
     return (
       <div className="pb-24 flex items-center justify-center min-h-[40vh]">
-        <div className="text-slate-500">{loading ? "로딩 중..." : "테넌트를 찾을 수 없습니다."}</div>
+        <div className="text-slate-500">테넌트를 찾을 수 없습니다.</div>
       </div>
     );
   }
 
   return (
     <div className="pb-24">
+      <AdminToast message={toast?.message ?? ""} kind={toast?.kind ?? "success"} visible={!!toast} onClose={() => setToast(null)} />
       <div className="mb-6">
         <button type="button" onClick={() => navigate(`/dev/branding/${tenant.id}`)} className="text-sm text-slate-600 mb-2 flex items-center gap-1">
           ← 설정
@@ -43,13 +70,27 @@ export default function TenantAdvancedPage() {
         <p className="text-sm text-slate-500">{tenant.name}</p>
       </div>
       <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center justify-between min-h-[48px]">
-          <span className="font-medium text-slate-900">상태</span>
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${tenant.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"}`}>
-            {tenant.isActive ? "활성" : "비활성"}
-          </span>
+        <div className="flex items-center justify-between min-h-[48px] gap-3">
+          <span className="font-medium text-slate-900">테넌트 상태</span>
+          <button
+            type="button"
+            onClick={handleToggleActive}
+            disabled={toggling}
+            className={`relative inline-flex h-8 w-14 shrink-0 rounded-full border-2 transition-colors min-h-[48px] min-w-[56px] ${
+              tenant.isActive ? "bg-emerald-500 border-emerald-500" : "bg-slate-200 border-slate-200"
+            }`}
+            role="switch"
+            aria-checked={tenant.isActive}
+          >
+            <span
+              className={`inline-block h-7 w-7 rounded-full bg-white shadow transform transition-transform ${
+                tenant.isActive ? "translate-x-7" : "translate-x-0.5"
+              }`}
+              style={{ marginTop: 2 }}
+            />
+          </button>
         </div>
-        <p className="text-xs text-slate-500 mt-2">상태 변경은 추후 API 연동 시 지원됩니다.</p>
+        <p className="text-xs text-slate-500 mt-2">{tenant.isActive ? "활성: 로그인·가입 가능" : "비활성: 신규 접속 제한"}</p>
       </div>
     </div>
   );
