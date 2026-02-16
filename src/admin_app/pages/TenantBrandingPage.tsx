@@ -426,7 +426,9 @@ export default function TenantBrandingPage() {
         {tenants.map((tenant) => {
           const id = tenant.id;
           const name = tenant.name;
-          const fallback = getTenantBranding(id as TenantId) ?? undefined;
+          // 브랜딩은 DB id가 아니라 코드 기준 1~4(tchul=2, limglish=3, ymath=4)로 매핑. 5,6,7은 비움.
+          const logicalId = getTenantIdFromCode(tenant.code);
+          const fallback = logicalId != null ? getTenantBranding(logicalId) : undefined;
           const logoUrl = logoUrls[id] ?? fallback?.logoUrl;
           const loginTitle = loginTitles[id] ?? fallback?.loginTitle ?? "";
           const loginSubtitle = loginSubtitles[id] ?? fallback?.loginSubtitle ?? "";
