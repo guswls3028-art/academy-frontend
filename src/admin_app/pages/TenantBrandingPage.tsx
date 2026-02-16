@@ -231,7 +231,8 @@ export default function TenantBrandingPage() {
                 type="text"
                 value={newTenantCode}
                 onChange={(e) => setNewTenantCode(e.target.value)}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                style={{ color: '#111827' }}
                 placeholder="예: tchul"
               />
             </div>
@@ -243,7 +244,8 @@ export default function TenantBrandingPage() {
                 type="text"
                 value={newTenantName}
                 onChange={(e) => setNewTenantName(e.target.value)}
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                style={{ color: '#111827' }}
                 placeholder="예: 천안학원"
               />
             </div>
@@ -368,7 +370,8 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, name: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                          style={{ color: '#111827' }}
                           placeholder="예: 홍길동"
                         />
                       </div>
@@ -385,7 +388,8 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, phone: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                          style={{ color: '#111827' }}
                           placeholder="예: 01012345678"
                         />
                       </div>
@@ -419,7 +423,8 @@ export default function TenantBrandingPage() {
                           [id]: { ...ownerForm, username: e.target.value },
                         }))
                       }
-                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                      style={{ color: '#111827' }}
                       placeholder="사용자명 (기존 사용자)"
                     />
                     <button
