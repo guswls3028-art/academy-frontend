@@ -99,10 +99,9 @@ export default function TenantBrandingFormPage() {
     patchTenantBranding(id, { displayName, windowTitle, loginTitle, loginSubtitle })
       .then(() => {
         setInitial({ displayName, windowTitle, loginTitle, loginSubtitle });
-        setToast("저장 완료");
-        setTimeout(() => setToast(null), 3000);
+        setToast({ message: "저장 완료", kind: "success" });
       })
-      .catch(() => setToast("저장 실패"))
+      .catch(() => setToast({ message: "저장 실패", kind: "error" }))
       .finally(() => setSaving(false));
   }, [id, dirty, displayName, windowTitle, loginTitle, loginSubtitle]);
 
@@ -115,10 +114,24 @@ export default function TenantBrandingFormPage() {
     }
   }, [initial]);
 
-  if (loading || isNaN(id)) {
+  if (isNaN(id)) {
     return (
       <div className="pb-24 flex items-center justify-center min-h-[40vh]">
-        <div className="text-slate-500">{loading ? "로딩 중..." : "잘못된 테넌트입니다."}</div>
+        <div className="text-slate-500">잘못된 테넌트입니다.</div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="pb-32">
+        <div className="mb-6 h-8 w-32 rounded-lg bg-slate-100 animate-pulse" />
+        <div className="mb-6 h-36 rounded-xl bg-slate-100 animate-pulse" />
+        <div className="space-y-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-14 rounded-xl bg-slate-100 animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -133,11 +146,12 @@ export default function TenantBrandingFormPage() {
         <p className="text-sm text-slate-500">{tenantName}</p>
       </div>
 
-      {toast && (
-        <div className="mb-4 p-3 rounded-xl bg-emerald-50 text-emerald-800 text-sm border border-emerald-200">
-          {toast}
-        </div>
-      )}
+      <AdminToast
+        message={toast?.message ?? ""}
+        kind={toast?.kind ?? "success"}
+        visible={!!toast}
+        onClose={() => setToast(null)}
+      />
 
       <section className="mb-6">
         <div className="text-sm font-semibold text-slate-900 mb-2">로고</div>
