@@ -141,14 +141,19 @@ export default function TenantBrandingFormPage() {
 
       <section className="mb-6">
         <div className="text-sm font-semibold text-slate-900 mb-2">로고</div>
-        <label className="block rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 overflow-hidden min-h-[140px] flex items-center justify-center cursor-pointer active:bg-slate-100">
+        <label className="relative block rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 overflow-hidden min-h-[140px] flex flex-col items-center justify-center cursor-pointer active:bg-slate-100">
           <input type="file" accept="image/*" className="hidden" onChange={handleLogoChange} />
           {logoUrl ? (
-            <img src={logoUrl} alt="로고" className="max-h-32 w-auto object-contain p-4" />
+            <>
+              <img src={logoUrl} alt="로고" className="max-h-32 w-auto object-contain p-4" />
+              <span className="text-slate-500 text-xs pb-2">탭하여 변경</span>
+            </>
           ) : (
-            <span className="text-slate-500 text-sm py-8">탭하여 변경</span>
+            <span className="text-slate-500 text-sm py-8">탭하여 로고 선택</span>
           )}
-          {uploading && <span className="absolute text-sm text-slate-600">업로드 중…</span>}
+          {uploading && (
+            <span className="absolute inset-0 flex items-center justify-center bg-white/80 text-slate-700 text-sm">업로드 중…</span>
+          )}
         </label>
         <p className="text-xs text-slate-500 mt-1">탭하여 로고 이미지 선택</p>
       </section>
