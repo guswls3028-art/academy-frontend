@@ -71,6 +71,7 @@ export default function AsyncStatusBar() {
       queryClient.invalidateQueries({ queryKey: ["attendance-matrix"] });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["lecture"] });
+      queryClient.invalidateQueries({ queryKey: ["students"] });
     },
   });
 
