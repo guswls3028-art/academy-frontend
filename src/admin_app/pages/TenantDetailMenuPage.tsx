@@ -21,6 +21,7 @@ export default function TenantDetailMenuPage() {
   const [tenant, setTenant] = useState<TenantDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [ownerSheetOpen, setOwnerSheetOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     const id = tenantId ? parseInt(tenantId, 10) : NaN;
@@ -52,6 +53,7 @@ export default function TenantDetailMenuPage() {
 
   return (
     <div className="pb-24">
+      <AdminToast message={toast ?? ""} kind="success" visible={!!toast} onClose={() => setToast(null)} />
       <div className="mb-6">
         <button type="button" onClick={() => navigate("/dev/branding")} className="text-sm text-slate-600 mb-2 flex items-center gap-1">
           ← 목록

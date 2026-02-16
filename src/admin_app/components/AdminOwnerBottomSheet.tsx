@@ -28,11 +28,12 @@ export default function AdminOwnerBottomSheet({ open, onClose, tenantId, tenantN
     setLoading(true);
     try {
       await registerTenantOwner(tenantId, { username: username.trim(), password, name: name || undefined, phone: phone || undefined });
+      const msg = `✓ ${username.trim()} 등록됨`;
       setUsername("");
       setPassword("");
       setName("");
       setPhone("");
-      onSuccess?.();
+      onSuccess?.(msg);
       onClose();
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
