@@ -1,7 +1,7 @@
 // PATH: src/admin_app/components/OwnerFormCompact.tsx
 // 밀도 높은 한 줄 라벨 + Enter 다음 필드 이동 + 버튼 아래 고정 결과
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import { registerTenantOwner } from "@/admin_app/api/tenants";
 import "@/styles/design-system/index.css";
 import "@/styles/design-system/ds/input.css";
