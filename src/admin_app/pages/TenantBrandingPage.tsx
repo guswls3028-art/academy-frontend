@@ -145,22 +145,20 @@ export default function TenantBrandingPage() {
       return;
     }
     
-    // 상세 모드에서 새 사용자 생성 시 비밀번호 필수
-    if (showOwnerForms[tenantId] && !form.password) {
-      setMessage("새 사용자 생성 시 비밀번호가 필요합니다.");
+    if (!form.password) {
+      setMessage("비밀번호를 입력해주세요.");
       return;
     }
     
     try {
       await registerTenantOwner(tenantId, {
         username: form.username,
-        password: form.password || undefined,
+        password: form.password,
         name: form.name || undefined,
         phone: form.phone || undefined,
       });
       setMessage(`테넌트 ${tenantId}에 ${form.username}을(를) owner로 등록했습니다.`);
       setOwnerForms((prev) => ({ ...prev, [tenantId]: { username: "", password: "", name: "", phone: "" } }));
-      setShowOwnerForms((prev) => ({ ...prev, [tenantId]: false }));
     } catch (e: unknown) {
       const error = e as { response?: { data?: { detail?: string } } };
       setMessage("Owner 등록 실패: " + (error.response?.data?.detail || String(e)));
