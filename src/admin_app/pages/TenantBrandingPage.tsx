@@ -15,6 +15,7 @@ import {
   registerTenantOwner,
   type TenantDto,
 } from "@/admin_app/api/tenants";
+import "@/styles/design-system/index.css";
 
 export default function TenantBrandingPage() {
   const [tenants, setTenants] = useState<TenantDto[]>([]);
@@ -335,8 +336,8 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, username: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                          style={{ color: '#111827' }}
+                          className="ds-input"
+                          data-required="true"
                           placeholder="예: admin97"
                         />
                       </div>
