@@ -274,8 +274,13 @@ export function StaffHomeTable({
                   {r.role === "TEACHER" ? "강사" : "조교"}
                 </span>
               </td>
-              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle">
-                {r.name}
+              <td className="align-middle">
+                <span className="inline-flex items-center gap-2 min-w-0">
+                  <StaffRoleAvatar role={r.role} />
+                  <span className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+                    {r.name}
+                  </span>
+                </span>
               </td>
               <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
                 {r.phone || "-"}
