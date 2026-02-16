@@ -80,6 +80,7 @@ const TABLE_WIDTH =
 
 export function StaffHomeTable({
   staffs,
+  owner,
   onOperate,
   onDetail,
   canManage,
@@ -87,6 +88,7 @@ export function StaffHomeTable({
   onSelectionChange,
 }: Props) {
   const dataSource: Staff[] = Array.isArray(staffs) ? staffs : [];
+  const hasOwner = !!owner?.name;
   const qc = useQueryClient();
   const [internalSelected, setInternalSelected] = useState<number[]>([]);
   const selectedIds = onSelectionChange && controlledSelectedIds !== undefined ? controlledSelectedIds : internalSelected;
