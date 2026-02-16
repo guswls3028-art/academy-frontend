@@ -33,13 +33,13 @@ export default function OwnerFormCompact({
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
   ];
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [name, setName] = React.useState("");
-  const [phone, setPhone] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [result, setResult] = React.useState<{ username: string } | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ username: string } | null>(null);
 
   const values = [username, password, name, phone];
   const setters = [setUsername, setPassword, setName, setPhone];
