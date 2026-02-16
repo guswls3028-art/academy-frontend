@@ -54,6 +54,7 @@ const ID_TO_BRANDING: Record<TenantId, TenantBranding> = {
   2: { loginTitle: "tchul.com 로그인", loginSubtitle: undefined, logoUrl: undefined },
   3: { loginTitle: "limglish 로그인", loginSubtitle: undefined, logoUrl: undefined },
   4: { loginTitle: "ymath 로그인", loginSubtitle: undefined, logoUrl: undefined },
+  9999: { loginTitle: "로컬 개발 (9999)", loginSubtitle: undefined, logoUrl: undefined },
 };
 
 /**
