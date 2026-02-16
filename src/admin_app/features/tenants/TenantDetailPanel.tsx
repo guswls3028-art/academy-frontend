@@ -48,11 +48,9 @@ export default function TenantDetailPanel({
   onTabChange,
   branding,
   uploadingLogoId,
-  ownerForm,
-  onOwnerFormChange,
-  onRegisterOwner,
-  registeringOwnerId,
-  lastOwnerRegistered,
+  ownersList,
+  ownersLoading,
+  onOpenOwnerSheet,
   onLogoUpload,
   onSaveBranding,
   onDisplayNameChange,
@@ -131,12 +129,10 @@ export default function TenantDetailPanel({
         {activeTab === "domains" && <DomainsTab tenant={tenant} />}
         {activeTab === "owners" && (
           <OwnersTab
-            tenantId={id}
-            form={ownerForm}
-            onFormChange={(patch) => onOwnerFormChange(id, patch)}
-            onRegister={() => onRegisterOwner(id)}
-            registering={registeringOwnerId === id}
-            lastRegisteredUsername={lastOwnerRegistered[id]?.username ?? null}
+            tenantName={tenant.name}
+            owners={ownersList}
+            loading={ownersLoading}
+            onAddOwner={onOpenOwnerSheet}
           />
         )}
       </div>
