@@ -298,26 +298,130 @@ export default function TenantBrandingPage() {
 
               {/* Owner 등록 */}
               <div className="mb-6 p-4 bg-slate-50 rounded border border-slate-200">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Owner 등록
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={ownerForms[id] || ""}
-                    onChange={(e) =>
-                      setOwnerForms((prev) => ({ ...prev, [id]: e.target.value }))
-                    }
-                    className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
-                    placeholder="사용자명 (예: admin97)"
-                  />
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Owner 등록
+                  </label>
                   <button
-                    onClick={() => handleRegisterOwner(id)}
-                    className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+                    onClick={() => setShowOwnerForms((prev) => ({ ...prev, [id]: !prev[id] }))}
+                    className="text-xs text-slate-600 hover:text-slate-800"
                   >
-                    등록
+                    {showOwnerForms[id] ? "간단 모드" : "상세 모드"}
                   </button>
                 </div>
+                
+                {showOwnerForms[id] ? (
+                  <div className="space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          사용자명 *
+                        </label>
+                        <input
+                          type="text"
+                          value={ownerForm.username}
+                          onChange={(e) =>
+                            setOwnerForms((prev) => ({
+                              ...prev,
+                              [id]: { ...ownerForm, username: e.target.value },
+                            }))
+                          }
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          placeholder="예: admin97"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          비밀번호 * (새 사용자 생성 시 필수)
+                        </label>
+                        <input
+                          type="password"
+                          value={ownerForm.password}
+                          onChange={(e) =>
+                            setOwnerForms((prev) => ({
+                              ...prev,
+                              [id]: { ...ownerForm, password: e.target.value },
+                            }))
+                          }
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          placeholder="비밀번호 입력"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          이름
+                        </label>
+                        <input
+                          type="text"
+                          value={ownerForm.name}
+                          onChange={(e) =>
+                            setOwnerForms((prev) => ({
+                              ...prev,
+                              [id]: { ...ownerForm, name: e.target.value },
+                            }))
+                          }
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          placeholder="예: 홍길동"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                          전화번호
+                        </label>
+                        <input
+                          type="text"
+                          value={ownerForm.phone}
+                          onChange={(e) =>
+                            setOwnerForms((prev) => ({
+                              ...prev,
+                              [id]: { ...ownerForm, phone: e.target.value },
+                            }))
+                          }
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          placeholder="예: 01012345678"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleRegisterOwner(id)}
+                        className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+                      >
+                        등록
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOwnerForms((prev) => ({ ...prev, [id]: { username: "", password: "", name: "", phone: "" } }));
+                          setShowOwnerForms((prev) => ({ ...prev, [id]: false }));
+                        }}
+                        className="px-4 py-2 bg-slate-200 text-slate-700 text-sm rounded hover:bg-slate-300"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={ownerForm.username}
+                      onChange={(e) =>
+                        setOwnerForms((prev) => ({
+                          ...prev,
+                          [id]: { ...ownerForm, username: e.target.value },
+                        }))
+                      }
+                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
+                      placeholder="사용자명 (기존 사용자)"
+                    />
+                    <button
+                      onClick={() => handleRegisterOwner(id)}
+                      className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+                    >
+                      등록
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-slate-200 pt-4">
