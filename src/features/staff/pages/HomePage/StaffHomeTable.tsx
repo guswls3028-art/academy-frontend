@@ -21,7 +21,7 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
       {list.slice(0, 4).map((st) => {
         const wt = st.work_type;
         const color = wt?.color || "#6b7280";
-        const name = wt?.name || "—";
+        const name = wt?.name || "-";
         const wage = wt?.base_hourly_wage != null ? st.effective_hourly_wage ?? wt.base_hourly_wage : null;
         const label = wage != null ? `${name} ${(wage / 10000).toFixed(1)}만` : name;
         return (
@@ -209,7 +209,7 @@ export function StaffHomeTable({
                 {owner!.name}
               </td>
               <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
-                {(owner as { phone?: string | null }).phone || "-"}
+                {owner!.phone || "-"}
               </td>
               <td className="align-middle">
                 <span className="ds-status-badge" data-status="active">활성</span>
