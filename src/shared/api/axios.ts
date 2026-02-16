@@ -6,6 +6,7 @@ import axios, {
   AxiosResponse,
 } from "axios";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
@@ -88,46 +89,10 @@ const api: AxiosInstance = axios.create({
   withCredentials: false,
 });
 
-/** hostname → 테넌트 코드 (중앙 API로 요청할 때만 사용) */
-const HOSTNAME_TO_TENANT_CODE: Record<string, string> = {
-  "tchul.com": "tchul",
-  "www.tchul.com": "tchul",
-  "limglish.kr": "limglish",
-  "www.limglish.kr": "limglish",
-  "ymath.co.kr": "ymath",
-  "www.ymath.co.kr": "ymath",
-  "hakwonplus.com": "hakwonplus",
-  "www.hakwonplus.com": "hakwonplus",
-};
-
 /**
- * 테넌트 코드 추출: 1) hostname(도메인) 2) /login/xxx 경로 3) sessionStorage
- * 중앙 API(api.hakwonplus.com)로 요청 시 X-Tenant-Code 필수 — hostname 우선으로 항상 전송.
+ * 테넌트 코드: shared/tenant SSOT 사용 (hostname → config → X-Tenant-Code)
+ * 중앙 API(api.hakwonplus.com)로 요청 시 필수.
  */
-function getTenantCodeForRequest(): string | null {
-  try {
-    if (typeof window === "undefined") return null;
-    const host =
-      HOSTNAME_TO_TENANT_CODE[window.location.hostname] ||
-      HOSTNAME_TO_TENANT_CODE[window.location.hostname.replace(/^www\./, "")];
-    if (host) {
-      sessionStorage.setItem("tenantCode", host);
-      return host;
-    }
-    const pathname = window.location.pathname;
-    const parts = pathname.split("/").filter(Boolean);
-    const loginIdx = parts.indexOf("login");
-    const fromPath =
-      loginIdx >= 0 && parts[loginIdx + 1] ? parts[loginIdx + 1] : null;
-    if (fromPath) {
-      sessionStorage.setItem("tenantCode", fromPath);
-      return fromPath;
-    }
-    return sessionStorage.getItem("tenantCode");
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Request interceptor

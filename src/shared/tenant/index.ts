@@ -139,7 +139,6 @@ export function getTenantCodeForHeader(): string | null {
 export function getTenantCodeForApiRequest(): string | null {
   try {
     if (typeof window === "undefined") return null;
-    const { HOSTNAME_TO_TENANT_CODE } = require("./config");
     const hostname = (window.location.hostname || "").trim().toLowerCase();
     const fromHost =
       HOSTNAME_TO_TENANT_CODE[hostname] ||
