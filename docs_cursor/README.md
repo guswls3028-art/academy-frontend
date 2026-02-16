@@ -14,11 +14,15 @@
 | [05-cross-repo.md](05-cross-repo.md) | 백엔드와의 계약(CORS, tenant 코드, API base) | 도메인·CORS·테넌트 매핑 이슈 |
 | [06-implemented-features.md](06-implemented-features.md) | 멀티테넌트 로그인 URL, X-Tenant-Code, www 리다이렉트, SPA 폴백, 학생 엑셀 파싱 (구현 사실만) | 로그인/URL/엑셀/배포 이슈 시 참조 |
 
+## 날짜별 스냅샷
+
+- **docs/SSOT_0217/**: 2025-02-17 현시점 문서 스냅샷. 이후 SSOT_0218, SSOT_0219 … 생성하여 섞이지 않게 관리.
+
 ## 원본 문서 위치
 
 - **프론트 최상위**: 저장소 루트 `README.md`
 - **배포**: `DEPLOY.md`
-- **백엔드 core**: `academy/apps/core/CORE_SEAL.md`, `academy/docs_cursor/`
+- **백엔드 core**: `academy/apps/core/CORE_SEAL.md`, `academy/docs_cursor/` 또는 `academy/docs/SSOT_***/`
 
 ## 규칙
 
