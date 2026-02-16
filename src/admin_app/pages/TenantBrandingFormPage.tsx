@@ -11,6 +11,7 @@ import {
 import { getTenants } from "@/admin_app/api/tenants";
 import { getTenantBranding, getTenantIdFromCode } from "@/shared/tenant/config";
 import StickySaveBar from "@/admin_app/components/StickySaveBar";
+import AdminToast from "@/admin_app/components/AdminToast";
 import "@/styles/design-system/index.css";
 import "@/styles/design-system/ds/input.css";
 
