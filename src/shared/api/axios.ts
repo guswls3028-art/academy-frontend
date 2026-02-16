@@ -88,12 +88,26 @@ const api: AxiosInstance = axios.create({
   withCredentials: false,
 });
 
+/** hostname → 테넌트 코드 (최초 진입 시 / 또는 /login 일 때 사용) */
+const HOSTNAME_TO_TENANT_CODE: Record<string, string> = {
+  "tchul.com": "tchul",
+  "www.tchul.com": "tchul",
+  "limglish.kr": "limglish",
+  "www.limglish.kr": "limglish",
+  "ymath.kr": "ymath",
+  "www.ymath.kr": "ymath",
+  "hakwonplus.com": "hakwonplus",
+  "www.hakwonplus.com": "hakwonplus",
+};
+
 /**
- * 테넌트 코드 추출: /login/tchul → tchul (로그인 후 /admin 이동해도 sessionStorage로 유지)
+ * 테넌트 코드 추출: 1) /login/tchul 2) hostname 3) sessionStorage
+ * 로그인 후 /admin 이동해도 sessionStorage로 유지.
  */
 function getTenantCodeForRequest(): string | null {
   try {
-    const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+    if (typeof window === "undefined") return null;
+    const pathname = window.location.pathname;
     const parts = pathname.split("/").filter(Boolean);
     const loginIdx = parts.indexOf("login");
     const fromPath =
@@ -101,6 +115,13 @@ function getTenantCodeForRequest(): string | null {
     if (fromPath) {
       sessionStorage.setItem("tenantCode", fromPath);
       return fromPath;
+    }
+    const fromHost =
+      HOSTNAME_TO_TENANT_CODE[window.location.hostname] ||
+      HOSTNAME_TO_TENANT_CODE[window.location.hostname.replace(/^www\./, "")];
+    if (fromHost) {
+      sessionStorage.setItem("tenantCode", fromHost);
+      return fromHost;
     }
     return sessionStorage.getItem("tenantCode");
   } catch {
