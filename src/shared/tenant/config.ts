@@ -40,11 +40,11 @@ const ID_TO_BRANDING: Record<TenantId, TenantBranding> = {
 };
 
 /**
- * 테넌트 코드(호스트명) → 테넌트 ID. 없으면 null.
+ * 테넌트 코드(호스트명 또는 tenant code) → 테넌트 ID. 없으면 null.
  */
 export function getTenantIdFromCode(code: string): TenantId | null {
   const normalized = String(code || "").trim().toLowerCase();
-  return (HOST_TO_ID[normalized] as TenantId) ?? null;
+  return (HOST_TO_ID[normalized] as TenantId) ?? (CODE_TO_ID[normalized] as TenantId) ?? null;
 }
 
 /**
