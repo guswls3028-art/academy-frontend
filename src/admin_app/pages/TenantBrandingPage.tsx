@@ -34,6 +34,11 @@ export default function TenantBrandingPage() {
   const [newTenantCode, setNewTenantCode] = useState("");
   const [newTenantName, setNewTenantName] = useState("");
   const [newTenantDomain, setNewTenantDomain] = useState("");
+  const [createOwnerWithTenant, setCreateOwnerWithTenant] = useState(false);
+  const [newOwnerUsername, setNewOwnerUsername] = useState("");
+  const [newOwnerPassword, setNewOwnerPassword] = useState("");
+  const [newOwnerName, setNewOwnerName] = useState("");
+  const [newOwnerPhone, setNewOwnerPhone] = useState("");
   
   // Owner 등록 폼
   const [ownerForms, setOwnerForms] = useState<Record<number, {
