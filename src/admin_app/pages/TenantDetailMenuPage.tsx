@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { getTenant, getTenants, type TenantDto } from "@/admin_app/api/tenants";
+import { getTenants, type TenantDto } from "@/admin_app/api/tenants";
 import AdminOwnerBottomSheet from "@/admin_app/components/AdminOwnerBottomSheet";
 import "@/styles/design-system/index.css";
 
