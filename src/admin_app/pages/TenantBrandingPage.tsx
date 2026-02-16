@@ -277,13 +277,27 @@ export default function TenantBrandingPage() {
 
       {message && (
         <div
-          className={`mb-4 p-3 rounded text-sm ${
-            message.includes("실패") || message.includes("아직 없습니다")
-              ? "bg-amber-100 text-amber-800"
-              : "bg-blue-50 text-blue-800"
+          role="alert"
+          className={`mb-4 p-4 rounded-lg text-sm flex items-start justify-between gap-3 ${
+            messageType === "success"
+              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+              : messageType === "error"
+                ? "bg-red-50 text-red-800 border border-red-200"
+                : "bg-slate-100 text-slate-800 border border-slate-200"
           }`}
         >
-          {message}
+          <span className="flex-1">{message}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setMessage(null);
+              setMessageType(null);
+            }}
+            className="shrink-0 text-slate-500 hover:text-slate-700 aria-label-close"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -507,8 +521,15 @@ export default function TenantBrandingPage() {
               </div>
 
               {/* Owner 등록 — 사용자명, 비밀번호, 이름, 전화번호만 입력 */}
-              <div className="mb-6 p-4 bg-slate-50 rounded border border-slate-200">
-                <h3 className="block text-sm font-semibold text-slate-900 mb-3">Owner 등록</h3>
+              <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-slate-900">Owner 등록</h3>
+                  {lastOwnerRegistered[id] && (
+                    <span className="text-xs text-emerald-600 font-medium">
+                      ✓ {lastOwnerRegistered[id].username} 등록됨
+                    </span>
+                  )}
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-semibold text-slate-900 mb-1">사용자명 *</label>
