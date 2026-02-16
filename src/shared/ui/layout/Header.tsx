@@ -377,7 +377,7 @@ export default function Header() {
                 </div>
               );
             })}
-            {lecture && (lid > 0) && (
+            {lecture && lid > 0 && (
               <div
                 className="app-header__crumb app-header__crumb--muted"
                 style={{ marginLeft: 8, paddingLeft: 8, borderLeft: "1px solid var(--color-border-divider)" }}
