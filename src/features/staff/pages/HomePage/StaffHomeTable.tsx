@@ -47,6 +47,7 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
 
 interface Props {
   staffs: Staff[] | undefined;
+  owner?: StaffListOwner | null;
   onOperate: (staffId: number) => void;
   onDetail: (staffId: number) => void;
   canManage: boolean;
