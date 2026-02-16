@@ -59,6 +59,12 @@ export async function updateTenant(
   return res.data;
 }
 
+/** GET list of owners for a tenant */
+export async function getTenantOwners(tenantId: number): Promise<TenantOwnerDto[]> {
+  const res = await api.get<TenantOwnerDto[]>(`/core/tenants/${tenantId}/owners/`);
+  return res.data;
+}
+
 /** POST register owner for tenant */
 export async function registerTenantOwner(
   tenantId: number,
