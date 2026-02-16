@@ -211,17 +211,29 @@ export function StaffHomeTable({
 
         <tbody>
           {hasOwner && (
-            <tr className="bg-[var(--color-bg-surface-hover)]/60" aria-label="원장">
+            <tr className="bg-[var(--color-bg-surface-hover)]/60" aria-label="대표">
               <td onClick={(e) => e.stopPropagation()} style={{ width: COL.checkbox }} className="ds-checkbox-cell align-middle">
-                <input type="checkbox" disabled aria-label="원장 선택 불가" className="cursor-not-allowed opacity-60" />
+                <input
+                  type="checkbox"
+                  checked={selectedSet.has(OWNER_SELECTION_ID)}
+                  onChange={() => toggleSelect(OWNER_SELECTION_ID)}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="대표 선택"
+                  className="cursor-pointer"
+                />
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge" data-tone="primary" aria-label="원장">
-                  원장
+                <span className="ds-status-badge" data-tone="primary" aria-label="대표">
+                  대표
                 </span>
               </td>
-              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle">
-                {owner!.name}
+              <td className="align-middle">
+                <span className="inline-flex items-center gap-2 min-w-0">
+                  <StaffRoleAvatar role="owner" />
+                  <span className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+                    {owner!.name}
+                  </span>
+                </span>
               </td>
               <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
                 {owner!.phone || "-"}
