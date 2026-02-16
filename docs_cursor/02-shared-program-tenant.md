@@ -62,5 +62,6 @@ Program = {
 
 ## 5. API base
 
-- `src/shared/api/axios` 등에서 baseURL 설정 (환경 변수 `VITE_API_BASE_URL` 등).  
-- 요청 prefix: `/core/...` 등은 백엔드 `/api/v1/core/...` 에 대응 (axios base에 `/api/v1` 포함 여부는 실제 axios 설정 참고).
+- **파일**: `src/shared/api/axios.ts`
+- **baseURL**: `${VITE_API_BASE_URL}/api/v1` (예: `https://api.hakwonplus.com/api/v1`).
+- 요청 경로 `/core/program/` → 실제 URL `{baseURL}/core/program/` = `https://api.hakwonplus.com/api/v1/core/program/`.
