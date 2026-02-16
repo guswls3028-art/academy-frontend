@@ -89,11 +89,29 @@ const api: AxiosInstance = axios.create({
 });
 
 /**
+ * 테넌트 코드 추출: /login/tchul → tchul (로그인 후 /admin 이동해도 sessionStorage로 유지)
+ */
+function getTenantCodeForRequest(): string | null {
+  try {
+    const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+    const parts = pathname.split("/").filter(Boolean);
+    const loginIdx = parts.indexOf("login");
+    const fromPath =
+      loginIdx >= 0 && parts[loginIdx + 1] ? parts[loginIdx + 1] : null;
+    if (fromPath) {
+      sessionStorage.setItem("tenantCode", fromPath);
+      return fromPath;
+    }
+    return sessionStorage.getItem("tenantCode");
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Request interceptor
  * - attach JWT Bearer (if available)
- * - attach operational headers
- *
- * ❌ Tenant header injection removed (Backend resolves tenant by host)
+ * - attach X-Tenant-Code when SPA is on tenant domain (e.g. tchul.com) but API is api.hakwonplus.com
  */
 api.interceptors.request.use((config) => {
   const cfg = config;
@@ -113,6 +131,12 @@ api.interceptors.request.use((config) => {
   (cfg.headers as any)["X-Client-Version"] = String(
     import.meta.env.VITE_APP_VERSION || "dev"
   );
+
+  // 중앙 API(api.hakwonplus.com)로 요청 시 테넌트 식별용 (백엔드 resolver가 Host 대신 이걸 사용)
+  const tenantCode = getTenantCodeForRequest();
+  if (tenantCode) {
+    (cfg.headers as any)["X-Tenant-Code"] = tenantCode;
+  }
 
   // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록
   const asyncId = asyncStatusStore.trackRequest(
