@@ -24,8 +24,9 @@
 
 ```
 src/
-├── app/                    # 관리자 앱 라우터·진입
-├── features/               # 관리자 기능 모듈 (학생·강의·시험·비디오 등)
+├── app/                    # 라우터·진입 (AppRouter: /dev/* → admin_app, 그 외 관리자 앱)
+├── admin_app/              # 개발자용 앱 (테넌트 1·9999 owner): Home, Branding, 테넌트·오너 설정
+├── features/               # 관리자(선생) 기능 모듈 (학생·강의·시험·비디오 등)
 ├── shared/                 # 관리자 전용 — 공통 UI·유틸 (학생 앱에서 사용 금지)
 ├── styles/                 # 관리자 전용 — 디자인 시스템 (design-system) (학생 앱에서 사용 금지)
 ├── index.css               # 관리자 앱 전역 스타일 진입
