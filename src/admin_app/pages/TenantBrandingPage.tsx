@@ -251,9 +251,45 @@ export default function TenantBrandingPage() {
               key={id}
               className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm"
             >
-              <h2 className="text-lg font-medium text-slate-800 mb-4">
-                Tenant {id} — {name}
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-medium text-slate-800">
+                    {name} ({tenant.code})
+                  </h2>
+                  <div className="text-sm text-slate-500 mt-1">
+                    ID: {id} | 도메인: {tenant.primaryDomain || "없음"} |{" "}
+                    {tenant.isActive ? (
+                      <span className="text-green-600">활성</span>
+                    ) : (
+                      <span className="text-red-600">비활성</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Owner 등록 */}
+              <div className="mb-6 p-4 bg-slate-50 rounded border border-slate-200">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Owner 등록
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={ownerForms[id] || ""}
+                    onChange={(e) =>
+                      setOwnerForms((prev) => ({ ...prev, [id]: e.target.value }))
+                    }
+                    className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
+                    placeholder="사용자명 (예: admin97)"
+                  />
+                  <button
+                    onClick={() => handleRegisterOwner(id)}
+                    className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+                  >
+                    등록
+                  </button>
+                </div>
+              </div>
 
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
