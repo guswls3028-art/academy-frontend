@@ -8,8 +8,10 @@ export type StaffMe = {
   is_payroll_manager: boolean;
   /** 현재 사용자가 이 테넌트 원장(owner)일 때 true. 직원 목록 원장 행 표시용 */
   is_owner?: boolean;
-  /** is_owner 일 때 표시할 이름 (list API에 owner 없을 때 사용) */
+  /** 원장 행 표시용 이름 (list API에 owner 없을 때 사용) */
   owner_display_name?: string | null;
+  /** 원장 행 표시용 전화번호 */
+  owner_phone?: string | null;
 };
 
 /**
