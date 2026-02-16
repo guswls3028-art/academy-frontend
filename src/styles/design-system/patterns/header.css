@@ -51,6 +51,11 @@
   min-width: 0;
 }
 
+[data-app="admin"] .app-header[data-mobile] .app-header__left {
+  flex: 1;
+  margin-right: 8px;
+}
+
 [data-app="admin"] .app-header__brand {
   display: flex;
   align-items: center;
