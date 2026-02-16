@@ -34,6 +34,8 @@ type Props = {
   ownersList: TenantOwnerDto[];
   ownersLoading: boolean;
   onOpenOwnerSheet: () => void;
+  onRemoveOwner: (tenantId: number, userId: number) => Promise<void>;
+  onUpdateOwner: (tenantId: number, userId: number, payload: { name?: string; phone?: string }) => Promise<void>;
   onLogoUpload: (tenantId: number, file: File) => void;
   onSaveBranding: (tenantId: number) => void;
   onDisplayNameChange: (tenantId: number, value: string) => void;
@@ -51,6 +53,8 @@ export default function TenantDetailPanel({
   ownersList,
   ownersLoading,
   onOpenOwnerSheet,
+  onRemoveOwner,
+  onUpdateOwner,
   onLogoUpload,
   onSaveBranding,
   onDisplayNameChange,
