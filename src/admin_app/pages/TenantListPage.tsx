@@ -18,7 +18,6 @@ const PULL_THRESHOLD = 70;
 const SWIPE_REVEAL_PX = 80;
 
 export default function TenantListPage() {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const [tenants, setTenants] = useState<TenantDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; kind: "success" | "error" } | null>(null);
@@ -134,7 +133,8 @@ export default function TenantListPage() {
   };
 
   const onPullStart = (e: React.TouchEvent) => {
-    atTop.current = (scrollRef.current?.scrollTop ?? 0) <= 2;
+    const scrollTop = typeof window !== "undefined" ? window.scrollY : 0;
+    atTop.current = scrollTop <= 2;
     pullStartY.current = e.touches[0].clientY;
   };
   const onPullMove = (e: React.TouchEvent) => {
@@ -169,12 +169,10 @@ export default function TenantListPage() {
 
   return (
     <div
-      ref={scrollRef}
-      className="pb-24 overflow-y-auto touch-pan-y"
+      className="pb-24 touch-pan-y"
       onTouchStart={onPullStart}
       onTouchMove={onPullMove}
       onTouchEnd={onPullEnd}
-      style={{ WebkitOverflowScrolling: "touch" }}
     >
       <AdminToast
         message={toast?.message ?? ""}
