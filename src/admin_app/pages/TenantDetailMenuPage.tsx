@@ -80,7 +80,7 @@ export default function TenantDetailMenuPage() {
               </button>
             );
           }
-          const to = item.to === "advanced" ? base : `${base}/${item.to}`;
+          const to = `${base}/${item.to}`;
           return (
             <Link
               key={item.to}
