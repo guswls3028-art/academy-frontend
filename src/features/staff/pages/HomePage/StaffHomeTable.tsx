@@ -310,44 +310,36 @@ export function StaffHomeTable({
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
                 {!canManage ? (
-                  <span className="text-[14px] text-[var(--color-text-secondary)]">
+                  <span className="ds-status-badge" data-tone="neutral">
                     {r.pay_type === "HOURLY" ? "시급" : "월급"}
                   </span>
                 ) : (
-                  <span className="inline-flex rounded-md border border-[var(--border-divider)] p-0.5 bg-[var(--bg-surface-soft)]">
+                  <span className="inline-flex gap-1">
                     <button
                       type="button"
+                      className="ds-status-badge ds-status-badge--action"
+                      data-status={r.pay_type === "HOURLY" ? "active" : "inactive"}
                       disabled={patchPayTypeM.isPending}
                       onClick={() => {
                         if (r.pay_type === "HOURLY") return;
                         patchPayTypeM.mutate({ staffId: r.id, pay_type: "HOURLY" });
                       }}
                       aria-label={`${r.name} 시급`}
-                      className={[
-                        "px-2.5 py-1 text-[12px] font-semibold rounded transition-colors",
-                        r.pay_type === "HOURLY"
-                          ? "bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
-                          : "text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface)]",
-                      ].join(" ")}
                     >
-                      시급
+                      {patchPayTypeM.isPending ? "…" : "시급"}
                     </button>
                     <button
                       type="button"
+                      className="ds-status-badge ds-status-badge--action"
+                      data-status={r.pay_type === "MONTHLY" ? "active" : "inactive"}
                       disabled={patchPayTypeM.isPending}
                       onClick={() => {
                         if (r.pay_type === "MONTHLY") return;
                         patchPayTypeM.mutate({ staffId: r.id, pay_type: "MONTHLY" });
                       }}
                       aria-label={`${r.name} 월급`}
-                      className={[
-                        "px-2.5 py-1 text-[12px] font-semibold rounded transition-colors",
-                        r.pay_type === "MONTHLY"
-                          ? "bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
-                          : "text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface)]",
-                      ].join(" ")}
                     >
-                      월급
+                      {patchPayTypeM.isPending ? "…" : "월급"}
                     </button>
                   </span>
                 )}
