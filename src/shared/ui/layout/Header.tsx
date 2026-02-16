@@ -7,6 +7,7 @@ import ThemeOverlay from "@/features/settings/overlays/ThemeOverlay";
 import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
 import { useNotices } from "@/features/notice/context/NoticeContext";
 import { useProgram } from "@/shared/program";
+import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
 import { Button } from "@/shared/ui/ds";
 import { fetchLecture, fetchSession } from "@/features/lectures/api/sessions";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
@@ -233,6 +234,8 @@ function deriveCrumbs(
 export default function Header() {
   const loc = useLocation();
   const nav = useNavigate();
+  const adminLayout = useAdminLayout();
+  const isMobile = adminLayout != null;
   const { lectureId: lid, sessionId: sid } = parseIdsFromPath(loc.pathname);
 
   const { data: lecture } = useQuery({
