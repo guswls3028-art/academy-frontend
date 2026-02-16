@@ -43,18 +43,29 @@ export type StaffSummary = {
 
 /**
  * GET /staffs/
+ * 응답에 owner(원장) 포함 시 { staffs, owner } 반환.
  */
 export async function fetchStaffs(params?: {
   search?: string;
   is_active?: boolean;
   is_manager?: boolean;
   pay_type?: string;
-}) {
-  const res = await api.get("/staffs/", { params });
+}): Promise<StaffListResponse> {
+  const res = await api.get<{ results?: Staff[]; owner?: StaffListOwner | null } & Staff[]>("/staffs/", {
+    params,
+  });
 
-  if (Array.isArray(res.data)) return res.data as Staff[];
-  if (Array.isArray(res.data?.results)) return res.data.results as Staff[];
-  return [];
+  const staffs: Staff[] = Array.isArray(res.data)
+    ? (res.data as Staff[])
+    : Array.isArray(res.data?.results)
+      ? (res.data.results as Staff[])
+      : [];
+  const owner =
+    res.data && typeof res.data === "object" && "owner" in res.data
+      ? (res.data.owner as StaffListOwner | null) ?? null
+      : null;
+
+  return { staffs, owner };
 }
 
 /**
