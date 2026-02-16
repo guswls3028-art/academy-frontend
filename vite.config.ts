@@ -22,10 +22,11 @@ export default defineConfig({
       "@": path.resolve(process.cwd(), "src"),
       "@student": path.resolve(process.cwd(), "src/student"),
     },
+    dedupe: ["react", "react-dom"],
   },
 
-  // xlsx-js-style 등 Node 'stream' 사용 시 브라우저 호환 경고 완화
   optimizeDeps: {
+    include: ["react", "react-dom"],
     exclude: ["xlsx-js-style"],
   },
 });
