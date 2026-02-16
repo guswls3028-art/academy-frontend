@@ -582,12 +582,14 @@ export default function TenantBrandingPage() {
                 </div>
                 <div className="mt-3">
                   <button
+                    type="button"
                     onClick={() => handleRegisterOwner(id)}
+                    disabled={registeringOwnerId === id}
                     className="ds-button"
                     data-intent="primary"
                     data-size="md"
                   >
-                    Owner 등록
+                    {registeringOwnerId === id ? "등록 중…" : "Owner 등록"}
                   </button>
                 </div>
               </div>
