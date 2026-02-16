@@ -23,6 +23,7 @@ export default function TenantBrandingPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [logoUrls, setLogoUrls] = useState<Record<number, string>>({});
   const [loginTitles, setLoginTitles] = useState<Record<number, string>>({});
+  const [loginSubtitles, setLoginSubtitles] = useState<Record<number, string>>({});
   
   // 테넌트 생성 폼
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -31,7 +32,13 @@ export default function TenantBrandingPage() {
   const [newTenantDomain, setNewTenantDomain] = useState("");
   
   // Owner 등록 폼
-  const [ownerForms, setOwnerForms] = useState<Record<number, string>>({});
+  const [ownerForms, setOwnerForms] = useState<Record<number, {
+    username: string;
+    password: string;
+    name: string;
+    phone: string;
+  }>>({});
+  const [showOwnerForms, setShowOwnerForms] = useState<Record<number, boolean>>({});
 
   // 테넌트 목록 로드
   useEffect(() => {
