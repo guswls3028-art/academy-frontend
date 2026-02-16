@@ -427,12 +427,12 @@ export default function TenantBrandingPage() {
         {tenants.map((tenant) => {
           const id = tenant.id;
           const name = tenant.name;
-          const fallback = getTenantBranding(id);
-          const logoUrl = logoUrls[id] ?? fallback.logoUrl;
-          const loginTitle = loginTitles[id] ?? fallback.loginTitle ?? "";
-          const loginSubtitle = loginSubtitles[id] ?? fallback.loginSubtitle ?? "";
-          const windowTitle = windowTitles[id] ?? fallback.windowTitle ?? "";
-          const displayName = displayNames[id] ?? fallback.displayName ?? name;
+          const fallback = getTenantBranding(id as import("@/shared/tenant/config").TenantId) ?? undefined;
+          const logoUrl = logoUrls[id] ?? fallback?.logoUrl;
+          const loginTitle = loginTitles[id] ?? fallback?.loginTitle ?? "";
+          const loginSubtitle = loginSubtitles[id] ?? fallback?.loginSubtitle ?? "";
+          const windowTitle = windowTitles[id] ?? fallback?.windowTitle ?? "";
+          const displayName = displayNames[id] ?? (fallback as { displayName?: string } | undefined)?.displayName ?? name;
           const ownerForm = ownerForms[id] || { username: "", password: "", name: "", phone: "" };
 
           return (
