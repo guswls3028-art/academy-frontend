@@ -298,18 +298,18 @@ export default function TenantBrandingPage() {
               {/* Owner 등록 */}
               <div className="mb-6 p-4 bg-slate-50 rounded border border-slate-200">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-semibold text-slate-900">
                     Owner 등록
                   </label>
                   <button
                     onClick={() => setShowOwnerForms((prev) => ({ ...prev, [id]: !prev[id] }))}
-                    className="text-xs text-slate-600 hover:text-slate-800"
+                    className="text-xs font-medium text-slate-700 hover:text-slate-900 underline"
                   >
-                    {showOwnerForms[id] ? "간단 모드" : "상세 모드"}
+                    {showOwnerForms[id] !== false ? "간단 모드" : "상세 모드"}
                   </button>
                 </div>
                 
-                {showOwnerForms[id] ? (
+                {showOwnerForms[id] !== false ? (
                   <div className="space-y-3">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
