@@ -120,7 +120,7 @@ api.interceptors.request.use((config) => {
   );
 
   // 테넌트 코드가 있으면 항상 전송 (B 구조: tchul.com → api.hakwonplus.com 에서 필수)
-  const tenantCode = getTenantCodeForRequest();
+  const tenantCode = getTenantCodeForApiRequest();
   if (tenantCode) {
     (cfg.headers as any)["X-Tenant-Code"] = tenantCode;
   }
