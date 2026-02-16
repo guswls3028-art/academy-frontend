@@ -209,6 +209,17 @@
   transition: width 0.2s ease;
 }
 
+/* 진행률 수치가 없을 때(백엔드가 아직 반환 전 또는 작업이 빨리 끝남): 무한 진행 표시 */
+.async-status-bar__progress-fill--indeterminate {
+  width: 40% !important;
+  animation: async-progress-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes async-progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
 @keyframes async-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

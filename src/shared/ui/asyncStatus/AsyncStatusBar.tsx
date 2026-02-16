@@ -48,11 +48,19 @@ function TaskItem({ task }: { task: AsyncTask }) {
           </svg>
         </button>
       </div>
-      {task.status === "pending" && task.progress != null && (
+      {task.status === "pending" && (
         <div className="async-status-bar__progress">
           <div
-            className="async-status-bar__progress-fill"
-            style={{ width: `${task.progress}%` }}
+            className={
+              task.progress != null
+                ? "async-status-bar__progress-fill"
+                : "async-status-bar__progress-fill async-status-bar__progress-fill--indeterminate"
+            }
+            style={
+              task.progress != null
+                ? { width: `${task.progress}%` }
+                : undefined
+            }
           />
         </div>
       )}
