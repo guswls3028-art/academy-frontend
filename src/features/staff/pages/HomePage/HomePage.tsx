@@ -21,11 +21,12 @@ export default function HomePage() {
     queryKey: ["staff-me"],
     queryFn: fetchStaffMe,
   });
-  /** 목록 API의 owner 우선, 없으면 현재 사용자가 원장일 때 /staffs/me 의 이름으로 표시 */
+  /** 원장 행: 목록 API owner 우선, 없으면 /staffs/me 의 owner_display_name(원장 또는 대표) */
   const owner = (() => {
     if (staffData?.owner?.name) return staffData.owner;
-    if (meQ.data?.is_owner && (meQ.data?.owner_display_name ?? "원장")) {
-      return { id: null, name: meQ.data.owner_display_name || "원장", role: "OWNER" as const, is_owner: true as const };
+    const displayName = meQ.data?.owner_display_name ?? (meQ.data?.is_owner ? "원장" : null);
+    if (displayName) {
+      return { id: null, name: displayName, role: "OWNER" as const, is_owner: true as const };
     }
     return null;
   })();
