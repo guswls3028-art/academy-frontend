@@ -276,55 +276,149 @@ export default function TenantBrandingPage() {
       {showCreateForm && (
         <div className="mb-6 bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">새 테넌트 생성</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className="block text-sm font-semibold text-slate-900 mb-2">
-                코드 *
-              </label>
-              <input
-                type="text"
-                value={newTenantCode}
-                onChange={(e) => setNewTenantCode(e.target.value)}
-                className="ds-input"
-                data-required="true"
-                placeholder="예: tchul"
-              />
+          
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  코드 *
+                </label>
+                <input
+                  type="text"
+                  value={newTenantCode}
+                  onChange={(e) => setNewTenantCode(e.target.value)}
+                  className="ds-input"
+                  data-required="true"
+                  placeholder="예: tchul"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  이름 *
+                </label>
+                <input
+                  type="text"
+                  value={newTenantName}
+                  onChange={(e) => setNewTenantName(e.target.value)}
+                  className="ds-input"
+                  data-required="true"
+                  placeholder="예: 천안학원"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  도메인 (선택)
+                </label>
+                <input
+                  type="text"
+                  value={newTenantDomain}
+                  onChange={(e) => setNewTenantDomain(e.target.value)}
+                  className="ds-input"
+                  placeholder="예: tchul.hakwonplus.com"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-900 mb-2">
-                이름 *
+
+            {/* 오너 계정 생성 옵션 */}
+            <div className="pt-4 border-t border-slate-200">
+              <label className="flex items-center gap-2 mb-4">
+                <input
+                  type="checkbox"
+                  checked={createOwnerWithTenant}
+                  onChange={(e) => setCreateOwnerWithTenant(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm font-semibold text-slate-900">
+                  테넌트 생성 시 오너 계정도 함께 생성
+                </span>
               </label>
-              <input
-                type="text"
-                value={newTenantName}
-                onChange={(e) => setNewTenantName(e.target.value)}
-                className="ds-input"
-                data-required="true"
-                placeholder="예: 천안학원"
-              />
+
+              {createOwnerWithTenant && (
+                <div className="ml-6 mt-3 space-y-3 bg-slate-50 p-4 rounded border border-slate-200">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-900 mb-1">
+                        사용자명 *
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwnerUsername}
+                        onChange={(e) => setNewOwnerUsername(e.target.value)}
+                        className="ds-input"
+                        data-required="true"
+                        placeholder="예: admin"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-900 mb-1">
+                        비밀번호 *
+                      </label>
+                      <input
+                        type="password"
+                        value={newOwnerPassword}
+                        onChange={(e) => setNewOwnerPassword(e.target.value)}
+                        className="ds-input"
+                        data-required="true"
+                        placeholder="비밀번호 입력"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-900 mb-1">
+                        이름
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwnerName}
+                        onChange={(e) => setNewOwnerName(e.target.value)}
+                        className="ds-input"
+                        placeholder="예: 홍길동"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-900 mb-1">
+                        전화번호
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwnerPhone}
+                        onChange={(e) => setNewOwnerPhone(e.target.value)}
+                        className="ds-input"
+                        placeholder="예: 01012345678"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-900 mb-2">
-                도메인 (선택)
-              </label>
-              <input
-                type="text"
-                value={newTenantDomain}
-                onChange={(e) => setNewTenantDomain(e.target.value)}
-                className="ds-input"
-                placeholder="예: tchul.hakwonplus.com"
-              />
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleCreateTenant}
+                className="ds-button"
+                data-intent="primary"
+                data-size="md"
+              >
+                테넌트 생성{createOwnerWithTenant ? " + 오너 계정 생성" : ""}
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setNewTenantCode("");
+                  setNewTenantName("");
+                  setNewTenantDomain("");
+                  setCreateOwnerWithTenant(false);
+                  setNewOwnerUsername("");
+                  setNewOwnerPassword("");
+                  setNewOwnerName("");
+                  setNewOwnerPhone("");
+                }}
+                className="ds-button"
+                data-intent="secondary"
+                data-size="md"
+              >
+                취소
+              </button>
             </div>
-          </div>
-          <div className="mt-4">
-            <button
-              onClick={handleCreateTenant}
-              className="ds-button"
-              data-intent="primary"
-              data-size="md"
-            >
-              생성
-            </button>
           </div>
         </div>
       )}
