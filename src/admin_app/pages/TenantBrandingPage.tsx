@@ -101,9 +101,8 @@ export default function TenantBrandingPage() {
       return;
     }
     
-    // 새 사용자 생성 시 비밀번호 필수
-    const isNewUser = !form.password;
-    if (isNewUser) {
+    // 상세 모드에서 새 사용자 생성 시 비밀번호 필수
+    if (showOwnerForms[tenantId] && !form.password) {
       setMessage("새 사용자 생성 시 비밀번호가 필요합니다.");
       return;
     }
@@ -111,7 +110,7 @@ export default function TenantBrandingPage() {
     try {
       await registerTenantOwner(tenantId, {
         username: form.username,
-        password: form.password,
+        password: form.password || undefined,
         name: form.name || undefined,
         phone: form.phone || undefined,
       });
