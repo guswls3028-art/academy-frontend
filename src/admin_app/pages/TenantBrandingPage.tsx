@@ -271,7 +271,9 @@ export default function TenantBrandingPage() {
           const name = tenant.name;
           const fallback = getTenantBranding(id);
           const logoUrl = logoUrls[id] ?? fallback.logoUrl;
-          const loginTitle = loginTitles[id] ?? fallback.loginTitle;
+          const loginTitle = loginTitles[id] ?? fallback.loginTitle ?? "";
+          const loginSubtitle = loginSubtitles[id] ?? fallback.loginSubtitle ?? "";
+          const ownerForm = ownerForms[id] || { username: "", password: "", name: "", phone: "" };
 
           return (
             <section
