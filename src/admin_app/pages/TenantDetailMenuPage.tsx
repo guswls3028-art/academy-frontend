@@ -1,37 +1,22 @@
 // PATH: src/admin_app/pages/TenantDetailMenuPage.tsx
-// STEP 2: Tenant 상세 메뉴 — 브랜딩/도메인/Owner/고급 > (한 화면에 한 목적)
+// Tenant 상세 — 메뉴 카드 + 상단에서 바로 Owner 입력 (탭 없이, 작업 느낌)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { getTenants, getTenantOwners, type TenantDto } from "@/admin_app/api/tenants";
-import AdminOwnerBottomSheet from "@/admin_app/components/AdminOwnerBottomSheet";
-import AdminToast from "@/admin_app/components/AdminToast";
+import { getTenants, getTenantOwners, type TenantDto, type TenantOwnerDto } from "@/admin_app/api/tenants";
+import OwnerFormCompact from "@/admin_app/components/OwnerFormCompact";
 import "@/styles/design-system/index.css";
-
-const MENU_ITEMS = (
-  ownerCount: number
-): Array<{ to?: string; label: string; desc: string; action?: "owner" }> => [
-  { to: "branding", label: "브랜딩 설정", desc: "로고, 로그인 문구" },
-  { to: "domains", label: "도메인 관리", desc: "커스텀 도메인" },
-  { label: `Owner 관리 (${ownerCount}명)`, desc: "오너 계정 등록", action: "owner" as const },
-  { to: "advanced", label: "고급 설정", desc: "상태, 메타" },
-];
 
 export default function TenantDetailMenuPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const navigate = useNavigate();
   const [tenant, setTenant] = useState<TenantDto | null>(null);
   const [loading, setLoading] = useState(true);
-  const [ownerSheetOpen, setOwnerSheetOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const [ownerCount, setOwnerCount] = useState(0);
+  const [owners, setOwners] = useState<TenantOwnerDto[]>([]);
 
-  useEffect(() => {
+  const loadTenant = useCallback(() => {
     const id = tenantId ? parseInt(tenantId, 10) : NaN;
-    if (!tenantId || isNaN(id)) {
-      setLoading(false);
-      return;
-    }
+    if (!tenantId || isNaN(id)) { setLoading(false); return; }
     let cancelled = false;
     getTenants()
       .then((list) => {
@@ -43,13 +28,14 @@ export default function TenantDetailMenuPage() {
     return () => { cancelled = true; };
   }, [tenantId]);
 
-  useEffect(() => {
+  const loadOwners = useCallback(() => {
     const id = tenantId ? parseInt(tenantId, 10) : NaN;
     if (!tenantId || isNaN(id)) return;
-    getTenantOwners(id)
-      .then((list) => setOwnerCount(list.length))
-      .catch(() => setOwnerCount(0));
+    getTenantOwners(id).then(setOwners).catch(() => setOwners([]));
   }, [tenantId]);
+
+  useEffect(() => { loadTenant(); }, [loadTenant]);
+  useEffect(() => { loadOwners(); }, [loadOwners]);
 
   if (loading) {
     return (
@@ -77,7 +63,6 @@ export default function TenantDetailMenuPage() {
 
   return (
     <div className="pb-24">
-      <AdminToast message={toast ?? ""} kind="success" visible={!!toast} onClose={() => setToast(null)} />
       <div className="mb-6">
         <button type="button" onClick={() => navigate("/dev/branding")} className="text-sm text-slate-600 mb-2 flex items-center gap-1">
           ← 목록
@@ -89,52 +74,56 @@ export default function TenantDetailMenuPage() {
         </span>
       </div>
 
-      <nav className="space-y-2">
-        {MENU_ITEMS(ownerCount).map((item) => {
-          if (item.action === "owner") {
-            return (
-              <button
-                key="owner"
-                type="button"
-                onClick={() => setOwnerSheetOpen(true)}
-                className="w-full flex items-center justify-between gap-3 p-4 bg-white rounded-xl border border-slate-200 shadow-sm min-h-[56px] text-left active:bg-slate-50"
-              >
-                <div>
-                  <div className="font-semibold text-slate-900">{item.label}</div>
-                  <div className="text-sm text-slate-500">{item.desc}</div>
-                </div>
-                <span className="text-slate-400" aria-hidden>›</span>
-              </button>
-            );
-          }
-          const to = `${base}/${item.to}`;
-          return (
-            <Link
-              key={item.to}
-              to={to}
-              className="flex items-center justify-between gap-3 p-4 bg-white rounded-xl border border-slate-200 shadow-sm min-h-[56px] active:bg-slate-50"
-            >
-              <div>
-                <div className="font-semibold text-slate-900">{item.label}</div>
-                <div className="text-sm text-slate-500">{item.desc}</div>
-              </div>
-              <span className="text-slate-400" aria-hidden>›</span>
-            </Link>
-          );
-        })}
+      {/* 바로 보이는 메뉴 카드 */}
+      <nav className="space-y-2 mb-6">
+        <Link to={`${base}/branding`} className="flex items-center justify-between gap-3 p-4 bg-white rounded-xl border border-slate-200 shadow-sm min-h-[56px] active:bg-slate-50">
+          <div>
+            <div className="font-semibold text-slate-900">브랜딩 설정</div>
+            <div className="text-sm text-slate-500">로고, 로그인 문구</div>
+          </div>
+          <span className="text-slate-400" aria-hidden>›</span>
+        </Link>
+        <Link to={`${base}/domains`} className="flex items-center justify-between gap-3 p-4 bg-white rounded-xl border border-slate-200 shadow-sm min-h-[56px] active:bg-slate-50">
+          <div>
+            <div className="font-semibold text-slate-900">도메인 관리</div>
+            <div className="text-sm text-slate-500">커스텀 도메인</div>
+          </div>
+          <span className="text-slate-400" aria-hidden>›</span>
+        </Link>
+        <Link to={`${base}/advanced`} className="flex items-center justify-between gap-3 p-4 bg-white rounded-xl border border-slate-200 shadow-sm min-h-[56px] active:bg-slate-50">
+          <div>
+            <div className="font-semibold text-slate-900">고급 설정</div>
+            <div className="text-sm text-slate-500">상태, 메타</div>
+          </div>
+          <span className="text-slate-400" aria-hidden>›</span>
+        </Link>
       </nav>
 
-      <AdminOwnerBottomSheet
-        open={ownerSheetOpen}
-        onClose={() => setOwnerSheetOpen(false)}
-        tenantId={id}
-        tenantName={tenant.name}
-        onSuccess={(message) => {
-          if (message) setToast(message);
-          getTenantOwners(id).then((list) => setOwnerCount(list.length)).catch(() => {});
-          setOwnerSheetOpen(false);
-        }}
-      />
+      {/* Owner — 상세에서 바로 입력 (탭 없음) */}
+      <section className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+        <div className="mb-3 p-2.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800">
+          이 계정은 <strong>{tenant.name}</strong> 전용입니다. 다른 테넌트에서는 로그인할 수 없습니다.
+        </div>
+        <h3 className="text-sm font-semibold text-slate-900 mb-2">👤 Owner 계정 ({owners.length}명)</h3>
+        {owners.length === 0 ? (
+          <p className="text-sm text-slate-500 mb-3">등록된 Owner가 없습니다.</p>
+        ) : (
+          <ul className="space-y-1.5 mb-4">
+            {owners.map((o) => (
+              <li key={o.userId} className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="font-medium text-slate-900">{o.username}</span>
+                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">OWNER</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <OwnerFormCompact
+          tenantId={id}
+          tenantName={tenant.name}
+          showResultBelow={true}
+          onSuccess={loadOwners}
+        />
+      </section>
     </div>
   );
 }
