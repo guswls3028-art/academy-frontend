@@ -5,7 +5,8 @@
 import { useEffect, useState } from "react";
 import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
 
-const QUERY = "(max-width: 767px)";
+/** 1024px 이하 = 모바일 레이아웃. 폰에서 '데스크톱 사이트' 켜도 ~980px라 모바일로 감. */
+const QUERY = "(max-width: 1023px)";
 
 export function useIsMobile(): boolean {
   const view = useTeacherView();
