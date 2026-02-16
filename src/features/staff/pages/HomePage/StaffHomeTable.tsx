@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/shared/ui/ds";
 import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
-import { Staff } from "../../api/staff.api";
+import { Staff, type StaffListOwner } from "../../api/staff.api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { patchStaffDetail } from "../../api/staff.detail.api";
 
