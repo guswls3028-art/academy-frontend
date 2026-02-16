@@ -312,11 +312,11 @@ export default function TenantBrandingPage() {
                     onClick={() => setShowOwnerForms((prev) => ({ ...prev, [id]: !prev[id] }))}
                     className="text-xs font-medium text-slate-700 hover:text-slate-900 underline"
                   >
-                    {showOwnerForms[id] !== false ? "간단 모드" : "상세 모드"}
+                    {showOwnerForms[id] === false ? "상세 모드" : "간단 모드"}
                   </button>
                 </div>
                 
-                {(showOwnerForms[id] !== false && showOwnerForms[id] !== undefined) ? (
+                {showOwnerForms[id] !== false ? (
                   <div className="space-y-3">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
