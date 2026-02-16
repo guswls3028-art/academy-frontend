@@ -2,8 +2,7 @@
 // Per-tenant logo and login branding. Upload -> R2 (academy-admin bucket).
 
 import { useState, useCallback, useEffect } from "react";
-import { getTenantBranding } from "@/shared/tenant/config";
-import type { TenantId } from "@/shared/tenant/config";
+import { getTenantBranding, getTenantIdFromCode } from "@/shared/tenant/config";
 import {
   getTenantBranding as getTenantBrandingApi,
   uploadTenantLogo,
