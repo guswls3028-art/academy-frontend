@@ -51,6 +51,13 @@ export default function TenantBrandingPage() {
       const data = await getTenants();
       setTenants(data);
       
+      // 기본적으로 상세 모드로 설정
+      const initialOwnerForms: Record<number, boolean> = {};
+      data.forEach((tenant) => {
+        initialOwnerForms[tenant.id] = true; // 기본값: 상세 모드
+      });
+      setShowOwnerForms(initialOwnerForms);
+      
       // 각 테넌트의 브랜딩 정보 로드
       data.forEach((tenant) => {
         getTenantBrandingApi(tenant.id).then((branding) => {
@@ -309,7 +316,7 @@ export default function TenantBrandingPage() {
                   </button>
                 </div>
                 
-                {showOwnerForms[id] !== false ? (
+                {(showOwnerForms[id] !== false && showOwnerForms[id] !== undefined) ? (
                   <div className="space-y-3">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
