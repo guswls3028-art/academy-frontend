@@ -24,6 +24,7 @@ export default function TenantDetailMenuPage() {
   const [loading, setLoading] = useState(true);
   const [ownerSheetOpen, setOwnerSheetOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [ownerCount, setOwnerCount] = useState(0);
 
   useEffect(() => {
     const id = tenantId ? parseInt(tenantId, 10) : NaN;
@@ -40,6 +41,14 @@ export default function TenantDetailMenuPage() {
       .catch(() => { if (!cancelled) setTenant(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
+  }, [tenantId]);
+
+  useEffect(() => {
+    const id = tenantId ? parseInt(tenantId, 10) : NaN;
+    if (!tenantId || isNaN(id)) return;
+    getTenantOwners(id)
+      .then((list) => setOwnerCount(list.length))
+      .catch(() => setOwnerCount(0));
   }, [tenantId]);
 
   if (loading) {
@@ -122,9 +131,4 @@ export default function TenantDetailMenuPage() {
         tenantName={tenant.name}
         onSuccess={(message) => {
           if (message) setToast(message);
-          setOwnerSheetOpen(false);
-        }}
-      />
-    </div>
-  );
-}
+          getTenantOwners(id).then((list) => setOwnerCount(list.length)).catch((
