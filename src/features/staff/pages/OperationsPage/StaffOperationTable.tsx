@@ -26,15 +26,8 @@ export default function StaffOperationTable({
   const [params] = useSearchParams();
   const [q, setQ] = useState("");
 
-  /**
-   * 🔒 안정성 보장
-   * - dataSource 는 반드시 배열이어야 함
-   */
-  const staffs: Staff[] = Array.isArray(data)
-    ? data
-    : Array.isArray((data as any)?.results)
-    ? (data as any).results
-    : [];
+  /** 작업 콘솔은 Staff만 대상(원장 제외) */
+  const staffs: Staff[] = Array.isArray(data?.staffs) ? data!.staffs : [];
 
   // ✅ UX: 검색은 “필터링(선택)”이며 계산/추론이 아님
   const filtered = useMemo(() => {
