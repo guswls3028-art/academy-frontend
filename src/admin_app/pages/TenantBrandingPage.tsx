@@ -26,6 +26,8 @@ export default function TenantBrandingPage() {
   const [logoUrls, setLogoUrls] = useState<Record<number, string>>({});
   const [loginTitles, setLoginTitles] = useState<Record<number, string>>({});
   const [loginSubtitles, setLoginSubtitles] = useState<Record<number, string>>({});
+  const [windowTitles, setWindowTitles] = useState<Record<number, string>>({});
+  const [displayNames, setDisplayNames] = useState<Record<number, string>>({});
   
   // 테넌트 생성 폼
   const [showCreateForm, setShowCreateForm] = useState(false);
