@@ -5,6 +5,29 @@
 
 
 ==========================================================================================
+# FILE: attendance/pages/AttendancePage.tsx
+==========================================================================================
+/**
+ * 출결 현황 — 대형학원 SaaS 기준 placeholder
+ */
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
+
+export default function AttendancePage() {
+  return (
+    <div style={{ padding: "var(--stu-space-4) 0" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)" }}>
+        출결 현황
+      </h1>
+      <EmptyState
+        title="출결 정보"
+        description="수업별 출석 현황은 관리자 페이지에서 확인한 뒤 안내됩니다. API 연동 시 여기에 표시됩니다."
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
 # FILE: clinic-idcard/api/idcard.ts
 ==========================================================================================
 // PATH: src/student/domains/clinic-idcard/api/idcard.ts
@@ -670,127 +693,141 @@ export function useStudentDashboard() {
 ==========================================================================================
 # FILE: dashboard/pages/DashboardPage.tsx
 ==========================================================================================
-// PATH: src/student/domains/dashboard/pages/DashboardPage.tsx
-
-import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
-import { useStudentDashboard } from "../hooks/useStudentDashboard";
-import EmptyState from "@/student/shared/ui/layout/EmptyState";
+/**
+ * 홈 — 오늘 일정, 빠른 메뉴(영상·시험·성적·일정), 공지
+ */
 import { Link } from "react-router-dom";
+import { useStudentDashboard } from "../hooks/useStudentDashboard";
+import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
+import { IconPlay, IconCalendar, IconGrade, IconExam, IconNotice } from "@/student/shared/ui/icons/Icons";
+import { formatYmd } from "@/student/shared/utils/date";
 
 export default function DashboardPage() {
-  const { data, isLoading, isError } = useStudentDashboard();
+  const { data: dashboard, isLoading: dashLoading } = useStudentDashboard();
+  const { data: sessions, isLoading: sessionsLoading } = useMySessions();
 
-  if (isLoading) {
+  const today = new Date().toISOString().slice(0, 10);
+  const todaySessions = (sessions ?? []).filter((s) => (s.date ?? "").slice(0, 10) === today);
+
+  if (dashLoading && sessionsLoading) {
     return (
-      <StudentPageShell title="홈">
-        <div className="stu-muted">불러오는 중...</div>
-      </StudentPageShell>
-    );
-  }
-
-  if (isError || !data) {
-    return (
-      <StudentPageShell title="홈">
-        <EmptyState
-          title="홈 정보를 불러오지 못했습니다."
-          description="잠시 후 다시 시도해주세요."
-        />
-      </StudentPageShell>
-    );
-  }
-
-  const badges = data.badges || {};
-  const hasClinic = !!badges.clinic_upcoming;
-  const hasCounseling = !!badges.counseling_upcoming;
-
-  return (
-    <StudentPageShell title="홈">
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* ===============================
-         * 학습 바로가기
-         * =============================== */}
-        <div className="stu-card">
-          <div style={{ fontWeight: 900, marginBottom: 12 }}>학습</div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12,
-            }}
-          >
-            <HomeAction to="/student/assignments" label="과제 제출" />
-            <HomeAction to="/student/materials" label="자료실" />
-            <HomeAction to="/student/exams" label="시험" />
-            <HomeAction to="/student/grades" label="성적" />
-          </div>
-        </div>
-
-        {/* ===============================
-         * 클리닉
-         * =============================== */}
-        <div className="stu-card">
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>클리닉</div>
-          <div className="stu-muted" style={{ marginBottom: 12 }}>
-            {hasClinic
-              ? "예정된 클리닉이 있습니다."
-              : "예정된 클리닉이 없습니다."}
-          </div>
-
-          <Link
-            to="/student/clinic"
-            className="stu-btn-primary"
-          >
-            클리닉 예약하기
-          </Link>
-        </div>
-
-        {/* ===============================
-         * 상담
-         * =============================== */}
-        <div className="stu-card">
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>상담</div>
-          <div className="stu-muted" style={{ marginBottom: 12 }}>
-            {hasCounseling
-              ? "예정된 상담이 있습니다."
-              : "예정된 상담이 없습니다."}
-          </div>
-
-          <Link
-            to="/student/counseling"
-            className="stu-btn-primary"
-          >
-            상담 예약하기
-          </Link>
-        </div>
+      <div style={{ padding: "var(--stu-space-4) 0" }}>
+        <div className="stu-skel" style={{ height: 100, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel" style={{ height: 120, marginTop: 12, borderRadius: "var(--stu-radius-lg)" }} />
       </div>
-    </StudentPageShell>
-  );
-}
+    );
+  }
 
-function HomeAction({
-  to,
-  label,
-}: {
-  to: string;
-  label: string;
-}) {
   return (
-    <Link
-      to={to}
-      style={{
-        textDecoration: "none",
-        borderRadius: 14,
-        padding: "18px 14px",
-        border: "1px solid var(--stu-border)",
-        background: "var(--stu-surface)",
-        color: "var(--stu-text)",
-        fontWeight: 900,
-        textAlign: "center",
-      }}
-    >
-      {label}
-    </Link>
+    <div style={{ padding: "var(--stu-space-2) 0" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
+        홈
+      </h1>
+
+      {/* 공지 */}
+      <Link
+        to="/student/qna"
+        className="stu-card stu-card--pressable"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--stu-space-4)",
+          marginBottom: "var(--stu-space-6)",
+          textDecoration: "none",
+          color: "inherit",
+        }}
+      >
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--stu-surface-soft)", display: "grid", placeItems: "center" }}>
+          <IconNotice style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>공지·Q&A</div>
+          <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>소통 게시판에서 확인하세요</div>
+        </div>
+        <span className="stu-muted" style={{ fontSize: 12 }}>보기</span>
+      </Link>
+
+      {/* 오늘 일정 */}
+      <section style={{ marginBottom: "var(--stu-space-8)" }}>
+        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
+          오늘 일정
+        </h2>
+        {todaySessions.length === 0 ? (
+          <div className="stu-card stu-card--soft" style={{ padding: "var(--stu-space-6)" }}>
+            <div className="stu-muted" style={{ fontSize: 14 }}>오늘 예정된 수업이 없습니다.</div>
+            <Link to="/student/sessions" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ marginTop: 8 }}>
+                전체 일정 보기
+            </Link>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+            {todaySessions.slice(0, 3).map((s) => (
+              <Link
+                key={s.id}
+                to={`/student/sessions/${s.id}`}
+                className="stu-card stu-card--pressable"
+                style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}
+              >
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--stu-primary)", opacity: 0.9, display: "grid", placeItems: "center" }}>
+                  <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary-contrast)" }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{s.title}</div>
+                  <div className="stu-muted" style={{ fontSize: 12 }}>{formatYmd(s.date ?? null)}</div>
+                </div>
+              </Link>
+            ))}
+            {todaySessions.length > 3 && (
+              <Link to="/student/sessions" className="stu-muted" style={{ fontSize: 13, paddingLeft: 4 }}>
+                + 더보기
+              </Link>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* 빠른 메뉴 */}
+      <section>
+        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
+          빠른 메뉴
+        </h2>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--stu-space-4)" }}>
+          <Link
+            to="/student/video"
+            className="stu-card stu-card--pressable"
+            style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
+          >
+            <IconPlay style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
+            <div style={{ fontWeight: 800, fontSize: 14 }}>영상</div>
+          </Link>
+          <Link
+            to="/student/exams"
+            className="stu-card stu-card--pressable"
+            style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
+          >
+            <IconExam style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
+            <div style={{ fontWeight: 800, fontSize: 14 }}>시험</div>
+          </Link>
+          <Link
+            to="/student/grades"
+            className="stu-card stu-card--pressable"
+            style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
+          >
+            <IconGrade style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
+            <div style={{ fontWeight: 800, fontSize: 14 }}>성적</div>
+          </Link>
+          <Link
+            to="/student/sessions"
+            className="stu-card stu-card--pressable"
+            style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
+          >
+            <IconCalendar style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
+            <div style={{ fontWeight: 800, fontSize: 14 }}>일정</div>
+          </Link>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1683,24 +1720,49 @@ const btnStyle: React.CSSProperties = {
 ==========================================================================================
 # FILE: grades/pages/GradesPage.tsx
 ==========================================================================================
-// src/student/domains/grades/pages/GradesPage.tsx
 /**
- * ✅ GradesPage (MVP)
- * - 성적 = 결과 모아보기 허브
- * - 상세/집계는 백엔드가 내려주는 값만 렌더링 (추후 API 연결)
+ * 성적 — 시험·과제 결과 허브 (대형학원 SaaS)
  */
-
-import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
-import EmptyState from "../../../shared/ui/layout/EmptyState";
+import { Link } from "react-router-dom";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
+import { IconGrade, IconExam, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 
 export default function GradesPage() {
   return (
-    <StudentPageShell title="성적" description="시험/과제 결과 요약 허브">
-      <EmptyState
-        title="성적 도메인 연결 예정"
-        description="백엔드 grades API 붙이면 리스트/상세를 바로 확장할 수 있습니다."
-      />
-    </StudentPageShell>
+    <div style={{ padding: "var(--stu-space-2) 0" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
+        성적
+      </h1>
+
+      <Link
+        to="/student/exams"
+        className="stu-card stu-card--pressable"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--stu-space-4)",
+          marginBottom: "var(--stu-space-4)",
+          textDecoration: "none",
+          color: "inherit",
+        }}
+      >
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--stu-surface-soft)", display: "grid", placeItems: "center" }}>
+          <IconExam style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>시험 결과</div>
+          <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>응시한 시험의 채점 결과를 확인하세요</div>
+        </div>
+        <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)" }} />
+      </Link>
+
+      <div className="stu-card stu-card--soft" style={{ padding: "var(--stu-space-8)" }}>
+        <EmptyState
+          title="성적 요약"
+          description="시험 결과는 위 '시험 결과'에서 확인할 수 있습니다. 과제·출결 종합 성적은 추후 제공됩니다."
+        />
+      </div>
+    </div>
   );
 }
 
@@ -2247,6 +2309,171 @@ export default function MediaPlayerPage() {
         <EmptyState title="데이터가 없습니다" description="다시 시도해주세요." />
       )}
     </StudentPageShell>
+  );
+}
+
+
+==========================================================================================
+# FILE: media/pages/VideoHomePage.tsx
+==========================================================================================
+/**
+ * 영상 홈 — 유튜브 모바일형: 세션별 영상 목록, 썸네일 + 제목 + 길이
+ */
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
+import { fetchStudentSessionVideos } from "../api/media";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
+import { IconChevronRight } from "@/student/shared/ui/icons/Icons";
+
+function formatDuration(sec: number | null | undefined): string {
+  if (sec == null || sec <= 0) return "0:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function SessionVideoList({ sessionId, sessionTitle, enrollmentId }: { sessionId: number; sessionTitle: string; enrollmentId?: number | null }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["student-session-videos", sessionId, enrollmentId],
+    queryFn: () => fetchStudentSessionVideos(sessionId, enrollmentId),
+    enabled: !!sessionId,
+  });
+
+  const items = data?.items ?? [];
+  if (isLoading) {
+    return (
+      <div className="stu-card" style={{ padding: "var(--stu-space-8)" }}>
+        <div className="stu-skel" style={{ height: 80 }} />
+        <div className="stu-skel" style={{ height: 80, marginTop: 8 }} />
+      </div>
+    );
+  }
+  if (items.length === 0) return null;
+
+  return (
+    <section style={{ marginBottom: "var(--stu-space-10)" }}>
+      <h2
+        style={{
+          fontSize: 16,
+          fontWeight: 800,
+          marginBottom: "var(--stu-space-4)",
+          paddingLeft: "var(--stu-space-2)",
+        }}
+      >
+        {sessionTitle}
+      </h2>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+        {items.map((v) => (
+          <Link
+            key={v.id}
+            to={`/student/video/play?video=${v.id}&enrollment=${enrollmentId ?? ""}`}
+            className="stu-card stu-card--pressable"
+            style={{
+              display: "flex",
+              gap: "var(--stu-space-4)",
+              padding: 0,
+              overflow: "hidden",
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <div
+              style={{
+                width: 160,
+                minWidth: 160,
+                aspectRatio: "16/9",
+                background: "var(--stu-surface-soft)",
+                position: "relative",
+              }}
+            >
+              {v.thumbnail_url ? (
+                <img
+                  src={v.thumbnail_url}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "grid",
+                    placeItems: "center",
+                    color: "var(--stu-text-muted)",
+                  }}
+                >
+                  <IconPlay style={{ width: 40, height: 40 }} />
+                </div>
+              )}
+              <span
+                style={{
+                  position: "absolute",
+                  right: 4,
+                  bottom: 4,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background: "rgba(0,0,0,0.8)",
+                  color: "#fff",
+                  padding: "2px 4px",
+                  borderRadius: 4,
+                }}
+              >
+                {formatDuration((v as any).duration ?? 0)}
+              </span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0, padding: "var(--stu-space-4)", display: "flex", alignItems: "center" }}>
+              <span style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {v.title}
+              </span>
+              <IconChevronRight style={{ width: 20, height: 20, flexShrink: 0, color: "var(--stu-text-muted)" }} />
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default function VideoHomePage() {
+  const { data: sessions, isLoading, isError } = useMySessions();
+  // enrollmentId: 세션별로 다를 수 있음 — API가 쿼리 파라미터로 받으면 전달. 없으면 백엔드가 user 기준으로 처리할 수 있음
+  const enrollmentId: number | null = null;
+
+  if (isLoading) {
+    return (
+      <div style={{ padding: "var(--stu-space-4)" }}>
+        <div className="stu-skel" style={{ height: 120, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel" style={{ height: 80, marginTop: 12, borderRadius: "var(--stu-radius-lg)" }} />
+      </div>
+    );
+  }
+
+  if (isError || !sessions?.length) {
+    return (
+      <div style={{ padding: "var(--stu-space-4)" }}>
+        <EmptyState
+          title="재생할 영상이 없습니다"
+          description="수강 중인 차시가 있으면 여기에 영상이 표시됩니다."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "var(--stu-space-2) 0" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
+        영상
+      </h1>
+      {sessions.map((s) => (
+        <SessionVideoList
+          key={s.id}
+          sessionId={s.id}
+          sessionTitle={s.title ?? `차시 ${s.id}`}
+          enrollmentId={enrollmentId}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -4214,6 +4441,254 @@ export function getOrCreateDeviceId() {
 
 
 ==========================================================================================
+# FILE: more/pages/MorePage.tsx
+==========================================================================================
+/**
+ * 더보기 — 프로필, 게시판, 출결, 클리닉 인증 등
+ */
+import { Link } from "react-router-dom";
+import {
+  IconUser,
+  IconBoard,
+  IconClipboard,
+  IconCheck,
+  IconExam,
+  IconGrade,
+  IconLogout,
+} from "@/student/shared/ui/icons/Icons";
+
+const linkStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "var(--stu-space-4)",
+  padding: "var(--stu-space-4) var(--stu-space-4)",
+  borderRadius: "var(--stu-radius-md)",
+  background: "var(--stu-surface)",
+  border: "1px solid var(--stu-border)",
+  color: "var(--stu-text)",
+  textDecoration: "none",
+  fontWeight: 700,
+  fontSize: 15,
+  marginBottom: "var(--stu-space-2)",
+};
+
+export default function MorePage() {
+  return (
+    <div style={{ padding: "var(--stu-space-2) 0" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
+        더보기
+      </h1>
+
+      <section style={{ marginBottom: "var(--stu-space-8)" }}>
+        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
+          학습
+        </h2>
+        <Link to="/student/exams" style={linkStyle}>
+          <IconExam style={{ width: 22, height: 22, flexShrink: 0 }} />
+          시험
+        </Link>
+        <Link to="/student/grades" style={linkStyle}>
+          <IconGrade style={{ width: 22, height: 22, flexShrink: 0 }} />
+          성적
+        </Link>
+      </section>
+
+      <section style={{ marginBottom: "var(--stu-space-8)" }}>
+        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
+          소통
+        </h2>
+        <Link to="/student/qna" style={linkStyle}>
+          <IconBoard style={{ width: 22, height: 22, flexShrink: 0 }} />
+          Q&amp;A 게시판
+        </Link>
+      </section>
+
+      <section style={{ marginBottom: "var(--stu-space-8)" }}>
+        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
+          기타
+        </h2>
+        <Link to="/student/attendance" style={linkStyle}>
+          <IconClipboard style={{ width: 22, height: 22, flexShrink: 0 }} />
+          출결 현황
+        </Link>
+        <Link to="/student/idcard" style={linkStyle}>
+          <IconCheck style={{ width: 22, height: 22, flexShrink: 0 }} />
+          클리닉 인증
+        </Link>
+        <Link to="/student/profile" style={linkStyle}>
+          <IconUser style={{ width: 22, height: 22, flexShrink: 0 }} />
+          프로필
+        </Link>
+      </section>
+
+      <section>
+        <button
+          type="button"
+          className="stu-btn stu-btn--ghost"
+          style={{ ...linkStyle, width: "100%", marginBottom: 0, justifyContent: "center", border: "1px solid var(--stu-danger)" }}
+          onClick={() => {
+            // 로그아웃: 공유 auth 로직 사용 (다른 영역 침범 최소화 — window.location 또는 auth context)
+            const base = window.location.origin;
+            window.location.href = `${base}/logout/` || `${base}/api/logout/`;
+          }}
+        >
+          <IconLogout style={{ width: 22, height: 22 }} />
+          로그아웃
+        </button>
+      </section>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: profile/api/profile.ts
+==========================================================================================
+// PATH: src/student/domains/profile/api/profile.ts
+import api from "@/student/shared/api/studentApi";
+
+export type MyProfile = {
+  id: number;
+  name: string;
+  profile_photo_url: string | null;
+};
+
+export async function fetchMyProfile(): Promise<MyProfile> {
+  const res = await api.get<MyProfile>("/student/me/");
+  return res.data;
+}
+
+export async function updateMyProfilePhoto(file: File): Promise<MyProfile> {
+  const form = new FormData();
+  form.append("profile_photo", file);
+  const res = await api.patch<MyProfile>("/student/me/", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: profile/pages/ProfilePage.tsx
+==========================================================================================
+// PATH: src/student/domains/profile/pages/ProfilePage.tsx
+// 학생이 본인 프로필 사진만 업로드 (관리자 편집 불가)
+
+import { useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
+import { fetchMyProfile, updateMyProfilePhoto } from "../api/profile";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
+
+export default function ProfilePage() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const qc = useQueryClient();
+
+  const { data: profile, isLoading, isError } = useQuery({
+    queryKey: ["student", "me"],
+    queryFn: fetchMyProfile,
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => updateMyProfilePhoto(file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student", "me"] });
+    },
+  });
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      uploadMutation.mutate(file);
+    }
+    e.target.value = "";
+  };
+
+  if (isLoading) {
+    return (
+      <StudentPageShell title="내 정보">
+        <div className="stu-muted">불러오는 중...</div>
+      </StudentPageShell>
+    );
+  }
+
+  if (isError || !profile) {
+    return (
+      <StudentPageShell title="내 정보">
+        <EmptyState
+          title="프로필을 불러오지 못했습니다."
+          description="잠시 후 다시 시도해주세요."
+        />
+      </StudentPageShell>
+    );
+  }
+
+  return (
+    <StudentPageShell title="내 정보">
+      <div className="stu-card" style={{ padding: "var(--stu-space-10)" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: 16,
+              overflow: "hidden",
+              background: "color-mix(in srgb, var(--stu-primary) 14%, var(--stu-surface))",
+              border: "2px solid var(--stu-border)",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 36,
+              fontWeight: 800,
+              color: "var(--stu-primary)",
+            }}
+          >
+            {profile.profile_photo_url ? (
+              <img
+                src={profile.profile_photo_url}
+                alt="프로필"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              (profile.name || "?")[0]
+            )}
+          </div>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>{profile.name}</div>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFile}
+            style={{ display: "none" }}
+            aria-label="프로필 사진 선택"
+          />
+          <button
+            type="button"
+            className="stu-btn-primary"
+            disabled={uploadMutation.isPending}
+            onClick={() => inputRef.current?.click()}
+          >
+            {uploadMutation.isPending ? "업로드 중…" : "사진 변경"}
+          </button>
+          {uploadMutation.isError && (
+            <div className="stu-muted" style={{ fontSize: 13 }}>
+              업로드에 실패했습니다. 이미지 파일만 선택해 주세요.
+            </div>
+          )}
+        </div>
+      </div>
+    </StudentPageShell>
+  );
+}
+
+
+==========================================================================================
 # FILE: qna/pages/QnaPage.tsx
 ==========================================================================================
 // src/student/domains/qna/pages/QnaPage.tsx
@@ -4446,58 +4921,78 @@ const btnStyle: React.CSSProperties = {
 ==========================================================================================
 # FILE: sessions/pages/SessionListPage.tsx
 ==========================================================================================
-// src/student/domains/sessions/pages/SessionListPage.tsx
 /**
- * ✅ SessionListPage (MVP)
- * - 내 차시 목록
- * - 클릭 -> SessionDetailPage (행동 허브)
+ * 일정 — 내 차시 목록, 유튜브형 카드
  */
-
 import { Link } from "react-router-dom";
-import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
-import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
+import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { formatYmd } from "@/student/shared/utils/date";
+import { IconCalendar, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 
 export default function SessionListPage() {
   const { data, isLoading, isError } = useMySessions();
 
+  if (isLoading) {
+    return (
+      <div style={{ padding: "var(--stu-space-4) 0" }}>
+        <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius-lg)", marginBottom: 8 }} />
+        <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius-lg)" }} />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div style={{ padding: "var(--stu-space-4) 0" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)" }}>일정</h1>
+        <EmptyState title="일정을 불러오지 못했습니다." description="잠시 후 다시 시도해주세요." />
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div style={{ padding: "var(--stu-space-4) 0" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)" }}>일정</h1>
+        <EmptyState title="등록된 차시가 없습니다." description="수강 중인 강의/차시를 확인해주세요." />
+      </div>
+    );
+  }
+
   return (
-    <StudentPageShell title="차시" description="학습할 차시를 선택하세요.">
-      {isLoading && <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>}
-
-      {(isError || !data) && (
-        <EmptyState title="차시 목록을 불러오지 못했습니다." />
-      )}
-
-      {data && data.length === 0 && (
-        <EmptyState title="차시가 없습니다." description="수강 중인 강의/차시를 확인해주세요." />
-      )}
-
-      {data && data.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {data.map((s) => (
-            <Link
-              key={s.id}
-              to={`/student/sessions/${s.id}`}
-              style={{
-                textDecoration: "none",
-                border: "1px solid #eee",
-                borderRadius: 10,
-                padding: 12,
-                background: "#fff",
-                color: "#111",
-              }}
-            >
-              <div style={{ fontWeight: 800 }}>{s.title}</div>
-              <div style={{ marginTop: 4, fontSize: 12, color: "#777" }}>
+    <div style={{ padding: "var(--stu-space-2) 0" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
+        일정
+      </h1>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
+        {data.map((s) => (
+          <Link
+            key={s.id}
+            to={`/student/sessions/${s.id}`}
+            className="stu-card stu-card--pressable"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--stu-space-4)",
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--stu-surface-soft)", display: "grid", placeItems: "center" }}>
+              <IconCalendar style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>{s.title}</div>
+              <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
                 {formatYmd(s.date ?? null)}
                 {s.status ? ` · ${s.status}` : ""}
               </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </StudentPageShell>
+            </div>
+            <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)" }} />
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 }

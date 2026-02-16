@@ -346,84 +346,11 @@ export default function CustomLoginPage() {
 # FILE: pages/login/HakwonPlusLoginPage.tsx
 ==========================================================================================
 // PATH: src/features/auth/pages/login/HakwonPlusLoginPage.tsx
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { login } from "@/features/auth/api/auth";
-import useAuth from "@/features/auth/hooks/useAuth";
-import { Button } from "@/shared/ui/ds";
+// 테넌트 1 (hakwonplus.com) 전용 — TenantLoginPage 래퍼
+import TenantLoginPage from "./TenantLoginPage";
 
 export default function HakwonPlusLoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-
-  const navigate = useNavigate();
-  const { refreshMe } = useAuth();
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (pending) return;
-
-    setPending(true);
-    setError("");
-
-    try {
-      await login(username, password);
-      await refreshMe();
-      navigate("/", { replace: true });
-    } catch {
-      setError("아이디 또는 비밀번호를 확인해주세요.");
-      setPending(false);
-    }
-  }
-
-  return (
-    <div
-      data-app="auth"
-      className="auth-shell flex min-h-screen items-center justify-center bg-[#0b0d12]"
-    >
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
-      >
-        <h1 className="mb-4 text-xl font-bold">
-          HakwonPlus 관리자 로그인
-        </h1>
-
-        <input
-          className="mb-2 w-full rounded border px-3 py-2"
-          placeholder="아이디"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-
-        <input
-          className="mb-3 w-full rounded border px-3 py-2"
-          type="password"
-          placeholder="비밀번호"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <Button
-          type="submit"
-          intent="primary"
-          size="lg"
-          disabled={pending}
-          className="w-full"
-        >
-          {pending ? "로그인 중..." : "로그인"}
-        </Button>
-
-        {error && (
-          <div className="mt-3 text-sm font-semibold" style={{ color: "var(--color-error)" }}>
-            {error}
-          </div>
-        )}
-      </form>
-    </div>
-  );
+  return <TenantLoginPage tenantId={1} />;
 }
 
 
@@ -535,8 +462,17 @@ export default function CustomLoginPage() {
 # FILE: pages/login/LoginEntry.tsx
 ==========================================================================================
 // PATH: src/features/auth/pages/login/LoginEntry.tsx
+// 테넌트별 로그인 라우팅: hostname → tenant id → /login/{hakwonplus|tchul|limglish|ymath}
 import { Navigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
+import { resolveTenantCode, getTenantIdFromCode } from "@/shared/tenant";
+
+const TENANT_ID_TO_PATH: Record<1 | 2 | 3 | 4, string> = {
+  1: "/login/hakwonplus",
+  2: "/login/tchul",
+  3: "/login/limglish",
+  4: "/login/ymath",
+};
 
 export default function LoginEntry() {
   const { program, isLoading } = useProgram();
@@ -547,15 +483,92 @@ export default function LoginEntry() {
     return <Navigate to="/error/tenant-required" replace />;
   }
 
-  const hasCustomLogin =
-    !!program.ui_config?.login_title ||
-    !!program.ui_config?.logo_url;
+  const resolved = resolveTenantCode();
+  const code = resolved.ok ? resolved.code : program.tenantCode;
+  const tenantId = getTenantIdFromCode(code);
+  const path = tenantId ? TENANT_ID_TO_PATH[tenantId] : "/login/hakwonplus";
 
-  if (hasCustomLogin) {
-    return <Navigate to="/login/custom" replace />;
+  return <Navigate to={path} replace />;
+}
+
+
+==========================================================================================
+# FILE: pages/login/TenantLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/TenantLoginPage.tsx
+// 테넌트별 로그인 — program.ui_config 우선, 없으면 정적 브랜딩(로고/타이틀)
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "@/features/auth/api/auth";
+import useAuth from "@/features/auth/hooks/useAuth";
+import { Button } from "@/shared/ui/ds";
+import { useProgram } from "@/shared/program";
+import { type TenantId, getTenantBranding } from "@/shared/tenant";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+
+type Props = { tenantId: TenantId };
+
+export default function TenantLoginPage({ tenantId }: Props) {
+  const { program } = useProgram();
+  const staticBranding = getTenantBranding(tenantId);
+  const logoUrl = program?.ui_config?.logo_url ?? staticBranding.logoUrl;
+  const loginTitle = program?.ui_config?.login_title ?? staticBranding.loginTitle;
+  const loginSubtitle = program?.ui_config?.login_subtitle ?? staticBranding.loginSubtitle;
+  
+  // 브라우저 타이틀 설정
+  useDocumentTitle();
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      await login(username, password);
+      await refreshMe();
+      navigate("/", { replace: true });
+    } catch {
+      setError("아이디 또는 비밀번호를 확인해주세요.");
+      setPending(false);
+    }
   }
 
-  return <Navigate to="/login/hakwonplus" replace />;
+  return (
+    <div data-app="auth" className="auth-shell">
+      <form onSubmit={onSubmit} className="auth-card">
+        {logoUrl && (
+          <img src={logoUrl} alt="logo" className="auth-card__logo" />
+        )}
+        <h1 className="auth-card__title">{loginTitle}</h1>
+        {loginSubtitle && <p className="auth-card__subtitle">{loginSubtitle}</p>}
+        <input
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+        />
+        <input
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+        <Button type="submit" intent="primary" size="lg" disabled={pending} className="w-full">
+          {pending ? "로그인 중..." : "로그인"}
+        </Button>
+        {error && <div className="auth-card__error">{error}</div>}
+      </form>
+    </div>
+  );
 }
 
 

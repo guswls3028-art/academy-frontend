@@ -70,28 +70,48 @@ export async function retrySubmission(submissionId: number) {
 // PATH: src/features/submissions/statusMaps.ts
 import type { SubmissionStatus } from "./types";
 
-export const SUBMISSION_STATUS_LABEL: Record<SubmissionStatus | "graded", string> = {
+/** 구형 API용 fallback 포함 (pending/processing 제거 시 삭제) */
+export const SUBMISSION_STATUS_LABEL: Record<SubmissionStatus | "graded" | "pending" | "processing", string> = {
   submitted: "업로드됨",
   dispatched: "작업 큐 등록",
   extracting: "인식 중",
-  needs_identification: "식별 필요", // ✅ 추가
+  needs_identification: "식별 필요",
   answers_ready: "답안 생성됨",
   grading: "채점 중",
   done: "완료",
   failed: "실패",
   graded: "채점 완료",
+  pending: "대기",
+  processing: "처리 중",
 };
 
-export const SUBMISSION_STATUS_COLOR: Record<SubmissionStatus | "graded", string> = {
+export const SUBMISSION_STATUS_COLOR: Record<SubmissionStatus | "graded" | "pending" | "processing", string> = {
   submitted: "gray",
   dispatched: "blue",
   extracting: "indigo",
-  needs_identification: "yellow", // ✅ 추가(주의)
+  needs_identification: "yellow",
   answers_ready: "yellow",
   grading: "yellow",
   done: "green",
   failed: "red",
   graded: "green",
+  pending: "gray",
+  processing: "blue",
+};
+
+/** 공용 톤 SSOT: success | danger | warning | primary | neutral (하드코딩 색상 대신 사용) */
+export const SUBMISSION_STATUS_TONE: Record<SubmissionStatus | "graded" | "pending" | "processing", "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  submitted: "neutral",
+  dispatched: "primary",
+  extracting: "primary",
+  needs_identification: "warning",
+  answers_ready: "warning",
+  grading: "warning",
+  done: "success",
+  failed: "danger",
+  graded: "success",
+  pending: "neutral",
+  processing: "primary",
 };
 
 
@@ -346,12 +366,13 @@ export async function saveSubmissionManualReview(submissionId: number, payload: 
 # FILE: api/adminSubmissionsApi.ts
 ==========================================================================================
 import api from "@/shared/api/axios";
+import type { SubmissionStatus } from "../types";
 
 export type SubmissionRow = {
   id: number;
   enrollment_id: number;
   student_name: string;
-  status: "pending" | "processing" | "done" | "failed";
+  status: SubmissionStatus;
   score: number | null;
   created_at: string;
 };
@@ -373,6 +394,7 @@ export async function fetchExamSubmissions(examId: number) {
 import { useMemo, useRef, useState } from "react";
 import api from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
+import { getRejectionMessage } from "@/features/submissions/contracts/aiJobContract";
 
 type Props = {
   examId: number;
@@ -476,7 +498,9 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
         );
       } catch (e: any) {
         const status = e?.response?.status;
-        const detail = e?.response?.data?.detail;
+        const data = e?.response?.data;
+        const detail = data?.detail;
+        const rejectionCode = data?.rejection_code;
 
         // 404/501이면 백엔드 미구현 or 라우팅 불일치 → 무한 시도 금지(즉시 중단)
         if (status === 404 || status === 501) {
@@ -491,9 +515,12 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
           break;
         }
 
+        const message = rejectionCode
+          ? getRejectionMessage(rejectionCode)
+          : String(detail || "업로드 실패");
         setItems((prev) =>
           prev.map((x, idx) =>
-            idx === i ? { ...x, status: "fail", message: String(detail || "업로드 실패") } : x
+            idx === i ? { ...x, status: "fail", message } : x
           )
         );
       }
@@ -603,6 +630,7 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
 import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { adminOmrUpload } from "@/features/submissions/api/adminOmrUpload";
+import { getRejectionMessage } from "@/features/submissions/contracts/aiJobContract";
 
 export default function AdminOmrUploadBox({
   examId,
@@ -613,6 +641,7 @@ export default function AdminOmrUploadBox({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [enrollmentId, setEnrollmentId] = useState<string>("");
+  const [rejectMessage, setRejectMessage] = useState<string | null>(null);
 
   const uploadMut = useMutation({
     mutationFn: async (file: File) => {
@@ -623,7 +652,12 @@ export default function AdminOmrUploadBox({
       });
     },
     onSuccess: (data) => {
+      setRejectMessage(null);
       onUploaded?.(data.submission_id);
+    },
+    onError: (err: any) => {
+      const code = err?.response?.data?.rejection_code;
+      setRejectMessage(getRejectionMessage(code ?? undefined));
     },
   });
 
@@ -656,10 +690,18 @@ export default function AdminOmrUploadBox({
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) uploadMut.mutate(f);
+          if (f) {
+            setRejectMessage(null);
+            uploadMut.mutate(f);
+          }
         }}
       />
 
+      {rejectMessage && (
+        <div className="mt-2 rounded border border-amber-600/40 bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
+          {rejectMessage}
+        </div>
+      )}
       <div className="mt-2 text-xs text-neutral-400">
         {uploadMut.isPending
           ? "업로드 중입니다. 잠시만 기다려주세요."
@@ -1022,7 +1064,14 @@ export default function AdminSubmissionDetailModal({
         </div>
 
         <div className="p-4 space-y-4">
-          <SubmissionStatusBadge status={submission.status} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <SubmissionStatusBadge status={submission.status} />
+            {(submission.meta?.manual_review?.required || submission.meta?.ai_result?.result?.flags?.review_candidate) && (
+              <span className="inline-flex items-center rounded-full border border-amber-700 bg-amber-950/50 px-2 py-1 text-xs text-amber-200">
+                검토 후보
+              </span>
+            )}
+          </div>
 
           {submission.meta?.manual_review?.required && (
             <>
@@ -1059,13 +1108,13 @@ export default function AdminSubmissionDetailModal({
             </>
           )}
 
-          {submission.status === "failed" && (
+          {(submission.status === "failed" || submission.status === "needs_identification") && (
             <Button type="button" intent="secondary" size="md" onClick={() => retryAnySubmission(submissionId)}>
-              다시 처리
+              {submission.status === "needs_identification" ? "식별 확인 후 재채점" : "다시 처리"}
             </Button>
           )}
 
-          {submission.status === "done" && onGoResults && (
+          {(submission.status === "done" || submission.status === "answers_ready") && onGoResults && (
             <Button type="button" intent="primary" size="md" onClick={() => onGoResults(submission.target_id)}>
               결과 보기
             </Button>
@@ -1083,6 +1132,7 @@ export default function AdminSubmissionDetailModal({
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { fetchExamSubmissions } from "../api/adminSubmissionsApi";
+import { SUBMISSION_STATUS_LABEL } from "../statusMaps";
 
 export default function AdminSubmissionsPanel({
   examId,
@@ -1146,10 +1196,7 @@ export default function AdminSubmissionsPanel({
 
             <div className="flex items-center gap-4">
               <span>
-                {r.status === "pending" && "대기"}
-                {r.status === "processing" && "처리중"}
-                {r.status === "done" && "완료"}
-                {r.status === "failed" && "실패"}
+                {SUBMISSION_STATUS_LABEL[r.status] ?? r.status}
               </span>
 
               <span className="font-semibold">
@@ -1160,7 +1207,7 @@ export default function AdminSubmissionsPanel({
         ))}
       </div>
 
-      {rows.some((r) => r.status === "done") && onGoResults && (
+      {rows.some((r) => r.status === "done" || r.status === "answers_ready") && onGoResults && (
         <div className="pt-3 text-right">
           <Button type="button" intent="primary" size="sm" onClick={() => onGoResults(examId)}>
             결과 보기
@@ -1203,36 +1250,6 @@ export default function ManualIdentifyForm({
         식별
       </button>
     </div>
-  );
-}
-
-
-==========================================================================================
-# FILE: components/ManualReviewBadge.tsx
-==========================================================================================
-// PATH: src/features/submissions/components/ManualReviewBadge.tsx
-export default function ManualReviewBadge({
-  required,
-  reasons,
-}: {
-  required: boolean;
-  reasons?: string[];
-}) {
-  if (!required) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-neutral-800 bg-neutral-950 px-2 py-1 text-xs text-neutral-400">
-        자동 처리
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full border border-yellow-800 bg-yellow-950 px-2 py-1 text-xs text-yellow-200"
-      title={(reasons ?? []).join(", ")}
-    >
-      ⚠️ 수동 검토 필요{reasons?.length ? ` (${reasons.length})` : ""}
-    </span>
   );
 }
 
@@ -1298,20 +1315,8 @@ export default function OmrTemplateGeneratorPanel({ examId }: { examId: number }
 ==========================================================================================
 # FILE: components/SubmissionStatusBadge.tsx
 ==========================================================================================
-// ====================================================================================================
-// FILE: src/features/submissions/components/SubmissionStatusBadge.tsx
-// ====================================================================================================
 import type { SubmissionStatus } from "@/features/submissions/types";
-import { SUBMISSION_STATUS_COLOR, SUBMISSION_STATUS_LABEL } from "@/features/submissions/statusMaps";
-
-const COLOR_CLASS: Record<string, string> = {
-  gray: "bg-neutral-800 text-neutral-200 border-neutral-700",
-  blue: "bg-blue-950 text-blue-200 border-blue-800",
-  indigo: "bg-indigo-950 text-indigo-200 border-indigo-800",
-  yellow: "bg-yellow-950 text-yellow-200 border-yellow-800",
-  green: "bg-emerald-950 text-emerald-200 border-emerald-800",
-  red: "bg-red-950 text-red-200 border-red-800",
-};
+import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@/features/submissions/statusMaps";
 
 export default function SubmissionStatusBadge({
   status,
@@ -1319,20 +1324,102 @@ export default function SubmissionStatusBadge({
   status: SubmissionStatus | "graded" | null;
 }) {
   if (!status) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-neutral-800 bg-neutral-900 px-2 py-1 text-xs text-neutral-300">
-        -
-      </span>
-    );
+    return <span className="ds-status-badge" data-tone="neutral">-</span>;
   }
-  const key = (SUBMISSION_STATUS_COLOR as any)[status] ?? "gray";
-  const cls = COLOR_CLASS[key] ?? COLOR_CLASS.gray;
+  const tone = (SUBMISSION_STATUS_TONE as any)[status] ?? "neutral";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-1 text-xs ${cls}`}>
+    <span className="ds-status-badge" data-tone={tone}>
       {(SUBMISSION_STATUS_LABEL as any)[status] ?? status}
     </span>
   );
 }
+
+
+==========================================================================================
+# FILE: contracts/aiJobContract.ts
+==========================================================================================
+/**
+ * AI Job 상태 계약 (백엔드와 동일 enum)
+ * @see docs/FRONTEND_AI_CONTRACT_REFACTOR_REQUEST.md
+ * Contract Versioning 적용. 변경 시 문서·버전 공지 필요.
+ */
+export const AI_JOB_STATUS = [
+  "PENDING",
+  "VALIDATING",
+  "RUNNING",
+  "DONE",
+  "FAILED",
+  "REJECTED_BAD_INPUT",
+  "FALLBACK_TO_GPU",
+  "RETRYING",
+  "REVIEW_REQUIRED",
+] as const;
+
+export type AIJobStatus = (typeof AI_JOB_STATUS)[number];
+
+/** Lite/Basic에서는 FAILED, REVIEW_REQUIRED 미사용 */
+export const AI_JOB_STATUS_LABEL: Record<AIJobStatus, string> = {
+  PENDING: "처리 대기",
+  VALIDATING: "업로드 검증 중",
+  RUNNING: "분석 중",
+  DONE: "완료",
+  FAILED: "분석 실패",
+  REJECTED_BAD_INPUT: "조건 미충족",
+  FALLBACK_TO_GPU: "고급 분석 중",
+  RETRYING: "재시도 중",
+  REVIEW_REQUIRED: "조교 검토 필요",
+};
+
+export const AI_JOB_STATUS_COLOR: Record<AIJobStatus, string> = {
+  PENDING: "gray",
+  VALIDATING: "blue",
+  RUNNING: "indigo",
+  DONE: "green",
+  FAILED: "red",
+  REJECTED_BAD_INPUT: "amber",
+  FALLBACK_TO_GPU: "purple",
+  RETRYING: "yellow",
+  REVIEW_REQUIRED: "orange",
+};
+
+/** Pre-Validation 거부 코드 (백엔드와 동일) */
+export const REJECTION_CODES = [
+  "RESOLUTION_TOO_LOW",
+  "FILE_TOO_LARGE",
+  "VIDEO_TOO_LONG",
+  "BLUR_OR_SHAKE",
+  "TOO_DARK",
+  "INVALID_FORMAT",
+  "OMR_PHOTO_NOT_ALLOWED",
+] as const;
+
+export type RejectionCode = (typeof REJECTION_CODES)[number];
+
+/** rejection_code → 사용자 노출 문구 */
+export const REJECTION_MESSAGE: Record<RejectionCode, string> = {
+  RESOLUTION_TOO_LOW: "해상도가 낮습니다. 더 선명하게 촬영해 주세요.",
+  FILE_TOO_LARGE: "파일 크기가 제한을 초과했습니다.",
+  VIDEO_TOO_LONG: "동영상 길이 제한을 초과했습니다.",
+  BLUR_OR_SHAKE: "흔들리거나 흐릿합니다. 고정해서 다시 촬영해 주세요.",
+  TOO_DARK: "너무 어둡습니다. 밝은 곳에서 촬영해 주세요.",
+  INVALID_FORMAT: "지원하지 않는 파일 형식입니다.",
+  OMR_PHOTO_NOT_ALLOWED:
+    "Basic 요금제에서는 스캔된 OMR만 가능합니다. 촬영물은 Premium에서 이용해 주세요.",
+};
+
+export function getRejectionMessage(code: string | null | undefined): string {
+  if (!code) return "입력 조건을 확인해 주세요.";
+  return REJECTION_MESSAGE[code as RejectionCode] ?? "입력 조건을 확인해 주세요.";
+}
+
+/** 제출 응답: 거부 시 (job 미생성) */
+export type SubmitRejectedResponse = {
+  ok: false;
+  job_id: null;
+  type: string;
+  error: string;
+  rejection_code?: string | null;
+};
 
 
 ==========================================================================================

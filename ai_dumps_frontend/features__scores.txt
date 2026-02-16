@@ -568,43 +568,6 @@ export default function HomeworkScoreInput({
 
 
 ==========================================================================================
-# FILE: components/HomeworkStatusBadge.tsx
-==========================================================================================
-// PATH: src/features/scores/components/HomeworkStatusBadge.tsx
-/**
- * HomeworkStatusBadge
- *
- * ⚠️ 중요 계약:
- * - score 기준 판정 ❌
- * - backend HomeworkScore.passed 사실만 표시
- */
-
-export function HomeworkStatusBadge({
-  passed,
-}: {
-  passed: boolean | null;
-}) {
-  if (passed == null) {
-    return (
-      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-        미산출
-      </span>
-    );
-  }
-
-  return passed ? (
-    <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
-      완료
-    </span>
-  ) : (
-    <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
-      미통과
-    </span>
-  );
-}
-
-
-==========================================================================================
 # FILE: components/InlineExamItemsRow.tsx
 ==========================================================================================
 // PATH: src/features/scores/components/InlineExamItemsRow.tsx
@@ -734,35 +697,6 @@ export default function InlineExamItemsRow({ examId, enrollmentId, colSpan }: Pr
         )}
       </td>
     </tr>
-  );
-}
-
-
-==========================================================================================
-# FILE: components/PassFailBadge.tsx
-==========================================================================================
-// PATH: src/features/scores/components/PassFailBadge.tsx
-/**
- * PASS/FAIL 표시 전용
- */
-
-export default function PassFailBadge({ passed }: { passed: boolean | null }) {
-  if (passed == null) {
-    return (
-      <span className="inline-flex items-center rounded-full border border-[var(--border-default)] bg-[var(--bg-surface-soft)] px-2 py-1 text-[11px] text-[var(--text-muted)]">
-        -
-      </span>
-    );
-  }
-
-  return passed ? (
-    <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-      PASS
-    </span>
-  ) : (
-    <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">
-      FAIL
-    </span>
   );
 }
 
@@ -1051,6 +985,8 @@ import InlineExamItemsRow from "./InlineExamItemsRow";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import HomeworkQuickInput from "./HomeworkQuickInput";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { TABLE_COL } from "@/shared/ui/domain";
 
 /* ===============================
    Status 표시 (LOCAL / SSOT)
@@ -1058,23 +994,12 @@ import { getHomeworkStatus } from "../utils/homeworkStatus";
    - 공용 컴포넌트 ❌
 ================================ */
 
+/** 사이즈 SSOT: ds-status-badge (2ch) */
 function StatusCell({ status }: { status: "success" | "error" | "info" }) {
+  const tone = status === "success" ? "success" : status === "error" ? "danger" : "neutral";
   return (
-    <span
-      className={[
-        "inline-flex rounded px-2 py-0.5 text-xs font-semibold",
-        status === "success" && "status-success",
-        status === "error" && "status-error",
-        status === "info" && "status-info",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      {status === "success"
-        ? "PASS"
-        : status === "error"
-        ? "FAIL"
-        : "-"}
+    <span className="ds-status-badge" data-tone={tone}>
+      {status === "success" ? "PASS" : status === "error" ? "FAIL" : "-"}
     </span>
   );
 }
@@ -1100,31 +1025,20 @@ function toStatus(passed: boolean | null | undefined) {
   return passed ? "success" : "error";
 }
 
+/** 사이즈 SSOT: ds-status-badge. 색상 SSOT: data-tone (success/danger/warning/neutral) */
 function HomeworkStateBadge({
   status,
 }: {
   status: "UNSET" | "NOT_SUBMITTED" | "ZERO" | "SCORED";
 }) {
   if (status === "NOT_SUBMITTED") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">
-        미제출
-      </span>
-    );
+    return <span className="ds-status-badge" data-tone="danger">미제출</span>;
   }
   if (status === "UNSET") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-[11px] font-semibold text-gray-600">
-        미입력
-      </span>
-    );
+    return <span className="ds-status-badge" data-tone="neutral">미입력</span>;
   }
   if (status === "ZERO") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-700">
-        0점
-      </span>
-    );
+    return <span className="ds-status-badge" data-tone="warning">0점</span>;
   }
   return null;
 }
@@ -1185,7 +1099,7 @@ export default function ScoresTable({
     focusHomeworkInput(selectedEnrollmentId);
   }, [activeColumn, selectedEnrollmentId]);
 
-  const grid = "grid grid-cols-[200px_180px_120px_240px_120px_120px]";
+  const gridTemplateColumns = `${TABLE_COL.name}px ${TABLE_COL.medium}px ${TABLE_COL.statusBadge}px ${TABLE_COL.memo}px ${TABLE_COL.statusBadge}px ${TABLE_COL.medium}px`;
 
   const thBase =
     "px-3 py-3 text-sm font-semibold text-[var(--text-secondary)] tracking-tight";
@@ -1209,8 +1123,10 @@ export default function ScoresTable({
     >
       {/* HEADER */}
       <div
-        className={`${grid} border-b border-[var(--color-border-divider)]`}
+        className="border-b border-[var(--color-border-divider)]"
         style={{
+          display: "grid",
+          gridTemplateColumns,
           background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
         }}
       >
@@ -1248,19 +1164,30 @@ export default function ScoresTable({
           <Fragment key={row.enrollment_id}>
             <div
               className={[
-                grid,
                 "border-b border-[var(--color-border-divider)] cursor-pointer transition-colors",
                 selected
                   ? "bg-[color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))]"
                   : "hover:bg-[var(--bg-surface-soft)]",
               ].join(" ")}
-              onClick={() => onSelectRow(row)}
               style={{
+                display: "grid",
+                gridTemplateColumns,
                 borderBottomColor: "color-mix(in srgb, var(--color-border-divider) 35%, transparent)",
               }}
+              onClick={() => onSelectRow(row)}
             >
-              <div className={`${tdBase} font-semibold`}>
-                {row.student_name}
+              <div className={`${tdBase} font-semibold min-w-0`}>
+                <StudentNameWithLectureChip
+                  name={row.student_name ?? ""}
+                  profilePhotoUrl={row.profile_photo_url ?? undefined}
+                  avatarSize={24}
+                  lectures={
+                    row.lecture_title
+                      ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
+                      : undefined
+                  }
+                  chipSize={14}
+                />
               </div>
 
               <div className={tdBase}>
@@ -1370,28 +1297,32 @@ export default function ScoresTableExtended(props: Props) {
 ==========================================================================================
 # FILE: components/SubmissionStatusBadge.tsx
 ==========================================================================================
-type Props = {
-  status: string;
+/** 사이즈·색상 SSOT: ds-status-badge + data-tone (success/danger/warning/primary/neutral) */
+type Props = { status: string };
+
+const TONE: Record<string, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  PROCESSING: "primary",
+  ANSWERS_READY: "warning",
+  NEEDS_IDENTIFICATION: "danger",
+  GRADED: "success",
+  FAILED: "neutral",
+};
+
+const LABEL: Record<string, string> = {
+  PROCESSING: "AI 처리중",
+  ANSWERS_READY: "답안 확인",
+  NEEDS_IDENTIFICATION: "식별 필요",
+  GRADED: "채점 완료",
+  FAILED: "실패",
 };
 
 export default function SubmissionStatusBadge({ status }: Props) {
-  const base =
-    "inline-flex rounded px-2 py-0.5 text-xs font-semibold";
-
-  switch (status) {
-    case "PROCESSING":
-      return <span className={`${base} bg-blue-100 text-blue-700`}>AI 처리중</span>;
-    case "ANSWERS_READY":
-      return <span className={`${base} bg-amber-100 text-amber-700`}>답안 확인</span>;
-    case "NEEDS_IDENTIFICATION":
-      return <span className={`${base} bg-red-100 text-red-700`}>식별 필요</span>;
-    case "GRADED":
-      return <span className={`${base} bg-emerald-100 text-emerald-700`}>채점 완료</span>;
-    case "FAILED":
-      return <span className={`${base} bg-gray-200 text-gray-600`}>실패</span>;
-    default:
-      return <span className={`${base} bg-gray-100 text-gray-500`}>{status}</span>;
-  }
+  const tone = TONE[status] ?? "neutral";
+  return (
+    <span className="ds-status-badge" data-tone={tone}>
+      {LABEL[status] ?? status}
+    </span>
+  );
 }
 
 

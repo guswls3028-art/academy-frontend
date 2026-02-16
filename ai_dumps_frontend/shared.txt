@@ -14,9 +14,11 @@ import axios, {
   AxiosRequestConfig,
   AxiosResponse,
 } from "axios";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 
 type RetryConfig = AxiosRequestConfig & {
   _retry?: boolean;
+  _asyncId?: string;
 };
 
 type RefreshResponse = { access: string };
@@ -121,6 +123,14 @@ api.interceptors.request.use((config) => {
     import.meta.env.VITE_APP_VERSION || "dev"
   );
 
+  // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록
+  const asyncId = asyncStatusStore.trackRequest(
+    cfg.method ?? "get",
+    cfg.url,
+    cfg as AxiosRequestConfig & { meta?: { asyncLabel?: string } }
+  );
+  if (asyncId) (cfg as RetryConfig)._asyncId = asyncId;
+
   return cfg;
 });
 
@@ -150,12 +160,25 @@ async function refreshAccessToken(): Promise<string | null> {
 
 /**
  * Response interceptor
+ * - 비동기 SSOT: 성공/실패 시 해당 요청 완료 처리
  * - 401: attempt refresh ONCE, then replay original request
  * - 403: do not refresh (membership/role), fail-fast
  */
 api.interceptors.response.use(
-  (res: AxiosResponse) => res,
+  (res: AxiosResponse) => {
+    const id = (res.config as RetryConfig)._asyncId;
+    if (id) asyncStatusStore.completeTask(id, "success");
+    return res;
+  },
   async (err: any) => {
+    const config = err?.config as RetryConfig | undefined;
+    const asyncId = config?._asyncId;
+    if (asyncId)
+      asyncStatusStore.completeTask(
+        asyncId,
+        "error",
+        err?.response?.data?.detail ?? err?.message ?? "오류"
+      );
     if (!isAxiosError(err)) throw err;
 
     const status = err.response?.status;
@@ -206,6 +229,61 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+
+==========================================================================================
+# FILE: api/jobExport.ts
+==========================================================================================
+// PATH: src/shared/api/jobExport.ts
+// 엑셀 내보내기 등 비동기 job: 폴링 후 download_url 반환
+
+import api from "@/shared/api/axios";
+
+export type JobStatusResponse = {
+  job_id: string;
+  job_type?: string;
+  status: string;
+  result?: { download_url?: string; filename?: string };
+  error_message?: string | null;
+  progress?: unknown;
+};
+
+const POLL_INTERVAL_MS = 1500;
+const POLL_MAX_ATTEMPTS = 120; // 3분
+
+/**
+ * job_id 상태 폴링. DONE 시 result, FAILED 시 throw.
+ */
+export async function pollJobUntilDone(jobId: string): Promise<JobStatusResponse> {
+  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
+    const res = await api.get<JobStatusResponse>(`/jobs/${encodeURIComponent(jobId)}/`);
+    const data = res.data;
+
+    if (data.status === "DONE") {
+      return data;
+    }
+    if (data.status === "FAILED") {
+      const msg = data.error_message || "Export failed.";
+      throw new Error(msg);
+    }
+
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+  }
+  throw new Error("Export timed out. Try again later.");
+}
+
+/**
+ * 완료 시 result.download_url 로 브라우저 다운로드 트리거
+ */
+export function downloadFromUrl(url: string, filename?: string) {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || "download";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 
 ==========================================================================================
@@ -720,6 +798,40 @@ END OF DOCUMENT — MODAL CREATION RULES (SSOT)
 
 
 ==========================================================================================
+# FILE: hooks/useDocumentTitle.tsx
+==========================================================================================
+// PATH: src/shared/hooks/useDocumentTitle.tsx
+// 브라우저 타이틀 동적 설정 Hook
+
+import { useEffect } from "react";
+import { useProgram } from "@/shared/program";
+
+export function useDocumentTitle(title?: string) {
+  const { program } = useProgram();
+
+  useEffect(() => {
+    // 명시적 title이 있으면 우선 사용
+    if (title) {
+      document.title = title;
+      return;
+    }
+
+    // Program의 ui_config.window_title 또는 display_name 사용
+    const windowTitle = program?.ui_config?.window_title;
+    const displayName = program?.display_name;
+    
+    if (windowTitle) {
+      document.title = windowTitle;
+    } else if (displayName) {
+      document.title = displayName;
+    } else {
+      document.title = "HakwonPlus";
+    }
+  }, [title, program]);
+}
+
+
+==========================================================================================
 # FILE: program/index.tsx
 ==========================================================================================
 // PATH: src/shared/program/index.tsx
@@ -735,6 +847,7 @@ export type Program = {
     primary_color?: string;
     login_title?: string;
     login_subtitle?: string;
+    window_title?: string;
   };
 
   feature_flags: Record<string, boolean>;
@@ -785,6 +898,66 @@ export function useProgram() {
     throw new Error("useProgram must be used within ProgramProvider");
   }
   return ctx;
+}
+
+
+==========================================================================================
+# FILE: tenant/config.ts
+==========================================================================================
+// PATH: src/shared/tenant/config.ts
+/**
+ * 멀티테넌트 ID·브랜딩 SSOT (학원쎔 3+1)
+ * - hakwonplus.com = 1 (메인)
+ * - tchul.com = 2, limglish.kr = 3, ymath.co.kr = 4
+ */
+
+export type TenantId = 1 | 2 | 3 | 4;
+
+const HOST_TO_ID: Record<string, TenantId> = {
+  "hakwonplus.com": 1,
+  "www.hakwonplus.com": 1,
+  "tchul.com": 2,
+  "www.tchul.com": 2,
+  "limglish.kr": 3,
+  "www.limglish.kr": 3,
+  "ymath.co.kr": 4,
+  "www.ymath.co.kr": 4,
+};
+
+/** 테넌트 코드 → TenantId (호스트 없이 tenantCode만 올 때 사용) */
+const CODE_TO_ID: Record<string, TenantId> = {
+  hakwonplus: 1,
+  tchul: 2,
+  limglish: 3,
+  ymath: 4,
+};
+
+export type TenantBranding = {
+  loginTitle: string;
+  loginSubtitle?: string;
+  logoUrl?: string;
+};
+
+const ID_TO_BRANDING: Record<TenantId, TenantBranding> = {
+  1: { loginTitle: "HakwonPlus 관리자 로그인", loginSubtitle: undefined, logoUrl: undefined },
+  2: { loginTitle: "tchul.com 로그인", loginSubtitle: undefined, logoUrl: undefined },
+  3: { loginTitle: "limglish 로그인", loginSubtitle: undefined, logoUrl: undefined },
+  4: { loginTitle: "ymath 로그인", loginSubtitle: undefined, logoUrl: undefined },
+};
+
+/**
+ * 테넌트 코드(호스트명 또는 tenant code) → 테넌트 ID. 없으면 null.
+ */
+export function getTenantIdFromCode(code: string): TenantId | null {
+  const normalized = String(code || "").trim().toLowerCase();
+  return (HOST_TO_ID[normalized] as TenantId) ?? (CODE_TO_ID[normalized] as TenantId) ?? null;
+}
+
+/**
+ * 테넌트 ID → 정적 브랜딩(로고/타이틀). API ui_config 없을 때 폴백.
+ */
+export function getTenantBranding(id: TenantId): TenantBranding {
+  return ID_TO_BRANDING[id];
 }
 
 
@@ -922,14 +1095,415 @@ export function getTenantCodeForHeader(): string | null {
   return null;
 }
 
+export type { TenantId } from "./config";
+export { getTenantIdFromCode, getTenantBranding } from "./config";
+
+
+==========================================================================================
+# FILE: ui/asyncStatus/AsyncStatusBar.tsx
+==========================================================================================
+// PATH: src/shared/ui/asyncStatus/AsyncStatusBar.tsx
+// 우하단 Windows 스타일 비동기 상태 바 — 워커 작업 프로그래스바만 표시
+
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAsyncStatus } from "./useAsyncStatus";
+import { useWorkerJobPoller } from "./useWorkerJobPoller";
+import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
+import "@/styles/design-system/components/AsyncStatusBar.css";
+
+function StatusIcon({ status }: { status: AsyncTaskStatus }) {
+  if (status === "pending")
+    return (
+      <svg className="async-status-bar__item-icon async-status-bar__item-icon--pending" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+      </svg>
+    );
+  if (status === "success")
+    return (
+      <svg className="async-status-bar__item-icon async-status-bar__item-icon--success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path d="M5 13l4 4L19 7" />
+      </svg>
+    );
+  return (
+    <svg className="async-status-bar__item-icon async-status-bar__item-icon--error" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function TaskItem({ task }: { task: AsyncTask }) {
+  return (
+    <div className="async-status-bar__item">
+      <div className="async-status-bar__item-row">
+        <StatusIcon status={task.status} />
+        <div className="async-status-bar__item-body">
+          <div className="async-status-bar__item-label">{task.label}</div>
+          {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
+        </div>
+        <button
+          type="button"
+          className="async-status-bar__item-close"
+          onClick={() => asyncStatusStore.removeTask(task.id)}
+          aria-label="닫기"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      {task.status === "pending" && task.progress != null && (
+        <div className="async-status-bar__progress">
+          <div
+            className="async-status-bar__progress-fill"
+            style={{ width: `${task.progress}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AsyncStatusBar() {
+  const queryClient = useQueryClient();
+  const tasks = useAsyncStatus();
+  const [expanded, setExpanded] = useState(false);
+  const workerTasks = tasks.filter((t) => t.meta?.jobId);
+  useWorkerJobPoller(tasks, {
+    onExcelSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lecture-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-matrix"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["lecture"] });
+    },
+  });
+
+  if (workerTasks.length === 0) return null;
+
+  const pendingCount = workerTasks.filter((t) => t.status === "pending").length;
+
+  return (
+    <div
+      className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"}`}
+      role="region"
+      aria-label="비동기 작업 상태"
+    >
+      {/* 접었을 때: Windows 알림처럼 작은 창 */}
+      <button
+        type="button"
+        className="async-status-bar__trigger"
+        onClick={() => setExpanded(true)}
+        aria-expanded={expanded}
+      >
+        <svg className="async-status-bar__trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+        </svg>
+        <span className="async-status-bar__trigger-count">
+          {pendingCount > 0 ? `진행 중 ${workerTasks.length}건` : `${workerTasks.length}건 완료`}
+        </span>
+      </button>
+
+      {/* 펼쳤을 때: 목록 패널 */}
+      <div className="async-status-bar__panel">
+        <div className="async-status-bar__header">
+          <span>작업</span>
+          <div className="async-status-bar__header-actions">
+            <button
+              type="button"
+              className="async-status-bar__header-btn"
+              onClick={() => asyncStatusStore.clearCompleted()}
+              title="완료된 항목 지우기"
+            >
+              지우기
+            </button>
+            <button
+              type="button"
+              className="async-status-bar__header-btn"
+              onClick={() => setExpanded(false)}
+              title="접기"
+              aria-label="접기"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 15l-6-6-6 6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className="async-status-bar__list">
+          {workerTasks.length === 0 ? (
+            <div className="async-status-bar__empty">진행 중인 작업이 없습니다.</div>
+          ) : (
+            workerTasks.map((task) => <TaskItem key={task.id} task={task} />)
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/asyncStatus/asyncStatusStore.ts
+==========================================================================================
+// PATH: src/shared/ui/asyncStatus/asyncStatusStore.ts
+// 전역 비동기 상태 SSOT — 워커 작업 프로그래스바만 우하단에 표시
+//
+// 워커 작업(엑셀 수강등록, 비디오 인코딩 등): 업로드 후 모달 닫고 우하단에서 진행률 표시
+//   const taskId = asyncStatusStore.addWorkerJob('엑셀 수강등록', jobId, 'excel_parsing');
+//   // 전역 폴링이 progress/status 갱신 후 completeTask 호출
+
+export type AsyncTaskStatus = "pending" | "success" | "error";
+
+export interface AsyncTaskMeta {
+  jobId: string;
+  jobType: string;
+}
+
+export interface AsyncTask {
+  id: string;
+  label: string;
+  status: AsyncTaskStatus;
+  /** 0..100, 진행 중일 때만 사용 (워커 Redis progress) */
+  progress?: number;
+  error?: string;
+  createdAt: number;
+  /** 있으면 워커 작업 — 우하단 작업 알람창에만 표시, 폴링 대상 */
+  meta?: AsyncTaskMeta;
+}
+
+type Listener = (tasks: AsyncTask[]) => void;
+
+let tasks: AsyncTask[] = [];
+const listeners = new Set<Listener>();
+
+function emit() {
+  const snapshot = [...tasks];
+  listeners.forEach((cb) => cb(snapshot));
+}
+
+function generateId(): string {
+  return `async-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/** 라벨 추론: URL 경로 마지막 또는 메서드+경로 */
+function defaultLabel(method: string, url?: string): string {
+  if (!url) return "요청 중…";
+  const path = url.replace(/^.*\/api\/v1/, "").split("?")[0].trim() || "/";
+  const parts = path.split("/").filter(Boolean);
+  const last = parts[parts.length - 1];
+  if (last && !/^\d+$/.test(last)) return `${method.toUpperCase()} ${last}`;
+  const resource = parts[parts.length - 2] || "요청";
+  return `${method.toUpperCase()} ${resource}`;
+}
+
+export const asyncStatusStore = {
+  getState(): AsyncTask[] {
+    return [...tasks];
+  },
+
+  subscribe(listener: Listener): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  },
+
+  /**
+   * 새 작업 추가 (일반)
+   */
+  addTask(label: string, id?: string): string {
+    const taskId = id ?? generateId();
+    tasks = [
+      ...tasks.filter((t) => t.id !== taskId),
+      {
+        id: taskId,
+        label,
+        status: "pending" as const,
+        createdAt: Date.now(),
+      },
+    ];
+    emit();
+    return taskId;
+  },
+
+  /**
+   * 워커 작업 추가 — 우하단 작업 알람창에 실시간 프로그래스바로 표시됨.
+   * jobId를 id로 사용하여 폴링 시 status/progress 갱신.
+   */
+  addWorkerJob(label: string, jobId: string, jobType: string): string {
+    tasks = [
+      ...tasks.filter((t) => t.id !== jobId),
+      {
+        id: jobId,
+        label,
+        status: "pending" as const,
+        createdAt: Date.now(),
+        meta: { jobId, jobType },
+      },
+    ];
+    emit();
+    return jobId;
+  },
+
+  /** 완료 처리 (성공/실패) */
+  completeTask(id: string, status: "success" | "error", error?: string): void {
+    tasks = tasks.map((t) =>
+      t.id === id ? { ...t, status, progress: 100, error } : t
+    );
+    emit();
+  },
+
+  /** 진행률 갱신 (SSE/WebSocket 등에서 호출) */
+  updateProgress(id: string, progress: number): void {
+    tasks = tasks.map((t) =>
+      t.id === id ? { ...t, progress: Math.min(100, Math.max(0, progress)) } : t
+    );
+    emit();
+  },
+
+  /** 라벨만 변경 */
+  setTaskLabel(id: string, label: string): void {
+    tasks = tasks.map((t) => (t.id === id ? { ...t, label } : t));
+    emit();
+  },
+
+  /** 항목 제거 (사용자가 닫기) */
+  removeTask(id: string): void {
+    tasks = tasks.filter((t) => t.id !== id);
+    emit();
+  },
+
+  /** 완료된 항목 일괄 제거 */
+  clearCompleted(): void {
+    tasks = tasks.filter((t) => t.status === "pending");
+    emit();
+  },
+
+  /** API 요청용: meta.asyncTrack === true 일 때만 등록 (기본은 미등록 — 워커 작업만 알람창에 표시) */
+  trackRequest(method: string, url?: string, config?: { meta?: { asyncLabel?: string; asyncTrack?: boolean }; _asyncId?: string }): string | null {
+    if (!config?.meta?.asyncTrack) return null;
+    const id = config?._asyncId ?? generateId();
+    const label = config?.meta?.asyncLabel ?? defaultLabel(method, url);
+    this.addTask(label, id);
+    return id;
+  },
+};
+
+
+==========================================================================================
+# FILE: ui/asyncStatus/index.ts
+==========================================================================================
+// PATH: src/shared/ui/asyncStatus/index.ts
+export { default as AsyncStatusBar } from "./AsyncStatusBar";
+export { useAsyncStatus, asyncStatusStore } from "./useAsyncStatus";
+export type { AsyncTask, AsyncTaskStatus, AsyncTaskMeta } from "./asyncStatusStore";
+
+
+==========================================================================================
+# FILE: ui/asyncStatus/useAsyncStatus.ts
+==========================================================================================
+// PATH: src/shared/ui/asyncStatus/useAsyncStatus.ts
+import { useEffect, useState } from "react";
+import { asyncStatusStore, type AsyncTask } from "./asyncStatusStore";
+
+export function useAsyncStatus(): AsyncTask[] {
+  const [state, setState] = useState<AsyncTask[]>(() => asyncStatusStore.getState());
+
+  useEffect(() => {
+    return asyncStatusStore.subscribe(setState);
+  }, []);
+
+  return state;
+}
+
+export { asyncStatusStore };
+
+
+==========================================================================================
+# FILE: ui/asyncStatus/useWorkerJobPoller.ts
+==========================================================================================
+// PATH: src/shared/ui/asyncStatus/useWorkerJobPoller.ts
+// 워커 작업(엑셀 등) 상태/진행률 폴링 — 우하단 프로그래스바 갱신 및 완료 처리
+
+import { useEffect, useRef } from "react";
+import { asyncStatusStore } from "./asyncStatusStore";
+import { getExcelEnrollJobStatus } from "@/features/lectures/api/enrollments";
+
+const POLL_INTERVAL_MS = 2000;
+
+function pollExcelJob(
+  taskId: string,
+  onSuccess?: () => void
+) {
+  getExcelEnrollJobStatus(taskId)
+    .then((res) => {
+      const percent = res.progress?.percent;
+      if (typeof percent === "number") {
+        asyncStatusStore.updateProgress(taskId, percent);
+      }
+      if (res.status === "DONE") {
+        onSuccess?.();
+        asyncStatusStore.completeTask(taskId, "success");
+      } else if (res.status === "FAILED") {
+        asyncStatusStore.completeTask(
+          taskId,
+          "error",
+          res.error_message || "처리 실패"
+        );
+      }
+    })
+    .catch(() => {
+      // 네트워크 오류 시 재시도는 다음 폴링에서
+    });
+}
+
+export function useWorkerJobPoller(
+  tasks: { id: string; status: string; meta?: { jobId: string; jobType: string } }[],
+  options?: { onExcelSuccess?: () => void }
+) {
+  const pending = tasks.filter(
+    (t) => t.status === "pending" && t.meta?.jobId
+  );
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onExcelSuccess = options?.onExcelSuccess;
+
+  useEffect(() => {
+    if (pending.length === 0) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+    const tick = () => {
+      const current = asyncStatusStore.getState();
+      current
+        .filter((t) => t.status === "pending" && t.meta?.jobId)
+        .forEach((t) => {
+          if (t.meta!.jobType === "excel_parsing") {
+            pollExcelJob(t.meta!.jobId, onExcelSuccess);
+          }
+        });
+    };
+    tick();
+    intervalRef.current = setInterval(tick, POLL_INTERVAL_MS);
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [pending.length, pending.map((p) => p.id).join(","), onExcelSuccess]);
+}
+
 
 ==========================================================================================
 # FILE: ui/badges/AttendanceStatusBadge.tsx
 ==========================================================================================
 // PATH: src/shared/ui/badges/AttendanceStatusBadge.tsx
+// 한글자(short) = 두글자(label) 첫글자/약자로 통일, 역할별 순서·색상
+
 import React from "react";
 
-type AttendanceStatus =
+export type AttendanceStatus =
   | "PRESENT"
   | "LATE"
   | "ONLINE"
@@ -941,37 +1515,72 @@ type AttendanceStatus =
   | "INACTIVE"
   | "SECESSION";
 
-/** 출결 상태별 고유 색상 (전역 하드코딩 — 테마 무관) */
+/** 역할별 순서: 출석인정 → 경고 → 부정 → 중립 */
+export const ORDERED_ATTENDANCE_STATUS: AttendanceStatus[] = [
+  "PRESENT",
+  "ONLINE",
+  "SUPPLEMENT",
+  "LATE",
+  "EARLY_LEAVE",
+  "ABSENT",
+  "RUNAWAY",
+  "MATERIAL",
+  "INACTIVE",
+  "SECESSION",
+];
+
+/** 출결 상태별 두글자 라벨·한글자(앞글자)·색상 — 한글자는 두글자 앞글자만 사용 */
 const STATUS_META: Record<
   AttendanceStatus,
-  { label: string; style: React.CSSProperties }
+  { label: string; short: string; style: React.CSSProperties }
 > = {
-  PRESENT: { label: "현장", style: { backgroundColor: "#22c55e", color: "#fff" } },
-  LATE: { label: "지각", style: { backgroundColor: "#f59e0b", color: "#fff" } },
-  ONLINE: { label: "영상", style: { backgroundColor: "#3b82f6", color: "#fff" } },
-  SUPPLEMENT: { label: "보강", style: { backgroundColor: "#14b8a6", color: "#fff" } },
-  EARLY_LEAVE: { label: "조퇴", style: { backgroundColor: "#eab308", color: "#1f2937" } },
-  ABSENT: { label: "결석", style: { backgroundColor: "#ef4444", color: "#fff" } },
-  RUNAWAY: { label: "출튀", style: { backgroundColor: "#dc2626", color: "#fff" } },
-  MATERIAL: { label: "자료", style: { backgroundColor: "#e2e8f0", color: "#475569" } },
-  INACTIVE: { label: "부재", style: { backgroundColor: "#f1f5f9", color: "#64748b" } },
-  SECESSION: { label: "퇴원", style: { backgroundColor: "#64748b", color: "#fff" } },
+  PRESENT: { label: "현장", short: "현", style: { backgroundColor: "#22c55e", color: "#fff" } },
+  ONLINE: { label: "영상", short: "영", style: { backgroundColor: "#3b82f6", color: "#fff" } },
+  SUPPLEMENT: { label: "보강", short: "보", style: { backgroundColor: "#14b8a6", color: "#fff" } },
+  LATE: { label: "지각", short: "지", style: { backgroundColor: "#f59e0b", color: "#fff" } },
+  EARLY_LEAVE: { label: "조퇴", short: "조", style: { backgroundColor: "#eab308", color: "#1f2937" } },
+  ABSENT: { label: "결석", short: "결", style: { backgroundColor: "#ef4444", color: "#fff" } },
+  RUNAWAY: { label: "출튀", short: "출", style: { backgroundColor: "#dc2626", color: "#fff" } },
+  MATERIAL: { label: "자료", short: "자", style: { backgroundColor: "#94a3b8", color: "#fff" } },
+  INACTIVE: { label: "부재", short: "부", style: { backgroundColor: "#cbd5e1", color: "#475569" } },
+  SECESSION: { label: "퇴원", short: "퇴", style: { backgroundColor: "#64748b", color: "#fff" } },
 };
 
+/** 한글자 출결 뱃지용 — 매트릭스 테이블 셀 등 */
+export function getAttendanceShortLabel(status: string | null | undefined): string {
+  if (!status) return "－";
+  const meta = STATUS_META[status as AttendanceStatus];
+  return meta?.short ?? "－";
+}
+
+export function getAttendanceStyle(status: string | null | undefined): React.CSSProperties | null {
+  if (!status) return null;
+  const meta = STATUS_META[status as AttendanceStatus];
+  return meta?.style ?? null;
+}
+
+/** 사이즈 SSOT: 1ch(한글자) | 2ch(두글자) — styles/design-system/ds/status.css */
 export default function AttendanceStatusBadge({
   status,
+  variant = "2ch",
 }: {
   status: AttendanceStatus;
+  /** 1ch: 한글자(매트릭스 셀 등), 2ch: 두글자(출결 테이블·라벨) */
+  variant?: "1ch" | "2ch";
 }) {
   const meta = STATUS_META[status];
   if (!meta) return null;
 
+  const text = variant === "1ch" ? meta.short : meta.label;
+  const sizeClass = variant === "1ch" ? "ds-status-badge ds-status-badge--1ch" : "ds-status-badge";
+
   return (
     <span
-      className="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold"
+      className={sizeClass}
       style={meta.style}
+      title={meta.label}
     >
-      {meta.label}
+      {text}
     </span>
   );
 }
@@ -982,6 +1591,360 @@ export default function AttendanceStatusBadge({
 ==========================================================================================
 // PATH: src/shared/ui/badges/index.ts
 export { default as AttendanceStatusBadge } from "./AttendanceStatusBadge";
+
+
+==========================================================================================
+# FILE: ui/chips/LectureChip.tsx
+==========================================================================================
+// PATH: src/shared/ui/chips/LectureChip.tsx
+// 수강 강의 딱지 — 네모(정사각형), 두 글자 중앙정렬, 아바타와 동일 크기로 맞출 때 size=avatarSize
+
+const DEFAULT_LECTURE_COLOR = "#3b82f6";
+
+function isLightColor(hex: string): boolean {
+  const c = String(hex || "").toLowerCase();
+  return ["#eab308", "#06b6d4"].includes(c);
+}
+
+export default function LectureChip({
+  lectureName,
+  color,
+  size = 18,
+  chipLabel,
+}: {
+  lectureName: string;
+  color?: string;
+  size?: number;
+  /** 강의 생성 시 지정한 2글자 (미지정 시 제목 앞 2자) */
+  chipLabel?: string | null;
+}) {
+  const bg = color || DEFAULT_LECTURE_COLOR;
+  const textColor = isLightColor(bg) ? "#1a1a1a" : "#fff";
+  const two = (chipLabel && chipLabel.length >= 1)
+    ? String(chipLabel).slice(0, 2)
+    : (lectureName || "??").slice(0, 2);
+  const fontSize = size <= 18 ? 8 : size <= 24 ? 9 : 10;
+
+  return (
+    <span
+      data-lecture-chip
+      title={lectureName}
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        borderRadius: 4,
+        flexShrink: 0,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize,
+        fontWeight: 800,
+        letterSpacing: "-0.02em",
+        lineHeight: 1,
+        color: textColor,
+        background: bg,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+      }}
+    >
+      {two}
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/chips/StudentNameWithLectureChip.tsx
+==========================================================================================
+// PATH: src/shared/ui/chips/StudentNameWithLectureChip.tsx
+// 전역 규칙: 학생 이름이 등장하는 모든 곳에서 [아바타] + [이름] + [강의 딱지]
+// 강의 없으면 딱지 없음. 학생 1명이 N개 강의 수강 시 딱지 N개 표시.
+
+import React from "react";
+import LectureChip from "./LectureChip";
+
+export type LectureInfo = {
+  lectureName: string;
+  color?: string | null;
+  /** 강의 생성 모달에서 지정한 2글자 딱지 (미지정 시 제목 앞 2자) */
+  chipLabel?: string | null;
+};
+
+type Props = {
+  name: string;
+  /** 강의 딱지(들). 수강 강의 1:1 — 없으면 아무 칩도 안 뜸 */
+  lectures?: LectureInfo[] | null;
+  /** 딱지 크기 */
+  chipSize?: number;
+  /** 프로필 사진 URL (있으면 표시, 없으면 이름 이니셜) */
+  profilePhotoUrl?: string | null;
+  /** 아바타 크기(px). 지정 시 이름 왼쪽에 아바타 표시. 미지정 시 아바타 없음 */
+  avatarSize?: number;
+  className?: string;
+  highlight?: (text: string) => React.ReactNode;
+};
+
+const DEFAULT_COLOR = "#3b82f6";
+
+export default function StudentNameWithLectureChip({
+  name,
+  lectures,
+  chipSize = 16,
+  profilePhotoUrl,
+  avatarSize,
+  className,
+  highlight,
+}: Props) {
+  const list = Array.isArray(lectures) && lectures.length > 0
+    ? lectures
+    : [];
+  const chipSizeResolved = chipSize;
+
+  return (
+    <span className={`inline-flex items-center gap-2 min-w-0 ${className ?? ""}`.trim()}>
+      {avatarSize != null && avatarSize > 0 && (
+        <span
+          className="flex-shrink-0 rounded-full overflow-hidden bg-[var(--color-brand-primary)]/15 text-[var(--color-brand-primary)] text-xs font-bold flex items-center justify-center"
+          style={{ width: avatarSize, height: avatarSize }}
+          aria-hidden
+        >
+          {profilePhotoUrl ? (
+            <img src={profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            (name || "?")[0]
+          )}
+        </span>
+      )}
+      <span className="truncate">
+        {highlight ? highlight(name || "-") : (name || "-")}
+      </span>
+      {list.map((lec, i) => (
+        <LectureChip
+          key={`${lec.lectureName ?? ""}-${i}`}
+          lectureName={lec.lectureName || "??"}
+          color={lec.color ?? DEFAULT_COLOR}
+          size={chipSizeResolved}
+          chipLabel={lec.chipLabel}
+        />
+      ))}
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/date/DatePicker.tsx
+==========================================================================================
+// PATH: src/shared/ui/date/DatePicker.tsx
+// 전역 SSOT: 프로젝트 내 모든 날짜 선택에서 사용하는 통일된 달력 UI (큼지막한 셀, 일관된 디자인)
+
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+import dayjs, { type Dayjs } from "dayjs";
+import { Calendar } from "lucide-react";
+import "@/styles/design-system/components/DatePicker.css";
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const CELL_SIZE = 44;
+const CALENDAR_MIN_WIDTH = 336;
+
+export interface DatePickerProps {
+  value: string; // YYYY-MM-DD
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  id?: string;
+  "data-testid"?: string;
+}
+
+function toDayjs(s: string): Dayjs | null {
+  if (!s?.trim()) return null;
+  const d = dayjs(s, "YYYY-MM-DD", true);
+  return d.isValid() ? d : null;
+}
+
+function toValue(d: Dayjs): string {
+  return d.format("YYYY-MM-DD");
+}
+
+export default function DatePicker({
+  value,
+  onChange,
+  placeholder = "날짜 선택",
+  disabled = false,
+  id,
+  "data-testid": dataTestId,
+}: DatePickerProps) {
+  const [open, setOpen] = useState(false);
+  const [viewMonth, setViewMonth] = useState<Dayjs>(() => toDayjs(value) || dayjs());
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+
+  const selected = toDayjs(value);
+  const today = dayjs();
+
+  // value가 바뀌면 viewMonth 동기화
+  useEffect(() => {
+    const v = toDayjs(value);
+    if (v) setViewMonth(v);
+  }, [value]);
+
+  // 포털로 body에 렌더해 overflow 잘림 방지. position: fixed 좌표 계산
+  useLayoutEffect(() => {
+    if (!open) {
+      setDropdownStyle(null);
+      return;
+    }
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const space = 8;
+    const dropdownHeight = 380; // 대략적 달력 높이
+    const viewportTop = rect.top;
+    const fitsAbove = viewportTop >= dropdownHeight + space;
+    // 기본: 위로 열림. 공간 부족 시에만 아래로
+    if (fitsAbove) {
+      setDropdownStyle({ bottom: window.innerHeight - rect.top + space, left: rect.left });
+    } else {
+      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
+        const popup = document.querySelector(".shared-date-picker-dropdown--portaled");
+        if (!popup?.contains(target)) setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const start = viewMonth.startOf("month");
+  const end = viewMonth.endOf("month");
+  const startCell = start.day();
+  const daysInMonth = end.date();
+  const prevMonth = viewMonth.subtract(1, "month");
+  const nextMonth = viewMonth.add(1, "month");
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < startCell; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  function handleSelect(d: number) {
+    const d2 = viewMonth.date(d);
+    onChange(toValue(d2));
+    setOpen(false);
+  }
+
+  const displayText = value ? dayjs(value).format("YYYY년 MM월 DD일") : placeholder;
+
+  return (
+    <div ref={containerRef} className="shared-date-picker" style={{ position: "relative" }}>
+      <button
+        ref={triggerRef}
+        type="button"
+        id={id}
+        data-testid={dataTestId}
+        onClick={() => !disabled && setOpen((o) => !o)}
+        disabled={disabled}
+        className="shared-date-picker-trigger"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <Calendar className="shared-date-picker-trigger-icon" size={18} aria-hidden />
+        <span className={value ? "" : "shared-date-picker-placeholder"}>{displayText}</span>
+      </button>
+
+      {open && dropdownStyle && ReactDOM.createPortal(
+        <div
+          className="shared-date-picker-dropdown shared-date-picker-dropdown--portaled"
+          role="dialog"
+          aria-label="날짜 선택"
+          style={{
+            minWidth: CALENDAR_MIN_WIDTH,
+            width: "max-content",
+            position: "fixed",
+            zIndex: 1200,
+            backgroundColor: "var(--color-bg-surface, #ffffff)",
+            ...(dropdownStyle.top != null
+              ? { top: dropdownStyle.top, left: dropdownStyle.left }
+              : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
+          }}
+        >
+          <div className="shared-date-picker-header">
+            <button
+              type="button"
+              className="shared-date-picker-nav"
+              onClick={() => setViewMonth(prevMonth)}
+              aria-label="이전 달"
+            >
+              ‹
+            </button>
+            <span className="shared-date-picker-title" aria-live="polite">
+              {viewMonth.format("YYYY년 MM월")}
+            </span>
+            <button
+              type="button"
+              className="shared-date-picker-nav"
+              onClick={() => setViewMonth(nextMonth)}
+              aria-label="다음 달"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="shared-date-picker-weekdays">
+            {WEEKDAYS.map((w) => (
+              <span key={w} className="shared-date-picker-weekday">
+                {w}
+              </span>
+            ))}
+          </div>
+
+          <div
+            className="shared-date-picker-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(7, 1fr)",
+              gap: 4,
+            }}
+          >
+            {cells.map((d, i) => {
+              if (d === null) return <div key={`empty-${i}`} />;
+              const cellDate = viewMonth.date(d);
+              const valueStr = toValue(cellDate);
+              const isSelected = selected && toValue(selected) === valueStr;
+              const isToday = toValue(today) === valueStr;
+              return (
+                <button
+                  key={valueStr}
+                  type="button"
+                  className={`shared-date-picker-cell ${isSelected ? "shared-date-picker-cell-selected" : ""} ${isToday ? "shared-date-picker-cell-today" : ""}`}
+                  onClick={() => handleSelect(d)}
+                  style={{ width: CELL_SIZE, height: CELL_SIZE }}
+                >
+                  {d}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/date/index.ts
+==========================================================================================
+export { default as DatePicker } from "./DatePicker";
+export type { DatePickerProps } from "./DatePicker";
 
 
 ==========================================================================================
@@ -1122,19 +2085,19 @@ export default function DomainLayout({
 
   return (
     <div className="min-h-full bg-[var(--bg-page)]" data-app="admin">
-      {/* DOMAIN HEADER — 은은한 primary 톤 + 좌측 액센트 */}
+      {/* DOMAIN HEADER — 은은한 primary 톤 + 좌측 액센트, 탭 있으면 맨 바닥에 여백 없이 */}
       <div
-        className="relative"
+        className={`relative flex flex-col ${tabs != null && tabs.length > 0 ? "domain-header--with-tabs" : ""}`}
         style={{
           background: "color-mix(in srgb, var(--color-primary) 8%, var(--bg-surface))",
           borderBottom: "1px solid var(--color-border-divider-strong)",
           paddingLeft: "var(--space-6)",
           paddingRight: "var(--space-6)",
           paddingTop: "var(--space-7)",
-          paddingBottom: "var(--space-4)",
+          paddingBottom: tabs != null && tabs.length > 0 ? 0 : "var(--space-4)",
         }}
       >
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <div
             className="absolute left-0 top-1 rounded-full bg-[var(--color-primary)]"
             style={{ width: 4, height: 24 }}
@@ -1200,7 +2163,7 @@ export default function DomainLayout({
         </div>
 
         {tabs != null && tabs.length > 0 && (
-          <div style={{ marginTop: "var(--space-4)" }}>
+          <div className="domain-header__tabs-wrap">
             <DomainTabs
               tabs={tabs}
               pathname={location.pathname}
@@ -1366,7 +2329,7 @@ export default function DomainTabs({
   onNavigate,
 }: DomainTabsProps) {
   return (
-    <div className="ds-tabs">
+    <div className="ds-tabs ds-tabs--flat" role="tablist">
       {tabs.map((tab) =>
         tab.locked ? (
           <button
@@ -1467,7 +2430,7 @@ export function getDefaultColorForPicker(usedColors: string[]): string {
 # FILE: ui/domain/index.ts
 ==========================================================================================
 // src/shared/ui/domain/index.ts
-// 도메인 공통 UI (Design SSOT — students 기준)
+// 도메인 공통 UI · Design SSOT: docs/DESIGN_SSOT.md
 
 export { default as DomainLayout } from "./DomainLayout";
 export { default as DomainTabs } from "./DomainTabs";
@@ -1484,6 +2447,83 @@ export {
   getDefaultColorForPicker,
 } from "./constants";
 export { default as ColorPickerField } from "./ColorPickerField";
+export { TABLE_COL, STUDENTS_TABLE_COL } from "./tableColumnSpec";
+export type { TableColKey } from "./tableColumnSpec";
+
+
+==========================================================================================
+# FILE: ui/domain/tableColumnSpec.ts
+==========================================================================================
+/**
+ * 테이블 컬럼 너비 단일진실 (SSOT)
+ * @see docs/DESIGN_SSOT.md
+ *
+ * - 컬럼 너비는 이 파일만 정의. 다른 곳에 중복 정의 금지.
+ * - 학생·출결 계열: STUDENTS_TABLE_COL. 그 외: TABLE_COL에서 키 선택.
+ * - tableLayout: "fixed" + <colgroup> 권장.
+ */
+export const TABLE_COL = {
+  /** 체크박스 전용 (학생 테이블 기준) */
+  checkbox: 28,
+  /** 이름·주요 식별 컬럼 (딱지+이름 등) — 학생 테이블 기준 */
+  name: 168,
+  /** 출결/강의 목록 등 이름만 짧게 (레거시·모달용, 신규는 name 사용) */
+  nameCompact: 116,
+  /** 모달 내 이름 열 — nameCompact보다 아주 조금 넓게 */
+  nameCompactModal: 124,
+  /** 전화번호 (학부모/학생 동일 — 학생 테이블 기준) */
+  phone: 130,
+  /** 모달 내 전화 열 — phone보다 좁게, 전화번호 잘리지 않도록 */
+  phoneCompact: 108,
+  /** 반, 2글자 뱃지 등 */
+  short: 65,
+  /** 모달 내 학년 열 — short보다 약간 넓게 (학년 컬럼 가시성) */
+  shortModal: 72,
+  /** 날짜, 학교, 시급 등 */
+  medium: 110,
+  /** 모달 내 학교 이름 열 — medium보다 좁게 (학년 열 가시성) */
+  mediumModal: 88,
+  /** 전화·날짜 약간 넓게 */
+  mediumAlt: 120,
+  /** 태그 칸 */
+  tag: 100,
+  /** 상태(활성/비활성 등) */
+  status: 92,
+  /** 출결 2글자 뱃지 등 */
+  statusBadge: 68,
+  /** 차시 한 칸 (1차시, 2차시…) */
+  sessionCol: 34,
+  /** 메모·비고 */
+  memo: 280,
+  /** 과제·입력 영역 등 */
+  wide: 360,
+  /** 출결 변경 10뱃지 등 넓은 영역 */
+  extraWide: 460,
+  /** 관리(수정/삭제) 버튼 */
+  actions: 72,
+  /** 강의명·제목 등 */
+  title: 192,
+  /** 과목·항목 등 */
+  subject: 140,
+  /** 강의 시간·근무시간 등 */
+  timeRange: 160,
+  /** 기간 (시작일~종료일) */
+  dateRange: 200,
+} as const;
+
+/** 학생 테이블 기준 SSOT — 체크박스·이름·학부모전화·학생전화 동일 크기/양식. 출결/강의출결/세션출결 등에서 사용 */
+export const STUDENTS_TABLE_COL = {
+  checkbox: TABLE_COL.checkbox,
+  name: TABLE_COL.name,
+  parentPhone: TABLE_COL.phone,
+  studentPhone: TABLE_COL.phone,
+  sessionCol: TABLE_COL.sessionCol,
+  statusBadge: TABLE_COL.statusBadge,
+  attendanceChange: TABLE_COL.extraWide,
+  memo: TABLE_COL.memo,
+} as const;
+
+export type TableColKey = keyof typeof TABLE_COL;
 
 
 ==========================================================================================
@@ -1552,6 +2592,42 @@ export default function Button({
           {rightIcon}
         </span>
       )}
+    </button>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/ds/CloseButton.tsx
+==========================================================================================
+// PATH: src/shared/ui/ds/CloseButton.tsx
+// 전역 닫기 버튼 SSOT — 모달·오버레이 등 모든 닫기에 우상단 X 버튼 통일
+
+import React from "react";
+
+type CloseButtonProps = {
+  onClick: () => void;
+  "aria-label"?: string;
+  className?: string;
+};
+
+export default function CloseButton({
+  onClick,
+  "aria-label": ariaLabel = "닫기",
+  className = "",
+}: CloseButtonProps) {
+  return (
+    <button
+      type="button"
+      className={`ds-close-btn ${className}`.trim()}
+      onClick={onClick}
+      aria-label={ariaLabel}
+    >
+      <span aria-hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </span>
     </button>
   );
 }
@@ -2311,15 +3387,14 @@ export function Tabs({ value, items, onChange }: TabsProps) {
 // PATH: src/shared/ui/ds/index.ts
 
 /* ===============================
- * DS GLOBAL STYLES (SSOT)
+ * DS GLOBAL STYLES — design-system에서 단일 로드 (src/styles/design-system/)
  * =============================== */
-import "./styles/input.css";
-import "./styles/action-bar.css";
-import "./styles/panel.css";
-import "./styles/page.css";
-import "./styles/page-header.css";
-import "./styles/status.css";
-import "./styles/list-page.css";
+import "@/styles/design-system/ds/input.css";
+import "@/styles/design-system/ds/action-bar.css";
+import "@/styles/design-system/ds/panel.css";
+import "@/styles/design-system/ds/page.css";
+import "@/styles/design-system/ds/page-header.css";
+import "@/styles/design-system/ds/list-page.css";
 
 /* ===============================
  * DS COMPONENT EXPORTS
@@ -2338,7 +3413,7 @@ export { default as ActionBar } from "./components/ActionBar";
 export { default as ActionButton } from "./components/ActionButton";
 export { default as StatusBadge } from "./components/StatusBadge";
 export { default as StatusToggle } from "./components/StatusToggle";
-// PATH: src/shared/ui/ds/index.ts
+export { default as CloseButton } from "./CloseButton";
 
 
 ==========================================================================================
@@ -2467,236 +3542,150 @@ export default function StatusToggle({
 
 
 ==========================================================================================
-# FILE: ui/ds/styles/action-bar.css
+# FILE: ui/excel/ExcelUploadZone.tsx
 ==========================================================================================
-/* PATH: src/shared/ui/ds/styles/action-bar.css */
+// PATH: src/shared/ui/excel/ExcelUploadZone.tsx
+// 엑셀 업로드 드래그 영역 SSOT — 전역 통일: "Drag or Click" + 업로드(아이콘) (docs/DESIGN_SSOT.md §8)
 
-.ds-action-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+import { useRef, useState } from "react";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
-.ds-action-bar[data-align="right"] {
-  justify-content: flex-end;
-}
+const DEFAULT_ACCEPT = ".xlsx,.xls";
+const INVALID_FILE_MSG = "엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.";
 
-.ds-action-bar[data-align="left"] {
-  justify-content: flex-start;
-}
-
-
-==========================================================================================
-# FILE: ui/ds/styles/input.css
-==========================================================================================
-/* ======================================================
-   DS INPUT — REQUIRED / PRIMARY EMPHASIS
-   ====================================================== */
-
-/* 기본 입력 필드 */
-.ds-input {
-  appearance: none;
-  width: 100%;
-  height: 36px;
-  padding: 0 12px;
-
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-md);
-
-  outline: none;
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease,
-    background-color 120ms ease;
-}
-
-/* placeholder */
-.ds-input::placeholder {
-  color: var(--color-text-muted);
-  font-weight: 400;
-}
-
-/* hover */
-.ds-input:hover:not(:disabled) {
-  border-color: var(--color-border-strong, var(--color-border-divider));
-}
-
-/* focus (일반 입력) */
-.ds-input:focus:not([data-required="true"]) {
-  border-color: color-mix(
-    in srgb,
-    var(--color-text-secondary) 60%,
-    var(--color-border-divider)
+function ExcelIcon({ className, size = 24 }: { className?: string; size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      width={size}
+      height={size}
+      aria-hidden
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <line x1="10" y1="9" x2="8" y2="9" />
+    </svg>
   );
 }
 
-/* ======================================================
-   REQUIRED (PRIMARY COLOR)
-   ====================================================== */
-
-/* 필수 필드 — 기본 상태 (에러 아님) */
-.ds-input[data-required="true"] {
-  border-color: color-mix(
-    in srgb,
-    var(--color-brand-primary) 38%,
-    var(--color-border-divider)
+function UploadIcon({ className, size = 24 }: { className?: string; size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      width={size}
+      height={size}
+      aria-hidden
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
   );
 }
 
-/* 필수 필드 hover */
-.ds-input[data-required="true"]:hover:not(:disabled) {
-  border-color: color-mix(
-    in srgb,
-    var(--color-brand-primary) 55%,
-    var(--color-border-divider)
+export interface ExcelUploadZoneProps {
+  /** 부모에서 전달한 file input ref (제어 불필요 시 내부 ref 사용) */
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  /** 파일 선택 시 (유효한 파일만 호출) */
+  onFileSelect: (file: File) => void;
+  /** accept (기본 .xlsx,.xls) */
+  accept?: string;
+  /** 하단 보조 안내 (선택, 미지정 시 .xlsx, .xls만 표시) */
+  hintText?: string;
+  /** 비활성화 */
+  disabled?: boolean;
+  /** 잘못된 파일 시 (미지정 시 feedback.error) */
+  onInvalidFile?: (message: string) => void;
+}
+
+export default function ExcelUploadZone({
+  inputRef: externalRef,
+  onFileSelect,
+  accept = DEFAULT_ACCEPT,
+  hintText = ".xlsx, .xls",
+  disabled = false,
+  onInvalidFile = (msg) => feedback.error(msg),
+}: ExcelUploadZoneProps) {
+  const internalRef = useRef<HTMLInputElement>(null);
+  const inputRef = externalRef ?? internalRef;
+  const [dragover, setDragover] = useState(false);
+
+  const handleFile = (file: File | null) => {
+    if (!file) return;
+    if (!/\.(xlsx|xls)$/i.test(file.name)) {
+      onInvalidFile(INVALID_FILE_MSG);
+      return;
+    }
+    onFileSelect(file);
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => !disabled && inputRef.current?.click()}
+      onKeyDown={(e) => e.key === "Enter" && !disabled && inputRef.current?.click()}
+      className={`excel-upload-zone ${dragover ? "excel-upload-zone--dragover" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!disabled) setDragover(true);
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        setDragover(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragover(false);
+        if (disabled) return;
+        const file = e.dataTransfer.files[0];
+        handleFile(file ?? null);
+      }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          e.target.value = "";
+        }}
+      />
+      <div className="excel-upload-zone__head">
+        <ExcelIcon size={22} style={{ color: "var(--color-text-secondary)" }} />
+        <span className="excel-upload-zone__title">Excel</span>
+      </div>
+      <div className="excel-upload-zone__drag-label">Drag or Click</div>
+      <div className="excel-upload-zone__upload" style={{ marginBottom: hintText ? undefined : 0 }}>
+        <UploadIcon size={16} className="excel-upload-zone__upload-icon" />
+        <span className="excel-upload-zone__upload-label">업로드</span>
+      </div>
+      {hintText ? (
+        <div className="modal-hint" style={{ marginTop: "var(--space-1)" }}>
+          {hintText}
+        </div>
+      ) : null}
+    </div>
   );
-}
-
-/* 필수 필드 focus */
-.ds-input[data-required="true"]:focus {
-  border-color: var(--color-brand-primary);
-  box-shadow: 0 0 0 1px color-mix(
-    in srgb,
-    var(--color-brand-primary) 35%,
-    transparent
-  );
-}
-
-/* ======================================================
-   DISABLED
-   ====================================================== */
-
-.ds-input:disabled {
-  background: var(--color-bg-surface-soft);
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
-
-==========================================================================================
-# FILE: ui/ds/styles/list-page.css
-==========================================================================================
-/* PATH: src/shared/ui/ds/styles/list-page.css */
-
-/* 필터 / 컨트롤 영역 */
-.ui-control {
-  background: var(--ui-control-bg);
-  border: 1px solid var(--ui-control-border);
-  border-radius: var(--radius-xl);
-}
-
-
-==========================================================================================
-# FILE: ui/ds/styles/page-header.css
-==========================================================================================
-/* PATH: src/shared/ui/ds/styles/page-header.css */
-
-.page-header[data-variant="hero"] {
-  background: var(--ui-hero-bg);
-  border: 1px solid var(--ui-hero-border);
-}
-
-
-==========================================================================================
-# FILE: ui/ds/styles/page.css
-==========================================================================================
-/* PATH: src/shared/ui/ds/styles/page.css */
-
-[data-page-root] {
-  background: var(--ui-page-bg);
-}
-
-
-==========================================================================================
-# FILE: ui/ds/styles/panel.css
-==========================================================================================
-/* PATH: src/shared/ui/ds/styles/panel.css */
-/* 패널 공통: 테두리·깊이로 영역 구분 */
-
-.ds-panel {
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--elevation-1);
-  overflow: hidden;
-}
-
-.ds-panel[data-panel-variant="default"] {
-  background: var(--ui-work-bg);
-  border-color: var(--ui-work-border);
-}
-
-.ds-panel[data-panel-variant="subtle"] {
-  background: var(--ui-meta-bg);
-  border-color: var(--ui-meta-border);
-}
-
-.ds-panel[data-panel-variant="primary"] {
-  background: var(--ui-hero-bg);
-  border-color: var(--ui-hero-border);
-}
-
-
-==========================================================================================
-# FILE: ui/ds/styles/status.css
-==========================================================================================
-/* PATH: src/shared/ui/ds/styles/status.css */
-
-.ds-status-badge {
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: var(--font-title);
-  border-radius: 999px;
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface-soft);
-  color: var(--color-text-secondary);
-}
-
-.ds-status-badge[data-status="active"] {
-  color: var(--color-success);
-  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border-divider));
-  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-surface));
-}
-
-
-==========================================================================================
-# FILE: ui/ds/styles/tabs.css
-==========================================================================================
-/* 프리미엄 언더라인 탭 (도메인 공통) */
-.ds-tabs {
-  display: flex;
-  gap: var(--space-1);
-  padding: 0;
-  background: transparent;
-  border-radius: 0;
-}
-
-.ds-tab {
-  padding: var(--space-2) var(--space-4);
-  font-size: 14px;
-  font-weight: var(--font-title);
-  color: var(--color-text-secondary);
-  border-radius: 0;
-  border-bottom: 2px solid transparent;
-  transition: color var(--motion-base) var(--ease-out),
-    border-color var(--motion-base) var(--ease-out),
-    background-color var(--motion-base) var(--ease-out);
-}
-
-.ds-tab:hover:not(.is-active):not(:disabled) {
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
-}
-
-.ds-tab.is-active {
-  color: var(--color-primary);
-  font-weight: 600;
-  border-bottom: 2px solid var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface-soft));
 }
 
 
@@ -2739,6 +3728,7 @@ import { Outlet } from "react-router-dom";
 import { ConfigProvider } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@/features/notice/context/NoticeContext";
@@ -2800,18 +3790,21 @@ export default function AppLayout() {
             <div
               data-app="admin"
               style={{
+                height: "100vh",
                 minHeight: "100vh",
+                overflow: "hidden",
                 background: "var(--layout-canvas-bg)",
                 color: "var(--color-text-primary)",
               }}
             >
-              {/* ===== ROOT GRID ===== */}
+              {/* ===== ROOT GRID: 높이 고정으로 main 영역만 스크롤 ===== */}
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "var(--sidebar-width) 1fr",
                   gridTemplateRows: "auto 1fr",
-                  minHeight: "100vh",
+                  height: "100%",
+                  minHeight: 0,
                 }}
               >
                 {/* ===== 공용 헤더: 사이드바 링크된 모든 admin 페이지에 동일 적용 ===== */}
@@ -2844,14 +3837,16 @@ export default function AppLayout() {
                   <Sidebar />
                 </aside>
 
-                {/* ===== MAIN ===== */}
+                {/* ===== MAIN: 스크롤 컨테이너 (그리드 1fr로 높이 제한됨) ===== */}
                 <main
                   style={{
                     gridRow: "2",
                     minWidth: 0,
                     minHeight: 0,
-                    overflow: "auto",
+                    overflowY: "auto",
+                    overflowX: "hidden",
                     overscrollBehavior: "contain",
+                    WebkitOverflowScrolling: "touch",
                     background: "var(--layout-page-bg)",
                   }}
                 >
@@ -2866,6 +3861,8 @@ export default function AppLayout() {
                   </div>
                 </main>
               </div>
+              {/* 우하단 비동기 상태 SSOT (Windows 알림 스타일, 접기/펼치기) */}
+              <AsyncStatusBar />
             </div>
           </ConfigProvider>
         </NoticeProvider>
@@ -2889,7 +3886,7 @@ export type { DomainTab } from "@/shared/ui/domain";
 # FILE: ui/layout/Header.tsx
 ==========================================================================================
 // PATH: src/shared/ui/layout/Header.tsx
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Dropdown, Input, Badge } from "antd";
@@ -2899,6 +3896,7 @@ import { useNotices } from "@/features/notice/context/NoticeContext";
 import { useProgram } from "@/shared/program";
 import { Button } from "@/shared/ui/ds";
 import { fetchLecture, fetchSession } from "@/features/lectures/api/sessions";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 
 type Crumb = { label: string; to?: string };
 
@@ -3108,8 +4106,10 @@ function deriveCrumbs(
     return [{ label: "커뮤니티", to: "/admin/community" }];
   if (p.startsWith("/materials"))
     return [{ label: "자료실", to: "/admin/materials" }];
+  if (p.startsWith("/message"))
+    return [{ label: "메시지", to: "/admin/message" }];
   if (p.startsWith("/messages"))
-    return [{ label: "메시지", to: "/admin/messages" }];
+    return [{ label: "메시지", to: "/admin/message" }];
   if (p.startsWith("/settings"))
     return [{ label: "시스템 설정", to: "/admin/settings" }];
   if (p.startsWith("/profile"))
@@ -3153,20 +4153,11 @@ export default function Header() {
 
 
 
-// 데모찾기
-  /** 🔒 Header-level override (임시 고정용) */
-  const [academyName, setAcademyName] = useState<string | null>(null);
+  // 브라우저 타이틀 동적 설정
+  useDocumentTitle();
 
-  useEffect(() => {
-    if (academyName === null) {
-      // 👇 여기 원하는 이름
-      setAcademyName("박철 과학");
-    }
-  }, [academyName]);
-
-
-  // 이거복구
-  // const academyName = program?.display_name || "HakwonPlus";
+  // 학원 이름: Program의 display_name 사용
+  const academyName = program?.display_name || "HakwonPlus";
   
   
 
@@ -3265,6 +4256,18 @@ export default function Header() {
                 </div>
               );
             })}
+            {lecture && (lid > 0) && (
+              <div
+                className="app-header__crumb app-header__crumb--muted"
+                style={{ marginLeft: 8, paddingLeft: 8, borderLeft: "1px solid var(--color-border-divider)" }}
+                title="현재 컨텍스트"
+              >
+                <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>
+                  현재: {lecture.title ?? "강의"}
+                  {session && sid > 0 ? ` · ${session.title ?? "차시"}` : ""}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -3503,15 +4506,20 @@ export default function Sidebar() {
             icon: <Icon d="M3 6h14v12H3zM17 10l4-2v8l-4-2z" />,
           },
           {
+            to: `${BASE}/storage`,
+            label: "저장소",
+            icon: <Icon d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />,
+          },
+          {
             to: `${BASE}/community`,
             label: "커뮤니티",
             icon: <Icon d="M4 4h16v12H7l-3 3z" />,
           },
           {
-            to: `${BASE}/materials`,
-            label: "자료실",
+            to: `${BASE}/message`,
+            label: "메시지",
             icon: (
-              <Icon d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />
+              <Icon d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
             ),
           },
         ],
@@ -3631,12 +4639,9 @@ export type { DomainTab } from "./DomainLayout";
 import { Modal } from "antd";
 import React from "react";
 
-export type AdminModalType = "action" | "confirm" | "inspect";
+import { BRAND_AND_LIGHT_THEMES, MODAL_DEFAULT_WIDTH } from "./constants";
 
-const BRAND_AND_LIGHT_THEMES = new Set([
-  "modern-white", "navy-pro", "ivory-office", "minimal-mono",
-  "kakao-business", "naver-works", "samsung-admin", "purple-insight",
-]);
+export type AdminModalType = "action" | "confirm" | "inspect";
 
 function getModalBackground(): string {
   const theme = document.documentElement.getAttribute("data-theme") || "";
@@ -3655,7 +4660,7 @@ export default function AdminModal({
   open,
   onClose,
   type = "action",
-  width = 520,
+  width = MODAL_DEFAULT_WIDTH,
   children,
 }: AdminModalProps) {
   const isConfirm = type === "confirm";
@@ -3675,13 +4680,8 @@ export default function AdminModal({
       styles={{
         content: {
           padding: 0,
-          borderRadius: "var(--radius-xl)",
           overflow: "hidden",
-          border: isConfirm
-            ? "1px solid color-mix(in srgb, var(--color-error) 28%, var(--color-border-divider))"
-            : "1px solid var(--color-border-divider)",
-          boxShadow: "var(--elevation-3)",
-          background: contentBg,
+          /* border, borderRadius, boxShadow, background → modal.css SSOT */
         },
         mask: {
           backdropFilter: "blur(3px)",
@@ -3691,6 +4691,7 @@ export default function AdminModal({
       className={`admin-modal admin-modal--${type}`}
     >
       <div
+        className="admin-modal__inner"
         style={
           contentBg === "#ffffff"
             ? ({
@@ -3719,14 +4720,85 @@ export default function ModalBody({
 }: {
   children: React.ReactNode;
 }) {
+  return <div className="modal-body">{children}</div>;
+}
+
+
+==========================================================================================
+# FILE: ui/modal/ModalDateSection.tsx
+==========================================================================================
+// PATH: src/shared/ui/modal/ModalDateSection.tsx
+// 모달 SSOT — 날짜 섹션: 기본값 사용 | 직접선택(전역 DatePicker)
+
+import { DatePicker } from "@/shared/ui/date";
+import ModalOptionRow from "./ModalOptionRow";
+import { ModalOptionRowWithContent } from "./ModalOptionRow";
+
+export interface ModalDateSectionProps {
+  /** 라디오 name */
+  name?: string;
+  /** 기본값 사용 선택 여부 */
+  useDefault: boolean;
+  onUseDefaultChange: (use: boolean) => void;
+  /** 직접선택 시 값 */
+  customDate: string;
+  onCustomDateChange: (value: string) => void;
+  /** 기본값 옵션 표시 여부 (예: 보강 시 숨김) */
+  showDefaultOption: boolean;
+  /** 기본값 옵션 비활성화 (예: 보강 시) */
+  disableDefaultOption?: boolean;
+  /** 기본값 설명 (예: "다음 주 같은 요일 (2025-02-21)") */
+  defaultLabel?: string;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+export default function ModalDateSection({
+  name = "dateMode",
+  useDefault,
+  onUseDefaultChange,
+  customDate,
+  onCustomDateChange,
+  showDefaultOption,
+  disableDefaultOption = false,
+  defaultLabel = "미설정",
+  placeholder = "날짜 선택",
+  disabled = false,
+}: ModalDateSectionProps) {
+  const showCustom = !useDefault || disableDefaultOption;
+
   return (
-    <div
-      style={{
-        padding: "20px 24px",
-        background: "var(--color-modal-bg)",
-      }}
-    >
-      {children}
+    <div>
+      <label className="modal-section-label">날짜</label>
+      <div className="flex flex-col gap-2">
+        {showDefaultOption && (
+          <ModalOptionRow
+            name={name}
+            value="default"
+            checked={useDefault && !disableDefaultOption}
+            onChange={() => onUseDefaultChange(true)}
+            disabled={disableDefaultOption}
+            primaryLabel="강의 기본값 사용"
+            secondaryLabel={defaultLabel}
+          />
+        )}
+        <ModalOptionRowWithContent
+          name={name}
+          value="custom"
+          checked={showCustom}
+          onChange={() => onUseDefaultChange(false)}
+          primaryLabel="직접선택"
+          showContent={showCustom}
+          content={
+            <DatePicker
+              value={customDate}
+              onChange={onCustomDateChange}
+              placeholder={placeholder}
+              disabled={disabled}
+            />
+          }
+        />
+      </div>
     </div>
   );
 }
@@ -3746,16 +4818,7 @@ export default function ModalFooter({
   right?: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        padding: "16px 24px",
-        borderTop: "1px solid var(--color-border-divider)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        background: "var(--color-modal-bg)",
-      }}
-    >
+    <div className="modal-footer">
       <div>{left}</div>
       <div style={{ display: "flex", gap: 8 }}>{right}</div>
     </div>
@@ -3777,8 +4840,8 @@ type ModalHeaderProps = {
 
 function Icon({ type }: { type: "action" | "confirm" | "inspect" }) {
   const common = {
-    width: 18,
-    height: 18,
+    width: 16,
+    height: 16,
     viewBox: "0 0 24 24",
     fill: "none" as const,
   };
@@ -3865,41 +4928,19 @@ export default function ModalHeader({
       ? "var(--color-text-muted)"
       : "var(--color-brand-primary)";
 
-  const bg =
-    type === "confirm"
-      ? "color-mix(in srgb, var(--color-error) 12%, var(--color-modal-bg))"
-      : "var(--color-modal-bg)";
-
   return (
     <div
-      style={{
-        padding: "18px 24px",
-        background: bg,
-        borderBottom: "1px solid var(--color-border-divider)",
-        position: "relative",
-      }}
+      className={`modal-header modal-header--${type}`}
     >
-      {/* top accent rail (very thin, enterprise) */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          right: 0,
-          height: 2,
-          background: accentColor,
-          opacity: isConfirm ? 0.9 : 0.55,
-        }}
-      />
+      <div aria-hidden className="modal-header__accent" />
 
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div
           aria-hidden
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: 12,
+            width: 28,
+            height: 28,
+            borderRadius: 10,
             display: "grid",
             placeItems: "center",
             border: "1px solid var(--color-border-divider)",
@@ -3915,11 +4956,11 @@ export default function ModalHeader({
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             style={{
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: "var(--font-title)",
-              letterSpacing: "-0.28px",
+              letterSpacing: "-0.2px",
               color: "var(--color-text-primary)",
-              lineHeight: 1.25,
+              lineHeight: 1.3,
             }}
           >
             {title}
@@ -3928,11 +4969,11 @@ export default function ModalHeader({
           {description && (
             <div
               style={{
-                marginTop: 6,
-                fontSize: 13,
+                marginTop: 4,
+                fontSize: 12,
                 fontWeight: "var(--font-meta)",
                 color: isConfirm ? "var(--color-text-secondary)" : "var(--color-text-muted)",
-                lineHeight: 1.5,
+                lineHeight: 1.45,
               }}
             >
               {description}
@@ -3943,11 +4984,11 @@ export default function ModalHeader({
           {isConfirm && (
             <div
               style={{
-                marginTop: 10,
+                marginTop: 8,
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
-                padding: "8px 10px",
+                padding: "6px 10px",
                 borderRadius: 12,
                 border:
                   "1px solid color-mix(in srgb, var(--color-error) 22%, var(--color-border-divider))",
@@ -3981,13 +5022,259 @@ export default function ModalHeader({
 
 
 ==========================================================================================
+# FILE: ui/modal/ModalOptionRow.tsx
+==========================================================================================
+// PATH: src/shared/ui/modal/ModalOptionRow.tsx
+// 모달 SSOT — 날짜/시간 등 옵션 한 행 (라디오 + 레이블 + 설명/커스텀 영역)
+
+import type { ReactNode } from "react";
+
+export interface ModalOptionRowProps {
+  name: string;
+  value: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+  primaryLabel: ReactNode;
+  secondaryLabel?: ReactNode;
+  children?: ReactNode;
+  /** children 클릭 시 라디오 전파 막음 */
+  stopPropagationForContent?: boolean;
+  className?: string;
+}
+
+export default function ModalOptionRow({
+  name,
+  value,
+  checked,
+  onChange,
+  disabled = false,
+  primaryLabel,
+  secondaryLabel,
+  children,
+  stopPropagationForContent = true,
+  className = "",
+}: ModalOptionRowProps) {
+  const baseClass = "modal-option-row flex items-center gap-3 rounded-xl border border-[var(--border-divider)] p-3 transition";
+  const interactiveClass = disabled
+    ? "modal-option-row--disabled cursor-not-allowed bg-[var(--color-bg-surface-soft)]"
+    : "cursor-pointer hover:bg-[var(--color-bg-surface-soft)]";
+  const fullClass = `${baseClass} ${interactiveClass} ${className}`.trim();
+
+  return (
+    <label className={fullClass}>
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        onChange={onChange}
+        disabled={disabled}
+        className="w-4 h-4 shrink-0"
+      />
+      <span className="text-[14px] font-medium text-[var(--color-text-primary)] shrink-0">
+        {primaryLabel}
+      </span>
+      {secondaryLabel != null && (
+        <span className="text-[13px] text-[var(--color-text-muted)] truncate min-w-0">
+          {secondaryLabel}
+        </span>
+      )}
+      {children}
+    </label>
+  );
+}
+
+/** 직접선택 + 인라인 컨텐츠(달력/시간 등) — 컨텐츠 영역 클릭 시 라디오 전파 방지 */
+export interface ModalOptionRowWithContentProps extends Omit<ModalOptionRowProps, "children" | "secondaryLabel"> {
+  primaryLabel: ReactNode;
+  showContent: boolean;
+  content: ReactNode;
+  className?: string;
+}
+
+export function ModalOptionRowWithContent({
+  name,
+  value,
+  checked,
+  onChange,
+  disabled,
+  primaryLabel,
+  showContent,
+  content,
+  className = "",
+}: ModalOptionRowWithContentProps) {
+  const baseClass = "modal-option-row flex flex-col gap-2 rounded-xl border border-[var(--border-divider)] p-3 transition hover:bg-[var(--color-bg-surface-soft)]";
+  const fullClass = `${baseClass} ${className}`.trim();
+
+  return (
+    <label className={fullClass}>
+      <div className="flex items-center gap-3 cursor-pointer" onClick={() => !disabled && onChange()}>
+        <input
+          type="radio"
+          name={name}
+          value={value}
+          checked={checked}
+          onChange={onChange}
+          disabled={disabled}
+          className="w-4 h-4 shrink-0"
+        />
+        <span className="text-[14px] font-medium text-[var(--color-text-primary)]">
+          {primaryLabel}
+        </span>
+      </div>
+      {showContent && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          role="group"
+          aria-label={typeof primaryLabel === "string" ? primaryLabel : undefined}
+        >
+          {content}
+        </div>
+      )}
+    </label>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/modal/ModalTimeSection.tsx
+==========================================================================================
+// PATH: src/shared/ui/modal/ModalTimeSection.tsx
+// 모달 SSOT — 시간 섹션: 기본값 사용 | 직접선택(전역 TimeRangeInput/타임스크롤)
+
+import { TimeRangeInput } from "@/shared/ui/time";
+import ModalOptionRow from "./ModalOptionRow";
+import { ModalOptionRowWithContent } from "./ModalOptionRow";
+
+export interface ModalTimeSectionProps {
+  name?: string;
+  useDefault: boolean;
+  onUseDefaultChange: (use: boolean) => void;
+  customTime: string;
+  onCustomTimeChange: (value: string) => void;
+  showDefaultOption: boolean;
+  disableDefaultOption?: boolean;
+  defaultLabel?: string;
+  disabled?: boolean;
+}
+
+export default function ModalTimeSection({
+  name = "timeMode",
+  useDefault,
+  onUseDefaultChange,
+  customTime,
+  onCustomTimeChange,
+  showDefaultOption,
+  disableDefaultOption = false,
+  defaultLabel = "미설정",
+  disabled = false,
+}: ModalTimeSectionProps) {
+  const showCustom = !useDefault || disableDefaultOption;
+
+  return (
+    <div>
+      <div className="modal-section-label">시간</div>
+      <div className="flex flex-col gap-2">
+        {showDefaultOption && (
+          <ModalOptionRow
+            name={name}
+            value="default"
+            checked={useDefault && !disableDefaultOption}
+            onChange={() => onUseDefaultChange(true)}
+            disabled={disableDefaultOption}
+            primaryLabel="강의 기본값 사용"
+            secondaryLabel={defaultLabel}
+          />
+        )}
+        <ModalOptionRowWithContent
+          name={name}
+          value="custom"
+          checked={showCustom}
+          onChange={() => onUseDefaultChange(false)}
+          primaryLabel="직접선택"
+          showContent={showCustom}
+          content={
+            <div role="group" aria-label="시간 선택">
+              <TimeRangeInput
+                value={customTime}
+                onChange={onCustomTimeChange}
+                disabled={disabled}
+                startLabel="시작"
+                endLabel="종료"
+                startPlaceholder="시작"
+                endPlaceholder="종료"
+              />
+            </div>
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/modal/constants.ts
+==========================================================================================
+// PATH: src/shared/ui/modal/constants.ts
+// 모달 SSOT — 공통 상수 (width 기본값, 테마 구분 등). 모든 Admin 모달은 여기서 import.
+
+/** Admin 모달 기본 너비 (px) */
+export const MODAL_DEFAULT_WIDTH = 520;
+
+/** Admin 모달 타입별 권장 너비 (필요 시 사용) */
+export const MODAL_WIDTH = {
+  sm: 400,
+  md: 560,
+  default: MODAL_DEFAULT_WIDTH,
+  form: 620,
+  wide: 720,
+  xwide: 820,
+  enroll: 920,
+  board: 980,
+  full: 1000,
+} as const;
+
+/** 라이트/브랜드 테마에서 모달 배경 흰색 처리 (AdminModal 내부용) */
+export const BRAND_AND_LIGHT_THEMES = new Set([
+  "modern-white",
+  "navy-pro",
+  "ivory-office",
+  "minimal-mono",
+  "kakao-business",
+  "naver-works",
+  "samsung-admin",
+  "purple-insight",
+]);
+
+
+==========================================================================================
 # FILE: ui/modal/index.ts
 ==========================================================================================
 // PATH: src/shared/ui/modal/index.ts
+// =============================================================================
+// 모달 SSOT (Single Source of Truth) — Admin 앱 전체 모달
+// =============================================================================
+// - 모든 Admin 모달은 반드시 여기서만 import (AdminModal, ModalHeader, ModalBody, ModalFooter)
+// - 스타일: src/styles/design-system/modal.css (design-system/index.css에서 로드)
+// - 폼 모달 내 날짜/시간: ModalDateSection, ModalTimeSection (전역 DatePicker·TimeRangeInput 사용)
+// =============================================================================
+
 export { default as AdminModal } from "./AdminModal";
+export type { AdminModalType } from "./AdminModal";
 export { default as ModalHeader } from "./ModalHeader";
 export { default as ModalBody } from "./ModalBody";
 export { default as ModalFooter } from "./ModalFooter";
+export { default as ModalOptionRow } from "./ModalOptionRow";
+export { ModalOptionRowWithContent } from "./ModalOptionRow";
+export type { ModalOptionRowProps, ModalOptionRowWithContentProps } from "./ModalOptionRow";
+export { default as ModalDateSection } from "./ModalDateSection";
+export type { ModalDateSectionProps } from "./ModalDateSection";
+export { default as ModalTimeSection } from "./ModalTimeSection";
+export type { ModalTimeSectionProps } from "./ModalTimeSection";
+export { MODAL_DEFAULT_WIDTH, MODAL_WIDTH } from "./constants";
 
 
 ==========================================================================================
@@ -4080,6 +5367,174 @@ export default function InspectOverlayShell({
 # FILE: ui/overlays/index.ts
 ==========================================================================================
 export { default as InspectOverlayShell } from "./InspectOverlayShell";
+
+
+==========================================================================================
+# FILE: ui/session-block/SessionBlockView.tsx
+==========================================================================================
+// PATH: src/shared/ui/session-block/SessionBlockView.tsx
+// 차시 블록 SSOT — 마크업·클래스는 이 컴포넌트만 사용. 스타일은 session-block.css
+
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+
+import {
+  SESSION_BLOCK_CLASS,
+  sessionBlockClassNames,
+  type SessionBlockVariant,
+} from "./session-block.constants";
+
+export interface SessionBlockViewProps {
+  /** n1(정규차시) | supplement(보강) | add(차시 추가) */
+  variant: SessionBlockVariant;
+  /** 세션바/세션목록용 작은 블록. 모달에서는 false */
+  compact?: boolean;
+  selected?: boolean;
+  /** 예: "2차시", "보강" */
+  title?: ReactNode;
+  /** 예: 날짜, 설명 */
+  desc?: ReactNode;
+  /** 링크일 때 (SessionBar) */
+  to?: string;
+  /** 버튼일 때 */
+  onClick?: () => void;
+  /** add 블록일 때 아이콘 등 */
+  children?: ReactNode;
+  /** 모달 차시 유형 선택 시 체크 표시 */
+  showCheck?: boolean;
+  ariaLabel?: string;
+  ariaPressed?: boolean;
+  type?: "button" | "submit";
+  /** Link용 — 외부에서 key 등 전달 */
+  className?: string;
+}
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+export function SessionBlockView({
+  variant,
+  compact = false,
+  selected = false,
+  title,
+  desc,
+  to,
+  onClick,
+  children,
+  showCheck = false,
+  ariaLabel,
+  ariaPressed,
+  type = "button",
+  className: extraClass,
+}: SessionBlockViewProps) {
+  const base = SESSION_BLOCK_CLASS;
+  const variantClass =
+    variant === "add"
+      ? sessionBlockClassNames.add
+      : variant === "supplement"
+        ? sessionBlockClassNames.supplement
+        : sessionBlockClassNames.n1;
+  const classes = cx(
+    base,
+    variantClass,
+    compact && sessionBlockClassNames.compact,
+    selected && sessionBlockClassNames.selected,
+    extraClass
+  );
+
+  const content = (
+    <>
+      {showCheck && (
+        <span className="session-block__check" aria-hidden>
+          ✓
+        </span>
+      )}
+      {variant === "add" ? (
+        children ? (
+          <span className="session-block__icon" aria-hidden>
+            {children}
+          </span>
+        ) : null
+      ) : (
+        <>
+          {title != null && <span className="session-block__title">{title}</span>}
+          {desc != null && <span className="session-block__desc">{desc}</span>}
+        </>
+      )}
+    </>
+  );
+
+  if (to != null && to !== "") {
+    return (
+      <Link to={to} className={classes} aria-current={selected ? "page" : undefined}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type={type}
+      className={classes}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
+    >
+      {content}
+    </button>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/session-block/index.ts
+==========================================================================================
+// PATH: src/shared/ui/session-block/index.ts
+// 차시 블록 SSOT (Single Source of Truth)
+// - 스타일: session-block.css
+// - 마크업·클래스: SessionBlockView + session-block.constants
+// 모달·세션바·세션 목록 등 모든 차시 블록은 여기서 import.
+
+import "@/styles/design-system/components/session-block.css";
+
+export { SessionBlockView } from "./SessionBlockView";
+export type { SessionBlockViewProps } from "./SessionBlockView";
+export {
+  SESSION_BLOCK_CLASS,
+  sessionBlockClassNames,
+  isSupplement,
+} from "./session-block.constants";
+export type { SessionBlockVariant } from "./session-block.constants";
+
+
+==========================================================================================
+# FILE: ui/session-block/session-block.constants.ts
+==========================================================================================
+// PATH: src/shared/ui/session-block/session-block.constants.ts
+// 차시 블록 SSOT — 클래스명·variant 상수 (session-block.css와 1:1 대응)
+
+export const SESSION_BLOCK_CLASS = "session-block";
+
+export const sessionBlockClassNames = {
+  base: SESSION_BLOCK_CLASS,
+  compact: "session-block--compact",
+  n1: "session-block--n1",
+  supplement: "session-block--supplement",
+  add: "session-block--add",
+  selected: "session-block--selected",
+  title: "session-block__title",
+  desc: "session-block__desc",
+  check: "session-block__check",
+  icon: "session-block__icon",
+} as const;
+
+export type SessionBlockVariant = "n1" | "supplement" | "add";
+
+/** 제목에 "보강"이 포함되면 보강 차시로 간주 (세션 목록/바용) */
+export function isSupplement(title: string | null | undefined): boolean {
+  return Boolean(title?.includes?.("보강"));
+}
 
 
 ==========================================================================================
@@ -4300,6 +5755,604 @@ export default function ListPage({
 ==========================================================================================
 // PATH: src/shared/ui/templates/index.ts
 export { default as ListPage } from "./ListPage";
+
+
+==========================================================================================
+# FILE: ui/time/TimeRangeInput.tsx
+==========================================================================================
+// PATH: src/shared/ui/time/TimeRangeInput.tsx
+// 전역 SSOT: 시작/종료 시간 — 12시간제(오전/오후) 원스크롤 순환, 시간 영역 클릭 시 피커, [+−30분·1시간].
+// 모달 SSOT: startLabel "시작" / endLabel "종료" 시 트리거 빈값 문구는 "시작 시간" / "종료 시간" 단일진실.
+
+import { useRef, useState } from "react";
+import { Clock, ChevronDown } from "lucide-react";
+import dayjs from "dayjs";
+import { TimeScrollPopover, format24To12Display } from "./TimeScrollPopover";
+import "@/styles/design-system/components/TimeRangeInput.css";
+
+export interface TimeRangeInputProps {
+  /** "HH:mm~HH:mm" 형식 */
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  startPlaceholder?: string;
+  endPlaceholder?: string;
+  /** 레이블 짧게 쓸 때 (모달 등): "시작" "종료" → 줄바꿈 방지 */
+  startLabel?: string;
+  endLabel?: string;
+}
+
+function parseRange(value: string): { start: string; end: string } {
+  const s = (value || "").trim();
+  const idx = s.indexOf("~");
+  if (idx >= 0) {
+    const start = s.slice(0, idx).trim();
+    const end = s.slice(idx + 1).trim();
+    return { start: toHHmm(start) || "", end: toHHmm(end) || "" };
+  }
+  if (s) {
+    const t = toHHmm(s);
+    return { start: t || "", end: "" };
+  }
+  return { start: "", end: "" };
+}
+
+function toHHmm(s: string): string {
+  if (!s?.trim()) return "";
+  const m = s.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return "";
+  const h = Math.max(0, Math.min(23, parseInt(m[1], 10)));
+  const min = Math.max(0, Math.min(59, parseInt(m[2], 10)));
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+function formatRange(start: string, end: string): string {
+  if (!start) return "";
+  if (!end) return start;
+  return `${start}~${end}`;
+}
+
+function addMinutes(timeStr: string, minutes: number): string {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(":").map((x) => parseInt(x, 10));
+  const d = dayjs().hour(h).minute(m).add(minutes, "minute");
+  return d.format("HH:mm");
+}
+
+/** end에서 분을 빼되, start보다 작아지지 않도록 함 */
+function clampEndAboveStart(endStr: string, startStr: string, deltaMinutes: number): string {
+  if (!endStr) return "";
+  const next = addMinutes(endStr, -deltaMinutes);
+  if (!startStr) return next;
+  const startM = dayjs().hour(parseInt(startStr.slice(0, 2), 10)).minute(parseInt(startStr.slice(3), 10));
+  const nextM = dayjs().hour(parseInt(next.slice(0, 2), 10)).minute(parseInt(next.slice(3), 10));
+  if (nextM.isBefore(startM) || nextM.isSame(startM)) return startStr;
+  return next;
+}
+
+const SLOT_MINUTES = 30; // 30분 단위 순환 선택
+const SLOTS = (() => {
+  const out: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += SLOT_MINUTES) {
+      out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return out;
+})();
+
+export default function TimeRangeInput({
+  value,
+  onChange,
+  disabled = false,
+  startPlaceholder = "00:00",
+  endPlaceholder = "00:00",
+  startLabel = "시작시간",
+  endLabel = "종료시간",
+}: TimeRangeInputProps) {
+  const startAnchorRef = useRef<HTMLDivElement>(null);
+  const endAnchorRef = useRef<HTMLDivElement>(null);
+  const [openStart, setOpenStart] = useState(false);
+  const [openEnd, setOpenEnd] = useState(false);
+  const { start, end } = parseRange(value);
+
+  /** 모달 SSOT: 레이블 "시작"/"종료"일 때 트리거 빈값 문구 "시작 시간"/"종료 시간" */
+  const startTriggerPlaceholder =
+    startLabel === "시작" ? "시작 시간" : startPlaceholder === "00:00" ? "오전 12:00" : startPlaceholder;
+  const endTriggerPlaceholder =
+    endLabel === "종료" ? "종료 시간" : endPlaceholder === "00:00" ? "오전 12:00" : endPlaceholder;
+
+  const setStart = (v: string) => onChange(formatRange(toHHmm(v) || v, end));
+  const setEnd = (v: string) => onChange(formatRange(start, toHHmm(v) || v));
+
+  const addToEnd = (deltaMinutes: number) => {
+    const base = end || start || "09:00";
+    const effectiveStart = start || base;
+    const nextEnd = addMinutes(base, deltaMinutes);
+    onChange(formatRange(effectiveStart, nextEnd));
+  };
+
+  const subtractFromEnd = (deltaMinutes: number) => {
+    const effectiveEnd = end || start || "09:30";
+    const effectiveStart = start || "09:00";
+    const nextEnd = clampEndAboveStart(effectiveEnd, effectiveStart, deltaMinutes);
+    onChange(formatRange(effectiveStart, nextEnd));
+  };
+
+  return (
+    <div className="shared-time-range">
+      <div className="shared-time-range-card">
+        <div className="shared-time-range-grid">
+          <label className="shared-time-range-label">{startLabel}</label>
+          <div className="shared-time-range-input-wrap">
+            <div
+              ref={startAnchorRef}
+              role="button"
+              tabIndex={disabled ? -1 : 0}
+              className={`shared-time-range-trigger ${!start ? "shared-time-range-trigger--placeholder" : ""}`}
+              onClick={() => {
+                if (disabled) return;
+                setOpenEnd(false);
+                setOpenStart((prev) => !prev);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !disabled) {
+                  setOpenEnd(false);
+                  setOpenStart((prev) => !prev);
+                }
+              }}
+              aria-label="시작 시간 선택"
+            >
+              <Clock className="shared-time-range-trigger-clock" size={20} aria-hidden />
+              <span className="shared-time-range-trigger-text">
+                {start ? format24To12Display(start) : startTriggerPlaceholder}
+              </span>
+              <ChevronDown className="shared-time-range-trigger-icon" size={18} aria-hidden />
+            </div>
+            {openStart && startAnchorRef.current && (
+              <TimeScrollPopover
+                value={start || "00:00"}
+                slots={SLOTS}
+                slotMinutes={SLOT_MINUTES}
+                anchorEl={startAnchorRef.current}
+                onSelect={(v) => setStart(v)}
+                onClose={() => setOpenStart(false)}
+              />
+            )}
+          </div>
+          <div className="shared-time-range-quick">
+            <button
+              type="button"
+              className="shared-time-range-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                addToEnd(30);
+              }}
+              disabled={disabled}
+            >
+              +30분
+            </button>
+            <button
+              type="button"
+              className="shared-time-range-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                addToEnd(60);
+              }}
+              disabled={disabled}
+            >
+              +1시간
+            </button>
+          </div>
+
+          <label className="shared-time-range-label">{endLabel}</label>
+          <div className="shared-time-range-input-wrap">
+            <div
+              ref={endAnchorRef}
+              role="button"
+              tabIndex={disabled ? -1 : 0}
+              className={`shared-time-range-trigger ${!end ? "shared-time-range-trigger--placeholder" : ""}`}
+              onClick={() => {
+                if (disabled) return;
+                setOpenStart(false);
+                setOpenEnd((prev) => !prev);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !disabled) {
+                  setOpenStart(false);
+                  setOpenEnd((prev) => !prev);
+                }
+              }}
+              aria-label="종료 시간 선택"
+            >
+              <Clock className="shared-time-range-trigger-clock" size={20} aria-hidden />
+              <span className="shared-time-range-trigger-text">
+                {end ? format24To12Display(end) : endTriggerPlaceholder}
+              </span>
+              <ChevronDown className="shared-time-range-trigger-icon" size={18} aria-hidden />
+            </div>
+            {openEnd && endAnchorRef.current && (
+              <TimeScrollPopover
+                value={end || "00:00"}
+                slots={SLOTS}
+                slotMinutes={SLOT_MINUTES}
+                anchorEl={endAnchorRef.current}
+                onSelect={(v) => setEnd(v)}
+                onClose={() => setOpenEnd(false)}
+              />
+            )}
+          </div>
+          <div className="shared-time-range-quick">
+            <button
+              type="button"
+              className="shared-time-range-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                subtractFromEnd(30);
+              }}
+              disabled={disabled}
+            >
+              −30분
+            </button>
+            <button
+              type="button"
+              className="shared-time-range-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                subtractFromEnd(60);
+              }}
+              disabled={disabled}
+            >
+              −1시간
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/time/TimeScrollPopover.tsx
+==========================================================================================
+// PATH: src/shared/ui/time/TimeScrollPopover.tsx
+// [ 오전 | 24h롤러 ] — 우측 24h 48슬롯 롤링, 좌측 오전/오후 시각+클릭(같은 시각 AM↔PM ±12h).
+
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import "@/styles/design-system/components/TimeScrollPopover.css";
+
+const ROW_HEIGHT = 48;
+const VISIBLE_ROWS = 5;
+const VISIBLE_HEIGHT = ROW_HEIGHT * VISIBLE_ROWS;
+
+/** 24h 30분 단위 48슬롯 (00:00~23:30) */
+const ALL_SLOTS = (() => {
+  const out: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      out.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+    }
+  }
+  return out;
+})();
+
+/** 24h "HH:mm" → "오전 9:30" / "오후 2:00" (오후 = +12h 표현) */
+export function format24To12Display(hhmm: string): string {
+  if (!hhmm) return "오전 12:00";
+  const [hStr, mStr] = hhmm.split(":");
+  const h = parseInt(hStr ?? "0", 10);
+  const m = parseInt(mStr ?? "0", 10);
+  const period = h < 12 ? "오전" : "오후";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${period} ${h12}:${String(m).padStart(2, "0")}`;
+}
+
+/** 24h "HH:mm" → 시:분만 "12:00", "1:30" (좌측 오전/오후와 중복 방지용) */
+function format24To12TimeOnly(hhmm: string): string {
+  if (!hhmm) return "12:00";
+  const [hStr, mStr] = hhmm.split(":");
+  const h = parseInt(hStr ?? "0", 10);
+  const m = parseInt(mStr ?? "0", 10);
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2, "0")}`;
+}
+
+function slotIndex(hhmm: string): number {
+  const [hStr, mStr] = (hhmm || "00:00").split(":");
+  const h = parseInt(hStr ?? "0", 10);
+  const m = parseInt(mStr ?? "0", 10);
+  const idx = h * 2 + Math.round(m / 30);
+  return Math.max(0, Math.min(47, idx));
+}
+
+function slotTo24h(idx: number): string {
+  const i = ((idx % 48) + 48) % 48;
+  const h = Math.floor(i / 2);
+  const m = (i % 2) * 30;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** idx 0-23 = 오전, 24-47 = 오후 */
+function isAfternoon(idx: number): boolean {
+  return idx >= 24;
+}
+
+/** 오전↔오후 토글: 같은 12h 시각, ±12h */
+function flipPeriod(idx: number): number {
+  if (idx < 24) return idx + 24; // 오전 → 오후
+  return idx - 24; // 오후 → 오전
+}
+
+export interface TimeScrollPopoverProps {
+  value: string;
+  slots: string[];
+  slotMinutes: number;
+  anchorEl: HTMLElement;
+  onSelect: (value: string) => void;
+  onClose: () => void;
+}
+
+export function TimeScrollPopover({
+  value,
+  slots: _slots,
+  slotMinutes: _slotMinutes,
+  anchorEl,
+  onSelect,
+  onClose,
+}: TimeScrollPopoverProps) {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(false);
+  const isJumpingRef = useRef(false);
+  const lastIdxRef = useRef(slotIndex(value));
+  const scrollEndTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isUserScrollingRef = useRef(false);
+  const wheelAccumRef = useRef(0);
+  const lastWheelTimeRef = useRef(0);
+
+  const initialIdx = slotIndex(value);
+  const [selectedIdx, setSelectedIdx] = useState(initialIdx);
+
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const emit = useCallback((idx: number) => {
+    onSelectRef.current(slotTo24h(idx));
+  }, []);
+
+  const scrollToIdx = useCallback((idx: number, options?: { smooth?: boolean }) => {
+    const el = listRef.current;
+    if (!el) return;
+    isUserScrollingRef.current = false;
+    if (scrollEndTimeoutRef.current) {
+      clearTimeout(scrollEndTimeoutRef.current);
+      scrollEndTimeoutRef.current = null;
+    }
+    lastIdxRef.current = idx;
+    const blockHeight = ALL_SLOTS.length * ROW_HEIGHT;
+    const top = blockHeight + idx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+    const clampedTop = Math.max(0, Math.min(top, el.scrollHeight - VISIBLE_HEIGHT));
+    setSelectedIdx(idx);
+    emit(idx);
+    if (options?.smooth) {
+      el.scrollTo({ top: clampedTop, behavior: "smooth" });
+    } else {
+      el.scrollTop = clampedTop;
+    }
+  }, [emit]);
+
+  // 외부 value 변경 시 동기화 (스크롤 중에는 덮어쓰지 않음)
+  useEffect(() => {
+    if (isUserScrollingRef.current) return;
+    const idx = slotIndex(value);
+    lastIdxRef.current = idx;
+    setSelectedIdx(idx);
+  }, [value]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (scrollEndTimeoutRef.current) {
+        clearTimeout(scrollEndTimeoutRef.current);
+        scrollEndTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  // 초기 스크롤 (마운트 시 1회)
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const blockHeight = ALL_SLOTS.length * ROW_HEIGHT;
+    el.scrollTop =
+      blockHeight + initialIdx * ROW_HEIGHT - VISIBLE_HEIGHT / 2 + ROW_HEIGHT / 2;
+  }, [initialIdx]);
+
+  // 스크롤 → 인덱스 반영 + 무한 순환 + 스크롤 종료 시에만 emit
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const blockLen = ALL_SLOTS.length;
+    const blockHeight = blockLen * ROW_HEIGHT;
+    const EMIT_DELAY_MS = 120;
+
+    const handleScroll = () => {
+      isUserScrollingRef.current = true;
+      if (scrollEndTimeoutRef.current) {
+        clearTimeout(scrollEndTimeoutRef.current);
+      }
+      if (isJumpingRef.current) {
+        isJumpingRef.current = false;
+      }
+      let st = el.scrollTop;
+      if (st < blockHeight * 0.5) {
+        isJumpingRef.current = true;
+        el.scrollTop = st + blockHeight;
+        st = el.scrollTop;
+      } else if (st > blockHeight * 2 - blockHeight * 0.5) {
+        isJumpingRef.current = true;
+        el.scrollTop = st - blockHeight;
+        st = el.scrollTop;
+      }
+      const centerY = st + VISIBLE_HEIGHT / 2;
+      const row = Math.floor((centerY - ROW_HEIGHT / 2) / ROW_HEIGHT);
+      const idx = ((row % blockLen) + blockLen) % blockLen;
+      if (idx !== lastIdxRef.current) {
+        lastIdxRef.current = idx;
+        setSelectedIdx(idx);
+      }
+      scrollEndTimeoutRef.current = setTimeout(() => {
+        scrollEndTimeoutRef.current = null;
+        isUserScrollingRef.current = false;
+        if (isMountedRef.current) {
+          emit(lastIdxRef.current);
+        }
+      }, EMIT_DELAY_MS);
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const now = performance.now();
+      const timeSinceLast = now - lastWheelTimeRef.current;
+      lastWheelTimeRef.current = now;
+      wheelAccumRef.current += e.deltaY;
+      const isBurst = timeSinceLast < 100;
+      const threshold = isBurst ? 25 : 100;
+      const steps: number[] = [];
+      while (Math.abs(wheelAccumRef.current) >= threshold) {
+        const step = wheelAccumRef.current > 0 ? 1 : -1;
+        wheelAccumRef.current -= step * threshold;
+        steps.push(step);
+      }
+      if (steps.length === 0 && Math.abs(wheelAccumRef.current) < 12) return;
+      if (steps.length === 0) {
+        const step = wheelAccumRef.current > 0 ? 1 : -1;
+        wheelAccumRef.current = 0;
+        steps.push(step);
+      }
+      const totalDelta = steps.reduce((a, b) => a + b, 0) * ROW_HEIGHT;
+      const nextTop = Math.max(
+        0,
+        Math.min(el.scrollTop + totalDelta, el.scrollHeight - VISIBLE_HEIGHT)
+      );
+      el.scrollTo({ top: nextTop, behavior: "smooth" });
+    };
+
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      el.removeEventListener("scroll", handleScroll);
+      if (scrollEndTimeoutRef.current) {
+        clearTimeout(scrollEndTimeoutRef.current);
+        scrollEndTimeoutRef.current = null;
+      }
+    };
+  }, [emit]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (anchorEl.contains(t) || popoverRef.current?.contains(t)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [anchorEl, onClose]);
+
+  const handlePeriodClick = useCallback(
+    (wantAfternoon: boolean) => {
+      const currentlyAfternoon = isAfternoon(selectedIdx);
+      if (currentlyAfternoon === wantAfternoon) return;
+      const newIdx = flipPeriod(selectedIdx);
+      scrollToIdx(newIdx, { smooth: true });
+    },
+    [selectedIdx, scrollToIdx]
+  );
+
+  const rect = anchorEl.getBoundingClientRect();
+  const isPM = isAfternoon(selectedIdx);
+
+  return (
+    <div
+      ref={popoverRef}
+      className="time-picker"
+      style={{
+        position: "fixed",
+        left: rect.left,
+        bottom: window.innerHeight - rect.top + 8,
+        width: Math.max(rect.width, 260),
+        zIndex: 1100,
+      }}
+      role="listbox"
+      aria-label="시간 선택"
+    >
+      <div className="time-picker__body">
+        {/* 좌측: 오전/오후 시각 + 클릭(같은 시각 AM↔PM) */}
+        <div className="time-picker__period">
+          <button
+            type="button"
+            className={`time-picker__period-btn ${!isPM ? "time-picker__period-btn--active" : ""}`}
+            onClick={() => handlePeriodClick(false)}
+          >
+            오전
+          </button>
+          <button
+            type="button"
+            className={`time-picker__period-btn ${isPM ? "time-picker__period-btn--active" : ""}`}
+            onClick={() => handlePeriodClick(true)}
+          >
+            오후
+          </button>
+        </div>
+
+        <div className="time-picker__divider" aria-hidden />
+
+        {/* 우측: 24h 롤러 (시:분만 표시) */}
+        <div className="time-picker__roller">
+          <div className="time-picker__highlight" aria-hidden />
+          <div
+            ref={listRef}
+            className="time-picker__list"
+            style={{ height: VISIBLE_HEIGHT }}
+          >
+            {[0, 1, 2].map((block) =>
+              ALL_SLOTS.map((slot, i) => (
+                <button
+                  key={`${block}-${slot}`}
+                  type="button"
+                  className="time-picker__item"
+                  style={{ height: ROW_HEIGHT }}
+                  onClick={() => {
+                    scrollToIdx(i, { smooth: true });
+                    onCloseRef.current();
+                  }}
+                >
+                  {format24To12TimeOnly(slot)}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/time/index.ts
+==========================================================================================
+export { default as TimeRangeInput } from "./TimeRangeInput";
+export type { TimeRangeInputProps } from "./TimeRangeInput";
 
 
 ==========================================================================================

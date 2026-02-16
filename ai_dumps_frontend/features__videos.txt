@@ -766,22 +766,16 @@ function formatSeconds(sec: number) {
   return `${r}초`;
 }
 
+/** 사이즈·색상 SSOT: ds-status-badge + data-tone (success/danger/warning) */
 function StatusBadge({ status }: { status: Row["status"] }) {
-  const map: Record<Row["status"], string> = {
-    completed: "bg-green-600",
-    warning: "bg-yellow-500",
-    danger: "bg-red-600",
-  };
+  const tone = status === "completed" ? "success" : status === "danger" ? "danger" : "warning";
   const label: Record<Row["status"], string> = {
     completed: "완료",
     warning: "주의",
     danger: "위험",
   };
-
   return (
-    <span
-      className={`px-2 py-0.5 rounded-full text-[11px] text-white ${map[status]}`}
-    >
+    <span className="ds-status-badge" data-tone={tone}>
       {label[status]}
     </span>
   );
@@ -1373,12 +1367,14 @@ export default function AdminStudentVideoPreview({
 
 import { useMemo } from "react";
 import { Button } from "@/shared/ui/ds";
-// import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import {
   RULE_COLORS,
   RULE_LABELS,
   getAccessLabel,
-  getAccessColor,
+  getAccessTone,
 } from "@/features/videos/components/features/video-permission/permission.constants";
 
 interface Props {
@@ -1442,21 +1438,30 @@ export default function StudentWatchPanel({
                 .filter(Boolean)
                 .join(" ")}
             >
-              {/* NAME */}
-              <div className="w-[90px] truncate font-medium text-[var(--text-primary)]">
-                {s.student_name}
+              {/* NAME + 아바타 + 강의 딱지 (전역 규칙) */}
+              <div className="w-[90px] min-w-0 truncate font-medium text-[var(--text-primary)]">
+                <StudentNameWithLectureChip
+                  name={s.student_name ?? ""}
+                  profilePhotoUrl={s.profile_photo_url ?? undefined}
+                  avatarSize={24}
+                  lectures={
+                    s.lecture_title
+                      ? [{ lectureName: s.lecture_title, color: s.lecture_color }]
+                      : undefined
+                  }
+                  chipSize={14}
+                />
               </div>
 
               {/* BADGES */}
               <div className="w-[140px] flex items-center gap-1 shrink-0">
-                <AttendanceBadge status={s.attendance_status ?? "UNKNOWN"} />
-
+                <AttendanceStatusBadge
+                  status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
+                  variant="1ch"
+                />
                 <span
-                  className={[
-                    "inline-flex items-center rounded-full px-2 py-0.5",
-                    "text-[11px] font-semibold text-white",
-                    getAccessColor(s.access_mode, s.effective_rule),
-                  ].join(" ")}
+                  className="ds-status-badge"
+                  data-tone={getAccessTone(s.access_mode, s.effective_rule)}
                 >
                   {getAccessLabel(s.access_mode, s.effective_rule)}
                 </span>
@@ -2535,7 +2540,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
  */
 
 export const ATT_LABELS: Record<string, string> = {
-  PRESENT: "출석",
+  PRESENT: "현장",
   LATE: "지각",
   ONLINE: "영상",
   SUPPLEMENT: "보강",
@@ -2600,14 +2605,32 @@ export const RULE_COLORS: Record<string, string> = {
   blocked: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
 };
 
-// New access mode colors
+// New access mode colors (레거시; 가능하면 getAccessTone 사용)
 export const ACCESS_MODE_COLORS: Record<string, string> = {
   FREE_REVIEW: "bg-[color-mix(in_srgb,var(--color-primary)_85%,black)]",
   PROCTORED_CLASS: "bg-yellow-400 text-black",
   BLOCKED: "bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]",
 };
 
-// Combined colors (access_mode takes precedence)
+/** 공용 톤 SSOT: 상태 뱃지 색상 하드코딩 대신 data-tone 사용 */
+export const ACCESS_MODE_TONE: Record<string, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  FREE_REVIEW: "primary",
+  PROCTORED_CLASS: "warning",
+  BLOCKED: "danger",
+};
+export const RULE_TONE: Record<string, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  free: "primary",
+  once: "warning",
+  blocked: "danger",
+};
+
+export function getAccessTone(accessMode?: string, rule?: string): "success" | "danger" | "warning" | "primary" | "neutral" {
+  if (accessMode && ACCESS_MODE_TONE[accessMode]) return ACCESS_MODE_TONE[accessMode];
+  if (rule && RULE_TONE[rule]) return RULE_TONE[rule];
+  return "neutral";
+}
+
+// Combined colors (access_mode takes precedence) — 레거시
 export const getAccessColor = (accessMode?: string, rule?: string): string => {
   if (accessMode && ACCESS_MODE_COLORS[accessMode]) {
     return ACCESS_MODE_COLORS[accessMode];
@@ -2679,16 +2702,18 @@ function Chip({
   );
 }
 
-/** ✅ 실제 Attendance 스펙 (8개) */
+/** ✅ 출결 상태 10개 — 역할 순서: 출석인정 → 경고 → 부정 → 중립 (AttendanceStatusBadge SSOT) */
 const ATTENDANCE_OPTIONS = [
-  { value: "PRESENT", label: "출석" },
-  { value: "LATE", label: "지각" },
+  { value: "PRESENT", label: "현장" },
   { value: "ONLINE", label: "영상" },
   { value: "SUPPLEMENT", label: "보강" },
+  { value: "LATE", label: "지각" },
   { value: "EARLY_LEAVE", label: "조퇴" },
   { value: "ABSENT", label: "결석" },
   { value: "RUNAWAY", label: "출튀" },
   { value: "MATERIAL", label: "자료" },
+  { value: "INACTIVE", label: "부재" },
+  { value: "SECESSION", label: "퇴원" },
 ] as const;
 
 /** 권한 */
@@ -2905,8 +2930,10 @@ export default function PermissionHeader({
 ==========================================================================================
 // PATH: src/features/videos/components/features/video-permission/components/PermissionRow.tsx
 
-// // import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
-import { RULE_COLORS, RULE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { RULE_COLORS, RULE_LABELS, getAccessLabel, getAccessTone } from "../permission.constants";
 
 function Pill({
   className,
@@ -2961,23 +2988,37 @@ export default function PermissionRow({
         <input type="checkbox" checked={selected} onChange={onToggle} />
       </div>
 
-      {/* NAME */}
+      {/* NAME + 아바타 + 강의 딱지 (전역 규칙) */}
       <div className="permission-name text-[var(--text-primary)]">
-        {student.student_name}
+        <StudentNameWithLectureChip
+          name={student.student_name ?? ""}
+          profilePhotoUrl={student.profile_photo_url ?? undefined}
+          avatarSize={24}
+          lectures={
+            student.lecture_title
+              ? [{ lectureName: student.lecture_title, color: student.lecture_color }]
+              : undefined
+          }
+          chipSize={14}
+        />
       </div>
 
-      {/* ✅ ATTENDANCE (공용 컴포넌트로 통일) */}
+      {/* ✅ ATTENDANCE (SSOT: AttendanceStatusBadge 1ch) */}
       <div className="w-[90px] flex justify-center">
-        <div className="scale-[0.92] origin-center">
-          <AttendanceBadge status={student.attendance_status ?? "UNKNOWN"} />
-        </div>
+        <AttendanceStatusBadge
+          status={(student.attendance_status ?? "INACTIVE") as AttendanceStatus}
+          variant="1ch"
+        />
       </div>
 
-      {/* ACCESS MODE */}
+      {/* ACCESS MODE — SSOT: ds-status-badge + data-tone */}
       <div className="w-[90px] flex justify-center">
-        <Pill className={[getAccessColor(student.access_mode, student.effective_rule), "text-white"].join(" ")}>
+        <span
+          className="ds-status-badge"
+          data-tone={getAccessTone(student.access_mode, student.effective_rule)}
+        >
           {getAccessLabel(student.access_mode, student.effective_rule)}
-        </Pill>
+        </span>
       </div>
 
       {/* COMPLETED */}
@@ -3010,10 +3051,12 @@ export default function PermissionRow({
 ==========================================================================================
 // PATH: src/features/videos/components/features/video-permission/components/PermissionSidePanel.tsx
 
-// import AttendanceBadge from "@/shared/ui/attendance/AttendanceBadge";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
+import type { AttendanceStatus } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { Button } from "@/shared/ui/ds";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone } from "@/shared/utils/formatPhone";
-import { RULE_COLORS, RULE_LABELS, ACCESS_MODE_LABELS, getAccessLabel, getAccessColor } from "../permission.constants";
+import { RULE_COLORS, RULE_LABELS, ACCESS_MODE_LABELS, getAccessLabel, getAccessTone } from "../permission.constants";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -3165,24 +3208,19 @@ export default function PermissionSidePanel({
                   key={s.enrollment}
                   className="grid grid-cols-12 px-3 py-2 items-center border-b border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
                 >
-                  {/* 출석 */}
+                  {/* 출석 — SSOT: AttendanceStatusBadge 1ch */}
                   <div className="col-span-2 flex justify-center">
-                    <div className="scale-[0.92] origin-center">
-                      <AttendanceBadge
-                        status={s.attendance_status ?? "UNKNOWN"}
-                      />
-                    </div>
+                    <AttendanceStatusBadge
+                      status={(s.attendance_status ?? "INACTIVE") as AttendanceStatus}
+                      variant="1ch"
+                    />
                   </div>
 
-                  {/* 접근 모드 */}
+                  {/* 접근 모드 — SSOT: ds-status-badge + data-tone */}
                   <div className="col-span-2 flex justify-center">
                     <span
-                      className={cx(
-                        "inline-flex items-center justify-center",
-                        "h-[22px] px-2 rounded-full",
-                        "text-[11px] font-semibold leading-none text-white",
-                        getAccessColor(s.access_mode, s.effective_rule)
-                      )}
+                      className="ds-status-badge"
+                      data-tone={getAccessTone(s.access_mode, s.effective_rule)}
                     >
                       {getAccessLabel(s.access_mode, s.effective_rule)}
                     </span>
@@ -3195,10 +3233,20 @@ export default function PermissionSidePanel({
                     </span>
                   </div>
 
-                  {/* 이름 */}
+                  {/* 이름 + 아바타 + 강의 딱지 (전역 규칙) */}
                   <div className="col-span-3 min-w-0">
                     <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                      {s.student_name}
+                      <StudentNameWithLectureChip
+                        name={s.student_name ?? ""}
+                        profilePhotoUrl={s.profile_photo_url ?? undefined}
+                        avatarSize={24}
+                        lectures={
+                          s.lecture_title
+                            ? [{ lectureName: s.lecture_title, color: s.lecture_color }]
+                            : undefined
+                        }
+                        chipSize={14}
+                      />
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] truncate">
                       학생번호 {formatPhone(s.student_phone)}
@@ -3455,180 +3503,143 @@ export function useVideoPolicy({ videoId, initial }: Options) {
 ==========================================================================================
 # FILE: pages/VideoAdminPage.tsx
 ==========================================================================================
-// PATH: src/features/videos/pages/VideoControlCenter.tsx
+/**
+ * 영상 (사이드바) — 강의별 영상 진입점 · 차시 내 영상은 각 강의 > 차시에서 관리
+ * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
+ */
 
-import {
-  Panel,
-  Section,
-  KPI,
-  Button,
-  StatusBadge,
-} from "@/shared/ui/ds";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchLectures } from "@/features/lectures/api/sessions";
 import { DomainLayout } from "@/shared/ui/layout";
+import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
-export default function VideoControlCenter() {
+export default function VideoAdminPage() {
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  const { data: lectures = [], isLoading } = useQuery({
+    queryKey: ["admin-videos-lectures"],
+    queryFn: () => fetchLectures({ is_active: undefined }),
+  });
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return lectures;
+    const k = search.trim().toLowerCase();
+    return lectures.filter(
+      (l) =>
+        (l.title && l.title.toLowerCase().includes(k)) ||
+        (l.name && l.name.toLowerCase().includes(k)) ||
+        (l.subject && l.subject.toLowerCase().includes(k))
+    );
+  }, [lectures, search]);
+
+  const totalWidth = TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.status + TABLE_COL.actions;
+
   return (
     <DomainLayout
-      title="생명과학 영상 관리"
-      description="생명과학 전 강의 영상 자산을 통합 관리합니다."
+      title="영상"
+      description="강의·차시 단위 영상을 관리합니다. 영상 업로드·재생 정책은 각 강의 > 차시에서 설정하세요."
     >
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-end">
-          <Button intent="primary" size="md">
-            영상 업로드
-          </Button>
-        </div>
-
-        {/* KPI */}
-        <Section level="primary" title="운영 요약">
-        <div className="grid grid-cols-4 gap-6">
-          <KPI label="총 영상 수" value="40" hint="생명과학 전체" />
-          <KPI label="총 재생 시간" value="62h" hint="순수 콘텐츠 기준" />
-          <KPI label="운영 강의" value="6" hint="고1~고3" />
-          <KPI label="최근 업데이트" value="3" hint="7일 기준" />
-        </div>
-      </Section>
-
-      {/* ===============================
-          MAIN CONTROL PANEL
-      =============================== */}
-      <Panel
-        title="영상 목록"
-        description="강의·차시 구분 없이 모든 생명과학 영상을 관리합니다."
-        right={
-          <div className="flex items-center gap-3">
-            {/* === CONTROL STRIP === */}
-            <div
-              className="flex items-center gap-2 px-2 py-1 rounded-xl border"
-              style={{
-                borderColor: "var(--color-border-divider)",
-                background:
-                  "var(--bg-surface)",
-              }}
-            >
-              <ControlTab label="전체" count={40} active />
-              <ControlTab label="활성" count={34} tone="active" />
-              <ControlTab label="비활성" count={4} tone="inactive" />
-              <ControlTab label="보관" count={2} tone="archived" />
-            </div>
-
-            <Button intent="ghost" size="sm">
-              필터
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={isLoading ? "…" : `총 ${filtered.length}개 강의`}
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="강의명 · 과목 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onBlur={() => setSearch(searchInput)}
+              onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
+              style={{ maxWidth: 280 }}
+            />
+          }
+          primaryAction={
+            <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+              강의 목록
             </Button>
-          </div>
-        }
-      >
-        <div>
-          <table className="w-full text-sm">
+          }
+        />
+
+        {isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : !filtered.length ? (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="강의가 없습니다"
+            description="강의를 추가한 뒤, 각 강의 > 차시에서 영상을 업로드하고 재생 정책을 설정할 수 있습니다."
+            actions={
+              <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+                강의 목록
+              </Button>
+            }
+          />
+        ) : (
+          <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
+            <colgroup>
+              <col style={{ width: TABLE_COL.title }} />
+              <col style={{ width: TABLE_COL.subject }} />
+              <col style={{ width: TABLE_COL.medium }} />
+              <col style={{ width: TABLE_COL.status }} />
+              <col style={{ width: TABLE_COL.actions }} />
+            </colgroup>
             <thead>
-              <tr className="text-left text-[var(--color-text-muted)]">
-                <th className="py-3">강의</th>
-                <th>차시</th>
-                <th>영상 제목</th>
-                <th>길이</th>
-                <th>상태</th>
-                <th>최근 수정</th>
-                <th />
+              <tr>
+                <th scope="col">강의명</th>
+                <th scope="col">과목</th>
+                <th scope="col">기간</th>
+                <th scope="col">상태</th>
+                <th scope="col" />
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-[var(--color-border-divider)]">
-              {[
-                {
-                  lecture: "고3 생명과학Ⅰ",
-                  session: "12강",
-                  title: "유전자 발현 조절 핵심 정리",
-                  duration: "42:10",
-                  status: "active",
-                  updated: "2026-02-08",
-                },
-                {
-                  lecture: "고2 생명과학 내신",
-                  session: "5강",
-                  title: "세포 주기와 분열",
-                  duration: "35:48",
-                  status: "active",
-                  updated: "2026-02-05",
-                },
-                {
-                  lecture: "고1 생명과학 기초",
-                  session: "2강",
-                  title: "효소와 대사 작용",
-                  duration: "29:22",
-                  status: "inactive",
-                  updated: "2026-01-26",
-                },
-              ].map((v, i) => (
-                <tr key={i} className="hover:bg-[var(--color-bg-surface-hover)]">
-                  <td className="py-4 font-semibold">{v.lecture}</td>
-                  <td>{v.session}</td>
-                  <td className="font-medium">{v.title}</td>
-                  <td>{v.duration}</td>
-                  <td>
-                    <StatusBadge status={v.status as any} />
+            <tbody>
+              {filtered.map((l) => (
+                <tr
+                  key={l.id}
+                  className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"
+                  onClick={() => navigate(`/admin/lectures/${l.id}`)}
+                >
+                  <td className="font-semibold text-[var(--color-text-primary)] truncate" title={l.title || l.name}>
+                    {l.title || l.name || "—"}
                   </td>
-                  <td>{v.updated}</td>
-                  <td className="text-right">
-                    <Button intent="ghost" size="sm">
-                      관리
+                  <td className="text-[var(--color-text-secondary)] truncate">{l.subject || "—"}</td>
+                  <td className="text-[var(--color-text-muted)]">
+                    {l.start_date && l.end_date
+                      ? `${l.start_date} ~ ${l.end_date}`
+                      : l.start_date || "—"}
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: l.is_active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                      }}
+                    >
+                      {l.is_active ? "활성" : "비활성"}
+                    </span>
+                  </td>
+                  <td onClick={(ev) => ev.stopPropagation()}>
+                    <Button
+                      intent="primary"
+                      size="sm"
+                      onClick={() => navigate(`/admin/lectures/${l.id}`)}
+                    >
+                      영상 관리
                     </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      </Panel>
-
-        <div className="text-center text-xs font-semibold text-[var(--color-text-muted)]">
-          HakwonPlus · Biology Video Platform
-        </div>
+          </DomainTable>
+        )}
       </div>
     </DomainLayout>
-  );
-}
-
-/* ===============================
-   INTERNAL CONTROL TAB
-=============================== */
-function ControlTab({
-  label,
-  count,
-  active,
-  tone = "default",
-}: {
-  label: string;
-  count: number;
-  active?: boolean;
-  tone?: "default" | "active" | "inactive" | "archived";
-}) {
-  const toneColor =
-    tone === "active"
-      ? "var(--color-success)"
-      : tone === "inactive"
-      ? "var(--color-text-muted)"
-      : tone === "archived"
-      ? "var(--color-text-secondary)"
-      : "var(--color-text-primary)";
-
-  return (
-    <Button
-      type="button"
-      intent={active ? "primary" : "ghost"}
-      size="sm"
-      className="!gap-2 !text-xs"
-    >
-      <span>{label}</span>
-      <span
-        className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-        style={{
-          background: "var(--color-bg-surface-hover)",
-          color: active ? "var(--text-on-primary)" : toneColor,
-        }}
-      >
-        {count}
-      </span>
-    </Button>
   );
 }
 
@@ -4052,7 +4063,7 @@ export default function VideoInfoCards({ video, stats, memo, setMemo }: Props) {
 
 import type { VideoStatus } from "../api/videos";
 
-import { VIDEO_STATUS_LABEL, VIDEO_STATUS_STYLE } from "../utils/videoStatus";
+import { VIDEO_STATUS_LABEL, VIDEO_STATUS_TONE } from "../utils/videoStatus";
 
 interface Props {
   status?: VideoStatus;
@@ -4062,7 +4073,7 @@ export default function VideoStatusBadge({ status }: Props) {
   if (!status) return null;
 
   return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${VIDEO_STATUS_STYLE[status]}`}>
+    <span className="ds-status-badge" data-tone={VIDEO_STATUS_TONE[status]}>
       {VIDEO_STATUS_LABEL[status]}
     </span>
   );
@@ -4193,10 +4204,11 @@ export const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {
   FAILED: "처리 실패",
 };
 
-export const VIDEO_STATUS_STYLE: Record<VideoStatus, string> = {
-  PENDING: "bg-gray-100 text-gray-600",
-  UPLOADED: "bg-blue-100 text-blue-700",
-  PROCESSING: "bg-yellow-100 text-yellow-700",
-  READY: "bg-green-100 text-green-700",
-  FAILED: "bg-red-100 text-red-700",
+/** 공용 톤 SSOT: success(초록) | danger(빨강) | warning(노랑) | primary(강조) | neutral(회색) */
+export const VIDEO_STATUS_TONE: Record<VideoStatus, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  PENDING: "neutral",
+  UPLOADED: "primary",
+  PROCESSING: "warning",
+  READY: "success",
+  FAILED: "danger",
 };

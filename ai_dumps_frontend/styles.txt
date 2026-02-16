@@ -19,10 +19,17 @@
 @import "./surface/slots.css";
 
 /* ===============================
+   DS 스타일 (상태 뱃지·탭·모달 — patterns보다 먼저 로드)
+   =============================== */
+@import "./ds/status.css";
+@import "./ds/tabs.css";
+@import "./modal.css";
+@import "./overlay.css";
+
+/* ===============================
    Component patterns
    =============================== */
 @import "./patterns/index.css";
-@import "../../shared/ui/ds/styles/tabs.css";
 
 /* ===============================
    AntD skin (slot only)
@@ -33,6 +40,1455 @@
    States
    =============================== */
 @import "./state/index.css";
+
+
+==========================================================================================
+# FILE: design-system/modal.css
+==========================================================================================
+/* PATH: src/styles/design-system/modal.css
+   모달 SSOT — 태두리·헤더·배경·푸터 + 스크롤 본문, 옵션 행(달력·타임스크롤)
+   내부 블록(차시 블록, option-row)과 같은 DS 톤으로 통일
+
+   SSOT 규칙 — 강조색·보색:
+   - 필수 영역만 강조색(primary 톤) 사용. 선택 영역은 보색 사용 금지(필수 시각적 강조 유지).
+   - 동급의 선택지(예: 고등 vs 중등, A vs B)가 있을 때만 구분용으로 보색 사용. 보색 남발 금지. */
+
+/* ========== 모달 셸 — 최외곽 마감 (내부 블록과 같은 둥근·부드러운 톤) ========== */
+.admin-modal .ant-modal-content {
+  /* 모서리 둥글게 (플랫·각짐 방지) */
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  /* 테두리: 단선보다 부드럽게 — 얇은 외곽선 + 살짝 블러된 그림자로 마감감 */
+  border: 1px solid var(--color-border-divider);
+  box-shadow:
+    /* 내부 블록과 동일: 상단 하이라이트 + 글로우 + 하단 두께감 */
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset 0 2px 8px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.04),
+    /* 최외곽: 부드러운 떠있는 느낌 (각진 플랫 방지) */
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    var(--elevation-3),
+    0 24px 48px -12px rgba(0, 0, 0, 0.18);
+  background: var(--color-modal-bg);
+}
+
+.admin-modal--confirm .ant-modal-content {
+  border-color: color-mix(in srgb, var(--color-error) 28%, var(--color-border-divider));
+}
+
+/* 모달 닫기 버튼 — 전역 X SSOT (오버레이 .ds-close-btn과 동일 톤) */
+.admin-modal .ant-modal-close {
+  inset-inline-end: var(--space-4);
+  top: var(--space-4);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.admin-modal .ant-modal-close:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+/* ========== 헤더 (상단 액센트 + 블록감) ========== */
+.modal-header {
+  position: relative;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-modal-bg));
+  /* 상단 액센트 라인은 블록 하이라이트와 톤 맞춤 */
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+}
+
+.modal-header--confirm {
+  background: color-mix(in srgb, var(--color-error) 10%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 2px 0 0 color-mix(in srgb, var(--color-error) 40%, transparent),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.modal-header--inspect {
+  background: color-mix(in srgb, var(--color-text-muted) 6%, var(--color-modal-bg));
+}
+
+.modal-header__accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 3px;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  opacity: 0.7;
+}
+
+.modal-header--action .modal-header__accent {
+  background: var(--color-brand-primary);
+}
+
+.modal-header--confirm .modal-header__accent {
+  background: var(--color-error);
+}
+
+.modal-header--inspect .modal-header__accent {
+  background: var(--color-text-muted);
+}
+
+/* ========== 본문 ========== */
+.modal-body {
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-modal-bg);
+}
+
+/* 탭 영역 (헤더와 본문 사이) — 모달 전용 입체감 탭 */
+.modal-tabs-area {
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-border-divider) 5%, var(--color-modal-bg));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.modal-tabs-area .ds-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.modal-tabs-area .ds-tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  border-bottom: none;
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+}
+
+.modal-tabs-area .ds-tab:hover:not(.is-active):not(:disabled) {
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.modal-tabs-area .ds-tab.is-active {
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-modal-bg));
+  color: var(--color-text-primary);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+}
+
+.modal-tabs-area .ds-tab.is-active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-modal-bg));
+  transform: translateY(-1px);
+}
+
+/* 모달 본문 내 탭(헤더/본문 경계 아님) — 입체탭 스타일만 적용 */
+.modal-tabs-elevated .ds-tabs {
+  display: flex;
+  gap: var(--space-2);
+}
+.modal-tabs-elevated .ds-tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  border-bottom: none;
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+}
+.modal-tabs-elevated .ds-tab:hover:not(.is-active):not(:disabled) {
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+.modal-tabs-elevated .ds-tab.is-active {
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-modal-bg));
+  color: var(--color-text-primary);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+}
+.modal-tabs-elevated .ds-tab.is-active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-modal-bg));
+  transform: translateY(-1px);
+}
+
+/* ========== 푸터 (헤더와 대칭되는 구분감) ========== */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-modal-bg));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ========== 스크롤 본문 · 옵션 행 ========== */
+
+/* 스크롤 가능한 모달 본문 (차시 추가 등 폼 모달) */
+.modal-scroll-body {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* 컴팩트 본문 — 학생/필터 등 필드 많을 때 영역 절약 */
+.modal-scroll-body--compact {
+  gap: var(--space-4);
+}
+
+/* 폼 행 — 2열·3열·1+auto 등 SSOT 배치 (할당 크기에 맞게 정렬) */
+.modal-form-row {
+  display: grid;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.modal-form-row--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.modal-form-row--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.modal-form-row--1-auto {
+  grid-template-columns: 1fr auto;
+}
+
+.modal-form-row--1-auto-auto {
+  grid-template-columns: 1fr auto auto;
+}
+
+/* 폼 그룹 컴팩트 (패딩 축소) */
+.modal-form-group--compact {
+  padding: var(--space-3);
+}
+
+/* 폼 그룹 가로 배치 (상태+버튼 등) */
+.modal-form-group--row {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+}
+
+/* 인라인 버튼/액션 묶음 */
+.modal-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* 안내 문구 — 톤 통일 */
+.modal-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.modal-hint--block {
+  display: block;
+  margin-top: var(--space-2);
+}
+
+/* 섹션 라벨 (날짜, 시간, 필수 입력 등) — 세션 모달과 동일 */
+.modal-section-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+/* 모달 내부 테이블 — §9 SSOT: 글씨 크기만 축소, 폰트·체크박스 기준은 페이지와 동일 */
+.modal-inner-table {
+  font-family: inherit;
+}
+.modal-inner-table thead th {
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.modal-inner-table tbody td {
+  font-size: 12px;
+  font-family: inherit;
+}
+/* 이름 셀만 한 단계 강조 (페이지 15px → 모달 13px) */
+.modal-inner-table tbody td.modal-inner-table__name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.modal-inner-table .modal-inner-table__checkbox-cell input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+/* 모달 내부 테이블 — 세로 패딩 축소, 이름 열 가로 패딩 축소 */
+.modal-inner-table thead th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.modal-inner-table tbody td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.modal-inner-table tbody td.modal-inner-table__name,
+.modal-inner-table thead th:nth-child(2) {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+/* 모달 내부 테이블 — 이름 컬럼 헤더만 중앙정렬, 내용은 좌측 유지 */
+.modal-inner-table thead th.modal-inner-table__name-th {
+  text-align: center;
+}
+
+/* 엑셀 업로드 드래그 영역 SSOT — 학생/수강생 엑셀 모달 공통
+   - 기본: 점선 테두리, Drag or Click (ExcelUploadZone)
+   - 채워짐(.excel-upload-zone--filled): 파일 선택 후 같은 영역 안에 파일명·초기 비밀번호·버튼 표시.
+     시각적 변화: 보색( brand-complement ) 적당히 진하게 배경·테두리로 상태 구분 (전역 보색 규칙) */
+.excel-upload-zone {
+  border: 2px dashed var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  text-align: center;
+  cursor: pointer;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+}
+.excel-upload-zone:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-divider));
+}
+.excel-upload-zone.excel-upload-zone--dragover {
+  border-color: var(--color-primary);
+}
+.excel-upload-zone.excel-upload-zone--filled {
+  cursor: default;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-brand-complement) 35%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-brand-complement) 10%, var(--color-bg-surface-soft));
+}
+.excel-upload-zone.excel-upload-zone--filled:hover {
+  border-color: color-mix(in srgb, var(--color-brand-complement) 35%, var(--color-border-divider));
+}
+.excel-upload-zone__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.excel-upload-zone__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.excel-upload-zone__drag-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin-bottom: var(--space-1);
+}
+.excel-upload-zone__upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.excel-upload-zone__upload-icon {
+  color: var(--color-primary);
+}
+.excel-upload-zone__upload-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.excel-upload-zone .modal-hint {
+  margin-top: var(--space-1);
+}
+
+/* 불러오기 옵션 블록 — 직전 차시 (얇게, 기본 버튼 톤) */
+.modal-import-option {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface-soft);
+}
+.modal-import-option .modal-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: var(--space-1);
+}
+.modal-import-option .modal-hint {
+  font-size: 11px;
+  margin-top: 0;
+  margin-bottom: var(--space-2);
+}
+.modal-import-option.modal-import-option--disabled {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 폼 그룹 (필수 입력) — 프라이머리 완화, 입체감 */
+.modal-form-group {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  transition: box-shadow 160ms ease;
+}
+
+/* 폼 그룹 (선택 입력) — 강조색 없음, 눈에 안 띄는 선에서 입체감만 */
+.modal-form-group--neutral {
+  background: color-mix(in srgb, var(--color-border-divider) 5%, var(--color-modal-bg));
+  border-color: color-mix(in srgb, var(--color-border-divider) 80%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.03);
+}
+
+/* 보색 — 동급 선택지 구분 시에만 사용 */
+.modal-form-group--complement {
+  background: color-mix(in srgb, var(--color-brand-complement) 6%, var(--color-modal-bg));
+}
+
+/* 날짜/시간 옵션 행 — 달력·타임스크롤 등이 들어가는 행 (DS 볼록 inset) */
+.modal-option-row {
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-modal-bg));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 160ms ease;
+}
+
+.modal-option-row:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+    inset 0 2px 6px rgba(255, 255, 255, 0.1),
+    0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.modal-option-row:active {
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.modal-option-row--disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.modal-option-row--disabled:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* ========== 단일 선택 버튼 (고등/중등/학년) — 차시 블록 색상 재활용, 인풋 높이 맞춤 ========== */
+.ds-choice-btn {
+  height: 36px;
+  min-width: 0;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+  color: var(--color-text-primary);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ds-choice-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 6px rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.ds-choice-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* 고등·중등·1,2,3 학년 — 미선택 시 강조색 없음(중립), 선택 시에만 primary 강조 */
+.ds-choice-btn--primary {
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--scale-Neutral0, #fff));
+  color: var(--color-text-primary);
+}
+
+.ds-choice-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--scale-Neutral0, #fff));
+}
+
+.ds-choice-btn--primary.is-selected {
+  background: color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0, #fff));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
+/* 보색 — 동급 선택지 구분 시에만 사용. 미선택 시 강조색 없음(중립). */
+.ds-choice-btn--complement {
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--scale-Neutral0, #fff));
+  color: var(--color-text-primary);
+}
+
+.ds-choice-btn--complement:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-border-divider) 14%, var(--scale-Neutral0, #fff));
+}
+
+.ds-choice-btn--complement.is-selected {
+  background: color-mix(in srgb, var(--color-brand-complement) 22%, var(--scale-Neutral0, #fff));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-complement) 25%, transparent);
+}
+
+.ds-choice-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========== 성별 버튼 — 고등/중등/학년과 동일 디자인, 색상만 남 파랑/여 분홍 하드코딩 ========== */
+.student-gender-btn {
+  height: 36px;
+  min-width: 0;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 100ms ease;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.student-gender-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 6px rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.student-gender-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* 남자 — 미선택 톤 완화 */
+.student-gender-btn--m {
+  background: color-mix(in srgb, #2563eb 10%, var(--scale-Neutral0, #fff));
+  color: #1e40af;
+}
+
+.student-gender-btn--m:hover:not(:disabled) {
+  background: color-mix(in srgb, #2563eb 16%, var(--scale-Neutral0, #fff));
+}
+
+.student-gender-btn--m.is-selected {
+  background: #2563eb;
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, #2563eb 30%, transparent);
+}
+
+/* 여자 — 미선택 톤 완화 */
+.student-gender-btn--f {
+  background: color-mix(in srgb, #db2777 10%, var(--scale-Neutral0, #fff));
+  color: #9d174d;
+}
+
+.student-gender-btn--f:hover:not(:disabled) {
+  background: color-mix(in srgb, #db2777 16%, var(--scale-Neutral0, #fff));
+}
+
+.student-gender-btn--f.is-selected {
+  background: #db2777;
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, #db2777 30%, transparent);
+}
+
+.student-gender-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 모달 내 입력창 — 전역 inset 적용, 모달 배경에 맞게 보정만 */
+.modal-body .ds-input,
+.modal-body .ds-select,
+.modal-body .ds-textarea {
+  /* 전역 input.css inset 유지, 모달 배경 대비만 살짝 */
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-modal-bg));
+}
+
+
+==========================================================================================
+# FILE: design-system/overlay.css
+==========================================================================================
+/* ============================================================================
+ * OVERLAY SSOT — 페이지와 유사한 디자인 (상세 오버레이 공통)
+ * PATH: src/styles/design-system/overlay.css
+ * - 백드롭 + 패널 크기 제한
+ * - 컴팩트 헤더 (두껍지 않게, 도메인 헤더와 톤 통일)
+ * - 아이디·식별코드 눈에 띄게 (.ds-overlay-header__id, __code)
+ * ============================================================================ */
+
+/* 백드롭 */
+.ds-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.2s ease;
+}
+
+/* 래퍼 — 패널 중앙, 하단 여백 없이 맞춤 */
+.ds-overlay-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: auto;
+  padding-top: calc(var(--panel-header, 64px) + 8px);
+  padding-bottom: 0;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* 패널 — 크기 맞춤, 하단 여백 없음 */
+.ds-overlay-panel {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  min-height: 0;
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 12px 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+.ds-overlay-panel__close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-4);
+  z-index: 5;
+}
+
+/* 우상단 닫기 X 버튼 — 모달·오버레이 공통 SSOT */
+.ds-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.ds-close-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.ds-close-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+/* 헤더 — 좌: 아바타 | 이름+딱지 / 뱃지 | 우: 활성·수정·삭제 (하단 패딩 최소) */
+.ds-overlay-header {
+  position: relative;
+  padding: var(--space-4) var(--space-5) var(--space-1) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.ds-overlay-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.ds-overlay-header__left {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  min-width: 0;
+}
+
+/* 아바타만 좌측 한 칸 독점 — 2행 통합 */
+.ds-overlay-header__avatar-wrap {
+  grid-row: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+}
+
+.ds-overlay-header__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ds-overlay-header__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ds-overlay-header__title-block {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+.ds-overlay-header__title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* 학생 상세: 강의 칩 내부 글자만 키움 (이름 대비 가독) */
+.ds-overlay-header [data-lecture-chip] {
+  font-size: 13px !important;
+}
+
+/* 2행: 아이디·식별번호 — patterns/badge.css SSOT 동일 질감/디자인 */
+.ds-overlay-header__pills {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ds-overlay-header__badge-id.ds-badge,
+.ds-overlay-header__badge-code.ds-badge {
+  font-size: 13px;
+  padding: 5px 12px;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  letter-spacing: 0.02em;
+}
+
+.ds-overlay-header__badge-id.ds-badge {
+  --badge-bg: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  --badge-text: var(--color-brand-primary);
+}
+
+.ds-overlay-header__badge-code.ds-badge {
+  --badge-bg: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  --badge-text: var(--color-text-primary);
+}
+
+/* 우측: X와 겹치지 않도록 버튼 영역만 왼쪽으로 비켜줌 (상단 여백 없음) */
+.ds-overlay-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  margin-right: 44px;
+}
+
+.ds-overlay-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* 레거시 메타(인라인 id/code) — 우측 블럭으로 대체 시 제거 가능 */
+.ds-overlay-header__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.ds-overlay-header__id,
+.ds-overlay-header__code {
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+}
+
+.ds-overlay-header__code {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+}
+
+.ds-overlay-header__meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+
+/* 본문 */
+.ds-overlay-body {
+  padding: var(--space-5);
+}
+
+/* 학생 상세: 헤더 버튼 아래 여백 최소화 */
+.ds-overlay-panel--student-detail .ds-overlay-body {
+  padding-top: var(--space-3);
+}
+
+.ds-overlay-body__grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+/* 좌측 정보 행 — 타이트한 위아래 간격 */
+.ds-overlay-info-rows {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* 오버레이 내 탭 — 페이지 플랫탭과 동일 */
+.ds-overlay-tabs {
+  margin-top: var(--space-4);
+  padding: var(--space-1) 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-surface);
+  width: fit-content;
+}
+
+.ds-overlay-tabs .ds-tabs {
+  gap: var(--space-1);
+}
+
+.ds-overlay-tabs .ds-tab {
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+}
+
+/* 학생 상세 오버레이 — 우하단 인벤토리 트리거 (아이콘만 큼지막하게) */
+.ds-overlay-inventory-wrap {
+  position: absolute;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 2;
+}
+
+.ds-inventory-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.ds-inventory-trigger-btn:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+.ds-inventory-trigger-btn:active {
+  transform: scale(0.97);
+}
+
+/* 인벤토리 패널 — 아이콘 기준 좌측 열림 (우하단 아이콘 옆), 좌측 트리 + 우측 콘텐츠 */
+.ds-inventory-panel {
+  position: fixed;
+  right: calc(56px + var(--space-5) + 8px);
+  left: auto;
+  bottom: var(--space-5);
+  z-index: 71;
+  width: 460px;
+  height: 440px;
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-inventory-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  flex-shrink: 0;
+}
+
+.ds-inventory-panel__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.ds-inventory-panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ds-inventory-panel__tabs-wrap {
+  display: flex;
+  align-items: stretch;
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-bg-surface));
+  border-bottom: 1px solid var(--color-border-divider);
+  flex-shrink: 0;
+}
+
+.ds-inventory-panel__multi-check {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-right: 1px solid var(--color-border-divider);
+}
+.ds-inventory-panel__multi-check input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-brand-primary);
+}
+.ds-inventory-panel__multi-check label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-left: var(--space-1);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ds-inventory-panel__tabs {
+  display: flex;
+  gap: 0;
+  padding: var(--space-2) var(--space-3) 0;
+}
+
+.ds-inventory-panel__tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.ds-inventory-panel__tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-border-divider) 6%, transparent);
+}
+
+.ds-inventory-panel__tab.is-active {
+  color: var(--color-brand-primary);
+  background: var(--color-bg-surface);
+  border-bottom-color: var(--color-brand-primary);
+}
+
+.ds-inventory-panel__main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ds-inventory-panel__tree {
+  width: 100px;
+  min-width: 100px;
+  padding: var(--space-2);
+  border-right: 1px solid var(--color-border-divider);
+  overflow: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.ds-inventory-panel__tree-root {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+.ds-inventory-panel__tree-root:hover,
+.ds-inventory-panel__tree-item:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
+}
+.ds-inventory-panel__tree-root.is-current {
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  color: var(--color-brand-primary);
+}
+.ds-inventory-panel__tree-item {
+  padding: var(--space-1) var(--space-2) var(--space-1) 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+.ds-inventory-panel__tree-item.is-current {
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.ds-inventory-panel__body {
+  padding: var(--space-4);
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.ds-inventory-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  flex-shrink: 0;
+}
+
+.ds-inventory-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
+
+.ds-inventory-panel__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  text-align: center;
+  min-height: 72px;
+}
+
+.ds-inventory-panel__item:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+}
+
+.ds-inventory-panel__item.is-selected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
+.ds-inventory-panel__item:active {
+  transform: scale(0.98);
+}
+
+.ds-inventory-panel__item-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.ds-inventory-panel__item--folder {
+  min-height: 64px;
+}
+.ds-inventory-panel__item--folder .ds-inventory-panel__item-icon {
+  font-size: 22px;
+}
+
+/* + 추가 슬롯 (성적표/기타 탭) */
+.ds-inventory-panel__item--add {
+  border-style: dashed;
+  color: var(--color-text-muted);
+  font-size: 24px;
+}
+.ds-inventory-panel__item--add:hover {
+  color: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+}
+
+/* 업로드된 항목 카드 — 제목 / 설명 / 파일아이콘 / 원본파일명 */
+.ds-inventory-panel__item--uploaded {
+  align-items: flex-start;
+  text-align: left;
+  min-height: 80px;
+  padding: var(--space-2) var(--space-3);
+}
+.ds-inventory-panel__item--uploaded .ds-inventory-panel__item-icon {
+  font-size: 20px;
+  margin-bottom: var(--space-1);
+}
+.ds-inventory-panel__item-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+.ds-inventory-panel__item-desc {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  line-height: 1.3;
+  margin-bottom: var(--space-1);
+}
+.ds-inventory-panel__item-filename {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  word-break: break-all;
+}
+
+.ds-inventory-panel__item-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  line-height: 1;
+  margin-bottom: var(--space-1);
+}
+
+/* 인벤토리 — 파일 추가 모달 (제목/설명 입력) */
+.ds-inventory-add-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 73;
+  width: 90%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow: auto;
+  padding: var(--space-5);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+}
+.ds-inventory-add-modal__title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-primary);
+}
+.ds-inventory-add-modal__field {
+  margin-bottom: var(--space-4);
+}
+.ds-inventory-add-modal__field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+.ds-inventory-add-modal__field input,
+.ds-inventory-add-modal__field textarea {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  font-size: 13px;
+}
+.ds-inventory-add-modal__field textarea {
+  min-height: 60px;
+  resize: vertical;
+}
+.ds-inventory-add-modal__icon-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+  display: block;
+}
+.ds-inventory-add-modal__icon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+.ds-inventory-add-modal__icon-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  transition: border-color 0.15s, background 0.15s;
+  line-height: 1.2;
+  text-align: center;
+}
+.ds-inventory-add-modal__icon-opt span:last-child {
+  word-break: keep-all;
+}
+.ds-inventory-add-modal__icon-opt:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+  background: var(--color-bg-surface-hover);
+}
+.ds-inventory-add-modal__icon-opt.is-selected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+}
+.ds-inventory-add-modal__icon-opt-emoji {
+  font-size: 18px;
+  line-height: 1;
+}
+.ds-inventory-add-modal__icon-opt-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ds-inventory-add-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.ds-inventory-add-modal__file-btn {
+  margin-top: var(--space-2);
+}
+
+/* 인벤토리 + 선택 모달 (폴더생성 / 업로드) */
+.ds-inventory-choice-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 73;
+  padding: var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.ds-inventory-choice-modal__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.ds-inventory-choice-modal__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* 화면에서만 숨기기 (파일 input 등) */
+.ds-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 인벤토리 뷰어 — 더블클릭 시 내용물 보기 */
+.ds-inventory-viewer {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 72;
+  width: 90%;
+  max-width: 720px;
+  max-height: 80vh;
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-inventory-viewer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+  flex-shrink: 0;
+}
+
+.ds-inventory-viewer__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.ds-inventory-viewer__body {
+  padding: var(--space-5);
+  overflow: auto;
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ds-inventory-viewer__placeholder {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.ds-inventory-viewer__body .ds-inventory-viewer__iframe,
+.ds-inventory-viewer__body .ds-inventory-viewer__img,
+.ds-inventory-viewer__body .ds-inventory-viewer__video {
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+}
+.ds-inventory-viewer__body .ds-inventory-viewer__iframe {
+  width: 100%;
+  min-height: 50vh;
+  border: none;
+}
+.ds-inventory-viewer__body .ds-inventory-viewer__video {
+  width: 100%;
+}
 
 
 ==========================================================================================
@@ -90,17 +1546,6 @@
 
 
 ==========================================================================================
-# FILE: design-system/antd/datepicker.css
-==========================================================================================
-/* PATH: src/styles/design-system/antd/datepicker.css */
-/* AntD DatePicker */
-
-.ant-picker {
-  border-radius: var(--radius-md);
-}
-
-
-==========================================================================================
 # FILE: design-system/antd/index.css
 ==========================================================================================
 /* PATH: src/styles/design-system/antd/index.css */
@@ -111,7 +1556,6 @@
 @import "./table.css";
 @import "./tag.css";
 @import "./select.css";
-@import "./datepicker.css";
 @import "./modal.css";
 
 /* ✅ 핵심: Input 룩 통일 */
@@ -177,22 +1621,23 @@
 ==========================================================================================
 # FILE: design-system/antd/modal.css
 ==========================================================================================
-/* PATH: src/styles/design-system/antd/modal.css */
-/* AntD Modal */
+/* PATH: src/styles/design-system/antd/modal.css
+   AntD Modal — admin 모달 제외 (admin은 @/shared/ui/modal SSOT만 사용) */
 
-.ant-modal-content {
+/* Admin 모달(.admin-modal)은 styles/design-system/modal.css에서 전담 */
+.ant-modal:not(.admin-modal) .ant-modal-content {
   border-radius: var(--radius-xl);
 }
 
-/* 브랜드/라이트 테마: 모달 강제 흰색 (포탈 상속 이슈 방지) */
-html[data-theme="modern-white"] .ant-modal-content,
-html[data-theme="navy-pro"] .ant-modal-content,
-html[data-theme="ivory-office"] .ant-modal-content,
-html[data-theme="minimal-mono"] .ant-modal-content,
-html[data-theme="kakao-business"] .ant-modal-content,
-html[data-theme="naver-works"] .ant-modal-content,
-html[data-theme="samsung-admin"] .ant-modal-content,
-html[data-theme="purple-insight"] .ant-modal-content {
+/* 브랜드/라이트 테마: Admin 제외한 AntD 모달만 흰색 (admin은 SSOT에서 처리) */
+html[data-theme="modern-white"] .ant-modal:not(.admin-modal) .ant-modal-content,
+html[data-theme="navy-pro"] .ant-modal:not(.admin-modal) .ant-modal-content,
+html[data-theme="ivory-office"] .ant-modal:not(.admin-modal) .ant-modal-content,
+html[data-theme="minimal-mono"] .ant-modal:not(.admin-modal) .ant-modal-content,
+html[data-theme="kakao-business"] .ant-modal:not(.admin-modal) .ant-modal-content,
+html[data-theme="naver-works"] .ant-modal:not(.admin-modal) .ant-modal-content,
+html[data-theme="samsung-admin"] .ant-modal:not(.admin-modal) .ant-modal-content,
+html[data-theme="purple-insight"] .ant-modal:not(.admin-modal) .ant-modal-content {
   --color-modal-bg: #ffffff;
   background: #ffffff !important;
 }
@@ -274,7 +1719,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
 # FILE: design-system/antd/tabs.css
 ==========================================================================================
 /* PATH: src/styles/design-system/antd/tabs.css */
-/* AntD Tabs — WRAPPER ONLY (NO STYLE OWNERSHIP) */
+/* 레거시: antd Tabs 사용 금지. SSOT는 styles/design-system/ds/tabs.css + modal 입체탭. */
 
 .ant-tabs,
 .ant-tabs-nav,
@@ -672,6 +2117,8 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --color-brand-primary-hover:  var(--scale-Primary600);
   --color-brand-primary-active: var(--scale-Primary700);
   --color-brand-primary-subtle: var(--scale-Primary100);
+  /* 보강 등 보조 강조용 — scale Complement (테마별 보색), 하드코딩 없음 */
+  --color-brand-complement:     var(--scale-Complement500);
 }
 
 
@@ -741,7 +2188,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
 # FILE: design-system/colors/scale/brand.css
 ==========================================================================================
 /* PATH: src/styles/design-system/colors/scale/brand.css */
-/* Brand Scale Tokens (names fixed) */
+/* Brand Scale Tokens (names fixed) — 테마에서만 값 오버라이드 */
 
 :root {
   /* Primary */
@@ -753,6 +2200,9 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #3b82f6;
   --scale-Primary600: #2563eb;
   --scale-Primary700: #1d4ed8;
+
+  /* Complement (보색) — 보강 블록 등 보조 강조, 테마별 Primary 보색 */
+  --scale-Complement500: #0d9488;
 
   /* Secondary */
   --scale-Secondary100: #e0e7ff;
@@ -887,6 +2337,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary600: #1d4ed8;
   --scale-Primary700: #1e40af;
   --color-primary-rgb: 37, 99, 235;
+  --scale-Complement500: #0d9488;
 
   /* Space */
   --layout-page-bg: #f6f8fc;
@@ -926,6 +2377,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary600: #2563eb;
   --scale-Primary700: #1d4ed8;
   --color-primary-rgb: 59, 130, 246;
+  --scale-Complement500: #0d9488;
 
   /* Space */
   --layout-page-bg: #f3f6fb;
@@ -965,6 +2417,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #b45309;
   --scale-Primary600: #92400e;
   --scale-Primary700: #78350f;
+  --scale-Complement500: #0284c7;
 
   /* Space */
   --layout-page-bg: #fbfaf7;
@@ -1004,6 +2457,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #0a0a0a;
   --scale-Primary600: #0a0a0a;
   --scale-Primary700: #0a0a0a;
+  --scale-Complement500: #0d9488;
 
   --layout-page-bg: #ffffff;
   --layout-header-bg: color-mix(in srgb, #ffffff 92%, transparent);
@@ -1050,6 +2504,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #60a5fa;
   --scale-Primary600: #7dd3fc;
   --scale-Primary700: #93c5fd;
+  --scale-Complement500: #0d9488;
 
   --layout-page-bg: color-mix(in srgb, #0d1117 92%, #111827);
   --layout-header-bg: color-mix(in srgb, #111827 78%, transparent);
@@ -1092,6 +2547,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #3b82f6;
   --scale-Primary600: #60a5fa;
   --scale-Primary700: #93c5fd;
+  --scale-Complement500: #0d9488;
 
   --layout-page-bg: color-mix(in srgb, #071024 92%, #0b1730);
   --layout-header-bg: color-mix(in srgb, #0b1730 78%, transparent);
@@ -1135,6 +2591,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #ff0000;
   --scale-Primary600: #ff3b3b;
   --scale-Primary700: #ff6b6b;
+  --scale-Complement500: #22c55e;
 
   --layout-page-bg: color-mix(in srgb, #0b0b0c 92%, #111113);
   --layout-header-bg: color-mix(in srgb, #111113 78%, transparent);
@@ -1179,6 +2636,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #00ffcc;
   --scale-Primary600: #22d3ee;
   --scale-Primary700: #7dd3fc;
+  --scale-Complement500: #f97316;
 
   --layout-page-bg: color-mix(in srgb, #030407 92%, #050507);
   --layout-header-bg: color-mix(in srgb, #050507 78%, transparent);
@@ -1250,6 +2708,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --sidebar-item-active-bg: var(--kakao-brown);
   --sidebar-item-active-text: #ffffff;
 
+  --scale-Complement500: #0d9488; /* teal (갈색 보색 톤) */
   --color-modal-bg: #ffffff;
 }
 
@@ -1277,6 +2736,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #013619;
   --scale-Primary600: #14532d;
   --scale-Primary700: #0b2b17;
+  --scale-Complement500: #c026d3;
 
   /* 👉 필터 제거 */
   --layout-page-bg: #ffffff;
@@ -1323,6 +2783,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #0057d9;
   --scale-Primary600: #0046b3;
   --scale-Primary700: #003ea8;
+  --scale-Complement500: #ea580c;
 
   /* 👉 필터 제거 */
   --layout-page-bg: #ffffff;
@@ -1368,6 +2829,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --scale-Primary500: #7c3aed;
   --scale-Primary600: #6d28d9;
   --scale-Primary700: #5b21b6;
+  --scale-Complement500: #65a30d;
 
   /* 👉 필터 제거 */
   --layout-page-bg: #ffffff;
@@ -1404,6 +2866,1066 @@ html[data-theme="purple-insight"] .ant-modal-content {
   --color-bg-surface-hover: #f8fafc;
   --color-bg-surface-soft: #f8fafc;
 }
+
+
+==========================================================================================
+# FILE: design-system/components/AsyncStatusBar.css
+==========================================================================================
+/* PATH: src/styles/design-system/components/AsyncStatusBar.css
+   우하단 Windows 스타일 알림/작업 패널 — 접기·펼치기
+ */
+
+.async-status-bar {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: var(--color-text-primary, #1a1a1a);
+  --async-bg: var(--color-bg-surface, #fff);
+  --async-border: var(--color-border-divider, #e5e7eb);
+  --async-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.async-status-bar--collapsed .async-status-bar__panel {
+  display: none;
+}
+
+.async-status-bar--collapsed .async-status-bar__trigger {
+  display: flex;
+}
+
+.async-status-bar--expanded .async-status-bar__trigger {
+  display: none;
+}
+
+.async-status-bar--expanded .async-status-bar__panel {
+  display: flex;
+}
+
+/* 접었을 때: 작은 알림 창 (Windows 토스트처럼) */
+.async-status-bar__trigger {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--async-bg);
+  border: 1px solid var(--async-border);
+  border-radius: 10px;
+  box-shadow: var(--async-shadow);
+  cursor: pointer;
+  min-width: 120px;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.async-status-bar__trigger:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+}
+
+.async-status-bar__trigger-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--color-primary, #2563eb);
+}
+
+.async-status-bar__trigger-count {
+  font-weight: 600;
+  color: var(--color-text-secondary, #4b5563);
+}
+
+/* 펼쳤을 때: 패널 */
+.async-status-bar__panel {
+  display: none;
+  flex-direction: column;
+  width: 320px;
+  max-width: calc(100vw - 40px);
+  max-height: 400px;
+  background: var(--async-bg);
+  border: 1px solid var(--async-border);
+  border-radius: 12px;
+  box-shadow: var(--async-shadow);
+  overflow: hidden;
+}
+
+.async-status-bar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--async-border);
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 8%, transparent);
+  font-weight: 600;
+}
+
+.async-status-bar__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.async-status-bar__header-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.async-status-bar__header-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text-primary);
+}
+
+.async-status-bar__list {
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.async-status-bar__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: var(--color-bg-surface-soft, #f9fafb);
+  border: 1px solid transparent;
+}
+
+.async-status-bar__item:last-child {
+  margin-bottom: 0;
+}
+
+.async-status-bar__item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.async-status-bar__item-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.async-status-bar__item-icon--pending {
+  color: var(--color-primary);
+  animation: async-spin 0.9s linear infinite;
+}
+
+.async-status-bar__item-icon--success {
+  color: var(--color-success, #22c55e);
+}
+
+.async-status-bar__item-icon--error {
+  color: var(--color-status-error, #ef4444);
+}
+
+.async-status-bar__item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.async-status-bar__item-label {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  word-break: break-word;
+}
+
+.async-status-bar__item-error {
+  font-size: 11px;
+  color: var(--color-status-error, #ef4444);
+  margin-top: 2px;
+}
+
+.async-status-bar__item-close {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.async-status-bar__item-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text-primary);
+}
+
+.async-status-bar__progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border-divider, #e5e7eb);
+  overflow: hidden;
+}
+
+.async-status-bar__progress-fill {
+  height: 100%;
+  background: var(--color-primary, #2563eb);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+@keyframes async-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.async-status-bar__empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+
+==========================================================================================
+# FILE: design-system/components/DatePicker.css
+==========================================================================================
+/* PATH: src/styles/design-system/components/DatePicker.css
+   전역 날짜 선택 — DS 토큰(ui-control, space, radius, elevation) 준수, 큼지막한 셀 */
+
+.shared-date-picker-trigger {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-lg, 40px);
+  padding: 0 var(--space-3);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ui-control-text, var(--color-text-primary));
+  background: var(--ui-control-bg, var(--color-bg-surface));
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-md);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.shared-date-picker-trigger-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.9;
+}
+
+.shared-date-picker-trigger:hover:not(:disabled) {
+  border-color: var(--ui-control-border-hover, var(--color-border-focus));
+  background: var(--ui-control-bg-hover, var(--color-bg-surface-hover));
+}
+
+.shared-date-picker-trigger:focus {
+  outline: none;
+  border-color: var(--ui-control-border-focus, var(--color-border-focus));
+  box-shadow: var(--state-focus-ring, 0 0 0 2px var(--color-border-focus));
+}
+
+.shared-date-picker-trigger:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.shared-date-picker-placeholder {
+  color: var(--ui-control-placeholder, var(--color-text-muted));
+  font-weight: 400;
+}
+
+.shared-date-picker-dropdown {
+  position: absolute;
+  z-index: 1100;
+  bottom: calc(100% + var(--space-2));
+  left: 0;
+  padding: var(--space-4);
+  background-color: var(--ui-control-bg, var(--color-bg-surface, #ffffff));
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-3);
+  /* 질감: 은은한 그라데이션 + 미세 패턴 (투명 없이 불투명 배경) */
+  background-image:
+    linear-gradient(175deg, color-mix(in srgb, var(--color-bg-surface, #fff) 95%, white) 0%, color-mix(in srgb, var(--color-bg-surface, #fff) 98%, white) 100%),
+    linear-gradient(0deg, color-mix(in srgb, var(--color-border-divider) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-border-divider) 4%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 8px 8px, 8px 8px;
+  background-position: 0 0, 0 0, 0 0;
+}
+
+/* 포털 렌더 시 body에 변수 상속 없을 수 있음 → 불투명 배경 강제 */
+.shared-date-picker-dropdown--portaled {
+  background-color: var(--color-bg-surface, #ffffff) !important;
+  background-image:
+    linear-gradient(175deg, color-mix(in srgb, var(--color-bg-surface, #fff) 95%, white) 0%, color-mix(in srgb, var(--color-bg-surface, #fff) 98%, white) 100%),
+    linear-gradient(0deg, color-mix(in srgb, var(--color-border-divider, #e5e7eb) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-border-divider, #e5e7eb) 4%, transparent) 1px, transparent 1px);
+}
+
+.shared-date-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.shared-date-picker-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ui-control-text, var(--color-text-primary));
+}
+
+.shared-date-picker-nav {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 120ms, color 120ms;
+}
+
+.shared-date-picker-nav:hover {
+  background: var(--state-hover-bg, var(--color-bg-surface-hover));
+  color: var(--color-text-primary);
+}
+
+.shared-date-picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.shared-date-picker-weekday {
+  width: 44px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.shared-date-picker-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ui-control-text, var(--color-text-primary));
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 120ms, color 120ms;
+}
+
+.shared-date-picker-cell:hover {
+  background: var(--state-hover-bg, var(--color-bg-surface-hover));
+}
+
+.shared-date-picker-cell-today {
+  font-weight: 700;
+  color: var(--color-brand-primary, var(--color-primary));
+}
+
+.shared-date-picker-cell-selected {
+  background: var(--color-brand-primary, var(--color-primary));
+  color: #fff;
+}
+
+.shared-date-picker-cell-selected:hover {
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 88%, black);
+  color: #fff;
+}
+
+.shared-date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+}
+
+
+==========================================================================================
+# FILE: design-system/components/TimeRangeInput.css
+==========================================================================================
+/* PATH: src/styles/design-system/components/TimeRangeInput.css
+   전역 SSOT: 시간 구간 선택 — 사용감·디자인 통일, +/− 30분·1시간 버튼 */
+
+.shared-time-range {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.shared-time-range-card {
+  padding: var(--space-4);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-0);
+}
+
+.shared-time-range-grid {
+  display: grid;
+  grid-template-columns: 52px minmax(120px, 1fr) 140px;
+  gap: var(--space-3) var(--space-2);
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.shared-time-range-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+  white-space: nowrap;
+  padding-right: 0;
+}
+
+.shared-time-range-input-wrap {
+  min-width: 0;
+  position: relative;
+}
+
+/* 기본 표시: 시간 영역 — 내부 시계 아이콘 + 텍스트 + 펼침 아이콘, 정렬·고급화 */
+.shared-time-range-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 52px;
+  padding: 0 var(--space-2) 0 var(--space-2);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  word-break: keep-all;
+  color: var(--ui-control-text, var(--color-text-primary));
+  background: var(--ui-control-bg, var(--color-bg-surface));
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.shared-time-range-trigger:active:not(:disabled) {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.06),
+    0 1px 1px rgba(0, 0, 0, 0.03) !important;
+}
+
+.shared-time-range-trigger-clock {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.9;
+}
+
+.shared-time-range-trigger:hover:not(:disabled) {
+  border-color: var(--ui-control-border-hover, var(--color-border-focus));
+  background: var(--ui-control-bg-hover, var(--color-bg-surface-hover));
+}
+
+.shared-time-range-trigger:focus {
+  outline: none;
+  border-color: var(--ui-control-border-focus, var(--color-border-focus));
+  box-shadow: var(--state-focus-ring, 0 0 0 2px var(--color-border-focus)) !important;
+}
+
+.shared-time-range-trigger:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.shared-time-range-trigger--placeholder .shared-time-range-trigger-text {
+  color: var(--ui-control-placeholder, var(--color-text-muted));
+  font-weight: 400;
+}
+
+.shared-time-range-trigger-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shared-time-range-trigger-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.75;
+}
+
+.shared-time-range-quick {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* 전역 DS(button 등) 우선순위 확보를 위해 !important 사용 */
+.shared-time-range-btn {
+  min-height: 52px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 var(--space-2);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ui-control-text, var(--color-text-primary));
+  background: var(--color-bg-surface);
+  border: 1px solid var(--ui-control-border, var(--color-border-divider));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.shared-time-range-btn:hover:not(:disabled) {
+  background: var(--ui-control-bg-hover, var(--color-bg-surface-hover));
+  border-color: var(--ui-control-border-hover, var(--color-border-focus));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+.shared-time-range-btn:active:not(:disabled) {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.06),
+    0 1px 1px rgba(0, 0, 0, 0.03) !important;
+}
+
+.shared-time-range-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+
+==========================================================================================
+# FILE: design-system/components/TimeScrollPopover.css
+==========================================================================================
+/* PATH: src/styles/design-system/components/TimeScrollPopover.css
+   원통형 롤러 — 입체감, 곡면 시각 효과 */
+
+.time-picker {
+  padding: var(--space-3);
+  background: var(--ui-control-bg, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--ui-control-border, var(--color-border-divider)) 70%, transparent);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-family: inherit;
+}
+
+.time-picker__body {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--ui-control-border, var(--color-border-divider)) 80%, transparent);
+  background: var(--color-bg-surface);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.time-picker__period {
+  flex: 0 0 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 var(--space-2);
+  background: transparent;
+}
+
+.time-picker__period-btn {
+  padding: 12px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 150ms, background 150ms;
+  font-family: inherit;
+}
+
+.time-picker__period-btn:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 6%, transparent);
+}
+
+.time-picker__period-btn--active {
+  color: var(--color-brand-primary, var(--color-primary));
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 8%, transparent);
+}
+
+.time-picker__divider {
+  width: 1px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--color-border-divider) 40%, transparent);
+}
+
+.time-picker__roller {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* 중앙 선택선 — 은은한 강조 */
+.time-picker__highlight {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 48px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 22%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, white 15%, transparent) inset;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.time-picker__list {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: auto;
+  scrollbar-width: none;
+  scroll-snap-type: y proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.time-picker__list::-webkit-scrollbar {
+  display: none;
+}
+
+.time-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: color 150ms, background 150ms;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.time-picker__item:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary, var(--color-primary)) 5%, transparent);
+}
+
+/* 선택된 아이템 시각적 강조 */
+.time-picker__item:focus-visible {
+  outline: 2px solid var(--color-brand-primary, var(--color-primary));
+  outline-offset: -2px;
+}
+
+
+==========================================================================================
+# FILE: design-system/components/session-block.css
+==========================================================================================
+/* 차시 블록 전역 — DS(design-system) 토큰만 사용, 모달·세션페이지 완전 동일 디자인·색상 */
+
+:root {
+  /* 색상: 전역 DS 역할 토큰만 사용 (하드코딩 없음)
+     - N차시: --color-brand-primary (scale Primary)
+     - 보강:  --color-brand-complement (scale Complement, 테마별 보색) */
+  --session-block-supplement: var(--color-brand-complement);
+  --session-block-add: var(--color-text-muted);
+
+  /* 밝은 쪽은 DS 고정값(Neutral0)으로 해서 모달·세션페이지 색상 완전 동일 */
+  --session-block-n1-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--color-brand-primary) 8%, var(--scale-Neutral0)) 100%);
+  --session-block-n1-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--color-brand-primary) 10%, var(--scale-Neutral0)) 100%);
+  --session-block-n1-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--color-brand-primary) 12%, var(--scale-Neutral0)) 100%);
+
+  --session-block-supplement-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 8%, var(--scale-Neutral0)) 100%);
+  --session-block-supplement-bg-hover: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 10%, var(--scale-Neutral0)) 100%);
+  --session-block-supplement-selected-bg: linear-gradient(165deg, color-mix(in srgb, var(--session-block-supplement) 22%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-supplement) 12%, var(--scale-Neutral0)) 100%);
+
+  /* 디자인: 블록 = 내부 볼록 효과(inset) 위주, 외부 그림자 최소화 */
+  --session-block-radius: var(--radius-md);
+  /* 상단 하이라이트(볼록한 면이 빛 받는 느낌) */
+  --session-block-inset-top: inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+  --session-block-inset-glow: inset 0 2px 6px rgba(255, 255, 255, 0.12);
+  /* 하단 내부 살짝 어둡게(블록 두께감) */
+  --session-block-inset-bottom: inset 0 -1px 0 0 rgba(0, 0, 0, 0.08);
+  /* 외부 그림자 최소(블록 자체가 튀어나온 느낌만) */
+  --session-block-outer: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --session-block-outer-hover: 0 2px 6px rgba(0, 0, 0, 0.08);
+  --session-block-outer-active: 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+/* ----- 공통 블록: 내부 볼록 효과(inset)로 블록/버튼 느낌, 외부 그림자 최소 ----- */
+.session-block {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  text-align: left;
+  border-radius: var(--session-block-radius);
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition:
+    transform 180ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    box-shadow 180ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+  box-shadow:
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer);
+  text-decoration: none;
+  color: inherit;
+}
+
+.session-block:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.14),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer-hover);
+}
+
+.session-block:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    var(--session-block-outer-active);
+}
+
+/* ----- 비율 16:9, 기본(모달) 크기 ----- */
+.session-block {
+  aspect-ratio: 16 / 9;
+  min-height: 40px;
+  padding: var(--space-3) var(--space-5);
+}
+
+/* ----- 컴팩트(세션페이지) — 모달과 동일 디자인·동일 색상, 16:9, DS spacing으로 크기 확대 ----- */
+.session-block--compact {
+  /* 16:9, 세션 내 블록 크기 키움 (DS --space-* 기준) */
+  min-width: 128px;
+  width: 128px;
+  height: 72px;
+  min-height: 72px;
+  aspect-ratio: unset;
+  padding: var(--space-3) var(--space-4);
+  flex: 0 0 auto;
+}
+
+/* 세션페이지(compact)에도 모달과 동일 배경 강제 — 전역 button/link 스타일 덮어쓰기 방지 */
+.session-block.session-block--compact.session-block--n1 {
+  background: var(--session-block-n1-bg);
+  color: var(--color-text-primary);
+}
+
+.session-block.session-block--compact.session-block--n1:hover {
+  background: var(--session-block-n1-bg-hover);
+}
+
+.session-block.session-block--compact.session-block--supplement {
+  background: var(--session-block-supplement-bg);
+  color: var(--color-text-primary);
+}
+
+.session-block.session-block--compact.session-block--supplement:hover {
+  background: var(--session-block-supplement-bg-hover);
+}
+
+.session-block.session-block--compact.session-block--add {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-add) 8%, var(--scale-Neutral0)) 100%);
+  color: var(--color-text-primary);
+}
+
+.session-block.session-block--compact.session-block--add:hover {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-add) 10%, var(--scale-Neutral0)) 100%);
+}
+
+.session-block--compact .session-block__title {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.session-block--compact .session-block__desc {
+  margin-top: var(--space-1);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text-secondary);
+  opacity: 0.92;
+}
+
+.session-block--compact .session-block__check {
+  display: none;
+}
+
+/* 컴팩트도 동일한 볼록 inset 효과 */
+.session-block--compact.session-block:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.14),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer-hover);
+}
+
+.session-block--compact.session-block:active {
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    var(--session-block-outer-active);
+}
+
+.session-block--compact.session-block--n1.session-block--selected,
+.session-block--compact.session-block--selected {
+  box-shadow:
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+.session-block--compact.session-block--supplement.session-block--selected {
+  box-shadow:
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer),
+    0 0 0 2px color-mix(in srgb, var(--session-block-supplement) 30%, transparent);
+}
+
+/* ----- N차시 ----- */
+.session-block--n1 {
+  background: var(--session-block-n1-bg);
+  color: var(--color-text-primary);
+}
+
+.session-block--n1:hover {
+  background: var(--session-block-n1-bg-hover);
+}
+
+.session-block--n1.session-block--selected {
+  border-color: var(--color-brand-primary);
+  background: var(--session-block-n1-selected-bg);
+  box-shadow:
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer),
+    0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
+.session-block--n1.session-block--selected:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.14),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer-hover),
+    0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+.session-block--n1.session-block--selected:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    var(--session-block-outer-active),
+    0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+}
+
+/* ----- 보강 (DS 역할 토큰 --color-brand-complement = scale Complement, SSOT) ----- */
+.session-block--supplement {
+  background: var(--session-block-supplement-bg);
+  color: var(--color-text-primary);
+}
+
+/* 모달 내 보강 블록: 동일 역할 토큰 적용 (포탈 시 캐스케이드 보장) */
+.admin-modal .session-block--supplement {
+  --session-block-supplement: var(--color-brand-complement);
+}
+
+.session-block--supplement:hover {
+  background: var(--session-block-supplement-bg-hover);
+}
+
+.session-block--supplement.session-block--selected {
+  border-color: var(--session-block-supplement);
+  background: var(--session-block-supplement-selected-bg);
+  box-shadow:
+    var(--session-block-inset-top),
+    var(--session-block-inset-glow),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer),
+    0 0 0 3px color-mix(in srgb, var(--session-block-supplement) 25%, transparent);
+}
+
+.session-block--supplement.session-block--selected:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.14),
+    var(--session-block-inset-bottom),
+    var(--session-block-outer-hover),
+    0 0 0 3px color-mix(in srgb, var(--session-block-supplement) 30%, transparent);
+}
+
+.session-block--supplement.session-block--selected:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.08),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05),
+    var(--session-block-outer-active),
+    0 0 0 3px color-mix(in srgb, var(--session-block-supplement) 20%, transparent);
+}
+
+.session-block--supplement .session-block__check {
+  background: var(--session-block-supplement);
+}
+
+/* ----- + 차시 추가 (DS 동일 방식) ----- */
+.session-block--add {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 14%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-add) 8%, var(--scale-Neutral0)) 100%);
+  color: var(--color-text-primary);
+  align-items: center;
+  justify-content: center;
+}
+
+.session-block--add:hover {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--session-block-add) 18%, var(--scale-Neutral0)) 0%, color-mix(in srgb, var(--session-block-add) 10%, var(--scale-Neutral0)) 100%);
+}
+
+.session-block--add .session-block__title {
+  color: inherit;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.session-block--add .session-block__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+/* ----- 타이틀 / 설명 / 체크 ----- */
+.session-block__title {
+  font-size: 1.35rem; /* 1차시·2차시·보강 등 잘 보이게 */
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: inherit;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.session-block__desc {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  opacity: 0.92;
+}
+
+/* 모달: 차시/보강 타이틀 크게 + 중앙 정렬 */
+.session-block:not(.session-block--compact) {
+  align-items: center;
+  text-align: center;
+}
+
+.session-block:not(.session-block--compact) .session-block__title {
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 800;
+  text-align: center;
+}
+
+.session-block:not(.session-block--compact) .session-block__desc {
+  font-size: 11px;
+  margin-top: 6px;
+  opacity: 0.9;
+  text-align: center;
+}
+
+.session-block__check {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.session-block--selected .session-block__check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 날짜/시간 옵션 행 스타일 → styles/design-system/modal.css (.modal-option-row) SSOT */
 
 
 ==========================================================================================
@@ -1497,13 +4019,571 @@ html[data-theme="purple-insight"] .ant-modal-content {
 
 
 ==========================================================================================
+# FILE: design-system/ds/action-bar.css
+==========================================================================================
+/* PATH: src/styles/design-system/ds/action-bar.css */
+
+.ds-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ds-action-bar[data-align="right"] {
+  justify-content: flex-end;
+}
+
+.ds-action-bar[data-align="left"] {
+  justify-content: flex-start;
+}
+
+
+==========================================================================================
+# FILE: design-system/ds/input.css
+==========================================================================================
+/* ======================================================
+   DS INPUT — REQUIRED / PRIMARY EMPHASIS
+   PATH: src/styles/design-system/ds/input.css
+   ====================================================== */
+
+/* 기본 입력 필드 — 전역 들어가 보이게(inset) */
+.ds-input {
+  appearance: none;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+
+  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+/* placeholder */
+.ds-input::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* hover */
+.ds-input:hover:not(:disabled) {
+  border-color: var(--color-border-strong, var(--color-border-divider));
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.07),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+/* focus (일반 입력) */
+.ds-input:focus:not([data-required="true"]) {
+  border-color: color-mix(
+    in srgb,
+    var(--color-text-secondary) 50%,
+    var(--color-border-divider)
+  );
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-text-secondary) 20%, transparent);
+}
+
+/* ======================================================
+   REQUIRED (PRIMARY COLOR)
+   ====================================================== */
+
+/* 필수 필드 — 기본 상태 (에러 아님, 프라이머리 완화) */
+.ds-input[data-required="true"] {
+  border-color: color-mix(
+    in srgb,
+    var(--color-brand-primary) 28%,
+    var(--color-border-divider)
+  );
+}
+
+/* 필수 필드 hover */
+.ds-input[data-required="true"]:hover:not(:disabled) {
+  border-color: color-mix(
+    in srgb,
+    var(--color-brand-primary) 40%,
+    var(--color-border-divider)
+  );
+}
+
+/* 필수 필드 focus */
+.ds-input[data-required="true"]:focus {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 70%, var(--color-border-divider));
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+}
+
+/* ======================================================
+   DISABLED
+   ====================================================== */
+
+.ds-input:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ======================================================
+   SELECT / TEXTAREA — 전역 들어가 보이게(inset)
+   ====================================================== */
+
+.ds-select,
+.ds-textarea {
+  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ds-select:hover:not(:disabled),
+.ds-textarea:hover:not(:disabled) {
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.07),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.ds-select:focus,
+.ds-textarea:focus {
+  outline: none;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.06),
+    inset 0 -1px 0 0 rgba(255, 255, 255, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-text-secondary) 20%, transparent);
+}
+
+.ds-textarea {
+  min-height: 88px;
+  padding: var(--space-3);
+  resize: vertical;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.ds-select {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+
+==========================================================================================
+# FILE: design-system/ds/list-page.css
+==========================================================================================
+/* PATH: src/styles/design-system/ds/list-page.css */
+
+/* 필터 / 컨트롤 영역 */
+.ui-control {
+  background: var(--ui-control-bg);
+  border: 1px solid var(--ui-control-border);
+  border-radius: var(--radius-xl);
+}
+
+
+==========================================================================================
+# FILE: design-system/ds/page-header.css
+==========================================================================================
+/* PATH: src/styles/design-system/ds/page-header.css */
+
+.page-header[data-variant="hero"] {
+  background: var(--ui-hero-bg);
+  border: 1px solid var(--ui-hero-border);
+}
+
+
+==========================================================================================
+# FILE: design-system/ds/page.css
+==========================================================================================
+/* PATH: src/styles/design-system/ds/page.css */
+
+[data-page-root] {
+  background: var(--ui-page-bg);
+}
+
+
+==========================================================================================
+# FILE: design-system/ds/panel.css
+==========================================================================================
+/* PATH: src/styles/design-system/ds/panel.css */
+/* 패널 공통: 테두리·깊이로 영역 구분 */
+
+.ds-panel {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-1);
+  overflow: hidden;
+}
+
+.ds-panel[data-panel-variant="default"] {
+  background: var(--ui-work-bg);
+  border-color: var(--ui-work-border);
+}
+
+.ds-panel[data-panel-variant="subtle"] {
+  background: var(--ui-meta-bg);
+  border-color: var(--ui-meta-border);
+}
+
+.ds-panel[data-panel-variant="primary"] {
+  background: var(--ui-hero-bg);
+  border-color: var(--ui-hero-border);
+}
+
+/* 리스트/사이드바용 패널 카드 — 단일진실 (OperationsPage·ReportsPage 등) */
+.ds-panel-card {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-2xl);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+.ds-panel-card__header {
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+}
+
+
+==========================================================================================
+# FILE: design-system/ds/status.css
+==========================================================================================
+/* ============================================================================
+ * DS STATUS BADGE — 전역 SSOT (단일 진실)
+ * PATH: src/styles/design-system/ds/status.css
+ * - 사이즈: 1ch / 2ch 딱 2종. 색상은 아래 4톤만 사용 (하드코딩 금지)
+ * - 긍정(승인·성공·활성) → success (초록)
+ * - 비활·폐기·비활성화 → neutral (회색/검정계열)
+ * - 위험·금지 → danger (빨강)
+ * - 경고·주의 → warning (노랑)
+ * - data-status: active | inactive | archived
+ * - data-tone: success | danger | warning | primary | neutral
+ * ============================================================================ */
+
+/* ---- 사이즈 SSOT: 2글자(기본) / 1글자(--1ch) ---- */
+.ds-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  border: none;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* 1글자용 — 출결 short·매트릭스 셀 등 */
+.ds-status-badge--1ch {
+  min-width: 1.25rem;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: var(--radius-sm, 4px);
+}
+
+/* 클릭 가능한 뱃지(토글 등) */
+button.ds-status-badge {
+  cursor: pointer;
+  transition: opacity 160ms ease, transform 100ms ease;
+}
+button.ds-status-badge:hover:not(:disabled) {
+  opacity: 0.92;
+}
+button.ds-status-badge:active:not(:disabled) {
+  transform: scale(0.98);
+}
+button.ds-status-badge:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---- data-status: 활성(초록) / 비활·폐기(회색) / 종료(회색) ---- */
+.ds-status-badge[data-status="active"] {
+  background: var(--color-success, #22c55e);
+  color: #fff;
+}
+
+.ds-status-badge[data-status="inactive"] {
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
+  color: var(--status-badge-neutral-text, var(--color-text-secondary));
+}
+
+.ds-status-badge[data-status="archived"] {
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
+  color: var(--status-badge-neutral-text, var(--color-text-secondary));
+}
+
+/* ---- data-tone: 공용 4톤 (하드코딩 대신 반드시 사용) ---- */
+.ds-status-badge[data-tone="success"] {
+  background: var(--color-success);
+  color: #fff;
+}
+
+.ds-status-badge[data-tone="danger"] {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.ds-status-badge[data-tone="warning"] {
+  background: var(--color-warning);
+  color: #fff;
+}
+
+.ds-status-badge[data-tone="primary"] {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+
+.ds-status-badge[data-tone="neutral"] {
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
+  color: var(--status-badge-neutral-text, var(--color-text-secondary));
+}
+
+/* 톤 미지정 시 기본(neutral) */
+.ds-status-badge:not([data-status]):not([data-tone]) {
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));
+  color: var(--status-badge-neutral-text, var(--color-text-secondary));
+}
+
+/* ============================================================================
+ * 예외: 클릭 가능한 상태 뱃지 (학생 도메인 등) — 버튼과 동일 디자인(연한 톤)
+ * - 활성: 초록 solid 없음 → 연한 success 톤, hover 시 색 강해짐
+ * - 비활성: 연한 neutral, hover 시 강해짐
+ * - 색상 톤으로만 일반 상태 뱃지와 구분
+ * ============================================================================ */
+.ds-status-badge--action {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 100ms ease;
+}
+.ds-status-badge--action:hover:not(:disabled) {
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 6px rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+.ds-status-badge--action:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* 색상 SSOT: 버튼과 동일 톤 — 연한 success/neutral, hover 시 강해짐 (Tailwind preflight 덮기) */
+button.ds-status-badge.ds-status-badge--action[data-status="active"] {
+  background-color: color-mix(in srgb, var(--color-success, #22c55e) 20%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-success, #16a34a) !important;
+}
+button.ds-status-badge.ds-status-badge--action[data-status="active"]:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-success, #22c55e) 28%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-success, #16a34a) !important;
+}
+
+button.ds-status-badge.ds-status-badge--action[data-status="inactive"] {
+  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 22%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-text-muted, #64748b) !important;
+}
+button.ds-status-badge.ds-status-badge--action[data-status="inactive"]:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 28%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-text-secondary, #475569) !important;
+}
+
+
+==========================================================================================
+# FILE: design-system/ds/tabs.css
+==========================================================================================
+/* ============================================================================
+ * DS TABS — SSOT: 탭은 두 종류만 사용
+ * PATH: src/styles/design-system/ds/tabs.css
+ * (1) 플랫탭: 페이지·오버레이 → .ds-tabs.ds-tabs--flat + .ds-tab / .is-active
+ * (2) 입체탭: 모달 → .modal-tabs-area 또는 .modal-tabs-elevated 내부의 .ds-tabs
+ * 레거시(antd Tabs, 커스텀 버튼 탭 등) 사용 금지. 위 두 가지로 통일.
+ * ============================================================================ */
+
+.ds-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.ds-tab {
+  padding: var(--space-2) var(--space-4);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.ds-tab:hover:not(.is-active):not(:disabled) {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-border-divider) 6%, transparent);
+}
+
+.ds-tab.is-active {
+  color: var(--color-brand-primary);
+  font-weight: 600;
+  border-bottom-color: var(--color-brand-primary);
+  background: transparent;
+}
+
+.ds-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 페이지·도메인 헤더 전용 플랫 탭 — 다른 스타일 덮어쓰기 방지 */
+.ds-tabs--flat .ds-tab {
+  appearance: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.ds-tabs--flat .ds-tab:hover:not(.is-active):not(:disabled) {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-border-divider) 6%, transparent);
+}
+
+.ds-tabs--flat .ds-tab.is-active {
+  color: var(--color-brand-primary);
+  font-weight: 600;
+  border-bottom-color: var(--color-brand-primary);
+  background: transparent;
+}
+
+/* 도메인 헤더 내 탭 영역 — 배경은 탭 행만 컴팩트하게, 헤더–탭 간격은 margin으로 */
+.domain-header__tabs-wrap {
+  margin-top: var(--space-4);
+  padding: var(--space-1) var(--space-2) 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-surface, var(--bg-surface, #fff));
+  width: fit-content;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+
+==========================================================================================
+# FILE: design-system/patterns/auth.css
+==========================================================================================
+/* PATH: src/styles/design-system/patterns/auth.css
+ * 로그인 페이지 전역 레이아웃 — DS 토큰만 사용
+ */
+
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-canvas, #0b0d12);
+  color: var(--color-text-primary);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 24rem;
+  padding: var(--space-8, 24px);
+  border-radius: var(--radius-xl, 12px);
+  background: var(--color-bg-surface, #fff);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  color: var(--color-text-primary);
+}
+
+.auth-card__logo {
+  display: block;
+  margin-bottom: var(--space-4);
+  max-height: 2.5rem;
+  object-fit: contain;
+}
+
+.auth-card__title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-bottom: var(--space-1);
+  color: var(--color-text-primary);
+}
+
+.auth-card__subtitle {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+}
+
+.auth-card input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+}
+
+.auth-card input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.auth-card input:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+}
+
+.auth-card__error {
+  margin-top: var(--space-3);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-error, var(--color-danger));
+}
+
+
+==========================================================================================
 # FILE: design-system/patterns/badge.css
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/badge.css */
 /* ============================================================================
- * DS BADGE — TAG / CHIP
- * - uses CSS vars: --badge-bg, --badge-text
- * - safe remove button / hover / focus
+ * DS BADGE — TAG / CHIP (선택·필터 칩 등)
+ * - 상태 뱃지(활성/비활성/출결 등)는 styles/design-system/ds/status.css SSOT (1ch/2ch 2종만)
+ * - 본 파일: --badge-bg, --badge-text, remove 버튼
  * ============================================================================ */
 
 .ds-badge {
@@ -1574,45 +4654,59 @@ html[data-theme="purple-insight"] .ant-modal-content {
 # FILE: design-system/patterns/button.css
 ==========================================================================================
 /* ============================================================================
- * DS BUTTON — ENTERPRISE SSOT (FINAL)
- * - intent / size / state 완전 정의
- * - TS 스펙과 1:1 대응
- * - Light / Dark / Brand 안전
+ * DS BUTTON — 전역 SSOT (단일 진실)
+ * - choice 버튼과 동일한 디자인: inset 입체감, 테두리 제거, 크기/의도만 구분
+ * - intent: primary / secondary / ghost / danger
+ * - size: sm / md / lg (--control-*)
  * ============================================================================ */
 
 /* ======================================================
- * Base
+ * Base — choice 버튼과 동일한 형태·입체감
  * ====================================================== */
 
 .ds-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
+  min-width: 0;
 
   min-height: var(--control-md);
-  padding: 0 14px;
+  padding: 0 var(--space-4);
 
   font-size: 13px;
   font-weight: 600;
   line-height: 1;
+  color: var(--color-text-primary);
 
+  border: none;
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-divider);
-
-  background: var(--bg-surface);
-  color: var(--text-primary);
-
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
 
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+
   transition:
-    background-color var(--motion-base) var(--ease-out),
-    border-color var(--motion-base) var(--ease-out),
-    color var(--motion-base) var(--ease-out),
-    box-shadow var(--motion-base) var(--ease-out),
-    transform var(--motion-fast) ease;
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 100ms ease;
+}
+
+.ds-button:hover:not(:disabled):not([data-disabled="true"]) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 6px rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.ds-button:active:not(:disabled):not([data-disabled="true"]) {
+  transform: translateY(0);
 }
 
 /* ======================================================
@@ -1621,7 +4715,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
 
 .ds-button[data-size="sm"] {
   min-height: var(--control-sm);
-  padding: 0 10px;
+  padding: 0 var(--space-3);
   font-size: 12px;
 }
 
@@ -1631,88 +4725,91 @@ html[data-theme="purple-insight"] .ant-modal-content {
 
 .ds-button[data-size="lg"] {
   min-height: var(--control-lg);
-  padding: 0 18px;
+  padding: 0 var(--space-5);
   font-size: 14px;
 }
 
 /* ======================================================
- * Intent
+ * Intent — 톤만 구분, 동일 입체감
  * ====================================================== */
 
-/* Primary — 100% (주요 CTA만) */
+/* Primary — CTA, 강조 (primary 톤) */
 .ds-button[data-intent="primary"] {
-  background: var(--color-brand-primary);
-  border-color: var(--color-brand-primary);
-  color: var(--text-on-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0, #fff));
+  color: var(--color-text-primary);
 }
 
-.ds-button[data-intent="primary"]:hover {
-  background: var(--color-brand-primary-hover);
-  border-color: var(--color-brand-primary-hover);
+.ds-button[data-intent="primary"]:hover:not(:disabled):not([data-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-brand-primary) 28%, var(--scale-Neutral0, #fff));
 }
 
-/* Secondary — ghost 스타일 (프리미엄 톤) */
+/* Secondary — 보조 액션 (neutral 톤) */
 .ds-button[data-intent="secondary"] {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--border-divider) 80%, transparent);
-  color: var(--text-primary);
+  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
+  color: var(--color-text-primary);
 }
 
-.ds-button[data-intent="secondary"]:hover {
-  background: var(--bg-surface-soft);
-  border-color: var(--border-divider);
-  color: var(--text-primary);
+.ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface));
 }
 
-/* Ghost — 저강도 액션 */
+/* Ghost — 저강도 */
 .ds-button[data-intent="ghost"] {
-  background: transparent;
-  border-color: transparent;
-  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
 }
 
-.ds-button[data-intent="ghost"]:hover {
-  background: var(--bg-surface-soft);
-  color: var(--text-primary);
+.ds-button[data-intent="ghost"]:hover:not(:disabled):not([data-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+  color: var(--color-text-primary);
 }
 
-/* Danger — outline + subtle red (solid 금지) */
+/* Danger — 위험 액션 (error 톤) */
 .ds-button[data-intent="danger"] {
-  background: color-mix(in srgb, var(--color-error) 8%, var(--bg-surface));
-  border: 1px solid color-mix(in srgb, var(--color-error) 70%, transparent);
+  background: color-mix(in srgb, var(--color-error) 12%, var(--color-bg-surface));
   color: var(--color-error);
 }
 
-.ds-button[data-intent="danger"]:hover {
-  background: color-mix(in srgb, var(--color-error) 14%, var(--bg-surface));
-  border-color: var(--color-error);
+.ds-button[data-intent="danger"]:hover:not(:disabled):not([data-disabled="true"]) {
+  background: color-mix(in srgb, var(--color-error) 20%, var(--color-bg-surface));
 }
 
 /* ======================================================
- * Selection / Toggle (ARIA)
+ * Selection / Toggle (aria-pressed) — 선택 시 링 강조
  * ====================================================== */
 
 .ds-button[aria-pressed="true"] {
-  background: var(--color-brand-primary);
-  border-color: var(--color-brand-primary);
-  color: var(--text-on-primary);
-
-  box-shadow: var(--elevation-1);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
-.ds-button[aria-pressed="true"]:hover {
-  background: var(--color-brand-primary-hover);
+.ds-button[aria-pressed="true"][data-intent="primary"] {
+  background: color-mix(in srgb, var(--color-brand-primary) 28%, var(--scale-Neutral0, #fff));
+}
+
+.ds-button[aria-pressed="true"]:hover:not(:disabled):not([data-disabled="true"]) {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+    inset 0 2px 6px rgba(255, 255, 255, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
 }
 
 /* ======================================================
- * Focus (Accessibility SSOT)
+ * Focus (Accessibility)
  * ====================================================== */
 
 .ds-button:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--bg-surface),
-    0 0 0 4px color-mix(in srgb, var(--color-brand-primary) 60%, transparent);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
 }
 
 /* ======================================================
@@ -1761,9 +4858,10 @@ html[data-theme="purple-insight"] .ant-modal-content {
 
 .ds-button:disabled,
 .ds-button[data-disabled="true"] {
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
+  transform: none;
 }
 
 
@@ -1821,25 +4919,6 @@ html[data-theme="purple-insight"] .ant-modal-content {
 [data-app="admin"] table[data-density="compact"] td {
   padding: 10px 12px;
   font-size: 12px;
-}
-
-/* Status badge */
-[data-app="admin"] .table-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 999px;
-  border: 1px solid var(--border-divider);
-  background: var(--bg-surface-soft);
-  color: var(--text-secondary);
-}
-
-[data-app="admin"] .table-badge[data-state="active"] {
-  border-color: var(--color-success);
-  background: color-mix(in srgb, var(--color-success) 12%, transparent);
-  color: var(--color-success);
 }
 
 
@@ -2052,15 +5131,17 @@ html[data-theme="purple-insight"] .ant-modal-content {
 @import "./header.css";
 @import "./modal-form.css";
 
-/* ✅ Enterprise primitives */
+/* ✅ Enterprise primitives (상태 뱃지는 styles/design-system/ds/status.css SSOT) */
 @import "./badge.css";
-@import "./status.css";
 @import "./modal.css";
 @import "./table.css";
 
 /* Layout / Sidebar (admin only) */
 @import "./layout.css";
 @import "./sidebar.css";
+
+/* Auth (login pages — DS tokens only) */
+@import "./auth.css";
 
 
 ==========================================================================================
@@ -2320,7 +5401,7 @@ html[data-theme="purple-insight"] .ant-modal-content {
 # FILE: design-system/patterns/modal-form.css
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/modal-form.css */
-/* Modal Form Vertical Rhythm (SSOT) */
+/* Modal Form Vertical Rhythm — @/shared/ui/modal(AdminModal) 내부 폼 레이아웃용 */
 
 [data-app="admin"] .modal-form {
   display: flex;
@@ -2346,9 +5427,9 @@ html[data-theme="purple-insight"] .ant-modal-content {
 ==========================================================================================
 /* PATH: src/styles/design-system/patterns/modal.css */
 /* ============================================================================
- * DS MODAL — overlay / dialog shell
- * - consistent backdrop, elevation, spacing
- * - used by Students modals
+ * DS MODAL — 레거시/커스텀 다이얼로그 셸 (AntD 미사용 시)
+ * - Admin 앱 모달 SSOT: @/shared/ui/modal (AdminModal + ModalHeader/Body/Footer)
+ * - 아래 .ds-backdrop / .ds-dialog 는 해당 SSOT 사용 전 패턴 보존용
  * ============================================================================ */
 
 .ds-backdrop {
@@ -2473,53 +5554,6 @@ html[data-theme="purple-insight"] .ant-modal-content {
   transition:
     background-color var(--motion-base) var(--ease-out),
     transform var(--motion-fast) ease;
-}
-
-
-==========================================================================================
-# FILE: design-system/patterns/status.css
-==========================================================================================
-/* PATH: src/styles/design-system/patterns/status.css */
-/* ============================================================================
- * DS STATUS PILL — enterprise mapping
- * - uses data-state: active|inactive (extensible)
- * - no inline colors in components
- * ============================================================================ */
-
-.ds-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: -0.1px;
-
-  border: 1px solid var(--border-divider);
-  background: var(--bg-surface-soft);
-  color: var(--text-primary);
-
-  transition:
-    background-color var(--motion-base) var(--ease-out),
-    color var(--motion-base) var(--ease-out),
-    border-color var(--motion-base) var(--ease-out);
-}
-
-.ds-status[data-state="inactive"] {
-  background: var(--color-bg-disabled);
-  color: var(--text-muted);
-}
-
-.ds-status[data-interactive="true"] {
-  cursor: pointer;
-  user-select: none;
-}
-
-.ds-status[data-interactive="true"]:hover {
-  border-color: color-mix(in srgb, var(--border-divider) 72%, var(--text-muted));
 }
 
 
@@ -2757,6 +5791,40 @@ table.ds-table {
 
 .ds-table-wrap .ds-table.ds-table--flat tbody tr:hover {
   background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+
+/* 학생 테이블 — 내용물 좌측정렬, 체크박스만 중앙 + 체크박스 칸 타이트 + 세로 간격 줄임 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th,
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center tbody td {
+  text-align: left;
+  vertical-align: middle;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th:nth-child(2) {
+  text-align: center;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th {
+  padding: 4px 18px;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center tbody td {
+  padding: 6px 18px;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell {
+  text-align: center;
+  padding: 4px 4px;
+  box-sizing: border-box;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-table--center .ds-checkbox-cell input[type="checkbox"] {
+  margin: 0 auto;
+  display: block;
+}
+
+/* 출결 테이블 — 패딩·세로 간격만 축소, 폰트는 students(SSOT)와 동일하게 셀 단위로 적용 */
+.ds-table-wrap .ds-table.ds-table--attendance.ds-table--flat thead th {
+  padding: 4px 12px;
+  font-weight: 600;
+}
+.ds-table-wrap .ds-table.ds-table--attendance.ds-table--flat tbody td {
+  padding: 4px 12px;
 }
 
 /* 테이블 체크박스 — 클릭 영역 확대 */

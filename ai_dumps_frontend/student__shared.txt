@@ -540,6 +540,136 @@ a {
 
 
 ==========================================================================================
+# FILE: ui/icons/Icons.tsx
+==========================================================================================
+/**
+ * 학생 앱 전역 아이콘 — 단일 SSOT, 아이콘 방식
+ */
+import type { SVGProps } from "react";
+
+const size = 24;
+const stroke = 2;
+
+export function IconHome(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconPlay(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <polygon points="8 5 19 12 8 19" stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconCalendar(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth={stroke} />
+      <path d="M8 3v4M16 3v4M3 9h18" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconGrade(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M12 2l3 6.5 6.5.5-5 4.5 1.5 6.5L12 16l-5.5 4 1.5-6.5-5-4.5 6.5-.5L12 2z" stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconMore(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <circle cx="12" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="18" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconUser(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth={stroke} />
+      <path d="M5 20c0-4 3.5-6 7-6s7 2 7 6" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconBoard(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth={stroke} />
+      <path d="M7 8h10M7 12h10M7 16h6" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconCheck(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconChevronRight(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconClipboard(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconExam(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M9 12h6M9 16h6M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconNotice(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m-6 0H9" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconLogout(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+      <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconVideoThumb({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="100%" viewBox="0 0 16 9" fill="none">
+      <rect width="16" height="9" fill="var(--stu-surface-soft)" />
+      <path d="M6 4.5v-2l3 2-3 2v-2z" fill="var(--stu-text-muted)" />
+    </svg>
+  );
+}
+
+
+==========================================================================================
 # FILE: ui/layout/EmptyState.tsx
 ==========================================================================================
 // PATH: src/student/shared/ui/layout/EmptyState.tsx
@@ -597,150 +727,60 @@ export default function SectionHeader({
 
 
 ==========================================================================================
-# FILE: ui/layout/StudentHomeStrip.tsx
-==========================================================================================
-// PATH: src/student/shared/ui/layout/StudentHomeStrip.tsx
-/**
- * ✅ StudentHomeStrip (LOCK v1)
- * - 상단 "공지 + 일정" 중앙상단 영역
- *
- * 원칙:
- * - 데이터 fetch/판단 ❌
- * - 링크/구조만 제공 ✅
- *
- * 확장:
- * - 추후 공지/일정 API를 붙이고 싶으면
- *   이 컴포넌트 내부에서만 확장(도메인 침범 금지)
- */
-
-import { Link } from "react-router-dom";
-
-export default function StudentHomeStrip() {
-  return (
-    <div className="stu-stack" style={{ gap: "var(--stu-space-8)" }}>
-      {/* Notice */}
-      <Link to="/student/dashboard" className="stu-card stu-card--pressable" style={{ padding: "var(--stu-space-10)" }}>
-        <div className="stu-between" style={{ alignItems: "flex-start" }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="stu-h3" style={{ fontSize: 16, marginBottom: 6 }}>
-              📣 공지사항
-            </div>
-            <div className="stu-muted">
-              
-            </div>
-          </div>
-          <span className="stu-badge stu-badge--neutral">보기</span>
-        </div>
-
-        <div style={{ marginTop: "var(--stu-space-8)" }} className="stu-caption">
-          ※ 디자인 표본입니다. (전역)
-        </div>
-      </Link>
-
-      {/* Schedule / Today */}
-      <Link to="/student/sessions" className="stu-card stu-card--pressable" style={{ padding: "var(--stu-space-10)" }}>
-        <div className="stu-between" style={{ alignItems: "flex-start" }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="stu-h3" style={{ fontSize: 16, marginBottom: 6 }}>
-              🗓️ 오늘 일정
-            </div>
-            <div className="stu-muted">
-              
-            </div>
-          </div>
-          <span className="stu-badge stu-badge--neutral">차시</span>
-        </div>
-
-        <div style={{ marginTop: "var(--stu-space-8)" }} className="stu-caption">
-          ※ 중앙 상단 일정 제공 (전역)
-        </div>
-      </Link>
-    </div>
-  );
-}
-
-
-==========================================================================================
 # FILE: ui/layout/StudentLayout.tsx
 ==========================================================================================
-// PATH: src/student/shared/ui/layout/StudentLayout.tsx
 /**
- * ✅ StudentLayout (LOCK v3)
- *
- * 책임:
- * - 학생앱 전역 레이아웃 "디자인" SSOT
- * - 상단바 + (Dashboard 한정 공지/일정) + 페이지 컨텐츠 + 하단탭바
- *
- * 원칙:
- * - 도메인 로직/데이터 판단 ❌
- * - UI 구조만 제공 ✅
+ * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
+ * 상단바 + 스크롤 영역 + 하단 탭바
  */
-
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import "../theme/tokens.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
-import StudentHomeStrip from "./StudentHomeStrip";
 
 export default function StudentLayout() {
-  const location = useLocation();
-  const isDashboard =
-    location.pathname === "/student" ||
-    location.pathname.startsWith("/student/dashboard");
-
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
         background: "var(--stu-bg)",
         color: "var(--stu-text)",
+        display: "flex",
+        flexDirection: "column",
+        paddingTop: "var(--stu-safe-top)",
       }}
     >
-      {/* ===== Header ===== */}
-      <div
+      <header
         style={{
+          flexShrink: 0,
           position: "sticky",
           top: 0,
-          zIndex: "var(--stu-z-header)" as any,
-          background: "color-mix(in srgb, var(--stu-surface) 88%, transparent)",
+          zIndex: "var(--stu-z-header)",
+          background: "rgba(11, 15, 25, 0.85)",
           backdropFilter: "blur(12px)",
           borderBottom: "1px solid var(--stu-border)",
         }}
       >
-        <div className="stu-page" style={{ padding: "0 var(--stu-space-8)" }}>
-          <StudentTopBar />
-        </div>
-      </div>
+        <StudentTopBar />
+      </header>
 
-      {/* ===== Main ===== */}
       <main
         style={{
-          display: "flex",
-          justifyContent: "center",
-          paddingBottom: `calc(var(--stu-tabbar-h) + var(--stu-space-12) + var(--stu-safe-bottom))`,
+          flex: 1,
+          overflow: "auto",
+          WebkitOverflowScrolling: "touch",
+          paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
         }}
       >
-        <div
-          className="stu-page"
-          style={{ padding: "var(--stu-space-10) var(--stu-space-8)" }}
-        >
-          {/* ✅ Dashboard에서만 공지/일정 노출 */}
-          {isDashboard && <StudentHomeStrip />}
-
-          {/* Page content */}
-          <div
-            style={{
-              marginTop: isDashboard ? "var(--stu-space-10)" : 0,
-            }}
-          >
-            <Outlet />
-          </div>
+        <div style={{ maxWidth: "var(--stu-page-max-w)", margin: "0 auto", padding: "var(--stu-space-4)" }}>
+          <Outlet />
         </div>
       </main>
 
-      {/* ===== Bottom TabBar ===== */}
       <StudentTabBar />
+      <AsyncStatusBar />
     </div>
   );
 }
@@ -749,218 +789,73 @@ export default function StudentLayout() {
 ==========================================================================================
 # FILE: ui/layout/StudentTabBar.tsx
 ==========================================================================================
-// PATH: src/student/shared/ui/layout/StudentTabBar.tsx
 /**
- * ✅ StudentTabBar (LOCK v2)
- * - Instagram / YouTube 급 모바일 하단 탭바
- * - 미니멀 아이콘 + 명확한 active state
- *
- * 원칙:
- * - 라우팅만 담당 (정책/권한 ❌)
- * - 테마 토큰(--stu-*) 100% 사용
+ * 하단 탭바 — 5개: 홈 | 영상 | 일정 | 성적 | 더보기
+ * 유튜브 모바일형, 아이콘 + 라벨
  */
-
 import { NavLink } from "react-router-dom";
+import { IconHome, IconPlay, IconCalendar, IconGrade, IconMore } from "../icons/Icons";
 
-type TabItem = {
-  to: string;
-  label: string;
-  icon: React.ReactNode;
-};
-
-const tabs: TabItem[] = [
-  {
-    to: "/student/dashboard",
-    label: "홈",
-    icon: <IconHome />,
-  },
-  {
-    to: "/student/qna",
-    label: "게시판",
-    icon: <IconBoard />,
-  },
-  {
-    to: "/student/sessions",
-    label: "스케줄",
-    icon: <IconCalendar />,
-  },
-  {
-    to: "/student/video",
-    label: "영상",
-    icon: <IconPlay />,
-  },
-  {
-    // 🔴 핵심 수정: auth → idcard
-    to: "/student/idcard",
-    label: "인증",
-    icon: <IconCheck />,
-  },
+const tabs: { to: string; label: string; icon: React.ReactNode }[] = [
+  { to: "/student/dashboard", label: "홈", icon: <IconHome /> },
+  { to: "/student/video", label: "영상", icon: <IconPlay /> },
+  { to: "/student/sessions", label: "일정", icon: <IconCalendar /> },
+  { to: "/student/grades", label: "성적", icon: <IconGrade /> },
+  { to: "/student/more", label: "더보기", icon: <IconMore /> },
 ];
 
 export default function StudentTabBar() {
   return (
     <nav
-      aria-label="학생 하단 탭"
+      aria-label="하단 메뉴"
+      className="stu-tabbar"
       style={{
         position: "fixed",
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: "var(--stu-z-tabbar)" as any,
+        zIndex: "var(--stu-z-tabbar)",
         paddingBottom: "var(--stu-safe-bottom)",
-        background: "color-mix(in srgb, var(--stu-surface) 92%, transparent)",
-        backdropFilter: "blur(18px)",
+        background: "rgba(18, 24, 39, 0.92)",
+        backdropFilter: "blur(20px)",
         borderTop: "1px solid var(--stu-border)",
         boxShadow: "var(--stu-shadow-3)",
       }}
     >
       <div
-        className="stu-page"
         style={{
-          padding: "0 var(--stu-space-8)",
+          height: "var(--stu-tabbar-h)",
+          display: "grid",
+          gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
+          alignItems: "center",
+          maxWidth: "var(--stu-page-max-w)",
+          margin: "0 auto",
+          padding: "0 var(--stu-space-4)",
         }}
       >
-        <div
-          style={{
-            height: "var(--stu-tabbar-h)",
-            display: "grid",
-            gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
-            alignItems: "center",
-          }}
-        >
-          {tabs.map((t) => (
-            <NavLink
-              key={t.to}
-              to={t.to}
-              style={({ isActive }) => ({
-                display: "grid",
-                placeItems: "center",
-                gap: 4,
-                height: 52,
-                borderRadius: 16,
-                color: isActive
-                  ? "var(--stu-primary)"
-                  : "var(--stu-text-muted)",
-                transition:
-                  "transform 120ms ease, color 120ms ease, background 120ms ease",
-                background: isActive
-                  ? "color-mix(in srgb, var(--stu-primary) 12%, transparent)"
-                  : "transparent",
-              })}
-            >
-              <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  display: "grid",
-                  placeItems: "center",
-                }}
-                aria-hidden
-              >
-                {t.icon}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 900,
-                  letterSpacing: "-0.2px",
-                }}
-              >
-                {t.label}
-              </span>
-            </NavLink>
-          ))}
-        </div>
+        {tabs.map((t) => (
+          <NavLink
+            key={t.to}
+            to={t.to}
+            style={({ isActive }) => ({
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+              height: "100%",
+              color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
+              transition: "color 0.15s ease",
+            })}
+          >
+            <span style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center" }} aria-hidden>
+              {t.icon}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>
+          </NavLink>
+        ))}
       </div>
     </nav>
-  );
-}
-
-/* ===============================
-   Icons (Inline SVG, MVP)
-   =============================== */
-
-function IconHome() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-8.5Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconBoard() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <rect
-        x="3"
-        y="4"
-        width="18"
-        height="16"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M7 8h10M7 12h10M7 16h6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconCalendar() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <rect
-        x="3"
-        y="5"
-        width="18"
-        height="16"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M8 3v4M16 3v4M3 9h18"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconPlay() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <polygon
-        points="8 5 19 12 8 19"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconCheck() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M5 13l4 4L19 7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -968,22 +863,14 @@ function IconCheck() {
 ==========================================================================================
 # FILE: ui/layout/StudentTopBar.tsx
 ==========================================================================================
-// PATH: src/student/shared/ui/layout/StudentTopBar.tsx
 /**
- * ✅ StudentTopBar (LOCK v1)
- * - 상단 고정 바
- * - 브랜드/기본 액션만 제공
- *
- * 원칙:
- * - 로그인/프로필/알림 데이터 판단 ❌
- * - 라우트 이동만 ✅
+ * 상단 바 — 미니멀 (로고 + 제목만), 유튜브 모바일형
  */
-
 import { Link, useLocation } from "react-router-dom";
 
 export default function StudentTopBar() {
   const loc = useLocation();
-  const isHome = loc.pathname.startsWith("/student/dashboard") || loc.pathname === "/student";
+  const isHome = loc.pathname === "/student" || loc.pathname.startsWith("/student/dashboard");
 
   return (
     <div
@@ -992,64 +879,41 @@ export default function StudentTopBar() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: "var(--stu-space-8)",
-        padding: `0`,
+        padding: "0 var(--stu-space-4)",
+        maxWidth: "var(--stu-page-max-w)",
+        margin: "0 auto",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-        <Link
-          to="/student/dashboard"
+      <Link
+        to="/student/dashboard"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 10,
+          color: "var(--stu-text)",
+          textDecoration: "none",
+        }}
+        aria-label="홈"
+      >
+        <div
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            minWidth: 0,
+            width: 32,
+            height: 32,
+            borderRadius: 10,
+            background: "var(--stu-primary)",
+            color: "var(--stu-primary-contrast)",
+            display: "grid",
+            placeItems: "center",
+            fontWeight: 800,
+            fontSize: 14,
           }}
-          aria-label="홈으로"
-          title="홈"
         >
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 12,
-              background: "var(--stu-primary)",
-              color: "var(--stu-primary-contrast)",
-              display: "grid",
-              placeItems: "center",
-              fontWeight: 900,
-              boxShadow: "var(--stu-shadow-1)",
-              flex: "0 0 auto",
-            }}
-          >
-            H
-          </div>
-
-          <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontWeight: 900,
-                fontSize: 14,
-                letterSpacing: -0.2,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              HakwonPlus Student
-            </div>
-            <div className="stu-caption" style={{ marginTop: 2 }}>
-              {isHome ? "오늘 할 일을 확인하세요" : "학습을 계속 진행하세요"}
-            </div>
-          </div>
-        </Link>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Link className="stu-btn stu-btn--secondary stu-btn--sm" to="/student/qna" aria-label="Q&A">
-          Q&A
-        </Link>
-      </div>
+          H
+        </div>
+        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>
+          {isHome ? "학원플러스" : "학생"}
+        </span>
+      </Link>
     </div>
   );
 }
@@ -1098,227 +962,6 @@ export default function StudentPageShell({
       <div className="student-card">{children}</div>
     </div>
   );
-}
-
-
-==========================================================================================
-# FILE: ui/presets/dark-navy.css
-==========================================================================================
-/* PATH: src/student/shared/ui/presets/dark-navy.css */
-/**
- * THEME: Dark Navy (LOCK v1)
- *
- * 성격:
- * - 세련된 다크 서비스 테마
- * - 눈 피로 적음
- * - 학생/관리자 공용 가능
- *
- * (기존 dark-neon.css의 "정체성 명확화 버전")
- */
-
-:root {
-  --stu-bg: #0b0f19;
-  --stu-surface: #0f1629;
-  --stu-surface-soft: #111a33;
-  --stu-border: rgba(255, 255, 255, 0.12);
-
-  --stu-text: rgba(255, 255, 255, 0.92);
-  --stu-text-muted: rgba(255, 255, 255, 0.65);
-  --stu-text-subtle: rgba(255, 255, 255, 0.45);
-
-  /* Navy Accent */
-  --stu-primary: #4cc9f0;
-  --stu-primary-hover: #22b8e6;
-  --stu-primary-contrast: #020617;
-
-  /* States */
-  --stu-success: #22c55e;
-  --stu-warn: #facc15;
-  --stu-danger: #f43f5e;
-}
-
-
-==========================================================================================
-# FILE: ui/presets/dark-neon.css
-==========================================================================================
-/* PATH: src/student/shared/ui/presets/dark-neon-real.css */
-/**
- * THEME: Dark Neon REAL (LOCK v1)
- *
- * 컨셉:
- * - 진짜 블랙 배경
- * - IDE / 터미널 / VS Code / iTerm 감성
- * - 네온은 "발광 포인트"로만 사용
- *
- * 타겟:
- * - 개발자 감성
- * - 고급 사용자
- * - “와 미쳤다” 체감용
- */
-
-:root {
-  /* =========================
-     Background / Surface
-     ========================= */
-  --stu-bg: #05060a;              /* true black */
-  --stu-surface: #0b0d14;         /* editor panel */
-  --stu-surface-soft: #0f121c;
-  --stu-border: rgba(255, 255, 255, 0.08);
-
-  /* =========================
-     Text
-     ========================= */
-  --stu-text: #e6e8ef;
-  --stu-text-muted: #9aa0b4;
-  --stu-text-subtle: #6f7690;
-
-  /* =========================
-     Primary (IDE Blue)
-     ========================= */
-  --stu-primary: #4f7cff;         /* VSCode-ish blue */
-  --stu-primary-hover: #3b6bf0;
-  --stu-primary-contrast: #020617;
-
-  /* =========================
-     Neon Accents (sparingly)
-     ========================= */
-  --stu-accent-cyan: #3fffe5;
-  --stu-accent-green: #2cff9a;
-  --stu-accent-pink: #ff4fd8;
-  --stu-accent-purple: #b084ff;
-
-  /* =========================
-     States
-     ========================= */
-  --stu-success: #2cff9a;
-  --stu-warn: #ffd84d;
-  --stu-danger: #ff4f6d;
-
-  /* =========================
-     Glow helpers (optional)
-     ========================= */
-  --stu-glow-primary: 0 0 0 rgba(79, 124, 255, 0),
-    0 0 18px rgba(79, 124, 255, 0.35);
-
-  --stu-glow-cyan: 0 0 16px rgba(63, 255, 229, 0.45);
-  --stu-glow-green: 0 0 16px rgba(44, 255, 154, 0.45);
-}
-
-
-==========================================================================================
-# FILE: ui/presets/light-blue.css
-==========================================================================================
-/* PATH: src/student/shared/ui/theme/presets/light-blue.css */
-:root {
-  --stu-bg: #f6f7fb;
-  --stu-surface: #ffffff;
-  --stu-surface-soft: #f2f5ff;
-  --stu-border: rgba(15, 23, 42, 0.08);
-
-  --stu-text: #0f172a;
-  --stu-text-muted: rgba(15, 23, 42, 0.65);
-  --stu-text-subtle: rgba(15, 23, 42, 0.45);
-
-  --stu-primary: #2563eb;
-  --stu-primary-hover: #1d4ed8;
-  --stu-primary-contrast: #ffffff;
-
-  --stu-success: #16a34a;
-  --stu-warn: #f59e0b;
-  --stu-danger: #ef4444;
-}
-
-
-==========================================================================================
-# FILE: ui/presets/light-neutral.css
-==========================================================================================
-/* PATH: src/student/shared/ui/theme/presets/light-neutral.css */
-:root {
-  --stu-bg: #f7f7f8;
-  --stu-surface: #ffffff;
-  --stu-surface-soft: #f1f1f3;
-  --stu-border: rgba(0, 0, 0, 0.08);
-
-  --stu-text: #111111;
-  --stu-text-muted: rgba(0, 0, 0, 0.6);
-  --stu-text-subtle: rgba(0, 0, 0, 0.4);
-
-  --stu-primary: #4b5563; /* gray-600 */
-  --stu-primary-hover: #374151;
-  --stu-primary-contrast: #ffffff;
-
-  --stu-success: #15803d;
-  --stu-warn: #ca8a04;
-  --stu-danger: #dc2626;
-}
-
-
-==========================================================================================
-# FILE: ui/presets/purple-yellow.css
-==========================================================================================
-/* PATH: src/student/shared/ui/theme/presets/purple-yellow.css */
-/**
- * ✅ THEME: Purple + Yellow (LOCK v1)
- *
- * 포지션:
- * - 하이엔드 / 크리에이티브 / Z세대 친화
- * - 보라 = 집중 / 브랜딩
- * - 노랑 = 행동 유도 / CTA
- *
- * 사용 시나리오:
- * - 학생 메인 앱
- * - 인증/출결/행동 버튼 강조
- * - “눈에 띄는 서비스” 감성
- */
-
-:root {
-  /* =========================
-     Background / Surface
-     ========================= */
-  --stu-bg: #f7f5fb;              /* 아주 연한 퍼플 */
-  --stu-surface: #ffffff;
-  --stu-surface-soft: #f1edfa;
-  --stu-border: rgba(88, 28, 135, 0.12);
-
-  /* =========================
-     Text
-     ========================= */
-  --stu-text: #2e1065;            /* deep purple */
-  --stu-text-muted: rgba(46, 16, 101, 0.65);
-  --stu-text-subtle: rgba(46, 16, 101, 0.45);
-
-  /* =========================
-     Primary (Purple)
-     ========================= */
-  --stu-primary: #7c3aed;         /* violet-600 */
-  --stu-primary-hover: #6d28d9;
-  --stu-primary-contrast: #ffffff;
-
-  /* =========================
-     Accent / CTA (Yellow)
-     ========================= */
-  --stu-accent: #facc15;          /* yellow-400 */
-  --stu-accent-hover: #eab308;
-  --stu-accent-contrast: #422006;
-
-  /* =========================
-     States
-     ========================= */
-  --stu-success: #22c55e;
-  --stu-warn: #facc15;
-  --stu-danger: #ef4444;
-
-  --stu-success-bg: color-mix(in srgb, var(--stu-success) 14%, #ffffff);
-  --stu-success-border: color-mix(in srgb, var(--stu-success) 26%, #ffffff);
-  --stu-success-text: color-mix(in srgb, var(--stu-success) 92%, #000000);
-
-  --stu-warn-bg: color-mix(in srgb, var(--stu-warn) 22%, #ffffff);
-  --stu-warn-border: color-mix(in srgb, var(--stu-warn) 38%, #ffffff);
-  --stu-warn-text: #422006;
-
-  --stu-danger-bg: color-mix(in srgb, var(--stu-danger) 14%, #ffffff);
-  --stu-danger-border: color-mix(in srgb, var(--stu-danger) 26%, #ffffff);
-  --stu-danger-text: color-mix(in srgb, var(--stu-danger) 92%, #000000);
 }
 
 
@@ -1461,79 +1104,94 @@ export default function StudentPageShell({
 ==========================================================================================
 # FILE: ui/theme/tokens.css
 ==========================================================================================
-/* PATH: src/student/shared/ui/theme/tokens.css */
-/*
- * 사용 가능한 테마 preset 목록:
- *
- * @import "../presets/light-blue.css";       // 기본 학생용 (화이트+블루)
- * @import "../presets/light-neutral.css";    // 관리자/중립
- * @import "../presets/purple-yellow.css";    // 브랜드 / CTA 강조
- * @import "../presets/dark-navy.css";        // 다크 네이비 (세련된 서비스)
- * @import "../presets/dark-neon.css";   // 🔥 리얼 IDE 네온
- */
-
-/* ✅ 1. 컬러 프리셋 (단 하나만 활성화) */
-@import "../presets/dark-navy.css";
-
-/* ✅ 2. 색상 외 전역 토큰 */
 @import "../theme/typography.css";
 @import "../theme/shadow.css";
 @import "../css/base.css";
 
+/* PATH: src/student/shared/ui/theme/tokens.css
+ * 단일 모바일 테마 — 프리미엄 대형학원 SaaS
+ * (레가시 프리셋 제거, 단일 SSOT)
+ */
+/* ========== 1. Color palette ========== */
 :root {
-  /* ===============================
-   * Layout Size
-   * =============================== */
-  --stu-header-h: 56px;
-  --stu-tabbar-h: 64px;
+  --stu-bg: #0b0f19;
+  --stu-surface: #121827;
+  --stu-surface-soft: #1a2235;
+  --stu-border: rgba(255, 255, 255, 0.1);
 
-  /* ===============================
-   * Page Width
-   * =============================== */
-  --stu-page-max-w: 980px;
+  --stu-text: rgba(255, 255, 255, 0.95);
+  --stu-text-muted: rgba(255, 255, 255, 0.65);
+  --stu-text-subtle: rgba(255, 255, 255, 0.45);
 
-  /* ===============================
-   * Spacing Rhythm
-   * =============================== */
+  --stu-primary: #3b82f6;
+  --stu-primary-hover: #2563eb;
+  --stu-primary-contrast: #fff;
+  --stu-glow-primary: 0 0 20px rgba(59, 130, 246, 0.35);
+
+  --stu-success: #22c55e;
+  --stu-success-bg: rgba(34, 197, 94, 0.15);
+  --stu-success-border: rgba(34, 197, 94, 0.4);
+  --stu-success-text: #22c55e;
+
+  --stu-warn: #f59e0b;
+  --stu-warn-bg: rgba(245, 158, 11, 0.15);
+  --stu-warn-border: rgba(245, 158, 11, 0.4);
+  --stu-warn-text: #f59e0b;
+
+  --stu-danger: #ef4444;
+  --stu-danger-hover: #dc2626;
+  --stu-danger-bg: rgba(239, 68, 68, 0.15);
+  --stu-danger-border: rgba(239, 68, 68, 0.4);
+  --stu-danger-text: #ef4444;
+}
+
+/* ========== 2. Typography ========== */
+:root {
+  --stu-font-sans: "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, sans-serif;
+  --stu-font-size-12: 12px;
+  --stu-font-size-13: 13px;
+  --stu-font-size-14: 14px;
+  --stu-font-size-15: 15px;
+  --stu-font-size-16: 16px;
+  --stu-font-size-18: 18px;
+  --stu-font-size-20: 20px;
+  --stu-line-16: 1.35;
+  --stu-line-18: 1.4;
+  --stu-line-20: 1.45;
+}
+
+/* ========== 3. Shadow (shadow.css에서 상세 정의) ========== */
+:root {
+  --stu-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --stu-shadow-2: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --stu-shadow-3: 0 10px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ========== 4. Layout & spacing ========== */
+:root {
+  --stu-header-h: 52px;
+  --stu-tabbar-h: 60px;
+  --stu-page-max-w: 100%;
   --stu-space-1: 2px;
   --stu-space-2: 4px;
   --stu-space-3: 6px;
   --stu-space-4: 8px;
   --stu-space-5: 10px;
   --stu-space-6: 12px;
-  --stu-space-7: 14px;
   --stu-space-8: 16px;
-  --stu-space-9: 18px;
   --stu-space-10: 20px;
   --stu-space-12: 24px;
-  --stu-space-14: 28px;
   --stu-space-16: 32px;
-
-  /* ===============================
-   * Radius
-   * =============================== */
-  --stu-radius-sm: 10px;
+  --stu-radius-sm: 8px;
   --stu-radius-md: 12px;
   --stu-radius-lg: 16px;
   --stu-radius-xl: 20px;
-
-  /* ===============================
-   * Z-index
-   * =============================== */
   --stu-z-header: 200;
   --stu-z-tabbar: 220;
   --stu-z-modal: 500;
   --stu-z-toast: 650;
-
-  /* ===============================
-   * Safe Areas
-   * =============================== */
   --stu-safe-bottom: env(safe-area-inset-bottom, 0px);
   --stu-safe-top: env(safe-area-inset-top, 0px);
-
-  /* ===============================
-   * Touch Targets
-   * =============================== */
   --stu-touch: 44px;
 }
 

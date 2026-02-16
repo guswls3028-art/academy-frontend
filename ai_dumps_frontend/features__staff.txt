@@ -143,7 +143,7 @@ export async function patchExpense(
 ==========================================================================================
 # FILE: api/index.ts
 ==========================================================================================
-﻿/**
+/**
  * PATH: src/features/staff/api/index.ts
  * Staff Domain API – Single Source of Truth
  */
@@ -157,7 +157,7 @@ export * from "./expenses.api";
 export * from "./workMonthLocks.api";
 
 export * from "./payrollSnapshots.api";
-export * from "./payrollSnapshotPDF.api";
+export * from "./payrollSnapshotPdf.api";
 
 export * from "./staffWorkType.api";
 
@@ -202,6 +202,7 @@ export async function exportPayrollSnapshotPDF(params: {
 ==========================================================================================
 // PATH: src/features/staff/api/payrollSnapshots.api.ts
 import api from "@/shared/api/axios";
+import { pollJobUntilDone, downloadFromUrl } from "@/shared/api/jobExport";
 
 /** Backend: PayrollSnapshotSerializer (work_hours Decimal, no updated_at) */
 export type PayrollSnapshot = {
@@ -242,32 +243,26 @@ export async function fetchPayrollSnapshots(params: {
 }
 
 /**
- * GET /staffs/payroll-snapshots/export-excel/
+ * POST /staffs/payroll-snapshots/export-excel/ → job_id → 폴링 → download_url 다운로드
  */
 export async function exportPayrollSnapshotExcel(params: {
   year: number;
   month: number;
-}) {
-  const res = await api.get(
+}): Promise<void> {
+  const res = await api.post<{ job_id: string; status: string }>(
     "/staffs/payroll-snapshots/export-excel/",
-    {
-      params,
-      responseType: "blob",
-    }
+    params
   );
+  const jobId = res.data?.job_id;
+  if (!jobId) throw new Error("Export job could not be started.");
 
-  const blob = new Blob([res.data], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `payroll_${params.year}_${String(params.month).padStart(2, "0")}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  const data = await pollJobUntilDone(jobId);
+  const url = data.result?.download_url;
+  const filename =
+    data.result?.filename ||
+    `payroll_${params.year}_${String(params.month).padStart(2, "0")}.xlsx`;
+  if (!url) throw new Error("Export completed but no download link.");
+  downloadFromUrl(url, filename);
 }
 
 
@@ -278,7 +273,7 @@ export async function exportPayrollSnapshotExcel(params: {
 import api from "@/shared/api/axios";
 import type { StaffWorkType } from "./staffWorkType.api";
 
-/** Backend: StaffListSerializer */
+/** Backend: StaffListSerializer — role: TEACHER(강사) | ASSISTANT(조교) */
 export type Staff = {
   id: number;
   name: string;
@@ -286,6 +281,7 @@ export type Staff = {
   is_active: boolean;
   is_manager: boolean;
   pay_type: "HOURLY" | "MONTHLY";
+  role: "TEACHER" | "ASSISTANT";
   staff_work_types: StaffWorkType[];
   created_at: string;
   updated_at: string;
@@ -807,50 +803,15 @@ export default function StaffTable({ staffs, onRowClick }: Props) {
 # FILE: components/StatusBadge.tsx
 ==========================================================================================
 // PATH: src/features/staff/components/StatusBadge.tsx
+// 전역 SSOT: .ds-status-badge + data-tone (styles/design-system/ds/status.css)
+
 import React from "react";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
 }
 
-/**
- * StatusBadge – 실무 단일 기준
- *
- * 원칙:
- * - 색상 + 텍스트만으로 상태 즉시 인지
- * - danger = 불변 / 위험 / 되돌릴 수 없음
- * - success = 정상 / 확정 / 승인
- * - neutral = 정보 / 대기
- */
-
-type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
-
-type Tone = "neutral" | "success" | "danger" | "primary";
-type Density = "soft" | "solid";
-
-const BASE =
-  "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border leading-none";
-
-function toneClass(tone: Tone, density: Density = "soft") {
-  if (density === "solid") {
-    if (tone === "danger")
-      return "bg-[var(--color-danger)] text-white border-[var(--color-danger)]";
-    if (tone === "success")
-      return "bg-[var(--color-success)] text-white border-[var(--color-success)]";
-    if (tone === "primary")
-      return "bg-[var(--color-primary)] text-white border-[var(--color-primary)]";
-    return "bg-[var(--bg-surface-muted)] text-[var(--text-primary)] border-[var(--border-divider)]";
-  }
-
-  if (tone === "success")
-    return "bg-[var(--color-success-soft)] text-[var(--color-success)] border-[color-mix(in_srgb,var(--color-success)_55%,transparent)]";
-  if (tone === "danger")
-    return "bg-[var(--color-danger-soft)] text-[var(--color-danger)] border-[color-mix(in_srgb,var(--color-danger)_55%,transparent)]";
-  if (tone === "primary")
-    return "bg-[var(--color-primary-soft)] text-[var(--color-primary)] border-[color-mix(in_srgb,var(--color-primary)_55%,transparent)]";
-
-  return "bg-[var(--bg-surface-muted)] text-[var(--text-secondary)] border-[var(--border-divider)]";
-}
+type Tone = "neutral" | "success" | "danger" | "warning" | "primary";
 
 function Dot({ tone }: { tone: Tone }) {
   const cls =
@@ -858,39 +819,30 @@ function Dot({ tone }: { tone: Tone }) {
       ? "bg-[var(--color-danger)]"
       : tone === "success"
       ? "bg-[var(--color-success)]"
+      : tone === "warning"
+      ? "bg-[var(--color-warning)]"
       : tone === "primary"
-      ? "bg-[var(--color-primary)]"
-      : "bg-[var(--text-muted)]";
+      ? "bg-[var(--color-brand-primary)]"
+      : "bg-[var(--color-text-muted)]";
 
-  return <span className={cx("inline-block h-1.5 w-1.5 rounded-full", cls)} />;
+  return <span className={cx("inline-block h-1.5 w-1.5 rounded-full shrink-0", cls)} aria-hidden />;
 }
 
-/* =========================
-   Expense Status
-========================= */
+type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export function ExpenseStatusBadge({ status }: { status: ExpenseStatus }) {
   const label =
     status === "APPROVED" ? "승인" : status === "REJECTED" ? "반려" : "대기";
-
   const tone: Tone =
-    status === "APPROVED"
-      ? "success"
-      : status === "REJECTED"
-      ? "danger"
-      : "neutral";
+    status === "APPROVED" ? "success" : status === "REJECTED" ? "danger" : "neutral";
 
   return (
-    <span className={cx(BASE, toneClass(tone))}>
+    <span className="ds-status-badge" data-tone={tone}>
       <Dot tone={tone} />
       {label}
     </span>
   );
 }
-
-/* =========================
-   Lock Status
-========================= */
 
 export function LockBadge({
   state,
@@ -903,22 +855,18 @@ export function LockBadge({
   const tone: Tone = locked ? "danger" : "success";
 
   return (
-    <span className={cx(BASE, toneClass(tone))}>
+    <span className="ds-status-badge" data-tone={tone}>
       <Dot tone={tone} />
       {locked ? (compact ? "마감" : "🔒 마감") : compact ? "진행" : "🔓 진행중"}
     </span>
   );
 }
 
-/* =========================
-   Role
-========================= */
-
 export function RoleBadge({ isManager }: { isManager: boolean }) {
   const tone: Tone = isManager ? "primary" : "neutral";
 
   return (
-    <span className={cx(BASE, toneClass(tone))}>
+    <span className="ds-status-badge" data-tone={tone}>
       <Dot tone={tone} />
       {isManager ? "관리자" : "직원"}
     </span>
@@ -1338,15 +1286,16 @@ export function useWorkMonth() {
 ==========================================================================================
 # FILE: overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
+// Design: docs/DESIGN_SSOT.md
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Tabs } from "antd";
 
 import {
   fetchStaffDetail,
   fetchStaffSummaryByRange,
+  patchStaffDetail,
 } from "../../api/staff.detail.api";
 import {
   fetchWorkMonthLocks,
@@ -1355,7 +1304,7 @@ import {
 import { fetchStaffMe } from "../../api/staffMe.api";
 
 import ActionButton from "../../components/ActionButton";
-import { LockBadge, RoleBadge } from "../../components/StatusBadge";
+import { LockBadge } from "../../components/StatusBadge";
 
 import StaffSummaryTab from "./StaffSummaryTab";
 import StaffWorkTypeTab from "./StaffWorkTypeTab";
@@ -1364,6 +1313,36 @@ import StaffExpensesTab from "./StaffExpensesTab";
 import StaffPayrollHistoryTab from "./StaffPayrollHistoryTab";
 import StaffReportTab from "./StaffReportTab";
 import StaffSettingsTab from "./StaffSettingsTab";
+
+function StaffManagerToggle({
+  staffId,
+  isManager,
+}: {
+  staffId: number;
+  isManager: boolean;
+}) {
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (payload: { is_manager: boolean }) =>
+      patchStaffDetail(staffId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: ["staff", staffId] });
+    },
+  });
+  return (
+    <button
+      type="button"
+      className="ds-status-badge cursor-pointer"
+      data-status={isManager ? "active" : "inactive"}
+      disabled={mutation.isPending}
+      onClick={() => mutation.mutate({ is_manager: !isManager })}
+      aria-label={isManager ? "관리자 해제" : "관리자 부여"}
+    >
+      {mutation.isPending ? "…" : isManager ? "ON" : "OFF"}
+    </button>
+  );
+}
 
 function getThisMonthRange() {
   const d = new Date();
@@ -1480,18 +1459,14 @@ export default function StaffDetailOverlay() {
                   <div className="text-lg font-semibold flex items-center gap-2">
                     {staff.name}
                     {staff.user_is_staff && (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--color-primary-soft)] text-[var(--color-primary)] border border-[color-mix(in_srgb,var(--color-primary)_45%,transparent)]">
+                      <span className="ds-status-badge" data-tone="primary">
                         STAFF
                       </span>
                     )}
                   </div>
                   <span
-                    className={[
-                      "px-2 py-0.5 rounded-full text-xs font-semibold border",
-                      staff.is_active
-                        ? "bg-[var(--color-success-soft)] text-[var(--color-success)] border-[color-mix(in_srgb,var(--color-success)_45%,transparent)]"
-                        : "bg-[var(--bg-surface-muted)] text-[var(--text-disabled)] border-[var(--border-divider)]",
-                    ].join(" ")}
+                    className="ds-status-badge"
+                    data-status={staff.is_active ? "active" : "inactive"}
                   >
                     {staff.is_active ? "활성" : "비활성"}
                   </span>
@@ -1507,8 +1482,20 @@ export default function StaffDetailOverlay() {
                 />
 
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-[var(--text-muted)]">역할</span>
-                  <RoleBadge isManager={!!staff.is_manager} />
+                  <span className="text-[var(--color-text-muted)]">역할</span>
+                  <span className="ds-status-badge" data-tone={staff.role === "TEACHER" ? "primary" : "neutral"}>
+                    {staff.role === "TEACHER" ? "강사" : "조교"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[var(--color-text-muted)]">관리자</span>
+                  {canManage ? (
+                    <StaffManagerToggle staffId={staff.id} isManager={!!staff.is_manager} />
+                  ) : (
+                    <span className="ds-status-badge" data-status={staff.is_manager ? "active" : "inactive"}>
+                      {staff.is_manager ? "ON" : "OFF"}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1539,51 +1526,40 @@ export default function StaffDetailOverlay() {
               </div>
             </div>
 
-            {/* RIGHT */}
-            <div className="flex-1">
-              <Tabs
-                activeKey={tab}
-                onChange={setTab}
-                items={[
-                  {
-                    key: "summary",
-                    label: "요약",
-                    children: <StaffSummaryTab staffId={sid} />,
-                  },
-                  {
-                    key: "worktype",
-                    label: "시급·근무유형",
-                    children: <StaffWorkTypeTab staffId={sid} />,
-                  },
-                  {
-                    key: "records",
-                    label: "근무기록",
-                    children: <StaffWorkRecordsTab staffId={sid} />,
-                  },
-                  {
-                    key: "expenses",
-                    label: "비용",
-                    children: <StaffExpensesTab staffId={sid} />,
-                  },
-                  {
-                    key: "history",
-                    label: "급여 히스토리",
-                    children: <StaffPayrollHistoryTab />,
-                  },
-                  {
-                    key: "report",
-                    label: "리포트",
-                    children: <StaffReportTab />,
-                  },
-                  canManage
-                    ? {
-                        key: "settings",
-                        label: "설정",
-                        children: <StaffSettingsTab />,
-                      }
-                    : null,
-                ].filter(Boolean) as any}
-              />
+            {/* RIGHT — 플랫탭 + 패널 */}
+            <div className="flex-1 flex flex-col min-h-0">
+              {(() => {
+                const items = [
+                  { key: "summary", label: "요약", children: <StaffSummaryTab staffId={sid} /> },
+                  { key: "worktype", label: "시급·근무유형", children: <StaffWorkTypeTab staffId={sid} /> },
+                  { key: "records", label: "근무기록", children: <StaffWorkRecordsTab staffId={sid} /> },
+                  { key: "expenses", label: "비용", children: <StaffExpensesTab staffId={sid} /> },
+                  { key: "history", label: "급여 히스토리", children: <StaffPayrollHistoryTab /> },
+                  { key: "report", label: "리포트", children: <StaffReportTab /> },
+                  ...(canManage ? [{ key: "settings", label: "설정", children: <StaffSettingsTab /> }] : []),
+                ];
+                return (
+                  <>
+                    <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)] mb-3" role="tablist">
+                      {items.map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={tab === t.key}
+                          onClick={() => setTab(t.key)}
+                          className={`ds-tab ${tab === t.key ? "is-active" : ""}`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-auto">
+                      {items.find((i) => i.key === tab)?.children}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1932,7 +1908,7 @@ function Item({ label, value, primary }: { label: string; value: string; primary
 ==========================================================================================
 # FILE: overlays/StaffDetailOverlay/StaffSettingsTab.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffSettingsTab.tsx
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffSettingsTab.tsx
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2024,14 +2000,32 @@ export default function StaffSettingsTab() {
         </Field>
 
         <Field label="급여 유형">
-          <select
-            value={form.pay_type}
-            onChange={(e) => setForm((p) => ({ ...p, pay_type: e.target.value as any }))}
-            className="form-input"
-          >
-            <option value="HOURLY">시급</option>
-            <option value="MONTHLY">월급</option>
-          </select>
+          <span className="inline-flex rounded-md border border-[var(--border-divider)] p-0.5 bg-[var(--bg-surface-soft)]">
+            <button
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, pay_type: "HOURLY" }))}
+              className={[
+                "px-3 py-1.5 text-sm font-semibold rounded transition-colors",
+                form.pay_type === "HOURLY"
+                  ? "bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface)]",
+              ].join(" ")}
+            >
+              시급
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, pay_type: "MONTHLY" }))}
+              className={[
+                "px-3 py-1.5 text-sm font-semibold rounded transition-colors",
+                form.pay_type === "MONTHLY"
+                  ? "bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
+                  : "text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface)]",
+              ].join(" ")}
+            >
+              월급
+            </button>
+          </span>
         </Field>
 
         <label className="flex items-center gap-2 text-sm">
@@ -2274,14 +2268,83 @@ export default function StaffWorkRecordsTab({ staffId }: { staffId: number }) {
 # FILE: overlays/StaffDetailOverlay/StaffWorkTypeTab.tsx
 ==========================================================================================
 // PATH: src/features/staff/overlays/StaffDetailOverlay/StaffWorkTypeTab.tsx
+// 시급태그 — 학생 태그 디자인 카피 (뱃지 + 추가/제거)
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchStaffWorkTypes,
   fetchWorkTypes,
   createStaffWorkType,
-  patchStaffWorkType,
   deleteStaffWorkType,
 } from "../../api/staffWorkType.api";
+import type { StaffWorkType } from "../../api/staffWorkType.api";
+
+const LIGHT_COLORS = ["#eab308", "#06b6d4"];
+const isLight = (c: string) =>
+  LIGHT_COLORS.some((x) => String(c || "").toLowerCase() === x);
+
+function WageBadge({
+  st,
+  onRemove,
+  isRemoving,
+}: {
+  st: StaffWorkType;
+  onRemove: () => void;
+  isRemoving: boolean;
+}) {
+  const wt = st.work_type;
+  const color = wt?.color || "#6b7280";
+  const name = wt?.name || "—";
+  const wage =
+    st.effective_hourly_wage ?? wt?.base_hourly_wage ?? null;
+  const label =
+    wage != null ? `${name} ${(wage / 10000).toFixed(1)}만` : name;
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 group cursor-default"
+      style={{
+        padding: "6px 10px 6px 12px",
+        borderRadius: "6px 6px 6px 2px",
+        fontSize: 12,
+        fontWeight: 700,
+        background: color,
+        color: isLight(color) ? "#1a1a1a" : "#fff",
+        border: "none",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+        textShadow: isLight(color) ? "none" : "0 0 1px rgba(0,0,0,0.2)",
+      }}
+      title={wage != null ? `${wage.toLocaleString()}원/시` : name}
+    >
+      {label}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        disabled={isRemoving}
+        aria-label={`${name} 근무유형 제거`}
+        style={{
+          marginLeft: 4,
+          padding: 0,
+          width: 16,
+          height: 16,
+          borderRadius: 999,
+          border: "none",
+          background: "rgba(0,0,0,0.2)",
+          color: "#fff",
+          fontSize: 12,
+          cursor: isRemoving ? "wait" : "pointer",
+          display: "grid",
+          placeItems: "center",
+          lineHeight: 1,
+        }}
+      >
+        ×
+      </button>
+    </span>
+  );
+}
 
 export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
   const qc = useQueryClient();
@@ -2301,14 +2364,8 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
       createStaffWorkType(staffId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff-work-types", staffId] });
-    },
-  });
-
-  const patchM = useMutation({
-    mutationFn: ({ id, hourly_wage }: { id: number; hourly_wage: number | null }) =>
-      patchStaffWorkType(id, { hourly_wage }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["staff-work-types", staffId] });
+      qc.invalidateQueries({ queryKey: ["staff", staffId] });
+      qc.invalidateQueries({ queryKey: ["staffs"] });
     },
   });
 
@@ -2316,91 +2373,87 @@ export default function StaffWorkTypeTab({ staffId }: { staffId: number }) {
     mutationFn: deleteStaffWorkType,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff-work-types", staffId] });
+      qc.invalidateQueries({ queryKey: ["staff", staffId] });
+      qc.invalidateQueries({ queryKey: ["staffs"] });
     },
   });
 
   const staffTypes = staffTypesQ.data ?? [];
   const workTypes = workTypesQ.data ?? [];
+  const availableToAdd = workTypes.filter(
+    (wt) => !staffTypes.some((st) => st.work_type.id === wt.id)
+  );
 
   return (
     <div className="space-y-4 max-w-[640px]">
-      <div className="text-sm font-semibold">시급 · 근무유형</div>
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 800,
+          marginBottom: 8,
+          color: "var(--color-text-muted)",
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}
+      >
+        시급 · 근무유형
+      </div>
 
       {staffTypes.length === 0 && (
         <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3 text-sm">
           <div className="font-semibold">근무유형이 없습니다.</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
+          <div className="text-xs text-[var(--color-text-muted)] mt-1">
             * 근무기록을 입력하려면 최소 1개의 근무유형이 필요합니다.
           </div>
         </div>
       )}
 
-      {staffTypes.map((st) => (
-        <div
-          key={st.id}
-          className="flex items-center justify-between rounded-lg border px-4 py-3 text-sm"
-        >
-          <div>
-            <div className="font-medium">{st.work_type.name}</div>
-            <div className="text-xs text-[var(--text-muted)]">
-              {st.hourly_wage == null
-                ? "기본 시급 사용"
-                : `개별 시급: ${st.hourly_wage.toLocaleString()}원`}
-            </div>
-          </div>
+      <div className="flex flex-wrap gap-2">
+        {staffTypes.map((st) => (
+          <WageBadge
+            key={st.id}
+            st={st}
+            onRemove={() => {
+              if (!confirm(`"${st.work_type.name}" 근무유형을 제거할까요?`))
+                return;
+              deleteM.mutate(st.id);
+            }}
+            isRemoving={deleteM.isPending}
+          />
+        ))}
+      </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              className="w-[120px] input"
-              defaultValue={st.hourly_wage ?? ""}
-              placeholder="시급"
-              onBlur={(e) => {
-                const v = e.target.value;
-                patchM.mutate({
-                  id: st.id,
-                  hourly_wage: v === "" ? null : Number(v),
-                });
-              }}
-            />
-
-            <button
-              onClick={() => {
-                if (!confirm("이 근무유형을 제거할까요?")) return;
-                deleteM.mutate(st.id);
-              }}
-              className="text-xs text-[var(--color-danger)]"
-            >
-              삭제
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <div className="pt-4 border-t">
-        <div className="text-xs text-[var(--text-muted)] mb-1">
+      <div className="pt-4 border-t border-[var(--border-divider)]">
+        <div className="text-xs text-[var(--color-text-muted)] mb-2">
           근무유형 추가
         </div>
-        <select
-          className="input"
-          onChange={(e) => {
-            const id = Number(e.target.value);
-            if (!id) return;
-            createM.mutate({ work_type_id: id });
-            e.target.value = "";
-          }}
-        >
-          <option value="">선택</option>
-          {workTypes
-            .filter(
-              (wt) => !staffTypes.some((st) => st.work_type.id === wt.id)
-            )
-            .map((wt) => (
-              <option key={wt.id} value={wt.id}>
-                {wt.name}
-              </option>
-            ))}
-        </select>
+        <div className="flex flex-wrap gap-2 items-center">
+          {availableToAdd.length > 0 ? (
+            <select
+              className="ds-input"
+              style={{ fontSize: 13, minWidth: 160 }}
+              value=""
+              onChange={(e) => {
+                const id = Number(e.target.value);
+                if (!id) return;
+                createM.mutate({ work_type_id: id });
+                e.target.value = "";
+              }}
+              disabled={createM.isPending}
+            >
+              <option value="">기존 유형 선택…</option>
+              {availableToAdd.map((wt) => (
+                <option key={wt.id} value={wt.id}>
+                  {wt.name} ({wt.base_hourly_wage?.toLocaleString()}원/시)
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-sm text-[var(--color-text-muted)]">
+              추가할 근무유형이 없습니다.
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -2479,23 +2532,29 @@ export const HomeKpiSection: React.FC<{ canManage: boolean }> = ({ canManage }) 
 ==========================================================================================
 # FILE: pages/HomePage/HomePage.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/pages/HomePage/HomePage.tsx
+// PATH: src/features/staff/pages/HomePage/HomePage.tsx
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { StaffHomeTable } from "./StaffHomeTable";
 import { useStaffs } from "../../hooks/useStaffs";
 import StaffCreateModal from "./StaffCreateModal";
 import WorkTypeCreateModal from "./WorkTypeCreateModal";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
-import { Input } from "antd";
+import { deleteStaff } from "../../api/staff.api";
+import { DomainListToolbar } from "@/shared/ui/domain";
+import { Button, EmptyState } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const { data: staffs, isLoading } = useStaffs();
   const [openCreate, setOpenCreate] = useState(false);
   const [openWorkType, setOpenWorkType] = useState(false);
   const [q, setQ] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   const meQ = useQuery({
     queryKey: ["staff-me"],
@@ -2517,53 +2576,110 @@ export default function HomePage() {
     });
   }, [staffs, q]);
 
-  if (isLoading) {
-    return <div className="text-sm text-gray-500">Loading...</div>;
-  }
+  const selectionBar = (
+    <div className="flex flex-wrap items-center gap-2 pl-1">
+      <span
+        className="text-[13px] font-semibold"
+        style={{
+          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+        }}
+      >
+        {selectedIds.length}명 선택됨
+      </span>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        선택 해제
+      </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
+        메시지 발송
+      </Button>
+      <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
+        엑셀 다운로드
+      </Button>
+      <Button intent="secondary" size="sm" onClick={() => feedback.info("시급 태그 추가 기능 준비 중입니다.")}>
+        시급 태그 추가
+      </Button>
+      <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
+        비밀번호 변경
+      </Button>
+      <Button
+        intent="danger"
+        size="sm"
+        disabled={selectedIds.length === 0 || deleting}
+        onClick={async () => {
+          if (selectedIds.length === 0) return;
+          if (!window.confirm(`선택한 ${selectedIds.length}명을 삭제하시겠습니까?`)) return;
+          setDeleting(true);
+          const count = selectedIds.length;
+          try {
+            for (const id of selectedIds) {
+              await deleteStaff(id);
+            }
+            setSelectedIds([]);
+            qc.invalidateQueries({ queryKey: ["staffs"] });
+            qc.invalidateQueries({ queryKey: ["staff"] });
+            feedback.success(`${count}명 삭제되었습니다.`);
+          } catch (e: unknown) {
+            feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+          } finally {
+            setDeleting(false);
+          }
+        }}
+      >
+        {deleting ? "삭제 중…" : "삭제"}
+      </Button>
+    </div>
+  );
 
   return (
-    <div className="space-y-4 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="text-lg font-semibold">직원 관리</div>
-          <div className="text-xs text-[var(--text-muted)]">
-            * 급여/시간/합계는 백엔드 기준 · 마감된 월은 변경 불가
-          </div>
-        </div>
-
-        {canManage && (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setOpenWorkType(true)}
-              className="btn-outline"
-            >
-              + 근무유형 생성
-            </button>
-            <button
-              onClick={() => setOpenCreate(true)}
-              className="btn-primary"
-            >
-              + 직원 등록
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="max-w-[420px]">
-        <Input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          allowClear
-          placeholder="이름/전화번호 검색"
-        />
-      </div>
-
-      <StaffHomeTable
-        staffs={rows}
-        canManage={canManage}
-        onOperate={(id) => navigate(`/admin/staff/operations?staffId=${id}`)}
-        onDetail={(id) => navigate(`/admin/staff/${id}`)}
+    <div className="flex flex-col gap-4">
+      <DomainListToolbar
+        totalLabel={isLoading ? "…" : Array.isArray(staffs) ? `총 ${staffs.length}명` : "—"}
+        searchSlot={
+          <input
+            className="ds-input"
+            placeholder="이름/전화번호 검색"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ maxWidth: 360 }}
+          />
+        }
+        primaryAction={
+          canManage ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                intent="secondary"
+                onClick={() => setOpenWorkType(true)}
+              >
+                + 근무유형 생성
+              </Button>
+              <Button
+                type="button"
+                intent="primary"
+                onClick={() => setOpenCreate(true)}
+              >
+                + 직원 등록
+              </Button>
+            </div>
+          ) : null
+        }
+        belowSlot={selectionBar}
       />
+
+      {isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : (
+        <StaffHomeTable
+          staffs={rows}
+          canManage={canManage}
+          onOperate={(id) => navigate(`/admin/staff/operations?staffId=${id}`)}
+          onDetail={(id) => navigate(`/admin/staff/${id}`)}
+          selectedIds={selectedIds}
+          onSelectionChange={setSelectedIds}
+        />
+      )}
 
       <StaffCreateModal open={openCreate} onClose={() => setOpenCreate(false)} />
       <WorkTypeCreateModal
@@ -2596,7 +2712,7 @@ type Props = {
   onClose: () => void;
 };
 
-type PermissionRole = "ADMIN" | "TEACHER" | "ASSISTANT" | "OWNER";
+type PermissionRole = "TEACHER" | "ASSISTANT";
 
 export default function StaffCreateModal({ open, onClose }: Props) {
   const qc = useQueryClient();
@@ -2611,17 +2727,12 @@ export default function StaffCreateModal({ open, onClose }: Props) {
 
   const createM = useMutation({
     mutationFn: async () => {
-      const role =
-        form.permission_role === "OWNER"
-          ? undefined
-          : form.permission_role;
-
       const res = await api.post("/staffs/", {
         username: form.username,
         password: form.password,
         name: form.name,
         phone: form.phone || undefined,
-        role,
+        role: form.permission_role,
       });
 
       return res.data;
@@ -2721,13 +2832,10 @@ export default function StaffCreateModal({ open, onClose }: Props) {
                 }))
               }
               data-required="true"
+              aria-label="권한 선택"
             >
               <option value="ASSISTANT">조교 (일반 직원)</option>
               <option value="TEACHER">강사</option>
-              <option value="ADMIN">관리자</option>
-              <option value="OWNER" disabled>
-                오너 (백엔드 지정)
-              </option>
             </select>
           </Field>
         </div>
@@ -2788,24 +2896,113 @@ function Field({
 ==========================================================================================
 # FILE: pages/HomePage/StaffHomeTable.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/pages/HomePage/StaffHomeTable.tsx
-import { Table, Button, Select } from "antd";
-import type { ColumnsType } from "antd/es/table";
+// PATH: src/features/staff/pages/HomePage/StaffHomeTable.tsx
+// Design: docs/DESIGN_SSOT.md
+
+import { useMemo, useState } from "react";
+import { EmptyState } from "@/shared/ui/ds";
+import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
 import { Staff } from "../../api/staff.api";
-import { RoleBadge } from "../../components/StatusBadge";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { patchStaffDetail } from "../../api/staff.detail.api";
+
+/** 시급태그 — 학생 태그 디자인 카피 (이름 + 색상 뱃지) */
+function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
+  const list = Array.isArray(workTypes) ? workTypes : [];
+  const LIGHT_COLORS = ["#eab308", "#06b6d4"];
+  const isLight = (c: string) => LIGHT_COLORS.some((x) => String(c || "").toLowerCase() === x);
+
+  if (list.length === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
+
+  return (
+    <span className="inline-flex flex-wrap gap-1 justify-center">
+      {list.slice(0, 4).map((st) => {
+        const wt = st.work_type;
+        const color = wt?.color || "#6b7280";
+        const name = wt?.name || "—";
+        const wage = wt?.base_hourly_wage != null ? st.effective_hourly_wage ?? wt.base_hourly_wage : null;
+        const label = wage != null ? `${name} ${(wage / 10000).toFixed(1)}만` : name;
+        return (
+          <span
+            key={st.id}
+            className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded text-[11px] font-semibold truncate max-w-[72px]"
+            style={{
+              backgroundColor: color,
+              color: isLight(color) ? "#1a1a1a" : "#fff",
+              border: "none",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+            }}
+            title={`${name} · ${wage != null ? `${wage.toLocaleString()}원/시` : ""}`}
+          >
+            {label}
+          </span>
+        );
+      })}
+      {list.length > 4 && <span className="text-[11px] text-[var(--color-text-muted)]">+{list.length - 4}</span>}
+    </span>
+  );
+}
 
 interface Props {
   staffs: Staff[] | undefined;
   onOperate: (staffId: number) => void;
   onDetail: (staffId: number) => void;
   canManage: boolean;
+  selectedIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
 }
 
-export function StaffHomeTable({ staffs, onOperate, onDetail, canManage }: Props) {
+const COL = {
+  checkbox: TABLE_COL.checkbox,
+  role: TABLE_COL.status,
+  name: TABLE_COL.name,
+  phone: TABLE_COL.phone,
+  status: TABLE_COL.statusBadge,
+  manager: TABLE_COL.statusBadge,
+  payType: TABLE_COL.medium,
+  workTypeTags: 180,
+  actions: 120,
+} as const;
+
+const TABLE_WIDTH =
+  COL.checkbox +
+  COL.role +
+  COL.name +
+  COL.phone +
+  COL.status +
+  COL.manager +
+  COL.payType +
+  COL.workTypeTags +
+  COL.actions;
+
+export function StaffHomeTable({
+  staffs,
+  onOperate,
+  onDetail,
+  canManage,
+  selectedIds: controlledSelectedIds,
+  onSelectionChange,
+}: Props) {
   const dataSource: Staff[] = Array.isArray(staffs) ? staffs : [];
   const qc = useQueryClient();
+  const [internalSelected, setInternalSelected] = useState<number[]>([]);
+  const selectedIds = onSelectionChange && controlledSelectedIds !== undefined ? controlledSelectedIds : internalSelected;
+  const setSelectedIds = onSelectionChange && controlledSelectedIds !== undefined
+    ? onSelectionChange
+    : setInternalSelected;
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => dataSource.map((r) => r.id), [dataSource]);
+  const allSelected =
+    dataSource.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  const toggleSelect = (id: number) => {
+    if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
+    else setSelectedIds([...selectedIds, id]);
+  };
+  const toggleSelectAll = () => {
+    if (allSelected) setSelectedIds(selectedIds.filter((id) => !allIds.includes(id)));
+    else setSelectedIds([...new Set([...selectedIds, ...allIds])]);
+  };
 
   const patchPayTypeM = useMutation({
     mutationFn: ({ staffId, pay_type }: { staffId: number; pay_type: "HOURLY" | "MONTHLY" }) =>
@@ -2814,103 +3011,207 @@ export function StaffHomeTable({ staffs, onOperate, onDetail, canManage }: Props
       qc.invalidateQueries({ queryKey: ["staffs"] });
       qc.invalidateQueries({ queryKey: ["staff"] });
     },
-    onError: (e: any) => {
+    onError: (e: unknown) => {
       const msg =
-        e?.response?.data?.detail ||
-        e?.response?.data?.message ||
+        (e as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.detail ||
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "급여 유형 변경에 실패했습니다.";
       alert(msg);
     },
   });
 
-  const columns: ColumnsType<Staff> = [
-    {
-      title: "이름",
-      dataIndex: "name",
-      render: (_, r) => (
-        <div className="flex items-center gap-2">
-          <span className="font-semibold">{r.name}</span>
-          {!r.is_active && (
-            <span className="px-2 py-0.5 rounded-full text-xs border text-[var(--text-muted)] bg-[var(--bg-surface-muted)]">
-              비활성
-            </span>
-          )}
-        </div>
-      ),
+  const patchManagerM = useMutation({
+    mutationFn: ({ staffId, is_manager }: { staffId: number; is_manager: boolean }) =>
+      patchStaffDetail(staffId, { is_manager }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: ["staff"] });
     },
-    { title: "전화번호", dataIndex: "phone", render: (v) => v || "-" },
-    {
-      title: "역할",
-      dataIndex: "is_manager",
-      render: (v) => <RoleBadge isManager={!!v} />,
+    onError: (e: unknown) => {
+      const msg =
+        (e as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.detail ||
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "관리자 권한 변경에 실패했습니다.";
+      alert(msg);
     },
-    {
-      title: "급여 유형",
-      dataIndex: "pay_type",
-      render: (v: Staff["pay_type"], record) => {
-        if (!canManage) return v === "HOURLY" ? "시급" : "월급";
+  });
 
-        return (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <Select
-              size="small"
-              value={v}
-              style={{ width: 110 }}
-              disabled={patchPayTypeM.isPending}
-              options={[
-                { value: "HOURLY", label: "시급" },
-                { value: "MONTHLY", label: "월급" },
-              ]}
-              onChange={(next) => {
-                if (next === record.pay_type) return;
-                patchPayTypeM.mutate({ staffId: record.id, pay_type: next });
-              }}
-            />
-          </div>
-        );
-      },
-    },
-    {
-      title: "관리",
-      render: (_, record) => (
-        <div className="flex gap-2">
-          <Button
-            type="link"
-            disabled={!canManage}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOperate(record.id);
-            }}
-          >
-            작업
-          </Button>
-          <Button
-            type="link"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDetail(record.id);
-            }}
-          >
-            상세
-          </Button>
-        </div>
-      ),
-    },
-  ];
+  if (dataSource.length === 0) {
+    return (
+      <EmptyState
+        title="직원 정보가 없습니다."
+        description="직원을 등록하거나 검색 조건을 확인해 주세요."
+        scope="panel"
+      />
+    );
+  }
 
   return (
-    <Table
-      rowKey="id"
-      dataSource={dataSource}
-      columns={columns}
-      pagination={false}
-      onRow={(r) => ({
-        onClick: () => onDetail(r.id), // ✅ row 클릭 → 상세 오버레이
-      })}
-    />
+    <div style={{ width: "fit-content" }}>
+      <DomainTable
+        tableClassName="ds-table--flat ds-table--center"
+        tableStyle={{ tableLayout: "fixed", width: TABLE_WIDTH }}
+      >
+        <colgroup>
+          <col style={{ width: COL.checkbox }} />
+          <col style={{ width: COL.role }} />
+          <col style={{ width: COL.name }} />
+          <col style={{ width: COL.phone }} />
+          <col style={{ width: COL.status }} />
+          <col style={{ width: COL.manager }} />
+          <col style={{ width: COL.payType }} />
+          <col style={{ width: COL.workTypeTags }} />
+          <col style={{ width: COL.actions }} />
+        </colgroup>
+
+        <thead>
+          <tr>
+            <th scope="col" className="w-[28px]">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = !allSelected && selectedSet.size > 0;
+                }}
+                onChange={toggleSelectAll}
+                aria-label="전체 선택"
+                className="cursor-pointer"
+              />
+            </th>
+            <th scope="col">직위</th>
+            <th scope="col">이름</th>
+            <th scope="col">전화번호</th>
+            <th scope="col">상태</th>
+            <th scope="col">관리자권한</th>
+            <th scope="col">급여유형</th>
+            <th scope="col">시급태그</th>
+            <th scope="col">관리</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {dataSource.map((r) => (
+            <tr
+              key={r.id}
+              onClick={() => onDetail(r.id)}
+              tabIndex={0}
+              role="button"
+              className="group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
+            >
+              <td className="align-middle w-[28px]" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selectedSet.has(r.id)}
+                  onChange={() => toggleSelect(r.id)}
+                  aria-label={`${r.name} 선택`}
+                  className="cursor-pointer"
+                />
+              </td>
+              <td className="align-middle">
+                <span className="ds-status-badge" data-tone={r.role === "TEACHER" ? "primary" : "neutral"} aria-label={r.role === "TEACHER" ? "강사" : "조교"}>
+                  {r.role === "TEACHER" ? "강사" : "조교"}
+                </span>
+              </td>
+              <td className="text-[15px] font-semibold leading-6 text-[var(--color-text-primary)] truncate align-middle">
+                {r.name}
+              </td>
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
+                {r.phone || "-"}
+              </td>
+              <td className="align-middle">
+                <span className="ds-status-badge" data-status={r.is_active ? "active" : "inactive"}>
+                  {r.is_active ? "활성" : "비활성"}
+                </span>
+              </td>
+              <td className="align-middle" onClick={(e) => e.stopPropagation()}>
+                {canManage ? (
+                  <button
+                    type="button"
+                    className="ds-status-badge ds-status-badge--action"
+                    data-status={r.is_manager ? "active" : "inactive"}
+                    disabled={patchManagerM.isPending}
+                    onClick={() => patchManagerM.mutate({ staffId: r.id, is_manager: !r.is_manager })}
+                    aria-label={r.is_manager ? "관리자 해제" : "관리자 부여"}
+                  >
+                    {patchManagerM.isPending ? "…" : r.is_manager ? "ON" : "OFF"}
+                  </button>
+                ) : (
+                  <span className="ds-status-badge" data-status={r.is_manager ? "active" : "inactive"}>
+                    {r.is_manager ? "ON" : "OFF"}
+                  </span>
+                )}
+              </td>
+              <td className="align-middle" onClick={(e) => e.stopPropagation()}>
+                {!canManage ? (
+                  <span className="text-[14px] text-[var(--color-text-secondary)]">
+                    {r.pay_type === "HOURLY" ? "시급" : "월급"}
+                  </span>
+                ) : (
+                  <span className="inline-flex rounded-md border border-[var(--border-divider)] p-0.5 bg-[var(--bg-surface-soft)]">
+                    <button
+                      type="button"
+                      disabled={patchPayTypeM.isPending}
+                      onClick={() => {
+                        if (r.pay_type === "HOURLY") return;
+                        patchPayTypeM.mutate({ staffId: r.id, pay_type: "HOURLY" });
+                      }}
+                      aria-label={`${r.name} 시급`}
+                      className={[
+                        "px-2.5 py-1 text-[12px] font-semibold rounded transition-colors",
+                        r.pay_type === "HOURLY"
+                          ? "bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
+                          : "text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface)]",
+                      ].join(" ")}
+                    >
+                      시급
+                    </button>
+                    <button
+                      type="button"
+                      disabled={patchPayTypeM.isPending}
+                      onClick={() => {
+                        if (r.pay_type === "MONTHLY") return;
+                        patchPayTypeM.mutate({ staffId: r.id, pay_type: "MONTHLY" });
+                      }}
+                      aria-label={`${r.name} 월급`}
+                      className={[
+                        "px-2.5 py-1 text-[12px] font-semibold rounded transition-colors",
+                        r.pay_type === "MONTHLY"
+                          ? "bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
+                          : "text-[var(--color-text-secondary)] hover:bg-[var(--bg-surface)]",
+                      ].join(" ")}
+                    >
+                      월급
+                    </button>
+                  </span>
+                )}
+              </td>
+              <td className="align-middle">
+                <WorkTypeTags workTypes={r.staff_work_types} />
+              </td>
+              <td className="align-middle" onClick={(e) => e.stopPropagation()}>
+                <span className="inline-flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!canManage}
+                    onClick={() => onOperate(r.id)}
+                    className="text-[13px] font-semibold text-[var(--color-brand-primary)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                  >
+                    작업
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDetail(r.id)}
+                    className="text-[13px] font-semibold text-[var(--color-text-secondary)] hover:underline"
+                  >
+                    상세
+                  </button>
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </DomainTable>
+    </div>
   );
 }
 
@@ -2919,6 +3220,8 @@ export function StaffHomeTable({ staffs, onOperate, onDetail, canManage }: Props
 # FILE: pages/HomePage/WorkTypeCreateModal.tsx
 ==========================================================================================
 // PATH: src/features/staff/pages/HomePage/WorkTypeCreateModal.tsx
+// 시급 급여유형: 이름·시급·색상(전역 ColorPickerField)
+
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -2930,6 +3233,7 @@ import {
   ModalFooter,
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
+import { ColorPickerField } from "@/shared/ui/domain";
 
 export default function WorkTypeCreateModal({
   open,
@@ -3012,12 +3316,9 @@ export default function WorkTypeCreateModal({
           </Field>
 
           <Field label="색상">
-            <input
-              type="color"
+            <ColorPickerField
               value={form.color}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, color: e.target.value }))
-              }
+              onChange={(color) => setForm((p) => ({ ...p, color: color ?? p.color }))}
             />
           </Field>
 
@@ -3091,6 +3392,7 @@ import {
   ModalFooter,
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
+import { DatePicker } from "@/shared/ui/date";
 
 export default function CreateExpenseModal({
   open,
@@ -3133,12 +3435,10 @@ export default function CreateExpenseModal({
       <ModalBody>
         <div className="grid gap-3">
           <Field label="날짜">
-            <input
-              type="date"
-              className="ds-input"
+            <DatePicker
               value={form.date}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, date: e.target.value }))
+              onChange={(v) =>
+                setForm((p) => ({ ...p, date: v }))
               }
             />
           </Field>
@@ -3243,6 +3543,7 @@ import {
   ModalFooter,
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
+import { DatePicker } from "@/shared/ui/date";
 
 type Props = {
   open: boolean;
@@ -3294,12 +3595,10 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
       <ModalBody>
         <div className="grid gap-3">
           <Field label="날짜">
-            <input
-              type="date"
-              className="ds-input"
+            <DatePicker
               value={form.date}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, date: e.target.value }))
+              onChange={(v) =>
+                setForm((p) => ({ ...p, date: v }))
               }
             />
           </Field>
@@ -3783,7 +4082,9 @@ export default function MonthLockPanel() {
 ==========================================================================================
 # FILE: pages/OperationsPage/OperationsPage.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/pages/OperationsPage/OperationsPage.tsx
+// PATH: src/features/staff/pages/OperationsPage/OperationsPage.tsx
+// Design: docs/DESIGN_SSOT.md 단일진실
+
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
@@ -3792,6 +4093,7 @@ import StaffOperationTable from "./StaffOperationTable";
 import MonthLockPanel from "./MonthLockPanel";
 import WorkRecordsPanel from "./WorkRecordsPanel";
 import ExpensesPanel from "./ExpensesPanel";
+import { SectionHeader, EmptyState } from "@/shared/ui/ds";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -3816,33 +4118,18 @@ export default function OperationsPage() {
   const { year, month } = useMemo(getThisMonth, []);
   const monthText = useMemo(() => ymLabel(year, month), [year, month]);
 
-  // ✅ UX: “직원 선택 전” 상태에서도 화면이 비지 않도록 콘솔 프레임 유지
   return (
-    <div className="p-6">
-      <div className="flex items-end justify-between gap-3 mb-4">
-        <div className="space-y-1">
-          <div className="text-lg font-semibold">작업</div>
-          <div className="text-xs text-[var(--text-muted)]">
-            {monthText} · 근무/비용 입력 및 월 마감(급여 확정) 처리
-          </div>
-        </div>
-
-        <div className="text-xs text-[var(--text-muted)]">
-          * 합계/급여/시간/상태 판정은 <b>백엔드 단일진실</b>입니다.
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
+      <SectionHeader
+        title="작업"
+        description={`${monthText} · 근무/비용 입력 및 월 마감(급여 확정) 처리. 합계/급여/시간/상태 판정은 백엔드 단일진실입니다.`}
+      />
 
       <div className="grid grid-cols-[320px_1fr] gap-6">
-        {/* LEFT: Staff list (Sidebar) */}
-        <div
-          className={cx(
-            "rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)]",
-            "overflow-hidden"
-          )}
-        >
-          <div className="px-4 py-3 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-            <div className="text-sm font-semibold">직원 선택</div>
-            <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+        <div className="ds-panel-card">
+          <div className="ds-panel-card__header px-4 py-3">
+            <div className="text-sm font-semibold text-[var(--color-text-primary)]">직원 선택</div>
+            <div className="text-[12px] text-[var(--color-text-muted)] mt-0.5">
               좌측에서 직원을 선택하면 우측 작업 콘솔이 활성화됩니다.
             </div>
           </div>
@@ -3851,72 +4138,38 @@ export default function OperationsPage() {
             <StaffOperationTable selectedStaffId={staffId} />
           </div>
 
-          <div className="px-4 pb-4 pt-2">
-            <div className="text-[11px] text-[var(--text-muted)]">
-              * 직원 선택은 “선택” UI이며, 계산/추론이 아닙니다.
-            </div>
+          <div className="px-4 pb-4 pt-2 text-[11px] text-[var(--color-text-muted)]">
+            * 직원 선택은 “선택” UI이며, 계산/추론이 아닙니다.
           </div>
         </div>
 
-        {/* RIGHT: Operations Console */}
-        <div
-          className={cx(
-            "rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)]",
-            "min-h-[520px]"
-          )}
-        >
-          <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+        <div className="ds-panel-card min-h-[520px]">
+          <div className="ds-panel-card__header px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <div className="text-sm font-semibold">작업 콘솔</div>
-                <div className="text-xs text-[var(--text-muted)]">
+                <div className="text-sm font-semibold text-[var(--color-text-primary)]">작업 콘솔</div>
+                <div className="text-xs text-[var(--color-text-muted)]">
                   {staffId ? (
-                    <>
-                      선택된 직원 기준으로 <b>{monthText}</b> 작업을 수행합니다.
-                    </>
+                    <>선택된 직원 기준으로 <b>{monthText}</b> 작업을 수행합니다.</>
                   ) : (
-                    <>
-                      먼저 좌측에서 <b>직원</b>을 선택하세요.
-                    </>
+                    <>먼저 좌측에서 <b>직원</b>을 선택하세요.</>
                   )}
                 </div>
               </div>
-
-              {staffId ? (
-                <div className="text-xs text-[var(--text-muted)]">
-                  직원 ID: <span className="font-semibold">{staffId}</span>
-                </div>
-              ) : (
-                <div className="text-xs text-[var(--text-muted)]">
-                  상태: <span className="font-semibold">대기</span>
-                </div>
-              )}
+              <div className="text-xs text-[var(--color-text-muted)]">
+                {staffId ? <>직원 ID: <span className="font-semibold">{staffId}</span></> : <>상태: <span className="font-semibold">대기</span></>}
+              </div>
             </div>
           </div>
 
           {!staffId ? (
-            <div className="p-10">
-              <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-6">
-                <div className="flex items-start gap-4">
-                  <div className="shrink-0 h-10 w-10 rounded-xl bg-[var(--color-primary-soft)] border border-[color-mix(in_srgb,var(--color-primary)_35%,transparent)] flex items-center justify-center">
-                    <span className="text-[var(--color-primary)] font-bold">!</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-sm font-semibold">
-                      직원이 선택되지 않았습니다.
-                    </div>
-                    <div className="text-sm text-[var(--text-muted)] leading-relaxed">
-                      좌측 <b>직원 선택</b>에서 직원을 클릭하면,
-                      <br />
-                      이 영역에 <b>월 마감</b>, <b>근무 기록</b>, <b>비용</b> 작업
-                      패널이 활성화됩니다.
-                    </div>
-                    <div className="text-[11px] text-[var(--text-muted)]">
-                      * 마감된 월은 생성/수정/삭제가 불가능합니다. (서버 규칙)
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="p-8">
+              <EmptyState
+                scope="panel"
+                tone="empty"
+                title="직원이 선택되지 않았습니다."
+                description="좌측 직원 선택에서 직원을 클릭하면, 이 영역에 월 마감·근무 기록·비용 작업 패널이 활성화됩니다. 마감된 월은 생성/수정/삭제가 불가능합니다."
+              />
             </div>
           ) : (
             <WorkMonthProvider staffId={staffId} year={year} month={month}>
@@ -3937,12 +4190,15 @@ export default function OperationsPage() {
 ==========================================================================================
 # FILE: pages/OperationsPage/StaffOperationTable.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/pages/OperationsPage/StaffOperationTable.tsx
+// PATH: src/features/staff/pages/OperationsPage/StaffOperationTable.tsx
+// Design: docs/DESIGN_SSOT.md
+
 import { useMemo, useState } from "react";
 import { useStaffs } from "../../hooks/useStaffs";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Staff } from "../../api/staff.api";
-import { Input } from "antd";
+import { EmptyState } from "@/shared/ui/ds";
+import { RoleBadge } from "../../components/StatusBadge";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -3994,36 +4250,35 @@ export default function StaffOperationTable({
 
   return (
     <div className="space-y-3">
-      <Input
+      <input
+        type="search"
+        className="ds-input w-full"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="이름/전화번호 검색"
-        allowClear
-        size="middle"
+        aria-label="직원 검색"
       />
 
       {isLoading && (
-        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-muted)]">
-          불러오는 중...
-        </div>
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
       )}
 
       {!isLoading && staffs.length === 0 && (
-        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3">
-          <div className="text-sm font-semibold">직원 없음</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
-            직원이 등록되어야 작업 콘솔을 사용할 수 있습니다.
-          </div>
-        </div>
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="직원 없음"
+          description="직원이 등록되어야 작업 콘솔을 사용할 수 있습니다."
+        />
       )}
 
       {!isLoading && staffs.length > 0 && filtered.length === 0 && (
-        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3">
-          <div className="text-sm font-semibold">검색 결과 없음</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1">
-            이름 또는 전화번호로 다시 검색해보세요.
-          </div>
-        </div>
+        <EmptyState
+          scope="panel"
+          tone="empty"
+          title="검색 결과 없음"
+          description="이름 또는 전화번호로 다시 검색해보세요."
+        />
       )}
 
       {!isLoading && filtered.length > 0 && (
@@ -4088,7 +4343,7 @@ function Section({
       </div>
 
       {!hasItems ? (
-        <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-muted)]">
+        <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
           {emptyText}
         </div>
       ) : (
@@ -4112,37 +4367,31 @@ function Row({
       type="button"
       onClick={onClick}
       className={cx(
-        "w-full text-left rounded-xl border px-4 py-3 transition",
-        "focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]",
+        "w-full text-left rounded-[var(--radius-lg)] border px-4 py-3 transition",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40",
         selected
-          ? "border-[color-mix(in_srgb,var(--color-primary)_45%,transparent)] bg-[var(--color-primary-soft)]"
-          : "border-[var(--border-divider)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-soft)]"
+          ? "border-[color-mix(in_srgb,var(--color-brand-primary)_45%,transparent)] bg-[var(--state-selected-bg)]"
+          : "border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-soft)]"
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="font-semibold truncate">{staff.name}</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold truncate text-[var(--color-text-primary)]">{staff.name}</span>
             {!staff.is_active && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[var(--border-divider)] text-[var(--text-muted)] bg-[var(--bg-surface-muted)]">
-                비활성
-              </span>
+              <span className="ds-status-badge" data-status="inactive" aria-hidden>비활성</span>
             )}
-            {staff.is_manager && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[color-mix(in_srgb,var(--color-primary)_35%,transparent)] text-[var(--color-primary)] bg-[var(--color-primary-soft)]">
-                관리자
-              </span>
-            )}
+            <RoleBadge isManager={!!staff.is_manager} />
           </div>
 
-          <div className="text-xs text-[var(--text-muted)] mt-1 truncate">
+          <div className="text-xs text-[var(--color-text-muted)] mt-1 truncate">
             {staff.phone || "-"}
           </div>
         </div>
 
         <div className="shrink-0 text-right">
-          <div className="text-xs text-[var(--text-muted)]">급여</div>
-          <div className="text-sm font-semibold">{payLabel(staff.pay_type)}</div>
+          <div className="text-xs text-[var(--color-text-muted)]">급여</div>
+          <div className="text-sm font-semibold text-[var(--color-text-primary)]">{payLabel(staff.pay_type)}</div>
         </div>
       </div>
     </button>
@@ -4307,7 +4556,7 @@ export default function WorkRecordsPanel() {
 ==========================================================================================
 # FILE: pages/ReportsPage/PayrollHistoryTable.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/pages/ReportsPage/PayrollHistoryTable.tsx
+// PATH: src/features/staff/pages/ReportsPage/PayrollHistoryTable.tsx
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -4316,7 +4565,7 @@ import {
   fetchPayrollSnapshots,
   exportPayrollSnapshotExcel,
 } from "../../api/payrollSnapshots.api";
-import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
 import ActionButton from "../../components/ActionButton";
 
 function ymLabel(y: number, m: number) {
@@ -4420,7 +4669,7 @@ export default function PayrollHistoryTable() {
 ==========================================================================================
 # FILE: pages/ReportsPage/PayrollSnapshotList.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/pages/ReportsPage/PayrollSnapshotList.tsx
+// PATH: src/features/staff/pages/ReportsPage/PayrollSnapshotList.tsx
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -4429,7 +4678,7 @@ import {
   fetchPayrollSnapshots,
   exportPayrollSnapshotExcel,
 } from "../../api/payrollSnapshots.api";
-import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPDF.api";
+import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
 import ActionButton from "../../components/ActionButton";
 
 export default function PayrollSnapshotList({
@@ -4543,8 +4792,8 @@ export default function PayrollSnapshotList({
 ==========================================================================================
 # FILE: pages/ReportsPage/ReportsPage.tsx
 ==========================================================================================
-﻿// PATH: src/features/staff/pages/ReportsPage/ReportsPage.tsx
-import { Tabs } from "antd";
+// PATH: src/features/staff/pages/ReportsPage/ReportsPage.tsx
+// SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
 import { useMemo, useState } from "react";
 import PayrollSnapshotList from "./PayrollSnapshotList";
 import PayrollHistoryTable from "./PayrollHistoryTable";
@@ -4554,85 +4803,87 @@ function ymLabel(y: number, m: number) {
   return `${y}-${String(m).padStart(2, "0")}`;
 }
 
+type ReportTabKey = "snapshot" | "history" | "lock";
+
+const REPORT_TABS: { key: ReportTabKey; label: string }[] = [
+  { key: "snapshot", label: "Payroll Snapshot" },
+  { key: "history", label: "Payroll History" },
+  { key: "lock", label: "Month Lock History" },
+];
+
 export default function ReportsPage() {
   const now = useMemo(() => new Date(), []);
   const [ym, setYm] = useState({
     year: now.getFullYear(),
     month: now.getMonth() + 1,
   });
+  const [activeTab, setActiveTab] = useState<ReportTabKey>("snapshot");
 
   return (
-    <div className="p-6 space-y-4">
-      {/* 기준 월 헤더 */}
-      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-6 py-4">
+    <div className="flex flex-col gap-4">
+      {/* 기준 월 헤더 — Design SSOT: SectionHeader + ds-input */}
+      <div
+        className="ds-panel-card px-6 py-4"
+        style={{ boxShadow: "var(--elevation-1)" }}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <div className="text-lg font-semibold">리포트</div>
-            <div className="text-sm text-[var(--text-muted)]">
-              기준월 <b>{ymLabel(ym.year, ym.month)}</b> · 모든 수치는{" "}
-              <b>서버 확정 데이터</b> 기준입니다.
+            <div className="text-lg font-semibold text-[var(--color-text-primary)]">리포트</div>
+            <div className="text-sm text-[var(--color-text-muted)]">
+              기준월 <b>{ymLabel(ym.year, ym.month)}</b> · 모든 수치는 <b>서버 확정 데이터</b> 기준입니다.
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <select
               value={ym.year}
-              onChange={(e) =>
-                setYm((p) => ({ ...p, year: Number(e.target.value) }))
-              }
-              className="h-[36px] rounded-lg border border-[var(--border-divider)] px-3 text-sm bg-[var(--bg-surface)]"
+              onChange={(e) => setYm((p) => ({ ...p, year: Number(e.target.value) }))}
+              className="ds-input h-9 min-w-[88px]"
+              aria-label="연도 선택"
             >
               {[ym.year - 1, ym.year, ym.year + 1].map((y) => (
-                <option key={y} value={y}>
-                  {y}년
-                </option>
+                <option key={y} value={y}>{y}년</option>
               ))}
             </select>
-
             <select
               value={ym.month}
-              onChange={(e) =>
-                setYm((p) => ({ ...p, month: Number(e.target.value) }))
-              }
-              className="h-[36px] rounded-lg border border-[var(--border-divider)] px-3 text-sm bg-[var(--bg-surface)]"
+              onChange={(e) => setYm((p) => ({ ...p, month: Number(e.target.value) }))}
+              className="ds-input h-9 min-w-[80px]"
+              aria-label="월 선택"
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={m}>
-                  {m}월
-                </option>
+                <option key={m} value={m}>{m}월</option>
               ))}
             </select>
           </div>
         </div>
 
-        <div className="mt-2 text-[11px] text-[var(--text-muted)]">
+        <div className="mt-2 text-[11px] text-[var(--color-text-muted)]">
           * Payroll Snapshot은 <b>월 마감 시 생성</b>되며 이후 수정되지 않습니다.
         </div>
       </div>
 
-      <Tabs
-        items={[
-          {
-            key: "snapshot",
-            label: "Payroll Snapshot",
-            children: (
-              <PayrollSnapshotList year={ym.year} month={ym.month} />
-            ),
-          },
-          {
-            key: "history",
-            label: "Payroll History",
-            children: <PayrollHistoryTable />,
-          },
-          {
-            key: "lock",
-            label: "Month Lock History",
-            children: (
-              <WorkMonthLockHistory year={ym.year} month={ym.month} />
-            ),
-          },
-        ]}
-      />
+      <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)] mb-4" role="tablist">
+        {REPORT_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === t.key}
+            onClick={() => setActiveTab(t.key)}
+            className={`ds-tab ${activeTab === t.key ? "is-active" : ""}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {activeTab === "snapshot" && (
+        <PayrollSnapshotList year={ym.year} month={ym.month} />
+      )}
+      {activeTab === "history" && <PayrollHistoryTable />}
+      {activeTab === "lock" && (
+        <WorkMonthLockHistory year={ym.year} month={ym.month} />
+      )}
     </div>
   );
 }

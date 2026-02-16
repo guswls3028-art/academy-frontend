@@ -84,6 +84,8 @@ export interface ClientEnrollmentLite {
 export interface ClientStudent {
   id: number;
   name: string;
+  /** 학생앱에서 업로드한 프로필 사진 URL (없으면 null) */
+  profilePhotoUrl?: string | null;
 
   psNumber: string;
   omrCode: string;
@@ -139,6 +141,7 @@ function mapStudent(item: any): ClientStudent {
   return {
     id: Number(item?.id),
     name: safeStr(item?.name),
+    profilePhotoUrl: item?.profile_photo_url ?? null,
 
     psNumber: safeStr(item?.ps_number),
     omrCode: safeStr(omrCode),
@@ -173,6 +176,7 @@ function mapStudent(item: any): ClientStudent {
           id: Number(en?.id),
           lectureName: en?.lecture_name ?? null,
           lectureColor: en?.lecture_color ?? "#3b82f6",
+          lectureChipLabel: en?.lecture_chip_label ?? null,
         }))
       : [],
     deletedAt: item?.deleted_at ?? null,
@@ -222,15 +226,22 @@ export async function fetchStudents(
 ): Promise<{ data: ReturnType<typeof mapStudent>[]; count: number }> {
   const ordering = buildOrdering(sort);
 
-  const params: any = {
+  const params: Record<string, unknown> = {
     search: search || undefined,
     ...filters,
     ordering: ordering || undefined,
     page,
     deleted: deleted ? "true" : undefined,
   };
+  // 목록 필터: 백엔드에 반드시 전달 (school_type, grade)
+  if (filters.school_type != null && String(filters.school_type).trim() !== "") {
+    params.school_type = filters.school_type;
+  }
+  if (filters.grade != null && Number.isInteger(Number(filters.grade))) {
+    params.grade = Number(filters.grade);
+  }
 
-  const res = await api.get("/students/", { params });
+  const res = await api.get("/students/", { params: params as any });
 
   const items = Array.isArray(res.data?.results)
     ? res.data.results
@@ -238,10 +249,12 @@ export async function fetchStudents(
     ? res.data
     : [];
   const count = typeof res.data?.count === "number" ? res.data.count : items.length;
+  const pageSize = typeof res.data?.page_size === "number" ? res.data.page_size : 50;
 
   return {
     data: items.map(mapStudent),
     count,
+    pageSize,
   };
 }
 
@@ -422,6 +435,18 @@ export async function bulkPermanentDeleteStudents(ids: number[]) {
   return res.data as { deleted: number };
 }
 
+/** 삭제된 학생 중 (이름+학부모전화) 중복 검사 — 고객 셀프 복구용 */
+export async function checkDeletedStudentDuplicates() {
+  const res = await api.get("/students/deleted_duplicates_check/");
+  return res.data as { duplicate_groups: number; records_to_remove: number };
+}
+
+/** 삭제된 학생 중복 정리 — 그룹당 1명만 유지, 나머지 영구 삭제 */
+export async function fixDeletedStudentDuplicates() {
+  const res = await api.post("/students/deleted_duplicates_fix/");
+  return res.data as { removed: number };
+}
+
 /** 충돌 해결 후 재등록 (삭제된 학생과 번호 충돌 시 복원 또는 영구 삭제 후 재등록) */
 export async function bulkResolveConflicts(
   password: string,
@@ -496,7 +521,7 @@ export async function createMemo(studentId: number, content: string) {
 ==========================================================================================
 // PATH: src/features/students/components/DeleteConfirmModal.tsx
 import { useEffect, useMemo, useState } from "react";
-import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_DEFAULT_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { deleteStudent } from "../api/students";
 
@@ -536,7 +561,7 @@ export default function DeleteConfirmModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="confirm" width={520}>
+    <AdminModal open={open} onClose={onClose} type="confirm" width={MODAL_DEFAULT_WIDTH}>
       <ModalHeader
         type="confirm"
         title={title}
@@ -607,9 +632,8 @@ export default function DeleteConfirmModal({
 ==========================================================================================
 // PATH: src/features/students/components/EditStudentModal.tsx
 import { useEffect, useMemo, useState } from "react";
-import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
-import { STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
 import {
   formatPhoneForInput,
   formatIdentifierForInput,
@@ -786,7 +810,7 @@ export default function EditStudentModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={720}>
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
       <ModalHeader
         type="action"
         title="학생 수정"
@@ -794,8 +818,8 @@ export default function EditStudentModal({
       />
 
       <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          <div className="modal-form-row modal-form-row--1-auto">
             <input
               name="name"
               placeholder="이름"
@@ -807,8 +831,7 @@ export default function EditStudentModal({
               disabled={busy}
               autoFocus
             />
-
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
               {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
                 <Button
                   key={g.key}
@@ -823,7 +846,7 @@ export default function EditStudentModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="modal-form-row modal-form-row--2">
             <input
               name="psNumber"
               placeholder="아이디(PS 번호)"
@@ -834,49 +857,22 @@ export default function EditStudentModal({
               data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
               disabled={busy}
             />
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "0 12px",
-                borderRadius: 12,
-                border: "1px solid var(--color-border-divider)",
-                background: "var(--color-bg-surface-soft)",
-                height: 44,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 900,
-                  color: "var(--color-text-secondary)",
-                }}
-              >
-                상태
-              </span>
+            <div className="modal-form-group modal-form-group--row">
+              <span className="modal-section-label" style={{ marginBottom: 0 }}>상태</span>
               <button
                 type="button"
+                className="ds-status-badge"
+                data-status={form.active ? "active" : "inactive"}
                 aria-pressed={form.active}
                 onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
                 disabled={busy}
-                style={{
-                  padding: "6px 12px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                  color: "#fff",
-                  backgroundColor: form.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
-                  border: "none",
-                }}
               >
                 {form.active ? "활성" : "비활성"}
               </button>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+          <div className="modal-form-row modal-form-row--1-auto">
             {noPhone ? (
               <input
                 placeholder="식별자 (XXXX-XXXX)"
@@ -891,7 +887,7 @@ export default function EditStudentModal({
               />
             ) : (
               <input
-                placeholder="학생 전화번호 (010-XXXX-XXXX)"
+                placeholder="학생 전화 (010-XXXX-XXXX)"
                 value={formatPhoneForInput(form.studentPhone)}
                 onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
                 className="ds-input"
@@ -910,12 +906,12 @@ export default function EditStudentModal({
               }}
               disabled={busy}
             >
-              {noPhone ? "전화번호 입력" : "없음(식별자사용)"}
+              {noPhone ? "전화 입력" : "식별자 사용"}
             </Button>
           </div>
 
           <input
-            placeholder="학부모 전화번호 (010-XXXX-XXXX)"
+            placeholder="학부모 전화 (010-XXXX-XXXX)"
             value={formatPhoneForInput(form.parentPhone)}
             onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
             className="ds-input"
@@ -926,31 +922,29 @@ export default function EditStudentModal({
             pattern="[0-9\-]*"
           />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
-              (t) => (
-                <Button
-                  key={t.key}
-                  intent={form.schoolType === t.key ? "secondary" : "ghost"}
-                  aria-pressed={form.schoolType === t.key}
-                  onClick={() =>
-                    setForm((p) => ({
-                      ...p,
-                      schoolType: t.key,
-                      school: "",
-                      schoolClass: "",
-                      major: "",
-                    }))
-                  }
-                  disabled={busy}
-                >
-                  {t.label}
-                </Button>
-              )
-            )}
+          <div className="modal-option-row" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+            {[{ key: "HIGH", label: "고등" }, { key: "MIDDLE", label: "중등" }].map((t) => (
+              <Button
+                key={t.key}
+                intent={form.schoolType === t.key ? "secondary" : "ghost"}
+                aria-pressed={form.schoolType === t.key}
+                onClick={() =>
+                  setForm((p) => ({
+                    ...p,
+                    schoolType: t.key,
+                    school: "",
+                    schoolClass: "",
+                    major: "",
+                  }))
+                }
+                disabled={busy}
+              >
+                {t.label}
+              </Button>
+            ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
+          <div className="modal-form-row modal-form-row--1-auto">
             <input
               name="school"
               placeholder="학교명"
@@ -959,7 +953,7 @@ export default function EditStudentModal({
               className="ds-input"
               disabled={busy}
             />
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="modal-actions-inline">
               {["1", "2", "3"].map((g) => (
                 <Button
                   key={g}
@@ -974,7 +968,7 @@ export default function EditStudentModal({
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="modal-form-row modal-form-row--2">
             <input
               name="schoolClass"
               placeholder="반"
@@ -995,7 +989,7 @@ export default function EditStudentModal({
 
           <textarea
             name="memo"
-            rows={4}
+            rows={3}
             placeholder="메모"
             value={form.memo}
             onChange={handleChange}
@@ -1007,9 +1001,7 @@ export default function EditStudentModal({
 
       <ModalFooter
         left={
-          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
-            ⌘/Ctrl + Enter 저장
-          </span>
+          <span className="modal-hint" style={{ marginBottom: 0 }}>⌘/Ctrl + Enter 저장</span>
         }
         right={
           <>
@@ -1031,15 +1023,15 @@ export default function EditStudentModal({
 # FILE: components/StudentCreateModal.tsx
 ==========================================================================================
 // PATH: src/features/students/components/StudentCreateModal.tsx
-import { useEffect, useRef, useState } from "react";
-import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { useEffect, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
-import { STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
 import {
   formatPhoneForInput,
   formatIdentifierForInput,
   parsePhoneInput,
 } from "@/shared/utils/phoneInput";
+import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { createStudent, bulkCreateStudents, bulkResolveConflicts } from "../api/students";
 import {
   downloadStudentExcelTemplate,
@@ -1094,7 +1086,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [excelParsedRows, setExcelParsedRows] = useState<ParsedStudentRow[] | null>(null);
   const [conflictResolutions, setConflictResolutions] = useState<Record<number, "restore" | "delete">>({});
   const [batchConflictAction, setBatchConflictAction] = useState<"restore" | "delete" | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [form, setForm] = useState({
@@ -1154,7 +1145,15 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
-    setForm((p) => ({ ...p, [name]: value }));
+    setForm((p) => {
+      const next = { ...p, [name]: value };
+      if (name === "school") {
+        const t = String(value ?? "").trim();
+        if (t.endsWith("고")) next.schoolType = "HIGH";
+        else if (t.endsWith("중")) next.schoolType = "MIDDLE";
+      }
+      return next;
+    });
   }
 
   function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
@@ -1208,7 +1207,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       alert(msg);
     } finally {
       setBusy(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -1467,43 +1465,21 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={720}>
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
       <ModalHeader
         type="action"
         title="학생 등록"
         description={activeTab === "single" ? "⌘/Ctrl + Enter 로 등록" : "엑셀 파일로 학생을 일괄 등록합니다"}
       />
 
-      <div style={{ padding: "0 24px 12px" }}>
+      <div className="modal-tabs-area">
         <Tabs value={activeTab} items={TAB_ITEMS} onChange={setActiveTab} />
         {progress && activeTab === "excel" && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: "10px 14px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--color-primary)",
-              background: "color-mix(in srgb, var(--color-primary) 10%, transparent)",
-              borderRadius: 8,
-              border: "1px solid color-mix(in srgb, var(--color-primary) 25%, transparent)",
-            }}
-          >
-            창을 닫아도 진행됩니다
+          <div className="modal-form-group" style={{ marginTop: "var(--space-3)", padding: "var(--space-3) var(--space-4)" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-brand-primary)" }}>창을 닫아도 진행됩니다</span>
           </div>
         )}
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 12,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--color-text-secondary)",
-            cursor: "pointer",
-          }}
-        >
+        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: "var(--space-3)", marginBottom: 0, cursor: "pointer" }}>
           <input
             type="checkbox"
             checked={Boolean(sendWelcomeMessage)}
@@ -1516,22 +1492,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
       <ModalBody key={activeTab}>
         {activeTab === "single" ? (
-        <div style={{ display: "grid", gap: 16 }}>
-          {/* 필수 입력 3개 — 테두리로 강조 */}
-          <div
-            style={{
-              padding: 16,
-              borderRadius: 12,
-              border: "2px solid color-mix(in srgb, var(--color-primary) 35%, transparent)",
-              background: "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))",
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
-          >
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-primary)", letterSpacing: "-0.02em" }}>
-              필수 입력
-            </div>
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          {/* 필수 입력 — 세션 모달과 동일 구조·입체감 */}
+          <div className="modal-form-group">
+            <span className="modal-section-label">필수 입력</span>
             <input
               name="name"
               placeholder="이름"
@@ -1555,7 +1519,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               disabled={busy}
             />
             <input
-              placeholder="학부모 전화번호 (010-XXXX-XXXX)"
+              placeholder="학부모 전화 (010-XXXX-XXXX)"
               value={formatPhoneForInput(form.parentPhone ?? "")}
               onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
               className="ds-input"
@@ -1568,176 +1532,147 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             />
           </div>
 
-          <input
-            placeholder="학생 전화번호 (선택, 없으면 부모 전화로 OMR 식별)"
-            value={formatPhoneForInput(form.studentPhone ?? "")}
-            onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
-            className="ds-input"
-            disabled={busy}
-            maxLength={13}
-            inputMode="numeric"
-            pattern="[0-9\-]*"
-          />
-
-          <div style={{ display: "flex", gap: 8 }}>
-            {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
-              <Button
-                key={g.key}
-                intent={form.gender === g.key ? "secondary" : "ghost"}
-                aria-pressed={form.gender === g.key}
-                onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+          {/* 선택 입력 — 강조색 없음, 입체감만 유지 */}
+          <div className="modal-form-group modal-form-group--neutral">
+            <span className="modal-section-label">선택 입력</span>
+            <div className="modal-form-row modal-form-row--1-auto">
+              <input
+                placeholder="학생 전화 (없으면 부모 전화로 OMR)"
+                value={formatPhoneForInput(form.studentPhone ?? "")}
+                onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
+                className="ds-input"
                 disabled={busy}
-              >
-                {g.label}
-              </Button>
-            ))}
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            {[{ key: "HIGH", label: "고등학교" }, { key: "MIDDLE", label: "중학교" }].map(
-              (t) => (
-                <Button
-                  key={t.key}
-                  intent={form.schoolType === t.key ? "secondary" : "ghost"}
-                  aria-pressed={form.schoolType === t.key}
-                  onClick={() =>
-                    setForm((p) => ({
-                      ...p,
-                      schoolType: t.key,
-                      school: "",
-                      schoolClass: "",
-                      major: "",
-                    }))
-                  }
+                maxLength={13}
+                inputMode="numeric"
+                pattern="[0-9\-]*"
+              />
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                  <button
+                    key={g.key}
+                    type="button"
+                    className={`student-gender-btn student-gender-btn--${g.key === "M" ? "m" : "f"}${form.gender === g.key ? " is-selected" : ""}`}
+                    aria-pressed={form.gender === g.key}
+                    onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                    disabled={busy}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="modal-form-row modal-form-row--1-auto-auto">
+              <input
+                name="school"
+                placeholder="학교명 (XX고·XX중 입력 시 자동 선택)"
+                value={form.school ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "HIGH" ? " is-selected" : ""}`}
+                  aria-pressed={form.schoolType === "HIGH"}
+                  onClick={() => setForm((p) => ({ ...p, schoolType: "HIGH" }))}
                   disabled={busy}
                 >
-                  {t.label}
-                </Button>
-              )
-            )}
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10 }}>
-            <input
-              name="school"
-              placeholder="학교명"
-              value={form.school ?? ""}
-              onChange={handleChange}
-              className="ds-input"
-              disabled={busy}
-            />
-            <div style={{ display: "flex", gap: 8 }}>
-              {["1", "2", "3"].map((g) => (
-                <Button
-                  key={g}
-                  intent={form.grade === g ? "secondary" : "ghost"}
-                  aria-pressed={form.grade === g}
-                  onClick={() => setForm((p) => ({ ...p, grade: g }))}
+                  고등
+                </button>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "MIDDLE" ? " is-selected" : ""}`}
+                  aria-pressed={form.schoolType === "MIDDLE"}
+                  onClick={() => setForm((p) => ({ ...p, schoolType: "MIDDLE" }))}
                   disabled={busy}
                 >
-                  {g}학년
-                </Button>
-              ))}
+                  중등
+                </button>
+              </div>
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                {["1", "2", "3"].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    className={`ds-choice-btn ds-choice-btn--primary${form.grade === g ? " is-selected" : ""}`}
+                    aria-pressed={form.grade === g}
+                    onClick={() => setForm((p) => ({ ...p, grade: g }))}
+                    disabled={busy}
+                  >
+                    {g}학년
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <input
-              name="schoolClass"
-              placeholder="반"
-              value={form.schoolClass ?? ""}
+            <div className="modal-form-row modal-form-row--2">
+              <input
+                name="schoolClass"
+                placeholder="반"
+                value={form.schoolClass ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <input
+                name="major"
+                placeholder="계열(고등만)"
+                value={form.major ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+            </div>
+            <textarea
+              name="memo"
+              rows={3}
+              placeholder="메모"
+              value={form.memo ?? ""}
               onChange={handleChange}
-              className="ds-input"
+              className="ds-textarea"
               disabled={busy}
             />
-            <input
-              name="major"
-              placeholder="계열(고등만)"
-              value={form.major ?? ""}
-              onChange={handleChange}
-              className="ds-input"
-              disabled={busy}
-            />
           </div>
 
-          <textarea
-            name="memo"
-            rows={4}
-            placeholder="메모"
-            value={form.memo ?? ""}
-            onChange={handleChange}
-            className="ds-textarea"
-            disabled={busy}
-          />
-
-          <div
-            style={{
-              marginTop: 2,
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              gap: 10,
-              alignItems: "center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 850,
-                color: "var(--color-text-muted)",
-              }}
-            >
-              등록 후 상세 화면에서 태그/메모/상태를 추가로 관리할 수 있습니다.
-            </div>
-
+          <div className="modal-form-row modal-form-row--1-auto">
+            <span className="modal-hint modal-hint--block" style={{ marginBottom: 0 }}>
+              등록 후 상세에서 태그/메모/상태를 관리할 수 있습니다.
+            </span>
             <button
               type="button"
+              className="ds-status-badge"
+              data-status={form.active ? "active" : "inactive"}
               aria-pressed={form.active}
               onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
               disabled={busy}
-              style={{
-                padding: "6px 12px",
-                fontSize: 12,
-                fontWeight: 700,
-                borderRadius: 8,
-                color: "#fff",
-                backgroundColor: form.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
-                border: "none",
-              }}
             >
               {form.active ? "활성" : "비활성"}
             </button>
           </div>
         </div>
         ) : bulkResult ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="modal-section-label" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "var(--space-2)" }}>
             {bulkResult.created}명 등록 완료
             {bulkResult.failed.length > 0 && ` · 실패 ${bulkResult.failed.length}건`}
           </div>
 
           {bulkResult.failed.length > 0 && (
             <>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                  padding: "10px 12px",
-                  background: "var(--color-bg-surface-soft)",
-                  borderRadius: 8,
-                  lineHeight: 1.5,
-                }}
-              >
-                필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR 식별). 아이디 6자리 자동 부여.
-                {conflictedItems.length > 0 && (
-                  <span style={{ display: "block", marginTop: 8 }}>
-                    <strong>삭제된 학생과 번호 충돌</strong> 시 복원 또는 삭제 후 재등록을 선택하세요.
-                  </span>
-                )}
+              <div className="modal-form-group modal-form-group--row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                <span className="modal-hint" style={{ lineHeight: 1.5 }}>
+                  필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR). 아이디 6자리 자동 부여.
+                  {conflictedItems.length > 0 && (
+                    <span className="modal-hint--block">
+                      <strong>삭제된 학생과 번호 충돌</strong> 시 복원 또는 삭제 후 재등록을 선택하세요.
+                    </span>
+                  )}
+                </span>
               </div>
 
               {conflictedItems.length > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>일괄 적용:</span>
+                <div className="modal-actions-inline" style={{ gap: "var(--space-3)" }}>
+                  <span className="modal-section-label" style={{ marginBottom: 0 }}>일괄 적용:</span>
                   <Button
                     intent={batchConflictAction === "restore" ? "secondary" : "ghost"}
                     size="sm"
@@ -1758,23 +1693,15 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 </div>
               )}
 
-              <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                 {bulkResult.failed.map((item, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: 12,
-                      border: "1px solid var(--color-border-divider)",
-                      borderRadius: 8,
-                      background: "var(--color-bg-surface)",
-                    }}
-                  >
-                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  <div key={idx} className="modal-form-group modal-form-group--compact">
+                    <div className="modal-section-label" style={{ marginBottom: "var(--space-1)", fontSize: 12 }}>
                       {item.row}행 {item.name} · <span style={{ color: "var(--color-status-error)" }}>{item.error}</span>
                     </div>
                     {item.conflict_student_id && (
-                      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 8 }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                      <div className="modal-actions-inline" style={{ marginBottom: "var(--space-2)" }}>
+                        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginBottom: 0, cursor: "pointer", fontSize: 13 }}>
                           <input
                             type="radio"
                             name={`conflict-${item.row}`}
@@ -1783,7 +1710,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                           />
                           복원
                         </label>
-                        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginBottom: 0, cursor: "pointer", fontSize: 13 }}>
                           <input
                             type="radio"
                             name={`conflict-${item.row}`}
@@ -1794,9 +1721,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                         </label>
                       </div>
                     )}
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <div className="modal-form-row modal-form-row--1-auto">
                       <input
-                        placeholder="학생 전화(010-XXXX-XXXX, 선택) · 없으면 학부모 전화로 OMR"
+                        placeholder="학생 전화(선택) · 없으면 학부모 전화로 OMR"
                         value={
                           (() => {
                             const raw = String(item.student?.phone ?? "").replace(/\D/g, "");
@@ -1811,7 +1738,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                           updateFailedItem(idx, "phone", phone);
                         }}
                         className="ds-input"
-                        style={{ flex: 1, minWidth: 180 }}
                         maxLength={13}
                         inputMode="numeric"
                       />
@@ -1820,7 +1746,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 ))}
               </div>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div className="modal-actions-inline">
                 {conflictedItems.length > 0 && (
                   <Button
                     intent="primary"
@@ -1842,12 +1768,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </Button>
         </div>
         ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
             <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>
-                초기 비밀번호 (일괄)
-              </label>
+              <label className="modal-section-label">초기 비밀번호 (일괄)</label>
               <input
                 type="password"
                 placeholder="모든 학생에 적용할 초기 비밀번호 (4자 이상)"
@@ -1858,69 +1782,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 style={{ width: "100%" }}
               />
             </div>
-            <Button intent="secondary" onClick={downloadStudentExcelTemplate} disabled={busy} style={{ alignSelf: "flex-end" }}>
+            <Button intent="secondary" onClick={downloadStudentExcelTemplate} disabled={busy}>
               엑셀 양식 다운로드
             </Button>
           </div>
 
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-            style={{
-              border: "2px dashed var(--color-border-divider)",
-              borderRadius: 12,
-              padding: 40,
-              textAlign: "center",
-              cursor: "pointer",
-              background: "var(--color-bg-surface-soft)",
-              color: "var(--color-text-secondary)",
-            }}
-            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-primary)"; }}
-            onDragLeave={(e) => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border-divider)"; }}
-            onDrop={(e) => {
-              e.preventDefault();
-              (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border-divider)";
-              const file = e.dataTransfer.files[0];
-              if (file && /\.(xlsx|xls)$/i.test(file.name)) {
-                handleExcelFileSelect(file);
-              } else {
-                alert("엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.");
-              }
-            }}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleExcelFileSelect(file);
-              }}
-            />
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
-              엑셀 파일을 드래그하거나 클릭하여 업로드
-            </div>
-            <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
-              .xlsx, .xls · 필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR). 아이디 6자리 자동 부여.
-            </div>
-          </div>
+          <ExcelUploadZone onFileSelect={handleExcelFileSelect} disabled={busy} />
 
           {excelParsedRows && excelParsedRows.length > 0 && (
-            <div
-              style={{
-                padding: 12,
-                background: "var(--color-bg-surface-soft)",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
-              <span style={{ fontSize: 14, fontWeight: 600 }}>
+            <div className="modal-form-group modal-form-group--row" style={{ justifyContent: "space-between" }}>
+              <span className="modal-section-label" style={{ marginBottom: 0 }}>
                 {excelParsedRows.length}명 등록 예정
               </span>
               <Button
@@ -1960,14 +1831,14 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 </span>
               </div>
             )}
-            <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
+            <span className="modal-hint" style={{ marginBottom: 0 }}>
               {activeTab === "single"
                 ? "⌘/Ctrl + Enter 등록"
                 : bulkResult
-                ? "실패 항목을 수정한 뒤 '다시 등록'을 누르세요"
+                ? "실패 항목 수정 후 '다시 등록'"
                 : excelParsedRows?.length
-                ? "초기 비밀번호 입력 후 '등록' 버튼을 눌러 주세요"
-                : "엑셀 파일을 선택한 뒤 '등록' 버튼을 눌러 주세요"}
+                ? "초기 비밀번호 입력 후 등록"
+                : "엑셀 파일 선택 후 등록"}
             </span>
           </div>
         }
@@ -2005,7 +1876,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 ==========================================================================================
 // PATH: src/features/students/components/StudentFilterModal.tsx
 import { useEffect, useMemo, useState } from "react";
-import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 
 interface Props {
@@ -2076,7 +1947,7 @@ export default function StudentFilterModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={720}>
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
       <ModalHeader
         type="action"
         title={title}
@@ -2084,8 +1955,8 @@ export default function StudentFilterModal({
       />
 
       <ModalBody>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          <div className="modal-form-row modal-form-row--3">
             <select
               className="ds-select"
               value={local.school_type ?? ""}
@@ -2095,7 +1966,6 @@ export default function StudentFilterModal({
               <option value="HIGH">고등</option>
               <option value="MIDDLE">중등</option>
             </select>
-
             <select
               className="ds-select"
               value={local.is_managed ?? ""}
@@ -2105,9 +1975,17 @@ export default function StudentFilterModal({
               <option value="true">활성</option>
               <option value="false">비활성</option>
             </select>
+            <select
+              className="ds-select"
+              value={local.gender || ""}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">성별 전체</option>
+              <option value="M">남</option>
+              <option value="F">여</option>
+            </select>
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="modal-form-row modal-form-row--3">
             <input
               className="ds-input"
               placeholder="아이디"
@@ -2120,24 +1998,20 @@ export default function StudentFilterModal({
               value={local.omr_code || ""}
               onChange={(e) => update("omr_code", e.target.value)}
             />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <input
               className="ds-input"
               placeholder="이름"
               value={local.name || ""}
               onChange={(e) => update("name", e.target.value)}
             />
+          </div>
+          <div className="modal-form-row modal-form-row--3">
             <input
               className="ds-input"
               placeholder="계열(major)"
               value={local.major || ""}
               onChange={(e) => update("major", e.target.value)}
             />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <input
               className="ds-input"
               placeholder="고등학교"
@@ -2151,40 +2025,21 @@ export default function StudentFilterModal({
               onChange={(e) => update("middle_school", e.target.value)}
             />
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <select
-              className="ds-select"
-              value={local.gender || ""}
-              onChange={(e) => update("gender", e.target.value)}
-            >
-              <option value="">성별 전체</option>
-              <option value="M">남</option>
-              <option value="F">여</option>
-            </select>
-
+          <div className="modal-form-row modal-form-row--1-auto">
             <select
               className="ds-select"
               value={local.grade ?? ""}
               onChange={(e) => update("grade", e.target.value)}
+              style={{ maxWidth: "12rem" }}
             >
               <option value="">학년 전체</option>
               <option value="1">1학년</option>
               <option value="2">2학년</option>
               <option value="3">3학년</option>
             </select>
-          </div>
-
-          <div
-            style={{
-              marginTop: 2,
-              fontSize: 11,
-              fontWeight: 850,
-              color: "var(--color-text-muted)",
-              lineHeight: 1.6,
-            }}
-          >
-            팁: 필터는 서버 조회에 반영됩니다. 불필요한 빈 값은 자동 제거됩니다.
+            <span className="modal-hint" style={{ marginBottom: 0 }}>
+              필터는 서버 조회에 반영되며, 빈 값은 자동 제거됩니다.
+            </span>
           </div>
         </div>
       </ModalBody>
@@ -2217,51 +2072,9 @@ export default function StudentFilterModal({
 // PATH: src/features/students/components/StudentsTable.tsx
 import { useMemo } from "react";
 import { EmptyState } from "@/shared/ui/ds";
-import { DomainTable, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
-
-const DEFAULT_LECTURE_COLOR = "#3b82f6";
-
-function isLightColor(hex: string): boolean {
-  const c = String(hex || "").toLowerCase();
-  return ["#eab308", "#06b6d4"].includes(c);
-}
-
-function LectureChip({
-  lectureName,
-  color,
-  size = 18,
-}: {
-  lectureName: string;
-  color: string;
-  size?: number;
-}) {
-  const bg = color || DEFAULT_LECTURE_COLOR;
-  const textColor = isLightColor(bg) ? "#1a1a1a" : "#fff";
-  const two = (lectureName || "??").slice(0, 2);
-
-  return (
-    <span
-      title={lectureName}
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 4,
-        flexShrink: 0,
-        display: "inline-grid",
-        placeItems: "center",
-        fontSize: 10,
-        fontWeight: 800,
-        letterSpacing: "-0.02em",
-        color: textColor,
-        background: bg,
-        boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
-      }}
-    >
-      {two}
-    </span>
-  );
-}
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2300,6 +2113,8 @@ export default function StudentsTable({
   selectedIds = [],
   onSelectionChange,
   isDeletedTab = false,
+  onToggleActive,
+  togglingId = null,
 }: {
   data: any[];
   search: string;
@@ -2309,6 +2124,9 @@ export default function StudentsTable({
   selectedIds?: number[];
   onSelectionChange?: (ids: number[]) => void;
   isDeletedTab?: boolean;
+  /** 학생 도메인 예외: 테이블에서 활성/비활성 클릭 토글 */
+  onToggleActive?: (id: number, nextActive: boolean) => void;
+  togglingId?: number | null;
 }) {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => data.map((s) => s.id), [data]);
@@ -2334,27 +2152,33 @@ export default function StudentsTable({
     }
   }
 
+  // TABLE_COL SSOT: tableColumnSpec
   const columns = useMemo(
     () => [
-      { key: "_checkbox", label: "", w: 48 },
-      { key: "name", label: "이름", w: 122 },
-      { key: "studentPhone", label: "학생 전화/식별자", w: 130 },
-      { key: "parentPhone", label: "학부모 전화", w: 130 },
-      { key: "school", label: "학교", w: 110 },
-      { key: "schoolClass", label: "반", w: 65 },
-      { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: 110 },
-      { key: "tags", label: "태그", w: 100 },
-      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: 72 }]),
+      { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
+      { key: "name", label: "이름", w: TABLE_COL.name },
+      { key: "parentPhone", label: "학부모 전화", w: TABLE_COL.phone },
+      { key: "studentPhone", label: "학생 전화", w: TABLE_COL.phone },
+      { key: "school", label: "학교", w: TABLE_COL.medium },
+      { key: "schoolClass", label: "반", w: TABLE_COL.short },
+      { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: TABLE_COL.medium },
+      { key: "tags", label: "태그", w: TABLE_COL.tag },
+      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: TABLE_COL.status }]),
     ],
     [isDeletedTab]
+  );
+  const tableWidth = useMemo(
+    () => columns.reduce((sum, c) => sum + c.w, 0),
+    [columns]
   );
 
   if (!data.length) {
     return (
       <EmptyState
+        scope="panel"
+        tone="empty"
         title="학생 정보가 없습니다."
         description="검색/필터 조건을 확인하거나, 새 학생을 등록해 주세요."
-        scope="panel"
       />
     );
   }
@@ -2372,7 +2196,7 @@ export default function StudentsTable({
         aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
         scope="col"
       >
-        <span className="inline-flex items-center gap-2">
+        <span className="inline-flex items-center justify-center gap-2">
           {label}
           <span
             aria-hidden
@@ -2391,7 +2215,7 @@ export default function StudentsTable({
 
   return (
     <div style={{ width: "fit-content" }}>
-    <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: 887 }}>
+    <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: tableWidth }}>
       <colgroup>
         {columns.map((c) => (
           <col key={c.key} style={{ width: c.w }} />
@@ -2402,7 +2226,7 @@ export default function StudentsTable({
         <tr>
           {columns.map((c) =>
             c.key === "_checkbox" ? (
-              <th key="_checkbox" scope="col" style={{ width: 48 }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+              <th key="_checkbox" scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                 {onSelectionChange ? (
                   <input
                     type="checkbox"
@@ -2433,8 +2257,8 @@ export default function StudentsTable({
               role="button"
               className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
             >
-              {/* 체크박스 */}
-              <td onClick={(e) => e.stopPropagation()} style={{ width: 48 }} className="ds-checkbox-cell">
+              {/* 체크박스 — 타이트, 칸과 위치 일치 */}
+              <td onClick={(e) => e.stopPropagation()} style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
                 {onSelectionChange ? (
                   <input
                     type="checkbox"
@@ -2446,40 +2270,34 @@ export default function StudentsTable({
                   />
                 ) : null}
               </td>
-              {/* 이름 + 강의 아이콘 */}
+              {/* 이름 — 강의딱지·아바타·이름 */}
               <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
-                <span className="inline-flex items-center gap-1.5 min-w-0">
-                  {Array.isArray(s.enrollments) && s.enrollments.length > 0 ? (
-                    <span className="inline-flex items-center gap-1 flex-shrink-0">
-                      {s.enrollments.slice(0, 3).map((en: { id: number; lectureName: string | null; lectureColor?: string | null }) => (
-                        <LectureChip
-                          key={en.id}
-                          lectureName={en.lectureName || "??"}
-                          color={en.lectureColor || DEFAULT_LECTURE_COLOR}
-                        />
-                      ))}
-                      {s.enrollments.length > 3 && (
-                        <span className="text-[10px] font-semibold text-[var(--color-text-muted)]">
-                          +{s.enrollments.length - 3}
-                        </span>
-                      )}
-                    </span>
-                  ) : null}
-                  <span className="truncate">{highlight(s.name || "-", search)}</span>
-                </span>
-              </td>
-
-              {/* 학생 전화 */}
-              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
-                {highlight(
-                  formatStudentPhoneDisplay(s.studentPhone),
-                  search
-                )}
+                <StudentNameWithLectureChip
+                  name={s.name ?? "-"}
+                  profilePhotoUrl={s.profilePhotoUrl}
+                  avatarSize={24}
+                    lectures={
+                      Array.isArray(s.enrollments) && s.enrollments.length > 0
+                        ? s.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
+                            lectureName: en.lectureName ?? "??",
+                            color: en.lectureColor ?? undefined,
+                            chipLabel: en.lectureChipLabel ?? undefined,
+                          }))
+                        : undefined
+                    }
+                  chipSize={16}
+                  highlight={(text) => highlight(text, search)}
+                />
               </td>
 
               {/* 학부모 전화 */}
               <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
                 {highlight(formatPhone(s.parentPhone), search)}
+              </td>
+
+              {/* 학생 전화 */}
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(formatStudentPhoneDisplay(s.studentPhone), search)}
               </td>
 
               {/* 학교 */}
@@ -2500,7 +2318,7 @@ export default function StudentsTable({
               {/* 태그 */}
               <td className="text-[12px] leading-5">
                 {Array.isArray(s.tags) && s.tags.length > 0 ? (
-                  <span className="flex flex-wrap gap-1">
+                  <span className="flex flex-wrap gap-1 justify-center">
                     {s.tags.slice(0, 3).map((t: { id: number; name: string; color: string }) => (
                       <span
                         key={t.id}
@@ -2526,21 +2344,28 @@ export default function StudentsTable({
                 )}
               </td>
 
-              {/* 상태 */}
+              {/* 상태 — 학생 도메인 예외: 클릭 시 토글(버튼형 연한 톤 뱃지) */}
               {!isDeletedTab && (
-                <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                  <span
-                    style={{
-                      padding: "4px 8px",
-                      borderRadius: 999,
-                      fontWeight: 800,
-                      fontSize: 11,
-                      color: "white",
-                      backgroundColor: s.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
-                    }}
-                  >
-                    {s.active ? "활성" : "비활성"}
-                  </span>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {onToggleActive ? (
+                    <button
+                      type="button"
+                      className="ds-status-badge ds-status-badge--action"
+                      data-status={s.active ? "active" : "inactive"}
+                      disabled={togglingId === s.id}
+                      onClick={() => onToggleActive(s.id, !s.active)}
+                      aria-label={s.active ? "비활성으로 변경" : "활성으로 변경"}
+                    >
+                      {togglingId === s.id ? "…" : s.active ? "활성" : "비활성"}
+                    </button>
+                  ) : (
+                    <span
+                      className="ds-status-badge"
+                      data-status={s.active ? "active" : "inactive"}
+                    >
+                      {s.active ? "활성" : "비활성"}
+                    </span>
+                  )}
                 </td>
               )}
             </tr>
@@ -2559,7 +2384,7 @@ export default function StudentsTable({
 // 태그 생성 모달 — 이름 + 색상
 
 import { useState, useEffect } from "react";
-import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import { createTag } from "../api/students";
@@ -2624,26 +2449,15 @@ export default function TagCreateModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} width={400}>
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.sm}>
       <ModalHeader
         title="태그 생성"
         description="이름과 색상을 정하면 꼬리표처럼 학생에 붙습니다."
       />
       <ModalBody>
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 12,
-                fontWeight: 700,
-                color: "var(--color-text-muted)",
-                marginBottom: 8,
-                letterSpacing: "0.04em",
-              }}
-            >
-              태그 이름
-            </label>
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="modal-form-group modal-form-group--compact">
+            <label className="modal-section-label">태그 이름</label>
             <input
               type="text"
               className="ds-input w-full"
@@ -2658,19 +2472,11 @@ export default function TagCreateModal({
               autoFocus
             />
             {error && (
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 12,
-                  color: "var(--color-error)",
-                  fontWeight: 600,
-                }}
-              >
+              <div className="modal-hint" style={{ marginTop: "var(--space-2)", color: "var(--color-error)" }}>
                 {error}
               </div>
             )}
           </div>
-
           <ColorPickerField label="색상" value={color} onChange={setColor} disabled={busy} />
         </div>
       </ModalBody>
@@ -2700,10 +2506,9 @@ export default function TagCreateModal({
 # FILE: excel/studentExcel.ts
 ==========================================================================================
 // PATH: src/features/students/excel/studentExcel.ts
-// 학생 일괄 등록 엑셀 — 양식 다운로드 / 파싱
+// 엑셀 파싱·양식 단일진실 (SSOT) — 학생 일괄 등록 + 강의 수강생 엑셀 업로드. @see docs/DESIGN_SSOT.md §8
 
 import * as XLSX from "xlsx";
-import * as XLSXStyle from "xlsx-js-style";
 
 /** 엑셀 양식 컬럼 — 구분(예시여부), 필수 우선, 선택옵션 뒤로 */
 export const EXCEL_HEADERS = [
@@ -2759,6 +2564,8 @@ const HEADER_ALIASES: Record<string, readonly string[]> = {
   schoolClass: ["반"],
   major: ["계열"],
   memo: ["메모"],
+  /** 엑셀 내 강의명 — 강의 일치 확인용(선택) */
+  lectureName: ["강의명", "강의", "과목", "수업명"],
 };
 
 function normalizeHeader(s: string): string {
@@ -2799,6 +2606,14 @@ function cellStr(map: Record<string, number>, row: unknown[], key: ExcelRowKey):
   return String(v ?? "").trim();
 }
 
+/** 헤더에만 있는 키(예: lectureName)용 셀 값 */
+function cellStrOptional(map: Record<string, number>, row: unknown[], key: string): string {
+  const i = map[key];
+  if (i == null) return "";
+  const v = (row as unknown[])[i];
+  return String(v ?? "").trim();
+}
+
 /**
  * "학교(학년)" 형식 파싱 — 예: 숙명여고(０), 휘문중(3)
  * 전각 숫자 ０→0 변환, 학교명과 학년 분리
@@ -2822,15 +2637,11 @@ function inferSchoolType(school: string): "HIGH" | "MIDDLE" {
   return "HIGH";
 }
 
-const GREEN_FILL = { patternType: "solid" as const, fgColor: { rgb: "FF92D050" } };
-const YELLOW_FILL = { patternType: "solid" as const, fgColor: { rgb: "FFFFDE99" } };
-const MUTED_FONT = { font: { sz: 11, color: { rgb: "FF666666" } } };
-
 /**
- * 엑셀 양식 다운로드 — 상단 안내문, 필수 컬럼 초록색, 예시 노란색, 성별/학교유형 선택지
+ * 엑셀 양식 다운로드 — 상단 안내문, 헤더, 예시 행 (xlsx 패키지로 동작 보장)
  */
 export function downloadStudentExcelTemplate() {
-  const wb = XLSXStyle.utils.book_new();
+  const wb = XLSX.utils.book_new();
   const headers = EXCEL_HEADERS.map((h) => h.label);
   const exampleRow1 = [
     "예시(등록안됨)",
@@ -2860,16 +2671,13 @@ export function downloadStudentExcelTemplate() {
   ];
 
   const instructionRow1 = [
-    "◆ 필수 입력(초록색): 이름, 학부모전화번호. 학생전화번호는 선택(비워두면 학부모 전화 뒤 8자리로 OMR 식별). 아이디는 6자리 숫자로 자동 부여됩니다.",
+    "◆ 필수 입력: 이름, 학부모전화번호. 학생전화번호는 선택(비워두면 학부모 전화 뒤 8자리로 OMR 식별). 아이디는 6자리 숫자로 자동 부여됩니다.",
   ];
   const instructionRow2 = [
-    "◆ 양식 규칙: 학부모전화번호·학생전화번호 010XXXXXXXX 11자리, 성별(M 또는 F), 학교유형(HIGH 또는 MIDDLE). 성별·학교유형은 셀 클릭 후 드롭다운에서 선택하세요.",
+    "◆ 양식 규칙: 학부모전화번호·학생전화번호 010XXXXXXXX 11자리, 성별(M 또는 F), 학교유형(HIGH 또는 MIDDLE). 학교 비우면 비움, XX중/XX고 적으면 자동 반영.",
   ];
   const instructionRow3 = [
-    "◆ 양식 안 지켜도 되는 곳: 이름, 학교, 학년, 반, 계열, 메모 — 편하게 쓰시면 됩니다.",
-  ];
-  const instructionRow4 = [
-    "◆ 노란색 행(7~8행)은 예시입니다. 지우지 않아도 되고, 등록되지 않습니다. 9행부터 학생 정보를 작성하세요. 등록되는 건 헤더(6행) 아래 데이터 행들입니다.",
+    "◆ 7~8행은 예시입니다. 9행부터 학생 정보를 작성하세요.",
   ];
   const emptyRow: string[] = [];
 
@@ -2877,53 +2685,28 @@ export function downloadStudentExcelTemplate() {
     instructionRow1,
     instructionRow2,
     instructionRow3,
-    instructionRow4,
     emptyRow,
     headers,
     exampleRow1,
     exampleRow2,
   ];
-  const sheet = XLSXStyle.utils.aoa_to_sheet(data);
-
-  // 안내문 스타일 (1~4행)
-  for (let r = 1; r <= 4; r++) {
-    const ref = "A" + r;
-    if (sheet[ref]) sheet[ref].s = MUTED_FONT;
-  }
-
-  // 필수 헤더(6행): 이름(B), 학부모전화번호(C) — 붙어있음, 초록 배경
-  const colLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  for (const c of [1, 2]) {
-    const ref = colLetters[c] + "6";
-    if (sheet[ref]) {
-      sheet[ref].s = { fill: GREEN_FILL, font: { bold: true } };
-    }
-  }
-
-  // 예시 행(7~8행) 노란색 채우기
-  for (let r = 7; r <= 8; r++) {
-    for (let c = 0; c <= 10; c++) {
-      const ref = (c < 26 ? colLetters[c] : colLetters[0] + colLetters[c - 26]) + r;
-      if (sheet[ref]) sheet[ref].s = { fill: YELLOW_FILL };
-    }
-  }
-
-  // 성별(D), 학교유형(E) 열 데이터 유효성 검사 — 7행부터
-  const dv = [
-    { sqref: "E7:E1000", type: "list" as const, formula1: '"M,F"', allowBlank: true },
-    { sqref: "F7:F1000", type: "list" as const, formula1: '"HIGH,MIDDLE"', allowBlank: true },
-  ];
-  (sheet as Record<string, unknown>)["!dataValidation"] = dv;
-
+  const sheet = XLSX.utils.aoa_to_sheet(data);
   sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 22 : i === 1 ? 12 : 14 }));
-  XLSXStyle.utils.book_append_sheet(wb, sheet, "학생목록");
-  XLSXStyle.writeFile(wb, "학생_일괄등록_양식.xlsx");
+  XLSX.utils.book_append_sheet(wb, sheet, "학생목록");
+  XLSX.writeFile(wb, "학생_일괄등록_양식.xlsx");
+}
+
+/** parseStudentExcel 반환 타입 — 강의명은 엑셀 내 컬럼/첫 행에서 추출(선택) */
+export interface ParseStudentExcelResult {
+  rows: ParsedStudentRow[];
+  /** 엑셀에 적힌 강의명(강의 일치 확인용). 없으면 undefined */
+  lectureNameFromExcel?: string;
 }
 
 /**
- * 엑셀 파일 파싱 → ParsedStudentRow[]
+ * 엑셀 파일 파싱 → 학생 행 + 엑셀 강의명(있을 경우)
  */
-export function parseStudentExcel(file: File): Promise<ParsedStudentRow[]> {
+export function parseStudentExcel(file: File): Promise<ParseStudentExcelResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -2965,6 +2748,26 @@ export function parseStudentExcel(file: File): Promise<ParsedStudentRow[]> {
         }
         const headerRow = rows[headerRowIndex] as string[];
         const map = buildHeaderMap(headerRow);
+
+        // 엑셀 강의명: (1) 헤더 위 행에서 "강의명"/"강의" 라벨 옆 셀 (2) 강의명 컬럼의 첫 값
+        let lectureNameFromExcel: string | undefined;
+        for (let r = 0; r < headerRowIndex; r++) {
+          const row = rows[r] as unknown[];
+          const arr = row ?? [];
+          for (let c = 0; c < arr.length - 1; c++) {
+            const label = String(arr[c] ?? "").trim();
+            const next = String(arr[c + 1] ?? "").trim();
+            if (
+              (normalizeHeader(label) === "강의명" || normalizeHeader(label) === "강의") &&
+              next
+            ) {
+              lectureNameFromExcel = next;
+              break;
+            }
+          }
+          if (lectureNameFromExcel) break;
+        }
+
         const result: ParsedStudentRow[] = [];
         const remarkVal = (m: Record<string, number>, row: unknown[]) => {
           const i = m["remark"];
@@ -2974,6 +2777,10 @@ export function parseStudentExcel(file: File): Promise<ParsedStudentRow[]> {
         for (let r = headerRowIndex + 1; r < rows.length; r++) {
           const row = rows[r] as unknown[];
           if (/예시/.test(remarkVal(map, row))) continue; // 예시 행 스킵
+          if (!lectureNameFromExcel && map["lectureName"] != null) {
+            const v = cellStrOptional(map, row, "lectureName");
+            if (v) lectureNameFromExcel = v;
+          }
           const name = cellStr(map, row, "name");
           const rawStudent = toRawPhone(cellStr(map, row, "studentPhone"));
           let studentPhone = rawStudent;
@@ -3015,6 +2822,134 @@ export function parseStudentExcel(file: File): Promise<ParsedStudentRow[]> {
             schoolClass: cellStr(map, row, "schoolClass"),
             major: cellStr(map, row, "major"),
             memo: cellStr(map, row, "memo"),
+          });
+        }
+        resolve({ rows: result, lectureNameFromExcel: lectureNameFromExcel || undefined });
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error("파일 파싱 실패"));
+      }
+    };
+    reader.onerror = () => reject(new Error("파일 읽기 실패"));
+    reader.readAsBinaryString(file);
+  });
+}
+
+// ========== 차시 수강생 엑셀 (이름·전화 매칭 + N차시 출결 컬럼) ==========
+
+/** 차시 수강생 엑셀 한 행 — 이름·학부모전화로 매칭, 선택 차시 출결 값 */
+export interface SessionEnrollParsedRow {
+  name: string;
+  parentPhone: string;
+  /** 차시 order → 셀 값 (출, 영상, 결 등) */
+  sessionAttendance: Record<number, string>;
+}
+
+/** 헤더에서 "N차시" 컬럼 인덱스 → order 매핑 (1차시→1, 2차시→2, …) */
+function buildSessionColumnMap(headerRow: string[]): Record<number, number> {
+  const map: Record<number, number> = {};
+  headerRow.forEach((label, i) => {
+    const s = String(label ?? "").trim();
+    const m = s.match(/^제?\s*(\d+)\s*차시$/) || s.match(/^(\d+)\s*차시$/);
+    if (m) {
+      const order = parseInt(m[1], 10);
+      if (Number.isFinite(order)) map[order] = i;
+    }
+  });
+  return map;
+}
+
+/** 출결 셀 값 → API status (출/출석/현장→PRESENT, 영상/온라인→ONLINE 등) */
+export function mapAttendanceCellToStatus(cell: string): string | null {
+  const s = String(cell ?? "").trim();
+  if (!s) return null;
+  const n = s.replace(/\s/g, "");
+  if (/^(출|출석|현장|O|○|ㅇ)$/i.test(n)) return "PRESENT";
+  if (/^(영상|온라인|VOD|V)$/i.test(n)) return "ONLINE";
+  if (/^(결|결석|X|×|ㄴ)$/i.test(n)) return "ABSENT";
+  if (/^(지각|L)$/i.test(n)) return "LATE";
+  if (/^(보강|B)$/i.test(n)) return "SUPPLEMENT";
+  if (/^(조퇴|E)$/i.test(n)) return "EARLY_LEAVE";
+  if (/^(출튀|R)$/i.test(n)) return "RUNAWAY";
+  if (/^(자료|M)$/i.test(n)) return "MATERIAL";
+  if (/^(부재|I)$/i.test(n)) return "INACTIVE";
+  if (/^(탈퇴|S)$/i.test(n)) return "SECESSION";
+  return null;
+}
+
+/**
+ * 차시 수강생 엑셀 파싱 — 학생 도메인 엑셀과 동일하게 이름·학부모전화 컬럼 찾고,
+ * 추가로 "N차시" 컬럼에서 출결 값 수집. 양식이 달라도 이름+전화 있으면 처리.
+ */
+export function parseSessionEnrollExcel(file: File): Promise<SessionEnrollParsedRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        if (!data) {
+          reject(new Error("파일을 읽을 수 없습니다."));
+          return;
+        }
+        const wb = XLSX.read(data, { type: "binary" });
+        const firstSheet = wb.Sheets[wb.SheetNames[0]];
+        if (!firstSheet) {
+          reject(new Error("시트가 없습니다."));
+          return;
+        }
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
+        if (!rows.length) {
+          reject(new Error("데이터가 없습니다."));
+          return;
+        }
+        const hasName = (r: unknown[]) =>
+          (r || []).some((c) => headerMatches(String(c ?? ""), "name"));
+        const hasPhone = (r: unknown[]) =>
+          (r || []).some(
+            (c) =>
+              headerMatches(String(c ?? ""), "studentPhone") ||
+              headerMatches(String(c ?? ""), "parentPhone")
+          );
+        let headerRowIndex = -1;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i] as unknown[];
+          if (hasName(row) && hasPhone(row)) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+        if (headerRowIndex < 0) {
+          reject(new Error("양식이 맞지 않습니다. 이름·전화번호 컬럼이 있는 행을 찾을 수 없습니다."));
+          return;
+        }
+        const headerRow = rows[headerRowIndex] as string[];
+        const map = buildHeaderMap(headerRow);
+        const sessionColMap = buildSessionColumnMap(headerRow);
+        const result: SessionEnrollParsedRow[] = [];
+        const remarkVal = (m: Record<string, number>, row: unknown[]) => {
+          const i = m["remark"];
+          if (i == null || typeof i !== "number") return "";
+          return String((row as unknown[])[i] ?? "").trim();
+        };
+        for (let r = headerRowIndex + 1; r < rows.length; r++) {
+          const row = rows[r] as unknown[];
+          if (/예시/.test(remarkVal(map, row))) continue;
+          const name = cellStr(map, row, "name");
+          const parentPhone = toRawPhone(cellStr(map, row, "parentPhone"));
+          if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) {
+            if (!name) continue;
+          }
+          if (!name && !parentPhone) continue;
+          const sessionAttendance: Record<number, string> = {};
+          for (const [orderStr, colIndex] of Object.entries(sessionColMap)) {
+            const order = parseInt(orderStr, 10);
+            const v = row[colIndex];
+            const cell = String(v ?? "").trim();
+            if (cell) sessionAttendance[order] = cell;
+          }
+          result.push({
+            name: name.trim(),
+            parentPhone: parentPhone || "",
+            sessionAttendance,
           });
         }
         resolve(result);
@@ -3072,19 +3007,86 @@ export function useStudentsQuery(
   return useQuery({
     queryKey: ["students", search, filters, sort, page, deleted],
     queryFn: async () => {
-      const { data, count } = await fetchStudents(search, filters, sort, page, deleted);
+      const { data, count, pageSize } = await fetchStudents(search, filters, sort, page, deleted);
 
-      if (!sort) return { data, count, pageSize: PAGE_SIZE };
+      if (!sort) return { data, count, pageSize: pageSize ?? PAGE_SIZE };
 
       const isDesc = sort.startsWith("-");
       const key = isDesc ? sort.slice(1) : sort;
 
       const sorted = [...data].sort((a, b) => compare(a, b, key));
       const sortedData = isDesc ? sorted.reverse() : sorted;
-      return { data: sortedData, count, pageSize: PAGE_SIZE };
+      return { data: sortedData, count, pageSize: pageSize ?? PAGE_SIZE };
     },
     staleTime: 1000 * 5,
   });
+}
+
+
+==========================================================================================
+# FILE: inventory/r2InventoryPath.ts
+==========================================================================================
+/**
+ * R2 인벤토리 저장 경로·파일명 SSOT
+ * tenants / {tenant_id} / {student_ps} / inventory / {폴더트리} / {파일명}
+ *
+ * - DB 메타데이터는 R2 업로드 성공 후에만 생성. R2 실패 시 롤백/에러 반환.
+ * - 파일명 충돌 방지: 원본명 뒤에 타임스탬프(또는 짧은 해시) 부여.
+ * - 폴더 삭제: 비어있지 않은 폴더는 삭제 불가(안전장치). 먼저 하위를 비운 뒤 삭제.
+ */
+
+/**
+ * R2 객체 키 생성.
+ * @param tenantId - 태넌트 ID
+ * @param studentPs - 학생 PS 번호
+ * @param folderPath - 인벤토리 내 폴더 경로 (빈 문자열 = 루트). 예: "1학기/중간"
+ * @param originalFileName - 원본 파일명 (예: 성적표.jpg)
+ * @returns R2 key. 예: tenants/t1/12345/inventory/1학기/중간/성적표_240214_abc.jpg
+ */
+export function getInventoryR2Key(
+  tenantId: string,
+  studentPs: string,
+  folderPath: string,
+  originalFileName: string
+): string {
+  const safeName = safeInventoryFileName(originalFileName);
+  const prefix = `tenants/${tenantId}/${studentPs}/inventory`;
+  const path = folderPath ? `${prefix}/${folderPath}/${safeName}` : `${prefix}/${safeName}`;
+  return path;
+}
+
+/**
+ * 같은 폴더 내 이름 충돌 방지를 위해 원본 파일명에 타임스탬프(및 짧은 해시) 부여.
+ * 예: 성적표.jpg → 성적표_240214_a1b2.jpg
+ */
+export function safeInventoryFileName(originalFileName: string): string {
+  const lastDot = originalFileName.lastIndexOf(".");
+  const base = lastDot >= 0 ? originalFileName.slice(0, lastDot) : originalFileName;
+  const ext = lastDot >= 0 ? originalFileName.slice(lastDot) : "";
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const hash = Math.random().toString(36).slice(2, 6);
+  const safe = `${base}_${stamp}_${hash}${ext}`;
+  return safe;
+}
+
+/**
+ * 폴더 배열을 R2 경로 문자열로 변환.
+ * [{ name: "1학기" }, { name: "중간" }] → "1학기/중간"
+ */
+export function folderPathFromIds(
+  folders: { id: string; name: string; parentId: string | null }[],
+  folderId: string | null
+): string {
+  if (!folderId) return "";
+  const path: string[] = [];
+  let currentId: string | null = folderId;
+  while (currentId) {
+    const folder = folders.find((f) => f.id === currentId);
+    if (!folder) break;
+    path.unshift(folder.name);
+    currentId = folder.parentId;
+  }
+  return path.join("/");
 }
 
 
@@ -3095,7 +3097,7 @@ export function useStudentsQuery(
 // 학생 상세 오버레이 — 고급 SaaS 스타일, 기능·구성 동일
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 
@@ -3111,9 +3113,9 @@ import {
 
 import StudentFormModal from "../components/EditStudentModal";
 import TagCreateModal from "../components/TagCreateModal";
-import { EmptyState, Button } from "@/shared/ui/ds";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { EmptyState, Button, CloseButton } from "@/shared/ui/ds";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode } from "@/shared/utils/formatPhone";
-import { STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
 
 const TABS = [
   { key: "enroll", label: "수강 이력" },
@@ -3123,15 +3125,219 @@ const TABS = [
   { key: "schoolScore", label: "학교 성적" },
 ];
 
-export default function StudentsDetailOverlay() {
-  const { studentId } = useParams();
+/** 인벤토리 아이콘 프리셋 — 시험/자료 종류별 시각 구분 */
+const INVENTORY_ICON_PRESETS = [
+  { id: "mid1", label: "1학기 중간", emoji: "📄", color: "#c62828" },
+  { id: "final1", label: "1학기 기말", emoji: "📄", color: "#ad1457" },
+  { id: "mid2", label: "2학기 중간", emoji: "📄", color: "#6a1b9a" },
+  { id: "final2", label: "2학기 기말", emoji: "📄", color: "#1565c0" },
+  { id: "mock3", label: "모의고사 3월", emoji: "📋", color: "#00838f" },
+  { id: "mock6", label: "모의고사 6월", emoji: "📋", color: "#2e7d32" },
+  { id: "mock9", label: "모의고사 9월", emoji: "📋", color: "#ef6c00" },
+  { id: "custom", label: "학원 사설", emoji: "📌", color: "#37474f" },
+  { id: "misc", label: "기타", emoji: "📎", color: "#757575" },
+] as const;
+
+type StudentsDetailOverlayProps = {
+  /** 라우트가 아닌 곳(예: 모달)에서 띄울 때 전달. 있으면 onClose로만 닫고 라우트 변경 없음 */
+  studentId?: number;
+  onClose?: () => void;
+};
+
+export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps) {
+  const routeParams = useParams();
   const navigate = useNavigate();
-  const id = Number(studentId);
+  const id = props?.studentId ?? Number(routeParams.studentId);
+  const onClose = props?.onClose ?? (() => navigate(-1));
   const qc = useQueryClient();
 
   const [tab, setTab] = useState("enroll");
   const [editOpen, setEditOpen] = useState(false);
   const [tagCreateOpen, setTagCreateOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [inventoryTab, setInventoryTab] = useState<"score" | "misc" | "video" | "image">("score");
+  const [viewerItem, setViewerItem] = useState<{ type: "pdf" | "image" | "video"; url: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  type InventoryFolder = { id: string; name: string; parentId: string | null };
+  type UploadedInventoryItem = {
+    id: string;
+    title: string;
+    description: string;
+    fileName: string;
+    fileUrl: string;
+    fileType: "pdf" | "image";
+    iconPreset?: string;
+    folderId?: string | null;
+  };
+  const [scoreFolders, setScoreFolders] = useState<InventoryFolder[]>([]);
+  const [miscFolders, setMiscFolders] = useState<InventoryFolder[]>([]);
+  const [scoreCurrentFolderId, setScoreCurrentFolderId] = useState<string | null>(null);
+  const [miscCurrentFolderId, setMiscCurrentFolderId] = useState<string | null>(null);
+  const [uploadedScoreItems, setUploadedScoreItems] = useState<UploadedInventoryItem[]>([]);
+  const [uploadedMiscItems, setUploadedMiscItems] = useState<UploadedInventoryItem[]>([]);
+  const [addChoiceModal, setAddChoiceModal] = useState<"score" | "misc" | null>(null);
+  const [newFolderModal, setNewFolderModal] = useState<{ tab: "score" | "misc"; name: string } | null>(null);
+  const [addFileModal, setAddFileModal] = useState<{
+    tab: "score" | "misc";
+    file: File | null;
+    title: string;
+    description: string;
+    iconPreset: string;
+  } | null>(null);
+  const [editItem, setEditItem] = useState<{ item: UploadedInventoryItem; tab: "score" | "misc" } | null>(null);
+  const [inventoryMultiSelect, setInventoryMultiSelect] = useState(false);
+  const [inventorySelectedId, setInventorySelectedId] = useState<string | null>(null);
+  const [inventorySelectedIds, setInventorySelectedIds] = useState<Set<string>>(new Set());
+  const [inventorySelectedFolderIds, setInventorySelectedFolderIds] = useState<Set<string>>(new Set());
+
+  const currentFolders = inventoryTab === "score" ? scoreFolders : miscFolders;
+  const setCurrentFolders = inventoryTab === "score" ? setScoreFolders : setMiscFolders;
+  const currentFolderId = inventoryTab === "score" ? scoreCurrentFolderId : miscCurrentFolderId;
+  const setCurrentFolderId = inventoryTab === "score" ? setScoreCurrentFolderId : setMiscCurrentFolderId;
+
+  const handleInventoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAddFileModal((m) => (m ? { ...m, file, title: m.title || file.name.replace(/\.[^.]+$/, "") || file.name } : null));
+    e.target.value = "";
+  };
+
+  const openAddChoice = (tab: "score" | "misc") => setAddChoiceModal(tab);
+  const openUploadModal = () => {
+    if (!addChoiceModal) return;
+    setAddFileModal({
+      tab: addChoiceModal,
+      file: null,
+      title: "",
+      description: "",
+      iconPreset: INVENTORY_ICON_PRESETS[0].id,
+    });
+    setAddChoiceModal(null);
+  };
+  const openNewFolderModal = () => {
+    if (!addChoiceModal) return;
+    setNewFolderModal({ tab: addChoiceModal, name: "" });
+    setAddChoiceModal(null);
+  };
+
+  const confirmNewFolder = () => {
+    if (!newFolderModal || !newFolderModal.name.trim()) return;
+    const folder: InventoryFolder = {
+      id: crypto.randomUUID(),
+      name: newFolderModal.name.trim(),
+      parentId: currentFolderId,
+    };
+    setCurrentFolders((prev) => [...prev, folder]);
+    setNewFolderModal(null);
+  };
+
+  const confirmAddFile = () => {
+    if (!addFileModal || !addFileModal.file) return;
+    const { tab, file, title, description, iconPreset } = addFileModal;
+    const fileUrl = URL.createObjectURL(file);
+    const fileType = file.type.startsWith("image/") ? "image" as const : "pdf" as const;
+    const item: UploadedInventoryItem = {
+      id: crypto.randomUUID(),
+      title: title.trim() || file.name,
+      description,
+      fileName: file.name,
+      fileUrl,
+      fileType,
+      iconPreset,
+      folderId: currentFolderId,
+    };
+    if (tab === "score") setUploadedScoreItems((prev) => [...prev, item]);
+    else setUploadedMiscItems((prev) => [...prev, item]);
+    setAddFileModal(null);
+  };
+
+  const currentList = inventoryTab === "score" ? uploadedScoreItems : uploadedMiscItems;
+  const setCurrentList = inventoryTab === "score" ? setUploadedScoreItems : setUploadedMiscItems;
+  const subFolders = currentFolders.filter((f) => f.parentId === currentFolderId);
+  const currentListFiltered = currentList.filter((i) => (i.folderId ?? null) === currentFolderId);
+
+  const folderHasChildren = (folderId: string) => {
+    const hasSub = currentFolders.some((f) => f.parentId === folderId);
+    const hasFiles = currentList.some((i) => (i.folderId ?? null) === folderId);
+    return hasSub || hasFiles;
+  };
+
+  const selectedIds = inventoryMultiSelect ? inventorySelectedIds : (inventorySelectedId ? new Set([inventorySelectedId]) : new Set());
+  const hasSelection = selectedIds.size > 0 || inventorySelectedFolderIds.size > 0;
+
+  const toggleInventorySelection = (id: string) => {
+    setInventorySelectedFolderIds(new Set());
+    if (inventoryMultiSelect) {
+      setInventorySelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    } else {
+      setInventorySelectedId((prev) => (prev === id ? null : id));
+    }
+  };
+
+  const toggleFolderSelection = (folderId: string) => {
+    setInventorySelectedId(null);
+    setInventorySelectedIds(new Set());
+    if (inventoryMultiSelect) {
+      setInventorySelectedFolderIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(folderId)) next.delete(folderId);
+        else next.add(folderId);
+        return next;
+      });
+    } else {
+      setInventorySelectedFolderIds((prev) => (prev.has(folderId) ? new Set() : new Set([folderId])));
+    }
+  };
+
+  const openEditModal = () => {
+    if (!inventoryMultiSelect && selectedIds.size !== 1) return;
+    const singleId = Array.from(selectedIds)[0];
+    if (!singleId) return;
+    const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === singleId);
+    if (item)
+      setEditItem({
+        item: { ...item, iconPreset: item.iconPreset ?? "misc" },
+        tab: uploadedScoreItems.some((i) => i.id === singleId) ? "score" : "misc",
+      });
+  };
+
+  const confirmEditItem = () => {
+    if (!editItem) return;
+    const { item, tab } = editItem;
+    const updater = (prev: UploadedInventoryItem[]) =>
+      prev.map((i) => (i.id === item.id ? { ...i, title: item.title, description: item.description, iconPreset: item.iconPreset } : i));
+    if (tab === "score") setUploadedScoreItems(updater);
+    else setUploadedMiscItems(updater);
+    setEditItem(null);
+  };
+
+  const deleteSelectedInventory = () => {
+    const toDeleteFolderIds = Array.from(inventorySelectedFolderIds);
+    for (const fid of toDeleteFolderIds) {
+      if (folderHasChildren(fid)) {
+        alert("비어있지 않은 폴더는 지울 수 없습니다. 먼저 하위 파일·폴더를 비우거나 삭제하세요.");
+        return;
+      }
+    }
+    toDeleteFolderIds.forEach((fid) => setCurrentFolders((prev) => prev.filter((f) => f.id !== fid)));
+    if (currentFolderId && toDeleteFolderIds.includes(currentFolderId)) setCurrentFolderId(null);
+    setInventorySelectedFolderIds(new Set());
+
+    const toDelete = Array.from(selectedIds);
+    toDelete.forEach((id) => {
+      const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === id);
+      if (item?.fileUrl.startsWith("blob:")) URL.revokeObjectURL(item.fileUrl);
+    });
+    setCurrentList((prev) => prev.filter((i) => !toDelete.includes(i.id)));
+    setInventorySelectedId(null);
+    setInventorySelectedIds(new Set());
+  };
 
   const { data: student, isLoading } = useQuery({
     queryKey: ["student", id],
@@ -3174,233 +3380,104 @@ export default function StudentsDetailOverlay() {
     if (!confirm("이 학생을 삭제하시겠습니까?")) return;
     await deleteStudent(id);
     qc.invalidateQueries({ queryKey: ["students"] });
-    navigate(-1);
+    onClose();
   }
 
   if (isLoading || !student) return null;
 
   return (
     <>
-      {/* Backdrop — 부드러운 블러 + 딤 */}
-      <div
-        className="fixed inset-0 z-40"
-        style={{
-          background: "rgba(0,0,0,0.45)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          transition: "opacity 0.2s ease",
-        }}
-        onClick={() => navigate(-1)}
-        aria-hidden
-      />
+      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
 
-      {/* Overlay panel */}
-      <div
-        className="fixed inset-0 z-50 flex justify-center overflow-auto"
-        style={{
-          paddingTop: "calc(var(--panel-header, 64px) + 16px)",
-          paddingBottom: 16,
-          paddingLeft: 24,
-          paddingRight: 24,
-        }}
-      >
-        <div
-          className="w-full max-w-[1100px]"
-          style={{
-            borderRadius: 24,
-            background: "var(--color-bg-surface)",
-            border: "1px solid var(--color-border-divider)",
-            boxShadow:
-              "0 0 0 1px rgba(0,0,0,0.03), 0 2px 4px rgba(0,0,0,0.04), 0 12px 24px rgba(0,0,0,0.08), 0 24px 48px rgba(0,0,0,0.12)",
-            overflow: "hidden",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header — 프리미엄 인스펙트 스타일, 유리 질감 */}
-          <header
-            className="relative overflow-hidden"
-            style={{
-              background:
-                "linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface)) 0%, color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface)) 50%, var(--color-bg-surface) 100%)",
-              borderBottom: "1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider))",
-              padding: "28px 32px 24px",
-              boxShadow:
-                "0 1px 0 0 color-mix(in srgb, var(--color-primary) 6%, transparent)",
-            }}
-          >
-            {/* 유리 반사 (gloss) — 상단 흰줄 없이 은은하게 */}
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, transparent 50%)",
-                pointerEvents: "none",
-              }}
-            />
-            {/* 질감 (노이즈) */}
-            <div
-              aria-hidden
-              style={{
-                position: "absolute",
-                inset: 0,
-                opacity: 0.04,
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                pointerEvents: "none",
-              }}
-            />
-            <div className="relative flex items-start justify-between gap-6 flex-wrap">
-              {/* Left: 아바타 + 타이틀 블록 */}
-              <div className="flex items-center gap-4 min-w-0">
-                <div
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 14,
-                    flexShrink: 0,
-                    display: "grid",
-                    placeItems: "center",
-                    background:
-                      "linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface)), color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface)))",
-                    border: "1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border-divider))",
-                    boxShadow:
-                      "0 2px 8px color-mix(in srgb, var(--color-primary) 12%, transparent), inset 0 1px 0 0 rgba(255,255,255,0.5)",
-                    fontSize: 18,
-                    fontWeight: 800,
-                    letterSpacing: "-0.04em",
-                    color: "var(--color-primary)",
-                  }}
-                >
-                  {student.name?.[0] ?? "?"}
+      <div className="ds-overlay-wrap">
+        <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
+          <CloseButton
+            className="ds-overlay-panel__close"
+            onClick={onClose}
+          />
+          <header className="ds-overlay-header">
+            <div className="ds-overlay-header__inner">
+              <div className="ds-overlay-header__left">
+                <div className="ds-overlay-header__avatar-wrap" aria-hidden>
+                  <span className="ds-overlay-header__avatar">
+                    {student.profilePhotoUrl ? (
+                      <img src={student.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (student.name || "?")[0]
+                    )}
+                  </span>
                 </div>
-                <div className="min-w-0">
-                  <h1
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                      letterSpacing: "-0.03em",
-                      lineHeight: 1.2,
-                      color: "var(--color-text-primary)",
-                      margin: 0,
-                    }}
-                  >
-                    {student.name}
+                <div className="ds-overlay-header__title-block">
+                  <h1 className="ds-overlay-header__title">
+                    <StudentNameWithLectureChip
+                      name={student.name ?? ""}
+                      avatarSize={0}
+                      chipSize={36}
+                      lectures={
+                        Array.isArray(student.enrollments) && student.enrollments.length > 0
+                          ? student.enrollments.map((en: { lectureName?: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
+                              lectureName: en.lectureName ?? "—",
+                              color: en.lectureColor ?? undefined,
+                              chipLabel: en.lectureChipLabel ?? undefined,
+                            }))
+                          : undefined
+                      }
+                    />
                   </h1>
-                  <p
-                    style={{
-                      marginTop: 4,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "var(--color-text-muted)",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    <span style={{ opacity: 0.85 }}>아이디</span> · {student.psNumber ?? "—"}
-                    <span style={{ marginLeft: 16, opacity: 0.85 }}>시험 식별코드</span>
-                    <span
-                      style={{
-                        marginLeft: 6,
-                        fontFamily: "ui-monospace, monospace",
-                        fontWeight: 700,
-                        color: "var(--color-primary)",
-                        letterSpacing: "0.02em",
-                      }}
-                    >
+                  <div className="ds-overlay-header__pills">
+                    <span className="ds-badge ds-overlay-header__badge-id" title="아이디">
+                      {student.psNumber ?? "—"}
+                    </span>
+                    <span className="ds-badge ds-overlay-header__badge-code" title="시험 식별코드">
                       {formatOmrCode(student.omrCode)}
                     </span>
-                  </p>
+                  </div>
                 </div>
               </div>
-
-              {/* Right: 액션 영역 */}
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => toggleActive.mutate(!student.active)}
-                  disabled={toggleActive.isPending}
-                  style={{
-                    padding: "8px 14px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    borderRadius: 10,
-                    letterSpacing: "-0.01em",
-                    cursor: toggleActive.isPending ? "wait" : "pointer",
-                    color: "#fff",
-                    backgroundColor: student.active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
-                    border: "none",
-                    transition: "all 0.15s ease",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
-                  }}
-                  className="hover:opacity-90 disabled:opacity-60"
-                >
-                  {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
-                </button>
-                <span
-                  style={{
-                    width: 1,
-                    height: 20,
-                    background: "var(--color-border-divider)",
-                    opacity: 0.7,
-                  }}
-                  aria-hidden
-                />
-                <div className="flex items-center gap-2">
-                  <Button
+              <div className="ds-overlay-header__right">
+                <div className="ds-overlay-header__actions">
+                  <button
                     type="button"
-                    intent="primary"
-                    size="sm"
-                    onClick={() => setEditOpen(true)}
+                    onClick={() => toggleActive.mutate(!student.active)}
+                    disabled={toggleActive.isPending}
+                    className="ds-status-badge"
+                    data-status={student.active ? "active" : "inactive"}
                   >
+                    {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
+                  </button>
+                  <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
                     수정
                   </Button>
                   <Button type="button" intent="danger" size="sm" onClick={handleDelete}>
                     삭제
-                  </Button>
-                  <Button
-                    type="button"
-                    intent="secondary"
-                    size="sm"
-                    onClick={() => navigate(-1)}
-                  >
-                    닫기
                   </Button>
                 </div>
               </div>
             </div>
           </header>
 
-          {/* Body */}
-          <div style={{ padding: "28px 28px 32px" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "300px 1fr",
-                gap: 24,
-                alignItems: "start",
-              }}
-            >
+          <div className="ds-overlay-body">
+            <div className="ds-overlay-body__grid">
               {/* Left panel — 정보·태그·메모 */}
               <div
                 style={{
-                  borderRadius: 16,
-                  padding: 20,
+                  borderRadius: 12,
+                  padding: 16,
                   background: "var(--bg-surface-soft)",
                   border: "1px solid var(--color-border-divider)",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 }}
               >
-                <div style={{ display: "grid", gap: 10 }}>
+                <div className="ds-overlay-info-rows">
                   <InfoRow
-                    label="학생 전화"
-                    value={formatStudentPhoneDisplay(student.studentPhone)}
-                  />
-                  <InfoRow
-                    label="시험 식별코드"
+                    label="식별코드"
                     value={formatOmrCode(student.omrCode)}
                     accent
                   />
                   <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} />
+                  <InfoRow
+                    label="학생 전화"
+                    value={formatStudentPhoneDisplay(student.studentPhone)}
+                  />
                   <InfoRow label="성별" value={student.gender} />
                   <InfoRow label="학교" value={student.school} />
                   <InfoRow
@@ -3548,55 +3625,508 @@ export default function StudentsDetailOverlay() {
                 </div>
               </div>
 
-              {/* Right panel — 탭 + 콘텐츠 */}
+              {/* Right panel — 탭 + 콘텐츠 (페이지형 플랫탭) */}
               <div
                 style={{
-                  borderRadius: 16,
-                  padding: 20,
-                  background: "color-mix(in srgb, var(--color-primary) 4%, var(--bg-surface-soft))",
+                  borderRadius: 12,
+                  padding: 16,
+                  background: "color-mix(in srgb, var(--color-brand-primary) 4%, var(--bg-surface-soft))",
                   border: "1px solid var(--color-border-divider)",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    padding: 6,
-                    marginBottom: 16,
-                    borderRadius: 12,
-                    background: "var(--color-bg-surface)",
-                    border: "1px solid var(--color-border-divider)",
-                  }}
-                >
-                  {TABS.map((t) => {
-                    const active = tab === t.key;
-                    return (
-                      <Button
+                <div className="ds-overlay-tabs">
+                  <div className="ds-tabs ds-tabs--flat">
+                    {TABS.map((t) => (
+                      <button
                         key={t.key}
                         type="button"
-                        intent={active ? "primary" : "ghost"}
-                        size="sm"
+                        className={`ds-tab ${tab === t.key ? "is-active" : ""}`}
                         onClick={() => setTab(t.key)}
                       >
                         {t.label}
-                      </Button>
-                    );
-                  })}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div style={{ minHeight: 260 }}>
+                <div style={{ minHeight: 260, marginTop: 16 }}>
                   {tab === "enroll" ? (
                     <EnrollmentsTab enrollments={student.enrollments} />
                   ) : (
-                    <EmptyState title="데이터가 없습니다." />
+                    <EmptyState scope="panel" tone="empty" title="데이터가 없습니다." />
                   )}
                 </div>
               </div>
             </div>
           </div>
+
+          {/* 우하단 인벤토리 트리거 — 아이콘만 큼지막하게, 클릭 시 좌측 패널 */}
+          <div className="ds-overlay-inventory-wrap">
+            <button
+              type="button"
+              className="ds-inventory-trigger-btn"
+              onClick={() => setInventoryOpen(true)}
+              title="인벤토리"
+              aria-label="인벤토리 열기"
+            >
+              📁
+            </button>
+          </div>
         </div>
       </div>
+
+      {inventoryOpen &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setInventoryOpen(false)} aria-hidden />
+            <div
+              className="ds-inventory-panel"
+              role="dialog"
+              aria-label="학생 인벤토리"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ds-inventory-panel__header">
+                <span className="ds-inventory-panel__title">인벤토리 — {student.name}</span>
+                <div className="ds-inventory-panel__header-actions">
+                  <CloseButton onClick={() => setInventoryOpen(false)} />
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+                className="ds-sr-only"
+                aria-hidden
+                onChange={handleInventoryFileChange}
+              />
+              <div className="ds-inventory-panel__tabs-wrap">
+                <div className="ds-inventory-panel__multi-check">
+                  <input
+                    id="inv-multi"
+                    type="checkbox"
+                    checked={inventoryMultiSelect}
+                    onChange={(e) => {
+                      setInventoryMultiSelect(e.target.checked);
+                      if (!e.target.checked) setInventorySelectedIds(new Set());
+                    }}
+                    aria-label="다중 선택"
+                  />
+                  <label htmlFor="inv-multi">다중</label>
+                </div>
+                <div className="ds-inventory-panel__tabs">
+                  {(["score", "misc", "video", "image"] as const).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`ds-inventory-panel__tab ${inventoryTab === key ? "is-active" : ""}`}
+                      onClick={() => setInventoryTab(key)}
+                    >
+                      {key === "score" && "성적표"}
+                      {key === "misc" && "기타"}
+                      {key === "video" && "제출영상"}
+                      {key === "image" && "제출이미지"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="ds-inventory-panel__main">
+                {(inventoryTab === "score" || inventoryTab === "misc") && (
+                  <div className="ds-inventory-panel__tree">
+                    <div
+                      className={`ds-inventory-panel__tree-root ${currentFolderId === null ? "is-current" : ""}`}
+                      onClick={() => setCurrentFolderId(null)}
+                    >
+                      루트
+                    </div>
+                    {currentFolders
+                      .filter((f) => !f.parentId)
+                      .map((folder) => (
+                        <InventoryTreeFolder
+                          key={folder.id}
+                          folder={folder}
+                          allFolders={currentFolders}
+                          currentFolderId={currentFolderId}
+                          onSelect={setCurrentFolderId}
+                        />
+                      ))}
+                  </div>
+                )}
+              <div className="ds-inventory-panel__body">
+                <div className="ds-inventory-panel__grid">
+                  {inventoryTab === "score" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item ds-inventory-panel__item--add"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openAddChoice("score")}
+                        onKeyDown={(e) => e.key === "Enter" && openAddChoice("score")}
+                        title="폴더 추가 또는 업로드"
+                      >
+                        +
+                      </div>
+                      {subFolders.map((folder) => {
+                        const isSelected = inventorySelectedFolderIds.has(folder.id);
+                        return (
+                          <div
+                            key={folder.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--folder ${isSelected ? "is-selected" : ""}`}
+                            title={folder.name}
+                            onClick={() => toggleFolderSelection(folder.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentFolderId(folder.id);
+                            }}
+                          >
+                            <span className="ds-inventory-panel__item-icon">📁</span>
+                            <span className="ds-inventory-panel__item-title">{folder.name}</span>
+                          </div>
+                        );
+                      })}
+                      {currentListFiltered.map((item) => {
+                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === (item.iconPreset ?? "misc")) ?? INVENTORY_ICON_PRESETS[0];
+                        const isSelected = selectedIds.has(item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--uploaded ${isSelected ? "is-selected" : ""}`}
+                            title={item.description || item.title}
+                            onClick={() => toggleInventorySelection(item.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setViewerItem({ type: item.fileType, url: item.fileUrl, name: item.title });
+                            }}
+                          >
+                            <span
+                              className="ds-inventory-panel__item-icon-badge"
+                              style={{ backgroundColor: preset.color + "22", color: preset.color }}
+                            >
+                              {preset.emoji}
+                            </span>
+                            <span className="ds-inventory-panel__item-title">{item.title}</span>
+                            {item.description && <span className="ds-inventory-panel__item-desc">{item.description}</span>}
+                            <span className="ds-inventory-panel__item-filename">{item.fileName}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                  {inventoryTab === "misc" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item ds-inventory-panel__item--add"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openAddChoice("misc")}
+                        onKeyDown={(e) => e.key === "Enter" && openAddChoice("misc")}
+                        title="폴더 추가 또는 업로드"
+                      >
+                        +
+                      </div>
+                      {subFolders.map((folder) => {
+                        const isSelected = inventorySelectedFolderIds.has(folder.id);
+                        return (
+                          <div
+                            key={folder.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--folder ${isSelected ? "is-selected" : ""}`}
+                            title={folder.name}
+                            onClick={() => toggleFolderSelection(folder.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentFolderId(folder.id);
+                            }}
+                          >
+                            <span className="ds-inventory-panel__item-icon">📁</span>
+                            <span className="ds-inventory-panel__item-title">{folder.name}</span>
+                          </div>
+                        );
+                      })}
+                      {currentListFiltered.map((item) => {
+                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === (item.iconPreset ?? "misc")) ?? INVENTORY_ICON_PRESETS[0];
+                        const isSelected = selectedIds.has(item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--uploaded ${isSelected ? "is-selected" : ""}`}
+                            title={item.description || item.title}
+                            onClick={() => toggleInventorySelection(item.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setViewerItem({ type: item.fileType, url: item.fileUrl, name: item.title });
+                            }}
+                          >
+                            <span
+                              className="ds-inventory-panel__item-icon-badge"
+                              style={{ backgroundColor: preset.color + "22", color: preset.color }}
+                            >
+                              {preset.emoji}
+                            </span>
+                            <span className="ds-inventory-panel__item-title">{item.title}</span>
+                            {item.description && <span className="ds-inventory-panel__item-desc">{item.description}</span>}
+                            <span className="ds-inventory-panel__item-filename">{item.fileName}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                  {inventoryTab === "video" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="학생 앱 제출분 (더블클릭)"
+                        onDoubleClick={() => setViewerItem({ type: "video", url: "#", name: "제출 영상 1" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">🎬</span>
+                        <span>제출 영상 1</span>
+                      </div>
+                    </>
+                  )}
+                  {inventoryTab === "image" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="학생 앱 제출분 (더블클릭)"
+                        onDoubleClick={() => setViewerItem({ type: "image", url: "#", name: "제출 이미지 1" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">🖼️</span>
+                        <span>제출 이미지 1</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              </div>
+              {(inventoryTab === "score" || inventoryTab === "misc") && (
+                <div className="ds-inventory-panel__footer">
+                  {hasSelection && (
+                    <>
+                      {!inventoryMultiSelect && selectedIds.size === 1 && inventorySelectedFolderIds.size === 0 && (
+                        <Button type="button" intent="secondary" size="sm" onClick={openEditModal}>
+                          수정
+                        </Button>
+                      )}
+                      <Button type="button" intent="danger" size="sm" onClick={deleteSelectedInventory}>
+                        삭제
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
+
+      {addChoiceModal && (
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setAddChoiceModal(null)} aria-hidden />
+            <div className="ds-inventory-choice-modal" role="dialog" aria-label="추가" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-choice-modal__title">추가</div>
+              <div className="ds-inventory-choice-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={openNewFolderModal}>
+                  폴더생성
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={openUploadModal}>
+                  업로드
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )
+      )}
+
+      {newFolderModal &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setNewFolderModal(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="폴더 생성" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">폴더 생성</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-folder-name">폴더 제목</label>
+                <input
+                  id="inv-folder-name"
+                  type="text"
+                  value={newFolderModal.name}
+                  onChange={(e) => setNewFolderModal((m) => (m ? { ...m, name: e.target.value } : null))}
+                  placeholder="폴더 제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setNewFolderModal(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmNewFolder}>
+                  생성
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {addFileModal &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setAddFileModal(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="파일 업로드" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">{addFileModal.tab === "score" ? "성적표 업로드" : "기타 자료 업로드"}</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-add-title">제목</label>
+                <input
+                  id="inv-add-title"
+                  type="text"
+                  value={addFileModal.title}
+                  onChange={(e) => setAddFileModal((m) => (m ? { ...m, title: e.target.value } : null))}
+                  placeholder="제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-add-desc">설명</label>
+                <textarea
+                  id="inv-add-desc"
+                  value={addFileModal.description}
+                  onChange={(e) => setAddFileModal((m) => (m ? { ...m, description: e.target.value } : null))}
+                  placeholder="설명 (호버 시 표시)"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <span className="ds-inventory-add-modal__icon-label">아이콘 (종류·색상)</span>
+                <div className="ds-inventory-add-modal__icon-grid">
+                  {INVENTORY_ICON_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`ds-inventory-add-modal__icon-opt ${addFileModal.iconPreset === p.id ? "is-selected" : ""}`}
+                      onClick={() => setAddFileModal((m) => (m ? { ...m, iconPreset: p.id } : null))}
+                      title={p.label}
+                    >
+                      <span className="ds-inventory-add-modal__icon-opt-emoji">{p.emoji}</span>
+                      <span className="ds-inventory-add-modal__icon-opt-swatch" style={{ backgroundColor: p.color }} />
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <label>파일</label>
+                <div className="ds-inventory-add-modal__file-btn">
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {addFileModal.file ? addFileModal.file.name : "파일 선택"}
+                  </Button>
+                </div>
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setAddFileModal(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmAddFile} disabled={!addFileModal.file}>
+                  업로드
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {editItem &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setEditItem(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="자료 수정" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">자료 수정</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-edit-title">제목</label>
+                <input
+                  id="inv-edit-title"
+                  type="text"
+                  value={editItem.item.title}
+                  onChange={(e) => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, title: e.target.value } })}
+                  placeholder="제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-edit-desc">설명</label>
+                <textarea
+                  id="inv-edit-desc"
+                  value={editItem.item.description}
+                  onChange={(e) => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, description: e.target.value } })}
+                  placeholder="설명 (호버 시 표시)"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <span className="ds-inventory-add-modal__icon-label">아이콘 (종류·색상)</span>
+                <div className="ds-inventory-add-modal__icon-grid">
+                  {INVENTORY_ICON_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`ds-inventory-add-modal__icon-opt ${editItem.item.iconPreset === p.id ? "is-selected" : ""}`}
+                      onClick={() => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, iconPreset: p.id } })}
+                      title={p.label}
+                    >
+                      <span className="ds-inventory-add-modal__icon-opt-emoji">{p.emoji}</span>
+                      <span className="ds-inventory-add-modal__icon-opt-swatch" style={{ backgroundColor: p.color }} />
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setEditItem(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmEditItem}>
+                  저장
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {viewerItem &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setViewerItem(null)} aria-hidden />
+            <div className="ds-inventory-viewer" role="dialog" aria-label="보기" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-viewer__header">
+                <span className="ds-inventory-viewer__title">{viewerItem.name}</span>
+                <CloseButton onClick={() => setViewerItem(null)} />
+              </div>
+              <div className="ds-inventory-viewer__body">
+                {viewerItem.type === "pdf" && (
+                  viewerItem.url.startsWith("blob:") ? (
+                    <iframe src={viewerItem.url} title={viewerItem.name} className="ds-inventory-viewer__iframe" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">PDF 뷰어 (URL 연동 시 iframe 표시)</div>
+                  )
+                )}
+                {viewerItem.type === "image" && (
+                  viewerItem.url.startsWith("blob:") ? (
+                    <img src={viewerItem.url} alt={viewerItem.name} className="ds-inventory-viewer__img" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">이미지 뷰어 (URL 연동 시 img 표시)</div>
+                  )
+                )}
+                {viewerItem.type === "video" && (
+                  viewerItem.url.startsWith("blob:") ? (
+                    <video src={viewerItem.url} controls className="ds-inventory-viewer__video" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">영상 뷰어 (URL 연동 시 video 표시)</div>
+                  )
+                )}
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
 
       {editOpen &&
         createPortal(
@@ -3640,14 +4170,15 @@ function InfoRow({
 }) {
   return (
     <div
+      className="ds-overlay-info-row"
       style={{
         display: "grid",
         gridTemplateColumns: "1fr auto",
         alignItems: "center",
-        padding: "10px 12px",
-        borderRadius: 10,
+        padding: "6px 10px",
+        borderRadius: 8,
         background: accent
-          ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))"
+          ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
           : "var(--color-bg-surface)",
         border: "1px solid var(--color-border-divider)",
         fontSize: 13,
@@ -3675,8 +4206,42 @@ function InfoRow({
   );
 }
 
+function InventoryTreeFolder({
+  folder,
+  allFolders,
+  currentFolderId,
+  onSelect,
+}: {
+  folder: { id: string; name: string; parentId: string | null };
+  allFolders: { id: string; name: string; parentId: string | null }[];
+  currentFolderId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const children = allFolders.filter((f) => f.parentId === folder.id);
+  const isCurrent = currentFolderId === folder.id;
+  return (
+    <div>
+      <div
+        className={`ds-inventory-panel__tree-item ${isCurrent ? "is-current" : ""}`}
+        onClick={() => onSelect(folder.id)}
+      >
+        {folder.name}
+      </div>
+      {children.map((child) => (
+        <InventoryTreeFolder
+          key={child.id}
+          folder={child}
+          allFolders={allFolders}
+          currentFolderId={currentFolderId}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+}
+
 function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
-  if (!enrollments?.length) return <EmptyState title="수강 이력이 없습니다." />;
+  if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
 
   return (
     <div style={{ display: "grid", gap: 10 }}>
@@ -3708,7 +4273,7 @@ function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
 // PATH: src/features/students/pages/StudentsHomePage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const STORAGE_KEY = "students-selected-ids";
 
@@ -3717,6 +4282,9 @@ import {
   bulkDeleteStudents,
   bulkRestoreStudents,
   bulkPermanentDeleteStudents,
+  checkDeletedStudentDuplicates,
+  fixDeletedStudentDuplicates,
+  toggleStudentActive,
 } from "../api/students";
 import StudentsTable from "../components/StudentsTable";
 import StudentCreateModal from "../components/StudentCreateModal";
@@ -3752,6 +4320,7 @@ export default function StudentsHomePage() {
     return [];
   });
   const [deleting, setDeleting] = useState(false);
+  const [duplicateFixing, setDuplicateFixing] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   useEffect(() => {
@@ -3797,6 +4366,19 @@ export default function StudentsHomePage() {
     [filters]
   );
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, nextActive }: { id: number; nextActive: boolean }) =>
+      toggleStudentActive(id, nextActive),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+  });
+  const togglingId =
+    toggleActiveMutation.isPending && toggleActiveMutation.variables
+      ? toggleActiveMutation.variables.id
+      : null;
+
   const selectionBar = (
     <div className="flex flex-col gap-2">
     <div className="flex flex-wrap items-center gap-2 pl-1">
@@ -3809,6 +4391,10 @@ export default function StudentsHomePage() {
         {selectedIds.length}명 선택됨
       </span>
       <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        선택 해제
+      </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
       {!isDeletedTab && (
         <>
           <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
@@ -3817,8 +4403,8 @@ export default function StudentsHomePage() {
           <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
             엑셀 다운로드
           </Button>
-          <Button intent="secondary" size="sm" onClick={() => feedback.info("태그 추가 기능 준비 중입니다.")}>
-            태그 추가
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("시급 태그 추가 기능 준비 중입니다.")}>
+            시급 태그 추가
           </Button>
           <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
             비밀번호 변경
@@ -3937,7 +4523,60 @@ export default function StudentsHomePage() {
     <>
       <div className="flex flex-col gap-4">
         <DomainListToolbar
-          totalLabel={isLoading ? "…" : `총 ${totalCount}명${isDeletedTab ? " (30일 후 자동 삭제)" : ""}`}
+          totalLabel={
+            isLoading ? (
+              "…"
+            ) : isDeletedTab ? (
+              // SSOT 디자인 예외: 삭제된 학생 탭에서만 총계 좌측에 중복 정리(새로고침) 아이콘 노출
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <button
+                  type="button"
+                  title="중복 정리"
+                  aria-label="중복 정리"
+                  disabled={deleting || duplicateFixing}
+                  onClick={async () => {
+                    try {
+                      const r = await checkDeletedStudentDuplicates();
+                      if (r.records_to_remove === 0) return;
+                      setDuplicateFixing(true);
+                      await fixDeletedStudentDuplicates();
+                      qc.invalidateQueries({ queryKey: ["students"] });
+                    } catch {
+                      // 조용히 실패 — 사용자에게 버그 존재를 노출하지 않음
+                    } finally {
+                      setDuplicateFixing(false);
+                    }
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 28,
+                    height: 28,
+                    padding: 0,
+                    border: "1px solid var(--color-border-divider)",
+                    borderRadius: 6,
+                    background: "var(--color-bg-surface)",
+                    color: "var(--color-text-secondary)",
+                    cursor: deleting || duplicateFixing ? "not-allowed" : "pointer",
+                    opacity: deleting || duplicateFixing ? 0.6 : 1,
+                  }}
+                >
+                  {duplicateFixing ? (
+                    <span style={{ fontSize: 12 }}>…</span>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M23 4v6h-6M1 20v-6h6" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                  )}
+                </button>
+                <span>총 {totalCount}명 (30일 후 자동 삭제)</span>
+              </span>
+            ) : (
+              `총 ${totalCount}명`
+            )
+          }
           searchSlot={
             <input
               className="ds-input"
@@ -4017,6 +4656,12 @@ export default function StudentsHomePage() {
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               isDeletedTab={isDeletedTab}
+              onToggleActive={
+                !isDeletedTab
+                  ? (id, nextActive) => toggleActiveMutation.mutate({ id, nextActive })
+                  : undefined
+              }
+              togglingId={togglingId ?? undefined}
             />
           ) : (
             <EmptyState

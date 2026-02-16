@@ -1,0 +1,1109 @@
+====================================================================================================
+# FRONTEND FOLDER: admin_app
+# ROOT PATH: C:\academyfront\src\admin_app
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/branding.ts
+==========================================================================================
+// PATH: src/admin_app/api/branding.ts
+// Tenant branding: logo/image upload (R2) and ui_config. Backend API TBD.
+
+import api from "@/shared/api/axios";
+
+export type TenantBrandingDto = {
+  tenantId: number;
+  loginTitle?: string;
+  loginSubtitle?: string;
+  logoUrl?: string;
+  windowTitle?: string;
+  displayName?: string;
+};
+
+/** GET tenant branding (from Program.ui_config or Tenant). Backend TBD. */
+export async function getTenantBranding(
+  tenantId: number
+): Promise<TenantBrandingDto | null> {
+  try {
+    const res = await api.get<TenantBrandingDto>(
+      `/core/tenant-branding/${tenantId}/`
+    );
+    return res.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** POST upload logo image for tenant. Backend uploads to R2, returns logoUrl. */
+export async function uploadTenantLogo(
+  tenantId: number,
+  file: File
+): Promise<{ logoUrl: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await api.post<{ logoUrl: string }>(
+    `/core/tenant-branding/${tenantId}/upload-logo/`,
+    form,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
+  );
+  return res.data;
+}
+
+/** PATCH tenant branding (loginTitle, logoUrl, etc.). Backend TBD. */
+export async function patchTenantBranding(
+  tenantId: number,
+  payload: Partial<TenantBrandingDto>
+): Promise<TenantBrandingDto> {
+  const res = await api.patch<TenantBrandingDto>(
+    `/core/tenant-branding/${tenantId}/`,
+    payload
+  );
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/tenants.ts
+==========================================================================================
+// PATH: src/admin_app/api/tenants.ts
+// Tenant management API
+
+import api from "@/shared/api/axios";
+
+export type TenantDto = {
+  id: number;
+  code: string;
+  name: string;
+  isActive: boolean;
+  primaryDomain: string | null;
+  domains: string[];
+};
+
+export type TenantDetailDto = TenantDto & {
+  domains: Array<{ host: string; isPrimary: boolean }>;
+  hasProgram: boolean;
+};
+
+export type CreateTenantDto = {
+  code: string;
+  name: string;
+  domain?: string;
+};
+
+export type TenantOwnerDto = {
+  tenantId: number;
+  tenantCode: string;
+  userId: number;
+  username: string;
+  name: string;
+  role: string;
+};
+
+/** GET all tenants */
+export async function getTenants(): Promise<TenantDto[]> {
+  const res = await api.get<TenantDto[]>("/core/tenants/");
+  return res.data;
+}
+
+/** GET tenant detail */
+export async function getTenant(tenantId: number): Promise<TenantDetailDto> {
+  const res = await api.get<TenantDetailDto>(`/core/tenants/${tenantId}/`);
+  return res.data;
+}
+
+/** POST create tenant */
+export async function createTenant(payload: CreateTenantDto): Promise<TenantDto> {
+  const res = await api.post<TenantDto>("/core/tenants/create/", payload);
+  return res.data;
+}
+
+/** PATCH update tenant */
+export async function updateTenant(
+  tenantId: number,
+  payload: Partial<Pick<TenantDto, "name" | "isActive">>
+): Promise<TenantDetailDto> {
+  const res = await api.patch<TenantDetailDto>(`/core/tenants/${tenantId}/`, payload);
+  return res.data;
+}
+
+/** POST register owner for tenant */
+export async function registerTenantOwner(
+  tenantId: number,
+  payload: {
+    username: string;
+    password?: string;
+    name?: string;
+    phone?: string;
+  }
+): Promise<TenantOwnerDto> {
+  const res = await api.post<TenantOwnerDto>(`/core/tenants/${tenantId}/owner/`, payload);
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: layout/AdminAppLayout.css
+==========================================================================================
+/* Mobile-first fullscreen layout for admin_app (dev) */
+
+.admin-app-root {
+  --admin-app-header-h: 48px;
+  --admin-app-nav-h: 56px;
+  --admin-app-safe-top: env(safe-area-inset-top, 0px);
+  --admin-app-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  min-height: 100dvh;
+  height: 100%;
+  width: 100%;
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--admin-app-bg, #f1f5f9);
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-app-header {
+  flex-shrink: 0;
+  height: calc(var(--admin-app-header-h) + var(--admin-app-safe-top));
+  padding-top: var(--admin-app-safe-top);
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e293b;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.admin-app-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.admin-app-back {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.admin-app-back:hover,
+.admin-app-back:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.admin-app-main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: calc(16px + var(--admin-app-nav-h) + var(--admin-app-safe-bottom));
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-app-bottom-nav {
+  flex-shrink: 0;
+  height: calc(var(--admin-app-nav-h) + var(--admin-app-safe-bottom));
+  padding-bottom: var(--admin-app-safe-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  background: #1e293b;
+  color: #94a3b8;
+  box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.08);
+}
+
+.admin-app-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  transition: color 0.15s, background 0.15s;
+  min-height: var(--admin-app-nav-h);
+}
+.admin-app-nav-item:hover,
+.admin-app-nav-item:focus-visible {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.06);
+}
+.admin-app-nav-item--active {
+  color: #38bdf8;
+}
+.admin-app-nav-item--active:hover,
+.admin-app-nav-item--active:focus-visible {
+  color: #7dd3fc;
+}
+
+.admin-app-nav-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.admin-app-nav-label {
+  line-height: 1.2;
+}
+
+
+==========================================================================================
+# FILE: layout/AdminAppLayout.tsx
+==========================================================================================
+// PATH: src/admin_app/layout/AdminAppLayout.tsx
+// Mobile-first fullscreen layout: full viewport, bottom nav, no sidebar.
+
+import "./AdminAppLayout.css";
+import { Outlet, Link, useLocation } from "react-router-dom";
+
+const NAV = [
+  { to: "/dev/home", label: "Home", icon: "⌂" },
+  { to: "/dev/branding", label: "Branding", icon: "◇" },
+];
+
+export default function AdminAppLayout() {
+  const location = useLocation();
+
+  return (
+    <div className="admin-app-root">
+      <header className="admin-app-header">
+        <span className="admin-app-title">Academy Dev Admin</span>
+        <Link
+          to="/admin"
+          className="admin-app-back"
+          aria-label="Back to Admin"
+        >
+          Admin
+        </Link>
+      </header>
+
+      <main className="admin-app-main">
+        <Outlet />
+      </main>
+
+      <nav className="admin-app-bottom-nav" aria-label="Main navigation">
+        {NAV.map(({ to, label, icon }) => (
+          <Link
+            key={to}
+            to={to}
+            className={`admin-app-nav-item ${
+              location.pathname === to ? "admin-app-nav-item--active" : ""
+            }`}
+            aria-current={location.pathname === to ? "page" : undefined}
+          >
+            <span className="admin-app-nav-icon" aria-hidden>{icon}</span>
+            <span className="admin-app-nav-label">{label}</span>
+          </Link>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/AdminAppHomePage.tsx
+==========================================================================================
+// PATH: src/admin_app/pages/AdminAppHomePage.tsx
+import { Link } from "react-router-dom";
+
+export default function AdminAppHomePage() {
+  return (
+    <div>
+      <h1 className="text-xl font-semibold text-slate-800 mb-2">
+        Developer Admin
+      </h1>
+      <p className="text-slate-600 mb-6">
+        Tenant 1 (hakwonplus) 관리자용. 테넌트별 로고·로그인 화면·이미지 설정.
+      </p>
+      <ul className="list-disc list-inside space-y-2 text-slate-700">
+        <li>
+          <Link to="/dev/branding" className="text-blue-600 hover:underline">
+            Tenant branding
+          </Link>
+          — 로고, 로그인 타이틀, 학생용 이미지 등 (R2 연동 예정)
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/TenantBrandingPage.tsx
+==========================================================================================
+// PATH: src/admin_app/pages/TenantBrandingPage.tsx
+// Per-tenant logo and login branding. Upload -> R2 (academy-admin bucket).
+
+import { useState, useCallback, useEffect } from "react";
+import { getTenantBranding, getTenantIdFromCode } from "@/shared/tenant/config";
+import {
+  getTenantBranding as getTenantBrandingApi,
+  uploadTenantLogo,
+  patchTenantBranding,
+} from "@/admin_app/api/branding";
+import {
+  getTenants,
+  createTenant,
+  registerTenantOwner,
+  type TenantDto,
+} from "@/admin_app/api/tenants";
+import "@/styles/design-system/index.css";
+import "@/styles/design-system/ds/input.css";
+
+export default function TenantBrandingPage() {
+  const [tenants, setTenants] = useState<TenantDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState<number | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [logoUrls, setLogoUrls] = useState<Record<number, string>>({});
+  const [loginTitles, setLoginTitles] = useState<Record<number, string>>({});
+  const [loginSubtitles, setLoginSubtitles] = useState<Record<number, string>>({});
+  const [windowTitles, setWindowTitles] = useState<Record<number, string>>({});
+  const [displayNames, setDisplayNames] = useState<Record<number, string>>({});
+  
+  // 테넌트 생성 폼
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newTenantCode, setNewTenantCode] = useState("");
+  const [newTenantName, setNewTenantName] = useState("");
+  const [newTenantDomain, setNewTenantDomain] = useState("");
+  const [createOwnerWithTenant, setCreateOwnerWithTenant] = useState(false);
+  const [newOwnerUsername, setNewOwnerUsername] = useState("");
+  const [newOwnerPassword, setNewOwnerPassword] = useState("");
+  const [newOwnerName, setNewOwnerName] = useState("");
+  const [newOwnerPhone, setNewOwnerPhone] = useState("");
+  
+  // Owner 등록 폼
+  const [ownerForms, setOwnerForms] = useState<Record<number, {
+    username: string;
+    password: string;
+    name: string;
+    phone: string;
+  }>>({});
+  const [registeringOwnerId, setRegisteringOwnerId] = useState<number | null>(null);
+  const [lastOwnerRegistered, setLastOwnerRegistered] = useState<Record<number, { username: string }>>({});
+  const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
+
+  // 테넌트 목록 로드
+  useEffect(() => {
+    loadTenants();
+  }, []);
+
+  // 성공 메시지 5초 후 자동 제거
+  useEffect(() => {
+    if (!message || messageType !== "success") return;
+    const t = setTimeout(() => {
+      setMessage(null);
+      setMessageType(null);
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [message, messageType]);
+
+  const loadTenants = async () => {
+    try {
+      setLoading(true);
+      const data = await getTenants();
+      setTenants(data);
+      
+      // 각 테넌트의 브랜딩 정보 로드
+      data.forEach((tenant) => {
+        getTenantBrandingApi(tenant.id).then((branding) => {
+          if (!branding) return;
+          setLogoUrls((prev) => (branding.logoUrl ? { ...prev, [tenant.id]: branding.logoUrl! } : prev));
+          setLoginTitles((prev) =>
+            branding.loginTitle != null ? { ...prev, [tenant.id]: branding.loginTitle! } : prev
+          );
+          setLoginSubtitles((prev) =>
+            branding.loginSubtitle != null ? { ...prev, [tenant.id]: branding.loginSubtitle! } : prev
+          );
+          if (branding.windowTitle !== undefined) {
+            setWindowTitles((prev) => ({ ...prev, [tenant.id]: branding.windowTitle || "" }));
+          }
+          if (branding.displayName !== undefined) {
+            setDisplayNames((prev) => ({ ...prev, [tenant.id]: branding.displayName || "" }));
+          }
+        }).catch(() => {});
+      });
+    } catch (e) {
+      setMessage("테넌트 목록을 불러오는데 실패했습니다: " + String(e));
+      setMessageType("error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTenant = async () => {
+    if (!newTenantCode || !newTenantName) {
+      setMessage("코드와 이름을 입력해주세요.");
+      setMessageType("error");
+      return;
+    }
+    if (createOwnerWithTenant) {
+      if (!newOwnerUsername || !newOwnerPassword) {
+        setMessage("오너 계정 생성 시 사용자명과 비밀번호는 필수입니다.");
+        setMessageType("error");
+        return;
+      }
+    }
+    try {
+      const tenant = await createTenant({
+        code: newTenantCode,
+        name: newTenantName,
+        domain: newTenantDomain || undefined,
+      });
+      
+      // 오너 계정도 함께 생성
+      if (createOwnerWithTenant && newOwnerUsername && newOwnerPassword) {
+        try {
+          await registerTenantOwner(tenant.id, {
+            username: newOwnerUsername,
+            password: newOwnerPassword,
+            name: newOwnerName || undefined,
+            phone: newOwnerPhone || undefined,
+          });
+          setMessage(`테넌트 ${newTenantName} 생성 완료. 오너 계정(${newOwnerUsername})도 함께 생성되었습니다.`);
+          setMessageType("success");
+        } catch (ownerError: unknown) {
+          const error = ownerError as { response?: { data?: { detail?: string } } };
+          setMessage(`테넌트는 생성되었지만 오너 계정 생성 실패: ${error.response?.data?.detail || String(ownerError)}`);
+          setMessageType("error");
+        }
+      } else {
+        setMessage(`테넌트 ${newTenantName} 생성 완료.`);
+        setMessageType("success");
+      }
+      
+      setShowCreateForm(false);
+      setNewTenantCode("");
+      setNewTenantName("");
+      setNewTenantDomain("");
+      setCreateOwnerWithTenant(false);
+      setNewOwnerUsername("");
+      setNewOwnerPassword("");
+      setNewOwnerName("");
+      setNewOwnerPhone("");
+      loadTenants();
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { detail?: string } } };
+      setMessage("테넌트 생성 실패: " + (error.response?.data?.detail || String(e)));
+      setMessageType("error");
+    }
+  };
+
+  const handleRegisterOwner = async (tenantId: number) => {
+    const form = ownerForms[tenantId];
+    if (!form || !form.username) {
+      setMessage("사용자명을 입력해주세요.");
+      setMessageType("error");
+      return;
+    }
+    if (!form.password) {
+      setMessage("비밀번호를 입력해주세요.");
+      setMessageType("error");
+      return;
+    }
+    setRegisteringOwnerId(tenantId);
+    setMessage(null);
+    try {
+      await registerTenantOwner(tenantId, {
+        username: form.username,
+        password: form.password,
+        name: form.name || undefined,
+        phone: form.phone || undefined,
+      });
+      setLastOwnerRegistered((prev) => ({ ...prev, [tenantId]: { username: form.username } }));
+      setOwnerForms((prev) => ({ ...prev, [tenantId]: { username: "", password: "", name: "", phone: "" } }));
+      setMessage(`✓ ${form.username}을(를) owner로 등록했습니다.`);
+      setMessageType("success");
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { detail?: string } } };
+      setMessage("Owner 등록 실패: " + (error.response?.data?.detail || String(e)));
+      setMessageType("error");
+    } finally {
+      setRegisteringOwnerId(null);
+    }
+  };
+
+  const handleFile = useCallback(
+    async (tenantId: number, file: File | null) => {
+      if (!file || !file.type.startsWith("image/")) {
+        setMessage("이미지 파일만 선택해 주세요.");
+        setMessageType("error");
+        return;
+      }
+      setUploading(tenantId);
+      setMessage(null);
+      setMessageType(null);
+      try {
+        const { logoUrl } = await uploadTenantLogo(tenantId, file);
+        setLogoUrls((prev) => ({ ...prev, [tenantId]: logoUrl }));
+        setMessage("로고 업로드 완료.");
+        setMessageType("success");
+      } catch (e: unknown) {
+        const status = (e as { response?: { status?: number } })?.response?.status;
+        if (status === 404 || status === 501) {
+          setMessage(
+            "백엔드에 tenant-branding upload API가 아직 없습니다. R2 업로드 API 추가 후 연동 가능."
+          );
+        } else {
+          setMessage("업로드 실패: " + String(e));
+        }
+        setMessageType("error");
+      } finally {
+        setUploading(null);
+      }
+    },
+    []
+  );
+
+  const handleSaveTitle = useCallback(async (tenantId: number) => {
+    const title = loginTitles[tenantId];
+    const subtitle = loginSubtitles[tenantId];
+    const windowTitle = windowTitles[tenantId];
+    const displayName = displayNames[tenantId];
+    setMessage(null);
+    setMessageType(null);
+    try {
+      await patchTenantBranding(tenantId, {
+        loginTitle: title,
+        loginSubtitle: subtitle,
+        windowTitle: windowTitle,
+        displayName: displayName,
+      });
+      setMessage("브랜딩 설정 저장됨.");
+      setMessageType("success");
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      if (status === 404 || status === 501) {
+        setMessage(
+          "백엔드 tenant-branding PATCH API가 아직 없습니다. 추가 후 연동 가능."
+        );
+      } else {
+        setMessage("저장 실패: " + String(e));
+      }
+      setMessageType("error");
+    }
+  }, [loginTitles, loginSubtitles, windowTitles, displayNames]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-slate-600">테넌트 목록을 불러오는 중...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">
+            Tenant Management
+          </h1>
+          <p className="text-slate-700">
+            테넌트 관리, 브랜딩 설정, Owner 등록
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          className="ds-button"
+          data-intent="primary"
+          data-size="md"
+        >
+          {showCreateForm ? "취소" : "+ 새 테넌트"}
+        </button>
+      </div>
+
+      {message && (
+        <div
+          role="alert"
+          className={`mb-4 p-4 rounded-lg text-sm flex items-start justify-between gap-3 ${
+            messageType === "success"
+              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+              : messageType === "error"
+                ? "bg-red-50 text-red-800 border border-red-200"
+                : "bg-slate-100 text-slate-800 border border-slate-200"
+          }`}
+        >
+          <span className="flex-1">{message}</span>
+          <button
+            type="button"
+            onClick={() => {
+              setMessage(null);
+              setMessageType(null);
+            }}
+            className="shrink-0 p-1 -m-1 rounded text-slate-500 hover:text-slate-700 hover:bg-black/5"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Custom domains — 최소 동작: 등록된 도메인 목록 + Active/SSL 표시 */}
+      <div className="mb-6 bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900 mb-1">Custom domains</h2>
+        <p className="text-sm text-slate-600 mb-4">
+          Set up custom domains to point to your site.
+        </p>
+        {loading ? (
+          <p className="text-slate-500 text-sm">로딩 중...</p>
+        ) : (
+          <ul className="space-y-3">
+            {(() => {
+              const items = tenants.flatMap((t) => {
+                const domains = t.domains?.length ? t.domains : (t.primaryDomain ? [t.primaryDomain] : []);
+                return domains.map((host) => (
+                  <li
+                    key={`${t.id}-${host}`}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"
+                  >
+                    <span className="font-medium text-slate-900">{host}</span>
+                    <span className="text-xs text-slate-600">
+                      <span className="inline-flex items-center gap-1 text-green-600">Active</span>
+                      <span className="ml-2 inline-flex items-center gap-1 text-slate-500">SSL enabled</span>
+                    </span>
+                  </li>
+                ));
+              });
+              if (items.length === 0)
+                return <li className="text-slate-500 text-sm">등록된 커스텀 도메인이 없습니다.</li>;
+              return items;
+            })()}
+          </ul>
+        )}
+      </div>
+
+      {showCreateForm && (
+        <div className="mb-6 bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">새 테넌트 생성</h2>
+          
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  코드 *
+                </label>
+                <input
+                  type="text"
+                  value={newTenantCode}
+                  onChange={(e) => setNewTenantCode(e.target.value)}
+                  className="ds-input"
+                  data-required="true"
+                  placeholder="예: tchul"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  이름 *
+                </label>
+                <input
+                  type="text"
+                  value={newTenantName}
+                  onChange={(e) => setNewTenantName(e.target.value)}
+                  className="ds-input"
+                  data-required="true"
+                  placeholder="예: 천안학원"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  도메인 (선택)
+                </label>
+                <input
+                  type="text"
+                  value={newTenantDomain}
+                  onChange={(e) => setNewTenantDomain(e.target.value)}
+                  className="ds-input"
+                  placeholder="예: tchul.hakwonplus.com"
+                />
+              </div>
+            </div>
+
+            {/* 오너 계정 생성 옵션 */}
+            <div className="pt-4 border-t border-slate-200">
+              <label className="flex items-center gap-2 mb-4">
+                <input
+                  type="checkbox"
+                  checked={createOwnerWithTenant}
+                  onChange={(e) => setCreateOwnerWithTenant(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm font-semibold text-slate-900">
+                  테넌트 생성 시 오너 계정도 함께 생성
+                </span>
+              </label>
+
+              {createOwnerWithTenant && (
+                <div className="ml-6 mt-3 space-y-3 bg-slate-50 p-4 rounded border border-slate-200">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-900 mb-1">
+                        사용자명 *
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwnerUsername}
+                        onChange={(e) => setNewOwnerUsername(e.target.value)}
+                        className="ds-input"
+                        data-required="true"
+                        placeholder="예: admin"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-900 mb-1">
+                        비밀번호 *
+                      </label>
+                      <input
+                        type="password"
+                        value={newOwnerPassword}
+                        onChange={(e) => setNewOwnerPassword(e.target.value)}
+                        className="ds-input"
+                        data-required="true"
+                        placeholder="비밀번호 입력"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-900 mb-1">
+                        이름
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwnerName}
+                        onChange={(e) => setNewOwnerName(e.target.value)}
+                        className="ds-input"
+                        placeholder="예: 홍길동"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-900 mb-1">
+                        전화번호
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwnerPhone}
+                        onChange={(e) => setNewOwnerPhone(e.target.value)}
+                        className="ds-input"
+                        placeholder="예: 01012345678"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={handleCreateTenant}
+                className="ds-button"
+                data-intent="primary"
+                data-size="md"
+              >
+                테넌트 생성{createOwnerWithTenant ? " + 오너 계정 생성" : ""}
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setNewTenantCode("");
+                  setNewTenantName("");
+                  setNewTenantDomain("");
+                  setCreateOwnerWithTenant(false);
+                  setNewOwnerUsername("");
+                  setNewOwnerPassword("");
+                  setNewOwnerName("");
+                  setNewOwnerPhone("");
+                }}
+                className="ds-button"
+                data-intent="secondary"
+                data-size="md"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-8">
+        {tenants.map((tenant) => {
+          const id = tenant.id;
+          const name = tenant.name;
+          // 브랜딩은 DB id가 아니라 코드 기준 1~4(tchul=2, limglish=3, ymath=4)로 매핑. 5,6,7은 비움.
+          const logicalId = getTenantIdFromCode(tenant.code);
+          const fallback = logicalId != null ? getTenantBranding(logicalId) : undefined;
+          const logoUrl = logoUrls[id] ?? fallback?.logoUrl;
+          const loginTitle = loginTitles[id] ?? fallback?.loginTitle ?? "";
+          const loginSubtitle = loginSubtitles[id] ?? fallback?.loginSubtitle ?? "";
+          const windowTitle = windowTitles[id] ?? (fallback as { windowTitle?: string } | undefined)?.windowTitle ?? "";
+          const displayName = displayNames[id] ?? (fallback as { displayName?: string } | undefined)?.displayName ?? name;
+          const ownerForm = ownerForms[id] || { username: "", password: "", name: "", phone: "" };
+
+          return (
+            <section
+              key={id}
+              className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    {name} ({tenant.code})
+                  </h2>
+                  <div className="text-sm text-slate-600 mt-1">
+                    ID: {id} | 도메인: {tenant.primaryDomain || "없음"} |{" "}
+                    {tenant.isActive ? (
+                      <span className="text-green-600">활성</span>
+                    ) : (
+                      <span className="text-red-600">비활성</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Owner 등록 — 사용자명, 비밀번호, 이름, 전화번호만 입력 */}
+              <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-slate-900">Owner 등록</h3>
+                  {lastOwnerRegistered[id] && (
+                    <span className="text-xs text-emerald-600 font-medium">
+                      ✓ {lastOwnerRegistered[id].username} 등록됨
+                    </span>
+                  )}
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-900 mb-1">사용자명 *</label>
+                    <input
+                      type="text"
+                      value={ownerForm.username}
+                      onChange={(e) =>
+                        setOwnerForms((prev) => ({ ...prev, [id]: { ...ownerForm, username: e.target.value } }))
+                      }
+                      className="ds-input"
+                      placeholder="예: admin97"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-900 mb-1">비밀번호 *</label>
+                    <input
+                      type="password"
+                      value={ownerForm.password}
+                      onChange={(e) =>
+                        setOwnerForms((prev) => ({ ...prev, [id]: { ...ownerForm, password: e.target.value } }))
+                      }
+                      className="ds-input"
+                      placeholder="비밀번호 입력"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-900 mb-1">이름</label>
+                    <input
+                      type="text"
+                      value={ownerForm.name}
+                      onChange={(e) =>
+                        setOwnerForms((prev) => ({ ...prev, [id]: { ...ownerForm, name: e.target.value } }))
+                      }
+                      className="ds-input"
+                      placeholder="예: 홍길동"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-900 mb-1">전화번호</label>
+                    <input
+                      type="text"
+                      value={ownerForm.phone}
+                      onChange={(e) =>
+                        setOwnerForms((prev) => ({ ...prev, [id]: { ...ownerForm, phone: e.target.value } }))
+                      }
+                      className="ds-input"
+                      placeholder="예: 01012345678"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => handleRegisterOwner(id)}
+                    disabled={registeringOwnerId === id}
+                    className="ds-button"
+                    data-intent="primary"
+                    data-size="md"
+                  >
+                    {registeringOwnerId === id ? "등록 중…" : "Owner 등록"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-200 pt-4">
+                <h3 className="text-md font-semibold text-slate-900 mb-4">브랜딩 설정</h3>
+                <div className="grid gap-6 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">
+                    로고
+                  </label>
+                  <div className="flex items-center gap-4">
+                    {logoUrl ? (
+                      <img
+                        src={logoUrl}
+                        alt={`${name} logo`}
+                        className="h-16 w-auto object-contain border border-slate-200 rounded"
+                      />
+                    ) : (
+                      <div className="h-16 w-24 border border-dashed border-slate-300 rounded flex items-center justify-center text-slate-400 text-xs">
+                        No logo
+                      </div>
+                    )}
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        id={`logo-${id}`}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleFile(id, f);
+                          e.target.value = "";
+                        }}
+                      />
+                      <label
+                        htmlFor={`logo-${id}`}
+                        className="inline-block px-3 py-2 bg-slate-700 text-white text-sm rounded cursor-pointer hover:bg-slate-600 disabled:opacity-50"
+                      >
+                        {uploading === id ? "Uploading…" : "Upload logo"}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
+                      표시 이름 (헤더에 표시) *
+                    </label>
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) =>
+                        setDisplayNames((prev) => ({
+                          ...prev,
+                          [id]: e.target.value,
+                        }))
+                      }
+                      className="ds-input w-full"
+                      data-required="true"
+                      placeholder="예: 박철 과학"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
+                      브라우저 타이틀 (창 제목)
+                    </label>
+                    <input
+                      type="text"
+                      value={windowTitle}
+                      onChange={(e) =>
+                        setWindowTitles((prev) => ({
+                          ...prev,
+                          [id]: e.target.value,
+                        }))
+                      }
+                      className="ds-input w-full"
+                      placeholder="예: 박철 과학 (비워두면 표시 이름 사용)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
+                      로그인 타이틀
+                    </label>
+                    <input
+                      type="text"
+                      value={loginTitle}
+                      onChange={(e) =>
+                        setLoginTitles((prev) => ({
+                          ...prev,
+                          [id]: e.target.value,
+                        }))
+                      }
+                      className="ds-input w-full"
+                      placeholder="로그인 화면 상단 문구"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
+                      로그인 서브타이틀
+                    </label>
+                    <input
+                      type="text"
+                      value={loginSubtitle}
+                      onChange={(e) =>
+                        setLoginSubtitles((prev) => ({
+                          ...prev,
+                          [id]: e.target.value,
+                        }))
+                      }
+                      className="ds-input w-full"
+                      placeholder="로그인 화면 하단 문구"
+                    />
+                  </div>
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveTitle(id)}
+                      className="ds-button"
+                      data-intent="primary"
+                      data-size="md"
+                    >
+                      모든 설정 저장
+                    </button>
+                  </div>
+                </div>
+              </div>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: router/AdminAppRouter.tsx
+==========================================================================================
+// PATH: src/admin_app/router/AdminAppRouter.tsx
+// Developer-only app: tenant branding, logos, images.
+
+import { Routes, Route, Navigate } from "react-router-dom";
+import AdminAppLayout from "@/admin_app/layout/AdminAppLayout";
+import AdminAppHomePage from "@/admin_app/pages/AdminAppHomePage";
+import TenantBrandingPage from "@/admin_app/pages/TenantBrandingPage";
+
+export default function AdminAppRouter() {
+  return (
+    <Routes>
+      <Route element={<AdminAppLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<AdminAppHomePage />} />
+        <Route path="branding" element={<TenantBrandingPage />} />
+        <Route path="*" element={<Navigate to="home" replace />} />
+      </Route>
+    </Routes>
+  );
+}
