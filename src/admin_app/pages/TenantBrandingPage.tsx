@@ -313,7 +313,7 @@ export default function TenantBrandingPage() {
                   <div className="space-y-3">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                        <label className="block text-xs font-semibold text-slate-900 mb-1">
                           사용자명 *
                         </label>
                         <input
@@ -325,12 +325,12 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, username: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                           placeholder="예: admin97"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                        <label className="block text-xs font-semibold text-slate-900 mb-1">
                           비밀번호 * (새 사용자 생성 시 필수)
                         </label>
                         <input
@@ -342,12 +342,12 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, password: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                           placeholder="비밀번호 입력"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                        <label className="block text-xs font-semibold text-slate-900 mb-1">
                           이름
                         </label>
                         <input
@@ -359,12 +359,12 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, name: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                           placeholder="예: 홍길동"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                        <label className="block text-xs font-semibold text-slate-900 mb-1">
                           전화번호
                         </label>
                         <input
@@ -376,7 +376,7 @@ export default function TenantBrandingPage() {
                               [id]: { ...ownerForm, phone: e.target.value },
                             }))
                           }
-                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                           placeholder="예: 01012345678"
                         />
                       </div>
@@ -410,12 +410,12 @@ export default function TenantBrandingPage() {
                           [id]: { ...ownerForm, username: e.target.value },
                         }))
                       }
-                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
+                      className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                       placeholder="사용자명 (기존 사용자)"
                     />
                     <button
                       onClick={() => handleRegisterOwner(id)}
-                      className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600"
+                      className="px-4 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600 font-medium"
                     >
                       등록
                     </button>
@@ -424,10 +424,10 @@ export default function TenantBrandingPage() {
               </div>
 
               <div className="border-t border-slate-200 pt-4">
-                <h3 className="text-md font-medium text-slate-700 mb-4">브랜딩 설정</h3>
+                <h3 className="text-md font-semibold text-slate-900 mb-4">브랜딩 설정</h3>
                 <div className="grid gap-6 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">
                     로고
                   </label>
                   <div className="flex items-center gap-4">
