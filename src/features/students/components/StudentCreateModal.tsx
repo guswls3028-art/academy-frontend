@@ -341,123 +341,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </button>
           </div>
         </div>
-        ) : bulkResult ? (
-        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
-          <div className="modal-section-label" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "var(--space-2)" }}>
-            {bulkResult.created}명 등록 완료
-            {bulkResult.failed.length > 0 && ` · 실패 ${bulkResult.failed.length}건`}
-          </div>
-
-          {bulkResult.failed.length > 0 && (
-            <>
-              <div className="modal-form-group modal-form-group--row" style={{ flexDirection: "column", alignItems: "stretch" }}>
-                <span className="modal-hint" style={{ lineHeight: 1.5 }}>
-                  필수: 이름, 학부모 전화. 학생 전화는 선택(없으면 학부모 전화 8자리로 OMR). 아이디 6자리 자동 부여.
-                  {conflictedItems.length > 0 && (
-                    <span className="modal-hint--block">
-                      <strong>삭제된 학생과 번호 충돌</strong> 시 복원 또는 삭제 후 재등록을 선택하세요.
-                    </span>
-                  )}
-                </span>
-              </div>
-
-              {conflictedItems.length > 0 && (
-                <div className="modal-actions-inline" style={{ gap: "var(--space-3)" }}>
-                  <span className="modal-section-label" style={{ marginBottom: 0 }}>일괄 적용:</span>
-                  <Button
-                    intent={batchConflictAction === "restore" ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => setBatchConflictAction("restore")}
-                  >
-                    모두 복원
-                  </Button>
-                  <Button
-                    intent={batchConflictAction === "delete" ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => setBatchConflictAction("delete")}
-                  >
-                    모두 삭제 후 재등록
-                  </Button>
-                  <Button intent="secondary" size="sm" onClick={applyBatchConflictResolution}>
-                    적용
-                  </Button>
-                </div>
-              )}
-
-              <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                {bulkResult.failed.map((item, idx) => (
-                  <div key={idx} className="modal-form-group modal-form-group--compact">
-                    <div className="modal-section-label" style={{ marginBottom: "var(--space-1)", fontSize: 12 }}>
-                      {item.row}행 {item.name} · <span style={{ color: "var(--color-status-error)" }}>{item.error}</span>
-                    </div>
-                    {item.conflict_student_id && (
-                      <div className="modal-actions-inline" style={{ marginBottom: "var(--space-2)" }}>
-                        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginBottom: 0, cursor: "pointer", fontSize: 13 }}>
-                          <input
-                            type="radio"
-                            name={`conflict-${item.row}`}
-                            checked={conflictResolutions[item.row] === "restore"}
-                            onChange={() => setConflictResolution(item.row, "restore")}
-                          />
-                          복원
-                        </label>
-                        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", marginBottom: 0, cursor: "pointer", fontSize: 13 }}>
-                          <input
-                            type="radio"
-                            name={`conflict-${item.row}`}
-                            checked={conflictResolutions[item.row] === "delete"}
-                            onChange={() => setConflictResolution(item.row, "delete")}
-                          />
-                          삭제 후 재등록
-                        </label>
-                      </div>
-                    )}
-                    <div className="modal-form-row modal-form-row--1-auto">
-                      <input
-                        placeholder="학생 전화(선택) · 없으면 학부모 전화로 OMR"
-                        value={
-                          (() => {
-                            const raw = String(item.student?.phone ?? "").replace(/\D/g, "");
-                            if (raw.length === 8) return formatIdentifierForInput(raw);
-                            if (raw.length === 11) return formatPhoneForInput(raw);
-                            return item.student?.phone ?? "";
-                          })()
-                        }
-                        onChange={(e) => {
-                          const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
-                          const phone = raw.length === 8 ? `010${raw}` : raw;
-                          updateFailedItem(idx, "phone", phone);
-                        }}
-                        className="ds-input"
-                        maxLength={13}
-                        inputMode="numeric"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="modal-actions-inline">
-                {conflictedItems.length > 0 && (
-                  <Button
-                    intent="primary"
-                    onClick={handleResolveConflicts}
-                    disabled={busy || hasUnresolvedConflicts}
-                  >
-                    {busy ? "처리 중…" : "충돌 해결 후 등록"}
-                  </Button>
-                )}
-                <Button intent="primary" onClick={handleRetryFailed} disabled={busy}>
-                  {busy ? "다시 등록 중…" : "실패 항목 다시 등록"}
-                </Button>
-              </div>
-            </>
-          )}
-
-          <Button intent="secondary" onClick={() => { setBulkResult(null); onClose(); }}>
-            완료
-          </Button>
-        </div>
         ) : (
         <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
           <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
@@ -480,15 +363,15 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
           <ExcelUploadZone onFileSelect={handleExcelFileSelect} disabled={busy} />
 
-          {excelParsedRows && excelParsedRows.length > 0 && (
+          {selectedExcelFile && (
             <div className="modal-form-group modal-form-group--row" style={{ justifyContent: "space-between" }}>
               <span className="modal-section-label" style={{ marginBottom: 0 }}>
-                {excelParsedRows.length}명 등록 예정
+                선택된 파일: {selectedExcelFile.name}
               </span>
               <Button
                 intent="ghost"
                 size="sm"
-                onClick={() => setExcelParsedRows(null)}
+                onClick={() => setSelectedExcelFile(null)}
                 disabled={busy}
               >
                 취소
