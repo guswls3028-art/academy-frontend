@@ -147,8 +147,9 @@ export default function ScoresTable({
       {/* HEADER */}
       <div
         className="border-b border-[var(--color-border-divider)]"
-        style={{ display: "grid", gridTemplateColumns }}
         style={{
+          display: "grid",
+          gridTemplateColumns,
           background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
         }}
       >

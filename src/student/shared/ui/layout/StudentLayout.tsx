@@ -14,7 +14,6 @@ export default function StudentLayout() {
     <div
       style={{
         minHeight: "100dvh",
-        minHeight: "100vh",
         background: "var(--stu-bg)",
         color: "var(--stu-text)",
         display: "flex",
