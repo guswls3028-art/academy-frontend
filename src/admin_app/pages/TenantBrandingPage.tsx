@@ -9,12 +9,14 @@ import {
 } from "@/admin_app/api/branding";
 import {
   getTenants,
+  getTenantOwners,
   createTenant,
   registerTenantOwner,
   type TenantDto,
 } from "@/admin_app/api/tenants";
 import TenantListPanel from "@/admin_app/features/tenants/TenantListPanel";
 import TenantDetailPanel, { type TabId } from "@/admin_app/features/tenants/TenantDetailPanel";
+import AdminOwnerBottomSheet from "@/admin_app/components/AdminOwnerBottomSheet";
 import "@/styles/design-system/index.css";
 import "@/styles/design-system/ds/input.css";
 
