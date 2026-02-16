@@ -133,10 +133,13 @@ export default function TenantDetailPanel({
         {activeTab === "domains" && <DomainsTab tenant={tenant} />}
         {activeTab === "owners" && (
           <OwnersTab
+            tenantId={id}
             tenantName={tenant.name}
             owners={ownersList}
             loading={ownersLoading}
             onAddOwner={onOpenOwnerSheet}
+            onRemoveOwner={onRemoveOwner}
+            onUpdateOwner={onUpdateOwner}
           />
         )}
       </div>

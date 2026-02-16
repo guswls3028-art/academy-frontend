@@ -314,6 +314,14 @@ export default function TenantBrandingPage() {
             ownersList={selectedTenantId != null ? (ownersByTenantId[selectedTenantId] ?? []) : []}
             ownersLoading={selectedTenantId != null ? (ownersLoadingById[selectedTenantId] ?? false) : false}
             onOpenOwnerSheet={() => setOwnerSheetOpen(true)}
+            onRemoveOwner={async (tid, uid) => {
+              await removeTenantOwner(tid, uid);
+              loadOwnersForTenant(tid);
+            }}
+            onUpdateOwner={async (tid, uid, payload) => {
+              await updateTenantOwner(tid, uid, payload);
+              loadOwnersForTenant(tid);
+            }}
             onLogoUpload={handleFile}
             onSaveBranding={handleSaveTitle}
             onDisplayNameChange={(id, v) => setDisplayNames((p) => ({ ...p, [id]: v }))}
