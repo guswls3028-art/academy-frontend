@@ -24,8 +24,8 @@ export type CreateTenantDto = {
 };
 
 export type TenantOwnerDto = {
-  tenantId: number;
-  tenantCode: string;
+  tenantId?: number;
+  tenantCode?: string;
   userId: number;
   username: string;
   name: string;
