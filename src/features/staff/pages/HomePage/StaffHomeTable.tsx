@@ -14,7 +14,7 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
   const LIGHT_COLORS = ["#eab308", "#06b6d4"];
   const isLight = (c: string) => LIGHT_COLORS.some((x) => String(c || "").toLowerCase() === x);
 
-  if (list.length === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
+  if (list.length === 0) return <span className="text-[var(--color-text-muted)]">-</span>;
 
   return (
     <span className="inline-flex flex-wrap gap-1 justify-center">
