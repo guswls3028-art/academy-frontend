@@ -128,3 +128,6 @@ export function getTenantCodeForHeader(): string | null {
 
   return null;
 }
+
+export type { TenantId } from "./config";
+export { getTenantIdFromCode, getTenantBranding } from "./config";

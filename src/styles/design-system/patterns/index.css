@@ -19,3 +19,6 @@
 /* Layout / Sidebar (admin only) */
 @import "./layout.css";
 @import "./sidebar.css";
+
+/* Auth (login pages — DS tokens only) */
+@import "./auth.css";
