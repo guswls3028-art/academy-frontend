@@ -160,14 +160,16 @@ export default function TenantBrandingPage() {
     const form = ownerForms[tenantId];
     if (!form || !form.username) {
       setMessage("사용자명을 입력해주세요.");
+      setMessageType("error");
       return;
     }
-    
     if (!form.password) {
       setMessage("비밀번호를 입력해주세요.");
+      setMessageType("error");
       return;
     }
-    
+    setRegisteringOwnerId(tenantId);
+    setMessage(null);
     try {
       await registerTenantOwner(tenantId, {
         username: form.username,
@@ -175,11 +177,16 @@ export default function TenantBrandingPage() {
         name: form.name || undefined,
         phone: form.phone || undefined,
       });
-      setMessage(`테넌트 ${tenantId}에 ${form.username}을(를) owner로 등록했습니다.`);
+      setLastOwnerRegistered((prev) => ({ ...prev, [tenantId]: { username: form.username } }));
       setOwnerForms((prev) => ({ ...prev, [tenantId]: { username: "", password: "", name: "", phone: "" } }));
+      setMessage(`✓ ${form.username}을(를) owner로 등록했습니다.`);
+      setMessageType("success");
     } catch (e: unknown) {
       const error = e as { response?: { data?: { detail?: string } } };
       setMessage("Owner 등록 실패: " + (error.response?.data?.detail || String(e)));
+      setMessageType("error");
+    } finally {
+      setRegisteringOwnerId(null);
     }
   };
 
