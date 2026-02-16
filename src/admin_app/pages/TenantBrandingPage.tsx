@@ -51,9 +51,9 @@ export default function TenantBrandingPage() {
   const [newOwnerName, setNewOwnerName] = useState("");
   const [newOwnerPhone, setNewOwnerPhone] = useState("");
 
-  const [ownerForms, setOwnerForms] = useState<Record<number, ReturnType<typeof defaultOwnerForm>>>({});
-  const [registeringOwnerId, setRegisteringOwnerId] = useState<number | null>(null);
-  const [lastOwnerRegistered, setLastOwnerRegistered] = useState<Record<number, { username: string }>>({});
+  const [ownersByTenantId, setOwnersByTenantId] = useState<Record<number, Awaited<ReturnType<typeof getTenantOwners>>>>({});
+  const [ownersLoadingById, setOwnersLoadingById] = useState<Record<number, boolean>>({});
+  const [ownerSheetOpen, setOwnerSheetOpen] = useState(false);
 
   useEffect(() => {
     loadTenants();
