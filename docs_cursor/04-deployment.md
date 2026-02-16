@@ -6,9 +6,9 @@
 
 ## 1. 빌드
 
-- **명령**: `pnpm run build` (실제: `vite build && node scripts/copy-404.js` — package.json).
+- **명령**: `pnpm run build` (실제: `vite build` — package.json).
 - **출력**: `dist/`.
-- **404**: 빌드 후 `scripts/copy-404.js` 가 `dist/index.html` → `dist/404.html` 복사 (SPA 폴백). Cloudflare에서 루트 미매칭 시 404.html 서빙.
+- **SPA 라우팅**: Cloudflare Pages는 **top-level 404.html이 없으면** SPA로 간주해 모든 경로를 루트로 매칭. 따라서 빌드에서 404.html을 만들지 않음. (copy-404.js는 Netlify 등 다른 호스팅용으로만 보관.)
 
 ---
 
@@ -36,7 +36,7 @@ Cloudflare Pages: Build 시점에 설정하거나 Variables and Secrets에 정�
 
 | 파일 | 역할 |
 |------|------|
-| `scripts/copy-404.js` | 빌드 후 dist/404.html 생성 (SPA 폴백) |
+| `scripts/copy-404.js` | 404.html 생성(현재 빌드에서 미사용. Cloudflare는 404.html 없을 때 SPA 모드) |
 | `public/_headers` | HTML no-cache, /assets/* 장기 캐시 등 |
 | `.env.example` | 환경 변수 참고 |
 
