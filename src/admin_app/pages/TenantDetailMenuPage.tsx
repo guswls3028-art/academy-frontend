@@ -115,9 +115,39 @@ export default function TenantDetailMenuPage() {
         ) : (
           <ul className="space-y-1.5 mb-4">
             {owners.map((o) => (
-              <li key={o.userId} className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 border border-slate-100">
-                <span className="font-medium text-slate-900">{o.username}</span>
-                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">OWNER</span>
+              <li key={o.userId} className="flex flex-wrap items-center justify-between gap-2 py-2 px-3 rounded-lg bg-slate-50 border border-slate-100">
+                {editingUserId === o.userId ? (
+                  <>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="text-sm font-medium text-slate-900">{o.username}</div>
+                      <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="이름" className="ds-input w-full py-2 rounded-lg text-sm min-h-[44px]" />
+                      <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="전화" className="ds-input w-full py-2 rounded-lg text-sm min-h-[44px]" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={async () => { await updateTenantOwner(id, o.userId, { name: editName || undefined, phone: editPhone || undefined }); setEditingUserId(null); loadOwners(); }} className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm min-h-[44px]">저장</button>
+                      <button type="button" onClick={() => setEditingUserId(null)} className="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm min-h-[44px]">취소</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <span className="font-medium text-slate-900">{o.username}</span>
+                      {o.name ? <span className="text-xs text-slate-500 block">{o.name}</span> : null}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">OWNER</span>
+                      <button type="button" onClick={() => { setEditingUserId(o.userId); setEditName(o.name || ""); setEditPhone(o.phone ?? ""); }} className="text-xs text-slate-600 py-1 px-2 rounded min-h-[32px]">수정</button>
+                      <button
+                        type="button"
+                        onClick={async () => { if (!confirm("이 테넌트에서 Owner를 제거할까요?")) return; setRemovingId(o.userId); try { await removeTenantOwner(id, o.userId); loadOwners(); } finally { setRemovingId(null); } }}
+                        disabled={removingId === o.userId}
+                        className="text-xs text-red-600 py-1 px-2 rounded min-h-[32px] disabled:opacity-50"
+                      >
+                        {removingId === o.userId ? "제거 중…" : "제거"}
+                      </button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
           </ul>
