@@ -71,7 +71,7 @@ interface Props {
 const COL = {
   checkbox: TABLE_COL.checkbox,
   role: TABLE_COL.status,
-  name: TABLE_COL.name,
+  name: TABLE_COL.nameCompact,
   phone: TABLE_COL.phone,
   status: TABLE_COL.statusBadge,
   manager: TABLE_COL.statusBadge,
