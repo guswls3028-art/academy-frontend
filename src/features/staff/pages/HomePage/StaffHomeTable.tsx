@@ -141,7 +141,7 @@ export function StaffHomeTable({
     },
   });
 
-  if (dataSource.length === 0) {
+  if (dataSource.length === 0 && !hasOwner) {
     return (
       <EmptyState
         title="직원 정보가 없습니다."
@@ -195,6 +195,27 @@ export function StaffHomeTable({
         </thead>
 
         <tbody>
+          {hasOwner && (
+            <tr className="bg-[var(--color-bg-surface-hover)]/60" aria-label="원장">
+              <td className="align-middle w-[28px]" />
+              <td className="align-middle">
+                <span className="ds-status-badge" data-tone="primary" aria-label="원장">
+                  원장
+                </span>
+              </td>
+              <td className="text-[15px] font-semibold leading-6 text-[var(--color-text-primary)] truncate align-middle">
+                {owner!.name}
+              </td>
+              <td className="text-[14px] leading-6 text-[var(--color-text-muted)] align-middle">—</td>
+              <td className="align-middle">
+                <span className="ds-status-badge" data-status="active">활성</span>
+              </td>
+              <td className="align-middle">—</td>
+              <td className="align-middle">—</td>
+              <td className="align-middle">—</td>
+              <td className="align-middle">—</td>
+            </tr>
+          )}
           {dataSource.map((r) => (
             <tr
               key={r.id}
