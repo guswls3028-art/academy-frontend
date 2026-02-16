@@ -24,7 +24,7 @@ export default function HomePage() {
   /** 원장 행: 목록 API owner 우선, 없으면 /staffs/me 의 owner_display_name·owner_phone */
   const owner = (() => {
     if (staffData?.owner?.name) return staffData.owner;
-    const displayName = meQ.data?.owner_display_name ?? (meQ.data?.is_owner ? "원장" : null);
+    const displayName = meQ.data?.owner_display_name ?? (meQ.data?.is_owner ? "대표" : null);
     if (displayName) {
       return {
         id: null,
