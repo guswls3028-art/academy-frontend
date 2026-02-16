@@ -11,6 +11,7 @@ export type Program = {
     primary_color?: string;
     login_title?: string;
     login_subtitle?: string;
+    window_title?: string;
   };
 
   feature_flags: Record<string, boolean>;
