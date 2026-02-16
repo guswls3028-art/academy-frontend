@@ -58,6 +58,10 @@ export default function TenantDetailPanel({
   lastOwnerRegistered,
   onLogoUpload,
   onSaveBranding,
+  onDisplayNameChange,
+  onWindowTitleChange,
+  onLoginTitleChange,
+  onLoginSubtitleChange,
 }: Props) {
   if (!tenant) {
     return (
@@ -120,14 +124,10 @@ export default function TenantDetailPanel({
             loginSubtitle={loginSubtitle}
             uploading={uploadingLogoId === id}
             onLogoChange={(file) => onLogoUpload(id, file)}
-            onDisplayNameChange={(v) =>
-              branding.displayNames[id] !== undefined || v !== tenant.name
-                ? onOwnerFormChange(id, {})
-                : null
-            }
-            onWindowTitleChange={(v) => onSaveBranding(id)}
-            onLoginTitleChange={(v) => onSaveBranding(id)}
-            onLoginSubtitleChange={(v) => onSaveBranding(id)}
+            onDisplayNameChange={(v) => onDisplayNameChange(id, v)}
+            onWindowTitleChange={(v) => onWindowTitleChange(id, v)}
+            onLoginTitleChange={(v) => onLoginTitleChange(id, v)}
+            onLoginSubtitleChange={(v) => onLoginSubtitleChange(id, v)}
             onSave={() => onSaveBranding(id)}
           />
         )}
