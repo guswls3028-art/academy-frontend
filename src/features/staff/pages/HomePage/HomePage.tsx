@@ -120,7 +120,7 @@ export default function HomePage() {
           isLoading
             ? "…"
             : owner
-              ? `총 ${staffs.length + 1}명 (원장 1명 포함)`
+              ? `총 ${staffs.length + 1}명 (대표 1명 포함)`
               : Array.isArray(staffs)
                 ? `총 ${staffs.length}명`
                 : "—"
