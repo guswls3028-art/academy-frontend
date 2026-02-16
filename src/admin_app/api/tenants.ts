@@ -29,6 +29,7 @@ export type TenantOwnerDto = {
   userId: number;
   username: string;
   name: string;
+  phone?: string;
   role: string;
 };
 

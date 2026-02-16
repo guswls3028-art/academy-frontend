@@ -32,7 +32,7 @@ export default function OwnersTab({
   const startEdit = (o: TenantOwnerDto) => {
     setEditingUserId(o.userId);
     setEditName(o.name || "");
-    setEditPhone((o as { phone?: string }).phone ?? "");
+    setEditPhone(o.phone ?? "");
   };
   const cancelEdit = () => {
     setEditingUserId(null);
