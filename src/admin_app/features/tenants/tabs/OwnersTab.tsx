@@ -1,21 +1,61 @@
 // PATH: src/admin_app/features/tenants/tabs/OwnersTab.tsx
-// Owner 리스트 먼저 표시, + Owner 추가 시 BottomSheet (부모에서 처리)
+// Owner 리스트 + 제거/수정 CRUD, + Owner 추가는 부모(BottomSheet)
 
+import { useState } from "react";
 import type { TenantOwnerDto } from "@/admin_app/api/tenants";
+import "@/styles/design-system/ds/input.css";
 
 type Props = {
+  tenantId: number;
   tenantName: string;
   owners: TenantOwnerDto[];
   loading?: boolean;
   onAddOwner: () => void;
+  onRemoveOwner: (tenantId: number, userId: number) => Promise<void>;
+  onUpdateOwner: (tenantId: number, userId: number, payload: { name?: string; phone?: string }) => Promise<void>;
 };
 
 export default function OwnersTab({
+  tenantId,
   tenantName,
   owners,
   loading = false,
   onAddOwner,
+  onRemoveOwner,
+  onUpdateOwner,
 }: Props) {
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [removingId, setRemovingId] = useState<number | null>(null);
+
+  const startEdit = (o: TenantOwnerDto) => {
+    setEditingUserId(o.userId);
+    setEditName(o.name || "");
+    setEditPhone((o as { phone?: string }).phone ?? "");
+  };
+  const cancelEdit = () => {
+    setEditingUserId(null);
+    setEditName("");
+    setEditPhone("");
+  };
+  const saveEdit = async () => {
+    if (editingUserId == null) return;
+    await onUpdateOwner(tenantId, editingUserId, { name: editName || undefined, phone: editPhone || undefined });
+    setEditingUserId(null);
+    setEditName("");
+    setEditPhone("");
+  };
+  const handleRemove = async (userId: number) => {
+    if (!confirm("이 테넌트에서 해당 Owner를 제거합니다. 로그인 권한이 사라집니다. 계속할까요?")) return;
+    setRemovingId(userId);
+    try {
+      await onRemoveOwner(tenantId, userId);
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800">
@@ -47,15 +87,52 @@ export default function OwnersTab({
             {owners.map((o) => (
               <li
                 key={o.userId}
-                className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200"
+                className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200"
               >
-                <div>
-                  <div className="font-medium text-slate-900">{o.username}</div>
-                  <div className="text-xs text-slate-500">{o.name || "이름 없음"}</div>
-                </div>
-                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
-                  OWNER
-                </span>
+                {editingUserId === o.userId ? (
+                  <>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="font-medium text-slate-900">{o.username}</div>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="이름"
+                        className="ds-input w-full py-2 rounded-lg text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        placeholder="전화"
+                        className="ds-input w-full py-2 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={saveEdit} className="ds-button text-sm" data-intent="primary" data-size="sm">저장</button>
+                      <button type="button" onClick={cancelEdit} className="ds-button text-sm" data-intent="secondary" data-size="sm">취소</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <div className="font-medium text-slate-900">{o.username}</div>
+                      <div className="text-xs text-slate-500">{o.name || "이름 없음"}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">OWNER</span>
+                      <button type="button" onClick={() => startEdit(o)} className="text-xs text-slate-600 hover:text-slate-900 px-2 py-1 rounded">수정</button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(o.userId)}
+                        disabled={removingId === o.userId}
+                        className="text-xs text-red-600 hover:text-red-800 px-2 py-1 rounded disabled:opacity-50"
+                      >
+                        {removingId === o.userId ? "제거 중…" : "제거"}
+                      </button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
           </ul>
