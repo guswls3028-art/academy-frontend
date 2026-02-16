@@ -8,6 +8,8 @@ export type TenantBrandingDto = {
   loginTitle?: string;
   loginSubtitle?: string;
   logoUrl?: string;
+  windowTitle?: string;
+  displayName?: string;
 };
 
 /** GET tenant branding (from Program.ui_config or Tenant). Backend TBD. */
