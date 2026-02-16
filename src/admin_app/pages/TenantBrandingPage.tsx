@@ -194,14 +194,17 @@ export default function TenantBrandingPage() {
     async (tenantId: number, file: File | null) => {
       if (!file || !file.type.startsWith("image/")) {
         setMessage("이미지 파일만 선택해 주세요.");
+        setMessageType("error");
         return;
       }
       setUploading(tenantId);
       setMessage(null);
+      setMessageType(null);
       try {
         const { logoUrl } = await uploadTenantLogo(tenantId, file);
         setLogoUrls((prev) => ({ ...prev, [tenantId]: logoUrl }));
-        setMessage(`Tenant ${tenantId} 로고 업로드 완료. R2(academy-admin)에 저장됨.`);
+        setMessage("로고 업로드 완료.");
+        setMessageType("success");
       } catch (e: unknown) {
         const status = (e as { response?: { status?: number } })?.response?.status;
         if (status === 404 || status === 501) {
@@ -211,6 +214,7 @@ export default function TenantBrandingPage() {
         } else {
           setMessage("업로드 실패: " + String(e));
         }
+        setMessageType("error");
       } finally {
         setUploading(null);
       }
