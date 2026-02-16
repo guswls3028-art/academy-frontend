@@ -105,7 +105,10 @@ export default function TenantDetailMenuPage() {
         onClose={() => setOwnerSheetOpen(false)}
         tenantId={id}
         tenantName={tenant.name}
-        onSuccess={() => setOwnerSheetOpen(false)}
+        onSuccess={(message) => {
+          if (message) setToast(message);
+          setOwnerSheetOpen(false);
+        }}
       />
     </div>
   );
