@@ -157,6 +157,41 @@ export function StaffHomeTable({
     },
   });
 
+  const workTypesQ = useQuery({
+    queryKey: ["staffs", "work-types"],
+    queryFn: () => fetchWorkTypes({ is_active: true }),
+  });
+  const allWorkTypes = workTypesQ.data ?? [];
+
+  const addTagM = useMutation({
+    mutationFn: ({ staffId, work_type_id }: { staffId: number; work_type_id: number }) =>
+      createStaffWorkType(staffId, { work_type_id }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: ["staff"] });
+      setOpenAddForStaffId(null);
+    },
+    onError: (e: unknown) => {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "시급태그 추가에 실패했습니다.";
+      alert(msg);
+    },
+  });
+
+  const [openAddForStaffId, setOpenAddForStaffId] = useState<number | null>(null);
+  const addDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (openAddForStaffId === null) return;
+    function handleClickOutside(ev: MouseEvent) {
+      if (addDropdownRef.current?.contains(ev.target as Node)) return;
+      setOpenAddForStaffId(null);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openAddForStaffId]);
+
   if (dataSource.length === 0 && !hasOwner) {
     return (
       <EmptyState
