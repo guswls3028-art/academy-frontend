@@ -35,9 +35,11 @@ export interface ParsedStudentRow {
   memo: string;
 }
 
-/** 전화번호에서 숫자만 추출 (01012345678) */
+/** 전화번호에서 숫자만 추출 (01012345678). 엑셀 숫자 셀은 앞 0이 빠져 10자리로 올 수 있음. */
 function toRawPhone(v: unknown): string {
-  const s = String(v ?? "").replace(/\D/g, "");
+  let s = String(v ?? "").replace(/\D/g, "");
+  // 엑셀에서 01012345678 이 숫자로 저장되면 1012345678(10자리)로 읽힘 → 0 붙여서 11자리로
+  if (s.length === 10 && s.startsWith("10")) s = "0" + s;
   return s;
 }
 
