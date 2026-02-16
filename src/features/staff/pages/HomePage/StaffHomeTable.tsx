@@ -58,7 +58,6 @@ interface Props {
 const COL = {
   checkbox: TABLE_COL.checkbox,
   role: TABLE_COL.status,
-  owner: 56,
   name: TABLE_COL.name,
   phone: TABLE_COL.phone,
   status: TABLE_COL.statusBadge,
@@ -71,7 +70,6 @@ const COL = {
 const TABLE_WIDTH =
   COL.checkbox +
   COL.role +
-  COL.owner +
   COL.name +
   COL.phone +
   COL.status +
