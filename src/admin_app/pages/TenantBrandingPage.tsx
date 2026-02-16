@@ -1,10 +1,11 @@
 // PATH: src/admin_app/pages/TenantBrandingPage.tsx
-// Per-tenant logo and login branding. Upload -> R2 (backend API TBD).
+// Per-tenant logo and login branding. Upload -> R2 (academy-admin bucket).
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { getTenantBranding } from "@/shared/tenant/config";
 import type { TenantId } from "@/shared/tenant/config";
 import {
+  getTenantBranding as getTenantBrandingApi,
   uploadTenantLogo,
   patchTenantBranding,
 } from "@/admin_app/api/branding";
@@ -26,6 +27,18 @@ export default function TenantBrandingPage() {
     )
   );
 
+  useEffect(() => {
+    TENANTS.forEach(({ id }) => {
+      getTenantBrandingApi(id).then((data) => {
+        if (!data) return;
+        setLogoUrls((prev) => (data.logoUrl ? { ...prev, [id]: data.logoUrl! } : prev));
+        setLoginTitles((prev) =>
+          data.loginTitle != null ? { ...prev, [id]: data.loginTitle! } : prev
+        );
+      }).catch(() => {});
+    });
+  }, []);
+
   const handleFile = useCallback(
     async (tenantId: number, file: File | null) => {
       if (!file || !file.type.startsWith("image/")) {
@@ -37,7 +50,7 @@ export default function TenantBrandingPage() {
       try {
         const { logoUrl } = await uploadTenantLogo(tenantId, file);
         setLogoUrls((prev) => ({ ...prev, [tenantId]: logoUrl }));
-        setMessage(`Tenant ${tenantId} 로고 업로드 완료. (백엔드 API 연동 후 R2에 저장)`);
+        setMessage(`Tenant ${tenantId} 로고 업로드 완료. R2(academy-admin)에 저장됨.`);
       } catch (e: unknown) {
         const status = (e as { response?: { status?: number } })?.response?.status;
         if (status === 404 || status === 501) {
