@@ -431,7 +431,7 @@ export default function TenantBrandingPage() {
           const logoUrl = logoUrls[id] ?? fallback?.logoUrl;
           const loginTitle = loginTitles[id] ?? fallback?.loginTitle ?? "";
           const loginSubtitle = loginSubtitles[id] ?? fallback?.loginSubtitle ?? "";
-          const windowTitle = windowTitles[id] ?? fallback?.windowTitle ?? "";
+          const windowTitle = windowTitles[id] ?? (fallback as { windowTitle?: string } | undefined)?.windowTitle ?? "";
           const displayName = displayNames[id] ?? (fallback as { displayName?: string } | undefined)?.displayName ?? name;
           const ownerForm = ownerForms[id] || { username: "", password: "", name: "", phone: "" };
 
