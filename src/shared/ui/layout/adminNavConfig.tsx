@@ -2,8 +2,6 @@
  * 선생앱(관리자) 사이드바/모바일 드로어 네비 공통 설정.
  * Sidebar.tsx, TeacherBottomBar, 모바일 Drawer에서 사용.
  */
-import type { ReactNode } from "react";
-
 export const ADMIN_NAV_BASE = "/admin";
 
 export function NavIcon({ d }: { d: string }) {
