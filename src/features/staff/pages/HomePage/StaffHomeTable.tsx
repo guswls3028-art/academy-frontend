@@ -1,13 +1,14 @@
 // PATH: src/features/staff/pages/HomePage/StaffHomeTable.tsx
 // Design: docs/DESIGN_SSOT.md — staff 도메인: 대표(원장) / 강사 / 조교 통일
 
-import { useMemo, useState } from "react";
-import { Crown, GraduationCap, UserCog } from "lucide-react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { Crown, GraduationCap, UserCog, Plus } from "lucide-react";
 import { EmptyState } from "@/shared/ui/ds";
 import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
 import { Staff, type StaffListOwner } from "../../api/staff.api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { patchStaffDetail } from "../../api/staff.detail.api";
+import { fetchWorkTypes, createStaffWorkType } from "../../api/staffWorkType.api";
 
 /** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
 export const OWNER_SELECTION_ID = -1;
