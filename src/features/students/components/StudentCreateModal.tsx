@@ -384,57 +384,27 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
       <ModalFooter
         left={
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {progress && (
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 200, height: 6, background: "var(--color-bg-surface-soft)", borderRadius: 3, overflow: "hidden" }}>
-                  <div
-                    style={{
-                      width: `${(progress.current / progress.total) * 100}%`,
-                      height: "100%",
-                      background: "var(--color-primary)",
-                      transition: "width 0.3s ease",
-                    }}
-                  />
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-primary)", minWidth: 60 }}>
-                  {Math.round((progress.current / progress.total) * 100)}%
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-muted)" }}>
-                  ({progress.current}/{progress.total}명)
-                </span>
-              </div>
-            )}
-            <span className="modal-hint" style={{ marginBottom: 0 }}>
-              {activeTab === "single"
-                ? "⌘/Ctrl + Enter 등록"
-                : bulkResult
-                ? "실패 항목 수정 후 '다시 등록'"
-                : excelParsedRows?.length
-                ? "초기 비밀번호 입력 후 등록"
-                : "엑셀 파일 선택 후 등록"}
-            </span>
-          </div>
+          <span className="modal-hint" style={{ marginBottom: 0 }}>
+            {activeTab === "single"
+              ? "⌘/Ctrl + Enter 등록"
+              : selectedExcelFile
+              ? "초기 비밀번호 입력 후 등록"
+              : "엑셀 파일 선택 후 등록"}
+          </span>
         }
         right={
           <>
-            {progress && activeTab === "excel" ? (
-              <Button intent="secondary" onClick={onClose}>
-                닫기
-              </Button>
-            ) : (
-              <Button intent="secondary" onClick={onClose} disabled={busy}>
-                취소
-              </Button>
-            )}
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
             {activeTab === "single" && (
               <Button intent="primary" onClick={handleSubmit} disabled={busy}>
                 {busy ? "등록 중…" : "등록"}
               </Button>
             )}
-            {activeTab === "excel" && !bulkResult && excelParsedRows && excelParsedRows.length > 0 && (
+            {activeTab === "excel" && selectedExcelFile && (
               <Button intent="primary" onClick={handleExcelRegister} disabled={busy}>
-                {busy ? (progress ? `등록 중… ${Math.round((progress.current / progress.total) * 100)}%` : "등록 중…") : "등록"}
+                {busy ? "등록 중…" : "등록"}
               </Button>
             )}
           </>
