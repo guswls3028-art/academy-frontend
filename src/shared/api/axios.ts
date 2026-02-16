@@ -130,24 +130,10 @@ function getTenantCodeForRequest(): string | null {
 }
 
 /**
- * 1테넌트 = 1도메인이면 API 요청 Host와 페이지 Host가 같음 → request.get_host()로 테넌트 판별 가능.
- * 중앙 API(다른 호스트)로 요청할 때만 X-Tenant-Code 전송.
- */
-function isCrossOriginApi(): boolean {
-  if (typeof window === "undefined" || !API_BASE) return false;
-  try {
-    const apiHost = new URL(API_BASE.replace(/\/$/, "") || "http://x").hostname;
-    const pageHost = window.location.hostname;
-    return apiHost !== pageHost;
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Request interceptor
  * - attach JWT Bearer (if available)
- * - X-Tenant-Code: 중앙 API(다른 호스트)로 요청할 때만 전송. 1테넌트=1도메인이면 Host만으로 판별하므로 미전송.
+ * - X-Tenant-Code: 테넌트 코드가 있으면 항상 전송. 중앙 API(api.hakwonplus.com)는 이걸로 테넌트 판별.
+ *   (1테넌트=1도메인이면 백엔드가 Host로 판별하고 헤더는 무시됨)
  */
 api.interceptors.request.use((config) => {
   const cfg = config;
@@ -168,13 +154,10 @@ api.interceptors.request.use((config) => {
     import.meta.env.VITE_APP_VERSION || "dev"
   );
 
-  // 1테넌트=1도메인(tchul.com, ymath.co.kr 등)이면 API도 같은 도메인 → Host로 테넌트 판별, 헤더 불필요.
-  // 중앙 API(api.hakwonplus.com 등 다른 호스트)로 요청할 때만 X-Tenant-Code 전송.
-  if (isCrossOriginApi()) {
-    const tenantCode = getTenantCodeForRequest();
-    if (tenantCode) {
-      (cfg.headers as any)["X-Tenant-Code"] = tenantCode;
-    }
+  // 테넌트 코드가 있으면 항상 전송 (B 구조: tchul.com → api.hakwonplus.com 에서 필수)
+  const tenantCode = getTenantCodeForRequest();
+  if (tenantCode) {
+    (cfg.headers as any)["X-Tenant-Code"] = tenantCode;
   }
 
   // 전역 비동기 상태 SSOT: 요청 시작 시 Pending 등록
