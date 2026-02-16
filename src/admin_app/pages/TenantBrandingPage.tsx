@@ -64,6 +64,24 @@ export default function TenantBrandingPage() {
       setSelectedTenantId(tenants[0].id);
   }, [loading, tenants, selectedTenantId]);
 
+  const loadOwnersForTenant = useCallback(async (tenantId: number) => {
+    setOwnersLoadingById((p) => ({ ...p, [tenantId]: true }));
+    try {
+      const list = await getTenantOwners(tenantId);
+      setOwnersByTenantId((p) => ({ ...p, [tenantId]: list }));
+    } catch {
+      setOwnersByTenantId((p) => ({ ...p, [tenantId]: [] }));
+    } finally {
+      setOwnersLoadingById((p) => ({ ...p, [tenantId]: false }));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedTenantId != null && activeTab === "owners") {
+      loadOwnersForTenant(selectedTenantId);
+    }
+  }, [selectedTenantId, activeTab, loadOwnersForTenant]);
+
   useEffect(() => {
     if (!message || messageType !== "success") return;
     const t = setTimeout(() => {
@@ -150,40 +168,6 @@ export default function TenantBrandingPage() {
     }
   };
 
-  const handleRegisterOwner = async (tenantId: number) => {
-    const form = ownerForms[tenantId] ?? defaultOwnerForm();
-    if (!form.username) {
-      setMessage("사용자명을 입력해주세요.");
-      setMessageType("error");
-      return;
-    }
-    if (!form.password) {
-      setMessage("비밀번호를 입력해주세요.");
-      setMessageType("error");
-      return;
-    }
-    setRegisteringOwnerId(tenantId);
-    setMessage(null);
-    try {
-      await registerTenantOwner(tenantId, {
-        username: form.username,
-        password: form.password,
-        name: form.name || undefined,
-        phone: form.phone || undefined,
-      });
-      setLastOwnerRegistered((p) => ({ ...p, [tenantId]: { username: form.username } }));
-      setOwnerForms((p) => ({ ...p, [tenantId]: defaultOwnerForm() }));
-      setMessage(`✓ ${form.username}을(를) owner로 등록했습니다.`);
-      setMessageType("success");
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } };
-      setMessage("Owner 등록 실패: " + (err.response?.data?.detail || String(e)));
-      setMessageType("error");
-    } finally {
-      setRegisteringOwnerId(null);
-    }
-  };
-
   const handleFile = useCallback(async (tenantId: number, file: File) => {
     if (!file.type.startsWith("image/")) {
       setMessage("이미지 파일만 선택해 주세요.");
@@ -231,14 +215,6 @@ export default function TenantBrandingPage() {
   }, [loginTitles, loginSubtitles, windowTitles, displayNames]);
 
   const selectedTenant = tenants.find((t) => t.id === selectedTenantId) ?? null;
-  const ownerForm = selectedTenantId != null ? (ownerForms[selectedTenantId] ?? defaultOwnerForm()) : defaultOwnerForm();
-
-  const handleOwnerFormChange = useCallback((tenantId: number, patch: Partial<ReturnType<typeof defaultOwnerForm>>) => {
-    setOwnerForms((p) => ({
-      ...p,
-      [tenantId]: { ...(p[tenantId] ?? defaultOwnerForm()), ...patch },
-    }));
-  }, []);
 
   if (loading && tenants.length === 0) {
     return (
