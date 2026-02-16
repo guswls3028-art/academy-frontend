@@ -202,6 +202,7 @@ export function StaffHomeTable({
           {hasOwner && (
             <tr className="bg-[var(--color-bg-surface-hover)]/60" aria-label="원장">
               <td className="align-middle w-[28px]" />
+              <td className="align-middle text-[var(--color-text-muted)]">—</td>
               <td className="align-middle">
                 <span className="ds-status-badge" data-tone="primary" aria-label="원장">
                   원장
