@@ -1,19 +1,18 @@
 // PATH: src/features/students/components/StudentCreateModal.tsx
+// 엑셀 일괄 등록: 워커 전담 (파일 업로드 → excel_parsing job → 폴링). 프론트 파싱/청크 제거.
+
 import { useEffect, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
 import {
   formatPhoneForInput,
-  formatIdentifierForInput,
   parsePhoneInput,
 } from "@/shared/utils/phoneInput";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
-import { createStudent, bulkCreateStudents, bulkResolveConflicts } from "../api/students";
-import {
-  downloadStudentExcelTemplate,
-  parseStudentExcel,
-  type ParsedStudentRow,
-} from "../excel/studentExcel";
+import { createStudent, uploadStudentBulkFromExcel } from "../api/students";
+import { downloadStudentExcelTemplate } from "../excel/studentExcel";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 interface Props {
   open: boolean;
@@ -27,41 +26,11 @@ const TAB_ITEMS = [
   { key: "excel", label: "엑셀로 업로드" },
 ];
 
-interface BulkFailedItem {
-  row: number;
-  name: string;
-  error: string;
-  conflict_student_id?: number | null;
-  student: {
-    name: string;
-    phone: string;
-    parentPhone: string;
-    gender?: string | null;
-    schoolType?: "HIGH" | "MIDDLE";
-    school?: string | null;
-    grade?: number | null;
-    schoolClass?: string | null;
-    major?: string | null;
-    memo?: string | null;
-  };
-}
-
-interface BulkResult {
-  created: number;
-  failed: BulkFailedItem[];
-  total: number;
-  password: string;
-}
-
 export default function StudentCreateModal({ open, onClose, onSuccess, onBulkProgress }: Props) {
   const [activeTab, setActiveTab] = useState("single");
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [excelBulkPassword, setExcelBulkPassword] = useState("");
-  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
-  const [excelParsedRows, setExcelParsedRows] = useState<ParsedStudentRow[] | null>(null);
-  const [conflictResolutions, setConflictResolutions] = useState<Record<number, "restore" | "delete">>({});
-  const [batchConflictAction, setBatchConflictAction] = useState<"restore" | "delete" | null>(null);
+  const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
 
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [form, setForm] = useState({
