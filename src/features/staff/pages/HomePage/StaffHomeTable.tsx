@@ -160,7 +160,6 @@ export function StaffHomeTable({
         <colgroup>
           <col style={{ width: COL.checkbox }} />
           <col style={{ width: COL.role }} />
-          <col style={{ width: COL.owner }} />
           <col style={{ width: COL.name }} />
           <col style={{ width: COL.phone }} />
           <col style={{ width: COL.status }} />
@@ -172,7 +171,7 @@ export function StaffHomeTable({
 
         <thead>
           <tr>
-            <th scope="col" className="w-[28px]">
+            <th scope="col" style={{ width: COL.checkbox }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -185,7 +184,6 @@ export function StaffHomeTable({
               />
             </th>
             <th scope="col">직위</th>
-            <th scope="col">원장</th>
             <th scope="col">이름</th>
             <th scope="col">전화번호</th>
             <th scope="col">상태</th>
@@ -199,24 +197,31 @@ export function StaffHomeTable({
         <tbody>
           {hasOwner && (
             <tr className="bg-[var(--color-bg-surface-hover)]/60" aria-label="원장">
-              <td className="align-middle w-[28px]" />
-              <td className="align-middle text-[var(--color-text-muted)]">—</td>
+              <td onClick={(e) => e.stopPropagation()} style={{ width: COL.checkbox }} className="ds-checkbox-cell align-middle">
+                <input type="checkbox" disabled aria-label="원장 선택 불가" className="cursor-not-allowed opacity-60" />
+              </td>
               <td className="align-middle">
                 <span className="ds-status-badge" data-tone="primary" aria-label="원장">
                   원장
                 </span>
               </td>
-              <td className="text-[15px] font-semibold leading-6 text-[var(--color-text-primary)] truncate align-middle">
+              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle">
                 {owner!.name}
               </td>
-              <td className="text-[14px] leading-6 text-[var(--color-text-muted)] align-middle">—</td>
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
+                {(owner as { phone?: string | null }).phone || "-"}
+              </td>
               <td className="align-middle">
                 <span className="ds-status-badge" data-status="active">활성</span>
               </td>
-              <td className="align-middle">—</td>
-              <td className="align-middle">—</td>
-              <td className="align-middle">—</td>
-              <td className="align-middle">—</td>
+              <td className="align-middle">
+                <span className="ds-status-badge" data-status="active">ON</span>
+              </td>
+              <td className="text-[14px] leading-6 text-[var(--color-text-muted)] align-middle">-</td>
+              <td className="align-middle">
+                <span className="text-[var(--color-text-muted)]">-</span>
+              </td>
+              <td className="text-[14px] leading-6 text-[var(--color-text-muted)] align-middle">-</td>
             </tr>
           )}
           {dataSource.map((r) => (
@@ -225,13 +230,14 @@ export function StaffHomeTable({
               onClick={() => onDetail(r.id)}
               tabIndex={0}
               role="button"
-              className="group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
+              className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(r.id) ? "ds-row-selected" : ""}`}
             >
-              <td className="align-middle w-[28px]" onClick={(e) => e.stopPropagation()}>
+              <td onClick={(e) => e.stopPropagation()} style={{ width: COL.checkbox }} className="ds-checkbox-cell align-middle">
                 <input
                   type="checkbox"
                   checked={selectedSet.has(r.id)}
                   onChange={() => toggleSelect(r.id)}
+                  onClick={(e) => e.stopPropagation()}
                   aria-label={`${r.name} 선택`}
                   className="cursor-pointer"
                 />
@@ -241,8 +247,7 @@ export function StaffHomeTable({
                   {r.role === "TEACHER" ? "강사" : "조교"}
                 </span>
               </td>
-              <td className="align-middle text-[var(--color-text-muted)]">—</td>
-              <td className="text-[15px] font-semibold leading-6 text-[var(--color-text-primary)] truncate align-middle">
+              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle">
                 {r.name}
               </td>
               <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
