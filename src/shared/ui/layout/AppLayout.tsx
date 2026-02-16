@@ -5,17 +5,104 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import AppLayoutMobile from "./AppLayoutMobile";
 import { AdminLayoutProvider } from "./AdminLayoutContext";
+import { TeacherViewProvider } from "./TeacherViewContext";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@/features/notice/context/NoticeContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
-export default function AppLayout() {
+function AppLayoutContent() {
   const isMobile = useIsMobile();
 
   return (
-    <ThemeProvider>
+    <>
+      {isMobile ? (
+        <AdminLayoutProvider>
+          <AppLayoutMobile />
+        </AdminLayoutProvider>
+      ) : (
+    <div
+      data-app="admin"
+      style={{
+        height: "100vh",
+        minHeight: "100vh",
+        overflow: "hidden",
+        background: "var(--layout-canvas-bg)",
+        color: "var(--color-text-primary)",
+      }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "var(--sidebar-width) 1fr",
+          gridTemplateRows: "auto 1fr",
+          height: "100%",
+          minHeight: 0,
+        }}
+      >
+        <header
+          style={{
+            gridColumn: "1 / -1",
+            position: "sticky",
+            top: 0,
+            zIndex: 80,
+            background:
+              "color-mix(in srgb, var(--layout-header-bg) 92%, transparent)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+          }}
+        >
+          <Header />
+        </header>
+
+        <aside
+          className="sidebar"
+          style={{
+            gridRow: "2",
+            position: "sticky",
+            top: "var(--panel-header)",
+            height: "calc(100vh - var(--panel-header))",
+            overflow: "hidden",
+          }}
+        >
+          <Sidebar />
+        </aside>
+
+        <main
+          style={{
+            gridRow: "2",
+            minWidth: 0,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            overscrollBehavior: "contain",
+            WebkitOverflowScrolling: "touch",
+            background: "var(--layout-page-bg)",
+          }}
+        >
+          <div
+            style={{
+              padding: "var(--space-6)",
+              maxWidth: 1520,
+              margin: "0 auto",
+            }}
+          >
+            <Outlet />
+          </div>
+        </main>
+      </div>
+      <AsyncStatusBar />
+    </div>
+      )}
+    </>
+  );
+}
+
+export default function AppLayout() {
+  return (
+    <TeacherViewProvider>
+      <ThemeProvider>
       <ProgramProvider>
         <NoticeProvider>
           <ConfigProvider
@@ -67,85 +154,7 @@ export default function AppLayout() {
               },
             }}
           >
-            {isMobile ? (
-              <AdminLayoutProvider>
-                <AppLayoutMobile />
-              </AdminLayoutProvider>
-            ) : (
-            <div
-              data-app="admin"
-              style={{
-                height: "100vh",
-                minHeight: "100vh",
-                overflow: "hidden",
-                background: "var(--layout-canvas-bg)",
-                color: "var(--color-text-primary)",
-              }}
-            >
-              {/* ===== ROOT GRID: PC 레이아웃 ===== */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "var(--sidebar-width) 1fr",
-                  gridTemplateRows: "auto 1fr",
-                  height: "100%",
-                  minHeight: 0,
-                }}
-              >
-                <header
-                  style={{
-                    gridColumn: "1 / -1",
-                    position: "sticky",
-                    top: 0,
-                    zIndex: 80,
-                    background:
-                      "color-mix(in srgb, var(--layout-header-bg) 92%, transparent)",
-                    backdropFilter: "blur(14px)",
-                    WebkitBackdropFilter: "blur(14px)",
-                  }}
-                >
-                  <Header />
-                </header>
-
-                <aside
-                  className="sidebar"
-                  style={{
-                    gridRow: "2",
-                    position: "sticky",
-                    top: "var(--panel-header)",
-                    height: "calc(100vh - var(--panel-header))",
-                    overflow: "hidden",
-                  }}
-                >
-                  <Sidebar />
-                </aside>
-
-                <main
-                  style={{
-                    gridRow: "2",
-                    minWidth: 0,
-                    minHeight: 0,
-                    overflowY: "auto",
-                    overflowX: "hidden",
-                    overscrollBehavior: "contain",
-                    WebkitOverflowScrolling: "touch",
-                    background: "var(--layout-page-bg)",
-                  }}
-                >
-                  <div
-                    style={{
-                      padding: "var(--space-6)",
-                      maxWidth: 1520,
-                      margin: "0 auto",
-                    }}
-                  >
-                    <Outlet />
-                  </div>
-                </main>
-              </div>
-              <AsyncStatusBar />
-            </div>
-            )}
+            <AppLayoutContent />
           </ConfigProvider>
         </NoticeProvider>
       </ProgramProvider>
