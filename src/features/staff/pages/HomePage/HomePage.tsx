@@ -149,6 +149,7 @@ export default function HomePage() {
       ) : (
         <StaffHomeTable
           staffs={rows}
+          owner={owner}
           canManage={canManage}
           onOperate={(id) => navigate(`/admin/staff/operations?staffId=${id}`)}
           onDetail={(id) => navigate(`/admin/staff/${id}`)}
