@@ -24,7 +24,6 @@ type BrandingState = {
   windowTitles: Record<number, string>;
   displayNames: Record<number, string>;
 };
-type OwnerForm = { username: string; password: string; name: string; phone: string };
 
 type Props = {
   tenant: TenantDto | null;
@@ -32,11 +31,9 @@ type Props = {
   onTabChange: (tab: TabId) => void;
   branding: BrandingState;
   uploadingLogoId: number | null;
-  ownerForm: OwnerForm;
-  onOwnerFormChange: (tenantId: number, patch: Partial<OwnerForm>) => void;
-  onRegisterOwner: (tenantId: number) => void;
-  registeringOwnerId: number | null;
-  lastOwnerRegistered: Record<number, { username: string }>;
+  ownersList: TenantOwnerDto[];
+  ownersLoading: boolean;
+  onOpenOwnerSheet: () => void;
   onLogoUpload: (tenantId: number, file: File) => void;
   onSaveBranding: (tenantId: number) => void;
   onDisplayNameChange: (tenantId: number, value: string) => void;
