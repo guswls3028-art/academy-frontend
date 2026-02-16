@@ -159,5 +159,6 @@ export default function AppLayout() {
         </NoticeProvider>
       </ProgramProvider>
     </ThemeProvider>
+    </TeacherViewProvider>
   );
 }
