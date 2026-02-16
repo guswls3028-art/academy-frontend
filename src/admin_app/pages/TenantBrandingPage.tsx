@@ -46,6 +46,9 @@ export default function TenantBrandingPage() {
     name: string;
     phone: string;
   }>>({});
+  const [registeringOwnerId, setRegisteringOwnerId] = useState<number | null>(null);
+  const [lastOwnerRegistered, setLastOwnerRegistered] = useState<Record<number, { username: string }>>({});
+  const [messageType, setMessageType] = useState<"success" | "error" | null>(null);
 
   // 테넌트 목록 로드
   useEffect(() => {
