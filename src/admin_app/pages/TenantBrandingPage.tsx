@@ -9,34 +9,96 @@ import {
   uploadTenantLogo,
   patchTenantBranding,
 } from "@/admin_app/api/branding";
-
-const TENANTS: { id: TenantId; name: string }[] = [
-  { id: 1, name: "hakwonplus" },
-  { id: 4, name: "9999" }, // Local Dev Tenant
-  // 테넌트 2, 3은 현재 존재하지 않음
-];
+import {
+  getTenants,
+  createTenant,
+  registerTenantOwner,
+  type TenantDto,
+} from "@/admin_app/api/tenants";
 
 export default function TenantBrandingPage() {
+  const [tenants, setTenants] = useState<TenantDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [logoUrls, setLogoUrls] = useState<Record<number, string>>({});
-  const [loginTitles, setLoginTitles] = useState<Record<number, string>>(
-    Object.fromEntries(
-      TENANTS.map((t) => [t.id, getTenantBranding(t.id).loginTitle])
-    )
-  );
+  const [loginTitles, setLoginTitles] = useState<Record<number, string>>({});
+  
+  // 테넌트 생성 폼
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newTenantCode, setNewTenantCode] = useState("");
+  const [newTenantName, setNewTenantName] = useState("");
+  const [newTenantDomain, setNewTenantDomain] = useState("");
+  
+  // Owner 등록 폼
+  const [ownerForms, setOwnerForms] = useState<Record<number, string>>({});
 
+  // 테넌트 목록 로드
   useEffect(() => {
-    TENANTS.forEach(({ id }) => {
-      getTenantBrandingApi(id).then((data) => {
-        if (!data) return;
-        setLogoUrls((prev) => (data.logoUrl ? { ...prev, [id]: data.logoUrl! } : prev));
-        setLoginTitles((prev) =>
-          data.loginTitle != null ? { ...prev, [id]: data.loginTitle! } : prev
-        );
-      }).catch(() => {});
-    });
+    loadTenants();
   }, []);
+
+  const loadTenants = async () => {
+    try {
+      setLoading(true);
+      const data = await getTenants();
+      setTenants(data);
+      
+      // 각 테넌트의 브랜딩 정보 로드
+      data.forEach((tenant) => {
+        getTenantBrandingApi(tenant.id).then((branding) => {
+          if (!branding) return;
+          setLogoUrls((prev) => (branding.logoUrl ? { ...prev, [tenant.id]: branding.logoUrl! } : prev));
+          setLoginTitles((prev) =>
+            branding.loginTitle != null ? { ...prev, [tenant.id]: branding.loginTitle! } : prev
+          );
+        }).catch(() => {});
+      });
+    } catch (e) {
+      setMessage("테넌트 목록을 불러오는데 실패했습니다: " + String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTenant = async () => {
+    if (!newTenantCode || !newTenantName) {
+      setMessage("코드와 이름을 입력해주세요.");
+      return;
+    }
+    try {
+      await createTenant({
+        code: newTenantCode,
+        name: newTenantName,
+        domain: newTenantDomain || undefined,
+      });
+      setMessage(`테넌트 ${newTenantName} 생성 완료.`);
+      setShowCreateForm(false);
+      setNewTenantCode("");
+      setNewTenantName("");
+      setNewTenantDomain("");
+      loadTenants();
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { detail?: string } } };
+      setMessage("테넌트 생성 실패: " + (error.response?.data?.detail || String(e)));
+    }
+  };
+
+  const handleRegisterOwner = async (tenantId: number) => {
+    const username = ownerForms[tenantId];
+    if (!username) {
+      setMessage("사용자명을 입력해주세요.");
+      return;
+    }
+    try {
+      await registerTenantOwner(tenantId, username);
+      setMessage(`테넌트 ${tenantId}에 ${username}을(를) owner로 등록했습니다.`);
+      setOwnerForms((prev) => ({ ...prev, [tenantId]: "" }));
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { detail?: string } } };
+      setMessage("Owner 등록 실패: " + (error.response?.data?.detail || String(e)));
+    }
+  };
 
   const handleFile = useCallback(
     async (tenantId: number, file: File | null) => {
