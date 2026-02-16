@@ -12,9 +12,8 @@ import {
 
 const TENANTS: { id: TenantId; name: string }[] = [
   { id: 1, name: "hakwonplus" },
-  { id: 2, name: "tchul" },
-  { id: 3, name: "limglish" },
-  { id: 4, name: "ymath" },
+  { id: 4, name: "9999" }, // Local Dev Tenant
+  // 테넌트 2, 3은 현재 존재하지 않음
 ];
 
 export default function TenantBrandingPage() {
