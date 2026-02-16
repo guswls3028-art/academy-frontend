@@ -427,7 +427,7 @@ export default function TenantBrandingPage() {
         {tenants.map((tenant) => {
           const id = tenant.id;
           const name = tenant.name;
-          const fallback = getTenantBranding(id as import("@/shared/tenant/config").TenantId) ?? undefined;
+          const fallback = getTenantBranding(id as TenantId) ?? undefined;
           const logoUrl = logoUrls[id] ?? fallback?.logoUrl;
           const loginTitle = loginTitles[id] ?? fallback?.loginTitle ?? "";
           const loginSubtitle = loginSubtitles[id] ?? fallback?.loginSubtitle ?? "";
