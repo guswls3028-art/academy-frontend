@@ -316,11 +316,9 @@ export default function TenantBrandingPage() {
               displayNames,
             }}
             uploadingLogoId={uploading}
-            ownerForm={ownerForm}
-            onOwnerFormChange={handleOwnerFormChange}
-            onRegisterOwner={handleRegisterOwner}
-            registeringOwnerId={registeringOwnerId}
-            lastOwnerRegistered={lastOwnerRegistered}
+            ownersList={selectedTenantId != null ? (ownersByTenantId[selectedTenantId] ?? []) : []}
+            ownersLoading={selectedTenantId != null ? (ownersLoadingById[selectedTenantId] ?? false) : false}
+            onOpenOwnerSheet={() => setOwnerSheetOpen(true)}
             onLogoUpload={handleFile}
             onSaveBranding={handleSaveTitle}
             onDisplayNameChange={(id, v) => setDisplayNames((p) => ({ ...p, [id]: v }))}
