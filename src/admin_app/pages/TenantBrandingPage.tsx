@@ -128,12 +128,15 @@ export default function TenantBrandingPage() {
             phone: newOwnerPhone || undefined,
           });
           setMessage(`테넌트 ${newTenantName} 생성 완료. 오너 계정(${newOwnerUsername})도 함께 생성되었습니다.`);
+          setMessageType("success");
         } catch (ownerError: unknown) {
           const error = ownerError as { response?: { data?: { detail?: string } } };
           setMessage(`테넌트는 생성되었지만 오너 계정 생성 실패: ${error.response?.data?.detail || String(ownerError)}`);
+          setMessageType("error");
         }
       } else {
         setMessage(`테넌트 ${newTenantName} 생성 완료.`);
+        setMessageType("success");
       }
       
       setShowCreateForm(false);
@@ -149,6 +152,7 @@ export default function TenantBrandingPage() {
     } catch (e: unknown) {
       const error = e as { response?: { data?: { detail?: string } } };
       setMessage("테넌트 생성 실패: " + (error.response?.data?.detail || String(e)));
+      setMessageType("error");
     }
   };
 
