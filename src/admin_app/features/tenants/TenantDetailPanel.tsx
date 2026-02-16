@@ -39,6 +39,10 @@ type Props = {
   lastOwnerRegistered: Record<number, { username: string }>;
   onLogoUpload: (tenantId: number, file: File) => void;
   onSaveBranding: (tenantId: number) => void;
+  onDisplayNameChange: (tenantId: number, value: string) => void;
+  onWindowTitleChange: (tenantId: number, value: string) => void;
+  onLoginTitleChange: (tenantId: number, value: string) => void;
+  onLoginSubtitleChange: (tenantId: number, value: string) => void;
 };
 
 export default function TenantDetailPanel({
