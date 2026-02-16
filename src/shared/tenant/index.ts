@@ -129,5 +129,45 @@ export function getTenantCodeForHeader(): string | null {
   return null;
 }
 
+/**
+ * API 요청 시 X-Tenant-Code 값 (SSOT)
+ * - 중앙 API(api.hakwonplus.com)로 요청할 때 필수.
+ * - 1) hostname(도메인) 2) /login/xxx 경로 3) sessionStorage
+ */
+export function getTenantCodeForApiRequest(): string | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const { HOSTNAME_TO_TENANT_CODE } = require("./config");
+    const hostname = (window.location.hostname || "").trim().toLowerCase();
+    const fromHost =
+      HOSTNAME_TO_TENANT_CODE[hostname] ||
+      HOSTNAME_TO_TENANT_CODE[hostname.replace(/^www\./, "")];
+    if (fromHost) {
+      try {
+        sessionStorage.setItem("tenantCode", fromHost);
+      } catch {}
+      return fromHost;
+    }
+    const pathname = window.location.pathname || "";
+    const parts = pathname.split("/").filter(Boolean);
+    const loginIdx = parts.indexOf("login");
+    const fromPath =
+      loginIdx >= 0 && parts[loginIdx + 1] ? parts[loginIdx + 1] : null;
+    if (fromPath) {
+      try {
+        sessionStorage.setItem("tenantCode", fromPath);
+      } catch {}
+      return fromPath;
+    }
+    try {
+      return sessionStorage.getItem("tenantCode");
+    } catch {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 export type { TenantId } from "./config";
-export { getTenantIdFromCode, getTenantBranding } from "./config";
+export { getTenantIdFromCode, getTenantBranding, HOSTNAME_TO_TENANT_CODE } from "./config";
