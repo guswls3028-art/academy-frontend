@@ -24,7 +24,7 @@ export default function TenantBrandingFormPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; kind: "success" | "error" } | null>(null);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -66,7 +66,7 @@ export default function TenantBrandingFormPage() {
         setLoginSubtitle(ls);
         setInitial({ displayName: d, windowTitle: w, loginTitle: lt, loginSubtitle: ls });
       })
-      .catch(() => { if (!cancelled) setToast("로딩 실패"); })
+      .catch(() => { if (!cancelled) setToast({ message: "로딩 실패", kind: "error" }); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [tenantId, id]);
@@ -75,7 +75,7 @@ export default function TenantBrandingFormPage() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file || !file.type.startsWith("image/")) {
-        setToast("이미지 파일만 선택하세요.");
+        setToast({ message: "이미지 파일만 선택하세요.", kind: "error" });
         return;
       }
       setUploading(true);
@@ -83,10 +83,9 @@ export default function TenantBrandingFormPage() {
       uploadTenantLogo(id, file)
         .then((res) => {
           setLogoUrl(res.logoUrl);
-          setToast("로고 저장됨");
-          setTimeout(() => setToast(null), 3000);
+          setToast({ message: "로고 저장됨", kind: "success" });
         })
-        .catch(() => setToast("업로드 실패"))
+        .catch(() => setToast({ message: "업로드 실패", kind: "error" }))
         .finally(() => setUploading(false));
       e.target.value = "";
     },
