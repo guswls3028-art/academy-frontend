@@ -90,7 +90,7 @@ export default function TenantDetailMenuPage() {
       </div>
 
       <nav className="space-y-2">
-        {MENU_ITEMS.map((item) => {
+        {MENU_ITEMS(ownerCount).map((item) => {
           if (item.action === "owner") {
             return (
               <button
@@ -131,4 +131,10 @@ export default function TenantDetailMenuPage() {
         tenantName={tenant.name}
         onSuccess={(message) => {
           if (message) setToast(message);
-          getTenantOwners(id).then((list) => setOwnerCount(list.length)).catch((
+          getTenantOwners(id).then((list) => setOwnerCount(list.length)).catch(() => {});
+          setOwnerSheetOpen(false);
+        }}
+      />
+    </div>
+  );
+}
