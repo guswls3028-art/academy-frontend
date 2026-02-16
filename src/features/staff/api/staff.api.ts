@@ -20,6 +20,7 @@ export type Staff = {
 export type StaffListOwner = {
   id: null;
   name: string;
+  phone?: string | null;
   role: "OWNER";
   is_owner: true;
 };
