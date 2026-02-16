@@ -1,4 +1,4 @@
-﻿// PATH: src/features/staff/api/staffMe.api.ts
+// PATH: src/features/staff/api/staffMe.api.ts
 import api from "@/shared/api/axios";
 
 export type StaffMe = {
@@ -6,6 +6,10 @@ export type StaffMe = {
   is_superuser: boolean;
   is_staff: boolean;
   is_payroll_manager: boolean;
+  /** 현재 사용자가 이 테넌트 원장(owner)일 때 true. 직원 목록 원장 행 표시용 */
+  is_owner?: boolean;
+  /** is_owner 일 때 표시할 이름 (list API에 owner 없을 때 사용) */
+  owner_display_name?: string | null;
 };
 
 /**
