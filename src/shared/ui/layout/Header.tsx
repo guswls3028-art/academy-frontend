@@ -439,7 +439,7 @@ export default function Header() {
         </div>
         )}
 
-        {/* RIGHT */}
+        {/* RIGHT: 만들기 → 모바일/PC 전환 → 알람 → 테마 → 프로필 */}
         <div className="app-header__right">
           {!isMobile && (
           <Dropdown menu={quickMenu} trigger={["click"]} placement="bottomRight">
@@ -454,6 +454,19 @@ export default function Header() {
               </Button>
             </span>
           </Dropdown>
+          )}
+
+          {teacherView && (
+            <Button
+              intent="secondary"
+              size="lg"
+              iconOnly
+              className="app-header__iconBtn"
+              onClick={() => teacherView.setForceView(isMobile ? "desktop" : "mobile")}
+              aria-label={isMobile ? "PC 버전으로 보기" : "모바일 버전으로 보기"}
+              title={isMobile ? "PC 버전으로 보기" : "모바일 버전으로 보기"}
+              leftIcon={isMobile ? <IconMonitor /> : <IconSmartphone />}
+            />
           )}
 
           <Button
