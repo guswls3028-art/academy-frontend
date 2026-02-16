@@ -101,12 +101,19 @@ const HOSTNAME_TO_TENANT_CODE: Record<string, string> = {
 };
 
 /**
- * 테넌트 코드 추출: 1) /login/tchul 2) hostname 3) sessionStorage
- * 중앙 API(다른 호스트)로 요청할 때만 사용.
+ * 테넌트 코드 추출: 1) hostname(도메인) 2) /login/xxx 경로 3) sessionStorage
+ * 중앙 API(api.hakwonplus.com)로 요청 시 X-Tenant-Code 필수 — hostname 우선으로 항상 전송.
  */
 function getTenantCodeForRequest(): string | null {
   try {
     if (typeof window === "undefined") return null;
+    const host =
+      HOSTNAME_TO_TENANT_CODE[window.location.hostname] ||
+      HOSTNAME_TO_TENANT_CODE[window.location.hostname.replace(/^www\./, "")];
+    if (host) {
+      sessionStorage.setItem("tenantCode", host);
+      return host;
+    }
     const pathname = window.location.pathname;
     const parts = pathname.split("/").filter(Boolean);
     const loginIdx = parts.indexOf("login");
@@ -115,13 +122,6 @@ function getTenantCodeForRequest(): string | null {
     if (fromPath) {
       sessionStorage.setItem("tenantCode", fromPath);
       return fromPath;
-    }
-    const fromHost =
-      HOSTNAME_TO_TENANT_CODE[window.location.hostname] ||
-      HOSTNAME_TO_TENANT_CODE[window.location.hostname.replace(/^www\./, "")];
-    if (fromHost) {
-      sessionStorage.setItem("tenantCode", fromHost);
-      return fromHost;
     }
     return sessionStorage.getItem("tenantCode");
   } catch {
