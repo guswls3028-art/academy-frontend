@@ -236,6 +236,7 @@ export default function Header() {
   const loc = useLocation();
   const nav = useNavigate();
   const adminLayout = useAdminLayout();
+  const teacherView = useTeacherView();
   const isMobile = adminLayout != null;
   const { lectureId: lid, sessionId: sid } = parseIdsFromPath(loc.pathname);
 
