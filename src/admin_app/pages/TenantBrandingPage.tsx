@@ -519,7 +519,8 @@ export default function TenantBrandingPage() {
                             [id]: e.target.value,
                           }))
                         }
-                        className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                        className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm !text-gray-900 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                        style={{ color: '#111827' }}
                         placeholder="로그인 화면 하단 문구"
                       />
                       <button
