@@ -26,12 +26,9 @@ export default function AdminToast({ message, kind = "success", visible, onClose
   return (
     <div
       role="alert"
-      className="fixed left-4 right-4 top-4 z-[100] flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg animate-in fade-in slide-in-from-top-2 duration-200"
-      style={{
-        backgroundColor: isSuccess ? "var(--color-emerald-50, #ecfdf5)" : "var(--color-red-50, #fef2f2)",
-        color: isSuccess ? "var(--color-emerald-800, #065f46)" : "var(--color-red-800, #991b1b)",
-        borderColor: isSuccess ? "var(--color-emerald-200, #a7f3d0)" : "var(--color-red-200, #fecaca)",
-      }}
+      className={`fixed left-4 right-4 top-4 z-[100] flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg transition-opacity duration-200 ${
+        isSuccess ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-red-50 text-red-800 border-red-200"
+      }`}
     >
       {isSuccess && <span aria-hidden>✓</span>}
       <span>{message}</span>
