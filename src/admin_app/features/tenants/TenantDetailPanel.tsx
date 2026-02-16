@@ -2,7 +2,7 @@
 // 우측 워크스페이스: 탭(Overview, Branding, Domains, Owners) + 내용
 
 import { getTenantBranding, getTenantIdFromCode } from "@/shared/tenant/config";
-import type { TenantDto } from "@/admin_app/api/tenants";
+import type { TenantDto, TenantOwnerDto } from "@/admin_app/api/tenants";
 import OverviewTab from "./tabs/OverviewTab";
 import BrandingTab from "./tabs/BrandingTab";
 import DomainsTab from "./tabs/DomainsTab";
