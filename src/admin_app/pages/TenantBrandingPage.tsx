@@ -73,12 +73,12 @@ export default function TenantBrandingPage() {
           setLoginSubtitles((prev) =>
             branding.loginSubtitle != null ? { ...prev, [tenant.id]: branding.loginSubtitle! } : prev
           );
-          setWindowTitles((prev) =>
-            branding.windowTitle != null ? { ...prev, [tenant.id]: branding.windowTitle! } : prev
-          );
-          setDisplayNames((prev) =>
-            branding.displayName != null ? { ...prev, [tenant.id]: branding.displayName! } : prev
-          );
+          if (branding.windowTitle !== undefined) {
+            setWindowTitles((prev) => ({ ...prev, [tenant.id]: branding.windowTitle || "" }));
+          }
+          if (branding.displayName !== undefined) {
+            setDisplayNames((prev) => ({ ...prev, [tenant.id]: branding.displayName || "" }));
+          }
         }).catch(() => {});
       });
     } catch (e) {
