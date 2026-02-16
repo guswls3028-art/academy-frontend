@@ -50,104 +50,7 @@ export default function Sidebar() {
     return () => document.removeEventListener("ui:sidebar:toggle", onToggle);
   }, []);
 
-  const groups: NavGroup[] = useMemo(
-    () => [
-      {
-        items: [
-          {
-            to: `${BASE}/dashboard`,
-            label: "대시보드",
-            icon: <Icon d="M3 11l9-7 9 7v9H3z" />,
-          },
-          {
-            to: `${BASE}/students`,
-            label: "학생",
-            icon: (
-              <Icon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />
-            ),
-          },
-          {
-            to: `${BASE}/lectures`,
-            label: "강의",
-            icon: <Icon d="M4 4h16v12H4zM8 20h8" />,
-          },
-        ],
-      },
-      {
-        items: [
-          {
-            to: `${BASE}/exams`,
-            label: "시험",
-            icon: <Icon d="M7 3h10v18H7zM9 7h6M9 11h6M9 15h4" />,
-          },
-          {
-            to: `${BASE}/results`,
-            label: "성적",
-            icon: <Icon d="M4 18h16M6 15V9M12 15V5M18 15v-7" />,
-          },
-          {
-            to: `${BASE}/clinic`,
-            label: "클리닉",
-            icon: (
-              <Icon d="M12 21s7-4 7-10a7 7 0 0 0-14 0c0 6 7 10 7 10Z" />
-            ),
-          },
-        ],
-      },
-      {
-        items: [
-          {
-            to: `${BASE}/staff`,
-            label: "직원관리",
-            icon: (
-              <Icon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />
-            ),
-          },
-          {
-            to: `${BASE}/videos`,
-            label: "영상",
-            icon: <Icon d="M3 6h14v12H3zM17 10l4-2v8l-4-2z" />,
-          },
-          {
-            to: `${BASE}/storage`,
-            label: "저장소",
-            icon: <Icon d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />,
-          },
-          {
-            to: `${BASE}/community`,
-            label: "커뮤니티",
-            icon: <Icon d="M4 4h16v12H7l-3 3z" />,
-          },
-          {
-            to: `${BASE}/message`,
-            label: "메시지",
-            icon: (
-              <Icon d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-            ),
-          },
-        ],
-      },
-      {
-        items: [
-          {
-            to: `${BASE}/settings`,
-            label: "시스템 설정",
-            icon: (
-              <Icon d="M12 15.5a3.5 3.5 0 1 0 0-7M19.4 15a8 8 0 0 0 0-6l2-1-2-4-2.3.5a8 8 0 0 0-3.4-2L11 1h-4l-.7 2.5a8 8 0 0 0-3.4 2L1.6 5l-2 4 2 1a8 8 0 0 0 0 6l-2 1 2 4 2.3-.5a8 8 0 0 0 3.4 2L7 23h4l.7-2.5a8 8 0 0 0 3.4-2l2.3.5 2-4Z" />
-            ),
-          },
-          {
-            to: `${BASE}/profile/account`,
-            label: "내 계정",
-            icon: (
-              <Icon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />
-            ),
-          },
-        ],
-      },
-    ],
-    []
-  );
+  const groups = ADMIN_NAV_GROUPS;
 
   const isActive = (to: string) =>
     loc.pathname === to || loc.pathname.startsWith(to + "/");
@@ -190,7 +93,7 @@ export default function Sidebar() {
                         flex: "0 0 auto",
                       }}
                     >
-                      {it.icon}
+                      <NavIcon d={it.iconPath} />
                     </span>
 
                     {!collapsed && (
