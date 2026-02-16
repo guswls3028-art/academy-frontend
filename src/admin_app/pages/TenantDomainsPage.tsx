@@ -25,10 +25,22 @@ export default function TenantDomainsPage() {
       .finally(() => setLoading(false));
   }, [tenantId]);
 
-  if (loading || !tenant) {
+  if (loading) {
+    return (
+      <div className="pb-24">
+        <div className="mb-6 h-6 w-24 rounded bg-slate-100 animate-pulse" />
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (!tenant) {
     return (
       <div className="pb-24 flex items-center justify-center min-h-[40vh]">
-        <div className="text-slate-500">{loading ? "로딩 중..." : "테넌트를 찾을 수 없습니다."}</div>
+        <div className="text-slate-500">테넌트를 찾을 수 없습니다.</div>
       </div>
     );
   }
