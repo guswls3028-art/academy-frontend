@@ -423,6 +423,28 @@ export default function Header() {
 
         {/* RIGHT */}
         <div className="app-header__right">
+          {teacherView && (
+            isMobile ? (
+              <Button
+                intent="secondary"
+                size="lg"
+                className="app-header__menuBtn"
+                onClick={() => teacherView.setForceView("desktop")}
+              >
+                PC 버전으로 보기
+              </Button>
+            ) : (
+              <Button
+                intent="secondary"
+                size="lg"
+                className="app-header__menuBtn"
+                onClick={() => teacherView.setForceView("mobile")}
+              >
+                모바일 버전으로 보기
+              </Button>
+            )
+          )}
+
           {!isMobile && (
           <Dropdown menu={quickMenu} trigger={["click"]} placement="bottomRight">
             <span>
