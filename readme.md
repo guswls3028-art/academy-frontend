@@ -2,19 +2,21 @@
 
 학원 관리 시스템 프론트엔드 (React + TypeScript + Vite)
 
-**문서 SSOT**: 이 README가 최상위 문서입니다. 상세 배포·인프라는 백엔드 저장소 `academy/docs/DEPLOYMENT_MASTER_GUIDE.md` 참고.
+**문서 SSOT**: 이 README가 최상위 문서입니다. 배포·인프라는 백엔드 `academy/docs/README.md`, `academy/docs/배포.md` 참고.
 
 ---
 
 ## 앱 구분 (SSOT)
 
-| 구분 | 경로 | 설명 |
-|------|------|------|
-| **학생 앱** | `src/student/**` | 별개 앱 — 자체 `shared/`, 테마·디자인 시스템 보유. 관리자용 `shared/`·`styles/` 사용 금지 |
-| **관리자 앱** | 그 외 전부 | `src/app/`, `src/features/`, `src/shared/`, `src/styles/` 등 전부 관리자 전용 |
+| 구분 | 경로 | URL prefix | 설명 |
+|------|------|------------|------|
+| **admin_app** | `src/admin_app/` | `/dev/*` | 개발자용 — 테넌트 1·9999 owner 전용. 브랜딩·테넌트·오너 설정 (AppRouter에서 tenant 1/9999 owner 시 리다이렉트) |
+| **학생 앱** | `src/student/**` | (라우터 내부) | 별개 앱 — 자체 `shared/`, 테마·디자인 시스템. 관리자용 `shared/`·`styles/` 사용 금지 |
+| **관리자 앱** | 그 외 전부 | `/` | `src/app/`, `src/features/`, `src/shared/`, `src/styles/` — 선생/운영자용 |
 
-- **관리자 앱**: `src/shared/`, `src/styles/`(design-system) 포함해 루트의 공통 코드 전부 관리자용. 학생 앱에서 참조하지 않음.
-- **학생 앱**: `src/student/` 안에서만 동작. 학생 전용 `student/shared/`, `student/…/theme/`, `student/…/presets/` 등 자체 디자인·공용 코드 사용. 별개 앱 취급.
+- **admin_app**: `src/admin_app/`, 라우트 `/dev/home`, `/dev/branding` 등. 테넌트·브랜딩·오너 API는 `TenantResolvedAndOwner` 권한 사용.
+- **관리자 앱**: `src/shared/`, `src/styles/` 포함 루트 공통 코드는 관리자(선생)용. 학생 앱에서 참조하지 않음.
+- **학생 앱**: `src/student/` 내부만 사용. `student/shared/`, `student/…/theme/`, `student/…/presets/` 등 자체 디자인·공용 코드. 별개 앱 취급.
 
 ---
 
@@ -48,7 +50,7 @@ pnpm dev
 ```
 
 - **필수**: Node.js 18+, pnpm 8+
-- **배포**: `pnpm build` → `dist/`. 상세 절차는 백엔드 `docs/DEPLOYMENT_MASTER_GUIDE.md` 참고.
+- **배포**: `pnpm build` → `dist/`. 상세 절차는 [DEPLOY.md](DEPLOY.md) 및 백엔드 `academy/docs/배포.md` 참고.
 
 ---
 
@@ -70,4 +72,5 @@ pnpm dev
 ## 문서
 
 - **프론트 최상위**: 이 README.
-- **배포·인프라·ENV**: 백엔드 저장소 `academy/docs/DEPLOYMENT_MASTER_GUIDE.md`.
+- **프론트 배포**: [DEPLOY.md](DEPLOY.md).
+- **백엔드 배포·인프라**: 백엔드 저장소 `academy/docs/README.md`, `academy/docs/배포.md`.
