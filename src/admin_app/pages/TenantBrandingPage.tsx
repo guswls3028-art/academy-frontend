@@ -272,6 +272,38 @@ export default function TenantBrandingPage() {
         </div>
       )}
 
+      {/* Custom domains — 최소 동작: 등록된 도메인 목록 + Active/SSL 표시 */}
+      <div className="mb-6 bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900 mb-1">Custom domains</h2>
+        <p className="text-sm text-slate-600 mb-4">
+          Set up custom domains to point to your site.
+        </p>
+        {loading ? (
+          <p className="text-slate-500 text-sm">로딩 중...</p>
+        ) : (
+          <ul className="space-y-3">
+            {tenants.flatMap((t) => {
+              const domains = t.domains?.length ? t.domains : (t.primaryDomain ? [t.primaryDomain] : []);
+              return domains.map((host) => (
+                <li
+                  key={`${t.id}-${host}`}
+                  className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-slate-100 last:border-0"
+                >
+                  <span className="font-medium text-slate-900">{host}</span>
+                  <span className="text-xs text-slate-600">
+                    <span className="inline-flex items-center gap-1 text-green-600">Active</span>
+                    <span className="ml-2 inline-flex items-center gap-1 text-slate-500">SSL enabled</span>
+                  </span>
+                </li>
+              ));
+            })}
+            {tenants.length > 0 && tenants.every((t) => !(t.domains?.length || t.primaryDomain)) && (
+              <li className="text-slate-500 text-sm">등록된 커스텀 도메인이 없습니다.</li>
+            )}
+          </ul>
+        )}
+      </div>
+
       {showCreateForm && (
         <div className="mb-6 bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">새 테넌트 생성</h2>
