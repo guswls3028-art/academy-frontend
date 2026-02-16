@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
-    "build": "vite build && node scripts/copy-404.js",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

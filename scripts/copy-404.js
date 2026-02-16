@@ -1,6 +1,7 @@
 /**
- * Cloudflare Pages SPA 폴백: 미존재 경로 접근 시 index.html 제공
- * 빌드 후 dist/index.html → dist/404.html 복사
+ * SPA 폴백: dist/index.html → dist/404.html 복사.
+ * Cloudflare Pages에서는 사용하지 않음(404.html이 있으면 SPA 모드가 꺼져 /admin/* 등이 404됨).
+ * Netlify 등 404.html을 쓰는 호스팅에서만 필요 시 수동 실행.
  */
 import { copyFileSync, existsSync } from "fs";
 import { fileURLToPath } from "url";
