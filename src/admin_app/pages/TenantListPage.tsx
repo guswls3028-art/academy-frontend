@@ -2,7 +2,7 @@
 // STEP 1: Tenant 리스트 — 카드형, 48px 터치, 검색, Pull to Refresh, Swipe 액션, 토스트
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   getTenants,
   createTenant,
@@ -18,7 +18,6 @@ const PULL_THRESHOLD = 70;
 const SWIPE_REVEAL_PX = 80;
 
 export default function TenantListPage() {
-  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [tenants, setTenants] = useState<TenantDto[]>([]);
   const [loading, setLoading] = useState(true);
