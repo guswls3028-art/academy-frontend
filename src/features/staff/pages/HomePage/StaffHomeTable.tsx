@@ -244,11 +244,15 @@ export function StaffHomeTable({
               <td className="align-middle">
                 <span className="ds-status-badge" data-status="active">ON</span>
               </td>
-              <td className="text-[14px] leading-6 text-[var(--color-text-muted)] align-middle">-</td>
               <td className="align-middle">
-                <span className="text-[var(--color-text-muted)]">-</span>
+                <span className="ds-status-badge" data-tone="neutral">-</span>
               </td>
-              <td className="text-[14px] leading-6 text-[var(--color-text-muted)] align-middle">-</td>
+              <td className="align-middle">
+                <span className="ds-status-badge" data-tone="neutral">-</span>
+              </td>
+              <td className="align-middle">
+                <span className="ds-status-badge" data-tone="neutral">-</span>
+              </td>
             </tr>
           )}
           {dataSource.map((r) => (
