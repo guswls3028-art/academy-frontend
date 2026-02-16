@@ -189,7 +189,7 @@ export function StaffHomeTable({
             <th scope="col" style={{ width: COL.checkbox }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
               <input
                 type="checkbox"
-                checked={allSelected}
+                checked={Boolean(allSelected)}
                 ref={(el) => {
                   if (el) el.indeterminate = !allSelected && selectedSet.size > 0;
                 }}
