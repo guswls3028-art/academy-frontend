@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/layout/Header.tsx
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Dropdown, Input, Badge } from "antd";
