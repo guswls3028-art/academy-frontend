@@ -36,6 +36,12 @@ function RootRedirect() {
 
     const role = user.tenantRole;
 
+    // 테넌트 1번(hakwonplus) 슈퍼유저는 admin_app으로 리다이렉트
+    if (program.tenantCode === "hakwonplus" && user.is_superuser && role && ["owner", "admin", "teacher", "staff"].includes(role)) {
+      navigate("/dev/home", { replace: true });
+      return;
+    }
+
     if (role && ["owner", "admin", "teacher", "staff"].includes(role)) {
       navigate("/admin", { replace: true });
       return;
