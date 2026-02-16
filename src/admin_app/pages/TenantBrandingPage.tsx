@@ -503,11 +503,46 @@ export default function TenantBrandingPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
-                    로그인 타이틀
-                  </label>
-                  <div className="flex gap-2 mb-3">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
+                      표시 이름 (헤더에 표시) *
+                    </label>
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) =>
+                        setDisplayNames((prev) => ({
+                          ...prev,
+                          [id]: e.target.value,
+                        }))
+                      }
+                      className="ds-input w-full"
+                      data-required="true"
+                      placeholder="예: 박철 과학"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
+                      브라우저 타이틀 (창 제목)
+                    </label>
+                    <input
+                      type="text"
+                      value={windowTitle}
+                      onChange={(e) =>
+                        setWindowTitles((prev) => ({
+                          ...prev,
+                          [id]: e.target.value,
+                        }))
+                      }
+                      className="ds-input w-full"
+                      placeholder="예: 박철 과학 (비워두면 표시 이름 사용)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
+                      로그인 타이틀
+                    </label>
                     <input
                       type="text"
                       value={loginTitle}
@@ -517,9 +552,28 @@ export default function TenantBrandingPage() {
                           [id]: e.target.value,
                         }))
                       }
-                      className="ds-input flex-1"
+                      className="ds-input w-full"
                       placeholder="로그인 화면 상단 문구"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-900 mb-2">
+                      로그인 서브타이틀
+                    </label>
+                    <input
+                      type="text"
+                      value={loginSubtitle}
+                      onChange={(e) =>
+                        setLoginSubtitles((prev) => ({
+                          ...prev,
+                          [id]: e.target.value,
+                        }))
+                      }
+                      className="ds-input w-full"
+                      placeholder="로그인 화면 하단 문구"
+                    />
+                  </div>
+                  <div className="pt-2">
                     <button
                       type="button"
                       onClick={() => handleSaveTitle(id)}
@@ -527,34 +581,8 @@ export default function TenantBrandingPage() {
                       data-intent="primary"
                       data-size="md"
                     >
-                      Save
+                      모든 설정 저장
                     </button>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-900 mb-2">
-                      로그인 서브타이틀
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={loginSubtitle}
-                        onChange={(e) =>
-                          setLoginSubtitles((prev) => ({
-                            ...prev,
-                            [id]: e.target.value,
-                          }))
-                        }
-                        className="ds-input flex-1"
-                        placeholder="로그인 화면 하단 문구"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleSaveTitle(id)}
-                        className="px-3 py-2 bg-slate-700 text-white text-sm rounded hover:bg-slate-600 font-medium"
-                      >
-                        Save
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
