@@ -82,6 +82,20 @@
 
 ---
 
+## 5.1 선생앱(관리자) 모바일 UI
+
+**대상**: `src/app/`, `src/features/`, `src/shared/` (선생/관리자 앱). 개발앱(admin_app)·학생앱(student) 제외.
+
+- **뷰포트**: `useIsMobile()` (768px 이하 = 모바일). `src/shared/hooks/useIsMobile.ts`.
+- **PC**: 기존과 동일. `AppLayout` → Header + Sidebar + Main.
+- **모바일**: `AppLayout`에서 `isMobile`이면 `AdminLayoutProvider` + `AppLayoutMobile`.
+  - 상단 Header(로고·메뉴 버튼·알림·테마·계정). 브레드크럼·중앙 검색·만들기 버튼은 모바일에서 숨김.
+  - 메뉴 버튼/하단 "메뉴" 탭 → 좌측 Drawer(전체 사이드바 메뉴). `AdminNavDrawer`, `adminNavConfig.tsx`의 `ADMIN_NAV_GROUPS` 사용.
+  - 하단 탭바 `TeacherBottomBar`: 홈(대시보드)·학생·강의·커뮤니티·메뉴(드로어 열기). `ADMIN_MOBILE_TABS`.
+- **네비 공통**: `src/shared/ui/layout/adminNavConfig.tsx`에 `ADMIN_NAV_BASE`, `ADMIN_NAV_GROUPS`, `ADMIN_MOBILE_TABS`, `NavIcon`. Sidebar와 모바일 Drawer/탭바에서 공유.
+
+---
+
 ## 6. 학생 일괄 등록 — 엑셀 파싱
 
 **파일**: `src/features/students/excel/studentExcel.ts`
