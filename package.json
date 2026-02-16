@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/ensure-spa-mode.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
