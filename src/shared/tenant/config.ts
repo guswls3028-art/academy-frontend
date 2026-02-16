@@ -18,6 +18,14 @@ const HOST_TO_ID: Record<string, TenantId> = {
   "www.ymath.co.kr": 4,
 };
 
+/** 테넌트 코드 → TenantId (호스트 없이 tenantCode만 올 때 사용) */
+const CODE_TO_ID: Record<string, TenantId> = {
+  hakwonplus: 1,
+  tchul: 2,
+  limglish: 3,
+  ymath: 4,
+};
+
 export type TenantBranding = {
   loginTitle: string;
   loginSubtitle?: string;
