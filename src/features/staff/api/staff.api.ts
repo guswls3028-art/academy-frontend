@@ -16,6 +16,19 @@ export type Staff = {
   updated_at: string;
 };
 
+/** 직원 목록 API 응답에 포함되는 원장(owner) — 목록 상단 표시용 */
+export type StaffListOwner = {
+  id: null;
+  name: string;
+  role: "OWNER";
+  is_owner: true;
+};
+
+export type StaffListResponse = {
+  staffs: Staff[];
+  owner: StaffListOwner | null;
+};
+
 /**
  * Staff Summary (집계 전용)
  * 🔒 계산 단일진실
