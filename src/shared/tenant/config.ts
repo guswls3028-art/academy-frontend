@@ -26,6 +26,18 @@ const CODE_TO_ID: Record<string, TenantId> = {
   ymath: 4,
 };
 
+/** 호스트명 → 백엔드 테넌트 코드 (X-Tenant-Code 헤더용 SSOT) */
+export const HOSTNAME_TO_TENANT_CODE: Record<string, string> = {
+  "hakwonplus.com": "hakwonplus",
+  "www.hakwonplus.com": "hakwonplus",
+  "tchul.com": "tchul",
+  "www.tchul.com": "tchul",
+  "limglish.kr": "limglish",
+  "www.limglish.kr": "limglish",
+  "ymath.co.kr": "ymath",
+  "www.ymath.co.kr": "ymath",
+};
+
 export type TenantBranding = {
   loginTitle: string;
   loginSubtitle?: string;
