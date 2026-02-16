@@ -8,10 +8,12 @@ import AdminOwnerBottomSheet from "@/admin_app/components/AdminOwnerBottomSheet"
 import AdminToast from "@/admin_app/components/AdminToast";
 import "@/styles/design-system/index.css";
 
-const MENU_ITEMS = [
+const MENU_ITEMS = (
+  ownerCount: number
+): Array<{ to?: string; label: string; desc: string; action?: "owner" }> => [
   { to: "branding", label: "브랜딩 설정", desc: "로고, 로그인 문구" },
   { to: "domains", label: "도메인 관리", desc: "커스텀 도메인" },
-  { label: "Owner 관리", desc: "오너 계정 등록", action: "owner" as const },
+  { label: `Owner 관리 (${ownerCount}명)`, desc: "오너 계정 등록", action: "owner" as const },
   { to: "advanced", label: "고급 설정", desc: "상태, 메타" },
 ];
 
