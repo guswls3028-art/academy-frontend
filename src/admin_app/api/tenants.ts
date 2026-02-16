@@ -78,3 +78,24 @@ export async function registerTenantOwner(
   const res = await api.post<TenantOwnerDto>(`/core/tenants/${tenantId}/owner/`, payload);
   return res.data;
 }
+
+/** PATCH update owner (name, phone) */
+export async function updateTenantOwner(
+  tenantId: number,
+  userId: number,
+  payload: { name?: string; phone?: string }
+): Promise<TenantOwnerDto> {
+  const res = await api.patch<TenantOwnerDto>(
+    `/core/tenants/${tenantId}/owners/${userId}/`,
+    payload
+  );
+  return res.data;
+}
+
+/** DELETE remove owner from tenant (membership deactivated) */
+export async function removeTenantOwner(
+  tenantId: number,
+  userId: number
+): Promise<void> {
+  await api.delete(`/core/tenants/${tenantId}/owners/${userId}/`);
+}
