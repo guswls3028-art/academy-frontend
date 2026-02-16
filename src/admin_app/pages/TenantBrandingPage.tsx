@@ -228,16 +228,16 @@ export default function TenantBrandingPage() {
     const windowTitle = windowTitles[tenantId];
     const displayName = displayNames[tenantId];
     setMessage(null);
+    setMessageType(null);
     try {
-      await patchTenantBranding(tenantId, { 
+      await patchTenantBranding(tenantId, {
         loginTitle: title,
         loginSubtitle: subtitle,
         windowTitle: windowTitle,
         displayName: displayName,
       });
-      setMessage(`Tenant ${tenantId} 브랜딩 설정 저장됨.`);
-      // Program 데이터 리로드
-      window.location.reload();
+      setMessage("브랜딩 설정 저장됨.");
+      setMessageType("success");
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 404 || status === 501) {
@@ -247,6 +247,7 @@ export default function TenantBrandingPage() {
       } else {
         setMessage("저장 실패: " + String(e));
       }
+      setMessageType("error");
     }
   }, [loginTitles, loginSubtitles, windowTitles, displayNames]);
 
@@ -297,7 +298,7 @@ export default function TenantBrandingPage() {
               setMessage(null);
               setMessageType(null);
             }}
-            className="shrink-0 text-slate-500 hover:text-slate-700 aria-label-close"
+            className="shrink-0 p-1 -m-1 rounded text-slate-500 hover:text-slate-700 hover:bg-black/5"
             aria-label="닫기"
           >
             ✕
