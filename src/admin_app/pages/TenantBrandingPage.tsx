@@ -291,7 +291,9 @@ export default function TenantBrandingPage() {
                 </div>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-2">
+              <div className="border-t border-slate-200 pt-4">
+                <h3 className="text-md font-medium text-slate-700 mb-4">브랜딩 설정</h3>
+                <div className="grid gap-6 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     로고
@@ -356,6 +358,7 @@ export default function TenantBrandingPage() {
                     </button>
                   </div>
                 </div>
+              </div>
               </div>
             </section>
           );
