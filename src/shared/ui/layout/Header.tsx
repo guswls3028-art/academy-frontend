@@ -319,7 +319,7 @@ export default function Header() {
 
   return (
     <>
-      <div className="app-header">
+      <div className="app-header" data-mobile={isMobile || undefined}>
         {/* LEFT */}
         <div className="app-header__left">
           <Button
@@ -327,8 +327,12 @@ export default function Header() {
             size="lg"
             iconOnly
             className="app-header__iconBtn"
-            onClick={() => document.dispatchEvent(new Event("ui:sidebar:toggle"))}
-            aria-label="사이드바 토글"
+            onClick={() =>
+              isMobile
+                ? adminLayout?.openDrawer()
+                : document.dispatchEvent(new Event("ui:sidebar:toggle"))
+            }
+            aria-label={isMobile ? "메뉴 열기" : "사이드바 토글"}
             leftIcon={<IconMenu />}
           />
 
@@ -343,6 +347,7 @@ export default function Header() {
             <span className="app-header__brandName">{academyName}</span>
           </div>
 
+          {!isMobile && (
           <div className="app-header__crumbs">
             {crumbs.map((c, idx) => {
               const isLast = idx === crumbs.length - 1;
