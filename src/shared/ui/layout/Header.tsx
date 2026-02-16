@@ -266,20 +266,11 @@ export default function Header() {
 
 
 
-// 데모찾기
-  /** 🔒 Header-level override (임시 고정용) */
-  const [academyName, setAcademyName] = useState<string | null>(null);
+  // 브라우저 타이틀 동적 설정
+  useDocumentTitle();
 
-  useEffect(() => {
-    if (academyName === null) {
-      // 👇 여기 원하는 이름
-      setAcademyName("박철 과학");
-    }
-  }, [academyName]);
-
-
-  // 이거복구
-  // const academyName = program?.display_name || "HakwonPlus";
+  // 학원 이름: Program의 display_name 사용
+  const academyName = program?.display_name || "HakwonPlus";
   
   
 
