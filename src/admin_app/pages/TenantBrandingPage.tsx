@@ -46,7 +46,6 @@ export default function TenantBrandingPage() {
     name: string;
     phone: string;
   }>>({});
-  const [showOwnerForms, setShowOwnerForms] = useState<Record<number, boolean>>({});
 
   // 테넌트 목록 로드
   useEffect(() => {
@@ -58,13 +57,6 @@ export default function TenantBrandingPage() {
       setLoading(true);
       const data = await getTenants();
       setTenants(data);
-      
-      // 기본적으로 상세 모드로 설정
-      const initialOwnerForms: Record<number, boolean> = {};
-      data.forEach((tenant) => {
-        initialOwnerForms[tenant.id] = true; // 기본값: 상세 모드
-      });
-      setShowOwnerForms(initialOwnerForms);
       
       // 각 테넌트의 브랜딩 정보 로드
       data.forEach((tenant) => {
