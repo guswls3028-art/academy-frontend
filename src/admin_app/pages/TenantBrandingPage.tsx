@@ -154,10 +154,13 @@ export default function TenantBrandingPage() {
 
   const handleSaveTitle = useCallback(async (tenantId: number) => {
     const title = loginTitles[tenantId];
-    if (title == null) return;
+    const subtitle = loginSubtitles[tenantId];
     setMessage(null);
     try {
-      await patchTenantBranding(tenantId, { loginTitle: title });
+      await patchTenantBranding(tenantId, { 
+        loginTitle: title,
+        loginSubtitle: subtitle,
+      });
       setMessage(`Tenant ${tenantId} 로그인 타이틀 저장됨.`);
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status;
@@ -169,7 +172,7 @@ export default function TenantBrandingPage() {
         setMessage("저장 실패: " + String(e));
       }
     }
-  }, [loginTitles]);
+  }, [loginTitles, loginSubtitles]);
 
   if (loading) {
     return (
