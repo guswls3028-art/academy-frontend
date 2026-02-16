@@ -215,7 +215,7 @@ export function StaffHomeTable({
               <td onClick={(e) => e.stopPropagation()} style={{ width: COL.checkbox }} className="ds-checkbox-cell align-middle">
                 <input
                   type="checkbox"
-                  checked={selectedSet.has(OWNER_SELECTION_ID)}
+                  checked={!!selectedSet.has(OWNER_SELECTION_ID)}
                   onChange={() => toggleSelect(OWNER_SELECTION_ID)}
                   onClick={(e) => e.stopPropagation()}
                   aria-label="대표 선택"
