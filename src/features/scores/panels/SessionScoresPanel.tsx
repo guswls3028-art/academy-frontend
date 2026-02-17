@@ -32,11 +32,13 @@ export default function SessionScoresPanel({ sessionId }: { sessionId: number })
   const meta: SessionScoreMeta | null = data?.meta ?? null;
 
   const attendanceMap = useMemo(() => {
-    const list = Array.isArray(attendanceList) ? attendanceList : [];
+    const raw = attendanceList;
+    const list = Array.isArray(raw) ? raw : (raw as { results?: unknown[] })?.results ?? [];
     const map: Record<number, string> = {};
     for (const a of list) {
-      const eid = a?.enrollment_id ?? a?.enrollment;
-      if (eid != null && a?.status) map[Number(eid)] = String(a.status);
+      const item = a as { enrollment_id?: number; enrollment?: number; status?: string };
+      const eid = item?.enrollment_id ?? item?.enrollment;
+      if (eid != null && item?.status) map[Number(eid)] = String(item.status);
     }
     return map;
   }, [attendanceList]);
