@@ -55,8 +55,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     items: [
-      { to: `${ADMIN_NAV_BASE}/settings`, label: "시스템 설정", iconPath: "M12 15.5a3.5 3.5 0 1 0 0-7M19.4 15a8 8 0 0 0 0-6l2-1-2-4-2.3.5a8 8 0 0 0-3.4-2L11 1h-4l-.7 2.5a8 8 0 0 0-3.4 2L1.6 5l-2 4 2 1a8 8 0 0 0 0 6l-2 1 2 4 2.3-.5a8 8 0 0 0 3.4 2L7 23h4l.7-2.5a8 8 0 0 0 3.4-2l2.3.5 2-4Z" },
-      { to: `${ADMIN_NAV_BASE}/profile/account`, label: "내 계정", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" },
+      { to: `${ADMIN_NAV_BASE}/settings`, label: "설정", iconPath: "M12 15.5a3.5 3.5 0 1 0 0-7M19.4 15a8 8 0 0 0 0-6l2-1-2-4-2.3.5a8 8 0 0 0-3.4-2L11 1h-4l-.7 2.5a8 8 0 0 0-3.4 2L1.6 5l-2 4 2 1a8 8 0 0 0 0 6l-2 1 2 4 2.3-.5a8 8 0 0 0 3.4 2L7 23h4l.7-2.5a8 8 0 0 0 3.4-2l2.3.5 2-4Z" },
     ],
   },
 ];

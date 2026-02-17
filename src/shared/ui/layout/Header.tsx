@@ -244,9 +244,9 @@ function deriveCrumbs(
   if (p.startsWith("/messages"))
     return [{ label: "메시지", to: "/admin/message" }];
   if (p.startsWith("/settings"))
-    return [{ label: "시스템 설정", to: "/admin/settings" }];
+    return [{ label: "설정", to: "/admin/settings" }];
   if (p.startsWith("/profile"))
-    return [{ label: "내 계정", to: "/admin/profile/account" }];
+    return [{ label: "프로필", to: "/admin/profile" }];
   return [{ label: "워크스페이스" }];
 }
 
