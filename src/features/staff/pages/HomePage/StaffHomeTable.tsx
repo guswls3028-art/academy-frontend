@@ -275,10 +275,10 @@ export function StaffHomeTable({
                 {owner!.phone || "-"}
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge" data-status="active">활성</span>
+                <span className="ds-status-badge ds-status-badge--action" data-status="active">활성</span>
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge" data-status="active">ON</span>
+                <span className="ds-status-badge ds-status-badge--action" data-status="active">ON</span>
               </td>
               <td className="align-middle">
                 <span className="ds-status-badge" data-tone="neutral">-</span>
