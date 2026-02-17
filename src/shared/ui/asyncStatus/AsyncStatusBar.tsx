@@ -146,11 +146,21 @@ export default function AsyncStatusBar() {
 
   const displayTasks = tasks;
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
+  const errorCount = displayTasks.filter((t) => t.status === "error").length;
+
+  const triggerLabel =
+    displayTasks.length === 0
+      ? "작업"
+      : pendingCount > 0
+        ? `진행 중 ${displayTasks.length}건`
+        : errorCount > 0
+          ? `실패 ${errorCount}건`
+          : `${displayTasks.length}건 완료`;
 
   // 항상 우하단에 작업 박스 표시 (작업 없을 때도 접힌 상태로 유지)
   return (
     <div
-      className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"}`}
+      className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"} ${errorCount > 0 ? "async-status-bar--has-error" : ""}`}
       role="region"
       aria-label="비동기 작업 상태"
     >
@@ -164,13 +174,7 @@ export default function AsyncStatusBar() {
         <svg className="async-status-bar__trigger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
         </svg>
-        <span className="async-status-bar__trigger-count">
-          {displayTasks.length === 0
-            ? "작업"
-            : pendingCount > 0
-              ? `진행 중 ${displayTasks.length}건`
-              : `${displayTasks.length}건 완료`}
-        </span>
+        <span className="async-status-bar__trigger-count">{triggerLabel}</span>
       </button>
 
       {/* 펼쳤을 때: 목록 패널 */}
