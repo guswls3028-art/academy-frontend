@@ -16,10 +16,13 @@ function payLabel(v: Staff["pay_type"]) {
   return v === "HOURLY" ? "시급" : "월급";
 }
 
+/** basePath: 해당 탭 경로 (attendance | expenses | month-lock 등) */
 export default function StaffOperationTable({
   selectedStaffId,
+  basePath = "operations",
 }: {
   selectedStaffId?: number;
+  basePath?: "operations" | "attendance" | "expenses" | "month-lock" | "reports";
 }) {
   const { data, isLoading } = useStaffs();
   const navigate = useNavigate();
@@ -46,7 +49,7 @@ export default function StaffOperationTable({
 
   const pick = (id: number) => {
     params.set("staffId", String(id));
-    navigate(`/admin/staff/operations?${params.toString()}`);
+    navigate(`/admin/staff/${basePath}?${params.toString()}`);
   };
 
   return (
