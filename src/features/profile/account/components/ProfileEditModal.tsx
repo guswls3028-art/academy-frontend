@@ -105,16 +105,19 @@ export default function ProfileEditModal({
           {/* 아이디 (표시만) */}
           <div className="flex flex-col gap-1.5">
             <label className={LABEL_CLASS}>아이디</label>
-            <div
-              className="ds-input w-full cursor-default"
+            <input
+              type="text"
+              className="ds-input w-full"
+              value={displayUsername || ""}
+              readOnly
+              disabled
+              aria-label="아이디 (변경 불가)"
               style={{
                 background: "var(--color-bg-surface-soft)",
                 color: "var(--color-text-secondary)",
+                cursor: "default",
               }}
-              aria-readonly
-            >
-              {displayUsername || "—"}
-            </div>
+            />
             <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
               아이디는 변경할 수 없습니다.
             </span>
