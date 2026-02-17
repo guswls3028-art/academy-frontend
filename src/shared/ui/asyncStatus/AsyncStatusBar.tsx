@@ -184,6 +184,14 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           )}
         </div>
       )}
+      {task.status !== "pending" && progressNum != null && (
+        <div className="async-status-bar__progress-wrap async-status-bar__progress-wrap--done">
+          <div className="async-status-bar__progress">
+            <div className="async-status-bar__progress-fill" style={{ width: "100%" }} />
+          </div>
+          <span className="async-status-bar__progress-pct" aria-hidden>{progressNum}%</span>
+        </div>
+      )}
     </div>
   );
 }
