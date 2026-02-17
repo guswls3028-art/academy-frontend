@@ -165,25 +165,9 @@ export default function Header() {
   const adminLayout = useAdminLayout();
   const teacherView = useTeacherView();
   const isMobile = adminLayout != null;
-  const { lectureId: lid, sessionId: sid } = parseIdsFromPath(loc.pathname);
-
-  const { data: lecture } = useQuery({
-    queryKey: ["lecture", lid],
-    queryFn: () => fetchLecture(lid),
-    enabled: Number.isFinite(lid) && lid > 0,
-  });
-
-  const { data: session } = useQuery({
-    queryKey: ["session", sid],
-    queryFn: () => fetchSession(sid),
-    enabled: Number.isFinite(sid) && sid > 0,
-  });
-
-  const crumbs = useMemo(
-    () => deriveCrumbs(loc.pathname, lecture, session),
-    [loc.pathname, lecture, session]
-  );
   const { program } = useProgram();
+  const { data: messagingInfo } = useMessagingInfo();
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
 
   const [searchParams] = useSearchParams();
   const searchFromUrl = searchParams.get("search") ?? "";
