@@ -213,53 +213,128 @@
   text-align: right;
 }
 
+/* ----- 알림 드롭다운 (전역 디자인 토큰·가독성·overflow 방지) ----- */
 [data-app="admin"] .app-header__alarmDropdown {
   width: 320px;
+  min-width: 280px;
+  max-width: min(360px, calc(100vw - var(--space-6)));
   max-height: 400px;
   background: var(--color-bg-surface);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--elevation-dropdown, 0 8px 24px rgba(0, 0, 0, 0.12));
   border: 1px solid var(--color-border-divider);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 [data-app="admin"] .app-header__alarmDropdownHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
   font-weight: 700;
   font-size: 14px;
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+[data-app="admin"] .app-header__alarmDropdownHeaderLink {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--color-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 4px;
+}
+
+[data-app="admin"] .app-header__alarmDropdownHeaderLink:hover {
+  text-decoration: underline;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
 [data-app="admin"] .app-header__alarmDropdownList {
-  padding: 8px;
+  padding: var(--space-2);
   max-height: 280px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
 [data-app="admin"] .app-header__alarmDropdownEmpty {
-  padding: 24px 16px;
+  padding: var(--space-6) var(--space-4);
   text-align: center;
   color: var(--color-text-muted);
   font-size: 13px;
 }
 
 [data-app="admin"] .app-header__alarmDropdownItem {
-  padding: 10px 12px;
+  padding: var(--space-3) var(--space-3);
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  border-bottom: 1px solid var(--color-border-divider);
+  transition: background 0.15s ease;
+}
+
+[data-app="admin"] .app-header__alarmDropdownItem:last-child {
+  border-bottom: none;
 }
 
 [data-app="admin"] .app-header__alarmDropdownItem:hover {
-  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+[data-app="admin"] .app-header__alarmDropdownItemInner {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+[data-app="admin"] .app-header__alarmDropdownItemAccent {
+  flex-shrink: 0;
+  width: 4px;
+  border-radius: 2px;
+  margin-top: 2px;
+  align-self: flex-start;
+}
+
+[data-app="admin"] .app-header__alarmDropdownItem[data-level="success"] .app-header__alarmDropdownItemAccent {
+  background: var(--color-success, #22c55e);
+}
+
+[data-app="admin"] .app-header__alarmDropdownItem[data-level="info"] .app-header__alarmDropdownItemAccent {
+  background: var(--color-info, #3b82f6);
+}
+
+[data-app="admin"] .app-header__alarmDropdownItem[data-level="warning"] .app-header__alarmDropdownItemAccent {
+  background: var(--color-warning, #eab308);
+}
+
+[data-app="admin"] .app-header__alarmDropdownItem[data-level="error"] .app-header__alarmDropdownItemAccent {
+  background: var(--color-error, #ef4444);
+}
+
+[data-app="admin"] .app-header__alarmDropdownItemContent {
+  flex: 1;
+  min-width: 0;
 }
 
 [data-app="admin"] .app-header__alarmDropdownItem strong {
   display: block;
   margin-bottom: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.35;
 }
 
 [data-app="admin"] .app-header__alarmDropdownItemBody {
@@ -267,6 +342,8 @@
   font-size: 12px;
   color: var(--color-text-muted);
   font-weight: 400;
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
 [data-app="admin"] .app-header__userBtn {
