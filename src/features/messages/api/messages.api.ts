@@ -177,9 +177,14 @@ export async function submitMessageTemplateReview(
 
 export type SendToType = "student" | "parent";
 
+/** sms=SMS만, alimtalk=알림톡만, both=알림톡→SMS폴백 */
+export type MessageMode = "sms" | "alimtalk" | "both";
+
 export interface SendMessagePayload {
   student_ids: number[];
   send_to: SendToType;
+  /** sms | alimtalk | both */
+  message_mode?: MessageMode;
   template_id?: number | null;
   raw_body?: string;
   raw_subject?: string;
