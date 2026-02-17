@@ -148,3 +148,28 @@ export async function submitMessageTemplateReview(
   );
   return res.data;
 }
+
+// ----------------------------------------
+// 메시지 발송 (공용 모달에서 사용)
+// ----------------------------------------
+
+export type SendToType = "student" | "parent";
+
+export interface SendMessagePayload {
+  student_ids: number[];
+  send_to: SendToType;
+  template_id?: number | null;
+  raw_body?: string;
+  raw_subject?: string;
+}
+
+export interface SendMessageResponse {
+  detail: string;
+  enqueued: number;
+  skipped_no_phone: number;
+}
+
+export async function sendMessage(payload: SendMessagePayload): Promise<SendMessageResponse> {
+  const res = await api.post<SendMessageResponse>(`${PREFIX}/send/`, payload);
+  return res.data;
+}
