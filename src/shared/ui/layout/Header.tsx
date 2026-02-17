@@ -179,7 +179,13 @@ export default function Header() {
     if (isOnDashboard && searchFromUrl !== q) setQ(searchFromUrl);
   }, [isOnDashboard, searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
+  const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
   const { unreadCount, notices } = useNotices();
+
+  const openNoticeAndCloseAlarm = () => {
+    setAlarmDropdownOpen(false);
+    setOpenNotice(true);
+  };
 
 
 
