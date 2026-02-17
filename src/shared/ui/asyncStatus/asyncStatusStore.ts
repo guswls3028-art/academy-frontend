@@ -64,6 +64,11 @@ export const asyncStatusStore = {
     return () => listeners.delete(listener);
   },
 
+  /** 현재 테넌트 코드 (작업 추가 시점에 저장되어 표시 시 필터에 사용) */
+  _getTenantScope(): string {
+    return getTenantCodeForApiRequest() ?? "";
+  },
+
   /**
    * 새 작업 추가 (일반)
    */
@@ -76,6 +81,7 @@ export const asyncStatusStore = {
         label,
         status: "pending" as const,
         createdAt: Date.now(),
+        tenantScope: this._getTenantScope(),
       },
     ];
     emit();
@@ -95,6 +101,7 @@ export const asyncStatusStore = {
         status: "pending" as const,
         createdAt: Date.now(),
         meta: { jobId, jobType },
+        tenantScope: this._getTenantScope(),
       },
     ];
     emit();
