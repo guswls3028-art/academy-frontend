@@ -16,10 +16,17 @@ import ScoreInputCell from "./ScoreInputCell";
 type Props = {
   examId: number;
   enrollmentId: number;
-  colSpan: number;
+  colSpan?: number;
+  /** 'table' = tr/td (기존), 'block' = div만 (그리드 확장행용) */
+  variant?: "table" | "block";
 };
 
-export default function InlineExamItemsRow({ examId, enrollmentId, colSpan }: Props) {
+export default function InlineExamItemsRow({
+  examId,
+  enrollmentId,
+  colSpan = 1,
+  variant = "table",
+}: Props) {
   const qc = useQueryClient();
 
   const { data: items } = useQuery({
