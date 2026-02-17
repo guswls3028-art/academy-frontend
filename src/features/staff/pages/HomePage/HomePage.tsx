@@ -16,6 +16,7 @@ import { useSendMessageModal } from "@/features/messages/context/SendMessageModa
 export default function HomePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { openSendMessageModal } = useSendMessageModal();
   const { data: staffData, isLoading } = useStaffs();
   const staffs = staffData?.staffs ?? [];
   const meQ = useQuery({
@@ -73,7 +74,7 @@ export default function HomePage() {
         선택 해제
       </Button>
       <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
+      <Button intent="secondary" size="sm" onClick={() => openSendMessageModal({ studentIds: [] })}>
         메시지 발송
       </Button>
       <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
