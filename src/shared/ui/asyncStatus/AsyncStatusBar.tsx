@@ -77,8 +77,9 @@ function RetryIcon({ className, size = 16 }: { className?: string; size?: number
   );
 }
 
-function TaskItem({ task }: { task: AsyncTask }) {
+function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const typeBadge = task.meta?.jobType ? JOB_TYPE_BADGE[task.meta.jobType] : null;
+  const remainingLabel = getRemainingLabel(task, now);
   const canRetry =
     task.meta?.jobType === "video_processing" &&
     task.meta?.jobId &&
