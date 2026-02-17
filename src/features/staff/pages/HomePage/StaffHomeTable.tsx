@@ -341,7 +341,7 @@ export function StaffHomeTable({
                     {patchManagerM.isPending ? "…" : r.is_manager ? "ON" : "OFF"}
                   </button>
                 ) : (
-                  <span className="ds-status-badge" data-status={r.is_manager ? "active" : "inactive"}>
+                  <span className="ds-status-badge ds-status-badge--action" data-status={r.is_manager ? "active" : "inactive"}>
                     {r.is_manager ? "ON" : "OFF"}
                   </span>
                 )}
