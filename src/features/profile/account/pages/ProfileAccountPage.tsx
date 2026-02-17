@@ -1,7 +1,6 @@
 // PATH: src/features/profile/account/pages/ProfileAccountPage.tsx
-// 설정 > 내 정보 — 조회·수정 단일 카드, 프리미엄 UX
+// 설정 > 내 정보 — 명함 스타일, 수정 모달, 비밀번호/로그아웃 최하단
 
-import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchMe, updateProfile } from "../../api/profile.api";
@@ -28,27 +27,12 @@ export default function ProfileAccountPage() {
     },
   });
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [pwOpen, setPwOpen] = useState(false);
 
-  useEffect(() => {
-    if (meQ.data) {
-      setName(meQ.data.name ?? "");
-      setPhone(meQ.data.phone ?? "");
-    }
-  }, [meQ.data]);
-
-  const dirty = useMemo(
-    () =>
-      name !== (meQ.data?.name ?? "") || phone !== (meQ.data?.phone ?? ""),
-    [name, phone, meQ.data]
-  );
-
-  const save = async () => {
+  const save = async (payload: { name?: string; phone?: string }) => {
     await updateMut.mutateAsync({
-      name: name.trim() || undefined,
-      phone: phone.trim() || undefined,
+      name: payload.name?.trim() || undefined,
+      phone: payload.phone?.trim() || undefined,
     });
   };
 
@@ -87,13 +71,8 @@ export default function ProfileAccountPage() {
     <>
       <ProfileInfoCard
         me={meQ.data}
-        name={name}
-        phone={phone}
-        onChangeName={setName}
-        onChangePhone={setPhone}
         onSave={save}
         saving={updateMut.isPending}
-        dirty={dirty}
         onPasswordClick={() => setPwOpen(true)}
         onLogout={clearAuth}
       />
