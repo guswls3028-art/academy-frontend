@@ -266,7 +266,23 @@
   color: var(--color-text-secondary, #4b5563);
 }
 
-/* 작업 유형 뱃지 3종: 메시지, 엑셀, 동영상 (전역 ds-status-badge 활용) */
+/* 첫 줄: [상태뱃지] [유형뱃지] 파일이름 남은시간 */
+.async-status-bar__item-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.async-status-bar__status-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* 작업 유형 뱃지: 동영상, 엑셀, OMR, 메시지 (전역 ds-status-badge 활용) */
 .async-status-bar__type-badge {
   flex-shrink: 0;
   padding: 2px 8px;
@@ -276,6 +292,18 @@
 
 .async-status-bar__item-label-text {
   word-break: break-word;
+  min-width: 0;
+}
+
+.async-status-bar__item-remaining {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.async-status-bar__item-waiting {
+  font-size: 12px;
+  color: var(--color-text-muted, #6b7280);
 }
 
 .async-status-bar__item-progress-num {
