@@ -59,6 +59,47 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
   );
 }
 
+const LIGHT_TAG_COLORS = ["#eab308", "#06b6d4"];
+function isLightTagColor(c: string) {
+  return LIGHT_TAG_COLORS.some((x) => String(c || "").toLowerCase() === x);
+}
+
+/** 드롭업 옵션 1개 — 실제 색상 뱃지로 표시 */
+function WorkTypeOption({
+  wt,
+  onSelect,
+  disabled,
+}: {
+  wt: WorkType;
+  onSelect: () => void;
+  disabled: boolean;
+}) {
+  const color = wt.color || "#6b7280";
+  const name = wt.name || "";
+  const wageText =
+    wt.base_hourly_wage != null ? ` (${(wt.base_hourly_wage / 10000).toFixed(1)}만/시)` : "";
+  const label = `${name}${wageText}`;
+  return (
+    <button
+      type="button"
+      className="w-full text-left px-2 py-1.5 rounded hover:opacity-90 transition-opacity disabled:opacity-50"
+      onClick={onSelect}
+      disabled={disabled}
+    >
+      <span
+        className="inline-flex items-center shrink-0 px-2 py-1 rounded text-[12px] font-semibold"
+        style={{
+          backgroundColor: color,
+          color: isLightTagColor(color) ? "#1a1a1a" : "#fff",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
+        }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
 interface Props {
   staffs: Staff[] | undefined;
   owner?: StaffListOwner | null;
