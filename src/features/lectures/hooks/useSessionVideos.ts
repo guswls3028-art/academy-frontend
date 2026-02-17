@@ -15,7 +15,7 @@ export function useSessionVideos(sessionId: number) {
 
     queryFn: async () => {
       const res = await api.get("/media/videos/", {
-        params: { session_id: sessionId },
+        params: { session: sessionId }, // backend filterset_fields expects "session" not "session_id"
       });
       return res.data.results ?? res.data;
     },
