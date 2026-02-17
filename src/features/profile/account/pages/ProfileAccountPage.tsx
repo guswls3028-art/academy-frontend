@@ -3,7 +3,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FiKey, FiLogOut } from "react-icons/fi";
 
 import { fetchMe, updateProfile } from "../../api/profile.api";
 import useAuth from "@/features/auth/hooks/useAuth";
