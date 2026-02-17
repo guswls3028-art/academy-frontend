@@ -58,6 +58,7 @@ export default function SendMessageModal({
       setSelectedTemplateId(null);
       setContentMode("free");
       setSendTo("parent");
+      setMessageMode("sms");
     }
   }, [open]);
 
