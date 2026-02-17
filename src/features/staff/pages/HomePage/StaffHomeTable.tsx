@@ -401,7 +401,7 @@ export function StaffHomeTable({
                       </button>
                       {openAddForStaffId === r.id && (
                         <div className="absolute z-10 left-0 top-full mt-1 py-1 min-w-[160px] rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] shadow-lg">
-                          {(allWorkTypes.filter(
+                          {allWorkTypes.filter(
                             (wt) => !(r.staff_work_types || []).some((swt) => swt.work_type?.id === wt.id)
                           ).length === 0 ? (
                             <div className="px-3 py-2 text-[13px] text-[var(--color-text-muted)]">
