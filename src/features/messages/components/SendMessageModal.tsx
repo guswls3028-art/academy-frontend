@@ -43,6 +43,7 @@ export default function SendMessageModal({
   const [body, setBody] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [sendTo, setSendTo] = useState<SendToType>("parent");
+  const [messageMode, setMessageMode] = useState<MessageMode>("sms");
   const [sending, setSending] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
 
