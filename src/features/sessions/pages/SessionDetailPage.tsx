@@ -15,8 +15,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 
-import { Button } from "@/shared/ui/ds";
-
 import api from "@/shared/api/axios";
 
 import EnrollStudentModal from "@/features/lectures/components/EnrollStudentModal";
