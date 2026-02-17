@@ -27,7 +27,7 @@ export default function MessageLinkPage() {
   };
 
   const handleSaveSender = () => {
-    updateMessaging({ messaging_sender: sender.trim() || null });
+    updateMessaging({ messaging_sender: sender.trim() || "" });
   };
 
   return (
