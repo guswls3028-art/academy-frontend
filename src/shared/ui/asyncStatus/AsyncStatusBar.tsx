@@ -12,6 +12,41 @@ import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncS
 import "@/styles/design-system/components/AsyncStatusBar.css";
 import "@/styles/design-system/ds/status.css";
 
+function IconVideo({ className, size = 18 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="23 7 16 12 23 17 23 7" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+  );
+}
+
+function IconExcel({ className, size = 18 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M8 13h2M8 17h2M16 13h2M16 17h2" />
+    </svg>
+  );
+}
+
+function IconOmr({ className, size = 18 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  );
+}
+
+function IconMessage({ className, size = 18 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
 /** 작업 유형 → 아이콘 컴포넌트 (동영상, 엑셀, OMR, 메시지) */
 const JOB_TYPE_ICONS: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
   message: IconMessage,
@@ -84,7 +119,7 @@ function RetryIcon({ className, size = 16 }: { className?: string; size?: number
 }
 
 function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
-  const typeBadge = task.meta?.jobType ? JOB_TYPE_BADGE[task.meta.jobType] : null;
+  const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
   const remainingLabel = getRemainingLabel(task, now);
   const canRetry =
     task.meta?.jobType === "video_processing" &&
