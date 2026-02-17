@@ -105,7 +105,6 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       await qc.invalidateQueries({
         queryKey: ["session-videos", sessionId],
       });
-      onClose();
     },
 
     onError: (e: unknown) => {
@@ -124,6 +123,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
   const handleUpload = () => {
     uploadMut.mutate();
+    onClose();
   };
 
   return (
