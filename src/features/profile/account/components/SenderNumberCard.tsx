@@ -80,7 +80,9 @@ export default function SenderNumberCard() {
           role="group"
           aria-label="발신번호"
         >
-          <Input
+          <input
+            type="tel"
+            className="ds-input"
             placeholder="예: 01031217466"
             value={sender}
             onChange={(e) => setSender(e.target.value)}
