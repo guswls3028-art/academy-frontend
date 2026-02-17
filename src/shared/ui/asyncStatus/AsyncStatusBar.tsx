@@ -198,6 +198,13 @@ export default function AsyncStatusBar() {
   const displayTasks = tasks;
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
 
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (pendingCount === 0) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [pendingCount]);
+
   // 새로고침 후에도 진행 중인 영상 인코딩을 작업 박스에 복원
   useEffect(() => {
     if (hydratedRef.current) return;
@@ -300,7 +307,7 @@ export default function AsyncStatusBar() {
           {displayTasks.length === 0 ? (
             <div className="async-status-bar__empty">진행 중인 작업이 없습니다.</div>
           ) : (
-            displayTasks.map((task) => <TaskItem key={task.id} task={task} />)
+            displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} />)
           )}
         </div>
       </div>
