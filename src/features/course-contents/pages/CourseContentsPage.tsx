@@ -41,8 +41,12 @@ function useLecturesWithSessions() {
 
 export default function CourseContentsPage() {
   const navigate = useNavigate();
+  const { lectureId, sessionId } = useParams<{ lectureId?: string; sessionId?: string }>();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+
+  const selectedLectureId = lectureId ? parseInt(lectureId, 10) : null;
+  const selectedSessionId = sessionId ? parseInt(sessionId, 10) : null;
 
   const { lectures, isLoading } = useLecturesWithSessions();
 
