@@ -171,8 +171,12 @@ export default function ProfileInfoCard({
           {/* 푸터: 비밀번호 변경 · 로그아웃 */}
           {(onPasswordClick != null || onLogout != null) && (
             <div className="ds-card-modal__footer">
-              <span className="text-[var(--text-sm)] font-medium" style={{ color: MUTED_COLOR }}>
-                계정 · 보안
+              <span
+                className="flex items-center gap-2 text-[var(--text-sm)] font-medium"
+                style={{ color: MUTED_COLOR }}
+                aria-label="계정 · 보안"
+              >
+                <FiKey size={14} aria-hidden />
               </span>
               <div className="flex flex-wrap items-center gap-2">
                 {onPasswordClick != null && (
