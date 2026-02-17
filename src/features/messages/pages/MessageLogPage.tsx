@@ -1,9 +1,9 @@
 // PATH: src/features/messages/pages/MessageLogPage.tsx
-// 발송 내역 — 성공/실패 여부, 차감 금액 리스트
+// 발송 내역 — 성공/실패 여부, 차감 금액 리스트 (students 도메인 디자인)
 
 import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Section, SectionHeader, EmptyState } from "@/shared/ui/ds";
+import { Panel, EmptyState } from "@/shared/ui/ds";
 import { useNotificationLog } from "../hooks/useNotificationLog";
 import type { NotificationLogItem } from "../api/messages.api";
 
