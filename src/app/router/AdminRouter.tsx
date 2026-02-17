@@ -162,11 +162,11 @@ export default function AdminRouter() {
         {/* ================= Staff ================= */}
         <Route path="staff/*" element={<StaffRoutes />} />
 
-        {/* ================= 설정 (시스템 설정 · 내 계정 탭) ================= */}
+        {/* ================= 설정 (내 정보 · 테마 탭) ================= */}
         <Route path="settings" element={<SettingsLayout />}>
-          <Route index element={<Navigate to="system" replace />} />
-          <Route path="system" element={<SettingsPage />} />
+          <Route index element={<Navigate to="account" replace />} />
           <Route path="account" element={<ProfileAccountPage />} />
+          <Route path="system" element={<SettingsPage />} />
         </Route>
 
         {/* ================= Profile (근태 · 지출 — 내 계정은 설정 탭으로) ================= */}
