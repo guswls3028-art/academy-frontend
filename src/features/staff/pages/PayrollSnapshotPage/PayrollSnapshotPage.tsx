@@ -1,5 +1,6 @@
 // PATH: src/features/staff/pages/PayrollSnapshotPage/PayrollSnapshotPage.tsx
 // 급여 스냅샷: 월별 확정 근무시간·급여·경비 요약
+// ※ 직원 열 뱃지/급여형태는 홈(근태) 탭과 동일 SSOT: StaffRoleAvatar, RoleBadge, payLabel
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,10 +10,18 @@ import {
   type PayrollSnapshot,
 } from "../../api/payrollSnapshots.api";
 import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
+import { useStaffs } from "../../hooks/useStaffs";
+import type { Staff } from "../../api/staff.api";
+import { StaffRoleAvatar } from "@/shared/ui/avatars";
+import { RoleBadge } from "../../components/StatusBadge";
 import ActionButton from "../../components/ActionButton";
 
 function ymLabel(y: number, m: number) {
   return `${y}년 ${m}월`;
+}
+
+function payLabel(payType: Staff["pay_type"]) {
+  return payType === "HOURLY" ? "시급" : "월급";
 }
 
 export default function PayrollSnapshotPage() {
