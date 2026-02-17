@@ -500,7 +500,7 @@ export default function Header() {
                 size="lg"
                 iconOnly
                 className="app-header__iconBtn"
-                aria-label="내 계정"
+                aria-label="설정"
                 leftIcon={<IconUser />}
               />
             </span>
