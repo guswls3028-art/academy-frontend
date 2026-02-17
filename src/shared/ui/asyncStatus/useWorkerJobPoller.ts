@@ -19,15 +19,17 @@ function pollExcelJob(
       if (typeof percent === "number") {
         asyncStatusStore.updateProgress(taskId, percent);
       }
-      if (res.status === "DONE") {
-        onSuccess?.();
-        asyncStatusStore.completeTask(taskId, "success");
-      } else if (res.status === "FAILED") {
+      const errMsg = res.error_message?.trim();
+      const isFailed = res.status === "FAILED" || (res.status === "DONE" && errMsg);
+      if (isFailed) {
         asyncStatusStore.completeTask(
           taskId,
           "error",
-          res.error_message || "처리 실패"
+          errMsg || "처리 실패"
         );
+      } else if (res.status === "DONE") {
+        onSuccess?.();
+        asyncStatusStore.completeTask(taskId, "success");
       }
     })
     .catch(() => {
