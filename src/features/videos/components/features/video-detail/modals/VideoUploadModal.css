@@ -8,27 +8,16 @@
   padding: var(--space-3) var(--space-4);
 }
 
-/* 라벨·입력 비율 — 라벨은 좁게, 입력은 남은 칸 꽉 채움 */
-.video-upload-modal__field-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+/* 라벨 없이 인풋만 — placeholder/영역 안 문구로 구분 */
+.video-upload-modal__row--input-only {
+  padding: var(--space-2) var(--space-4);
 }
-.video-upload-modal__field-row--stretch {
-  align-items: stretch;
+.video-upload-modal__row--input-only .ds-input,
+.video-upload-modal__row--input-only .ds-textarea {
+  width: 100%;
 }
-.video-upload-modal__field-row--start {
-  align-items: flex-start;
-}
-.video-upload-modal__label {
-  flex: 0 0 56px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-.video-upload-modal__input {
-  flex: 1;
-  min-width: 0;
+.video-upload-modal__row--input-only .video-upload-modal__dropzone {
+  width: 100%;
 }
 
 .video-upload-modal__dropzone {
