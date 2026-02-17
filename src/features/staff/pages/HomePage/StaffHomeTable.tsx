@@ -22,13 +22,13 @@ function StaffRoleAvatar({ role }: { role: "owner" | "TEACHER" | "ASSISTANT" }) 
   return <UserCog size={size} className={className} aria-label="조교" />;
 }
 
-/** 시급태그 — 학생 태그 디자인 카피 (이름 + 색상 뱃지) */
+/** 시급태그 — 학생 태그 디자인 카피 (이름 + 색상 뱃지). 빈 목록이면 아무것도 표시하지 않음 */
 function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
   const list = Array.isArray(workTypes) ? workTypes : [];
   const LIGHT_COLORS = ["#eab308", "#06b6d4"];
   const isLight = (c: string) => LIGHT_COLORS.some((x) => String(c || "").toLowerCase() === x);
 
-  if (list.length === 0) return <span className="text-[var(--color-text-muted)]">-</span>;
+  if (list.length === 0) return null;
 
   return (
     <span className="inline-flex flex-wrap gap-1 justify-center">

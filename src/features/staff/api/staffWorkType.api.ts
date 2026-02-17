@@ -47,14 +47,14 @@ export async function fetchStaffWorkTypes(staffId: number) {
 }
 
 /**
- * POST /staffs/{staff_id}/work-types/
+ * POST /staffs/staff-work-types/
  */
 export async function createStaffWorkType(
   staffId: number,
   payload: { work_type_id: number; hourly_wage?: number | null }
 ) {
-  const res = await api.post(`/staffs/${staffId}/work-types/`, payload);
-  return res.data as StaffWorkType[];
+  const res = await api.post("/staffs/staff-work-types/", { staff: staffId, ...payload });
+  return res.data as StaffWorkType;
 }
 
 export async function patchStaffWorkType(
