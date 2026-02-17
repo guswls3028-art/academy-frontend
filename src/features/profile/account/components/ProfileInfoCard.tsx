@@ -11,7 +11,6 @@ import ProfileEditModal from "./ProfileEditModal";
 const VALUE_COLOR = "var(--color-text-primary)";
 const MUTED_COLOR = "var(--color-text-muted)";
 const SECONDARY_COLOR = "var(--color-text-secondary)";
-const LABEL_FONT = "13px";
 const VALUE_FONT = "15px";
 
 /** Me → 직원관리와 동일한 역할 아이콘 매핑 (is_superuser=대표, is_staff=강사, 그 외 조교) */
