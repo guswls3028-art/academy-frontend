@@ -1,8 +1,8 @@
 // PATH: src/features/profile/account/components/ProfileEditModal.tsx
-// 내 정보 수정 모달 — 이름·전화번호 편집
+// 내 정보 수정 모달 — 이름·전화번호·아이디(표시)·비밀번호 변경
 
 import { useEffect, useState } from "react";
-import { FiSave, FiPhone, FiUser } from "react-icons/fi";
+import { FiLock, FiSave, FiPhone, FiUser } from "react-icons/fi";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 
@@ -13,7 +13,13 @@ type ProfileEditModalProps = {
   onClose: () => void;
   initialName: string;
   initialPhone: string;
-  onSave: (payload: { name: string; phone: string }) => Promise<void>;
+  displayUsername: string;
+  onSave: (payload: {
+    name: string;
+    phone: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => Promise<void>;
   saving?: boolean;
 };
 
@@ -22,25 +28,34 @@ export default function ProfileEditModal({
   onClose,
   initialName,
   initialPhone,
+  displayUsername,
   onSave,
   saving = false,
 }: ProfileEditModalProps) {
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     if (open) {
       setName(initialName);
       setPhone(initialPhone);
+      setCurrentPassword("");
+      setNewPassword("");
     }
   }, [open, initialName, initialPhone]);
 
-  const dirty = name !== initialName || phone !== initialPhone;
+  const dirtyProfile = name !== initialName || phone !== initialPhone;
+  const dirtyPassword = !!currentPassword.trim() && !!newPassword.trim();
+  const dirty = dirtyProfile || dirtyPassword;
 
   const handleSave = async () => {
     await onSave({
       name: name.trim() || "",
       phone: phone.trim() || "",
+      currentPassword: currentPassword.trim() || undefined,
+      newPassword: newPassword.trim() || undefined,
     });
     onClose();
   };
@@ -48,10 +63,14 @@ export default function ProfileEditModal({
   if (!open) return null;
 
   return (
-    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.sm}>
-      <ModalHeader title="내 정보 수정" description="이름과 전화번호를 수정할 수 있습니다." />
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.md}>
+      <ModalHeader
+        title="내 정보 수정"
+        description="이름, 전화번호, 비밀번호를 수정할 수 있습니다."
+      />
       <ModalBody>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
+          {/* 이름 */}
           <div className="flex flex-col gap-1.5">
             <label className={`flex items-center gap-2 ${LABEL_CLASS}`}>
               <FiUser size={14} style={{ color: "var(--color-text-muted)" }} />
@@ -66,6 +85,8 @@ export default function ProfileEditModal({
               aria-label="이름"
             />
           </div>
+
+          {/* 전화번호 */}
           <div className="flex flex-col gap-1.5">
             <label className={`flex items-center gap-2 ${LABEL_CLASS}`}>
               <FiPhone size={14} style={{ color: "var(--color-text-muted)" }} />
@@ -78,6 +99,53 @@ export default function ProfileEditModal({
               onChange={(e) => setPhone(e.target.value)}
               placeholder="전화번호를 입력하세요"
               aria-label="전화번호"
+            />
+          </div>
+
+          {/* 아이디 (표시만) */}
+          <div className="flex flex-col gap-1.5">
+            <label className={LABEL_CLASS}>아이디</label>
+            <div
+              className="ds-input w-full cursor-default"
+              style={{
+                background: "var(--color-bg-surface-soft)",
+                color: "var(--color-text-secondary)",
+              }}
+              aria-readonly
+            >
+              {displayUsername || "—"}
+            </div>
+            <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+              아이디는 변경할 수 없습니다.
+            </span>
+          </div>
+
+          {/* 비밀번호 변경 */}
+          <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-4">
+            <label className={`flex items-center gap-2 ${LABEL_CLASS}`}>
+              <FiLock size={14} style={{ color: "var(--color-text-muted)" }} />
+              비밀번호 변경
+            </label>
+            <span className="text-[11px] font-medium text-[var(--color-text-muted)] mb-1">
+              변경하려면 현재 비밀번호와 새 비밀번호를 입력하세요. 비워두면 변경하지 않습니다.
+            </span>
+            <input
+              type="password"
+              className="ds-input w-full"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="현재 비밀번호"
+              aria-label="현재 비밀번호"
+              autoComplete="current-password"
+            />
+            <input
+              type="password"
+              className="ds-input w-full"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="새 비밀번호"
+              aria-label="새 비밀번호"
+              autoComplete="new-password"
             />
           </div>
         </div>
