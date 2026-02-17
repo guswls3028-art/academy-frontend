@@ -200,3 +200,50 @@ export async function sendMessage(payload: SendMessagePayload): Promise<SendMess
   const res = await api.post<SendMessageResponse>(`${PREFIX}/send/`, payload);
   return res.data;
 }
+
+// ----------------------------------------
+// 자동발송 설정
+// ----------------------------------------
+
+export type AutoSendTrigger =
+  | "student_signup"
+  | "clinic_reminder"
+  | "clinic_reservation_created"
+  | "clinic_reservation_changed";
+
+export interface AutoSendConfigItem {
+  id: number | null;
+  trigger: AutoSendTrigger;
+  template: number | null;
+  template_name: string;
+  template_solapi_status: string;
+  enabled: boolean;
+  message_mode: MessageMode;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export const AUTO_SEND_TRIGGER_LABELS: Record<AutoSendTrigger, string> = {
+  student_signup: "가입 완료",
+  clinic_reminder: "클리닉 알림",
+  clinic_reservation_created: "클리닉 예약 생성",
+  clinic_reservation_changed: "클리닉 예약 변경",
+};
+
+export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {
+  const res = await api.get<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`);
+  return res.data;
+}
+
+export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[]): Promise<AutoSendConfigItem[]> {
+  const payload = configs.map((c) => ({
+    trigger: c.trigger,
+    template_id: c.template,
+    enabled: c.enabled,
+    message_mode: c.message_mode,
+  }));
+  const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
+    configs: payload,
+  });
+  return res.data;
+}
