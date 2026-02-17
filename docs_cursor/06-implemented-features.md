@@ -119,6 +119,17 @@
 
 ---
 
+## 6.5 직원(Staff) 시급태그 API
+
+**파일**: `src/features/staff/api/staffWorkType.api.ts`  
+**백엔드 계약**: academy/docs_cursor/07-staffs-api.md.
+
+- **createStaffWorkType(staffId, { work_type_id, hourly_wage? })**: `POST /staffs/staff-work-types/` body `{ staff: staffId, work_type_id, hourly_wage? }`. 응답 단일 객체(StaffWorkType). 테넌트·권한(IsPayrollManager)은 백엔드·axios 헤더에서 처리.
+- **fetchWorkTypes(params?)**: `GET /staffs/work-types/` (is_active 등). WorkType[].
+- **fetchStaffWorkTypes(staffId)**: `GET /staffs/${staffId}/work-types/` (Staff 상세용 nested 라우트 여부는 백엔드 실제 URL 확인). StaffWorkType[].
+
+---
+
 ## 7. 참조 경로 요약
 
 | 항목 | 경로 |
