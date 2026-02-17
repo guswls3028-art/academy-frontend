@@ -71,6 +71,18 @@ export async function updateKakaoPfid(pfid: string): Promise<TenantMessagingInfo
   return res.data;
 }
 
+/** 발신번호가 솔라피에 등록된 번호인지 인증 */
+export async function verifySender(phoneNumber: string): Promise<{
+  verified: boolean;
+  message: string;
+}> {
+  const res = await api.post<{ verified: boolean; message: string }>(
+    `${PREFIX}/verify-sender/`,
+    { phone_number: phoneNumber }
+  );
+  return res.data;
+}
+
 /** 메시징 설정 일부 수정 (발신번호, PFID 등) */
 export async function updateMessagingInfo(
   payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender">>
