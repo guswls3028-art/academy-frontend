@@ -73,20 +73,75 @@ export default function ScoreSidePanel({
   const exams = row.exams ?? [];
   const homeworks = row.homeworks ?? [];
   const passed = overallPassed(row);
-
   const reasons = failReasons(row);
+
+  const currentExam = exams.find((e) => e.exam_id === examId);
+  const currentHomework = homeworks.find((h) => h.homework_id === homeworkId);
+
+  const activeEntry = activeColumn === "exam" ? currentExam : currentHomework;
+  const activePassed =
+    activeColumn === "exam" ? currentExam?.block?.passed : currentHomework?.block?.passed;
+  const activeScore =
+    activeColumn === "exam"
+      ? currentExam?.block?.score
+      : currentHomework?.block?.score;
+  const activeMax =
+    activeColumn === "exam"
+      ? currentExam?.block?.max_score
+      : currentHomework?.block?.max_score;
+  const activeTitle =
+    activeColumn === "exam" ? currentExam?.title : currentHomework?.title;
 
   return (
     <div className="card h-full p-4 overflow-y-auto">
       {/* Header */}
       <div className="mb-4 border-b pb-3">
-        <div className="text-xs text-muted">enrollment #{row.enrollment_id}</div>
+        <div className="text-xs text-[var(--text-muted)]">enrollment #{row.enrollment_id}</div>
         <div className="text-lg font-semibold">{row.student_name}</div>
       </div>
 
+      {/* 현재 선택: 점수입력/통과·미통과 */}
+      {activeEntry && (
+        <div className="mb-4 p-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]">
+          <div className="text-sm font-semibold text-[var(--text-secondary)] mb-2">
+            {activeTitle}
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm text-[var(--text-muted)]">점수</span>
+            <span className="font-medium">
+              {activeScore != null && activeMax != null && activeMax > 0
+                ? `${Math.round(activeScore)}/${Math.round(activeMax)}`
+                : activeScore != null
+                  ? `${Math.round(activeScore)}점`
+                  : "미입력"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-[var(--text-muted)]">판정</span>
+            {activePassed != null ? (
+              <span
+                className={`ds-status-badge ${
+                  activePassed ? "data-tone=success" : "data-tone=danger"
+                }`}
+                data-tone={activePassed ? "success" : "danger"}
+              >
+                {activePassed ? "통과" : "미통과"}
+              </span>
+            ) : (
+              <span className="text-sm text-[var(--text-muted)]">-</span>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-[var(--text-muted)]">
+            {activeColumn === "exam"
+              ? "시험: 객관식은 AI OMR 자동반영, 주관식은 테이블에서 해당 셀 클릭 시 문항별 입력"
+              : "과제: 테이블 셀에서 직접 점수 입력"}
+          </p>
+        </div>
+      )}
+
       {/* 시험 */}
       <div className="mb-4">
-        <div className="mb-1 text-xs font-semibold text-muted">시험</div>
+        <div className="mb-1 text-xs font-semibold text-[var(--text-muted)]">시험</div>
         <div className="flex flex-wrap gap-1">
           {exams.map((e) => (
             <ExamStatusChip
@@ -102,7 +157,7 @@ export default function ScoreSidePanel({
 
       {/* 과제 (다건) */}
       <div className="mb-4">
-        <div className="mb-1 text-xs font-semibold text-muted">과제</div>
+        <div className="mb-1 text-xs font-semibold text-[var(--text-muted)]">과제</div>
         <div className="flex flex-wrap gap-1">
           {homeworks.map((h) => {
             const st = getHomeworkStatus({
@@ -130,26 +185,25 @@ export default function ScoreSidePanel({
 
       <div className="my-4 border-t" />
 
-      {/* 판정 */}
+      {/* 종합 판정 */}
       <div className="mb-2 flex justify-between text-sm">
-        <span className="text-muted">판정</span>
+        <span className="text-[var(--text-muted)]">종합 판정</span>
         <span className="font-semibold">
           {passed == null ? "-" : passed ? "PASS" : "FAIL"}
         </span>
       </div>
 
-      {/* 사유 */}
       <div className="mb-2 flex justify-between text-sm">
-        <span className="text-muted">사유</span>
+        <span className="text-[var(--text-muted)]">사유</span>
         <span className="font-medium">{reasonType(row)}</span>
       </div>
 
       {/* 사유상세 */}
       <div className="mt-3">
-        <div className="mb-1 text-xs font-semibold text-muted">사유상세</div>
+        <div className="mb-1 text-xs font-semibold text-[var(--text-muted)]">사유상세</div>
 
         {reasons.length === 0 ? (
-          <div className="text-xs text-muted">-</div>
+          <div className="text-xs text-[var(--text-muted)]">-</div>
         ) : (
           <ul className="list-disc pl-4 text-sm">
             {reasons.map((r) => (
@@ -158,6 +212,13 @@ export default function ScoreSidePanel({
           </ul>
         )}
       </div>
+
+      {/* 클리닉 대상자 안내 */}
+      {(passed === false) && (
+        <div className="mt-4 p-2 rounded text-sm bg-[color-mix(in srgb,var(--color-danger) 10%,transparent)] text-[var(--color-danger)]">
+          하나라도 불합 → 클리닉 대상자
+        </div>
+      )}
     </div>
   );
 }
