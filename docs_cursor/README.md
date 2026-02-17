@@ -10,7 +10,7 @@
 | [01-apps-routing.md](01-apps-routing.md) | 앱 구분, 라우팅, /dev/*, tenant 1/9999 owner 리다이렉트 | 라우트·앱 추가·수정 시 |
 | [02-shared-program-tenant.md](02-shared-program-tenant.md) | Program 타입, useProgram, tenant config, Header·document title | 공통 UI·브랜딩·테넌트 ID |
 | [03-admin-api.md](03-admin-api.md) | admin_app이 쓰는 API 엔드포인트·DTO·권한(owner) | admin_app 기능·API 연동 |
-| [04-deployment.md](04-deployment.md) | 빌드, copy-404, env, Cloudflare Pages | 배포·환경 변수 |
+| [04-deployment.md](04-deployment.md) | 빌드, ensure-spa-mode, env, Cloudflare Pages | 배포·환경 변수 |
 | [05-cross-repo.md](05-cross-repo.md) | 백엔드와의 계약(CORS, tenant 코드, API base) | 도메인·CORS·테넌트 매핑 이슈 |
 | [06-implemented-features.md](06-implemented-features.md) | 멀티테넌트 로그인 URL, X-Tenant-Code, www 리다이렉트, SPA 폴백, 학생 엑셀 파싱 (구현 사실만) | 로그인/URL/엑셀/배포 이슈 시 참조 |
 

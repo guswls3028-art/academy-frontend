@@ -72,13 +72,11 @@
 
 ---
 
-## 5. SPA 폴백 (Cloudflare Pages)
+## 5. SPA (Cloudflare Pages)
 
-**파일**:
-- `public/_redirects`: 내용 한 줄 `/* /index.html 200`. 빌드 시 dist에 포함.
-- `scripts/copy-404.js`: 빌드 후 `dist/index.html` → `dist/404.html` 복사.
+**파일**: `scripts/ensure-spa-mode.js` — 빌드 후 `dist/404.html` 제거. Cloudflare Pages는 루트에 404.html이 없으면 모든 경로를 index.html로 서빙(SPA 모드).
 
-**배포**: Cloudflare Pages. Build output directory `dist`. 404 시 404.html 또는 _redirects에 따라 index.html 서빙해 SPA 라우팅 유지.
+**배포**: Cloudflare Pages. Build output `dist`. 빌드 명령 `pnpm run build`. 상세는 `DEPLOY.md`.
 
 ---
 
@@ -141,8 +139,7 @@
 | AuthRouter, TenantLoginOrRedirect | academyfront/src/app/router/AuthRouter.tsx |
 | 학생 엑셀 파싱·양식 | academyfront/src/features/students/excel/studentExcel.ts |
 | 학생 등록 모달(엑셀) | academyfront/src/features/students/components/StudentCreateModal.tsx |
-| SPA redirects | academyfront/public/_redirects |
-| 404 복사 | academyfront/scripts/copy-404.js |
+| SPA 모드 | academyfront/scripts/ensure-spa-mode.js |
 | 백엔드 엑셀 파싱(강의 수강 등록) | academy/src/application/services/excel_parsing_service.py |
 
 ---
