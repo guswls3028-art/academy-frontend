@@ -1,5 +1,5 @@
 // PATH: src/shared/ui/layout/Header.tsx
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Dropdown, Input, Badge } from "antd";
@@ -10,10 +10,9 @@ import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
 import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
 import { Button } from "@/shared/ui/ds";
-import { fetchLecture, fetchSession } from "@/features/lectures/api/sessions";
+import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
+import { fetchMe, displayUsername } from "@/features/profile/api/profile.api";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
-
-type Crumb = { label: string; to?: string };
 
 function IconMenu() {
   return (
