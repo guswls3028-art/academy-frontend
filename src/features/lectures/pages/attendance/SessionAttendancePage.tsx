@@ -162,7 +162,14 @@ export default function SessionAttendancePage({
 
   const handleMessageSend = () => {
     if (selectedIds.length === 0) return;
-    feedback.info("메시지 발송 기능 준비 중입니다.");
+    const selectedRows = sorted.filter((att: any) => selectedSet.has(att.id));
+    const studentIds = selectedRows
+      .map((att: any) => att.student_id)
+      .filter((id: unknown) => id != null && Number.isFinite(id));
+    openSendMessageModal({
+      studentIds,
+      recipientLabel: `선택한 출결 ${selectedIds.length}명`,
+    });
   };
 
   const handleExcelDownload = () => {
