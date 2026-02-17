@@ -1,4 +1,6 @@
 // PATH: src/features/students/components/EditStudentModal.tsx
+// 디자인: StudentCreateModal(1명 등록)과 동일 구조·클래스 — 쌍둥이 UX
+
 import { useEffect, useMemo, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
