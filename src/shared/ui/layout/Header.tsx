@@ -268,14 +268,14 @@ export default function Header() {
           </div>
         </div>
 
-        {/* CENTER: PC에서만 검색창 표시 */}
+        {/* CENTER: 중앙 통합 검색창 */}
         {!isMobile && (
         <div className="app-header__center">
-          <div style={{ width: "min(720px, 100%)" }}>
+          <div className="app-header__searchWrap">
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="전체 검색 (학생/강의/시험/클리닉/직원)…"
+              placeholder="Q 전체 검색 (학생/강의/시험/클리닉/직원)…"
               allowClear
               prefix={
                 <span style={{ color: "var(--color-text-muted)" }}>
@@ -285,17 +285,25 @@ export default function Header() {
               onPressEnter={() =>
                 nav(`/admin/dashboard?search=${encodeURIComponent(q.trim())}`)
               }
-              style={{
-                borderRadius: 999,
-                height: 40,
-              }}
+              className="app-header__searchInput"
             />
           </div>
         </div>
         )}
 
-        {/* RIGHT: 만들기 → 모바일/PC 전환 → 알람 → 테마 → 프로필 */}
+        {/* RIGHT: 크레딧 | 만들기 | 모바일/PC | 알람 드롭다운 | 접속자 아바타+이름 */}
         <div className="app-header__right">
+          {!isMobile && (
+            <div className="app-header__credit" title="알림톡 크레딧">
+              <span className="app-header__creditIcon"><IconCredit /></span>
+              <span className="app-header__creditValue">
+                {messagingInfo != null
+                  ? Number(messagingInfo.credit_balance).toLocaleString()
+                  : "0"}
+              </span>
+            </div>
+          )}
+
           {!isMobile && (
           <Dropdown menu={quickMenu} trigger={["click"]} placement="bottomRight">
             <span>
@@ -324,40 +332,76 @@ export default function Header() {
             />
           )}
 
-          <Button
-            intent="secondary"
-            size="lg"
-            iconOnly
-            className="app-header__iconBtn"
-            onClick={() => setOpenNotice(true)}
-            aria-label="공지"
-            leftIcon={
-              <Badge count={unreadCount} size="small">
-                <IconBell />
-              </Badge>
-            }
-          />
-
-          <Button
-            intent="secondary"
-            size="lg"
-            iconOnly
-            className="app-header__iconBtn"
-            onClick={() => setOpenTheme(true)}
-            aria-label="테마"
-            leftIcon={<IconPalette />}
-          />
-
-          <Dropdown menu={userMenu} trigger={["click"]} placement="bottomRight">
+          <Dropdown
+            trigger={["click"]}
+            placement="bottomRight"
+            dropdownRender={() => (
+              <div className="app-header__alarmDropdown">
+                <div className="app-header__alarmDropdownHeader">
+                  <span>알림</span>
+                  <Button
+                    type="button"
+                    intent="ghost"
+                    size="sm"
+                    onClick={() => { setOpenNotice(true); }}
+                  >
+                    알림 전체 보기
+                  </Button>
+                </div>
+                <div className="app-header__alarmDropdownList">
+                  {notices.length === 0 ? (
+                    <div className="app-header__alarmDropdownEmpty">알림이 없습니다</div>
+                  ) : (
+                    notices.slice(0, 5).map((n) => (
+                      <div
+                        key={n.id}
+                        className="app-header__alarmDropdownItem"
+                        onClick={() => setOpenNotice(true)}
+                      >
+                        <strong>{n.title}</strong>
+                        {n.body && <span className="app-header__alarmDropdownItemBody">{n.body}</span>}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          >
             <span>
               <Button
                 intent="secondary"
                 size="lg"
                 iconOnly
                 className="app-header__iconBtn"
-                aria-label="설정"
-                leftIcon={<IconUser />}
+                aria-label="알림"
+                leftIcon={
+                  <Badge count={unreadCount} size="small">
+                    <IconBell />
+                  </Badge>
+                }
               />
+            </span>
+          </Dropdown>
+
+          <Dropdown menu={userMenu} trigger={["click"]} placement="bottomRight">
+            <span>
+              <Button
+                intent="secondary"
+                size="lg"
+                className="app-header__userBtn"
+                aria-label="프로필"
+                leftIcon={
+                  me?.name || me?.username ? (
+                    <span className="app-header__avatar" aria-hidden>
+                      {(me.name || me.username || "?").slice(0, 1).toUpperCase()}
+                    </span>
+                  ) : (
+                    <IconUser />
+                  )
+                }
+              >
+                {me?.name || me?.username ? displayUsername(me.username) || (me.name ?? "사용자") : "프로필"}
+              </Button>
             </span>
           </Dropdown>
         </div>
