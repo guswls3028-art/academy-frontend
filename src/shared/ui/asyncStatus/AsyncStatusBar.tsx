@@ -92,8 +92,21 @@ function TaskItem({ task }: { task: AsyncTask }) {
         <StatusIcon status={task.status} />
         <div className="async-status-bar__item-body">
           <div className="async-status-bar__item-label">
-            {task.label}
-            {task.status === "pending" && task.progress == null && (
+            {typeBadge && (
+              <span
+                className="async-status-bar__type-badge ds-status-badge ds-status-badge--1ch"
+                data-tone={typeBadge.tone}
+                aria-hidden
+              >
+                {typeBadge.label}
+              </span>
+            )}
+            {typeBadge && " "}
+            <span className="async-status-bar__item-label-text">{task.label}</span>
+            {task.status === "pending" && progressNum != null && (
+              <span className="async-status-bar__item-progress-num"> {progressNum}/100</span>
+            )}
+            {task.status === "pending" && progressNum == null && (
               <span className="async-status-bar__item-waiting"> · 대기 중</span>
             )}
           </div>
