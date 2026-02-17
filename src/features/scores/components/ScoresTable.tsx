@@ -10,12 +10,7 @@
 import { useMemo, useRef, Fragment, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import type {
-  SessionScoreRow,
-  SessionScoreMeta,
-  SessionScoreExamEntry,
-  SessionScoreHomeworkEntry,
-} from "../api/sessionScores";
+import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import InlineExamItemsRow from "./InlineExamItemsRow";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import HomeworkQuickInput from "./HomeworkQuickInput";
