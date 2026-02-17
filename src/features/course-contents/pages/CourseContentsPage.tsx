@@ -4,7 +4,7 @@
  * 클릭 시 해당 차시 상세로 이동 (영상/성적/시험 탭 포함)
  */
 
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/features/lectures/api/sessions";
