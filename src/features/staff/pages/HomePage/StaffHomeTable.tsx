@@ -430,19 +430,23 @@ export function StaffHomeTable({
                 </div>
               </td>
               <td className="align-middle" onClick={(e) => e.stopPropagation()}>
-                <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5">
                   <button
                     type="button"
+                    className="ds-status-badge ds-status-badge--action"
+                    data-tone="primary"
                     disabled={!canManage}
                     onClick={() => onOperate(r.id)}
-                    className="text-[13px] font-semibold text-[var(--color-brand-primary)] hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                    aria-label={`${r.name} 작업`}
                   >
                     작업
                   </button>
                   <button
                     type="button"
+                    className="ds-status-badge ds-status-badge--action"
+                    data-tone="neutral"
                     onClick={() => onDetail(r.id)}
-                    className="text-[13px] font-semibold text-[var(--color-text-secondary)] hover:underline"
+                    aria-label={`${r.name} 상세`}
                   >
                     상세
                   </button>
