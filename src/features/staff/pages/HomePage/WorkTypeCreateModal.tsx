@@ -42,6 +42,7 @@ export default function WorkTypeCreateModal({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["work-types"] });
+      qc.invalidateQueries({ queryKey: ["staffs", "work-types"] });
       alert("시급태그가 생성되었습니다.");
       onClose();
       setForm({
