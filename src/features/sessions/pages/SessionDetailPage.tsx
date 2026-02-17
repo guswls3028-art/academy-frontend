@@ -176,8 +176,6 @@ export default function SessionDetailPage() {
 
           {activeTab === "scores" && (
             <SessionScoresEntryPage
-              lectureId={lecId}
-              sessionId={sId}
               onOpenEnrollModal={() => setShowEnrollModal(true)}
               onOpenStudentModal={() => setShowStudentModal(true)}
             />
