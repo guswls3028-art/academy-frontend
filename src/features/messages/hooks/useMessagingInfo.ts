@@ -64,3 +64,10 @@ export function useUpdateMessagingInfo() {
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
+
+/** 발신번호 솔라피 등록 여부 인증 */
+export function useVerifySender() {
+  return useMutation({
+    mutationFn: (phoneNumber: string) => verifySender(phoneNumber),
+  });
+}
