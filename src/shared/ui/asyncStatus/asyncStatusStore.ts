@@ -4,6 +4,9 @@
 // 워커 작업(엑셀 수강등록, 비디오 인코딩 등): 업로드 후 모달 닫고 우하단에서 진행률 표시
 //   const taskId = asyncStatusStore.addWorkerJob('엑셀 수강등록', jobId, 'excel_parsing');
 //   // 전역 폴링이 progress/status 갱신 후 completeTask 호출
+// 작업 목록은 태넌트(도메인)별로 격리 — 현재 테넌트 작업만 표시
+
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 export type AsyncTaskStatus = "pending" | "success" | "error";
 
@@ -22,6 +25,8 @@ export interface AsyncTask {
   createdAt: number;
   /** 있으면 워커 작업 — 우하단 작업 알람창에만 표시, 폴링 대상 */
   meta?: AsyncTaskMeta;
+  /** 태넌트(도메인)별 격리 — 이 키와 일치하는 테넌트에서만 작업 표시 */
+  tenantScope?: string;
 }
 
 type Listener = (tasks: AsyncTask[]) => void;
