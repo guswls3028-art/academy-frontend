@@ -402,7 +402,7 @@ export default function Header() {
                   )
                 }
               >
-                {me?.name || me?.username ? displayUsername(me.username) || (me.name ?? "사용자") : "프로필"}
+                {me?.name || me?.username ? (me.name || displayUsername(me.username) || "사용자") : "프로필"}
               </Button>
             </span>
           </Dropdown>
