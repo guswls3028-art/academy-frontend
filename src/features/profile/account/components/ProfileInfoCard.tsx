@@ -39,7 +39,7 @@ export default function ProfileInfoList({
             color: "var(--color-text-primary)",
           }}
         >
-          계정 정보
+          내 정보
         </div>
         <div
           className="mt-1"
@@ -49,7 +49,7 @@ export default function ProfileInfoList({
             fontWeight: "var(--font-meta)",
           }}
         >
-          기본 계정 정보를 관리합니다 · 변경사항은 즉시 반영됩니다
+          이름·전화번호를 수정한 뒤 저장하면 반영됩니다
         </div>
       </div>
 
@@ -129,7 +129,7 @@ export default function ProfileInfoList({
           className="inline-flex items-center gap-2"
         >
           <FiSave size={14} />
-          {saving ? "저장중..." : "정보 저장"}
+          {saving ? "저장 중…" : "수정 저장"}
         </Button>
       </div>
     </Panel>

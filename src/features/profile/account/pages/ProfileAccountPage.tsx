@@ -6,7 +6,6 @@ import { FiKey, FiLogOut, FiUser, FiShield } from "react-icons/fi";
 import { fetchMe, updateProfile } from "../../api/profile.api";
 import useAuth from "@/features/auth/hooks/useAuth";
 
-import AccountHeader from "../components/AccountHeader";
 import AccountInfoList from "../components/ProfileInfoCard";
 import ChangePasswordModal from "../components/ChangePasswordModal";
 
