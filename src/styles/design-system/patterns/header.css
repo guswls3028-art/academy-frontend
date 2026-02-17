@@ -178,3 +178,119 @@
   background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
   border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border-divider));
 }
+
+[data-app="admin"] .app-header__searchWrap {
+  width: min(720px, 100%);
+}
+
+[data-app="admin"] .app-header__searchInput {
+  border-radius: 999px !important;
+  height: 40px !important;
+}
+
+[data-app="admin"] .app-header__credit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+[data-app="admin"] .app-header__creditIcon {
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+}
+
+[data-app="admin"] .app-header__creditValue {
+  min-width: 1.5em;
+  text-align: right;
+}
+
+[data-app="admin"] .app-header__alarmDropdown {
+  width: 320px;
+  max-height: 400px;
+  background: var(--color-bg-surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--color-border-divider);
+  overflow: hidden;
+}
+
+[data-app="admin"] .app-header__alarmDropdownHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-divider);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+[data-app="admin"] .app-header__alarmDropdownList {
+  padding: 8px;
+  max-height: 280px;
+  overflow: auto;
+}
+
+[data-app="admin"] .app-header__alarmDropdownEmpty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+[data-app="admin"] .app-header__alarmDropdownItem {
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+[data-app="admin"] .app-header__alarmDropdownItem:hover {
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+[data-app="admin"] .app-header__alarmDropdownItem strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+[data-app="admin"] .app-header__alarmDropdownItemBody {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+[data-app="admin"] .app-header__userBtn {
+  height: 40px;
+  padding-left: 10px;
+  padding-right: 14px;
+  border-radius: 10px;
+  gap: 8px;
+  border-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
+  font-weight: 600;
+  font-size: 14px;
+}
+
+[data-app="admin"] .app-header__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-primary) 20%, var(--color-bg-surface));
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
