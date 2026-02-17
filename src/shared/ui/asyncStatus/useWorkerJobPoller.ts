@@ -46,13 +46,13 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
       const status = res.data?.status;
       const encodingProgress = res.data?.encoding_progress;
       if (status === "PROCESSING" || status === "UPLOADED") {
-        const percent =
-          status === "PROCESSING" && typeof encodingProgress === "number"
-            ? Math.min(99, Math.max(1, encodingProgress))
-            : status === "PROCESSING"
-              ? 50
-              : 10;
-        asyncStatusStore.updateProgress(taskId, percent);
+        // API에서 encoding_progress가 올 때만 진행률 갱신 (50% 고정 방지)
+        if (status === "PROCESSING" && typeof encodingProgress === "number") {
+          asyncStatusStore.updateProgress(taskId, Math.min(99, Math.max(1, encodingProgress)));
+        } else if (status === "UPLOADED") {
+          asyncStatusStore.updateProgress(taskId, 10);
+        }
+        // PROCESSING인데 encoding_progress 없으면 갱신 안 함 → 기존 값 유지 또는 무한 진행 표시
       }
       if (status === "READY") {
         onSuccess?.();
