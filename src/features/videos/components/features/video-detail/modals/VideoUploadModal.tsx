@@ -135,50 +135,44 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       />
 
       <ModalBody>
-        <div className="modal-scroll-body modal-scroll-body--compact">
-          {/* 제목 */}
-          <div className="modal-form-group">
-            <span className="modal-section-label">제목</span>
-            <input
-              className="ds-input"
-              placeholder="예: 1강 OT"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              autoFocus
-            />
+        <div className="modal-scroll-body modal-scroll-body--compact video-upload-modal__body">
+          {/* 제목 — 라벨+입력 한 줄 */}
+          <div className="modal-form-group video-upload-modal__row">
+            <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "center", gap: "var(--space-3)" }}>
+              <span className="modal-section-label" style={{ marginBottom: 0, flex: "0 0 72px" }}>제목</span>
+              <input
+                className="ds-input"
+                placeholder="예: 1강 OT"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
           </div>
 
-          {/* 파일 업로드 */}
-          <div className="modal-form-group">
-            <span className="modal-section-label">파일 업로드</span>
-            <div
-              className="video-upload-modal__dropzone"
-              onClick={pickFile}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  pickFile();
-                }
-              }}
-              aria-label="동영상 파일 선택"
-            >
-              {file ? (
-                <div className="video-upload-modal__dropzone-inner">
+          {/* 파일 업로드 — 라벨+드롭존 한 줄(드롭존 높이 축소) */}
+          <div className="modal-form-group video-upload-modal__row">
+            <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "stretch", gap: "var(--space-3)" }}>
+              <span className="modal-section-label" style={{ marginBottom: 0, flex: "0 0 72px", paddingTop: 8 }}>파일</span>
+              <div
+                className="video-upload-modal__dropzone video-upload-modal__dropzone--compact"
+                onClick={pickFile}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    pickFile();
+                  }
+                }}
+                aria-label="동영상 파일 선택"
+              >
+                {file ? (
                   <span className="video-upload-modal__filename">{file.name}</span>
-                  <span className="modal-hint modal-hint--block" style={{ marginTop: 4 }}>
-                    클릭해서 파일 변경
-                  </span>
-                </div>
-              ) : (
-                <div className="video-upload-modal__dropzone-inner">
-                  <span className="video-upload-modal__prompt">여기를 클릭해서 업로드</span>
-                  <span className="modal-hint modal-hint--block" style={{ marginTop: 4 }}>
-                    mp4 등 동영상 파일
-                  </span>
-                </div>
-              )}
+                ) : (
+                  <span className="video-upload-modal__prompt">클릭해서 업로드 (mp4 등)</span>
+                )}
+              </div>
             </div>
             <input
               ref={fileInputRef}
@@ -189,23 +183,25 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             />
           </div>
 
-          {/* 영상 설명 */}
-          <div className="modal-form-group modal-form-group--neutral">
-            <span className="modal-section-label">영상 설명</span>
-            <textarea
-              className="ds-textarea"
-              rows={3}
-              placeholder="(선택)"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+          {/* 영상 설명 — 라벨+textarea 한 줄 배치(세로는 2줄) */}
+          <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
+            <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "flex-start", gap: "var(--space-3)" }}>
+              <span className="modal-section-label" style={{ marginBottom: 0, flex: "0 0 72px", paddingTop: 6 }}>설명</span>
+              <textarea
+                className="ds-textarea"
+                rows={2}
+                placeholder="(선택)"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                style={{ minHeight: 52 }}
+              />
+            </div>
           </div>
 
-          {/* 재생 정책 */}
-          <div className="modal-form-group modal-form-group--neutral">
-            <span className="modal-section-label">재생 정책</span>
-            <div className="modal-form-row modal-form-row--1-auto" style={{ flexWrap: "wrap", gap: "var(--space-4)" }}>
-              <label className="modal-actions-inline" style={{ cursor: "pointer", alignItems: "center" }}>
+          {/* 재생 정책 — 워터마크·건너뛰기·최대 배속 한 줄 */}
+          <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
+            <div className="modal-form-row video-upload-modal__policy-row">
+              <label className="video-upload-modal__policy-item">
                 <span className="modal-hint" style={{ marginBottom: 0 }}>워터마크</span>
                 <button
                   type="button"
@@ -214,13 +210,10 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                   onClick={() => setShowWatermark((v) => !v)}
                   className="video-upload-modal__toggle"
                 >
-                  <span
-                    className="video-upload-modal__toggle-thumb"
-                    data-on={showWatermark}
-                  />
+                  <span className="video-upload-modal__toggle-thumb" data-on={showWatermark} />
                 </button>
               </label>
-              <label className="modal-actions-inline" style={{ cursor: "pointer", alignItems: "center" }}>
+              <label className="video-upload-modal__policy-item">
                 <span className="modal-hint" style={{ marginBottom: 0 }}>건너뛰기</span>
                 <button
                   type="button"
@@ -229,29 +222,22 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                   onClick={() => setAllowSkip((v) => !v)}
                   className="video-upload-modal__toggle"
                 >
-                  <span
-                    className="video-upload-modal__toggle-thumb"
-                    data-on={allowSkip}
-                  />
+                  <span className="video-upload-modal__toggle-thumb" data-on={allowSkip} />
                 </button>
               </label>
-              <label className="modal-actions-inline" style={{ alignItems: "center", gap: "var(--space-2)" }}>
+              <label className="video-upload-modal__policy-item">
                 <span className="modal-hint" style={{ marginBottom: 0 }}>최대 배속</span>
                 <input
                   type="number"
                   min={1}
                   max={5}
                   step={0.25}
-                  className="ds-input"
-                  style={{ width: 72 }}
+                  className="ds-input video-upload-modal__speed-input"
                   value={maxSpeed}
                   onChange={(e) => setMaxSpeed(Number(e.target.value))}
                 />
               </label>
             </div>
-            <span className="modal-hint modal-hint--block" style={{ marginTop: "var(--space-2)", marginBottom: 0 }}>
-              session_id: {sessionId}
-            </span>
           </div>
         </div>
       </ModalBody>
@@ -259,7 +245,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       <ModalFooter
         left={
           <span className="modal-hint" style={{ marginBottom: 0 }}>
-            제목과 파일을 입력한 뒤 업로드하세요.
+            제목과 파일 입력 후 업로드하면 우하단 작업에서 진행 상황을 확인할 수 있습니다.
           </span>
         }
         right={
