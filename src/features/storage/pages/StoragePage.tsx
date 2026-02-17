@@ -23,19 +23,19 @@ export default function StoragePage() {
       title="저장소"
       description="선생님 파일과 학생 인벤토리를 통합 관리합니다."
     >
-      <div className={styles.wrap}>
+      <div className={sharedStyles.wrap}>
         {/* 뷰 스위처 */}
-        <div className={styles.tabs}>
+        <div className={sharedStyles.tabs}>
           <button
             type="button"
-            className={styles.tab + (tab === "mine" ? " " + styles.tabActive : "")}
+            className={sharedStyles.tab + (tab === "mine" ? " " + sharedStyles.tabActive : "")}
             onClick={() => setTab("mine")}
           >
             내 저장소(선생님)
           </button>
           <button
             type="button"
-            className={styles.tab + (tab === "students" ? " " + styles.tabActive : "")}
+            className={sharedStyles.tab + (tab === "students" ? " " + sharedStyles.tabActive : "")}
             onClick={() => setTab("students")}
           >
             학생 인벤토리 관리
@@ -43,7 +43,7 @@ export default function StoragePage() {
         </div>
 
         {/* 용량 인디케이터 */}
-        <QuotaIndicator className={styles.quota} />
+        <QuotaIndicator style={{ flexShrink: 0 }} />
 
         {/* 탭 콘텐츠 */}
         {tab === "mine" && <MyStorageExplorer />}
