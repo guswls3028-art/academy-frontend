@@ -282,12 +282,17 @@
   font-weight: 600;
 }
 
-/* 작업 유형 뱃지: 동영상, 엑셀, OMR, 메시지 (전역 ds-status-badge 활용) */
-.async-status-bar__type-badge {
+/* 작업 유형 아이콘: 동영상, 엑셀, OMR, 메시지 */
+.async-status-bar__type-icon {
   flex-shrink: 0;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary, #4b5563);
+}
+
+.async-status-bar__type-icon-svg {
+  display: block;
 }
 
 .async-status-bar__item-label-text {
