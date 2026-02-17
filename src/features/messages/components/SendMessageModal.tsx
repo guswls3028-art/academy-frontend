@@ -96,6 +96,7 @@ export default function SendMessageModal({
         raw_body: body.trim(),
       };
       if (subject.trim()) payload.raw_subject = subject.trim();
+      if (selectedTemplateId) payload.template_id = selectedTemplateId;
       const res = await sendMessage(payload);
       feedback.success(res.detail || `${res.enqueued}건 발송 예정입니다.`);
       if (res.skipped_no_phone > 0) {
