@@ -1,7 +1,7 @@
 // PATH: src/features/settings/pages/SettingsPage.tsx
+// 설정 > 시스템 설정 탭 콘텐츠 (SettingsLayout에서 사용)
 import { useEffect, useMemo, useState } from "react";
 
-import { DomainLayout } from "@/shared/ui/layout";
 import { Section, Panel } from "@/shared/ui/ds";
 
 import ThemeGrid from "../components/ThemeGrid";
@@ -34,11 +34,7 @@ export default function SettingsPage() {
   }, [currentTheme]);
 
   return (
-    <DomainLayout
-      title="시스템 설정"
-      description="테마 및 시스템 옵션을 관리합니다."
-    >
-      <Section>
+    <Section>
         <Panel>
           {/* Sticky Header */}
           <div
