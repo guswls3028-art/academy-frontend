@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
 import StaffOperationTable from "../OperationsPage/StaffOperationTable";
 import MonthLockPanel from "../OperationsPage/MonthLockPanel";
-import { SectionHeader, EmptyState } from "@/shared/ui/ds";
+import { EmptyState } from "@/shared/ui/ds";
 
 function getThisMonth() {
   const d = new Date();
@@ -24,13 +24,7 @@ export default function MonthLockPage() {
   const monthText = useMemo(() => ymLabel(year, month), [year, month]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <SectionHeader
-        title="월 마감"
-        description={`${monthText} · 월 단위 급여 확정. 마감 후 근무/비용 수정·삭제 불가, 급여 스냅샷 생성.`}
-      />
-
-      <div className="grid grid-cols-[320px_1fr] gap-6">
+    <div className="grid grid-cols-[320px_1fr] gap-6">
         <div className="ds-panel-card">
           <div className="ds-panel-card__header px-4 py-3">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">직원 선택</div>

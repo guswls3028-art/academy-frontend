@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
 import StaffOperationTable from "../OperationsPage/StaffOperationTable";
 import ExpensesPanel from "../OperationsPage/ExpensesPanel";
-import { SectionHeader, EmptyState } from "@/shared/ui/ds";
+import { EmptyState } from "@/shared/ui/ds";
 
 function getThisMonth() {
   const d = new Date();
@@ -24,13 +24,7 @@ export default function ExpensesPage() {
   const monthText = useMemo(() => ymLabel(year, month), [year, month]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <SectionHeader
-        title="비용/경비"
-        description={`${monthText} · 직원별 경비 청구(교통비, 재료비 등)를 입력·승인·반려합니다.`}
-      />
-
-      <div className="grid grid-cols-[320px_1fr] gap-6">
+    <div className="grid grid-cols-[320px_1fr] gap-6">
         <div className="ds-panel-card">
           <div className="ds-panel-card__header px-4 py-3">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">직원 선택</div>
