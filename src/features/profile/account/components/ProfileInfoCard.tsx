@@ -55,7 +55,7 @@ export default function ProfileInfoCard({
         <div className="ds-card-modal">
           <header className="ds-card-modal__header">
             <div aria-hidden className="ds-card-modal__accent" />
-            <div className="ds-card-modal__header-inner" style={{ flex: 1, minWidth: 0 }}>
+            <div className="ds-card-modal__header-inner">
               <div
                 className="ds-card-modal__header-icon"
                 style={{ color: "var(--color-brand-primary)" }}
