@@ -122,8 +122,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       if (data?.id != null && data?.tempId) {
         asyncStatusStore.attachWorkerMeta(data.tempId, String(data.id), "video_processing");
       }
-      feedback.success("작업이 우하단 작업 박스에서 진행됩니다.");
-      onClose();
+      feedback.success("업로드 완료. 인코딩은 우하단 작업 박스에서 이어서 진행됩니다.");
     },
 
     onError: (e: unknown, tempId: string) => {
@@ -145,6 +144,8 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     const tempId = `video-upload-${sessionId}-${Date.now()}`;
     asyncStatusStore.addTask("영상 추가", tempId);
     uploadMut.mutate(tempId);
+    // 업로드·인코딩은 전부 작업 박스에서 진행 — 모달 닫고 다른 일 할 수 있게
+    onClose();
   };
 
   return (
