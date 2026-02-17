@@ -9,7 +9,6 @@ import {
   type PayrollSnapshot,
 } from "../../api/payrollSnapshots.api";
 import { exportPayrollSnapshotPDF } from "../../api/payrollSnapshotPdf.api";
-import { SectionHeader } from "@/shared/ui/ds";
 import ActionButton from "../../components/ActionButton";
 
 function ymLabel(y: number, m: number) {
@@ -51,13 +50,7 @@ export default function PayrollSnapshotPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <SectionHeader
-        title="급여 스냅샷"
-        description="월 마감 시 생성된 확정 근무시간·급여·경비 요약. 이후 수정되지 않습니다."
-      />
-
-      <div className="ds-panel-card px-6 py-4">
+    <div className="ds-panel-card px-6 py-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">기준월</div>

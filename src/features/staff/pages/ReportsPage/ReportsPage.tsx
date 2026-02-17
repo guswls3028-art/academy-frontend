@@ -22,13 +22,7 @@ export default function ReportsPage() {
   });
 
   return (
-    <div className="flex flex-col gap-4">
-      <SectionHeader
-        title="리포트/명세"
-        description="직원별 급여 이력, 월별 마감 이력. 엑셀/PDF는 급여 스냅샷 탭에서 다운로드합니다."
-      />
-
-      <div className="grid grid-cols-[320px_1fr] gap-6">
+    <div className="grid grid-cols-[320px_1fr] gap-6">
         <div className="ds-panel-card">
           <div className="ds-panel-card__header px-4 py-3">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">직원 선택</div>
