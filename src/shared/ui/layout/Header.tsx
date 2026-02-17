@@ -278,12 +278,13 @@ export default function Header() {
 
   const [searchParams] = useSearchParams();
   const searchFromUrl = searchParams.get("search") ?? "";
+  const isOnDashboard = loc.pathname.includes("/dashboard");
   const [q, setQ] = useState(searchFromUrl);
   const [openTheme, setOpenTheme] = useState(false);
 
   useEffect(() => {
-    if (searchFromUrl !== q) setQ(searchFromUrl);
-  }, [searchFromUrl]);
+    if (isOnDashboard && searchFromUrl !== q) setQ(searchFromUrl);
+  }, [isOnDashboard, searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
   const { unreadCount } = useNotices();
 
