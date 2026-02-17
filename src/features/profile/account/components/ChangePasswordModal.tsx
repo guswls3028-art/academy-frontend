@@ -1,8 +1,31 @@
 // PATH: src/features/profile/account/components/ChangePasswordModal.tsx
+// 비밀번호 변경 모달 — AdminModal SSOT (배경·테두리·헤더 톤 통일)
+
 import { useEffect, useState } from "react";
-import { Button, Panel } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { useMutation } from "@tanstack/react-query";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { changePassword } from "../../api/profile.api";
+
+const inputCls =
+  "ds-input w-full";
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="text-[var(--text-sm)] font-medium text-[var(--color-text-secondary)]">
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export default function ChangePasswordModal({
   open,
@@ -24,7 +47,7 @@ export default function ChangePasswordModal({
       setMsg("");
       mut.reset();
     }
-  }, [open]);
+  }, [open, mut]);
 
   useEffect(() => {
     if (!open) return;
@@ -32,8 +55,6 @@ export default function ChangePasswordModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
-
-  if (!open) return null;
 
   const submit = async () => {
     setMsg("");
@@ -48,100 +69,80 @@ export default function ChangePasswordModal({
         new_password: newPw,
       });
       onClose();
-    } catch (e: any) {
-      setMsg(e?.response?.data?.detail || "비밀번호 변경 실패");
+    } catch (e: unknown) {
+      const detail =
+        e && typeof e === "object" && "response" in e
+          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : undefined;
+      setMsg(detail || "비밀번호 변경 실패");
     }
   };
 
+  if (!open) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-
-      <div className="relative w-full max-w-[420px]">
-        <Panel>
-          {/* Header */}
-          <div className="border-b border-[var(--border-divider)] px-4 py-3">
-            <div className="text-sm font-semibold text-[var(--text-primary)]">
-              비밀번호 변경
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.sm}>
+      <ModalHeader
+        title="비밀번호 변경"
+        description="현재 비밀번호를 입력한 뒤 새 비밀번호로 변경해 주세요."
+      />
+      <ModalBody>
+        <div className="flex flex-col gap-4">
+          <Field label="현재 비밀번호">
+            <input
+              type="password"
+              className={inputCls}
+              value={oldPw}
+              onChange={(e) => setOldPw(e.target.value)}
+              placeholder="현재 비밀번호"
+              aria-label="현재 비밀번호"
+              autoComplete="current-password"
+            />
+          </Field>
+          <Field label="새 비밀번호">
+            <input
+              type="password"
+              className={inputCls}
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="새 비밀번호"
+              aria-label="새 비밀번호"
+              autoComplete="new-password"
+            />
+          </Field>
+          {msg && (
+            <div
+              className="rounded-lg border px-3 py-2 text-sm"
+              style={{
+                borderColor: "color-mix(in srgb, var(--color-error) 35%, var(--color-border-divider))",
+                background: "color-mix(in srgb, var(--color-error) 10%, var(--color-modal-bg))",
+                color: "var(--color-error)",
+              }}
+            >
+              {msg}
             </div>
-          </div>
-
-          {/* Body */}
-          <div className="space-y-4 p-4 text-sm">
-            {/* 안내 */}
-            <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
-              <div className="text-xs leading-relaxed text-[var(--text-muted)]">
-                <b>현재 비밀번호</b>를 입력한 뒤 새 비밀번호로 변경해 주세요.
-              </div>
-            </div>
-
-            {/* 입력 */}
-            <div className="space-y-4 rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4">
-              <Field label="현재 비밀번호">
-                <input
-                  type="password"
-                  className={inputCls}
-                  value={oldPw}
-                  onChange={(e) => setOldPw(e.target.value)}
-                />
-              </Field>
-
-              <Field label="새 비밀번호">
-                <input
-                  type="password"
-                  className={inputCls}
-                  value={newPw}
-                  onChange={(e) => setNewPw(e.target.value)}
-                />
-              </Field>
-            </div>
-
-            {/* 에러 */}
-            {msg && (
-              <div className="rounded-lg border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/10 px-3 py-2 text-sm text-[var(--color-danger)]">
-                {msg}
-              </div>
-            )}
-
-            {/* 버튼 */}
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <Button type="button" intent="secondary" size="md" onClick={onClose}>
-                취소
-              </Button>
-
-              <Button
-                type="button"
-                intent="primary"
-                size="md"
-                onClick={submit}
-                disabled={mut.isPending}
-              >
-                {mut.isPending ? "변경중..." : "비밀번호 변경"}
-              </Button>
-            </div>
-          </div>
-        </Panel>
-      </div>
-    </div>
+          )}
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button type="button" intent="secondary" size="md" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              type="button"
+              intent="primary"
+              size="md"
+              onClick={submit}
+              disabled={mut.isPending}
+              loading={mut.isPending}
+            >
+              {mut.isPending ? "변경 중…" : "비밀번호 변경"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="text-xs font-medium text-[var(--text-muted)]">
-        {label}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-const inputCls =
-  "w-full rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]";
