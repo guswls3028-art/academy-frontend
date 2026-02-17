@@ -134,21 +134,33 @@ export default function ProfileInfoCard({
                 </div>
               </div>
 
-              {/* 2행: 아이디 (테넌트 접두어 제거) */}
+              {/* 2행: 아이디 (아이콘 + 값) */}
               <div
-                className="flex flex-wrap items-baseline gap-2"
+                className="flex flex-wrap items-center gap-3"
                 style={{ padding: "var(--space-2) 0", borderTop: "1px solid var(--color-border-divider)" }}
               >
-                <span style={{ fontSize: LABEL_FONT, fontWeight: 600, color: SECONDARY_COLOR }}>아이디</span>
+                <span
+                  className="flex items-center justify-center shrink-0"
+                  style={{ color: SECONDARY_COLOR }}
+                  aria-hidden
+                >
+                  <FiAtSign size={18} strokeWidth={2} />
+                </span>
                 <span style={{ fontSize: VALUE_FONT, fontWeight: 700, color: VALUE_COLOR }}>{displayId || "—"}</span>
               </div>
 
-              {/* 3행: 전화번호 */}
+              {/* 3행: 전화번호 (아이콘 + 값) */}
               <div
-                className="flex flex-wrap items-baseline gap-2"
+                className="flex flex-wrap items-center gap-3"
                 style={{ padding: "var(--space-2) 0", borderTop: "1px solid var(--color-border-divider)" }}
               >
-                <span style={{ fontSize: LABEL_FONT, fontWeight: 600, color: SECONDARY_COLOR }}>전화번호</span>
+                <span
+                  className="flex items-center justify-center shrink-0"
+                  style={{ color: SECONDARY_COLOR }}
+                  aria-hidden
+                >
+                  <FiPhone size={18} strokeWidth={2} />
+                </span>
                 <span style={{ fontSize: VALUE_FONT, fontWeight: 700, color: VALUE_COLOR }}>
                   {me.phone || "—"}
                 </span>
