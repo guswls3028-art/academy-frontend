@@ -84,7 +84,6 @@ export default function MessageLogPage() {
       title: "비고",
       dataIndex: "failure_reason",
       key: "failure_reason",
-      ellipsis: false,
       render: (v: string | null | undefined) =>
         v ? (
           <span
