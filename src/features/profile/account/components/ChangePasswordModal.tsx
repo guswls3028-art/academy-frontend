@@ -47,7 +47,9 @@ export default function ChangePasswordModal({
       setMsg("");
       mut.reset();
     }
-  }, [open, mut]);
+    // mut를 의존성에 넣으면 참조 변경 시 무한 리렌더 → Maximum update depth exceeded 발생
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
