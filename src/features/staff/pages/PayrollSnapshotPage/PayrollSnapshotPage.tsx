@@ -137,9 +137,22 @@ export default function PayrollSnapshotPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {rows.map((r) => {
+                  const staff = staffById.get(r.staff);
+                  return (
                   <tr key={r.id} className="border-t border-[var(--color-border-divider)]">
-                    <td className="py-3 px-4 text-sm font-medium">{r.staff_name}</td>
+                    <td className="py-3 px-4 text-sm">
+                      {staff ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <StaffRoleAvatar role={staff.role} size={20} className="shrink-0 text-[var(--color-text-secondary)]" />
+                          <span className="font-medium text-[var(--color-text-primary)]">{r.staff_name}</span>
+                          <RoleBadge isManager={!!staff.is_manager} />
+                          <span className="text-xs text-[var(--color-text-muted)]">{payLabel(staff.pay_type)}</span>
+                        </div>
+                      ) : (
+                        <span className="font-medium text-[var(--color-text-primary)]">{r.staff_name}</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-sm text-right">{r.work_hours}</td>
                     <td className="py-3 px-4 text-sm text-right">{r.work_amount.toLocaleString()}원</td>
                     <td className="py-3 px-4 text-sm text-right">{r.approved_expense_amount.toLocaleString()}원</td>
