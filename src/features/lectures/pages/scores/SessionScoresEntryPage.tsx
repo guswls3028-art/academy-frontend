@@ -6,6 +6,7 @@
  * - 차시블럭·레거시 요약 제거 (출결탭에만 차시블럭)
  */
 
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -30,6 +31,7 @@ export default function SessionScoresEntryPage({
 }: Props) {
   const { sessionId } = useParams<{ sessionId: string }>();
   const numericSessionId = Number(sessionId);
+  const [searchInput, setSearchInput] = useState("");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["session-scores", numericSessionId],
@@ -71,7 +73,8 @@ export default function SessionScoresEntryPage({
             type="search"
             className="ds-input"
             placeholder="이름 검색 (초성 검색 가능)"
-            id="scores-search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             style={{ maxWidth: 280 }}
             aria-label="학생 이름 검색"
           />
@@ -91,7 +94,7 @@ export default function SessionScoresEntryPage({
       {!isLoading && !isError && (
         <SessionScoresPanel
           sessionId={numericSessionId}
-          searchInputId="scores-search"
+          search={searchInput}
         />
       )}
     </div>
