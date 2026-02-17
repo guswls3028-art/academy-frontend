@@ -218,6 +218,11 @@ export default function MessageTemplatesPage() {
 
   return (
     <>
+      <Panel
+        variant="primary"
+        title="템플릿 저장"
+        description="메시지 발송 시 사용할 양식을 저장합니다. 기본·강의·클리닉 카테고리별로 관리할 수 있습니다."
+      >
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="ds-tabs ds-tabs--flat" role="tablist">
