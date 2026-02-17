@@ -13,6 +13,12 @@ export type Me = {
   is_superuser?: boolean;
 };
 
+/** API/화면 노출용 — 테넌트 접두어(t123_ 등) 제거 (백엔드 user_display_username 규칙과 동일) */
+export function displayUsername(username: string | null | undefined): string {
+  if (!username) return "";
+  return username.replace(/^t\d+_/, "");
+}
+
 export async function fetchMe() {
   const { data } = await api.get<Me>("/core/me/");
   return data;
