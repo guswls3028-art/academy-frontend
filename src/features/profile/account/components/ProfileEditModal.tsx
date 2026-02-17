@@ -132,8 +132,10 @@ export default function ProfileEditModal({
               <FiLock size={14} style={{ color: "var(--color-text-muted)" }} />
               비밀번호 변경
             </label>
-            <span className="text-[11px] font-medium text-[var(--color-text-muted)] mb-1">
-              변경하려면 현재 비밀번호와 새 비밀번호를 입력하세요. 비워두면 변경하지 않습니다.
+            <span className={`text-[11px] font-medium mb-1 ${invalidPassword ? "text-[var(--color-error)]" : "text-[var(--color-text-muted)]"}`}>
+              {invalidPassword
+                ? "비밀번호를 변경하려면 현재 비밀번호와 새 비밀번호를 모두 입력하세요."
+                : "변경하려면 현재 비밀번호와 새 비밀번호를 입력하세요. 비워두면 변경하지 않습니다."}
             </span>
             <input
               type="password"
