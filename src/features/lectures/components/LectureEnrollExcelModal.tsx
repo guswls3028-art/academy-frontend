@@ -73,6 +73,10 @@ export default function LectureEnrollExcelModal({
     setBusy(true);
     try {
       const { job_id } = await lectureEnrollFromExcelUpload(lectureId, selectedFile, pwd);
+      if (!job_id) {
+        feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
       asyncStatusStore.addWorkerJob("엑셀 수강등록", job_id, "excel_parsing");
       feedback.success("작업이 백그라운드에서 진행됩니다. 우하단에서 진행 상황을 확인할 수 있습니다.");
       onSuccess?.();
