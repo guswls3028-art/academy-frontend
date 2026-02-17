@@ -120,13 +120,12 @@
   background: #fff;
 }
 
-/* 재생 정책 — 워터마크·건너뛰기·최대 배속 한 줄 */
+/* 재생 정책 — 워터마크 · 건너뛰기 · 배속 가로 1자로 고정 */
 .video-upload-modal__policy-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--space-4);
-  grid-template-columns: unset;
 }
 
 .video-upload-modal__policy-item {
@@ -134,9 +133,72 @@
   align-items: center;
   gap: var(--space-2);
   cursor: default;
+  flex-shrink: 0;
+}
+
+.video-upload-modal__policy-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* 배속 — 입력 + 올림/내림 버튼 밖으로 꺼내서 누르기 쉽게 */
+.video-upload-modal__speed-wrap {
+  margin-left: var(--space-2);
+}
+
+.video-upload-modal__speed-control {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 .video-upload-modal__speed-input {
-  width: 64px;
-  flex-shrink: 0;
+  width: 48px;
+  text-align: center;
+  padding-left: 6px;
+  padding-right: 6px;
+  -moz-appearance: textfield;
+}
+.video-upload-modal__speed-input::-webkit-outer-spin-button,
+.video-upload-modal__speed-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.video-upload-modal__speed-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.video-upload-modal__speed-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 120ms ease, color 120ms ease;
+}
+.video-upload-modal__speed-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+}
+.video-upload-modal__speed-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.video-upload-modal__speed-btn:first-child {
+  border-radius: 2px 2px 0 0;
+  border-bottom-width: 0;
+}
+.video-upload-modal__speed-btn:last-child {
+  border-radius: 0 0 2px 2px;
 }
