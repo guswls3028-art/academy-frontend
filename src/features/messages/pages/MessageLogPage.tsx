@@ -133,6 +133,6 @@ export default function MessageLogPage() {
           style={{ marginTop: 8 }}
         />
       )}
-    </Section>
+    </Panel>
   );
 }
