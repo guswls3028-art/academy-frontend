@@ -8,7 +8,7 @@ import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
 import { Staff, type StaffListOwner } from "../../api/staff.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { patchStaffDetail } from "../../api/staff.detail.api";
-import { fetchWorkTypes, createStaffWorkType } from "../../api/staffWorkType.api";
+import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
 
 /** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
 export const OWNER_SELECTION_ID = -1;
