@@ -16,6 +16,7 @@ export default function StaffRoutes() {
       <Route element={<StaffLayout />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<HomePage />} />
+        <Route path="operations" element={<Navigate to="/admin/staff/attendance" replace />} />
         <Route path="attendance" element={<AttendancePage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="month-lock" element={<MonthLockPage />} />
