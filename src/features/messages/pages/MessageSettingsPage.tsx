@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "antd";
-import { FiPhone, FiMessageCircle, FiBook } from "react-icons/fi";
+import { FiMessageCircle } from "react-icons/fi";
 import { Section, Panel, Button } from "@/shared/ui/ds";
 import { useMessagingInfo, useUpdateKakaoPfid } from "../hooks/useMessagingInfo";
 
