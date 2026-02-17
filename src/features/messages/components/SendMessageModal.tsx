@@ -155,6 +155,45 @@ export default function SendMessageModal({
             )}
           </section>
 
+          {/* 발송 유형: SMS만 / 알림톡만 / 알림톡→SMS 폴백 */}
+          <section>
+            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">발송 유형</div>
+            <div className="flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="messageMode"
+                  checked={messageMode === "sms"}
+                  onChange={() => setMessageMode("sms")}
+                />
+                <span>SMS만</span>
+              </label>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="messageMode"
+                  checked={messageMode === "alimtalk"}
+                  onChange={() => setMessageMode("alimtalk")}
+                />
+                <span>알림톡만</span>
+              </label>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="messageMode"
+                  checked={messageMode === "both"}
+                  onChange={() => setMessageMode("both")}
+                />
+                <span>알림톡→SMS 폴백</span>
+              </label>
+            </div>
+            {messageMode !== "sms" && (
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                알림톡/폴백은 검수 승인된 템플릿이 필요합니다. 아래에서 템플릿을 선택하세요.
+              </p>
+            )}
+          </section>
+
           {/* 내용: 직접 입력 / 템플릿 불러오기 */}
           <section>
             <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">내용</div>
