@@ -1,18 +1,10 @@
 // 강의·차시 폴더 트리 — 저장소 FolderTree와 유사한 구조
 
 import { BookOpen, ChevronRight } from "lucide-react";
-import type { Lecture } from "@/features/lectures/api/sessions";
+import type { Lecture, Session } from "@/features/lectures/api/sessions";
 import styles from "./LectureSessionTree.module.css";
 
-export type SessionNode = {
-  id: number;
-  lecture: number;
-  order: number;
-  title: string;
-  date?: string | null;
-};
-
-type LectureWithSessions = Lecture & { sessions: SessionNode[] };
+type LectureWithSessions = Lecture & { sessions: Session[] };
 
 type LectureSessionTreeProps = {
   lectures: LectureWithSessions[];
