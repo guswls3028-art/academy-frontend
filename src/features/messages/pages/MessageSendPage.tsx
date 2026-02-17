@@ -2,7 +2,7 @@
 // 발송 — students 도메인 스타일, 메시지 발송 모달 오픈
 
 import { useNavigate } from "react-router-dom";
-import { Button, Panel, EmptyState } from "@/shared/ui/ds";
+import { Button, Panel } from "@/shared/ui/ds";
 import { useSendMessageModal } from "../context/SendMessageModalContext";
 
 export default function MessageSendPage() {
