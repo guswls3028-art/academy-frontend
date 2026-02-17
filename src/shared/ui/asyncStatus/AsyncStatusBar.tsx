@@ -144,7 +144,8 @@ export default function AsyncStatusBar() {
     },
   });
 
-  const pendingCount = workerTasks.filter((t) => t.status === "pending").length;
+  const displayTasks = tasks;
+  const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
 
   // 항상 우하단에 작업 박스 표시 (작업 없을 때도 접힌 상태로 유지)
   return (
@@ -164,11 +165,11 @@ export default function AsyncStatusBar() {
           <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
         </svg>
         <span className="async-status-bar__trigger-count">
-          {workerTasks.length === 0
+          {displayTasks.length === 0
             ? "작업"
             : pendingCount > 0
-              ? `진행 중 ${workerTasks.length}건`
-              : `${workerTasks.length}건 완료`}
+              ? `진행 중 ${displayTasks.length}건`
+              : `${displayTasks.length}건 완료`}
         </span>
       </button>
 
@@ -200,10 +201,10 @@ export default function AsyncStatusBar() {
           </div>
         </div>
         <div className="async-status-bar__list">
-          {workerTasks.length === 0 ? (
+          {displayTasks.length === 0 ? (
             <div className="async-status-bar__empty">진행 중인 작업이 없습니다.</div>
           ) : (
-            workerTasks.map((task) => <TaskItem key={task.id} task={task} />)
+            displayTasks.map((task) => <TaskItem key={task.id} task={task} />)
           )}
         </div>
       </div>
