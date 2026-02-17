@@ -2,8 +2,7 @@
 // 내 정보 — 명함 스타일(아바타·이름·직위 / 아이디·전화번호 잘 보이게), 수정 모달, 비밀번호/로그아웃 푸터
 
 import { useState } from "react";
-import { FiEdit2, FiKey, FiLogOut, FiPhone, FiUser } from "react-icons/fi";
-import { HiOutlineIdentification } from "react-icons/hi2";
+import { FiAtSign, FiEdit2, FiKey, FiLogOut, FiPhone, FiUser } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
 import { StaffRoleAvatar, type StaffRoleType } from "@/shared/ui/avatars";
 import { Me, displayUsername } from "../../api/profile.api";
@@ -66,8 +65,8 @@ export default function ProfileInfoCard({
 
   return (
     <>
-      <div className="flex flex-col gap-6">
-        <div className="ds-card-modal">
+      <div className="flex flex-col gap-6 items-start">
+        <div className="ds-card-modal ds-card-modal--narrow">
           <header className="ds-card-modal__header">
             <div aria-hidden className="ds-card-modal__accent" />
             <div className="ds-card-modal__header-inner">
