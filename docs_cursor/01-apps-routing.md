@@ -46,8 +46,14 @@
 
 **파일**: `src/admin_app/router/AdminAppRouter.tsx`, `AdminAppLayout.tsx` 네비 링크.
 
-- `/dev/home` → AdminAppHomePage  
-- `/dev/branding` → TenantBrandingPage  
+- `/dev/` → Redirect to `/dev/home`
+- `/dev/home` → AdminAppHomePage
+- `/dev/branding` → TenantListPage (테넌트 목록)
+- `/dev/branding/:tenantId` → TenantDetailMenuPage
+- `/dev/branding/:tenantId/branding` → TenantBrandingFormPage
+- `/dev/branding/:tenantId/domains` → TenantDomainsPage
+- `/dev/branding/:tenantId/advanced` → TenantAdvancedPage
+- `/dev/branding-legacy` → TenantBrandingPage (레거시 단일 페이지)
 - (추가 페이지는 AdminAppRouter에 Route, AdminAppLayout에 링크 추가)
 
 ---
