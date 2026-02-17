@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
@@ -28,7 +30,50 @@ function StatusIcon({ status }: { status: AsyncTaskStatus }) {
   );
 }
 
-function TaskItem({ task }: { task: AsyncTask }) {
+function TrashIcon({ className, size = 16 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M3 6h18v2l-2 14H5L3 8V6zm4 2v12h10V8H7zm2 2h2v8H9v-8zm4 0h2v8h-2v-8zM8 4h8v2H8V4z" />
+    </svg>
+  );
+}
+
+function RetryIcon({ className, size = 16 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M2 12a10 10 0 1 0 10-10 10 10 0 0 0-10 10zm0 0h4m-4 0V8m0 4v4" />
+      <path d="M22 12a10 10 0 0 1-10 10 10 10 0 0 1-8.5-4.7l3.2-2.4" />
+      <path d="M22 2v4h-4" />
+    </svg>
+  );
+}
+
+function TaskItem({ task, onVideoRetry }: { task: AsyncTask; onVideoRetry: () => void }) {
+  const canRetry =
+    task.meta?.jobType === "video_processing" &&
+    task.meta?.jobId &&
+    (task.status === "error" || task.status === "success");
+  const [retrying, setRetrying] = useState(false);
+
+  const handleRetry = async () => {
+    if (task.meta?.jobType !== "video_processing" || !task.meta?.jobId || retrying) return;
+    setRetrying(true);
+    try {
+      await api.post(`/media/videos/${task.meta.jobId}/retry/`);
+      asyncStatusStore.retryTask(task.id);
+      feedback.success("재처리 요청을 보냈습니다.");
+      onVideoRetry();
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (e as Error)?.message ||
+        "재처리에 실패했습니다.";
+      feedback.error(msg);
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   return (
     <div className="async-status-bar__item">
       <div className="async-status-bar__item-row">
@@ -37,16 +82,29 @@ function TaskItem({ task }: { task: AsyncTask }) {
           <div className="async-status-bar__item-label">{task.label}</div>
           {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
         </div>
-        <button
-          type="button"
-          className="async-status-bar__item-close"
-          onClick={() => asyncStatusStore.removeTask(task.id)}
-          aria-label="닫기"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="async-status-bar__item-actions">
+          {canRetry && (
+            <button
+              type="button"
+              className="async-status-bar__item-btn async-status-bar__item-btn--retry"
+              onClick={handleRetry}
+              disabled={retrying}
+              title="재처리"
+              aria-label="재처리"
+            >
+              <RetryIcon size={14} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="async-status-bar__item-btn async-status-bar__item-btn--delete"
+            onClick={() => asyncStatusStore.removeTask(task.id)}
+            title="삭제"
+            aria-label="삭제"
+          >
+            <TrashIcon size={14} />
+          </button>
+        </div>
       </div>
       {task.status === "pending" && (
         <div className="async-status-bar__progress">
