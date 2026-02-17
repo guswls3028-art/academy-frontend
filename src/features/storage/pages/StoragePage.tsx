@@ -4,11 +4,10 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import DomainLayout from "@/shared/ui/domain/DomainLayout";
-import { Button } from "@/shared/ui/ds";
 import MyStorageExplorer from "../components/MyStorageExplorer";
 import StudentInventoryManage from "../components/StudentInventoryManage";
 import QuotaIndicator from "../components/QuotaIndicator";
-import styles from "./StoragePage.module.css";
+import sharedStyles from "@/shared/ui/domain/StorageStyleTabs.module.css";
 
 type StorageTab = "mine" | "students";
 
