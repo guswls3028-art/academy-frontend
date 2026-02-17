@@ -243,12 +243,27 @@
   background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
 }
 
+.async-status-bar__progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
 .async-status-bar__progress {
+  flex: 1;
+  min-width: 0;
   height: 6px;
   border-radius: 3px;
   background: var(--color-border-divider, #e5e7eb);
   overflow: hidden;
-  margin-top: 6px;
+}
+
+.async-status-bar__progress-pct {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #4b5563);
 }
 
 .async-status-bar__progress-fill {
