@@ -65,7 +65,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   }, [sessionId, file, title]);
 
   const uploadMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (tempId: string) => {
       if (!file) throw new Error("파일이 없습니다.");
 
       const initPayload = {
@@ -73,11 +73,9 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         title: title.trim(),
         filename: file.name,
         content_type: file.type || "video/mp4",
-
         show_watermark: showWatermark,
         allow_skip: allowSkip,
         max_speed: maxSpeed,
-
         ...(description.trim() ? { description: description.trim() } : {}),
       };
 
@@ -85,6 +83,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         "/media/videos/upload/init/",
         initPayload
       );
+      asyncStatusStore.updateProgress(tempId, 15);
 
       const uploadUrl = initRes.data?.upload_url;
       const videoId = initRes.data?.video?.id;
@@ -104,6 +103,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         body: file,
         headers: putHeaders,
       });
+      asyncStatusStore.updateProgress(tempId, 50);
 
       if (!putRes.ok) {
         throw new Error(`R2 업로드 실패: ${putRes.status} ${putRes.statusText}`);
@@ -113,24 +113,26 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         `/media/videos/${videoId}/upload/complete/`,
         { ok: true }
       );
+      asyncStatusStore.updateProgress(tempId, 80);
 
-      return completeRes.data as { id: number };
+      return { id: completeRes.data?.id ?? videoId, tempId };
     },
 
     onSuccess: (data) => {
-      if (data?.id != null) {
-        asyncStatusStore.addWorkerJob("영상 추가", String(data.id), "video_processing");
+      if (data?.id != null && data?.tempId) {
+        asyncStatusStore.attachWorkerMeta(data.tempId, String(data.id), "video_processing");
       }
-      feedback.success("백그라운드에서 진행됩니다. 우하단에서 진행 상황을 확인할 수 있습니다.");
+      feedback.success("작업이 우하단 작업 박스에서 진행됩니다.");
       onClose();
     },
 
-    onError: (e: unknown) => {
+    onError: (e: unknown, tempId: string) => {
       const msg =
         (e as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
           ?.detail ||
         (e as Error)?.message ||
         "업로드에 실패했습니다.";
+      asyncStatusStore.completeTask(tempId, "error", msg);
       feedback.error(msg);
     },
   });
@@ -140,7 +142,9 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   const pickFile = () => fileInputRef.current?.click();
 
   const handleUpload = () => {
-    uploadMut.mutate();
+    const tempId = `video-upload-${sessionId}-${Date.now()}`;
+    asyncStatusStore.addTask("영상 추가", tempId);
+    uploadMut.mutate(tempId);
   };
 
   return (
