@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { FiPhone } from "react-icons/fi";
-import { Input, Button } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import {
   useMessagingInfo,
   useUpdateMessagingInfo,
