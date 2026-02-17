@@ -251,6 +251,7 @@ export default function MessageTemplatesPage() {
           onOpenEdit={(t) => setModalOpen({ template: t, mode: "edit" })}
         />
       </div>
+      </Panel>
 
       <TemplateEditModal
         open={isCreate || isEditOrView}
