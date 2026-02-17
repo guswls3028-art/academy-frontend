@@ -1,5 +1,6 @@
 // PATH: src/features/staff/pages/AttendancePage/AttendancePage.tsx
-// 근태: 좌측 DB 직원 선택, 우측 근무 기록
+// 근태: 좌측 DB 직원 선택, 우측 근무 기록.
+// ※ 탭 아래 "근태" 큰 내부 헤더 없음 (도메인 헤더·탭만 사용).
 
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -24,7 +25,7 @@ export default function AttendancePage() {
   const monthText = useMemo(() => ymLabel(year, month), [year, month]);
 
   return (
-    <div className="grid grid-cols-[320px_1fr] gap-6">
+    <div className="grid grid-cols-[320px_1fr] gap-6" data-no-internal-header>
         <div className="ds-panel-card">
           <div className="ds-panel-card__header px-4 py-3">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">직원 선택</div>
