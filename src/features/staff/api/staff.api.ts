@@ -56,14 +56,19 @@ export async function fetchStaffs(params?: {
     params,
   });
 
-  const staffs: Staff[] = Array.isArray(res.data)
-    ? (res.data as Staff[])
-    : Array.isArray(res.data?.results)
-      ? (res.data.results as Staff[])
+  const raw = res?.data;
+  const staffs: Staff[] = Array.isArray(raw)
+    ? (raw as Staff[])
+    : Array.isArray((raw as Record<string, unknown>)?.results)
+      ? ((raw as Record<string, unknown>).results as Staff[])
       : [];
-  const owner =
-    res.data && typeof res.data === "object" && "owner" in res.data
-      ? (res.data.owner as StaffListOwner | null) ?? null
+  const ownerRaw =
+    raw && typeof raw === "object" && "owner" in (raw as object)
+      ? (raw as Record<string, unknown>).owner
+      : undefined;
+  const owner: StaffListOwner | null =
+    ownerRaw && typeof ownerRaw === "object" && ownerRaw !== null && "name" in ownerRaw && (ownerRaw as StaffListOwner).name
+      ? (ownerRaw as StaffListOwner)
       : null;
 
   return { staffs, owner };
