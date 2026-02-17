@@ -75,8 +75,8 @@ export default function ProfileLayout() {
 
   return (
     <DomainLayout
-      title="내 계정"
-      description="개인 정보 관리 · 근태 기록 · 지출 내역 · 대형강사 전용 통합 대시보드"
+      title="프로필"
+      description="근태 기록 · 지출 내역 (내 계정은 설정 탭에서)"
       tabs={PROFILE_TABS}
     >
       <div className="max-w-[1200px] mx-auto">
