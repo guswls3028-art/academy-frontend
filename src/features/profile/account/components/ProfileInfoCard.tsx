@@ -138,6 +138,8 @@ export default function ProfileInfoCard({
               <div
                 className="flex flex-wrap items-center gap-3"
                 style={{ padding: "var(--space-2) 0", borderTop: "1px solid var(--color-border-divider)" }}
+                role="group"
+                aria-label="아이디"
               >
                 <span
                   className="flex items-center justify-center shrink-0"
@@ -153,6 +155,8 @@ export default function ProfileInfoCard({
               <div
                 className="flex flex-wrap items-center gap-3"
                 style={{ padding: "var(--space-2) 0", borderTop: "1px solid var(--color-border-divider)" }}
+                role="group"
+                aria-label="전화번호"
               >
                 <span
                   className="flex items-center justify-center shrink-0"
