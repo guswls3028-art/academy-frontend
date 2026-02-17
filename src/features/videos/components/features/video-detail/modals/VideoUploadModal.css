@@ -1,4 +1,12 @@
-/* PATH: VideoUploadModal.css — 영상 추가 모달 전용 (드롭존·토글) */
+/* PATH: VideoUploadModal.css — 영상 추가 모달 전용 (드롭존·토글·컴팩트) */
+
+.video-upload-modal__body {
+  gap: var(--space-3);
+}
+
+.video-upload-modal__row {
+  padding: var(--space-3) var(--space-4);
+}
 
 .video-upload-modal__dropzone {
   display: flex;
@@ -11,6 +19,13 @@
   background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-modal-bg));
   cursor: pointer;
   transition: border-color 160ms ease, background 160ms ease;
+}
+
+.video-upload-modal__dropzone--compact {
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  flex: 1;
+  min-width: 0;
 }
 
 .video-upload-modal__dropzone:hover,
