@@ -146,6 +146,7 @@ export const asyncStatusStore = {
       id: jobId,
       progress: t.progress ?? 0,
       meta: { jobId, jobType },
+      tenantScope: t.tenantScope ?? this._getTenantScope(),
     };
     tasks = [...tasks.slice(0, idx), ...tasks.slice(idx + 1)].filter((x) => x.id !== jobId);
     tasks = [...tasks, next];
