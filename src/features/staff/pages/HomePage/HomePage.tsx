@@ -46,17 +46,21 @@ export default function HomePage() {
 
   const canManage = !!meQ.data?.is_payroll_manager;
 
+  /** 직위순 기본 정렬: 대표(owner) → 강사(TEACHER) → 조교(ASSISTANT). 대표는 테이블에서 별도 첫 행. */
+  const ROLE_ORDER: Record<string, number> = { TEACHER: 0, ASSISTANT: 1 };
   const rows = useMemo(() => {
     const list = Array.isArray(staffs) ? staffs : [];
     const needle = q.trim().toLowerCase();
-    if (!needle) return list;
-
-    return list.filter((s) => {
-      return (
-        (s.name ?? "").toLowerCase().includes(needle) ||
-        (s.phone ?? "").toLowerCase().includes(needle)
-      );
-    });
+    const filtered = !needle
+      ? list
+      : list.filter(
+          (s) =>
+            (s.name ?? "").toLowerCase().includes(needle) ||
+            (s.phone ?? "").toLowerCase().includes(needle)
+        );
+    return [...filtered].sort(
+      (a, b) => (ROLE_ORDER[a.role] ?? 2) - (ROLE_ORDER[b.role] ?? 2)
+    );
   }, [staffs, q]);
 
   const selectionBar = (
