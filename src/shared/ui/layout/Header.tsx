@@ -212,11 +212,13 @@ export default function Header() {
   const userMenu = {
     items: [
       { key: "settings", label: "설정" },
+      { key: "theme", label: "테마" },
       { key: "divider-1", type: "divider" as const },
       { key: "logout", label: "로그아웃" },
     ],
     onClick: ({ key }: { key: string }) => {
       if (key === "settings") nav("/admin/settings");
+      if (key === "theme") setOpenTheme(true);
       if (key === "logout") nav("/login");
     },
   };
