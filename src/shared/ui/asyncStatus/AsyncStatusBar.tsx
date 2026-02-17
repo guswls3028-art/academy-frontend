@@ -182,8 +182,9 @@ export default function AsyncStatusBar() {
               className="async-status-bar__header-btn"
               onClick={() => asyncStatusStore.clearCompleted()}
               title="완료된 항목 지우기"
+              aria-label="완료된 항목 지우기"
             >
-              지우기
+              <TrashIcon size={18} />
             </button>
             <button
               type="button"
