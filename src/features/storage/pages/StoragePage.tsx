@@ -43,7 +43,9 @@ export default function StoragePage() {
         </div>
 
         {/* 용량 인디케이터 */}
-        <QuotaIndicator style={{ flexShrink: 0 }} />
+        <div style={{ flexShrink: 0 }}>
+          <QuotaIndicator />
+        </div>
 
         {/* 탭 콘텐츠 */}
         {tab === "mine" && <MyStorageExplorer />}
