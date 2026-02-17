@@ -1,8 +1,10 @@
 // PATH: src/shared/ui/asyncStatus/useWorkerJobPoller.ts
 // 워커 작업(엑셀·영상 등) 상태/진행률 폴링 — 우하단 프로그래스바 갱신 및 완료 처리
 // 엑셀: GET /jobs/<id>/. 영상: GET /media/videos/<id>/.
+// 현재 테넌트 작업만 폴링 (태넌트 격리).
 
 import { useEffect, useRef } from "react";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { asyncStatusStore } from "./asyncStatusStore";
 import { getJobStatus } from "@/shared/api/jobStatus";
 import api from "@/shared/api/axios";
