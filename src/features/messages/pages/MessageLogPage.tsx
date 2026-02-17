@@ -84,9 +84,23 @@ export default function MessageLogPage() {
       title: "비고",
       dataIndex: "failure_reason",
       key: "failure_reason",
-      ellipsis: true,
+      ellipsis: false,
       render: (v: string | null | undefined) =>
-        v ? <span style={{ color: "var(--color-error)" }}>{v}</span> : "—",
+        v ? (
+          <span
+            style={{
+              color: "var(--color-error)",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              maxWidth: 400,
+              display: "inline-block",
+            }}
+          >
+            {v}
+          </span>
+        ) : (
+          "—"
+        ),
     },
   ];
 
