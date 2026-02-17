@@ -276,8 +276,14 @@ export default function Header() {
   );
   const { program } = useProgram();
 
-  const [q, setQ] = useState("");
+  const [searchParams] = useSearchParams();
+  const searchFromUrl = searchParams.get("search") ?? "";
+  const [q, setQ] = useState(searchFromUrl);
   const [openTheme, setOpenTheme] = useState(false);
+
+  useEffect(() => {
+    if (searchFromUrl !== q) setQ(searchFromUrl);
+  }, [searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
   const { unreadCount } = useNotices();
 
