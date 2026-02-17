@@ -61,7 +61,6 @@ export default function ExpensesPage() {
             </WorkMonthProvider>
           )}
         </div>
-      </div>
     </div>
   );
 }
