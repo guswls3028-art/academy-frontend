@@ -85,7 +85,6 @@ export default function SettingsPage() {
             />
           </div>
         </Panel>
-      </Section>
-    </DomainLayout>
+    </Section>
   );
 }
