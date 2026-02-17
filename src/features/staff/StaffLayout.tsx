@@ -4,7 +4,7 @@ import { Outlet } from "react-router-dom";
 import { DomainLayout } from "@/shared/ui/layout";
 
 const STAFF_TABS = [
-  { key: "home", label: "인사 기본", path: "/admin/staff/home" },
+  { key: "home", label: "홈", path: "/admin/staff/home" },
   { key: "attendance", label: "근태", path: "/admin/staff/attendance" },
   { key: "expenses", label: "비용/경비", path: "/admin/staff/expenses" },
   { key: "month-lock", label: "월 마감", path: "/admin/staff/month-lock" },
