@@ -40,7 +40,7 @@ export default function VideoAdminPage() {
       title="영상"
       description="강의·차시 단위 영상을 관리합니다. 영상 업로드·재생 정책은 각 강의 > 차시에서 설정하세요."
     >
-      <div className="flex flex-col gap-4">
+      <div className={styles.wrap}>
         <DomainListToolbar
           totalLabel={isLoading ? "…" : `총 ${filtered.length}개 강의`}
           searchSlot={
