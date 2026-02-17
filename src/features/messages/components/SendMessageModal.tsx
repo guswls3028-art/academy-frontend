@@ -85,16 +85,13 @@ export default function SendMessageModal({
     if (!canSend) return;
     setSending(true);
     try {
+      // 항상 현재 입력(직접 입력 또는 템플릿 불러온 뒤 수정한 내용)으로 발송
       const payload: Parameters<typeof sendMessage>[0] = {
         student_ids: studentIds,
         send_to: sendTo,
+        raw_body: body.trim(),
       };
-      if (contentMode === "template" && selectedTemplateId != null) {
-        payload.template_id = selectedTemplateId;
-      } else {
-        payload.raw_body = body.trim();
-        if (subject.trim()) payload.raw_subject = subject.trim();
-      }
+      if (subject.trim()) payload.raw_subject = subject.trim();
       const res = await sendMessage(payload);
       feedback.success(res.detail || `${res.enqueued}건 발송 예정입니다.`);
       if (res.skipped_no_phone > 0) {
