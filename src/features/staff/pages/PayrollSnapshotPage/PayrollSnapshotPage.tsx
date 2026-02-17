@@ -168,7 +168,8 @@ export default function PayrollSnapshotPage() {
                       </ActionButton>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
