@@ -180,7 +180,7 @@ export default function ProfileInfoCard({
                 style={{ color: MUTED_COLOR }}
                 aria-label="계정 · 보안"
               >
-                <FiKey size={14} aria-hidden />
+                <FiShield size={14} aria-hidden />
               </span>
               <div className="flex flex-wrap items-center gap-2">
                 {onPasswordClick != null && (
