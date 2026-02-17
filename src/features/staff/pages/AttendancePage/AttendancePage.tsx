@@ -1,12 +1,12 @@
 // PATH: src/features/staff/pages/AttendancePage/AttendancePage.tsx
-// 근태: 근무 일자·시간, 시급태그별 시간
+// 근태: 좌측 DB 직원 선택, 우측 근무 기록
 
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { WorkMonthProvider } from "../../operations/context/WorkMonthContext";
 import StaffOperationTable from "../OperationsPage/StaffOperationTable";
 import WorkRecordsPanel from "../OperationsPage/WorkRecordsPanel";
-import { SectionHeader, EmptyState } from "@/shared/ui/ds";
+import { EmptyState } from "@/shared/ui/ds";
 
 function getThisMonth() {
   const d = new Date();
@@ -24,13 +24,7 @@ export default function AttendancePage() {
   const monthText = useMemo(() => ymLabel(year, month), [year, month]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <SectionHeader
-        title="근태"
-        description={`${monthText} · 근무 일자·시간, 시급태그별 시간을 입력·조회합니다.`}
-      />
-
-      <div className="grid grid-cols-[320px_1fr] gap-6">
+    <div className="grid grid-cols-[320px_1fr] gap-6">
         <div className="ds-panel-card">
           <div className="ds-panel-card__header px-4 py-3">
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">직원 선택</div>
