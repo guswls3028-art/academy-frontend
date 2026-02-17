@@ -64,8 +64,12 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     mutationFn: async (id: number) => {
       await api.post(`/media/videos/${id}/retry/`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, videoId) => {
       qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+      // 작업 박스에 재처리 태스크 추가 → 우하단에서 진행률 표시
+      const video = videos.find((v: MediaVideo) => v.id === videoId);
+      const label = video?.title ? `${video.title} 재처리` : `영상 ${videoId} 재처리`;
+      asyncStatusStore.addWorkerJob(label, String(videoId), "video_processing");
     },
   });
 
