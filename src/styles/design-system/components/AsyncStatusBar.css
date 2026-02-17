@@ -266,6 +266,24 @@
   color: var(--color-text-secondary, #4b5563);
 }
 
+/* 작업 유형 뱃지 3종: 메시지, 엑셀, 동영상 (전역 ds-status-badge 활용) */
+.async-status-bar__type-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.async-status-bar__item-label-text {
+  word-break: break-word;
+}
+
+.async-status-bar__item-progress-num {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--color-text-secondary, #4b5563);
+}
+
 .async-status-bar__progress-fill {
   height: 100%;
   background: var(--color-primary, #2563eb);
