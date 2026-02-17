@@ -1,4 +1,6 @@
 // PATH: src/shared/ui/ds/SectionHeader.tsx
+// 섹션 내부 제목용. 페이지 상단 제목(도메인 헤더)에는 사용 금지.
+// 페이지 제목·탭은 DomainLayout에서만 담당. (탭 아래에 "근태" 같은 큰 헤더 중복 금지)
 import React from "react";
 
 function cx(...xs: Array<string | false | null | undefined>) {

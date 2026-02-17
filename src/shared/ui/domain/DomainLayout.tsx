@@ -1,5 +1,6 @@
 // PATH: src/shared/ui/domain/DomainLayout.tsx
-// Students 도메인 UI SSOT — 모든 도메인 공통 레이아웃 (헤더 + 탭 + 패널)
+// 페이지 헤더 SSOT — 도메인별 제목·설명·탭은 여기서만 담당.
+// 레이아웃을 쓰는 페이지는 탭 아래에 SectionHeader 등 "내부 헤더"를 넣지 말 것.
 
 import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
