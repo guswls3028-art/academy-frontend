@@ -7,6 +7,7 @@ import api from "@/shared/api/axios";
 import VideoUploadModal from "@/features/videos/components/features/video-detail/modals/VideoUploadModal";
 import VideoThumbnail from "@/features/videos/ui/VideoThumbnail";
 import VideoStatusBadge from "@/features/videos/ui/VideoStatusBadge";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 
 import { useSessionVideos } from "../hooks/useSessionVideos";
 import { Button, EmptyState } from "@/shared/ui/ds";
