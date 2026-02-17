@@ -12,13 +12,31 @@ import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncS
 import "@/styles/design-system/components/AsyncStatusBar.css";
 import "@/styles/design-system/ds/status.css";
 
-/** 작업 유형 뱃지 3종: 메시지, 엑셀, 동영상 (전역 디자인) */
-const JOB_TYPE_BADGE: Record<string, { label: string; tone: "primary" | "success" | "neutral" }> = {
+/** 작업 유형 뱃지: 동영상, 엑셀, OMR, 메시지 (전역 디자인) */
+const JOB_TYPE_BADGE: Record<string, { label: string; tone: "primary" | "success" | "neutral" | "warning" }> = {
   message: { label: "메시지", tone: "neutral" },
   messaging: { label: "메시지", tone: "neutral" },
   excel_parsing: { label: "엑셀", tone: "success" },
   video_processing: { label: "동영상", tone: "primary" },
+  omr: { label: "OMR", tone: "warning" },
+  omr_scan: { label: "OMR", tone: "warning" },
 };
+
+/** 상태 뱃지: 진행 중 / 완료 / 실패 */
+const STATUS_BADGE: Record<AsyncTaskStatus, string> = {
+  pending: "진행 중",
+  success: "완료",
+  error: "실패",
+};
+
+/** 남은 예상시간 계산 (진행률 기반 선형 추정). 진행 중이고 0 < progress < 100일 때만 */
+function getRemainingLabel(task: AsyncTask, nowMs: number): string | null {
+  if (task.status !== "pending" || task.progress == null || task.progress <= 0 || task.progress >= 100) return null;
+  const elapsedSec = (nowMs - task.createdAt) / 1000;
+  const remainingSec = elapsedSec * (100 - task.progress) / task.progress;
+  if (remainingSec < 60) return `약 ${Math.max(1, Math.round(remainingSec))}초 남음`;
+  return `약 ${Math.round(remainingSec / 60)}분 남음`;
+}
 
 function StatusIcon({ status }: { status: AsyncTaskStatus }) {
   if (status === "pending")
