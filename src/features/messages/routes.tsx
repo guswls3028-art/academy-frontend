@@ -2,11 +2,11 @@
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import MessageLayout from "./layout/MessageLayout";
-import MessageRegisterPage from "./pages/MessageRegisterPage";
 import MessageTemplatesPage from "./pages/MessageTemplatesPage";
-import MessageLinkPage from "./pages/MessageLinkPage";
+import MessageSendPage from "./pages/MessageSendPage";
+import MessageAutoSendPage from "./pages/MessageAutoSendPage";
 import MessageLogPage from "./pages/MessageLogPage";
-import MessageGuidePage from "./pages/MessageGuidePage";
+import MessageSettingsPage from "./pages/MessageSettingsPage";
 
 export function MessageRoutes() {
   return (
@@ -14,10 +14,10 @@ export function MessageRoutes() {
       <Route element={<MessageLayout />}>
         <Route index element={<Navigate to="templates" replace />} />
         <Route path="templates" element={<MessageTemplatesPage />} />
-        <Route path="register" element={<MessageRegisterPage />} />
-        <Route path="link" element={<MessageLinkPage />} />
+        <Route path="send" element={<MessageSendPage />} />
+        <Route path="auto-send" element={<MessageAutoSendPage />} />
         <Route path="log" element={<MessageLogPage />} />
-        <Route path="guide" element={<MessageGuidePage />} />
+        <Route path="settings" element={<MessageSettingsPage />} />
       </Route>
     </Routes>
   );
