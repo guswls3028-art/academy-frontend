@@ -140,6 +140,7 @@ export default function SessionDetailPage() {
     qc.invalidateQueries({ queryKey: ["session-enrollments", sId] });
     qc.invalidateQueries({ queryKey: ["attendance", sId] });
     qc.invalidateQueries({ queryKey: ["attendance-matrix", lecId] });
+    qc.invalidateQueries({ queryKey: ["session-scores", sId] });
   };
 
   if (!session) {
