@@ -350,14 +350,13 @@ export default function Header() {
               <div className="app-header__alarmDropdown">
                 <div className="app-header__alarmDropdownHeader">
                   <span>알림</span>
-                  <Button
+                  <button
                     type="button"
-                    intent="ghost"
-                    size="sm"
+                    className="app-header__alarmDropdownHeaderLink"
                     onClick={openNoticeAndCloseAlarm}
                   >
                     알림 전체 보기
-                  </Button>
+                  </button>
                 </div>
                 <div className="app-header__alarmDropdownList">
                   {notices.length === 0 ? (
@@ -367,10 +366,26 @@ export default function Header() {
                       <div
                         key={n.id}
                         className="app-header__alarmDropdownItem"
+                        data-level={n.level}
                         onClick={openNoticeAndCloseAlarm}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openNoticeAndCloseAlarm();
+                          }
+                        }}
                       >
-                        <strong>{n.title}</strong>
-                        {n.body && <span className="app-header__alarmDropdownItemBody">{n.body}</span>}
+                        <div className="app-header__alarmDropdownItemInner">
+                          <span className="app-header__alarmDropdownItemAccent" aria-hidden />
+                          <div className="app-header__alarmDropdownItemContent">
+                            <strong>{n.title}</strong>
+                            {n.body != null && n.body !== "" && (
+                              <span className="app-header__alarmDropdownItemBody">{n.body}</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     ))
                   )}
