@@ -1,6 +1,7 @@
 // PATH: src/features/messages/pages/MessageAutoSendPage.tsx
 // 자동발송 — 트리거별 템플릿 설정 (가입 완료, 클리닉 알림 등)
 
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiZap } from "react-icons/fi";
 import {
