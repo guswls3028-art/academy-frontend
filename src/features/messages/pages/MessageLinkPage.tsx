@@ -34,10 +34,40 @@ export default function MessageLinkPage() {
     <>
       <Section>
         <SectionHeader
-          title="카카오 알림톡 연동"
-          description="학원 개별 카카오 프로필 ID(PFID)를 입력하면 알림톡 발송이 가능합니다."
+          title="메시지 발신 설정"
+          description="학원별 발신번호와 카카오 PFID를 설정하면 SMS·알림톡 발송이 가능합니다."
         />
-        <div className="space-y-4">
+        <div className="space-y-6">
+          <div>
+            <label
+              className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2"
+              htmlFor="messaging-sender"
+            >
+              발신번호 (SMS·알림톡)
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              <Input
+                id="messaging-sender"
+                placeholder="예: 01031217466"
+                value={sender}
+                onChange={(e) => setSender(e.target.value)}
+                disabled={isUpdatingMessaging}
+                style={{ maxWidth: 320 }}
+              />
+              <Button
+                intent="primary"
+                onClick={handleSaveSender}
+                disabled={isUpdatingMessaging}
+              >
+                {isUpdatingMessaging ? "저장 중…" : "발신번호 저장"}
+              </Button>
+            </div>
+            {info?.messaging_sender && (
+              <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                현재 발신번호: {info.messaging_sender}
+              </p>
+            )}
+          </div>
           <div>
             <label
               className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2"
