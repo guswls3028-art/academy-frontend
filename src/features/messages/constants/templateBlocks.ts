@@ -19,6 +19,15 @@ export const DEFAULT_BLOCKS: TemplateBlock[] = [
   { id: "site_link", label: "사이트 링크", insertText: "#{site_link}", previewValue: "https://example.com" },
 ];
 
+/** 가입 완료(자동발송) 전용 */
+export const SIGNUP_BLOCKS: TemplateBlock[] = [
+  ...DEFAULT_BLOCKS,
+  { id: "student_id", label: "학생 ID", insertText: "#{student_id}", previewValue: "S001" },
+  { id: "student_password", label: "학생 비밀번호", insertText: "#{student_password}", previewValue: "****" },
+  { id: "parent_id", label: "학부모 ID(전화)", insertText: "#{parent_id}", previewValue: "010****1234" },
+  { id: "parent_password", label: "학부모 비밀번호", insertText: "#{parent_password}", previewValue: "****" },
+];
+
 /** 강의 전용: 강의·차시(세션) 내 학생 선택 발송 시 사용. 기본 + 아래 */
 const LECTURE_EXTRA_BLOCKS: TemplateBlock[] = [
   { id: "lecture_name", label: "강의명", insertText: "#{lecture_name}", previewValue: "중등 수학" },
