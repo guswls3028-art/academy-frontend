@@ -1,20 +1,12 @@
 // PATH: src/features/videos/components/features/video-detail/modals/VideoUploadModal.tsx
-
-/**
- * VideoUploadModal
- *
- * ✅ 변경 목적(디자인만):
- * - exams 기준 모달 구조
- *   - header = 텍스트 블록
- *   - body = surface(bg-surface-soft)
- * - 불필요한 card/border 제거
- *
- * ✅ 로직/props/상태/업로드 플로우 그대로 유지
- */
+// 영상 추가 모달 — students 도메인 기준 모달 SSOT (AdminModal + ModalHeader/Body/Footer)
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
   sessionId: number;
@@ -112,14 +104,16 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       await qc.invalidateQueries({
         queryKey: ["session-videos", sessionId],
       });
+      onClose();
     },
 
-    onError: (e: any) => {
-      alert(
-        e?.response?.data?.detail ||
-          e?.message ||
-          "업로드에 실패했습니다."
-      );
+    onError: (e: unknown) => {
+      const msg =
+        (e as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
+          ?.detail ||
+        (e as Error)?.message ||
+        "업로드에 실패했습니다.";
+      feedback.error(msg);
     },
   });
 
@@ -127,207 +121,162 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
   const pickFile = () => fileInputRef.current?.click();
 
+  const handleUpload = () => {
+    uploadMut.mutate();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-[var(--bg-surface)] shadow-xl">
-        {/* header */}
-        <div className="px-5 py-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <div className="text-sm font-semibold text-[var(--text-primary)]">
-                영상 추가
-              </div>
-              <div className="mt-1 text-xs text-[var(--text-muted)]">
-                파일 업로드 및 재생 정책을 설정합니다.
-              </div>
-            </div>
+    <AdminModal open={isOpen} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
+      <ModalHeader
+        type="action"
+        title="영상 추가"
+        description="파일 업로드 및 재생 정책을 설정합니다."
+      />
 
-            <button
-              type="button"
-              className="shrink-0 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
-              onClick={onClose}
-            >
-              닫기
-            </button>
+      <ModalBody>
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          {/* 제목 */}
+          <div className="modal-form-group">
+            <span className="modal-section-label">제목</span>
+            <input
+              className="ds-input"
+              placeholder="예: 1강 OT"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+            />
           </div>
-        </div>
 
-        {/* body */}
-        <div className="px-5 pb-5">
-          <div className="bg-[var(--bg-surface-soft)] rounded-lg p-4 space-y-4">
-            {/* Title */}
-            <div>
-              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
-                제목
-              </div>
-              <input
-                className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
-                placeholder="예: 1강 OT"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                autoFocus
-              />
-            </div>
-
-            {/* File */}
-            <div>
-              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
-                파일 업로드
-              </div>
-
-              <div
-                className="flex cursor-pointer items-center justify-center rounded border border-dashed border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-6 text-sm text-[var(--text-muted)] hover:bg-[var(--bg-app)]"
-                onClick={pickFile}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") pickFile();
-                }}
-              >
-                {file ? (
-                  <div className="text-center">
-                    <div className="font-medium text-[var(--text-primary)]">
-                      {file.name}
-                    </div>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">
-                      클릭해서 파일 변경
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="font-medium text-[var(--text-primary)]">
-                      여기를 클릭해서 업로드
-                    </div>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">
-                      mp4 등 동영상 파일
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                accept="video/*"
-                onChange={(e) =>
-                  setFile(e.target.files?.[0] ?? null)
+          {/* 파일 업로드 */}
+          <div className="modal-form-group">
+            <span className="modal-section-label">파일 업로드</span>
+            <div
+              className="video-upload-modal__dropzone"
+              onClick={pickFile}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  pickFile();
                 }
-              />
+              }}
+              aria-label="동영상 파일 선택"
+            >
+              {file ? (
+                <div className="video-upload-modal__dropzone-inner">
+                  <span className="video-upload-modal__filename">{file.name}</span>
+                  <span className="modal-hint modal-hint--block" style={{ marginTop: 4 }}>
+                    클릭해서 파일 변경
+                  </span>
+                </div>
+              ) : (
+                <div className="video-upload-modal__dropzone-inner">
+                  <span className="video-upload-modal__prompt">여기를 클릭해서 업로드</span>
+                  <span className="modal-hint modal-hint--block" style={{ marginTop: 4 }}>
+                    mp4 등 동영상 파일
+                  </span>
+                </div>
+              )}
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="video/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
 
-            {/* Description */}
-            <div>
-              <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
-                영상 설명
-              </div>
-              <textarea
-                className="h-24 w-full resize-none rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
-                placeholder="(선택)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
+          {/* 영상 설명 */}
+          <div className="modal-form-group modal-form-group--neutral">
+            <span className="modal-section-label">영상 설명</span>
+            <textarea
+              className="ds-textarea"
+              rows={3}
+              placeholder="(선택)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
 
-            {/* Options */}
-            <div className="rounded-lg bg-[var(--bg-surface)] p-3">
-              <div className="mb-2 text-xs font-medium text-[var(--text-secondary)]">
-                재생 정책
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--text-primary)]">
-                <label className="flex items-center gap-2">
-                  <span>워터마크</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowWatermark((v) => !v)}
-                    className={[
-                      "h-6 w-11 rounded-full border border-[var(--border-divider)] transition",
-                      showWatermark
-                        ? "bg-[var(--color-primary)]"
-                        : "bg-[var(--bg-app)]",
-                    ].join(" ")}
-                  >
-                    <span
-                      className={[
-                        "block h-5 w-5 rounded-full bg-white transition",
-                        showWatermark
-                          ? "translate-x-5"
-                          : "translate-x-0.5",
-                      ].join(" ")}
-                    />
-                  </button>
-                </label>
-
-                <label className="flex items-center gap-2">
-                  <span>건너뛰기</span>
-                  <button
-                    type="button"
-                    onClick={() => setAllowSkip((v) => !v)}
-                    className={[
-                      "h-6 w-11 rounded-full border border-[var(--border-divider)] transition",
-                      allowSkip
-                        ? "bg-[var(--color-primary)]"
-                        : "bg-[var(--bg-app)]",
-                    ].join(" ")}
-                  >
-                    <span
-                      className={[
-                        "block h-5 w-5 rounded-full bg-white transition",
-                        allowSkip
-                          ? "translate-x-5"
-                          : "translate-x-0.5",
-                      ].join(" ")}
-                    />
-                  </button>
-                </label>
-
-                <label className="flex items-center gap-2">
-                  <span>최대 배속</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={5}
-                    step={0.25}
-                    className="w-20 rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-2 py-1 text-sm"
-                    value={maxSpeed}
-                    onChange={(e) =>
-                      setMaxSpeed(Number(e.target.value))
-                    }
+          {/* 재생 정책 */}
+          <div className="modal-form-group modal-form-group--neutral">
+            <span className="modal-section-label">재생 정책</span>
+            <div className="modal-form-row modal-form-row--1-auto" style={{ flexWrap: "wrap", gap: "var(--space-4)" }}>
+              <label className="modal-actions-inline" style={{ cursor: "pointer", alignItems: "center" }}>
+                <span className="modal-hint" style={{ marginBottom: 0 }}>워터마크</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={showWatermark}
+                  onClick={() => setShowWatermark((v) => !v)}
+                  className="video-upload-modal__toggle"
+                >
+                  <span
+                    className="video-upload-modal__toggle-thumb"
+                    data-on={showWatermark}
                   />
-                </label>
-              </div>
-
-              <div className="mt-2 text-xs text-[var(--text-muted)]">
-                session_id: {sessionId}
-              </div>
+                </button>
+              </label>
+              <label className="modal-actions-inline" style={{ cursor: "pointer", alignItems: "center" }}>
+                <span className="modal-hint" style={{ marginBottom: 0 }}>건너뛰기</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={allowSkip}
+                  onClick={() => setAllowSkip((v) => !v)}
+                  className="video-upload-modal__toggle"
+                >
+                  <span
+                    className="video-upload-modal__toggle-thumb"
+                    data-on={allowSkip}
+                  />
+                </button>
+              </label>
+              <label className="modal-actions-inline" style={{ alignItems: "center", gap: "var(--space-2)" }}>
+                <span className="modal-hint" style={{ marginBottom: 0 }}>최대 배속</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.25}
+                  className="ds-input"
+                  style={{ width: 72 }}
+                  value={maxSpeed}
+                  onChange={(e) => setMaxSpeed(Number(e.target.value))}
+                />
+              </label>
             </div>
-
-            {/* Actions */}
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                className="rounded border border-[var(--border-divider)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-app)]"
-                onClick={onClose}
-              >
-                취소
-              </button>
-
-              <button
-                type="button"
-                className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white"
-                onClick={() => {
-                  uploadMut.mutate(); // ✅ 먼저 시작
-                  onClose();          // ✅ 그 다음 닫기
-                }}
-                disabled={!canSubmit}
-              >
-                업로드
-              </button>
-            </div>
+            <span className="modal-hint modal-hint--block" style={{ marginTop: "var(--space-2)", marginBottom: 0 }}>
+              session_id: {sessionId}
+            </span>
           </div>
         </div>
-      </div>
-    </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <span className="modal-hint" style={{ marginBottom: 0 }}>
+            제목과 파일을 입력한 뒤 업로드하세요.
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={uploadMut.isPending}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              onClick={handleUpload}
+              disabled={!canSubmit || uploadMut.isPending}
+              loading={uploadMut.isPending}
+            >
+              {uploadMut.isPending ? "업로드 중…" : "업로드"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
   );
 }
