@@ -87,7 +87,7 @@ export default function DashboardPage() {
                 items={
                   searchStudents?.data?.slice(0, 5).map((s) => ({
                     label: s.name,
-                    sub: s.psNumber || s.school ?? undefined,
+                    sub: (s.psNumber || s.school) || undefined,
                     to: `/admin/students/${s.id}`,
                   })) ?? []
                 }
