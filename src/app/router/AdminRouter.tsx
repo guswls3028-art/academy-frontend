@@ -2,6 +2,7 @@
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout, DomainLayout } from "@/shared/ui/layout";
+import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
 
 /* ================= Dashboard ================= */
 import DashboardPage from "@/features/dashboard/pages/DashboardPage";
