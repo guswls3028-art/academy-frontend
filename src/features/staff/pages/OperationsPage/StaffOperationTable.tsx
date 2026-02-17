@@ -8,7 +8,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Staff } from "../../api/staff.api";
 import { EmptyState } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-import { RoleBadge } from "../../components/StatusBadge";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
