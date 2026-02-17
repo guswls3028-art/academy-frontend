@@ -231,6 +231,72 @@ export default function DashboardPage() {
   );
 }
 
+function SearchResultBlock({
+  title,
+  loading,
+  items,
+  emptyMessage,
+  viewAllTo,
+  viewAllLabel,
+}: {
+  title: string;
+  loading: boolean;
+  items: { label: string; sub?: string; to: string }[];
+  emptyMessage: string;
+  viewAllTo?: string;
+  viewAllLabel?: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "var(--space-4)",
+        background: "var(--color-bg-elevated)",
+        border: "1px solid var(--color-border-divider)",
+        borderRadius: "var(--radius-lg)",
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 8 }}>
+        {title}
+      </div>
+      {loading ? (
+        <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>검색 중…</div>
+      ) : items.length === 0 ? (
+        <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{emptyMessage}</div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1">
+            {items.map((item) => (
+              <button
+                key={item.to + item.label}
+                type="button"
+                onClick={() => (window.location.href = item.to)}
+                className="text-left cursor-pointer hover:bg-[var(--color-bg-surface-hover)] rounded px-2 py-2 -mx-2"
+                style={{ fontSize: 14 }}
+              >
+                <div style={{ fontWeight: 600, color: "var(--color-text-primary)" }}>{item.label}</div>
+                {item.sub && (
+                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{item.sub}</div>
+                )}
+              </button>
+            ))}
+          </div>
+          {viewAllTo && viewAllLabel && (
+            <Button
+              type="button"
+              intent="ghost"
+              size="sm"
+              className="mt-2"
+              onClick={() => navigate(viewAllTo)}
+            >
+              {viewAllLabel} 보기
+            </Button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function TodoCard({
   label,
   value,
