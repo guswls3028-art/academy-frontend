@@ -1,6 +1,7 @@
 // PATH: src/features/profile/account/pages/ProfileAccountPage.tsx
 // 설정 > 내 정보 — 명함 스타일, 수정 모달, 비밀번호/로그아웃 최하단
 
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchMe, updateProfile } from "../../api/profile.api";
