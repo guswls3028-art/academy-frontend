@@ -1,5 +1,9 @@
 // PATH: src/features/messages/constants/templateBlocks.ts
 // 카테고리별 삽입 블록 — 기본(공통) | 강의 | 클리닉
+//
+// 템플릿 구분:
+// - 일반 템플릿: 양식 저장. 메시지 발송 모달에서 "템플릿 불러오기"로 사용.
+// - 예약 템플릿: 특정 조건/상황에 자동 발송 (예: 클리닉 예약 시, 일정 변경 시, 학생 생성 완료 시). 추후 API·UI 지원 예정.
 
 export interface TemplateBlock {
   id: string;
