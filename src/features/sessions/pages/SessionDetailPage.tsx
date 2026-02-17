@@ -152,24 +152,9 @@ export default function SessionDetailPage() {
 
   return (
     <>
-      {/* 구조: students와 동일 — 레이아웃은 DomainLayout > Outlet, 페이지가 콘텐츠 전담 */}
-      <SessionBlock lectureId={lecId} currentSessionId={sId} />
-
-      {activeTab !== "attendance" && (
-        <div
-          className="flex flex-wrap items-center justify-between gap-2"
-          style={{ marginBottom: "var(--space-4)" }}
-        >
-          <span className="text-lg font-semibold text-[var(--color-text-primary)]">{session.title}</span>
-          <div className="flex items-center gap-2">
-            <Button type="button" intent="primary" size="sm" onClick={() => setShowEnrollModal(true)}>
-              수강생 등록
-            </Button>
-            <Button type="button" intent="secondary" size="sm" onClick={() => setShowStudentModal(true)}>
-              학생 추가
-            </Button>
-          </div>
-        </div>
+      {/* 차시블럭: 출결탭에서만 노출 */}
+      {activeTab === "attendance" && (
+        <SessionBlock lectureId={lecId} currentSessionId={sId} />
       )}
 
       <div className="flex gap-4">
