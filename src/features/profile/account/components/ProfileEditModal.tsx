@@ -47,8 +47,11 @@ export default function ProfileEditModal({
   }, [open, initialName, initialPhone]);
 
   const dirtyProfile = name !== initialName || phone !== initialPhone;
-  const dirtyPassword = !!currentPassword.trim() && !!newPassword.trim();
-  const dirty = dirtyProfile || dirtyPassword;
+  const hasCurrentPw = !!currentPassword.trim();
+  const hasNewPw = !!newPassword.trim();
+  const dirtyPassword = hasCurrentPw && hasNewPw;
+  const invalidPassword = (hasCurrentPw && !hasNewPw) || (!hasCurrentPw && hasNewPw); // 하나만 입력된 경우
+  const dirty = (dirtyProfile || dirtyPassword) && !invalidPassword;
 
   const handleSave = async () => {
     await onSave({
