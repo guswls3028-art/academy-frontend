@@ -94,7 +94,7 @@ function TaskItem({ task }: { task: AsyncTask }) {
           <div className="async-status-bar__item-label">
             {typeBadge && (
               <span
-                className="async-status-bar__type-badge ds-status-badge ds-status-badge--1ch"
+                className="async-status-bar__type-badge ds-status-badge"
                 data-tone={typeBadge.tone}
                 aria-hidden
               >
