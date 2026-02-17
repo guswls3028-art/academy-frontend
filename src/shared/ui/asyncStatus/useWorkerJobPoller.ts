@@ -1,10 +1,11 @@
 // PATH: src/shared/ui/asyncStatus/useWorkerJobPoller.ts
-// 워커 작업(엑셀 등) 상태/진행률 폴링 — 우하단 프로그래스바 갱신 및 완료 처리
-// 엑셀 수강등록·학생 일괄 등록 모두 GET /jobs/<id>/ 단일 진실.
+// 워커 작업(엑셀·영상 등) 상태/진행률 폴링 — 우하단 프로그래스바 갱신 및 완료 처리
+// 엑셀: GET /jobs/<id>/. 영상: GET /media/videos/<id>/.
 
 import { useEffect, useRef } from "react";
 import { asyncStatusStore } from "./asyncStatusStore";
 import { getJobStatus } from "@/shared/api/jobStatus";
+import api from "@/shared/api/axios";
 
 const POLL_INTERVAL_MS = 1000;
 
@@ -34,16 +35,36 @@ function pollExcelJob(
     });
 }
 
+function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
+  api
+    .get<{ status: string }>(`/media/videos/${videoId}/`)
+    .then((res) => {
+      const status = res.data?.status;
+      if (status === "PROCESSING" || status === "UPLOADED") {
+        asyncStatusStore.updateProgress(taskId, status === "PROCESSING" ? 50 : 10);
+      }
+      if (status === "READY") {
+        onSuccess?.();
+        asyncStatusStore.completeTask(taskId, "success");
+      } else if (status === "FAILED") {
+        asyncStatusStore.completeTask(taskId, "error", "영상 처리 실패");
+      }
+    })
+    .catch(() => {});
+}
+
 export function useWorkerJobPoller(
   tasks: { id: string; status: string; meta?: { jobId: string; jobType: string } }[],
-  options?: { onExcelSuccess?: () => void }
+  options?: { onExcelSuccess?: () => void; onVideoSuccess?: () => void }
 ) {
   const pending = tasks.filter(
     (t) => t.status === "pending" && t.meta?.jobId
   );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onExcelSuccessRef = useRef(options?.onExcelSuccess);
+  const onVideoSuccessRef = useRef(options?.onVideoSuccess);
   onExcelSuccessRef.current = options?.onExcelSuccess;
+  onVideoSuccessRef.current = options?.onVideoSuccess;
 
   useEffect(() => {
     if (pending.length === 0) {
@@ -55,12 +76,15 @@ export function useWorkerJobPoller(
     }
     const tick = () => {
       const current = asyncStatusStore.getState();
-      const callback = onExcelSuccessRef.current;
+      const excelCb = onExcelSuccessRef.current;
+      const videoCb = onVideoSuccessRef.current;
       current
         .filter((t) => t.status === "pending" && t.meta?.jobId)
         .forEach((t) => {
           if (t.meta!.jobType === "excel_parsing") {
-            pollExcelJob(t.meta!.jobId, callback);
+            pollExcelJob(t.meta!.jobId, excelCb);
+          } else if (t.meta!.jobType === "video_processing") {
+            pollVideoJob(t.meta!.jobId, t.meta!.jobId, videoCb);
           }
         });
     };

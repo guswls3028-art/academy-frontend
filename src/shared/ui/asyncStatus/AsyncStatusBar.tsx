@@ -81,6 +81,9 @@ export default function AsyncStatusBar() {
       queryClient.invalidateQueries({ queryKey: ["lecture"] });
       queryClient.invalidateQueries({ queryKey: ["students"] });
     },
+    onVideoSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+    },
   });
 
   const pendingCount = workerTasks.filter((t) => t.status === "pending").length;
