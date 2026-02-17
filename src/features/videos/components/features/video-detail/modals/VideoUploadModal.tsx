@@ -272,7 +272,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       <ModalFooter
         left={
           <span className="modal-hint" style={{ marginBottom: 0 }}>
-            제목과 파일 입력 후 업로드하면 우하단 작업에서 진행 상황을 확인할 수 있습니다.
+            업로드 버튼을 누르면 우하단 작업 박스에서 업로드·인코딩 진행 상황을 확인할 수 있습니다.
           </span>
         }
         right={
