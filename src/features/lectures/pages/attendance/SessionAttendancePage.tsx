@@ -19,6 +19,7 @@ import AttendanceStatusBadge, {
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 
