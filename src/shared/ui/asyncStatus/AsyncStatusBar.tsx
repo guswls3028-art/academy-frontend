@@ -152,20 +152,18 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
         <StatusIcon status={task.status} />
         <div className="async-status-bar__item-body">
           <div className="async-status-bar__item-top">
-            <span
-              className="async-status-bar__status-badge ds-status-badge"
-              data-tone={task.status === "pending" ? "primary" : task.status === "success" ? "success" : "danger"}
-              aria-hidden
-            >
-              {STATUS_BADGE[task.status]}
-            </span>
-            {typeBadge && (
+            {STATUS_BADGE[task.status] && (
               <span
-                className="async-status-bar__type-badge ds-status-badge"
-                data-tone={typeBadge.tone}
+                className="async-status-bar__status-badge ds-status-badge"
+                data-tone={task.status === "success" ? "success" : "danger"}
                 aria-hidden
               >
-                {typeBadge.label}
+                {STATUS_BADGE[task.status]}
+              </span>
+            )}
+            {TypeIcon && (
+              <span className="async-status-bar__type-icon" aria-hidden>
+                <TypeIcon className="async-status-bar__type-icon-svg" size={18} />
               </span>
             )}
             <span className="async-status-bar__item-label-text">{task.label}</span>
