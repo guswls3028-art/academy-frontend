@@ -44,7 +44,7 @@ export default function InlineExamItemsRow({
     if (el) el.focus();
   };
 
-  return (
+  const content = !list || list.length === 0 ? null : (
     <tr
       style={{
         background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
