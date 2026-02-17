@@ -40,15 +40,16 @@ function TrashIcon({ className, size = 16 }: { className?: string; size?: number
 
 function RetryIcon({ className, size = 16 }: { className?: string; size?: number }) {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M2 12a10 10 0 1 0 10-10 10 10 0 0 0-10 10zm0 0h4m-4 0V8m0 4v4" />
-      <path d="M22 12a10 10 0 0 1-10 10 10 10 0 0 1-8.5-4.7l3.2-2.4" />
-      <path d="M22 2v4h-4" />
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M16 21h5v-5" />
     </svg>
   );
 }
 
-function TaskItem({ task, onVideoRetry }: { task: AsyncTask; onVideoRetry: () => void }) {
+function TaskItem({ task }: { task: AsyncTask }) {
   const canRetry =
     task.meta?.jobType === "video_processing" &&
     task.meta?.jobId &&
@@ -62,7 +63,6 @@ function TaskItem({ task, onVideoRetry }: { task: AsyncTask; onVideoRetry: () =>
       await api.post(`/media/videos/${task.meta.jobId}/retry/`);
       asyncStatusStore.retryTask(task.id);
       feedback.success("재처리 요청을 보냈습니다.");
-      onVideoRetry();
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
