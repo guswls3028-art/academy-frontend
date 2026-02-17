@@ -138,43 +138,37 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact video-upload-modal__body">
-          {/* 제목 — 라벨+입력 한 줄, 입력 영역 비율 확보 */}
-          <div className="modal-form-group video-upload-modal__row">
-            <div className="video-upload-modal__field-row">
-              <span className="video-upload-modal__label">제목</span>
-              <input
-                className="ds-input video-upload-modal__input"
-                placeholder="예: 1강 OT"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                autoFocus
-              />
-            </div>
+          {/* 제목 — 인풋만, placeholder로 안내 */}
+          <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
+            <input
+              className="ds-input"
+              placeholder="제목 (예: 1강 OT)"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+            />
           </div>
 
-          {/* 파일 업로드 — 라벨+드롭존 한 줄 */}
-          <div className="modal-form-group video-upload-modal__row">
-            <div className="video-upload-modal__field-row video-upload-modal__field-row--stretch">
-              <span className="video-upload-modal__label">파일</span>
-              <div
-                className="video-upload-modal__dropzone video-upload-modal__dropzone--compact video-upload-modal__input"
-                onClick={pickFile}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    pickFile();
-                  }
-                }}
-                aria-label="동영상 파일 선택"
-              >
-                {file ? (
-                  <span className="video-upload-modal__filename">{file.name}</span>
-                ) : (
-                  <span className="video-upload-modal__prompt">클릭해서 업로드 (mp4 등)</span>
-                )}
-              </div>
+          {/* 파일 — 드롭존만, 영역 안 문구로 안내 */}
+          <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
+            <div
+              className="video-upload-modal__dropzone video-upload-modal__dropzone--compact"
+              onClick={pickFile}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  pickFile();
+                }
+              }}
+              aria-label="동영상 파일 선택"
+            >
+              {file ? (
+                <span className="video-upload-modal__filename">{file.name}</span>
+              ) : (
+                <span className="video-upload-modal__prompt">파일: 클릭해서 업로드 (mp4 등)</span>
+              )}
             </div>
             <input
               ref={fileInputRef}
@@ -185,19 +179,15 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             />
           </div>
 
-          {/* 영상 설명 — 라벨+textarea */}
-          <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
-            <div className="video-upload-modal__field-row video-upload-modal__field-row--start">
-              <span className="video-upload-modal__label">설명</span>
-              <textarea
-                className="ds-textarea video-upload-modal__input"
-                rows={2}
-                placeholder="(선택)"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                style={{ minHeight: 52 }}
-              />
-            </div>
+          {/* 설명 — textarea만, placeholder로 안내, 크기·위치 고정 */}
+          <div className="modal-form-group modal-form-group--neutral video-upload-modal__row video-upload-modal__row--input-only video-upload-modal__desc-wrap">
+            <textarea
+              className="ds-textarea video-upload-modal__desc"
+              placeholder="설명 (선택)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
           </div>
 
           {/* 재생 정책 — 워터마크 · 건너뛰기 · 배속 가로 1줄, 배속은 올림/내림 버튼 밖으로 */}
