@@ -142,24 +142,30 @@ export default function SessionScoresPanel({ sessionId }: { sessionId: number })
             />
           ) : (
             <div className="flex gap-6 mt-4">
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 overflow-x-auto">
                 <ScoresTable
                   rows={rows}
                   meta={meta}
                   sessionId={sessionId}
+                  attendanceMap={attendanceMap}
                   selectedEnrollmentId={selected?.enrollment_id ?? null}
-                  currentExamId={currentExamId}
-                  onChangeExam={(id) => {
-                    setActiveColumn("exam");
-                    setCurrentExamId(id);
-                  }}
-                  currentHomeworkId={currentHomeworkId}
-                  onChangeHomework={(id) => {
-                    setActiveColumn("homework");
-                    setCurrentHomeworkId(id);
+                  selectedExamId={currentExamId}
+                  selectedHomeworkId={currentHomeworkId}
+                  onSelectCell={(row, type, id) => {
+                    setSelected(row);
+                    if (type === "exam") {
+                      setActiveColumn("exam");
+                      setCurrentExamId(id);
+                      if (currentHomeworkId == null && row.homeworks?.[0])
+                        setCurrentHomeworkId(row.homeworks[0].homework_id);
+                    } else {
+                      setActiveColumn("homework");
+                      setCurrentHomeworkId(id);
+                      if (currentExamId == null && row.exams?.[0])
+                        setCurrentExamId(row.exams[0].exam_id);
+                    }
                   }}
                   onSelectRow={setSelected}
-                  activeColumn={activeColumn}
                 />
               </div>
 
