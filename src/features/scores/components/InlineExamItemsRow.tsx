@@ -39,8 +39,6 @@ export default function InlineExamItemsRow({
 
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
-  if (!list || list.length === 0) return null;
-
   const focusAt = (idx: number) => {
     const el = inputRefs.current[idx];
     if (el) el.focus();
