@@ -5,20 +5,13 @@ import { useState } from "react";
 import { FiAtSign, FiEdit2, FiKey, FiLogOut, FiPhone, FiShield, FiUser } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
 import { StaffRoleAvatar, type StaffRoleType } from "@/shared/ui/avatars";
-import { Me, displayUsername } from "../../api/profile.api";
+import { Me, displayUsername, meToStaffRole } from "../../api/profile.api";
 import ProfileEditModal from "./ProfileEditModal";
 
 const VALUE_COLOR = "var(--color-text-primary)";
 const MUTED_COLOR = "var(--color-text-muted)";
 const SECONDARY_COLOR = "var(--color-text-secondary)";
 const VALUE_FONT = "15px";
-
-/** Me → 직원관리와 동일한 역할 아이콘 매핑 (is_superuser=대표, is_staff=강사, 그 외 조교) */
-function meToStaffRole(me: Me): StaffRoleType {
-  if (me.is_superuser) return "owner";
-  if (me.is_staff) return "TEACHER";
-  return "ASSISTANT";
-}
 
 function roleLabel(role: StaffRoleType): string {
   if (role === "owner") return "대표";

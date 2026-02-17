@@ -17,6 +17,7 @@ import { fetchStaffMe } from "../../api/staffMe.api";
 
 import ActionButton from "../../components/ActionButton";
 import { LockBadge } from "../../components/StatusBadge";
+import { StaffRoleAvatar } from "@/shared/ui/avatars";
 
 import StaffSummaryTab from "./StaffSummaryTab";
 import StaffWorkTypeTab from "./StaffWorkTypeTab";
