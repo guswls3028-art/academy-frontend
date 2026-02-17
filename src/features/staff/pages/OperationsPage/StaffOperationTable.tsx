@@ -1,5 +1,6 @@
 // PATH: src/features/staff/pages/OperationsPage/StaffOperationTable.tsx
 // Design: docs/DESIGN_SSOT.md
+// 직원 선택: 아바타·이름·직위·급여유형 한 줄 표시. 리스트 행 스타일(카드 안 카드 없음, students 도메인 톤).
 
 import { useMemo, useState } from "react";
 import { useStaffs } from "../../hooks/useStaffs";
