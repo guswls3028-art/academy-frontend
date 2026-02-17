@@ -91,13 +91,16 @@ export default function ProfileAccountPage() {
 
   return (
     <>
-      <ProfileInfoCard
-        me={meQ.data}
-        onSave={save}
-        saving={updateMut.isPending}
-        onPasswordClick={() => setPwOpen(true)}
-        onLogout={clearAuth}
-      />
+      <div className="flex flex-col gap-6 items-start">
+        <ProfileInfoCard
+          me={meQ.data}
+          onSave={save}
+          saving={updateMut.isPending}
+          onPasswordClick={() => setPwOpen(true)}
+          onLogout={clearAuth}
+        />
+        <SenderNumberCard />
+      </div>
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
     </>
   );
