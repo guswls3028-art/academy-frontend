@@ -88,7 +88,11 @@ export default function AdminRouter() {
         <Route path="dashboard" element={<DashboardPage />} />
 
         {/* ================= Students (SSOT) ================= */}
-        <Route path="students" element={<StudentsLayout />}>
+        <Route path="students" element={
+          <SendMessageModalProvider>
+            <StudentsLayout />
+          </SendMessageModalProvider>
+        }>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={<StudentsHomePage />} />
           <Route path="deleted" element={<StudentsHomePage />} />
