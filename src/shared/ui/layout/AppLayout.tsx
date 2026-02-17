@@ -10,6 +10,7 @@ import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@/features/notice/context/NoticeContext";
+import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 
 function AppLayoutContent() {
@@ -154,7 +155,9 @@ export default function AppLayout() {
               },
             }}
           >
-            <AppLayoutContent />
+            <SendMessageModalProvider>
+              <AppLayoutContent />
+            </SendMessageModalProvider>
           </ConfigProvider>
         </NoticeProvider>
       </ProgramProvider>
