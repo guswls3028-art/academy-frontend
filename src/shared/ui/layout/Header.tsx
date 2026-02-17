@@ -150,103 +150,13 @@ function IconPalette() {
   );
 }
 
-function stripAdminPrefix(pathname: string) {
-  const p = pathname.split("?")[0] || "";
-  if (p === "/admin") return "/";
-  if (p.startsWith("/admin/")) return p.slice("/admin".length);
-  return p;
-}
-
-/** pathname에서 lectureId, sessionId 추출 (useParams 대체 — AppLayout 수준에서 params 미전달 대응) */
-function parseIdsFromPath(pathname: string): { lectureId: number; sessionId: number } {
-  const p = (pathname || "").split("?")[0];
-  const lectureMatch = p.match(/\/lectures\/(\d+)/);
-  const sessionMatch = p.match(/\/sessions\/(\d+)/);
-  return {
-    lectureId: lectureMatch ? Number(lectureMatch[1]) : 0,
-    sessionId: sessionMatch ? Number(sessionMatch[1]) : 0,
-  };
-}
-
-const LECTURE_TAB_LABELS: Record<string, string> = {
-  materials: "자료실",
-  board: "게시판",
-  ddays: "디데이",
-  attendance: "출결",
-  report: "리포트",
-  sessions: "차시",
-};
-
-const SESSION_TAB_LABELS: Record<string, string> = {
-  attendance: "출결",
-  scores: "성적",
-  exams: "시험",
-  assignments: "과제",
-  videos: "영상",
-  materials: "자료",
-};
-
-function deriveCrumbs(
-  pathname: string,
-  lecture?: { title?: string } | null,
-  session?: { title?: string } | null
-): Crumb[] {
-  const p = stripAdminPrefix(pathname);
-  if (p === "/" || p === "/dashboard") return [{ label: "대시보드" }];
-
-  if (p.startsWith("/lectures")) {
-    const base: Crumb[] = [{ label: "강의", to: "/admin/lectures" }];
-    const lectureMatch = p.match(/^\/lectures\/(\d+)/);
-    if (!lectureMatch) return base;
-
-    const lid = lectureMatch[1];
-    const lectureLabel = lecture?.title ?? (lecture as any)?.name ?? "강의";
-    base.push({ label: lectureLabel, to: `/admin/lectures/${lid}` });
-
-    const sessionMatch = p.match(/^\/lectures\/\d+\/sessions\/(\d+)/);
-    if (sessionMatch) {
-      const sid = sessionMatch[1];
-      const sessionLabel = session?.title ?? "차시";
-      base.push({
-        label: sessionLabel,
-        to: `/admin/lectures/${lid}/sessions/${sid}`,
-      });
-      const tailMatch = p.match(/^\/lectures\/\d+\/sessions\/\d+\/(\w+)(?:\/|$)/);
-      if (tailMatch) {
-        const tab = tailMatch[1];
-        const label = SESSION_TAB_LABELS[tab] ?? tab;
-        base.push({ label }); // 현재 탭, 링크 없음
-      }
-    } else {
-      const tailMatch = p.match(/^\/lectures\/\d+\/(\w+)(?:\/|$)/);
-      if (tailMatch) {
-        const tab = tailMatch[1];
-        const label = LECTURE_TAB_LABELS[tab] ?? tab;
-        base.push({ label }); // 현재 탭
-      }
-    }
-    return base;
-  }
-
-  if (p.startsWith("/students")) return [{ label: "학생", to: "/admin/students" }];
-  if (p.startsWith("/exams")) return [{ label: "시험", to: "/admin/exams" }];
-  if (p.startsWith("/results")) return [{ label: "결과", to: "/admin/results" }];
-  if (p.startsWith("/clinic")) return [{ label: "클리닉", to: "/admin/clinic" }];
-  if (p.startsWith("/staff")) return [{ label: "직원", to: "/admin/staff" }];
-  if (p.startsWith("/videos")) return [{ label: "영상", to: "/admin/videos" }];
-  if (p.startsWith("/community"))
-    return [{ label: "커뮤니티", to: "/admin/community" }];
-  if (p.startsWith("/materials"))
-    return [{ label: "자료실", to: "/admin/materials" }];
-  if (p.startsWith("/message"))
-    return [{ label: "메시지", to: "/admin/message" }];
-  if (p.startsWith("/messages"))
-    return [{ label: "메시지", to: "/admin/message" }];
-  if (p.startsWith("/settings"))
-    return [{ label: "설정", to: "/admin/settings" }];
-  if (p.startsWith("/profile"))
-    return [{ label: "프로필", to: "/admin/profile" }];
-  return [{ label: "워크스페이스" }];
+function IconCredit() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v12M8 10h8M8 14h8" />
+    </svg>
+  );
 }
 
 export default function Header() {
