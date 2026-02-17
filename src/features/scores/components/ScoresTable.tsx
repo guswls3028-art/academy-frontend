@@ -424,9 +424,10 @@ export default function ScoresTable({
                     padding: "var(--space-4)",
                   }}
                 >
-                  <InlineExamItemsBlock
+                  <InlineExamItemsRow
                     examId={selectedExamId}
                     enrollmentId={row.enrollment_id}
+                    variant="block"
                   />
                 </div>
               )}
