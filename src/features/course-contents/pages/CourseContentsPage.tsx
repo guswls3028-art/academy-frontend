@@ -95,8 +95,8 @@ export default function CourseContentsPage() {
           <aside className={styles.tree}>
             <LectureSessionTree
               lectures={filtered}
-              selectedSessionId={null}
-              selectedLectureId={null}
+              selectedSessionId={Number.isNaN(selectedSessionId!) ? null : selectedSessionId}
+              selectedLectureId={Number.isNaN(selectedLectureId!) ? null : selectedLectureId}
               onSelectLecture={handleSelectLecture}
               onSelectSession={handleSelectSession}
             />
