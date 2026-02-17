@@ -18,6 +18,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
