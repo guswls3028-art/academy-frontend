@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { fetchMe, updateProfile } from "../../api/profile.api";
+import { fetchMe, updateProfile, changePassword } from "../../api/profile.api";
 import useAuth from "@/features/auth/hooks/useAuth";
 
 import ProfileInfoCard from "../components/ProfileInfoCard";
@@ -22,7 +22,25 @@ export default function ProfileAccountPage() {
   });
 
   const updateMut = useMutation({
-    mutationFn: updateProfile,
+    mutationFn: async (payload: {
+      name?: string;
+      phone?: string;
+      currentPassword?: string;
+      newPassword?: string;
+    }) => {
+      if (payload.name !== undefined || payload.phone !== undefined) {
+        await updateProfile({
+          name: payload.name?.trim() || undefined,
+          phone: payload.phone?.trim() || undefined,
+        });
+      }
+      if (payload.currentPassword && payload.newPassword) {
+        await changePassword({
+          old_password: payload.currentPassword,
+          new_password: payload.newPassword,
+        });
+      }
+    },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["me"] });
     },
@@ -30,11 +48,13 @@ export default function ProfileAccountPage() {
 
   const [pwOpen, setPwOpen] = useState(false);
 
-  const save = async (payload: { name?: string; phone?: string }) => {
-    await updateMut.mutateAsync({
-      name: payload.name?.trim() || undefined,
-      phone: payload.phone?.trim() || undefined,
-    });
+  const save = async (payload: {
+    name?: string;
+    phone?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => {
+    await updateMut.mutateAsync(payload);
   };
 
   if (meQ.isLoading) {
