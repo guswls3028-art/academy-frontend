@@ -120,9 +120,7 @@ export default function ScoreSidePanel({
             <span className="text-sm text-[var(--text-muted)]">판정</span>
             {activePassed != null ? (
               <span
-                className={`ds-status-badge ${
-                  activePassed ? "data-tone=success" : "data-tone=danger"
-                }`}
+                className="ds-status-badge"
                 data-tone={activePassed ? "success" : "danger"}
               >
                 {activePassed ? "통과" : "미통과"}
