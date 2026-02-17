@@ -174,8 +174,10 @@ function Row({
       {!staff.is_active && (
         <span className="ds-status-badge shrink-0" data-status="inactive" aria-hidden>비활성</span>
       )}
-      <RoleBadge isManager={!!staff.is_manager} />
-      <span className="shrink-0 text-xs text-[var(--color-text-muted)] tabular-nums">
+      <span className="ds-status-badge ds-status-badge--action shrink-0" data-tone={staff.role === "TEACHER" ? "primary" : "neutral"} aria-label={staff.role === "TEACHER" ? "강사" : "조교"}>
+        {staff.role === "TEACHER" ? "강사" : "조교"}
+      </span>
+      <span className="ds-status-badge shrink-0" data-tone="neutral">
         {payLabel(staff.pay_type)}
       </span>
     </button>
