@@ -170,6 +170,7 @@ export default function StaffDetailOverlay() {
               <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-lg font-semibold flex items-center gap-2">
+                    <StaffRoleAvatar role={staff.role} size={24} className="shrink-0 text-[var(--color-text-secondary)]" />
                     {staff.name}
                     {staff.user_is_staff && (
                       <span className="ds-status-badge" data-tone="primary">
