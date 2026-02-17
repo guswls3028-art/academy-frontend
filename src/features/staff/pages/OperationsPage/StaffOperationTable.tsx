@@ -89,11 +89,7 @@ export default function StaffOperationTable({
 
       {!isLoading && filtered.length > 0 && (
         <div className="space-y-4">
-          <Section
-            title={`활성 (${active.length})`}
-            hint="현재 근무/비용 입력 대상"
-            emptyText="활성 직원이 없습니다."
-          >
+          <Section title={`활성 (${active.length})`} emptyText="활성 직원이 없습니다.">
             {active.map((s) => (
               <Row
                 key={s.id}
@@ -104,11 +100,7 @@ export default function StaffOperationTable({
             ))}
           </Section>
 
-          <Section
-            title={`비활성 (${inactive.length})`}
-            hint="선택은 가능하지만 운영 정책에 맞게 사용"
-            emptyText="비활성 직원이 없습니다."
-          >
+          <Section title={`비활성 (${inactive.length})`} emptyText="비활성 직원이 없습니다.">
             {inactive.map((s) => (
               <Row
                 key={s.id}
@@ -121,9 +113,9 @@ export default function StaffOperationTable({
         </div>
       )}
 
-      <div className="text-[11px] text-[var(--text-muted)]">
+      <p className="text-[11px] text-[var(--color-text-muted)]">
         * 선택된 직원이 우측 패널에 반영됩니다.
-      </div>
+      </p>
     </div>
   );
 }
