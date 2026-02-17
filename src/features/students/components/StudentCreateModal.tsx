@@ -158,7 +158,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       onSuccess();
       onClose();
     } catch (e: unknown) {
-      feedback.error(e instanceof Error ? e.message : "등록 요청 중 오류가 발생했습니다.");
+      const err = e as { response?: { data?: { detail?: string }; status?: number }; message?: string };
+      const msg =
+        typeof err?.response?.data?.detail === "string"
+          ? err.response.data.detail
+          : err?.response?.data?.detail
+            ? String(err.response.data.detail)
+            : err instanceof Error
+              ? err.message
+              : "등록 요청 중 오류가 발생했습니다.";
+      feedback.error(msg);
     } finally {
       setBusy(false);
     }
