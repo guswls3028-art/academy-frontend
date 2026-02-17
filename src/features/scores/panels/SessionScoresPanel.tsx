@@ -22,8 +22,24 @@ export default function SessionScoresPanel({ sessionId }: { sessionId: number })
     enabled: Number.isFinite(sessionId) && sessionId > 0,
   });
 
+  const { data: attendanceList } = useQuery({
+    queryKey: ["attendance", sessionId],
+    queryFn: () => fetchAttendance(sessionId),
+    enabled: Number.isFinite(sessionId) && sessionId > 0,
+  });
+
   const allRows = useMemo<SessionScoreRow[]>(() => data?.rows ?? [], [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
+
+  const attendanceMap = useMemo(() => {
+    const list = Array.isArray(attendanceList) ? attendanceList : [];
+    const map: Record<number, string> = {};
+    for (const a of list) {
+      const eid = a?.enrollment_id ?? a?.enrollment;
+      if (eid != null && a?.status) map[Number(eid)] = String(a.status);
+    }
+    return map;
+  }, [attendanceList]);
 
   const [search, setSearch] = useState("");
   const rows = useMemo(() => {
