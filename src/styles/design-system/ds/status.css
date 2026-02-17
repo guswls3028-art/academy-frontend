@@ -128,21 +128,39 @@ button.ds-status-badge:disabled {
   transform: scale(0.98);
 }
 
-/* 색상 SSOT: 버튼과 동일 톤 — 연한 success/neutral, hover 시 강해짐 (Tailwind preflight 덮기) */
-button.ds-status-badge.ds-status-badge--action[data-status="active"] {
+/* 색상 SSOT: 버튼과 동일 톤 — 연한 success/neutral/primary, hover 시 강해짐 (Tailwind preflight 덮기) */
+/* 읽기 전용(span) + 버튼 공통: 연한 톤 베이스 */
+.ds-status-badge.ds-status-badge--action[data-status="active"] {
   background-color: color-mix(in srgb, var(--color-success, #22c55e) 20%, var(--color-bg-surface, #fff)) !important;
   color: var(--color-success, #16a34a) !important;
 }
+.ds-status-badge.ds-status-badge--action[data-status="inactive"] {
+  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 22%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-text-muted, #64748b) !important;
+}
+.ds-status-badge.ds-status-badge--action[data-tone="primary"] {
+  background-color: color-mix(in srgb, var(--color-brand-primary, #3b82f6) 20%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-brand-primary, #2563eb) !important;
+}
+.ds-status-badge.ds-status-badge--action[data-tone="neutral"] {
+  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 22%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-text-muted, #64748b) !important;
+}
+
+/* 버튼 전용: hover 시 강해짐 */
 button.ds-status-badge.ds-status-badge--action[data-status="active"]:hover:not(:disabled) {
   background-color: color-mix(in srgb, var(--color-success, #22c55e) 28%, var(--color-bg-surface, #fff)) !important;
   color: var(--color-success, #16a34a) !important;
 }
-
-button.ds-status-badge.ds-status-badge--action[data-status="inactive"] {
-  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 22%, var(--color-bg-surface, #fff)) !important;
-  color: var(--color-text-muted, #64748b) !important;
-}
 button.ds-status-badge.ds-status-badge--action[data-status="inactive"]:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 28%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-text-secondary, #475569) !important;
+}
+button.ds-status-badge.ds-status-badge--action[data-tone="primary"]:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-brand-primary, #3b82f6) 28%, var(--color-bg-surface, #fff)) !important;
+  color: var(--color-brand-primary, #2563eb) !important;
+}
+button.ds-status-badge.ds-status-badge--action[data-tone="neutral"]:hover:not(:disabled) {
   background-color: color-mix(in srgb, var(--color-border-divider, #94a3b8) 28%, var(--color-bg-surface, #fff)) !important;
   color: var(--color-text-secondary, #475569) !important;
 }
