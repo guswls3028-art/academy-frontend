@@ -110,7 +110,14 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       <div className="async-status-bar__item-row">
         <StatusIcon status={task.status} />
         <div className="async-status-bar__item-body">
-          <div className="async-status-bar__item-label">
+          <div className="async-status-bar__item-top">
+            <span
+              className="async-status-bar__status-badge ds-status-badge"
+              data-tone={task.status === "pending" ? "primary" : task.status === "success" ? "success" : "danger"}
+              aria-hidden
+            >
+              {STATUS_BADGE[task.status]}
+            </span>
             {typeBadge && (
               <span
                 className="async-status-bar__type-badge ds-status-badge"
@@ -120,13 +127,12 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 {typeBadge.label}
               </span>
             )}
-            {typeBadge && " "}
             <span className="async-status-bar__item-label-text">{task.label}</span>
-            {task.status === "pending" && progressNum != null && (
-              <span className="async-status-bar__item-progress-num"> {progressNum}/100</span>
+            {remainingLabel != null && (
+              <span className="async-status-bar__item-remaining">{remainingLabel}</span>
             )}
             {task.status === "pending" && progressNum == null && (
-              <span className="async-status-bar__item-waiting"> · 대기 중</span>
+              <span className="async-status-bar__item-waiting">대기 중</span>
             )}
           </div>
           {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
