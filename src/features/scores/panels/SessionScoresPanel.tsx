@@ -9,6 +9,7 @@ import {
   type SessionScoreRow,
   type SessionScoreMeta,
 } from "../api/sessionScores";
+import { fetchAttendance } from "@/features/lectures/api/attendance";
 
 import ScoresTable from "../components/ScoresTable";
 import ScoreSidePanel from "./ScoreSidePanel";
