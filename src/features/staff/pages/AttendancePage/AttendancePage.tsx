@@ -62,7 +62,6 @@ export default function AttendancePage() {
             </WorkMonthProvider>
           )}
         </div>
-      </div>
     </div>
   );
 }
