@@ -92,6 +92,7 @@ export default function SendMessageModal({
       const payload: Parameters<typeof sendMessage>[0] = {
         student_ids: studentIds,
         send_to: sendTo,
+        message_mode: messageMode,
         raw_body: body.trim(),
       };
       if (subject.trim()) payload.raw_subject = subject.trim();
