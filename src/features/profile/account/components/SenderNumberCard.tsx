@@ -37,10 +37,12 @@ export default function SenderNumberCard() {
     setVerifyResult(null);
     verify(value, {
       onSuccess: (data) => setVerifyResult({ verified: data.verified, message: data.message }),
-      onError: (err: { response?: { data?: { message?: string } } }) => {
+      onError: (err: { response?: { data?: { detail?: string; message?: string } }; message?: string }) => {
+        const data = err?.response?.data;
         const msg =
-          err?.response?.data?.message ||
-          (err as { message?: string })?.message ||
+          (typeof data?.detail === "string" ? data.detail : null) ||
+          data?.message ||
+          err?.message ||
           "인증 확인에 실패했습니다.";
         setVerifyResult({ verified: false, message: msg });
       },
