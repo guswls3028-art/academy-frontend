@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import StaffOperationTable from "../OperationsPage/StaffOperationTable";
 import PayrollHistoryTable from "./PayrollHistoryTable";
 import WorkMonthLockHistory from "./WorkMonthLockHistory";
-import { SectionHeader, EmptyState } from "@/shared/ui/ds";
+import { EmptyState } from "@/shared/ui/ds";
 
 function ymLabel(y: number, m: number) {
   return `${y}년 ${m}월`;
