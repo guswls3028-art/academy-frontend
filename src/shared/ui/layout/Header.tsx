@@ -179,7 +179,7 @@ export default function Header() {
     if (isOnDashboard && searchFromUrl !== q) setQ(searchFromUrl);
   }, [isOnDashboard, searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
-  const { unreadCount } = useNotices();
+  const { unreadCount, notices } = useNotices();
 
 
 
