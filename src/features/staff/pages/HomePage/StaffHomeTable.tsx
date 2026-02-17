@@ -47,7 +47,7 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
             className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded text-[11px] font-semibold truncate max-w-[72px]"
             style={{
               backgroundColor: color,
-              color: isLight(color) ? "#1a1a1a" : "#fff",
+              color: isLightTagColor(color) ? "#1a1a1a" : "#fff",
               border: "none",
               boxShadow: "0 1px 2px rgba(0,0,0,0.12)",
             }}
@@ -60,11 +60,6 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
       {list.length > 4 && <span className="text-[11px] text-[var(--color-text-muted)]">+{list.length - 4}</span>}
     </span>
   );
-}
-
-const LIGHT_TAG_COLORS = ["#eab308", "#06b6d4"];
-function isLightTagColor(c: string) {
-  return LIGHT_TAG_COLORS.some((x) => String(c || "").toLowerCase() === x);
 }
 
 /** 드롭업 옵션 1개 — 실제 색상 뱃지로 표시 */
