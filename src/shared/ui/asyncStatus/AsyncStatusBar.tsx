@@ -137,9 +137,28 @@ export default function AsyncStatusBar() {
   const tasks = useAsyncStatus();
   const [expanded, setExpanded] = useState(false);
   const prevPendingCountRef = useRef(0);
+  const hydratedRef = useRef(false);
 
   const displayTasks = tasks;
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
+
+  // 새로고침 후에도 진행 중인 영상 인코딩을 작업 박스에 복원
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    fetchInProgressVideos()
+      .then((videos) => {
+        const existing = new Set(
+          asyncStatusStore.getState().filter((t) => t.meta?.jobType === "video_processing").map((t) => t.id)
+        );
+        videos.forEach((v) => {
+          const id = String(v.id);
+          if (existing.has(id)) return;
+          asyncStatusStore.addWorkerJob(v.title || `영상 ${id}`, id, "video_processing");
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   // 새 작업이 추가되면 작업 박스 자동 펼치기 — 사용자가 백그라운드 진행을 바로 확인할 수 있게
   useEffect(() => {
