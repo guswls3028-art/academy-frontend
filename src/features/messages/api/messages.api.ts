@@ -71,6 +71,14 @@ export async function updateKakaoPfid(pfid: string): Promise<TenantMessagingInfo
   return res.data;
 }
 
+/** 메시징 설정 일부 수정 (발신번호, PFID 등) */
+export async function updateMessagingInfo(
+  payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender">>
+): Promise<TenantMessagingInfo> {
+  const res = await api.patch<TenantMessagingInfo>(`${PREFIX}/info/`, payload);
+  return res.data;
+}
+
 /** 채널 공유 확인 (파트너 등록 여부) — 4단계 */
 export async function checkChannelShared(): Promise<{ shared: boolean; message?: string }> {
   const res = await api.get<{ shared: boolean; message?: string }>(`${PREFIX}/channel-check/`);
