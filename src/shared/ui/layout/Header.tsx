@@ -266,51 +266,6 @@ export default function Header() {
             </span>
             <span className="app-header__brandName">{academyName}</span>
           </div>
-
-          {!isMobile && (
-          <div className="app-header__crumbs">
-            {crumbs.map((c, idx) => {
-              const isLast = idx === crumbs.length - 1;
-              return (
-                <div
-                  key={`${c.label}-${idx}`}
-                  className={[
-                    "app-header__crumb",
-                    isLast ? "app-header__crumb--active" : "app-header__crumb--muted",
-                  ].join(" ")}
-                >
-                  {c.to ? (
-                    <span
-                      style={{ cursor: "pointer" }}
-                      onClick={() => nav(c.to!)}
-                      title={c.label}
-                    >
-                      {c.label}
-                    </span>
-                  ) : (
-                    <span title={c.label} style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {c.label}
-                    </span>
-                  )}
-
-                  {!isLast && <span className="app-header__crumbSep">›</span>}
-                </div>
-              );
-            })}
-            {lecture && lid > 0 && (
-              <div
-                className="app-header__crumb app-header__crumb--muted"
-                style={{ marginLeft: 8, paddingLeft: 8, borderLeft: "1px solid var(--color-border-divider)" }}
-                title="현재 컨텍스트"
-              >
-                <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>
-                  현재: {lecture.title ?? "강의"}
-                  {session && sid > 0 ? ` · ${session.title ?? "차시"}` : ""}
-                </span>
-              </div>
-            )}
-          </div>
-          )}
         </div>
 
         {/* CENTER: PC에서만 검색창 표시 */}
