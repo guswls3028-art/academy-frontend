@@ -185,12 +185,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             />
           </div>
 
-          {/* 영상 설명 — 라벨+textarea 한 줄 배치(세로는 2줄) */}
+          {/* 영상 설명 — 라벨+textarea */}
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
-            <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "flex-start", gap: "var(--space-3)" }}>
-              <span className="modal-section-label" style={{ marginBottom: 0, flex: "0 0 72px", paddingTop: 6 }}>설명</span>
+            <div className="video-upload-modal__field-row video-upload-modal__field-row--start">
+              <span className="video-upload-modal__label">설명</span>
               <textarea
-                className="ds-textarea"
+                className="ds-textarea video-upload-modal__input"
                 rows={2}
                 placeholder="(선택)"
                 value={description}
@@ -200,11 +200,11 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             </div>
           </div>
 
-          {/* 재생 정책 — 워터마크·건너뛰기·최대 배속 한 줄 */}
+          {/* 재생 정책 — 워터마크 · 건너뛰기 · 배속 가로 1줄, 배속은 올림/내림 버튼 밖으로 */}
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
-            <div className="modal-form-row video-upload-modal__policy-row">
+            <div className="video-upload-modal__policy-row">
               <label className="video-upload-modal__policy-item">
-                <span className="modal-hint" style={{ marginBottom: 0 }}>워터마크</span>
+                <span className="video-upload-modal__policy-label">워터마크</span>
                 <button
                   type="button"
                   role="switch"
@@ -216,7 +216,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                 </button>
               </label>
               <label className="video-upload-modal__policy-item">
-                <span className="modal-hint" style={{ marginBottom: 0 }}>건너뛰기</span>
+                <span className="video-upload-modal__policy-label">건너뛰기</span>
                 <button
                   type="button"
                   role="switch"
@@ -227,18 +227,41 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                   <span className="video-upload-modal__toggle-thumb" data-on={allowSkip} />
                 </button>
               </label>
-              <label className="video-upload-modal__policy-item">
-                <span className="modal-hint" style={{ marginBottom: 0 }}>최대 배속</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  step={0.25}
-                  className="ds-input video-upload-modal__speed-input"
-                  value={maxSpeed}
-                  onChange={(e) => setMaxSpeed(Number(e.target.value))}
-                />
-              </label>
+              <div className="video-upload-modal__policy-item video-upload-modal__speed-wrap">
+                <span className="video-upload-modal__policy-label">배속</span>
+                <div className="video-upload-modal__speed-control">
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.25}
+                    className="ds-input video-upload-modal__speed-input"
+                    value={maxSpeed}
+                    onChange={(e) => setMaxSpeed(Number(e.target.value))}
+                    aria-label="최대 배속"
+                  />
+                  <div className="video-upload-modal__speed-btns">
+                    <button
+                      type="button"
+                      className="video-upload-modal__speed-btn"
+                      onClick={() => setMaxSpeed((v) => Math.min(5, v + 0.25))}
+                      disabled={maxSpeed >= 5}
+                      aria-label="배속 올리기"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 15l-6-6-6 6" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="video-upload-modal__speed-btn"
+                      onClick={() => setMaxSpeed((v) => Math.max(1, v - 0.25))}
+                      disabled={maxSpeed <= 1}
+                      aria-label="배속 내리기"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
