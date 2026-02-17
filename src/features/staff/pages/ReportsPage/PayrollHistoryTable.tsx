@@ -14,9 +14,10 @@ function ymLabel(y: number, m: number) {
   return `${y}-${String(m).padStart(2, "0")}`;
 }
 
-export default function PayrollHistoryTable() {
-  const { staffId } = useParams();
-  const sid = staffId ? Number(staffId) : undefined;
+/** staffIdProp: 리포트/명세 페이지에서 쿼리로 전달할 때 사용. 없으면 useParams (상세 오버레이) */
+export default function PayrollHistoryTable({ staffId: staffIdProp }: { staffId?: number } = {}) {
+  const { staffId: paramId } = useParams();
+  const sid = staffIdProp ?? (paramId ? Number(paramId) : undefined);
 
   const listQ = useQuery({
     queryKey: ["payroll-history", sid],
