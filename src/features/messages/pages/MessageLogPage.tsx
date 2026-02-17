@@ -103,19 +103,19 @@ export default function MessageLogPage() {
   ];
 
   return (
-    <Section>
-      <SectionHeader
-        title="발송 내역"
-        description="알림톡 발송 이력과 성공/실패, 차감 금액을 확인할 수 있습니다."
-      />
+    <Panel
+      variant="primary"
+      title="발송 내역"
+      description="SMS·알림톡 발송 이력과 성공/실패, 차감 금액을 확인할 수 있습니다."
+    >
       {isLoading ? (
-        <div className="p-8 text-center text-[var(--color-text-muted)] text-sm">
+        <div className="py-12 text-center text-[var(--color-text-muted)] text-sm">
           불러오는 중…
         </div>
       ) : results.length === 0 ? (
         <EmptyState
           title="발송 내역이 없습니다"
-          description="알림톡을 발송하면 이곳에 기록됩니다."
+          description="메시지를 발송하면 이곳에 기록됩니다."
           tone="empty"
           scope="panel"
         />
