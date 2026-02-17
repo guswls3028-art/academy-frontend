@@ -308,7 +308,7 @@ export function StaffHomeTable({
                 />
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge" data-tone={r.role === "TEACHER" ? "primary" : "neutral"} aria-label={r.role === "TEACHER" ? "강사" : "조교"}>
+                <span className="ds-status-badge ds-status-badge--action" data-tone={r.role === "TEACHER" ? "primary" : "neutral"} aria-label={r.role === "TEACHER" ? "강사" : "조교"}>
                   {r.role === "TEACHER" ? "강사" : "조교"}
                 </span>
               </td>
