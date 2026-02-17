@@ -7,6 +7,7 @@ import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import "./VideoUploadModal.css";
 
 type Props = {
   sessionId: number;

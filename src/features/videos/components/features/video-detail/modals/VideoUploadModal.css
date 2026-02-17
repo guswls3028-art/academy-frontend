@@ -73,11 +73,11 @@
   transform: translateX(20px);
 }
 
-.video-upload-modal__toggle:has(.video-upload-modal__toggle-thumb[data-on="true"]) {
+.video-upload-modal__toggle[aria-checked="true"] {
   background: var(--color-brand-primary);
   border-color: var(--color-brand-primary);
 }
 
-.video-upload-modal__toggle:has(.video-upload-modal__toggle-thumb[data-on="true"]) .video-upload-modal__toggle-thumb {
+.video-upload-modal__toggle[aria-checked="true"] .video-upload-modal__toggle-thumb {
   background: #fff;
 }
