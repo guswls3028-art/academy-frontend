@@ -16,5 +16,7 @@ export {
   getDefaultColorForPicker,
 } from "./constants";
 export { default as ColorPickerField } from "./ColorPickerField";
+export { default as StorageStyleTabs } from "./StorageStyleTabs";
+export type { StorageStyleTab } from "./StorageStyleTabs";
 export { TABLE_COL, STUDENTS_TABLE_COL } from "./tableColumnSpec";
 export type { TableColKey } from "./tableColumnSpec";
