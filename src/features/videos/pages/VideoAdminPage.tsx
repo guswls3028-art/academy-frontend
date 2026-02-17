@@ -1,6 +1,6 @@
 /**
  * 영상 (사이드바) — 강의별 영상 진입점 · 차시 내 영상은 각 강의 > 차시에서 관리
- * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
+ * Design: 저장소 양식 통일 (DomainLayout + wrap 구조)
  */
 
 import { useState, useMemo } from "react";
@@ -10,6 +10,7 @@ import { fetchLectures } from "@/features/lectures/api/sessions";
 import { DomainLayout } from "@/shared/ui/layout";
 import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import styles from "@/shared/ui/domain/StorageStyleTabs.module.css";
 
 export default function VideoAdminPage() {
   const navigate = useNavigate();
