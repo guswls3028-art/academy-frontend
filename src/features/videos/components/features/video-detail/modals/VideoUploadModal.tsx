@@ -157,7 +157,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             <div className="video-upload-modal__field-row video-upload-modal__field-row--stretch">
               <span className="video-upload-modal__label">파일</span>
               <div
-                className="video-upload-modal__dropzone video-upload-modal__dropzone--compact"
+                className="video-upload-modal__dropzone video-upload-modal__dropzone--compact video-upload-modal__input"
                 onClick={pickFile}
                 role="button"
                 tabIndex={0}
