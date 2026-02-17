@@ -88,7 +88,6 @@ export default function ReportsPage() {
             * 엑셀/PDF 다운로드는 <b>급여 스냅샷</b> 탭에서 기준월 선택 후 사용하세요.
           </div>
         </div>
-      </div>
     </div>
   );
 }

@@ -50,6 +50,7 @@ export default function PayrollSnapshotPage() {
   };
 
   return (
+    <>
     <div className="ds-panel-card px-6 py-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
