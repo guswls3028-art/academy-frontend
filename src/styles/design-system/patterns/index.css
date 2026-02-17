@@ -1,6 +1,3 @@
-/* PATH: src/styles/design-system/patterns/index.css */
-/* Admin Patterns — SSOT FINAL */
-
 @import "./panel.css";
 @import "./kpi.css";
 @import "./tree.css";
@@ -10,15 +7,9 @@
 @import "./button.css";
 @import "./header.css";
 @import "./modal-form.css";
-
-/* ✅ Enterprise primitives (상태 뱃지는 styles/design-system/ds/status.css SSOT) */
 @import "./badge.css";
 @import "./modal.css";
 @import "./table.css";
-
-/* Layout / Sidebar (admin only) */
 @import "./layout.css";
 @import "./sidebar.css";
-
-/* Auth (login pages — DS tokens only) */
 @import "./auth.css";

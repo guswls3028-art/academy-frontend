@@ -1,6 +1,8 @@
+@import "./scale.css";
+@import "./weight.css";
+
 /* PATH: src/styles/design-system/typography/index.css */
 /* Typography Entry (ENTERPRISE) */
-
 :root {
   --font-sans:
     -apple-system,
@@ -20,6 +22,3 @@
   font-family: var(--font-sans);
   letter-spacing: var(--letter-base);
 }
-
-@import "./scale.css";
-@import "./weight.css";
