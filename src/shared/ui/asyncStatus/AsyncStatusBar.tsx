@@ -60,11 +60,13 @@ function RetryIcon({ className, size = 16 }: { className?: string; size?: number
 }
 
 function TaskItem({ task }: { task: AsyncTask }) {
+  const typeBadge = task.meta?.jobType ? JOB_TYPE_BADGE[task.meta.jobType] : null;
   const canRetry =
     task.meta?.jobType === "video_processing" &&
     task.meta?.jobId &&
     (task.status === "error" || task.status === "success");
   const [retrying, setRetrying] = useState(false);
+  const progressNum = task.progress != null ? Math.round(task.progress) : null;
 
   const handleRetry = async () => {
     if (task.meta?.jobType !== "video_processing" || !task.meta?.jobId || retrying) return;
