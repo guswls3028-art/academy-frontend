@@ -79,7 +79,12 @@ function TaskItem({ task }: { task: AsyncTask }) {
       <div className="async-status-bar__item-row">
         <StatusIcon status={task.status} />
         <div className="async-status-bar__item-body">
-          <div className="async-status-bar__item-label">{task.label}</div>
+          <div className="async-status-bar__item-label">
+            {task.label}
+            {task.status === "pending" && task.progress == null && (
+              <span className="async-status-bar__item-waiting"> · 대기 중</span>
+            )}
+          </div>
           {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
         </div>
         <div className="async-status-bar__item-actions">
@@ -130,6 +135,19 @@ export default function AsyncStatusBar() {
   const queryClient = useQueryClient();
   const tasks = useAsyncStatus();
   const [expanded, setExpanded] = useState(false);
+  const prevPendingCountRef = useRef(0);
+
+  const displayTasks = tasks;
+  const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
+
+  // 새 작업이 추가되면 작업 박스 자동 펼치기 — 사용자가 백그라운드 진행을 바로 확인할 수 있게
+  useEffect(() => {
+    if (pendingCount > prevPendingCountRef.current && pendingCount > 0) {
+      setExpanded(true);
+    }
+    prevPendingCountRef.current = pendingCount;
+  }, [pendingCount]);
+
   const workerTasks = tasks.filter((t) => t.meta?.jobId);
   useWorkerJobPoller(tasks, {
     onExcelSuccess: () => {
@@ -144,8 +162,6 @@ export default function AsyncStatusBar() {
     },
   });
 
-  const displayTasks = tasks;
-  const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
   const errorCount = displayTasks.filter((t) => t.status === "error").length;
 
   const triggerLabel =
