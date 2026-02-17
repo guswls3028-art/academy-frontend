@@ -39,13 +39,18 @@ function pollExcelJob(
 
 function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
   api
-    .get<{ status: string }>(`/media/videos/${videoId}/`)
+    .get<{ status: string; encoding_progress?: number | null }>(`/media/videos/${videoId}/`)
     .then((res) => {
       const status = res.data?.status;
-      // API는 status만 반환하고 인코딩 진행률 %는 없음. PROCESSING 동안 50% 고정 표시(플레이스홀더).
-      // 워커가 완료하면 READY/FAILED로 바뀌어 완료/실패로 넘어감. 50%에서 오래 머무르면 인코딩 중이거나 워커 지연.
+      const encodingProgress = res.data?.encoding_progress;
       if (status === "PROCESSING" || status === "UPLOADED") {
-        asyncStatusStore.updateProgress(taskId, status === "PROCESSING" ? 50 : 10);
+        const percent =
+          status === "PROCESSING" && typeof encodingProgress === "number"
+            ? Math.min(99, Math.max(1, encodingProgress))
+            : status === "PROCESSING"
+              ? 50
+              : 10;
+        asyncStatusStore.updateProgress(taskId, percent);
       }
       if (status === "READY") {
         onSuccess?.();
