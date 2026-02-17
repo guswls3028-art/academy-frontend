@@ -5,6 +5,7 @@ import {
   fetchMessagingInfo,
   chargeCredits,
   updateKakaoPfid,
+  updateMessagingInfo,
   type TenantMessagingInfo,
 } from "../api/messages.api";
 
@@ -13,6 +14,7 @@ const KEY = ["messaging", "info"] as const;
 /** 백엔드 미구현 시 UI 확인용 목 데이터 */
 const MOCK_INFO: TenantMessagingInfo = {
   kakao_pfid: null,
+  messaging_sender: null,
   credit_balance: "0",
   is_active: false,
   base_price: "8.5",
