@@ -149,6 +149,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     setBusy(true);
     try {
       const { job_id } = await uploadStudentBulkFromExcel(selectedExcelFile, pwd);
+      if (!job_id) {
+        feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
       asyncStatusStore.addWorkerJob("학생 일괄 등록", job_id, "excel_parsing");
       feedback.success("백그라운드에서 진행됩니다. 우하단에서 진행 상황을 확인할 수 있습니다.");
       onSuccess();
