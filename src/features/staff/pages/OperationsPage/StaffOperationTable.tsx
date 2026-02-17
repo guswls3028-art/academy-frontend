@@ -117,7 +117,7 @@ export default function StaffOperationTable({
       )}
 
       <div className="text-[11px] text-[var(--text-muted)]">
-        * 선택된 직원은 우측 작업 콘솔에 즉시 반영됩니다.
+        * 선택된 직원이 우측 패널에 반영됩니다.
       </div>
     </div>
   );
