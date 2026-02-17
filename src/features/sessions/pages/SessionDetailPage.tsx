@@ -148,7 +148,6 @@ export default function SessionDetailPage() {
 
   const showAssessmentPanel =
     activeTab === "exams" ||
-    activeTab === "scores" ||
     activeTab === "assignments";
 
   return (
