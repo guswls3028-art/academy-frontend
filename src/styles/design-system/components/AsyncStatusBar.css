@@ -174,14 +174,20 @@
   margin-top: 2px;
 }
 
-.async-status-bar__item-close {
+.async-status-bar__item-actions {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.async-status-bar__item-btn {
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
   background: transparent;
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--color-text-muted);
   cursor: pointer;
   display: flex;
@@ -190,9 +196,32 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.async-status-bar__item-close:hover {
+.async-status-bar__item-btn:hover {
   background: rgba(0, 0, 0, 0.06);
   color: var(--color-text-primary);
+}
+
+.async-status-bar__item-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.async-status-bar__item-btn--retry {
+  color: var(--color-primary, #2563eb);
+}
+
+.async-status-bar__item-btn--retry:hover:not(:disabled) {
+  color: var(--color-primary, #2563eb);
+  background: color-mix(in srgb, var(--color-primary, #2563eb) 12%, transparent);
+}
+
+.async-status-bar__item-btn--delete {
+  color: var(--color-text-muted);
+}
+
+.async-status-bar__item-btn--delete:hover {
+  color: var(--color-status-error, #ef4444);
+  background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
 }
 
 .async-status-bar__progress {
