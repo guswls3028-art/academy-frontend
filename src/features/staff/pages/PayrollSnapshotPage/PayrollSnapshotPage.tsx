@@ -92,7 +92,7 @@ export default function PayrollSnapshotPage() {
         <div className="mt-2 text-[11px] text-[var(--color-text-muted)]">
           * {ymLabel(ym.year, ym.month)} 월 마감 시 생성된 스냅샷만 표시됩니다.
         </div>
-      </div>
+    </div>
 
       {listQ.isLoading && (
         <div className="ds-panel-card p-8 text-center text-[var(--color-text-muted)]">불러오는 중…</div>
