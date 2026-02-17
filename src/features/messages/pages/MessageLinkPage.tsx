@@ -5,20 +5,29 @@ import { useState, useEffect } from "react";
 import { Input } from "antd";
 import { Section, SectionHeader } from "@/shared/ui/ds";
 import { Button } from "@/shared/ui/ds";
-import { useMessagingInfo, useUpdateKakaoPfid } from "../hooks/useMessagingInfo";
+import { useMessagingInfo, useUpdateKakaoPfid, useUpdateMessagingInfo } from "../hooks/useMessagingInfo";
 
 export default function MessageLinkPage() {
   const { data: info } = useMessagingInfo();
   const { mutate: updatePfid, isPending } = useUpdateKakaoPfid();
+  const { mutate: updateMessaging, isPending: isUpdatingMessaging } = useUpdateMessagingInfo();
   const [pfid, setPfid] = useState("");
+  const [sender, setSender] = useState("");
   useEffect(() => {
     if (info?.kakao_pfid != null) setPfid(info.kakao_pfid);
   }, [info?.kakao_pfid]);
+  useEffect(() => {
+    if (info?.messaging_sender != null) setSender(info.messaging_sender);
+  }, [info?.messaging_sender]);
 
-  const handleSave = () => {
+  const handleSavePfid = () => {
     const value = pfid.trim();
     if (!value) return;
     updatePfid(value);
+  };
+
+  const handleSaveSender = () => {
+    updateMessaging({ messaging_sender: sender.trim() || null });
   };
 
   return (
