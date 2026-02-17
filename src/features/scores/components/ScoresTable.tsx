@@ -23,7 +23,6 @@ import { getHomeworkStatus } from "../utils/homeworkStatus";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { TABLE_COL } from "@/shared/ui/domain";
 import AttendanceStatusBadge, {
-  getAttendanceShortLabel,
   type AttendanceStatus,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 
