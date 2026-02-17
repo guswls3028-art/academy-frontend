@@ -259,7 +259,7 @@ export function StaffHomeTable({
                 />
               </td>
               <td className="align-middle">
-                <span className="ds-status-badge" data-tone="primary" aria-label="대표">
+                <span className="ds-status-badge ds-status-badge--action" data-tone="primary" aria-label="대표">
                   대표
                 </span>
               </td>
