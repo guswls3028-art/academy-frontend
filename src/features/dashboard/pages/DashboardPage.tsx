@@ -238,6 +238,7 @@ function SearchResultBlock({
   emptyMessage,
   viewAllTo,
   viewAllLabel,
+  onNavigate,
 }: {
   title: string;
   loading: boolean;
@@ -245,6 +246,7 @@ function SearchResultBlock({
   emptyMessage: string;
   viewAllTo?: string;
   viewAllLabel?: string;
+  onNavigate: (to: string) => void;
 }) {
   return (
     <div
@@ -269,7 +271,7 @@ function SearchResultBlock({
               <button
                 key={item.to + item.label}
                 type="button"
-                onClick={() => (window.location.href = item.to)}
+                onClick={() => onNavigate(item.to)}
                 className="text-left cursor-pointer hover:bg-[var(--color-bg-surface-hover)] rounded px-2 py-2 -mx-2"
                 style={{ fontSize: 14 }}
               >
@@ -286,7 +288,7 @@ function SearchResultBlock({
               intent="ghost"
               size="sm"
               className="mt-2"
-              onClick={() => navigate(viewAllTo)}
+              onClick={() => onNavigate(viewAllTo)}
             >
               {viewAllLabel} 보기
             </Button>
