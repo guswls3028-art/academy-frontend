@@ -45,6 +45,7 @@ export default function SessionAttendancePage({
   onOpenEnrollModal,
 }: SessionAttendancePageProps) {
   const qc = useQueryClient();
+  const { openSendMessageModal } = useSendMessageModal();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [searchInput, setSearchInput] = useState("");
