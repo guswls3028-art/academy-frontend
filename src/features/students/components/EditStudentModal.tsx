@@ -281,6 +281,7 @@ export default function EditStudentModal({
           <div className="modal-form-group modal-form-group--neutral">
             <span className="modal-section-label">선택 입력</span>
             <div className="modal-form-row modal-form-row--1-auto">
+              <div style={{ minWidth: 0 }} aria-hidden />
               <div className="modal-actions-inline" style={{ height: 36 }}>
                 {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
                   <button
