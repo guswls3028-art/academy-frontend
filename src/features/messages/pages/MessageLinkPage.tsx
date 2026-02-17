@@ -86,7 +86,7 @@ export default function MessageLinkPage() {
               />
               <Button
                 intent="primary"
-                onClick={handleSave}
+                onClick={handleSavePfid}
                 disabled={!pfid.trim() || isPending}
               >
                 {isPending ? "저장 중…" : "연동 저장"}
