@@ -341,6 +341,8 @@ export default function Header() {
           )}
 
           <Dropdown
+            open={alarmDropdownOpen}
+            onOpenChange={setAlarmDropdownOpen}
             trigger={["click"]}
             placement="bottomRight"
             dropdownRender={() => (
@@ -351,7 +353,7 @@ export default function Header() {
                     type="button"
                     intent="ghost"
                     size="sm"
-                    onClick={() => { setOpenNotice(true); }}
+                    onClick={openNoticeAndCloseAlarm}
                   >
                     알림 전체 보기
                   </Button>
@@ -364,7 +366,7 @@ export default function Header() {
                       <div
                         key={n.id}
                         className="app-header__alarmDropdownItem"
-                        onClick={() => setOpenNotice(true)}
+                        onClick={openNoticeAndCloseAlarm}
                       >
                         <strong>{n.title}</strong>
                         {n.body && <span className="app-header__alarmDropdownItemBody">{n.body}</span>}
