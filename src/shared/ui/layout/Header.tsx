@@ -311,12 +311,12 @@ export default function Header() {
 
   const userMenu = {
     items: [
-      { key: "profile", label: "내 계정 / 설정" },
+      { key: "settings", label: "설정" },
       { key: "divider-1", type: "divider" as const },
       { key: "logout", label: "로그아웃" },
     ],
     onClick: ({ key }: { key: string }) => {
-      if (key === "profile") nav("/admin/profile/account");
+      if (key === "settings") nav("/admin/settings");
       if (key === "logout") nav("/login");
     },
   };
