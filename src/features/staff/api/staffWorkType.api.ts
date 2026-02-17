@@ -36,10 +36,10 @@ export async function fetchWorkTypes(params?: { is_active?: boolean }) {
 }
 
 /**
- * GET /staffs/{staff_id}/work-types/
+ * GET /staffs/staff-work-types/?staff={staffId}
  */
 export async function fetchStaffWorkTypes(staffId: number) {
-  const res = await api.get(`/staffs/${staffId}/work-types/`);
+  const res = await api.get("/staffs/staff-work-types/", { params: { staff: staffId } });
 
   if (Array.isArray(res.data)) return res.data as StaffWorkType[];
   if (Array.isArray(res.data?.results)) return res.data.results as StaffWorkType[];

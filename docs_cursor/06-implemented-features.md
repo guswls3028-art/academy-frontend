@@ -126,7 +126,7 @@
 
 - **createStaffWorkType(staffId, { work_type_id, hourly_wage? })**: `POST /staffs/staff-work-types/` body `{ staff: staffId, work_type_id, hourly_wage? }`. 응답 단일 객체(StaffWorkType). 테넌트·권한(IsPayrollManager)은 백엔드·axios 헤더에서 처리.
 - **fetchWorkTypes(params?)**: `GET /staffs/work-types/` (is_active 등). WorkType[].
-- **fetchStaffWorkTypes(staffId)**: `GET /staffs/${staffId}/work-types/` (Staff 상세용 nested 라우트 여부는 백엔드 실제 URL 확인). StaffWorkType[].
+- **fetchStaffWorkTypes(staffId)**: `GET /staffs/staff-work-types/?staff=${staffId}`. StaffWorkType[].
 
 ---
 
