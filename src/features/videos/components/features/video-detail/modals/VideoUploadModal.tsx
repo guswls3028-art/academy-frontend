@@ -138,12 +138,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact video-upload-modal__body">
-          {/* 제목 — 라벨+입력 한 줄 */}
+          {/* 제목 — 라벨+입력 한 줄, 입력 영역 비율 확보 */}
           <div className="modal-form-group video-upload-modal__row">
-            <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "center", gap: "var(--space-3)" }}>
-              <span className="modal-section-label" style={{ marginBottom: 0, flex: "0 0 72px" }}>제목</span>
+            <div className="video-upload-modal__field-row">
+              <span className="video-upload-modal__label">제목</span>
               <input
-                className="ds-input"
+                className="ds-input video-upload-modal__input"
                 placeholder="예: 1강 OT"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -152,10 +152,10 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             </div>
           </div>
 
-          {/* 파일 업로드 — 라벨+드롭존 한 줄(드롭존 높이 축소) */}
+          {/* 파일 업로드 — 라벨+드롭존 한 줄 */}
           <div className="modal-form-group video-upload-modal__row">
-            <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "stretch", gap: "var(--space-3)" }}>
-              <span className="modal-section-label" style={{ marginBottom: 0, flex: "0 0 72px", paddingTop: 8 }}>파일</span>
+            <div className="video-upload-modal__field-row video-upload-modal__field-row--stretch">
+              <span className="video-upload-modal__label">파일</span>
               <div
                 className="video-upload-modal__dropzone video-upload-modal__dropzone--compact"
                 onClick={pickFile}
