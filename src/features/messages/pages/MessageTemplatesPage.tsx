@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiMessageSquare, FiClock } from "react-icons/fi";
-import { EmptyState } from "@/shared/ui/ds";
+import { EmptyState, Panel } from "@/shared/ui/ds";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import TemplateEditModal from "../components/TemplateEditModal";
