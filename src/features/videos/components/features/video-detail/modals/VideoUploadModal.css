@@ -96,3 +96,24 @@
 .video-upload-modal__toggle[aria-checked="true"] .video-upload-modal__toggle-thumb {
   background: #fff;
 }
+
+/* 재생 정책 — 워터마크·건너뛰기·최대 배속 한 줄 */
+.video-upload-modal__policy-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  grid-template-columns: unset;
+}
+
+.video-upload-modal__policy-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: default;
+}
+
+.video-upload-modal__speed-input {
+  width: 64px;
+  flex-shrink: 0;
+}
