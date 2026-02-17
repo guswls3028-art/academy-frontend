@@ -32,8 +32,8 @@ function getMonthBounds(month: string): DateRange {
   return { from: first, to: last };
 }
 
+/** 내 계정은 설정 탭으로 이동. 프로필은 근태·지출만 */
 const PROFILE_TABS = [
-  { key: "account", label: "내 계정", path: "/admin/profile/account" },
   { key: "attendance", label: "근태", path: "/admin/profile/attendance" },
   { key: "expense", label: "지출", path: "/admin/profile/expense" },
 ];
