@@ -10,6 +10,7 @@ import {
   fetchMessageTemplates,
   sendMessage,
   type MessageTemplateItem,
+  type MessageMode,
   type SendToType,
 } from "../api/messages.api";
 import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
