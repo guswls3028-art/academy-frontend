@@ -77,6 +77,8 @@ export function useWorkerJobPoller(
   onExcelSuccessRef.current = options?.onExcelSuccess;
   onVideoSuccessRef.current = options?.onVideoSuccess;
 
+  const currentTenant = getTenantCodeForApiRequest() ?? "";
+
   useEffect(() => {
     if (pending.length === 0) {
       if (intervalRef.current) {
@@ -86,18 +88,22 @@ export function useWorkerJobPoller(
       return;
     }
     const tick = () => {
-      const current = asyncStatusStore.getState();
+      const all = asyncStatusStore.getState();
+      const forCurrentTenant = all.filter(
+        (t) =>
+          t.status === "pending" &&
+          t.meta?.jobId &&
+          (t.tenantScope ?? "") === currentTenant
+      );
       const excelCb = onExcelSuccessRef.current;
       const videoCb = onVideoSuccessRef.current;
-      current
-        .filter((t) => t.status === "pending" && t.meta?.jobId)
-        .forEach((t) => {
-          if (t.meta!.jobType === "excel_parsing") {
-            pollExcelJob(t.meta!.jobId, excelCb);
-          } else if (t.meta!.jobType === "video_processing") {
-            pollVideoJob(t.meta!.jobId, t.meta!.jobId, videoCb);
-          }
-        });
+      forCurrentTenant.forEach((t) => {
+        if (t.meta!.jobType === "excel_parsing") {
+          pollExcelJob(t.meta!.jobId, excelCb);
+        } else if (t.meta!.jobType === "video_processing") {
+          pollVideoJob(t.meta!.jobId, t.meta!.jobId, videoCb);
+        }
+      });
     };
     tick();
     intervalRef.current = setInterval(tick, POLL_INTERVAL_MS);
@@ -107,5 +113,5 @@ export function useWorkerJobPoller(
         intervalRef.current = null;
       }
     };
-  }, [pending.length, pending.map((p) => p.id).join(",")]);
+  }, [currentTenant, pending.length, pending.map((p) => p.id).join(",")]);
 }
