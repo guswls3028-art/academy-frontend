@@ -122,30 +122,26 @@ export default function StaffOperationTable({
 
 function Section({
   title,
-  hint,
   emptyText,
   children,
 }: {
   title: string;
-  hint?: string;
   emptyText: string;
   children: React.ReactNode;
 }) {
   const hasItems = !!children && Array.isArray(children) ? children.length > 0 : true;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-end justify-between gap-2">
-        <div className="text-xs font-semibold text-[var(--text-primary)]">{title}</div>
-        {!!hint && <div className="text-[11px] text-[var(--text-muted)]">{hint}</div>}
-      </div>
-
+    <div className="space-y-1.5">
+      <div className="text-xs font-semibold text-[var(--color-text-secondary)] px-0.5">{title}</div>
       {!hasItems ? (
-        <div className="rounded-[var(--radius-lg)] border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-4 py-3 text-sm text-[var(--color-text-muted)]">
+        <div className="rounded-lg bg-[var(--color-bg-surface-soft)] px-3 py-2.5 text-sm text-[var(--color-text-muted)]">
           {emptyText}
         </div>
       ) : (
-        <div className="space-y-2">{children}</div>
+        <div className="rounded-xl border border-[var(--color-border-divider)] overflow-hidden bg-[var(--color-bg-surface)]">
+          {children}
+        </div>
       )}
     </div>
   );
