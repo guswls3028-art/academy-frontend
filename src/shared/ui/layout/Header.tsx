@@ -402,10 +402,12 @@ export default function Header() {
                 className="app-header__userBtn"
                 aria-label="프로필"
                 leftIcon={
-                  me?.name || me?.username ? (
-                    <span className="app-header__avatar" aria-hidden>
-                      {(me.name || me.username || "?").slice(0, 1).toUpperCase()}
-                    </span>
+                  me ? (
+                    <StaffRoleAvatar
+                      role={meToStaffRole(me)}
+                      size={20}
+                      className="text-[var(--color-text-secondary)]"
+                    />
                   ) : (
                     <IconUser />
                   )
