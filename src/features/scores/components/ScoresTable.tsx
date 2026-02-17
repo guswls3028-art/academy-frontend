@@ -412,15 +412,23 @@ export default function ScoresTable({
               </div>
             </div>
 
-            {/* 시험 문항별 주관식 입력 확장행 */}
+            {/* 시험 문항별 주관식 입력 확장행 (클릭 시 해당 시험의 문항별 수기 입력) */}
             {selected &&
               selectedExamId != null &&
               row.enrollment_id === selectedEnrollmentId && (
-                <InlineExamItemsRow
-                  examId={selectedExamId}
-                  enrollmentId={row.enrollment_id}
-                  colSpan={dynamicCols.length + 4}
-                />
+                <div
+                  className="col-span-full border-b border-[var(--color-border-divider)]"
+                  style={{
+                    gridColumn: "1 / -1",
+                    background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
+                    padding: "var(--space-4)",
+                  }}
+                >
+                  <InlineExamItemsBlock
+                    examId={selectedExamId}
+                    enrollmentId={row.enrollment_id}
+                  />
+                </div>
               )}
           </Fragment>
         );
