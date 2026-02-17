@@ -1,15 +1,9 @@
 // PATH: src/features/lectures/pages/scores/SessionScoresEntryPage.tsx
 /**
- * ✅ SessionScoresEntryPage (ENTRY PAGE)
+ * ✅ SessionScoresEntryPage — 성적 작업공간 (워크플레이스)
  *
- * 책임:
- * - sessionId 라우팅 파싱
- * - 세션 단위 시험 요약 표시 (viewer)
- * - 실제 성적 테이블은 scores 도메인에 위임
- *
- * ❌ 학생별 점수 렌더 ❌
- * ❌ mock 데이터 ❌
- * ❌ 점수 입력 ❌
+ * - 작업공간 톤: 요약 툴바 · 시험 요약 카드 · 성적 입력 테이블
+ * - 전역 DS 유지 (Panel, EmptyState, domain 톤)
  */
 
 import { useParams } from "react-router-dom";
@@ -17,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
 import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
-import { PageHeader, Section, Panel, EmptyState } from "@/shared/ui/ds";
+import { Panel, EmptyState } from "@/shared/ui/ds";
 
 // ------------------------------------------------------------
 // Types (요약용)
@@ -27,12 +21,10 @@ type SessionExamSummary = {
   exam_id: number;
   title: string;
   pass_score: number;
-
   participant_count: number;
   avg_score: number;
   min_score: number;
   max_score: number;
-
   pass_count: number;
   fail_count: number;
   pass_rate: number;
@@ -43,16 +35,10 @@ type SessionExamsSummaryResponse = {
   participant_count: number;
   pass_rate: number;
   clinic_rate: number;
-
   strategy: string;
   pass_source: string;
-
   exams: SessionExamSummary[];
 };
-
-// ------------------------------------------------------------
-// API (viewer only)
-// ------------------------------------------------------------
 
 async function fetchSessionExamsSummary(sessionId: number): Promise<SessionExamsSummaryResponse> {
   const res = await api.get(`/results/admin/sessions/${sessionId}/exams/summary/`);
@@ -82,117 +68,105 @@ export default function SessionScoresEntryPage() {
   }
 
   return (
-    <Section>
-      <PageHeader
-        title="세션 성적"
-        description="세션 시험 요약과 성적 패널을 확인합니다."
-        actions={null}
-      />
+    <div className="flex flex-col gap-6">
+      {/* 작업공간 상단 요약 툴바 */}
+      <div
+        className="flex flex-wrap items-center gap-4 py-3"
+        style={{
+          borderBottom: "1px solid var(--color-border-divider)",
+          paddingLeft: 0,
+          paddingRight: 0,
+        }}
+      >
+        {!isLoading && !isError && data && (
+          <>
+            <span
+              className="text-[var(--text-sm)] font-semibold"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              전체 <strong style={{ color: "var(--color-text-primary)" }}>{data.participant_count ?? 0}</strong>명
+            </span>
+            <span style={{ color: "var(--color-border-divider)" }}>|</span>
+            <span
+              className="text-[var(--text-sm)] font-semibold"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              시험 <strong style={{ color: "var(--color-text-primary)" }}>{data.exams?.length ?? 0}</strong>건
+            </span>
+          </>
+        )}
+      </div>
 
-      <Panel>
-        {isLoading ? (
+      {isLoading ? (
+        <Panel>
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-        ) : isError ? (
+        </Panel>
+      ) : isError ? (
+        <Panel>
           <EmptyState scope="panel" tone="error" title="성적 요약을 불러올 수 없습니다." />
-        ) : !data ? (
+        </Panel>
+      ) : !data ? (
+        <Panel>
           <EmptyState scope="panel" title="표시할 데이터가 없습니다." />
-        ) : (
-          <div style={{ display: "grid", gap: 14 }}>
-            {/* ===================== */}
-            {/* Session Exam Summary */}
-            {/* ===================== */}
-            <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--color-text-secondary)" }}>
-                  세션 시험 요약
-                </div>
-                <div style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
-                  {data.exams?.length ?? 0}개
-                </div>
-              </div>
-
-              {data.exams && data.exams.length > 0 ? (
-                <div
-                  style={{
-                    borderRadius: 14,
-                    border: "1px solid var(--color-border-divider)",
-                    background: "var(--color-bg-surface)",
-                    padding: 12,
-                  }}
-                >
+        </Panel>
+      ) : (
+        <>
+          {/* 시험 요약 카드 — 작업공간 블록 */}
+          {data.exams && data.exams.length > 0 && (
+            <Panel
+              variant="subtle"
+              title="시험 요약"
+              description={`${data.exams.length}건 · 평균·합격률 기준`}
+            >
+              <div
+                className="grid gap-3"
+                style={{
+                  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                }}
+              >
+                {data.exams.map((exam) => (
                   <div
+                    key={exam.exam_id}
+                    className="rounded-xl border p-4"
                     style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                      gap: 10,
+                      borderColor: "var(--color-border-divider)",
+                      background: "var(--color-bg-surface)",
                     }}
                   >
-                    {data.exams.map((exam) => (
-                      <div
-                        key={exam.exam_id}
-                        style={{
-                          borderRadius: 14,
-                          border: "1px solid var(--color-border-divider)",
-                          background: "var(--color-bg-surface-soft)",
-                          padding: 12,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 950,
-                            color: "var(--color-text-primary)",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {exam.title}
-                        </div>
-
-                        <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
-                            평균 <span style={{ fontWeight: 950, color: "var(--color-text-secondary)" }}>{exam.avg_score}</span>
-                          </span>
-
-                          <span style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>·</span>
-
-                          <span style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
-                            합격률{" "}
-                            <span style={{ fontWeight: 950, color: "var(--color-text-secondary)" }}>
-                              {exam.pass_rate}%
-                            </span>
-                          </span>
-
-                          <span style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>·</span>
-
-                          <span style={{ fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
-                            기준{" "}
-                            <span style={{ fontWeight: 950, color: "var(--color-text-secondary)" }}>
-                              {exam.pass_score}
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                    <div
+                      className="truncate text-[var(--text-sm)] font-semibold"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {exam.title}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-medium text-[var(--color-text-muted)]">
+                      <span>평균 <strong className="text-[var(--color-text-secondary)]">{exam.avg_score}</strong></span>
+                      <span>·</span>
+                      <span>합격률 <strong className="text-[var(--color-text-secondary)]">{exam.pass_rate}%</strong></span>
+                      <span>·</span>
+                      <span>기준 <strong className="text-[var(--color-text-secondary)]">{exam.pass_score}</strong></span>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <EmptyState
-                  scope="panel"
-                  mode="embedded"
-                  title="이 세션에는 성적 대상 시험이 없습니다."
-                />
-              )}
-            </div>
+                ))}
+              </div>
+            </Panel>
+          )}
 
-            {/* ===================== */}
-            {/* Scores Domain Entry */}
-            {/* ===================== */}
-            <SessionScoresPanel sessionId={numericSessionId} />
-          </div>
-        )}
-      </Panel>
-    </Section>
+          {data.exams?.length === 0 && (
+            <Panel variant="subtle">
+              <EmptyState
+                scope="panel"
+                tone="empty"
+                title="이 세션에는 성적 대상 시험이 없습니다."
+                description="시험 탭에서 시험을 연결하면 여기서 성적을 관리할 수 있습니다."
+              />
+            </Panel>
+          )}
+
+          {/* 성적 입력 작업공간 */}
+          <SessionScoresPanel sessionId={numericSessionId} />
+        </>
+      )}
+    </div>
   );
 }
