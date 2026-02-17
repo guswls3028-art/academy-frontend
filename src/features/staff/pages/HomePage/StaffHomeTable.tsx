@@ -71,12 +71,12 @@ interface Props {
 
 const COL = {
   checkbox: TABLE_COL.checkbox,
-  role: TABLE_COL.status,
+  role: 72,
   name: TABLE_COL.nameCompact,
   phone: TABLE_COL.phone,
   status: TABLE_COL.statusBadge,
-  manager: TABLE_COL.statusBadge,
-  payType: TABLE_COL.medium,
+  manager: 88,
+  payType: 124,
   workTypeTags: 260,
   actions: 120,
 } as const;
