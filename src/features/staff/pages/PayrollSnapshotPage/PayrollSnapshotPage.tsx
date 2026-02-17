@@ -31,6 +31,12 @@ export default function PayrollSnapshotPage() {
     month: now.getMonth() + 1,
   });
 
+  const { data: staffsData } = useStaffs();
+  const staffById = useMemo(() => {
+    const list = Array.isArray(staffsData?.staffs) ? staffsData!.staffs : [];
+    return new Map(list.map((s) => [s.id, s]));
+  }, [staffsData]);
+
   const listQ = useQuery({
     queryKey: ["payroll-snapshots", ym.year, ym.month],
     queryFn: () => fetchPayrollSnapshots({ year: ym.year, month: ym.month }),
