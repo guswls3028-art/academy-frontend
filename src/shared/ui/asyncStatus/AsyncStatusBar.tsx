@@ -10,6 +10,15 @@ import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import "@/styles/design-system/components/AsyncStatusBar.css";
+import "@/styles/design-system/ds/status.css";
+
+/** 작업 유형 뱃지 3종: 메시지, 엑셀, 동영상 (전역 디자인) */
+const JOB_TYPE_BADGE: Record<string, { label: string; tone: "primary" | "success" | "neutral" }> = {
+  message: { label: "메시지", tone: "neutral" },
+  messaging: { label: "메시지", tone: "neutral" },
+  excel_parsing: { label: "엑셀", tone: "success" },
+  video_processing: { label: "동영상", tone: "primary" },
+};
 
 function StatusIcon({ status }: { status: AsyncTaskStatus }) {
   if (status === "pending")
