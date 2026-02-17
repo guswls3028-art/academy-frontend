@@ -1,4 +1,6 @@
 // PATH: src/features/profile/account/pages/ProfileAccountPage.tsx
+// 설정 > 내 정보 — 조회·수정 단일 카드, 프리미엄 UX
+
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FiKey, FiLogOut } from "react-icons/fi";
@@ -6,10 +8,10 @@ import { FiKey, FiLogOut } from "react-icons/fi";
 import { fetchMe, updateProfile } from "../../api/profile.api";
 import useAuth from "@/features/auth/hooks/useAuth";
 
-import AccountInfoList from "../components/ProfileInfoCard";
+import ProfileInfoCard from "../components/ProfileInfoCard";
 import ChangePasswordModal from "../components/ChangePasswordModal";
 
-import { Button, EmptyState, Panel, Section } from "@/shared/ui/ds";
+import { EmptyState, Panel } from "@/shared/ui/ds";
 
 export default function ProfileAccountPage() {
   const qc = useQueryClient();
@@ -38,12 +40,11 @@ export default function ProfileAccountPage() {
     }
   }, [meQ.data]);
 
-  const dirty = useMemo(() => {
-    return (
-      name !== (meQ.data?.name ?? "") ||
-      phone !== (meQ.data?.phone ?? "")
-    );
-  }, [name, phone, meQ.data]);
+  const dirty = useMemo(
+    () =>
+      name !== (meQ.data?.name ?? "") || phone !== (meQ.data?.phone ?? ""),
+    [name, phone, meQ.data]
+  );
 
   const save = async () => {
     await updateMut.mutateAsync({
@@ -52,99 +53,52 @@ export default function ProfileAccountPage() {
     });
   };
 
+  if (meQ.isLoading) {
+    return (
+      <Panel variant="primary" title="내 정보" description="불러오는 중…">
+        <div
+          className="flex items-center justify-center rounded-xl py-12"
+          style={{
+            background: "var(--color-bg-surface-soft)",
+            border: "1px dashed var(--color-border-divider)",
+          }}
+        >
+          <span
+            className="font-medium"
+            style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}
+          >
+            불러오는 중…
+          </span>
+        </div>
+      </Panel>
+    );
+  }
+
+  if (meQ.isError) {
+    return (
+      <Panel variant="primary" title="내 정보">
+        <EmptyState scope="panel" title="내 정보를 불러올 수 없습니다" />
+      </Panel>
+    );
+  }
+
+  if (!meQ.data) return null;
+
   return (
     <>
-      <div className="flex flex-col gap-[var(--space-6)]">
-        {/* 빠른 액션 */}
-        <Section>
-          <Panel variant="subtle">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div
-                  style={{
-                    fontSize: "var(--text-md)",
-                    fontWeight: "var(--font-title)",
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  빠른 액션
-                </div>
-                <div
-                  className="mt-1"
-                  style={{
-                    fontSize: "var(--text-sm)",
-                    color: "var(--color-text-muted)",
-                    fontWeight: "var(--font-meta)",
-                  }}
-                >
-                  계정 보안 및 세션 관리
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  intent="secondary"
-                  size="md"
-                  onClick={() => setPwOpen(true)}
-                  className="inline-flex items-center gap-2"
-                >
-                  <FiKey size={14} />
-                  비밀번호 변경
-                </Button>
-
-                <Button
-                  type="button"
-                  intent="danger"
-                  size="md"
-                  onClick={clearAuth}
-                  className="inline-flex items-center gap-2"
-                >
-                  <FiLogOut size={14} />
-                  로그아웃
-                </Button>
-              </div>
-            </div>
-          </Panel>
-        </Section>
-
-        {/* 계정 정보 */}
-        <Section>
-          {meQ.isLoading && (
-            <div
-              style={{
-                fontSize: "var(--text-sm)",
-                color: "var(--color-text-muted)",
-                padding: "var(--space-8)",
-                textAlign: "center",
-              }}
-            >
-              불러오는 중...
-            </div>
-          )}
-
-          {meQ.isError && (
-            <EmptyState title="내 정보 조회 실패" />
-          )}
-
-          {meQ.data && (
-            <AccountInfoList
-              me={meQ.data}
-              name={name}
-              phone={phone}
-              onChangeName={setName}
-              onChangePhone={setPhone}
-              onSave={save}
-              saving={updateMut.isPending}
-              dirty={dirty}
-            />
-          )}
-        </Section>
-      </div>
-
-      <ChangePasswordModal
-        open={pwOpen}
-        onClose={() => setPwOpen(false)}
+      <ProfileInfoCard
+        me={meQ.data}
+        name={name}
+        phone={phone}
+        onChangeName={setName}
+        onChangePhone={setPhone}
+        onSave={save}
+        saving={updateMut.isPending}
+        dirty={dirty}
+        onPasswordClick={() => setPwOpen(true)}
+        onLogout={clearAuth}
       />
+      <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
     </>
   );
 }
