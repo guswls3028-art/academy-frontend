@@ -87,7 +87,7 @@ export default function DashboardPage() {
                 items={
                   searchStudents?.data?.slice(0, 5).map((s) => ({
                     label: s.name,
-                    sub: s.psNumber || s.school,
+                    sub: s.psNumber || s.school ?? undefined,
                     to: `/admin/students/${s.id}`,
                   })) ?? []
                 }
@@ -98,6 +98,7 @@ export default function DashboardPage() {
                     : undefined
                 }
                 viewAllLabel={`학생 ${searchStudents?.count ?? 0}명`}
+                onNavigate={(to) => navigate(to)}
               />
               <SearchResultBlock
                 title="강의"
@@ -105,7 +106,7 @@ export default function DashboardPage() {
                 items={
                   searchLectures?.slice(0, 5).map((l) => ({
                     label: l.title || l.name,
-                    sub: l.subject,
+                    sub: l.subject ?? undefined,
                     to: `/admin/lectures/${l.id}`,
                   })) ?? []
                 }
@@ -116,6 +117,7 @@ export default function DashboardPage() {
                     : undefined
                 }
                 viewAllLabel={`강의 ${searchLectures?.length ?? 0}개`}
+                onNavigate={(to) => navigate(to)}
               />
             </div>
           </section>
