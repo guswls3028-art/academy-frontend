@@ -23,6 +23,7 @@ import { useSendMessageModal } from "@/features/messages/context/SendMessageModa
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { openSendMessageModal } = useSendMessageModal();
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
 
@@ -99,7 +100,17 @@ export default function LectureStudentsPage() {
           선택 해제
         </Button>
         <span className="text-[var(--color-border-divider)]">|</span>
-        <Button intent="secondary" size="sm" onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}>
+        <Button
+          intent="secondary"
+          size="sm"
+          disabled={selectedIds.length === 0}
+          onClick={() =>
+            openSendMessageModal({
+              studentIds: selectedIds,
+              recipientLabel: `선택한 수강생 ${selectedIds.length}명`,
+            })
+          }
+        >
           메시지 발송
         </Button>
       <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)}>
