@@ -178,6 +178,8 @@ export default function SessionDetailPage() {
             <SessionScoresEntryPage
               lectureId={lecId}
               sessionId={sId}
+              onOpenEnrollModal={() => setShowEnrollModal(true)}
+              onOpenStudentModal={() => setShowStudentModal(true)}
             />
           )}
 
