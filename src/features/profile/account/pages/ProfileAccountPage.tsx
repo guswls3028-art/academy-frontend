@@ -9,6 +9,7 @@ import useAuth from "@/features/auth/hooks/useAuth";
 
 import ProfileInfoCard from "../components/ProfileInfoCard";
 import ChangePasswordModal from "../components/ChangePasswordModal";
+import SenderNumberCard from "../components/SenderNumberCard";
 
 import { EmptyState, Panel } from "@/shared/ui/ds";
 
