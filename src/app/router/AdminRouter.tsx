@@ -141,6 +141,9 @@ export default function AdminRouter() {
         {/* ================= Storage (저장소 통합) ================= */}
         <Route path="storage/*" element={<StorageRoutes />} />
 
+        {/* ================= 강의 콘텐츠 (영상·성적·시험·메시지 폴더 트리 통합) ================= */}
+        <Route path="contents" element={<CourseContentsPage />} />
+
         {/* ================= Clinic ================= */}
         <Route path="clinic/*" element={<ClinicRoutes />} />
 
