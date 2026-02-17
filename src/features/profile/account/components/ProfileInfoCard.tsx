@@ -2,7 +2,8 @@
 // 내 정보 — 명함 스타일(아바타·이름·직위 / 아이디·전화번호 잘 보이게), 수정 모달, 비밀번호/로그아웃 푸터
 
 import { useState } from "react";
-import { FiEdit2, FiKey, FiLogOut, FiUser } from "react-icons/fi";
+import { FiEdit2, FiKey, FiLogOut, FiPhone, FiUser } from "react-icons/fi";
+import { HiOutlineIdentification } from "react-icons/hi2";
 import { Button } from "@/shared/ui/ds";
 import { StaffRoleAvatar, type StaffRoleType } from "@/shared/ui/avatars";
 import { Me, displayUsername } from "../../api/profile.api";
