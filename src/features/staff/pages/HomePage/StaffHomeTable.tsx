@@ -400,7 +400,7 @@ export function StaffHomeTable({
                         <Plus size={14} strokeWidth={2.5} />
                       </button>
                       {openAddForStaffId === r.id && (
-                        <div className="absolute z-10 left-0 top-full mt-1 py-1 min-w-[160px] rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] shadow-lg">
+                        <div className="absolute z-10 left-0 bottom-full mb-1 py-1 min-w-[180px] max-h-[280px] overflow-y-auto rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] shadow-lg">
                           {allWorkTypes.filter(
                             (wt) => !(r.staff_work_types || []).some((swt) => swt.work_type?.id === wt.id)
                           ).length === 0 ? (
@@ -411,16 +411,12 @@ export function StaffHomeTable({
                             allWorkTypes
                               .filter((wt) => !(r.staff_work_types || []).some((swt) => swt.work_type?.id === wt.id))
                               .map((wt) => (
-                                <button
+                                <WorkTypeOption
                                   key={wt.id}
-                                  type="button"
-                                  className="block w-full text-left px-3 py-2 text-[13px] hover:bg-[var(--bg-surface-hover)]"
-                                  onClick={() => addTagM.mutate({ staffId: r.id, work_type_id: wt.id })}
+                                  wt={wt}
+                                  onSelect={() => addTagM.mutate({ staffId: r.id, work_type_id: wt.id })}
                                   disabled={addTagM.isPending}
-                                >
-                                  {wt.name}
-                                  {wt.base_hourly_wage != null ? ` (${(wt.base_hourly_wage / 10000).toFixed(1)}만/시)` : ""}
-                                </button>
+                                />
                               ))
                           )}
                         </div>
