@@ -106,8 +106,8 @@ export default function MessageAutoSendPage() {
     staleTime: 30 * 1000,
   });
 
-  const [localConfigs, setLocalConfigs] = React.useState<AutoSendConfigItem[]>([]);
-  React.useEffect(() => {
+  const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
+  useEffect(() => {
     setLocalConfigs(configs);
   }, [configs]);
 
