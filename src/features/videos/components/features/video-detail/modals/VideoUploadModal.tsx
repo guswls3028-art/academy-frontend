@@ -7,6 +7,7 @@ import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import "./VideoUploadModal.css";
 
 type Props = {
@@ -93,18 +94,20 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         throw new Error(`R2 업로드 실패: ${putRes.status} ${putRes.statusText}`);
       }
 
-      const completeRes = await api.post(
+      const completeRes = await api.post<{ id: number }>(
         `/media/videos/${videoId}/upload/complete/`,
         { ok: true }
       );
 
-      return completeRes.data;
+      return completeRes.data as { id: number };
     },
 
-    onSuccess: async () => {
-      await qc.invalidateQueries({
-        queryKey: ["session-videos", sessionId],
-      });
+    onSuccess: (data) => {
+      if (data?.id != null) {
+        asyncStatusStore.addWorkerJob("영상 추가", String(data.id), "video_processing");
+      }
+      feedback.success("백그라운드에서 진행됩니다. 우하단에서 진행 상황을 확인할 수 있습니다.");
+      onClose();
     },
 
     onError: (e: unknown) => {
@@ -123,7 +126,6 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
   const handleUpload = () => {
     uploadMut.mutate();
-    onClose();
   };
 
   return (
