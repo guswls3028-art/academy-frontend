@@ -411,9 +411,8 @@ export default function ScoresTable({
               selectedExamId != null &&
               row.enrollment_id === selectedEnrollmentId && (
                 <div
-                  className="col-span-full border-b border-[var(--color-border-divider)]"
+                  className="border-b border-[var(--color-border-divider)]"
                   style={{
-                    gridColumn: "1 / -1",
                     background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
                     padding: "var(--space-4)",
                   }}
