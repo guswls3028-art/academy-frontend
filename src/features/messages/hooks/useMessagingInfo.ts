@@ -52,3 +52,14 @@ export function useUpdateKakaoPfid() {
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
+
+/** 메시징 설정 수정 (발신번호, PFID 등) */
+export function useUpdateMessagingInfo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (
+      payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender">>
+    ) => updateMessagingInfo(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
