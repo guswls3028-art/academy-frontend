@@ -1,33 +1,12 @@
 @import "./base/element-lock.css";
-
 @import "./colors/index.css";
 @import "./density/index.css";
 @import "./typography/index.css";
-
-/* ===============================
-   Surface SSOT (FINAL)
-   =============================== */
 @import "./surface/slots.css";
-
-/* ===============================
-   DS 스타일 (상태 뱃지·탭·모달 — patterns보다 먼저 로드)
-   =============================== */
 @import "./ds/status.css";
 @import "./ds/tabs.css";
 @import "./modal.css";
 @import "./overlay.css";
-
-/* ===============================
-   Component patterns
-   =============================== */
 @import "./patterns/index.css";
-
-/* ===============================
-   AntD skin (slot only)
-   =============================== */
 @import "./antd/index.css";
-
-/* ===============================
-   States
-   =============================== */
 @import "./state/index.css";
