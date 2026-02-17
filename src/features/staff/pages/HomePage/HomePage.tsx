@@ -11,6 +11,7 @@ import { deleteStaff } from "../../api/staff.api";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
 export default function HomePage() {
   const navigate = useNavigate();
