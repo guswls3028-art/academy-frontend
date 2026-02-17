@@ -91,8 +91,6 @@ export default function MessageLogPage() {
               color: "var(--color-error)",
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
-              maxWidth: 400,
-              display: "inline-block",
             }}
           >
             {v}
