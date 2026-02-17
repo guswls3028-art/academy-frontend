@@ -59,7 +59,8 @@ import StorageRoutes from "@/features/storage/StorageRoutes";
 /* ================= Messages ================= */
 import { MessageRoutes } from "@/features/messages/routes";
 
-/* ================= Settings ================= */
+/* ================= Settings (시스템 설정 · 내 계정 통합) ================= */
+import SettingsLayout from "@/features/settings/SettingsLayout";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
 
 /* ================= Exams / Results / Videos (Admin Root) ================= */
