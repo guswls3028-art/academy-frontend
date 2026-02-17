@@ -234,37 +234,30 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               </label>
               <div className="video-upload-modal__policy-item video-upload-modal__speed-wrap">
                 <span className="video-upload-modal__policy-label">배속</span>
-                <div className="video-upload-modal__speed-control">
-                  <input
-                    type="number"
-                    min={1}
-                    max={5}
-                    step={0.25}
-                    className="ds-input video-upload-modal__speed-input"
-                    value={maxSpeed}
-                    onChange={(e) => setMaxSpeed(Number(e.target.value))}
-                    aria-label="최대 배속"
+                <div className="video-upload-modal__speed-stepper" role="group" aria-label="최대 배속">
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    iconOnly
+                    leftIcon={<ChevronLeftIcon />}
+                    onClick={() => setMaxSpeed((v) => Math.max(1, v - 0.25))}
+                    disabled={maxSpeed <= 1}
+                    aria-label="배속 낮추기"
                   />
-                  <div className="video-upload-modal__speed-btns">
-                    <button
-                      type="button"
-                      className="video-upload-modal__speed-btn"
-                      onClick={() => setMaxSpeed((v) => Math.min(5, v + 0.25))}
-                      disabled={maxSpeed >= 5}
-                      aria-label="배속 올리기"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 15l-6-6-6 6" /></svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="video-upload-modal__speed-btn"
-                      onClick={() => setMaxSpeed((v) => Math.max(1, v - 0.25))}
-                      disabled={maxSpeed <= 1}
-                      aria-label="배속 내리기"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                    </button>
-                  </div>
+                  <span className="video-upload-modal__speed-value">
+                    {maxSpeed % 1 === 0 ? `${maxSpeed}x` : `${maxSpeed.toFixed(2)}x`}
+                  </span>
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    iconOnly
+                    leftIcon={<ChevronRightIcon />}
+                    onClick={() => setMaxSpeed((v) => Math.min(5, v + 0.25))}
+                    disabled={maxSpeed >= 5}
+                    aria-label="배속 높이기"
+                  />
                 </div>
               </div>
             </div>
