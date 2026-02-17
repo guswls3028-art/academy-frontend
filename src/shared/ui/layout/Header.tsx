@@ -11,7 +11,8 @@ import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
 import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
 import { Button } from "@/shared/ui/ds";
 import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
-import { fetchMe, displayUsername } from "@/features/profile/api/profile.api";
+import { fetchMe, displayUsername, meToStaffRole } from "@/features/profile/api/profile.api";
+import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 
 function IconMenu() {

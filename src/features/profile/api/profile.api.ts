@@ -13,6 +13,16 @@ export type Me = {
   is_superuser?: boolean;
 };
 
+/** Me → 직책 (직원관리·헤더·설정 등 사용자 정보 표시 시 StaffRoleAvatar용) */
+export type MeStaffRole = "owner" | "TEACHER" | "ASSISTANT";
+
+export function meToStaffRole(me: Me | null | undefined): MeStaffRole {
+  if (!me) return "ASSISTANT";
+  if (me.is_superuser) return "owner";
+  if (me.is_staff) return "TEACHER";
+  return "ASSISTANT";
+}
+
 /** API/화면 노출용 — 테넌트 접두어(t123_ 등) 제거 (백엔드 user_display_username 규칙과 동일) */
 export function displayUsername(username: string | null | undefined): string {
   if (!username) return "";
