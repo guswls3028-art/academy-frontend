@@ -44,7 +44,7 @@ function WorkTypeTags({ workTypes }: { workTypes: Staff["staff_work_types"] }) {
         return (
           <span
             key={st.id}
-            className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded text-[11px] font-semibold truncate max-w-[72px]"
+            className="inline-flex items-center shrink-0 px-1.5 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap"
             style={{
               backgroundColor: color,
               color: isLightTagColor(color) ? "#1a1a1a" : "#fff",
@@ -321,7 +321,6 @@ export function StaffHomeTable({
               <td className="align-middle">
                 <span className="ds-status-badge" data-tone="neutral">-</span>
               </td>
-              <td className="text-[14px] leading-6 text-[var(--color-text-muted)] align-middle">-</td>
             </tr>
           )}
           {dataSource.map((r) => (
@@ -459,29 +458,6 @@ export function StaffHomeTable({
                     </>
                   )}
                 </div>
-              </td>
-              <td className="align-middle" onClick={(e) => e.stopPropagation()}>
-                <span className="inline-flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    className="ds-status-badge ds-status-badge--action"
-                    data-tone="primary"
-                    disabled={!canManage}
-                    onClick={() => onOperate(r.id)}
-                    aria-label={`${r.name} 작업`}
-                  >
-                    작업
-                  </button>
-                  <button
-                    type="button"
-                    className="ds-status-badge ds-status-badge--action"
-                    data-tone="neutral"
-                    onClick={() => onDetail(r.id)}
-                    aria-label={`${r.name} 상세`}
-                  >
-                    상세
-                  </button>
-                </span>
               </td>
             </tr>
           ))}
