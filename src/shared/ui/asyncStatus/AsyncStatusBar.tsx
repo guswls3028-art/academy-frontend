@@ -245,10 +245,14 @@ export default function AsyncStatusBar() {
     return () => clearInterval(id);
   }, [pendingCount]);
 
-  // 새로고침 후에도 진행 중인 영상 인코딩을 작업 박스에 복원
+  // 새로고침 후에도 진행 중인 영상 인코딩을 작업 박스에 복원 (태넌트별)
+  // 9999(로컬 개발)에서는 복원 생략 — 올리지 않은 작업이 뜨는 현상 방지
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
+    const tenant = getTenantCodeForApiRequest() ?? "";
+    if (tenant === "9999") return;
+
     fetchInProgressVideos()
       .then((videos) => {
         const existing = new Set(
