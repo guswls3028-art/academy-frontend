@@ -1,6 +1,10 @@
 // PATH: src/features/staff/pages/HomePage/HomePage.tsx
+// 직위순 기본 정렬: 대표(owner) → 강사(TEACHER) → 조교(ASSISTANT)
+
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
+
+const ROLE_ORDER: Record<string, number> = { TEACHER: 0, ASSISTANT: 1 };
 import { StaffHomeTable } from "./StaffHomeTable";
 import { useStaffs } from "../../hooks/useStaffs";
 import StaffCreateModal from "./StaffCreateModal";
@@ -46,8 +50,6 @@ export default function HomePage() {
 
   const canManage = !!meQ.data?.is_payroll_manager;
 
-  /** 직위순 기본 정렬: 대표(owner) → 강사(TEACHER) → 조교(ASSISTANT). 대표는 테이블에서 별도 첫 행. */
-  const ROLE_ORDER: Record<string, number> = { TEACHER: 0, ASSISTANT: 1 };
   const rows = useMemo(() => {
     const list = Array.isArray(staffs) ? staffs : [];
     const needle = q.trim().toLowerCase();
