@@ -1,4 +1,4 @@
-﻿// PATH: src/features/staff/pages/HomePage/HomeKpiSection.tsx
+// PATH: src/features/staff/pages/HomePage/HomeKpiSection.tsx
 import React from "react";
 import ActionButton from "../../components/ActionButton";
 import { useNavigate } from "react-router-dom";
@@ -20,16 +20,16 @@ export const HomeKpiSection: React.FC<{ canManage: boolean }> = ({ canManage }) 
       <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4">
         <div className="text-sm font-semibold">빠른 작업</div>
         <div className="text-xs text-[var(--text-muted)] mt-2">
-          근무/비용 입력 및 월 마감(급여 확정)은 작업 탭에서 처리합니다.
+          근태·비용/경비·월 마감은 각 탭에서 처리합니다.
         </div>
 
         <div className="mt-3 flex items-center gap-2">
           <ActionButton
             variant="primary"
             size="sm"
-            onClick={() => nav("/admin/staff/operations")}
+            onClick={() => nav("/admin/staff/attendance")}
           >
-            작업 탭 열기
+            근태 탭
           </ActionButton>
 
           <ActionButton
@@ -37,7 +37,7 @@ export const HomeKpiSection: React.FC<{ canManage: boolean }> = ({ canManage }) 
             size="sm"
             onClick={() => nav("/admin/staff/reports")}
           >
-            리포트 보기
+            리포트/명세
           </ActionButton>
         </div>
 
