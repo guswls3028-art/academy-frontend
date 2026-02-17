@@ -34,18 +34,17 @@ export default function MessageSendPage() {
         </div>
       </Panel>
 
-      <EmptyState
-        scope="panel"
-        tone="empty"
-        title="발송 방법"
-        description={
-          <>
-            <span className="block mb-2">· 학생·강의·출결 페이지에서 수신자를 선택한 뒤 「메시지 발송」 버튼을 누르세요.</span>
-            <span className="block mb-2">· 발송 유형(SMS만 / 알림톡만 / 알림톡→SMS 폴백)을 선택할 수 있습니다.</span>
-            <span>· 템플릿을 불러오거나 직접 내용을 입력하여 발송할 수 있습니다.</span>
-          </>
-        }
-      />
+      <div
+        className="rounded-xl p-6 border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]"
+        style={{ color: "var(--color-text-secondary)", fontSize: 14 }}
+      >
+        <div className="font-semibold text-[var(--color-text-primary)] mb-3">발송 방법</div>
+        <ul className="list-disc list-inside space-y-1">
+          <li>학생·강의·출결 페이지에서 수신자를 선택한 뒤 「메시지 발송」 버튼을 누르세요.</li>
+          <li>발송 유형(SMS만 / 알림톡만 / 알림톡→SMS 폴백)을 선택할 수 있습니다.</li>
+          <li>템플릿을 불러오거나 직접 내용을 입력하여 발송할 수 있습니다.</li>
+        </ul>
+      </div>
     </div>
   );
 }
