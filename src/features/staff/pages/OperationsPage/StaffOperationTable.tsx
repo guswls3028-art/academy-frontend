@@ -161,34 +161,24 @@ function Row({
       type="button"
       onClick={onClick}
       className={cx(
-        "w-full text-left rounded-[var(--radius-lg)] border px-4 py-3 transition",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40",
+        "w-full text-left flex items-center gap-2.5 px-3 py-2.5 border-b border-[var(--color-border-divider)] last:border-b-0 transition-colors",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-border-focus)]/50",
         selected
-          ? "border-[color-mix(in_srgb,var(--color-brand-primary)_45%,transparent)] bg-[var(--state-selected-bg)]"
-          : "border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-soft)]"
+          ? "bg-[var(--state-selected-bg)]"
+          : "hover:bg-[var(--color-bg-surface-soft)]"
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <StaffRoleAvatar role={staff.role} size={20} className="shrink-0 text-[var(--color-text-secondary)]" />
-            <span className="font-semibold truncate text-[var(--color-text-primary)]">{staff.name}</span>
-            {!staff.is_active && (
-              <span className="ds-status-badge" data-status="inactive" aria-hidden>비활성</span>
-            )}
-            <RoleBadge isManager={!!staff.is_manager} />
-          </div>
-
-          <div className="text-xs text-[var(--color-text-muted)] mt-1 truncate">
-            {staff.phone || "-"}
-          </div>
-        </div>
-
-        <div className="shrink-0 text-right">
-          <div className="text-xs text-[var(--color-text-muted)]">급여</div>
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">{payLabel(staff.pay_type)}</div>
-        </div>
-      </div>
+      <StaffRoleAvatar role={staff.role} size={20} className="shrink-0 text-[var(--color-text-secondary)]" />
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-text-primary)]">
+        {staff.name}
+      </span>
+      {!staff.is_active && (
+        <span className="ds-status-badge shrink-0" data-status="inactive" aria-hidden>비활성</span>
+      )}
+      <RoleBadge isManager={!!staff.is_manager} />
+      <span className="shrink-0 text-xs text-[var(--color-text-muted)] tabular-nums">
+        {payLabel(staff.pay_type)}
+      </span>
     </button>
   );
 }
