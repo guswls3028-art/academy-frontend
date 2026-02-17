@@ -4,11 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@9.15.0",
-  "pnpm": {
-    "overrides": {
-      "vite": "^6.1.0"
-    }
-  },
   "scripts": {
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
