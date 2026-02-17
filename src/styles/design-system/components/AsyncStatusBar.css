@@ -62,6 +62,20 @@
   color: var(--color-text-secondary, #4b5563);
 }
 
+/* 실패 건 있으면 트리거에 오류 강조 */
+.async-status-bar--has-error .async-status-bar__trigger {
+  border-color: var(--color-status-error, #ef4444);
+  background: color-mix(in srgb, var(--color-status-error, #ef4444) 8%, var(--async-bg));
+}
+
+.async-status-bar--has-error .async-status-bar__trigger-count {
+  color: var(--color-status-error, #ef4444);
+}
+
+.async-status-bar--has-error .async-status-bar__trigger-icon {
+  color: var(--color-status-error, #ef4444);
+}
+
 /* 펼쳤을 때: 패널 */
 .async-status-bar__panel {
   display: none;
