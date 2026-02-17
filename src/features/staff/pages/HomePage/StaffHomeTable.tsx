@@ -116,8 +116,7 @@ const COL = {
   status: TABLE_COL.statusBadge,
   manager: 88,
   payType: 124,
-  workTypeTags: 260,
-  actions: 120,
+  workTypeTags: 380,
 } as const;
 
 const TABLE_WIDTH =
@@ -128,8 +127,7 @@ const TABLE_WIDTH =
   COL.status +
   COL.manager +
   COL.payType +
-  COL.workTypeTags +
-  COL.actions;
+  COL.workTypeTags;
 
 export function StaffHomeTable({
   staffs,
@@ -256,7 +254,6 @@ export function StaffHomeTable({
           <col style={{ width: COL.manager }} />
           <col style={{ width: COL.payType }} />
           <col style={{ width: COL.workTypeTags }} />
-          <col style={{ width: COL.actions }} />
         </colgroup>
 
         <thead>
@@ -280,7 +277,6 @@ export function StaffHomeTable({
             <th scope="col">관리자권한</th>
             <th scope="col">급여유형</th>
             <th scope="col">시급태그</th>
-            <th scope="col">관리</th>
           </tr>
         </thead>
 
