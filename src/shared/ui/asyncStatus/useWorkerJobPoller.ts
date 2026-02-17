@@ -42,7 +42,8 @@ export function useWorkerJobPoller(
     (t) => t.status === "pending" && t.meta?.jobId
   );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const onExcelSuccess = options?.onExcelSuccess;
+  const onExcelSuccessRef = useRef(options?.onExcelSuccess);
+  onExcelSuccessRef.current = options?.onExcelSuccess;
 
   useEffect(() => {
     if (pending.length === 0) {
@@ -54,11 +55,12 @@ export function useWorkerJobPoller(
     }
     const tick = () => {
       const current = asyncStatusStore.getState();
+      const callback = onExcelSuccessRef.current;
       current
         .filter((t) => t.status === "pending" && t.meta?.jobId)
         .forEach((t) => {
           if (t.meta!.jobType === "excel_parsing") {
-            pollExcelJob(t.meta!.jobId, onExcelSuccess);
+            pollExcelJob(t.meta!.jobId, callback);
           }
         });
     };
@@ -70,5 +72,5 @@ export function useWorkerJobPoller(
         intervalRef.current = null;
       }
     };
-  }, [pending.length, pending.map((p) => p.id).join(","), onExcelSuccess]);
+  }, [pending.length, pending.map((p) => p.id).join(",")]);
 }
