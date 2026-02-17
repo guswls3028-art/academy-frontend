@@ -118,13 +118,37 @@ export const asyncStatusStore = {
     emit();
   },
 
-  /** 항목 제거 (사용자가 닫기) */
+  /** 항목 제거 (사용자가 휴지통으로 삭제) */
   removeTask(id: string): void {
     tasks = tasks.filter((t) => t.id !== id);
     emit();
   },
 
-  /** 완료된 항목 일괄 제거 */
+  /** 업로드 태스크를 워커 작업으로 전환 (영상: 업로드 완료 후 폴링 대상으로 연결) */
+  attachWorkerMeta(tempId: string, jobId: string, jobType: string): void {
+    const idx = tasks.findIndex((t) => t.id === tempId);
+    if (idx === -1) return;
+    const t = tasks[idx];
+    const next = {
+      ...t,
+      id: jobId,
+      progress: t.progress ?? 0,
+      meta: { jobId, jobType },
+    };
+    tasks = [...tasks.slice(0, idx), ...tasks.slice(idx + 1)].filter((x) => x.id !== jobId);
+    tasks = [...tasks, next];
+    emit();
+  },
+
+  /** 재처리: 해당 항목을 다시 pending으로 (API 재호출은 호출측에서 수행) */
+  retryTask(id: string): void {
+    tasks = tasks.map((t) =>
+      t.id === id ? { ...t, status: "pending" as const, progress: 0, error: undefined } : t
+    );
+    emit();
+  },
+
+  /** 완료된 항목 일괄 제거 (휴지통) */
   clearCompleted(): void {
     tasks = tasks.filter((t) => t.status === "pending");
     emit();
