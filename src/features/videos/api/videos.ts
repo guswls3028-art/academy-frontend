@@ -127,6 +127,19 @@ export async function fetchSessionVideos(
   return [];
 }
 
+/** 진행 중인 영상(PROCESSING, UPLOADED) 목록 — 새로고침 후 작업 박스 복원용 */
+export async function fetchInProgressVideos(): Promise<Video[]> {
+  const statuses: VideoStatus[] = ["PROCESSING", "UPLOADED"];
+  const all: Video[] = [];
+  for (const s of statuses) {
+    const res = await api.get("/media/videos/", { params: { status: s } });
+    const d = res?.data;
+    const list = Array.isArray(d) ? d : d?.results ?? [];
+    all.push(...list.map(normalizeVideo));
+  }
+  return all;
+}
+
 export async function fetchVideoDetail(
   videoId: number
 ): Promise<VideoDetail> {
