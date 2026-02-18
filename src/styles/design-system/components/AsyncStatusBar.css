@@ -145,6 +145,11 @@
   margin-bottom: 0;
 }
 
+.async-status-bar__item:hover {
+  background-color: var(--color-surface-hover, #f3f4f6);
+  border-color: var(--color-border-divider, #e5e7eb);
+}
+
 .async-status-bar__item-row {
   display: flex;
   align-items: flex-start;
