@@ -211,8 +211,9 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
         <div className="async-status-bar__progress-wrap">
           {task.encodingStep && (
             <div className="async-status-bar__step-label" aria-hidden>
-              ({task.encodingStep.index}/{task.encodingStep.total}) {task.encodingStep.name}{" "}
-              {task.encodingStep.percent}%
+              <span className="async-status-bar__step-prefix">[{task.encodingStep.index}/{task.encodingStep.total}]</span>{" "}
+              <span className="async-status-bar__step-name">{task.encodingStep.name}</span>{" "}
+              <span className="async-status-bar__step-percent">{task.encodingStep.percent}%</span>
             </div>
           )}
           <div className="async-status-bar__progress-row">
