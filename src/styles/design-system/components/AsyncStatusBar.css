@@ -253,7 +253,23 @@
 .async-status-bar__step-label {
   font-size: 11px;
   color: var(--color-text-muted, #6b7280);
-  line-height: 1.2;
+  line-height: 1.4;
+  font-family: ui-monospace, "SF Mono", "Monaco", "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+  letter-spacing: 0.01em;
+}
+
+.async-status-bar__step-prefix {
+  color: var(--color-text-secondary, #4b5563);
+  font-weight: 600;
+}
+
+.async-status-bar__step-name {
+  color: var(--color-text-muted, #6b7280);
+}
+
+.async-status-bar__step-percent {
+  color: var(--color-primary, #2563eb);
+  font-weight: 600;
 }
 
 .async-status-bar__progress-row {
