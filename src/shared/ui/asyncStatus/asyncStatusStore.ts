@@ -21,6 +21,8 @@ export interface AsyncTask {
   status: AsyncTaskStatus;
   /** 0..100, 진행 중일 때만 사용 (워커 Redis progress) */
   progress?: number;
+  /** 예상 남은 시간(초). API에서 오면 이걸 우선 표시 */
+  remainingSeconds?: number | null;
   error?: string;
   createdAt: number;
   /** 있으면 워커 작업 — 우하단 작업 알람창에만 표시, 폴링 대상 */
