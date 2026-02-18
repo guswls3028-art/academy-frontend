@@ -9,7 +9,15 @@ export type JobStatusResponse = {
   status: string;
   result?: Record<string, unknown>;
   error_message?: string | null;
-  progress?: { step?: string; percent?: number } | null;
+  progress?: {
+    step?: string;
+    percent?: number;
+    step_index?: number | null;
+    step_total?: number | null;
+    step_name?: string | null;
+    step_name_display?: string | null;
+    step_percent?: number | null;
+  } | null;
 };
 
 export async function getJobStatus(jobId: string): Promise<JobStatusResponse> {

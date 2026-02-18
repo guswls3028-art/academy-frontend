@@ -18,8 +18,19 @@ function pollExcelJob(
   getJobStatus(taskId)
     .then((res) => {
       const percent = res.progress?.percent;
+      const stepIndex = res.progress?.step_index;
+      const stepTotal = res.progress?.step_total;
+      const stepName = res.progress?.step_name_display || res.progress?.step_name;
+      const stepPercent = res.progress?.step_percent;
+      const encodingStep =
+        typeof stepIndex === "number" &&
+        typeof stepTotal === "number" &&
+        typeof stepName === "string" &&
+        typeof stepPercent === "number"
+          ? { index: stepIndex, total: stepTotal, name: stepName, percent: stepPercent }
+          : null;
       if (typeof percent === "number") {
-        asyncStatusStore.updateProgress(taskId, percent);
+        asyncStatusStore.updateProgress(taskId, percent, undefined, encodingStep);
       }
       const errMsg = res.error_message?.trim();
       const isFailed = res.status === "FAILED" || (res.status === "DONE" && errMsg);
