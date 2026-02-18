@@ -43,8 +43,22 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
   asyncStatusStore.addTask("영상 추가", tempId);
 
   try {
+    // [1/3] 초기화 중
+    asyncStatusStore.updateProgress(tempId, 0, null, {
+      index: 1,
+      total: 3,
+      name: "초기화 중",
+      percent: 0,
+    });
+
     const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload);
-    asyncStatusStore.updateProgress(tempId, 5);
+    
+    asyncStatusStore.updateProgress(tempId, 5, null, {
+      index: 1,
+      total: 3,
+      name: "초기화 완료",
+      percent: 100,
+    });
 
     const uploadUrl = initRes.data?.upload_url;
     const videoId = initRes.data?.video?.id;
@@ -59,13 +73,26 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
       putHeaders["Content-Type"] = contentTypeFromServer;
     }
 
-    // 실제 업로드 진행률 추적 (5% ~ 70%)
+    // [2/3] 업로드 중 (실시간 진행률 추적)
+    asyncStatusStore.updateProgress(tempId, 10, null, {
+      index: 2,
+      total: 3,
+      name: "업로드 중",
+      percent: 0,
+    });
+
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {
-          const percent = 5 + (e.loaded / e.total) * 65; // 5% ~ 70%
-          asyncStatusStore.updateProgress(tempId, Math.round(percent));
+          const uploadPercent = Math.round((e.loaded / e.total) * 100);
+          const overallPercent = 10 + Math.round((e.loaded / e.total) * 60); // 10% ~ 70%
+          asyncStatusStore.updateProgress(tempId, overallPercent, null, {
+            index: 2,
+            total: 3,
+            name: "업로드 중",
+            percent: uploadPercent,
+          });
         }
       });
       xhr.addEventListener("load", () => {
@@ -83,12 +110,31 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
       xhr.send(file);
     });
 
-    asyncStatusStore.updateProgress(tempId, 70);
+    asyncStatusStore.updateProgress(tempId, 70, null, {
+      index: 2,
+      total: 3,
+      name: "업로드 완료",
+      percent: 100,
+    });
+
+    // [3/3] 완료 처리 중
+    asyncStatusStore.updateProgress(tempId, 75, null, {
+      index: 3,
+      total: 3,
+      name: "완료 처리 중",
+      percent: 0,
+    });
 
     const completeRes = await api.post<{ id: number }>(`/media/videos/${videoId}/upload/complete/`, {
       ok: true,
     });
-    asyncStatusStore.updateProgress(tempId, 85);
+
+    asyncStatusStore.updateProgress(tempId, 85, null, {
+      index: 3,
+      total: 3,
+      name: "완료 처리 완료",
+      percent: 100,
+    });
 
     // 워커 작업으로 전환하여 폴링 시작
     asyncStatusStore.attachWorkerMeta(tempId, String(videoId), "video_processing");
