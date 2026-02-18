@@ -7,7 +7,7 @@
 import { useEffect, useRef } from "react";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { asyncStatusStore } from "./asyncStatusStore";
-import { getJobStatus } from "@/shared/api/jobStatus";
+// ✅ getJobStatus는 더 이상 사용하지 않음 (progress 엔드포인트로 전환)
 import api from "@/shared/api/axios";
 
 const POLL_INTERVAL_MS = 1000;
