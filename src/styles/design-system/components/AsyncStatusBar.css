@@ -225,6 +225,15 @@
   cursor: not-allowed;
 }
 
+.async-status-bar__item-btn--cancel {
+  color: var(--color-status-warning, #f59e0b);
+}
+
+.async-status-bar__item-btn--cancel:hover:not(:disabled) {
+  color: var(--color-status-warning, #f59e0b);
+  background: color-mix(in srgb, var(--color-status-warning, #f59e0b) 12%, transparent);
+}
+
 .async-status-bar__item-btn--retry {
   color: var(--color-primary, #2563eb);
 }
