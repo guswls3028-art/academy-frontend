@@ -197,6 +197,10 @@ export function useWorkerJobPoller(
         } else if (t.meta!.jobType === "video_processing") {
           // ✅ taskId는 async status store의 task ID (t.id), videoId는 비디오 ID (t.meta!.jobId)
           pollVideoJob(t.id, t.meta!.jobId, videoCb);
+        } else {
+          // ✅ SSOT: 모든 워커 작업은 동일한 방식으로 처리
+          // messaging, omr, omr_scan 등도 /jobs/{id}/progress/ 엔드포인트 사용
+          pollExcelJob(t.id); // 동일한 엔드포인트 사용 (job_id 기반)
         }
       });
     };
