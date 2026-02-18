@@ -258,6 +258,62 @@
   background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
 }
 
+.async-status-bar__item-btn--stop {
+  color: var(--color-text-muted);
+}
+
+.async-status-bar__item-btn--stop:hover {
+  color: var(--color-status-warning, #f59e0b);
+  background: color-mix(in srgb, var(--color-status-warning, #f59e0b) 12%, transparent);
+}
+
+.async-status-bar__actions-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--color-bg-surface, #fff);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 120px;
+  overflow: hidden;
+}
+
+.async-status-bar__actions-menu-item {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary, #1a1a1a);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.async-status-bar__actions-menu-item:hover:not(:disabled) {
+  background: var(--color-surface-hover, #f9fafb);
+}
+
+.async-status-bar__actions-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.async-status-bar__actions-menu-item:first-child {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.async-status-bar__actions-menu-item:last-child {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
 .async-status-bar__progress-wrap {
   display: flex;
   flex-direction: column;
