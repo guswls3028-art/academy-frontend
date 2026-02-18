@@ -2,6 +2,7 @@
 // 우하단 Windows 스타일 비동기 상태 바 — 워커 작업 프로그래스바만 표시
 
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
