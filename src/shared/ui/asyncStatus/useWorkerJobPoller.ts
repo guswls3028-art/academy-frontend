@@ -124,6 +124,8 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
       const stepTotal = res.data?.encoding_step_total;
       const stepName = res.data?.encoding_step_name;
       const stepPercent = res.data?.encoding_step_percent;
+      
+      // ✅ 단계 정보 구성 (단계 정보가 있으면 항상 전달)
       const encodingStep =
         typeof stepIndex === "number" &&
         typeof stepTotal === "number" &&
@@ -132,14 +134,20 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
           ? { index: stepIndex, total: stepTotal, name: stepName, percent: stepPercent }
           : null;
       
-      // ✅ PROCESSING 상태에서 진행률 업데이트
-      if (status === "PROCESSING" && typeof encodingProgress === "number") {
-        asyncStatusStore.updateProgress(
-          taskId,
-          Math.min(99, Math.max(1, encodingProgress)),
-          remainingSeconds ?? undefined,
-          encodingStep
-        );
+      // ✅ PROCESSING 상태에서 진행률 업데이트 (단계 정보가 있으면 항상 전달)
+      if (status === "PROCESSING") {
+        // encodingProgress가 없어도 단계 정보만 있으면 업데이트
+        const finalProgress = typeof encodingProgress === "number" 
+          ? Math.min(99, Math.max(1, encodingProgress))
+          : (encodingStep ? Math.round((encodingStep.index - 1) / encodingStep.total * 100 + (encodingStep.percent / encodingStep.total)) : undefined);
+        if (finalProgress !== undefined || encodingStep) {
+          asyncStatusStore.updateProgress(
+            taskId,
+            finalProgress ?? 0,
+            remainingSeconds ?? undefined,
+            encodingStep
+          );
+        }
       } else if (status === "UPLOADED") {
         // UPLOADED 상태는 progress 엔드포인트에서 반환되지 않지만, 하위 호환성 유지
         asyncStatusStore.updateProgress(taskId, 10);
