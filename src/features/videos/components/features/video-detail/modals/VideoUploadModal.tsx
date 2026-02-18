@@ -125,15 +125,11 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       await uploadProgress;
       asyncStatusStore.updateProgress(tempId, 70);
 
-      if (!putRes.ok) {
-        throw new Error(`R2 업로드 실패: ${putRes.status} ${putRes.statusText}`);
-      }
-
       const completeRes = await api.post<{ id: number }>(
         `/media/videos/${videoId}/upload/complete/`,
         { ok: true }
       );
-      asyncStatusStore.updateProgress(tempId, 80);
+      asyncStatusStore.updateProgress(tempId, 85);
 
       return { id: completeRes.data?.id ?? videoId, tempId };
     },
