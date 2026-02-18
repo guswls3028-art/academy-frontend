@@ -245,9 +245,21 @@
 
 .async-status-bar__progress-wrap {
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.async-status-bar__step-label {
+  font-size: 11px;
+  color: var(--color-text-muted, #6b7280);
+  line-height: 1.2;
+}
+
+.async-status-bar__progress-row {
+  display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 6px;
 }
 
 .async-status-bar__progress {

@@ -215,25 +215,27 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               {task.encodingStep.percent}%
             </div>
           )}
-          <div className="async-status-bar__progress">
-            <div
-              className={
-                task.progress != null
-                  ? "async-status-bar__progress-fill"
-                  : "async-status-bar__progress-fill async-status-bar__progress-fill--indeterminate"
-              }
-              style={
-                task.progress != null
-                  ? { width: `${task.progress}%` }
-                  : undefined
-              }
-            />
+          <div className="async-status-bar__progress-row">
+            <div className="async-status-bar__progress">
+              <div
+                className={
+                  task.progress != null
+                    ? "async-status-bar__progress-fill"
+                    : "async-status-bar__progress-fill async-status-bar__progress-fill--indeterminate"
+                }
+                style={
+                  task.progress != null
+                    ? { width: `${task.progress}%` }
+                    : undefined
+                }
+              />
+            </div>
+            {task.progress != null && (
+              <span className="async-status-bar__progress-pct" aria-hidden>
+                {Math.round(task.progress)}%
+              </span>
+            )}
           </div>
-          {task.progress != null && (
-            <span className="async-status-bar__progress-pct" aria-hidden>
-              {Math.round(task.progress)}%
-            </span>
-          )}
         </div>
       )}
     </div>
