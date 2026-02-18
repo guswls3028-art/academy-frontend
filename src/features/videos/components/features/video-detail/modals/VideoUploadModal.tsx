@@ -2,11 +2,11 @@
 // 영상 추가 모달 — students 도메인 기준 모달 SSOT (AdminModal + ModalHeader/Body/Footer)
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { uploadVideo } from "@/features/videos/utils/videoUpload";
+import "./VideoUploadModal.css";
 
 function ChevronLeftIcon() {
   return (
@@ -22,8 +22,6 @@ function ChevronRightIcon() {
     </svg>
   );
 }
-import { asyncStatusStore } from "@/shared/ui/asyncStatus";
-import "./VideoUploadModal.css";
 
 type Props = {
   sessionId: number;
