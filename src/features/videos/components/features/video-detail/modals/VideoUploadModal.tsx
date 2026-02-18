@@ -83,7 +83,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         "/media/videos/upload/init/",
         initPayload
       );
-      asyncStatusStore.updateProgress(tempId, 15);
+      asyncStatusStore.updateProgress(tempId, 5);
 
       const uploadUrl = initRes.data?.upload_url;
       const videoId = initRes.data?.video?.id;
@@ -98,12 +98,32 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         putHeaders["Content-Type"] = contentTypeFromServer;
       }
 
-      const putRes = await fetch(uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: putHeaders,
+      // 실제 업로드 진행률 추적 (5% ~ 70%)
+      const uploadProgress = new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            const percent = 5 + (e.loaded / e.total) * 65; // 5% ~ 70%
+            asyncStatusStore.updateProgress(tempId, Math.round(percent));
+          }
+        });
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`R2 업로드 실패: ${xhr.status} ${xhr.statusText}`));
+          }
+        });
+        xhr.addEventListener("error", () => reject(new Error("R2 업로드 중 네트워크 오류")));
+        xhr.open("PUT", uploadUrl);
+        Object.entries(putHeaders).forEach(([key, value]) => {
+          xhr.setRequestHeader(key, value);
+        });
+        xhr.send(file);
       });
-      asyncStatusStore.updateProgress(tempId, 50);
+
+      await uploadProgress;
+      asyncStatusStore.updateProgress(tempId, 70);
 
       if (!putRes.ok) {
         throw new Error(`R2 업로드 실패: ${putRes.status} ${putRes.statusText}`);
