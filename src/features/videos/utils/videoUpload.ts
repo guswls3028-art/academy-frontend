@@ -43,22 +43,7 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
   asyncStatusStore.addTask("영상 추가", tempId);
 
   try {
-    // [1/3] 초기화 중
-    asyncStatusStore.updateProgress(tempId, 0, null, {
-      index: 1,
-      total: 3,
-      name: "초기화 중",
-      percent: 0,
-    });
-
     const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload);
-    
-    asyncStatusStore.updateProgress(tempId, 5, null, {
-      index: 1,
-      total: 3,
-      name: "초기화 완료",
-      percent: 100,
-    });
 
     const uploadUrl = initRes.data?.upload_url;
     const videoId = initRes.data?.video?.id;
@@ -68,41 +53,75 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
       throw new Error("업로드 초기화에 실패했습니다.");
     }
 
+    // 업로드 중에도 백엔드 progress API를 폴링하여 실제 단계 정보 가져오기
+    const pollUploadProgress = async () => {
+      try {
+        const res = await api.get<{
+          status: string;
+          upload_step_index?: number | null;
+          upload_step_total?: number | null;
+          upload_step_name?: string | null;
+          upload_step_percent?: number | null;
+          upload_progress?: number | null;
+        }>(`/media/videos/${videoId}/progress/`);
+        
+        const stepIndex = res.data?.upload_step_index;
+        const stepTotal = res.data?.upload_step_total;
+        const stepName = res.data?.upload_step_name;
+        const stepPercent = res.data?.upload_step_percent;
+        const uploadProgress = res.data?.upload_progress;
+        
+        if (
+          typeof stepIndex === "number" &&
+          typeof stepTotal === "number" &&
+          typeof stepName === "string" &&
+          typeof stepPercent === "number"
+        ) {
+          const encodingStep = {
+            index: stepIndex,
+            total: stepTotal,
+            name: stepName,
+            percent: stepPercent,
+          };
+          const overallProgress = typeof uploadProgress === "number" ? uploadProgress : stepPercent;
+          asyncStatusStore.updateProgress(tempId, overallProgress, null, encodingStep);
+        } else if (typeof uploadProgress === "number") {
+          asyncStatusStore.updateProgress(tempId, uploadProgress);
+        }
+      } catch (e) {
+        // 폴링 실패는 무시 (업로드 진행 중일 수 있음)
+      }
+    };
+
+    // 업로드 시작 전 progress 폴링 시작
+    const pollInterval = setInterval(pollUploadProgress, 1000);
+
     const putHeaders: Record<string, string> = {};
     if (contentTypeFromServer) {
       putHeaders["Content-Type"] = contentTypeFromServer;
     }
 
-    // [2/3] 업로드 중 (실시간 진행률 추적)
-    asyncStatusStore.updateProgress(tempId, 10, null, {
-      index: 2,
-      total: 3,
-      name: "업로드 중",
-      percent: 0,
-    });
-
+    // 실제 파일 업로드 진행률도 함께 추적
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {
-          const uploadPercent = Math.round((e.loaded / e.total) * 100);
-          const overallPercent = 10 + Math.round((e.loaded / e.total) * 60); // 10% ~ 70%
-          asyncStatusStore.updateProgress(tempId, overallPercent, null, {
-            index: 2,
-            total: 3,
-            name: "업로드 중",
-            percent: uploadPercent,
-          });
+          // 백엔드 progress API와 함께 사용
+          pollUploadProgress();
         }
       });
       xhr.addEventListener("load", () => {
+        clearInterval(pollInterval);
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
           reject(new Error(`R2 업로드 실패: ${xhr.status} ${xhr.statusText}`));
         }
       });
-      xhr.addEventListener("error", () => reject(new Error("R2 업로드 중 네트워크 오류")));
+      xhr.addEventListener("error", () => {
+        clearInterval(pollInterval);
+        reject(new Error("R2 업로드 중 네트워크 오류"));
+      });
       xhr.open("PUT", uploadUrl);
       Object.entries(putHeaders).forEach(([key, value]) => {
         xhr.setRequestHeader(key, value);
@@ -110,33 +129,13 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
       xhr.send(file);
     });
 
-    asyncStatusStore.updateProgress(tempId, 70, null, {
-      index: 2,
-      total: 3,
-      name: "업로드 완료",
-      percent: 100,
-    });
-
-    // [3/3] 완료 처리 중
-    asyncStatusStore.updateProgress(tempId, 75, null, {
-      index: 3,
-      total: 3,
-      name: "완료 처리 중",
-      percent: 0,
-    });
+    clearInterval(pollInterval);
 
     const completeRes = await api.post<{ id: number }>(`/media/videos/${videoId}/upload/complete/`, {
       ok: true,
     });
 
-    asyncStatusStore.updateProgress(tempId, 85, null, {
-      index: 3,
-      total: 3,
-      name: "완료 처리 완료",
-      percent: 100,
-    });
-
-    // 워커 작업으로 전환하여 폴링 시작
+    // 워커 작업으로 전환하여 폴링 시작 (백엔드에서 실제 워커 단계 정보 제공)
     asyncStatusStore.attachWorkerMeta(tempId, String(videoId), "video_processing");
 
     return videoId;
