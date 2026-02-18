@@ -53,7 +53,7 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
       throw new Error("업로드 초기화에 실패했습니다.");
     }
 
-    // 업로드 중에도 백엔드 progress API를 폴링하여 실제 단계 정보 가져오기
+    // 백엔드 progress API를 폴링하여 실제 업로드 단계 정보 가져오기
     const pollUploadProgress = async () => {
       try {
         const res = await api.get<{
@@ -89,7 +89,7 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
           asyncStatusStore.updateProgress(tempId, uploadProgress);
         }
       } catch (e) {
-        // 폴링 실패는 무시 (업로드 진행 중일 수 있음)
+        // 폴링 실패는 무시
       }
     };
 
@@ -101,14 +101,10 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
       putHeaders["Content-Type"] = contentTypeFromServer;
     }
 
-    // 실제 파일 업로드 진행률도 함께 추적
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.upload.addEventListener("progress", (e) => {
-        if (e.lengthComputable) {
-          // 백엔드 progress API와 함께 사용
-          pollUploadProgress();
-        }
+      xhr.upload.addEventListener("progress", () => {
+        pollUploadProgress();
       });
       xhr.addEventListener("load", () => {
         clearInterval(pollInterval);
@@ -131,7 +127,7 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
 
     clearInterval(pollInterval);
 
-    const completeRes = await api.post<{ id: number }>(`/media/videos/${videoId}/upload/complete/`, {
+    await api.post<{ id: number }>(`/media/videos/${videoId}/upload/complete/`, {
       ok: true,
     });
 
