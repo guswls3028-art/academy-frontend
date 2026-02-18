@@ -15,6 +15,14 @@ export interface AsyncTaskMeta {
   jobType: string;
 }
 
+/** 영상 인코딩 구간별 진행 (n/7) 단계명 + 구간 내 0~100% */
+export interface EncodingStep {
+  index: number;
+  total: number;
+  name: string;
+  percent: number;
+}
+
 export interface AsyncTask {
   id: string;
   label: string;
@@ -23,6 +31,8 @@ export interface AsyncTask {
   progress?: number;
   /** 예상 남은 시간(초). API에서 오면 이걸 우선 표시 */
   remainingSeconds?: number | null;
+  /** 영상 인코딩 시 구간별 표시 (2/7 인코딩 45% 등) */
+  encodingStep?: EncodingStep | null;
   error?: string;
   createdAt: number;
   /** 있으면 워커 작업 — 우하단 작업 알람창에만 표시, 폴링 대상 */
