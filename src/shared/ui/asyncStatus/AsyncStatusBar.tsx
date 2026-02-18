@@ -209,34 +209,49 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       </div>
       {task.status === "pending" && (
         <div className="async-status-bar__progress-wrap">
-          {task.encodingStep && (
-            <div className="async-status-bar__step-label" aria-hidden>
-              <span className="async-status-bar__step-prefix">[{task.encodingStep.index}/{task.encodingStep.total}]</span>{" "}
-              <span className="async-status-bar__step-name">{task.encodingStep.name}</span>{" "}
-              <span className="async-status-bar__step-percent">{task.encodingStep.percent}%</span>
+          {task.encodingStep ? (
+            <>
+              {/* ✅ 단계별 프로그래스바: 각 단계마다 0~100% 진행 */}
+              <div className="async-status-bar__step-label">
+                <span className="async-status-bar__step-prefix">[{task.encodingStep.index}/{task.encodingStep.total}]</span>{" "}
+                <span className="async-status-bar__step-name">{task.encodingStep.name}</span>
+              </div>
+              <div className="async-status-bar__progress-row">
+                <div className="async-status-bar__progress">
+                  <div
+                    className="async-status-bar__progress-fill"
+                    style={{ width: `${task.encodingStep.percent}%` }}
+                  />
+                </div>
+                <span className="async-status-bar__progress-pct">
+                  {task.encodingStep.percent}%
+                </span>
+              </div>
+            </>
+          ) : (
+            /* 단계 정보가 없을 때만 전체 진행률 표시 */
+            <div className="async-status-bar__progress-row">
+              <div className="async-status-bar__progress">
+                <div
+                  className={
+                    task.progress != null
+                      ? "async-status-bar__progress-fill"
+                      : "async-status-bar__progress-fill async-status-bar__progress-fill--indeterminate"
+                  }
+                  style={
+                    task.progress != null
+                      ? { width: `${task.progress}%` }
+                      : undefined
+                  }
+                />
+              </div>
+              {task.progress != null && (
+                <span className="async-status-bar__progress-pct" aria-hidden>
+                  {Math.round(task.progress)}%
+                </span>
+              )}
             </div>
           )}
-          <div className="async-status-bar__progress-row">
-            <div className="async-status-bar__progress">
-              <div
-                className={
-                  task.progress != null
-                    ? "async-status-bar__progress-fill"
-                    : "async-status-bar__progress-fill async-status-bar__progress-fill--indeterminate"
-                }
-                style={
-                  task.progress != null
-                    ? { width: `${task.progress}%` }
-                    : undefined
-                }
-              />
-            </div>
-            {task.progress != null && (
-              <span className="async-status-bar__progress-pct" aria-hidden>
-                {Math.round(task.progress)}%
-              </span>
-            )}
-          </div>
         </div>
       )}
     </div>
