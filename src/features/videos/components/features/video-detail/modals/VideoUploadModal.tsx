@@ -29,20 +29,14 @@ type Props = {
   onClose: () => void;
 };
 
-type UploadInitResponse = {
-  video: { id: number };
-  upload_url: string;
-  file_key: string;
-  content_type?: string;
-};
 
 export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) {
-  const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [showWatermark, setShowWatermark] = useState(true);
   const [allowSkip, setAllowSkip] = useState(false);
@@ -56,110 +50,45 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     setShowWatermark(true);
     setAllowSkip(false);
     setMaxSpeed(1);
+    setIsUploading(false);
   }, [isOpen]);
 
   const canSubmit = useMemo(() => {
     return Number.isFinite(sessionId) && sessionId > 0 && !!file && title.trim().length > 0;
   }, [sessionId, file, title]);
 
-  const uploadMut = useMutation({
-    mutationFn: async (tempId: string) => {
-      if (!file) throw new Error("파일이 없습니다.");
-
-      const initPayload = {
-        session: sessionId,
-        title: title.trim(),
-        filename: file.name,
-        content_type: file.type || "video/mp4",
-        show_watermark: showWatermark,
-        allow_skip: allowSkip,
-        max_speed: maxSpeed,
-        ...(description.trim() ? { description: description.trim() } : {}),
-      };
-
-      const initRes = await api.post<UploadInitResponse>(
-        "/media/videos/upload/init/",
-        initPayload
-      );
-      asyncStatusStore.updateProgress(tempId, 5);
-
-      const uploadUrl = initRes.data?.upload_url;
-      const videoId = initRes.data?.video?.id;
-      const contentTypeFromServer = initRes.data?.content_type;
-
-      if (!uploadUrl || !videoId) {
-        throw new Error("업로드 초기화에 실패했습니다.");
-      }
-
-      const putHeaders: Record<string, string> = {};
-      if (contentTypeFromServer) {
-        putHeaders["Content-Type"] = contentTypeFromServer;
-      }
-
-      // 실제 업로드 진행률 추적 (5% ~ 70%)
-      const uploadProgress = new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.upload.addEventListener("progress", (e) => {
-          if (e.lengthComputable) {
-            const percent = 5 + (e.loaded / e.total) * 65; // 5% ~ 70%
-            asyncStatusStore.updateProgress(tempId, Math.round(percent));
-          }
-        });
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`R2 업로드 실패: ${xhr.status} ${xhr.statusText}`));
-          }
-        });
-        xhr.addEventListener("error", () => reject(new Error("R2 업로드 중 네트워크 오류")));
-        xhr.open("PUT", uploadUrl);
-        Object.entries(putHeaders).forEach(([key, value]) => {
-          xhr.setRequestHeader(key, value);
-        });
-        xhr.send(file);
-      });
-
-      await uploadProgress;
-      asyncStatusStore.updateProgress(tempId, 70);
-
-      const completeRes = await api.post<{ id: number }>(
-        `/media/videos/${videoId}/upload/complete/`,
-        { ok: true }
-      );
-      asyncStatusStore.updateProgress(tempId, 85);
-
-      return { id: completeRes.data?.id ?? videoId, tempId };
-    },
-
-    onSuccess: (data) => {
-      if (data?.id != null && data?.tempId) {
-        asyncStatusStore.attachWorkerMeta(data.tempId, String(data.id), "video_processing");
-      }
-      feedback.success("업로드 완료. 인코딩은 우하단 작업 박스에서 이어서 진행됩니다.");
-    },
-
-    onError: (e: unknown, tempId: string) => {
-      const msg =
-        (e as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
-          ?.detail ||
-        (e as Error)?.message ||
-        "업로드에 실패했습니다.";
-      asyncStatusStore.completeTask(tempId, "error", msg);
-      feedback.error(msg);
-    },
-  });
-
   if (!isOpen) return null;
 
   const pickFile = () => fileInputRef.current?.click();
 
-  const handleUpload = () => {
-    const tempId = `video-upload-${sessionId}-${Date.now()}`;
-    asyncStatusStore.addTask("영상 추가", tempId);
-    uploadMut.mutate(tempId);
-    // 업로드·인코딩은 전부 작업 박스에서 진행 — 모달 닫고 다른 일 할 수 있게
+  const handleUpload = async () => {
+    if (!file) return;
+    setIsUploading(true);
+
+    // 모달은 바로 닫고, 업로드는 백그라운드에서 실행
     onClose();
+
+    try {
+      await uploadVideo({
+        sessionId,
+        file,
+        title,
+        description,
+        showWatermark,
+        allowSkip,
+        maxSpeed,
+      });
+      feedback.success("업로드 완료. 인코딩은 우하단 작업 박스에서 이어서 진행됩니다.");
+    } catch (error) {
+      const msg =
+        (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
+          ?.detail ||
+        (error as Error)?.message ||
+        "업로드에 실패했습니다.";
+      feedback.error(msg);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -292,16 +221,16 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         }
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={uploadMut.isPending}>
+            <Button intent="secondary" onClick={onClose} disabled={isUploading}>
               취소
             </Button>
             <Button
               intent="primary"
               onClick={handleUpload}
-              disabled={!canSubmit || uploadMut.isPending}
-              loading={uploadMut.isPending}
+              disabled={!canSubmit || isUploading}
+              loading={isUploading}
             >
-              {uploadMut.isPending ? "업로드 중…" : "업로드"}
+              {isUploading ? "업로드 중…" : "업로드"}
             </Button>
           </>
         }
