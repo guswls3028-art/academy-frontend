@@ -135,6 +135,14 @@ function CancelIcon({ className, size = 16 }: { className?: string; size?: numbe
   );
 }
 
+function StopIcon({ className, size = 16 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <rect x="6" y="6" width="12" height="12" rx="2" />
+    </svg>
+  );
+}
+
 function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const navigate = useNavigate();
   const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
@@ -146,7 +154,22 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const canCancel = task.status === "pending" && task.meta?.jobId;
   const [retrying, setRetrying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const progressNum = task.progress != null ? Math.round(task.progress) : null;
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  // ✅ 외부 클릭 시 메뉴 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setShowActions(false);
+      }
+    };
+    if (showActions) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showActions]);
 
   // ✅ 작업 클릭 시 해당 페이지로 이동
   const handleTaskClick = () => {
