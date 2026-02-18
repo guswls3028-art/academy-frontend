@@ -45,17 +45,33 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
       status: string;
       encoding_progress?: number | null;
       encoding_remaining_seconds?: number | null;
+      encoding_step_index?: number | null;
+      encoding_step_total?: number | null;
+      encoding_step_name?: string | null;
+      encoding_step_percent?: number | null;
     }>(`/media/videos/${videoId}/`)
     .then((res) => {
       const status = res.data?.status;
       const encodingProgress = res.data?.encoding_progress;
       const remainingSeconds = res.data?.encoding_remaining_seconds ?? null;
+      const stepIndex = res.data?.encoding_step_index;
+      const stepTotal = res.data?.encoding_step_total;
+      const stepName = res.data?.encoding_step_name;
+      const stepPercent = res.data?.encoding_step_percent;
+      const encodingStep =
+        typeof stepIndex === "number" &&
+        typeof stepTotal === "number" &&
+        typeof stepName === "string" &&
+        typeof stepPercent === "number"
+          ? { index: stepIndex, total: stepTotal, name: stepName, percent: stepPercent }
+          : null;
       if (status === "PROCESSING" || status === "UPLOADED") {
         if (status === "PROCESSING" && typeof encodingProgress === "number") {
           asyncStatusStore.updateProgress(
             taskId,
             Math.min(99, Math.max(1, encodingProgress)),
-            remainingSeconds ?? undefined
+            remainingSeconds ?? undefined,
+            encodingStep
           );
         } else if (status === "UPLOADED") {
           asyncStatusStore.updateProgress(taskId, 10);

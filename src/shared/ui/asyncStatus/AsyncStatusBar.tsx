@@ -209,6 +209,12 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       </div>
       {task.status === "pending" && (
         <div className="async-status-bar__progress-wrap">
+          {task.encodingStep && (
+            <div className="async-status-bar__step-label" aria-hidden>
+              ({task.encodingStep.index}/{task.encodingStep.total}) {task.encodingStep.name}{" "}
+              {task.encodingStep.percent}%
+            </div>
+          )}
           <div className="async-status-bar__progress">
             <div
               className={
