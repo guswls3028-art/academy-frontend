@@ -283,46 +283,121 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           </div>
           {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
         </div>
-        <div className="async-status-bar__item-actions" onClick={(e) => e.stopPropagation()}>
-          {/* ✅ 진행 중인 작업: 취소 버튼 */}
+        <div 
+          className="async-status-bar__item-actions" 
+          onClick={(e) => e.stopPropagation()}
+          ref={actionsRef}
+          style={{ position: "relative" }}
+        >
+          {/* ✅ 진행 중인 작업: 중지 버튼만 표시 */}
           {canCancel && (
-            <button
-              type="button"
-              className="async-status-bar__item-btn async-status-bar__item-btn--cancel"
-              onClick={handleCancel}
-              disabled={cancelling}
-              title="취소"
-              aria-label="취소"
-            >
-              <CancelIcon size={14} />
-            </button>
+            <>
+              <button
+                type="button"
+                className="async-status-bar__item-btn async-status-bar__item-btn--stop"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowActions(!showActions);
+                }}
+                title="중지"
+                aria-label="중지"
+              >
+                <StopIcon size={14} />
+              </button>
+              {/* ✅ 중지 클릭 시 나타나는 메뉴 */}
+              {showActions && (
+                <div className="async-status-bar__actions-menu">
+                  <button
+                    type="button"
+                    className="async-status-bar__actions-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowActions(false);
+                      handleCancel(e);
+                    }}
+                    disabled={cancelling}
+                  >
+                    <CancelIcon size={14} />
+                    <span>취소</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="async-status-bar__actions-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowActions(false);
+                      asyncStatusStore.removeTask(task.id);
+                    }}
+                  >
+                    <TrashIcon size={14} />
+                    <span>삭제</span>
+                  </button>
+                </div>
+              )}
+            </>
           )}
-          {/* ✅ 완료/실패 작업: 재시도 버튼 */}
+          {/* ✅ 완료/실패 작업: 재시도 버튼만 표시 */}
           {canRetry && (
+            <>
+              <button
+                type="button"
+                className="async-status-bar__item-btn async-status-bar__item-btn--stop"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowActions(!showActions);
+                }}
+                title="중지"
+                aria-label="중지"
+              >
+                <StopIcon size={14} />
+              </button>
+              {/* ✅ 중지 클릭 시 나타나는 메뉴 */}
+              {showActions && (
+                <div className="async-status-bar__actions-menu">
+                  <button
+                    type="button"
+                    className="async-status-bar__actions-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowActions(false);
+                      handleRetry(e);
+                    }}
+                    disabled={retrying}
+                  >
+                    <RetryIcon size={14} />
+                    <span>재시도</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="async-status-bar__actions-menu-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowActions(false);
+                      asyncStatusStore.removeTask(task.id);
+                    }}
+                  >
+                    <TrashIcon size={14} />
+                    <span>삭제</span>
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          {/* ✅ 완료된 작업: 삭제 버튼만 표시 */}
+          {!canCancel && !canRetry && (
             <button
               type="button"
-              className="async-status-bar__item-btn async-status-bar__item-btn--retry"
-              onClick={handleRetry}
-              disabled={retrying}
-              title="재처리"
-              aria-label="재처리"
+              className="async-status-bar__item-btn async-status-bar__item-btn--delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                asyncStatusStore.removeTask(task.id);
+              }}
+              title="삭제"
+              aria-label="삭제"
             >
-              <RetryIcon size={14} />
+              <TrashIcon size={14} />
             </button>
           )}
-          {/* ✅ 삭제 버튼 (항상 표시) */}
-          <button
-            type="button"
-            className="async-status-bar__item-btn async-status-bar__item-btn--delete"
-            onClick={(e) => {
-              e.stopPropagation();
-              asyncStatusStore.removeTask(task.id);
-            }}
-            title="삭제"
-            aria-label="삭제"
-          >
-            <TrashIcon size={14} />
-          </button>
         </div>
       </div>
       {task.status === "pending" && (
