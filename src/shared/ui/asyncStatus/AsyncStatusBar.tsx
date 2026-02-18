@@ -405,6 +405,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           {task.encodingStep ? (
             <>
               {/* ✅ 단계별 프로그래스바: 각 단계마다 0~100% 진행 */}
+              {/* 예: [1/7] 파일 다운로드 */}
               <div className="async-status-bar__step-label">
                 <span className="async-status-bar__step-prefix">[{task.encodingStep.index}/{task.encodingStep.total}]</span>{" "}
                 <span className="async-status-bar__step-name">{task.encodingStep.name}</span>
@@ -420,9 +421,15 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                   {task.encodingStep.percent}%
                 </span>
               </div>
+              {/* ✅ 전체 진행률도 함께 표시 (선택적) */}
+              {task.progress != null && task.progress > 0 && (
+                <div className="async-status-bar__overall-progress">
+                  전체 진행률: {Math.round(task.progress)}%
+                </div>
+              )}
             </>
           ) : (
-            /* 단계 정보가 없을 때만 전체 진행률 표시 */
+            /* 단계 정보가 없을 때 전체 진행률 표시 */
             <div className="async-status-bar__progress-row">
               <div className="async-status-bar__progress">
                 <div
