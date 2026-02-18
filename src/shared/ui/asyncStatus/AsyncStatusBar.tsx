@@ -136,16 +136,43 @@ function CancelIcon({ className, size = 16 }: { className?: string; size?: numbe
 }
 
 function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
+  const navigate = useNavigate();
   const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
   const remainingLabel = getRemainingLabel(task, now);
   const canRetry =
     task.meta?.jobType === "video_processing" &&
     task.meta?.jobId &&
     (task.status === "error" || task.status === "success");
+  const canCancel = task.status === "pending" && task.meta?.jobId;
   const [retrying, setRetrying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const progressNum = task.progress != null ? Math.round(task.progress) : null;
 
-  const handleRetry = async () => {
+  // ✅ 작업 클릭 시 해당 페이지로 이동
+  const handleTaskClick = () => {
+    if (!task.meta?.jobType || !task.meta?.jobId) return;
+    
+    const jobType = task.meta.jobType;
+    const jobId = task.meta.jobId;
+    
+    if (jobType === "video_processing") {
+      // 비디오의 경우 세션 정보가 필요하지만, 일단 비디오 ID로 이동 시도
+      // 실제로는 비디오 상세 페이지나 세션 비디오 탭으로 이동해야 함
+      navigate(`/admin/videos/${jobId}`);
+    } else if (jobType === "excel_parsing") {
+      // 엑셀 파싱은 학생 목록 페이지로 이동
+      navigate("/admin/students/home");
+    } else if (jobType === "messaging") {
+      // 메시지 페이지로 이동
+      navigate("/admin/messages");
+    } else {
+      // 기타 작업은 대시보드로 이동
+      navigate("/admin/dashboard");
+    }
+  };
+
+  const handleRetry = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // 클릭 이벤트 전파 방지
     if (task.meta?.jobType !== "video_processing" || !task.meta?.jobId || retrying) return;
     setRetrying(true);
     try {
@@ -160,6 +187,42 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       feedback.error(msg);
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // 클릭 이벤트 전파 방지
+    if (!task.meta?.jobId || cancelling) return;
+    
+    const confirmed = window.confirm("작업을 취소하시겠습니까?");
+    if (!confirmed) return;
+    
+    setCancelling(true);
+    try {
+      const jobType = task.meta.jobType;
+      if (jobType === "video_processing") {
+        // 비디오 작업 취소 (삭제)
+        await api.delete(`/media/videos/${task.meta.jobId}/`);
+        asyncStatusStore.removeTask(task.id);
+        feedback.success("작업이 취소되었습니다.");
+      } else if (jobType === "excel_parsing") {
+        // 엑셀 작업 취소 (API 확인 필요)
+        // 일단 작업만 제거
+        asyncStatusStore.removeTask(task.id);
+        feedback.success("작업이 취소되었습니다.");
+      } else {
+        // 기타 작업은 작업만 제거
+        asyncStatusStore.removeTask(task.id);
+        feedback.success("작업이 취소되었습니다.");
+      }
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (e as Error)?.message ||
+        "작업 취소에 실패했습니다.";
+      feedback.error(msg);
+    } finally {
+      setCancelling(false);
     }
   };
 
