@@ -87,8 +87,10 @@ function pollExcelJob(
 }
 
 function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
+  // ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
   api
     .get<{
+      id: number;
       status: string;
       encoding_progress?: number | null;
       encoding_remaining_seconds?: number | null;
@@ -96,9 +98,20 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
       encoding_step_total?: number | null;
       encoding_step_name?: string | null;
       encoding_step_percent?: number | null;
-    }>(`/media/videos/${videoId}/`)
+      hls_path?: string | null;
+      duration?: number | null;
+      error_reason?: string | null;
+      message?: string; // UNKNOWN 상태 시
+    }>(`/media/videos/${videoId}/progress/`)
     .then((res) => {
       const status = res.data?.status;
+      
+      // ✅ UNKNOWN 상태 처리 (Redis TTL 만료 등)
+      if (status === "UNKNOWN") {
+        // 다음 폴링에서 재시도 (폴링 계속 진행)
+        return;
+      }
+      
       const encodingProgress = res.data?.encoding_progress;
       const remainingSeconds = res.data?.encoding_remaining_seconds ?? null;
       const stepIndex = res.data?.encoding_step_index;
@@ -112,26 +125,36 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
         typeof stepPercent === "number"
           ? { index: stepIndex, total: stepTotal, name: stepName, percent: stepPercent }
           : null;
-      if (status === "PROCESSING" || status === "UPLOADED") {
-        if (status === "PROCESSING" && typeof encodingProgress === "number") {
-          asyncStatusStore.updateProgress(
-            taskId,
-            Math.min(99, Math.max(1, encodingProgress)),
-            remainingSeconds ?? undefined,
-            encodingStep
-          );
-        } else if (status === "UPLOADED") {
-          asyncStatusStore.updateProgress(taskId, 10);
-        }
+      
+      // ✅ PROCESSING 상태에서 진행률 업데이트
+      if (status === "PROCESSING" && typeof encodingProgress === "number") {
+        asyncStatusStore.updateProgress(
+          taskId,
+          Math.min(99, Math.max(1, encodingProgress)),
+          remainingSeconds ?? undefined,
+          encodingStep
+        );
+      } else if (status === "UPLOADED") {
+        // UPLOADED 상태는 progress 엔드포인트에서 반환되지 않지만, 하위 호환성 유지
+        asyncStatusStore.updateProgress(taskId, 10);
       }
+      
+      // ✅ 완료/실패 상태 처리
       if (status === "READY") {
         onSuccess?.();
         asyncStatusStore.completeTask(taskId, "success");
       } else if (status === "FAILED") {
-        asyncStatusStore.completeTask(taskId, "error", "영상 처리 실패");
+        const errorReason = res.data?.error_reason?.trim();
+        asyncStatusStore.completeTask(
+          taskId, 
+          "error", 
+          errorReason || "영상 처리 실패"
+        );
       }
     })
-    .catch(() => {});
+    .catch(() => {
+      // 네트워크 오류 시 재시도는 다음 폴링에서
+    });
 }
 
 export function useWorkerJobPoller(
