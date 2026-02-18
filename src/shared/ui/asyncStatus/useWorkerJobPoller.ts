@@ -16,13 +16,39 @@ function pollExcelJob(
   taskId: string,
   onSuccess?: () => void
 ) {
-  getJobStatus(taskId)
+  // ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
+  api
+    .get<{
+      job_id: string;
+      job_type: string;
+      status: string;
+      progress?: {
+        step?: string;
+        percent?: number;
+        step_index?: number | null;
+        step_total?: number | null;
+        step_name?: string | null;
+        step_name_display?: string | null;
+        step_percent?: number | null;
+      } | null;
+      result?: Record<string, unknown>;
+      error_message?: string | null;
+    }>(`/jobs/${encodeURIComponent(taskId)}/progress/`)
     .then((res) => {
-      const percent = res.progress?.percent;
-      const stepIndex = res.progress?.step_index;
-      const stepTotal = res.progress?.step_total;
-      const stepName = res.progress?.step_name_display || res.progress?.step_name;
-      const stepPercent = res.progress?.step_percent;
+      const status = res.data?.status;
+      
+      // ✅ UNKNOWN 상태 처리 (Redis TTL 만료 등)
+      if (status === "UNKNOWN") {
+        // 다음 폴링에서 재시도 (폴링 계속 진행)
+        return;
+      }
+      
+      const progress = res.data?.progress;
+      const percent = progress?.percent;
+      const stepIndex = progress?.step_index;
+      const stepTotal = progress?.step_total;
+      const stepName = progress?.step_name_display || progress?.step_name;
+      const stepPercent = progress?.step_percent;
       const encodingStep =
         typeof stepIndex === "number" &&
         typeof stepTotal === "number" &&
@@ -30,18 +56,27 @@ function pollExcelJob(
         typeof stepPercent === "number"
           ? { index: stepIndex, total: stepTotal, name: stepName, percent: stepPercent }
           : null;
-      if (typeof percent === "number") {
+      
+      // ✅ RUNNING 상태에서 진행률 업데이트
+      if (status === "RUNNING" && typeof percent === "number") {
         asyncStatusStore.updateProgress(taskId, percent, undefined, encodingStep);
       }
-      const errMsg = res.error_message?.trim();
-      const isFailed = res.status === "FAILED" || (res.status === "DONE" && errMsg);
+      
+      // ✅ 완료/실패 상태 처리
+      const errMsg = res.data?.error_message?.trim();
+      const isFailed = status === "FAILED" || 
+                       status === "REJECTED_BAD_INPUT" || 
+                       status === "FALLBACK_TO_GPU" || 
+                       status === "REVIEW_REQUIRED" ||
+                       (status === "DONE" && errMsg);
+      
       if (isFailed) {
         asyncStatusStore.completeTask(
           taskId,
           "error",
           errMsg || "처리 실패"
         );
-      } else if (res.status === "DONE") {
+      } else if (status === "DONE") {
         onSuccess?.();
         asyncStatusStore.completeTask(taskId, "success");
       }
