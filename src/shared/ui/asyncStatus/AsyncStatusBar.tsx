@@ -126,6 +126,15 @@ function RetryIcon({ className, size = 16 }: { className?: string; size?: number
   );
 }
 
+function CancelIcon({ className, size = 16 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M15 9l-6 6M9 9l6 6" />
+    </svg>
+  );
+}
+
 function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
   const remainingLabel = getRemainingLabel(task, now);
