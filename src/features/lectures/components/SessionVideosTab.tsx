@@ -206,7 +206,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                   </div>
 
                   <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                    {video.status === "FAILED" && (
+                    {(video.status === "FAILED" || video.status === "PROCESSING") && (
                       <Button
                         intent="primary"
                         size="sm"
@@ -214,12 +214,12 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          if (window.confirm("영상 처리를 다시 시도할까요?")) {
+                          if (window.confirm(video.status === "PROCESSING" ? "인코딩이 멈춘 것 같습니다. 다시 시도할까요?" : "영상 처리를 다시 시도할까요?")) {
                             retryMutation.mutate(video.id);
                           }
                         }}
                       >
-                        재처리
+                        {video.status === "PROCESSING" ? "다시 시도" : "재처리"}
                       </Button>
                     )}
 
