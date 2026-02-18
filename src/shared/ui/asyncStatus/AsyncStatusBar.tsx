@@ -227,7 +227,11 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   };
 
   return (
-    <div className="async-status-bar__item">
+    <div 
+      className="async-status-bar__item"
+      onClick={handleTaskClick}
+      style={{ cursor: "pointer" }}
+    >
       <div className="async-status-bar__item-row">
         <StatusIcon status={task.status} />
         <div className="async-status-bar__item-body">
@@ -256,7 +260,21 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           </div>
           {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
         </div>
-        <div className="async-status-bar__item-actions">
+        <div className="async-status-bar__item-actions" onClick={(e) => e.stopPropagation()}>
+          {/* ✅ 진행 중인 작업: 취소 버튼 */}
+          {canCancel && (
+            <button
+              type="button"
+              className="async-status-bar__item-btn async-status-bar__item-btn--cancel"
+              onClick={handleCancel}
+              disabled={cancelling}
+              title="취소"
+              aria-label="취소"
+            >
+              <CancelIcon size={14} />
+            </button>
+          )}
+          {/* ✅ 완료/실패 작업: 재시도 버튼 */}
           {canRetry && (
             <button
               type="button"
@@ -269,10 +287,14 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               <RetryIcon size={14} />
             </button>
           )}
+          {/* ✅ 삭제 버튼 (항상 표시) */}
           <button
             type="button"
             className="async-status-bar__item-btn async-status-bar__item-btn--delete"
-            onClick={() => asyncStatusStore.removeTask(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              asyncStatusStore.removeTask(task.id);
+            }}
             title="삭제"
             aria-label="삭제"
           >
