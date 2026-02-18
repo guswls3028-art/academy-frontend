@@ -65,16 +65,22 @@ const STATUS_BADGE: Record<AsyncTaskStatus, string> = {
   error: "실패",
 };
 
-/** 남은 예상시간 계산 (진행률 기반 선형 추정). NaN 방지. */
+/** 남은 예상시간: API(워커)에서 오면 우선 사용, 없으면 진행률 기반 선형 추정. */
 function getRemainingLabel(task: AsyncTask, nowMs: number): string | null {
-  if (task.status !== "pending" || task.progress == null || task.progress <= 0 || task.progress >= 100) return null;
+  if (task.status !== "pending" || task.progress == null || task.progress <= 0 || task.progress >= 100)
+    return null;
+  const sec = task.remainingSeconds;
+  if (typeof sec === "number" && Number.isFinite(sec) && sec >= 0) {
+    if (sec < 60) return `약 ${Math.max(1, Math.round(sec))}초 남음`;
+    return `약 ${Math.round(sec / 60)}분 남음`;
+  }
   const created = Number(task.createdAt);
   if (!Number.isFinite(created) || !Number.isFinite(nowMs)) return null;
   const elapsedSec = (nowMs - created) / 1000;
   if (elapsedSec <= 0) return null;
   const p = Number(task.progress);
   if (!Number.isFinite(p)) return null;
-  const remainingSec = elapsedSec * (100 - p) / p;
+  const remainingSec = (elapsedSec * (100 - p)) / p;
   if (!Number.isFinite(remainingSec) || remainingSec < 0) return null;
   if (remainingSec < 60) return `약 ${Math.max(1, Math.round(remainingSec))}초 남음`;
   return `약 ${Math.round(remainingSec / 60)}분 남음`;
