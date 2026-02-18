@@ -343,6 +343,13 @@
   font-weight: 600;
 }
 
+.async-status-bar__overall-progress {
+  font-size: 10px;
+  color: var(--color-text-muted, #6b7280);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
 .async-status-bar__progress-row {
   display: flex;
   align-items: center;
