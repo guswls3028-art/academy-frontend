@@ -53,79 +53,34 @@ export async function uploadVideo(params: VideoUploadParams): Promise<number> {
       throw new Error("업로드 초기화에 실패했습니다.");
     }
 
-    // 백엔드 progress API를 폴링하여 실제 업로드 단계 정보 가져오기
-    const pollUploadProgress = async () => {
-      try {
-        const res = await api.get<{
-          status: string;
-          upload_step_index?: number | null;
-          upload_step_total?: number | null;
-          upload_step_name?: string | null;
-          upload_step_percent?: number | null;
-          upload_progress?: number | null;
-        }>(`/media/videos/${videoId}/progress/`);
-        
-        const stepIndex = res.data?.upload_step_index;
-        const stepTotal = res.data?.upload_step_total;
-        const stepName = res.data?.upload_step_name;
-        const stepPercent = res.data?.upload_step_percent;
-        const uploadProgress = res.data?.upload_progress;
-        
-        if (
-          typeof stepIndex === "number" &&
-          typeof stepTotal === "number" &&
-          typeof stepName === "string" &&
-          typeof stepPercent === "number"
-        ) {
-          const encodingStep = {
-            index: stepIndex,
-            total: stepTotal,
-            name: stepName,
-            percent: stepPercent,
-          };
-          const overallProgress = typeof uploadProgress === "number" ? uploadProgress : stepPercent;
-          asyncStatusStore.updateProgress(tempId, overallProgress, null, encodingStep);
-        } else if (typeof uploadProgress === "number") {
-          asyncStatusStore.updateProgress(tempId, uploadProgress);
-        }
-      } catch (e) {
-        // 폴링 실패는 무시
-      }
-    };
-
-    // 업로드 시작 전 progress 폴링 시작
-    const pollInterval = setInterval(pollUploadProgress, 1000);
-
     const putHeaders: Record<string, string> = {};
     if (contentTypeFromServer) {
       putHeaders["Content-Type"] = contentTypeFromServer;
     }
 
+    // 클라이언트에서 직접 업로드 진행률 추적 (백엔드 폴링 없음)
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.upload.addEventListener("progress", () => {
-        pollUploadProgress();
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          asyncStatusStore.updateProgress(tempId, percent);
+        }
       });
       xhr.addEventListener("load", () => {
-        clearInterval(pollInterval);
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
           reject(new Error(`R2 업로드 실패: ${xhr.status} ${xhr.statusText}`));
         }
       });
-      xhr.addEventListener("error", () => {
-        clearInterval(pollInterval);
-        reject(new Error("R2 업로드 중 네트워크 오류"));
-      });
+      xhr.addEventListener("error", () => reject(new Error("R2 업로드 중 네트워크 오류")));
       xhr.open("PUT", uploadUrl);
       Object.entries(putHeaders).forEach(([key, value]) => {
         xhr.setRequestHeader(key, value);
       });
       xhr.send(file);
     });
-
-    clearInterval(pollInterval);
 
     await api.post<{ id: number }>(`/media/videos/${videoId}/upload/complete/`, {
       ok: true,
