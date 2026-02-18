@@ -192,9 +192,11 @@ export function useWorkerJobPoller(
       const videoCb = onVideoSuccessRef.current;
       forCurrentTenant.forEach((t) => {
         if (t.meta!.jobType === "excel_parsing") {
-          pollExcelJob(t.meta!.jobId, excelCb);
+          // ✅ taskId는 async status store의 task ID (t.id), jobId는 API 호출용
+          pollExcelJob(t.id, excelCb);
         } else if (t.meta!.jobType === "video_processing") {
-          pollVideoJob(t.meta!.jobId, t.meta!.jobId, videoCb);
+          // ✅ taskId는 async status store의 task ID (t.id), videoId는 비디오 ID (t.meta!.jobId)
+          pollVideoJob(t.id, t.meta!.jobId, videoCb);
         }
       });
     };
