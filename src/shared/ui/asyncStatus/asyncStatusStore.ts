@@ -128,14 +128,20 @@ export const asyncStatusStore = {
     emit();
   },
 
-  /** 진행률 갱신 (남은 시간 있으면 함께 저장) */
-  updateProgress(id: string, progress: number, remainingSeconds?: number | null): void {
+  /** 진행률 갱신 (남은 시간·구간 정보 있으면 함께 저장) */
+  updateProgress(
+    id: string,
+    progress: number,
+    remainingSeconds?: number | null,
+    encodingStep?: EncodingStep | null
+  ): void {
     tasks = tasks.map((t) =>
       t.id === id
         ? {
             ...t,
             progress: Math.min(100, Math.max(0, progress)),
             remainingSeconds: remainingSeconds ?? t.remainingSeconds,
+            encodingStep: encodingStep ?? t.encodingStep,
           }
         : t
     );
