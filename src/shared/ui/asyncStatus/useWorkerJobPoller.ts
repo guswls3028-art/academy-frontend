@@ -49,6 +49,8 @@ function pollExcelJob(
       const stepTotal = progress?.step_total;
       const stepName = progress?.step_name_display || progress?.step_name;
       const stepPercent = progress?.step_percent;
+      
+      // ✅ 단계 정보 구성 (단계 정보가 있으면 항상 전달)
       const encodingStep =
         typeof stepIndex === "number" &&
         typeof stepTotal === "number" &&
@@ -57,9 +59,13 @@ function pollExcelJob(
           ? { index: stepIndex, total: stepTotal, name: stepName, percent: stepPercent }
           : null;
       
-      // ✅ RUNNING 상태에서 진행률 업데이트
-      if (status === "RUNNING" && typeof percent === "number") {
-        asyncStatusStore.updateProgress(taskId, percent, undefined, encodingStep);
+      // ✅ RUNNING 상태에서 진행률 업데이트 (단계 정보가 있으면 항상 전달)
+      if (status === "RUNNING") {
+        // percent가 없어도 단계 정보만 있으면 업데이트 (단계별 진행률 표시)
+        const finalPercent = typeof percent === "number" ? percent : (encodingStep ? Math.round((encodingStep.index - 1) / encodingStep.total * 100 + (encodingStep.percent / encodingStep.total)) : undefined);
+        if (finalPercent !== undefined || encodingStep) {
+          asyncStatusStore.updateProgress(taskId, finalPercent ?? 0, undefined, encodingStep);
+        }
       }
       
       // ✅ 완료/실패 상태 처리
