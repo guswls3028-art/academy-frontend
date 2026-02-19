@@ -1,0 +1,44 @@
+/* PATH: src/student/shared/ui/theme/tenants/tchul.css
+ * tchul 테넌트 학생앱 테마 — auth SSOT 색상 규칙 적용 (화이트톤 + 로고 컬러)
+ * 색상 SSOT: @/features/auth/themes/tchul.css
+ */
+
+[data-student-tenant="tchul"] {
+  /* 배경·서페이스 (화이트톤) */
+  --stu-bg: #fafbfc;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f3f4f6;
+  --stu-border: #e5e7eb;
+
+  /* 텍스트 */
+  --stu-text: #1a1d21;
+  --stu-text-muted: #6b7280;
+  --stu-text-subtle: #9ca3af;
+
+  /* 프라이머리 — 로고 컬러 (블루), 강조는 그라데이션용 변수 별도 사용 가능 */
+  --stu-primary: #0d47a1;
+  --stu-primary-hover: #0a3d8a;
+  --stu-primary-contrast: #fff;
+  --stu-glow-primary: 0 0 20px rgba(13, 71, 161, 0.25);
+
+  /* 성공/경고/에러 */
+  --stu-success: #22c55e;
+  --stu-success-bg: rgba(34, 197, 94, 0.12);
+  --stu-success-border: rgba(34, 197, 94, 0.35);
+  --stu-success-text: #22c55e;
+
+  --stu-warn: #f59e0b;
+  --stu-warn-bg: rgba(245, 158, 11, 0.12);
+  --stu-warn-border: rgba(245, 158, 11, 0.35);
+  --stu-warn-text: #f59e0b;
+
+  --stu-danger: #b91c1c;
+  --stu-danger-hover: #991b1b;
+  --stu-danger-bg: rgba(185, 28, 28, 0.12);
+  --stu-danger-border: rgba(185, 28, 28, 0.35);
+  --stu-danger-text: #b91c1c;
+
+  /* 헤더/탭바 (화이트톤 반영) */
+  --stu-header-bg: rgba(250, 251, 252, 0.92);
+  --stu-tabbar-bg: rgba(250, 251, 252, 0.92);
+}
