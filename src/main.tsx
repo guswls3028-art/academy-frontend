@@ -43,12 +43,8 @@ const AppContent = (
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {import.meta.env.DEV ? (
-      <DevErrorBoundary>
-        <DevErrorLogger>{AppContent}</DevErrorLogger>
-      </DevErrorBoundary>
-    ) : (
-      AppContent
-    )}
+    <DevErrorBoundary>
+      {import.meta.env.DEV ? <DevErrorLogger>{AppContent}</DevErrorLogger> : AppContent}
+    </DevErrorBoundary>
   </React.StrictMode>
 );

@@ -36,7 +36,7 @@ export function DevErrorLogger({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/** 개발 모드 전용: Error Boundary가 잡은 에러의 componentStack 로깅 */
+/** React 에러(예: #310) 잡아서 콘솔에 스택 출력. 배포에서도 동작 → 재현 후 F12 콘솔만 보면 됨 */
 export class DevErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null; errorInfo: React.ErrorInfo | null }
@@ -52,9 +52,11 @@ export class DevErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState((s) => ({ ...s, errorInfo }));
-    if (import.meta.env.DEV) {
+    const is310 =
+      /310|Maximum update depth|Minified React error/i.test(error.message);
+    if (is310) {
       console.error(
-        `${PREFIX} ErrorBoundary caught:\n  message: ${error.message}\n  componentStack:\n${errorInfo.componentStack}`
+        `${PREFIX} (배포에서도 찍힘)\n  message: ${error.message}\n  componentStack:\n${errorInfo.componentStack ?? "(없음)"}`
       );
     }
   }
@@ -72,6 +74,11 @@ export class DevErrorBoundary extends React.Component<
           </div>
         );
       }
+      return (
+        <div style={{ padding: 24, textAlign: "center", color: "#666", fontSize: 14 }}>
+          일시적인 오류가 발생했습니다. F12 → 콘솔에서 상세 내용을 확인할 수 있습니다.
+        </div>
+      );
     }
     return this.props.children;
   }
