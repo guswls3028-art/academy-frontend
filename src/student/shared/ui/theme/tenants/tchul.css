@@ -145,15 +145,15 @@
   /* 배경에 약한 그라데이션 + 기존 패턴 */
   background-image: 
     /* 약한 브랜드 그라데이션 */
-    linear-gradient(135deg, rgba(13, 71, 161, 0.04) 0%, rgba(0, 105, 92, 0.03) 50%, rgba(0, 77, 64, 0.03) 100%),
+    linear-gradient(135deg, rgba(13, 71, 161, 0.04) 0%, rgba(0, 105, 92, 0.03) 50%, rgba(0, 77, 64, 0.03) 100%) !important,
     /* 기존 패턴 */
-    var(--stu-bg-pattern);
+    var(--stu-bg-pattern) !important;
   background-size: 
     100% 100%,
-    var(--stu-bg-pattern-size);
-  background-color: var(--stu-bg);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+    var(--stu-bg-pattern-size) !important;
+  background-color: var(--stu-bg) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
 }
 
 /* tchul 테마: 헤더에 약한 그라데이션 적용 */
