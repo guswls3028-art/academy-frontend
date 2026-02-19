@@ -1,0 +1,5 @@
+/* PATH: src/student/shared/ui/theme/tenants/index.css
+ * 테넌트별 학생앱 테마 SSOT — 여기서만 import 추가. 셀렉터는 [data-student-tenant="{code}"]
+ */
+@import "tchul.css";
+/* 추가 테넌트: tenants/{code}.css 생성 후 @import "{code}.css"; */

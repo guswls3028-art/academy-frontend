@@ -5,7 +5,7 @@
 import { Outlet } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import "../theme/tokens.css";
-import "../theme/tenants/tchul.css";
+import "../theme/tenants/index.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
