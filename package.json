@@ -39,6 +39,8 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.18",
     "globals": "^15.14.0",
+    "imagetracerjs": "^1.2.6",
+    "pngjs": "^7.0.0",
     "postcss": "8",
     "tailwindcss": "4.1.18",
     "typescript": "^5.9.3",
