@@ -233,15 +233,15 @@ export default function CourseDetailPage() {
   }, [firstSessionVideos]);
 
   return (
-    <StudentPageShell title={isPublic ? "전체공개영상" : lecture?.title ?? "수업 정보"}>
-      <div style={{ padding: "var(--stu-space-4)" }}>
+    <StudentPageShell title="">
+      <div style={{ padding: "var(--stu-space-4)", background: "#000", minHeight: "100vh", color: "#fff" }}>
         {/* 상단: 수업 정보 */}
         <div
           style={{
             borderRadius: 16,
             overflow: "hidden",
-            background: "var(--stu-surface-1)",
-            border: "1px solid var(--stu-border-subtle)",
+            background: "#1a1a1a",
+            border: "1px solid rgba(255,255,255,0.1)",
             marginBottom: "var(--stu-space-6)",
           }}
         >
@@ -273,7 +273,7 @@ export default function CourseDetailPage() {
               style={{
                 fontSize: 22,
                 fontWeight: 700,
-                color: "var(--stu-text)",
+                color: "#fff",
                 marginBottom: "var(--stu-space-3)",
                 letterSpacing: "-0.01em",
               }}
@@ -287,7 +287,7 @@ export default function CourseDetailPage() {
                 flexDirection: "column",
                 gap: 6,
                 fontSize: 14,
-                color: "var(--stu-text-muted)",
+                color: "rgba(255,255,255,0.7)",
               }}
             >
               <div>
