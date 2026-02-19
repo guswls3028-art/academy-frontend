@@ -126,7 +126,7 @@ function VideoListItem({
           style={{
             fontSize: 15,
             fontWeight: 600,
-            color: "var(--stu-text)",
+            color: "#fff",
             marginBottom: 4,
             display: "-webkit-box",
             WebkitLineClamp: 2,
@@ -141,7 +141,7 @@ function VideoListItem({
           <div
             style={{
               fontSize: 13,
-              color: "var(--stu-text-muted)",
+              color: "rgba(255,255,255,0.7)",
             }}
           >
             {formatDurationDetailed(video.duration)}
