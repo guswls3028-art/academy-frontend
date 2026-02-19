@@ -1,12 +1,13 @@
 /**
- * 영상 홈 — 전체공개영상(맨위) + 강의별 차시 영상 (접기/펼치기)
+ * 영상 홈 — 프리미엄 SaaS 인강 느낌의 코스 카드 UI
+ * 전체공개영상(맨위) + 강의별 코스 카드
  */
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { fetchVideoMe, fetchStudentSessionVideos } from "../api/media";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
-import { IconChevronRight, IconPlay } from "@/student/shared/ui/icons/Icons";
+import CourseCard from "../components/CourseCard";
 
 function formatDuration(sec: number | null | undefined): string {
   if (sec == null || sec <= 0) return "0:00";
