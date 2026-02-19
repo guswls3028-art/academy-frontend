@@ -57,7 +57,7 @@ pnpm dev
 ```
 
 - **필수**: Node.js 18+, pnpm 8+
-- **배포**: `pnpm build` → `dist/`. 상세 절차는 [DEPLOY.md](DEPLOY.md) 및 백엔드 `academy/docs/배포.md` 참고.
+- **배포**: `pnpm run build` → `dist/`. 상세 절차는 [DEPLOY.md](DEPLOY.md) 및 백엔드 `academy/docs/배포.md` 참고.
 
 ---
 
