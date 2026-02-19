@@ -17,7 +17,11 @@ import VideoStatusBadge from "../ui/VideoStatusBadge";
 import {
   fetchSessionVideos,
   fetchPublicSession,
+  fetchVideoFolders,
+  createVideoFolder,
+  deleteVideoFolder,
   type Video as ApiVideo,
+  type VideoFolder,
 } from "../api/videos";
 import {
   fetchLectures,
