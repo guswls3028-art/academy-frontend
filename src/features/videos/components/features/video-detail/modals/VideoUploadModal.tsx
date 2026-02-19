@@ -106,7 +106,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       );
     }
     if (errors.length > 0) {
-      errors.forEach((e) => feedback.error(e));
+      feedback.error(errors.join(" / "));
     }
   };
 
