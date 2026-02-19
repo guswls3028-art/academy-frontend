@@ -99,6 +99,59 @@ export default function QnaPage() {
             style={{ width: "100%", resize: "vertical", minHeight: 160 }}
           />
         </label>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+            사진·파일 (선택, 최대 {MAX_FILES}개, 개당 {MAX_SIZE_MB}MB)
+          </span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            multiple
+            onChange={addFiles}
+            style={{ display: "none" }}
+          />
+          <button
+            type="button"
+            className="stu-btn stu-btn--secondary stu-btn--sm"
+            onClick={() => fileInputRef.current?.click()}
+            style={{ alignSelf: "flex-start" }}
+          >
+            파일 선택
+          </button>
+          {files.length > 0 && (
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+              {files.map((f, i) => (
+                <li
+                  key={`${f.name}-${i}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "var(--stu-space-2) var(--stu-space-3)",
+                    background: "var(--stu-surface)",
+                    border: "1px solid var(--stu-border)",
+                    borderRadius: "var(--stu-radius)",
+                    fontSize: 13,
+                    color: "var(--stu-text)",
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+                    {f.name} ({(f.size / 1024).toFixed(1)}KB)
+                  </span>
+                  <button
+                    type="button"
+                    className="stu-btn stu-btn--ghost stu-btn--sm"
+                    onClick={() => removeFile(i)}
+                    style={{ flexShrink: 0, padding: "var(--stu-space-1) var(--stu-space-2)" }}
+                  >
+                    삭제
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         {createMut.isSuccess && (
           <div
             style={{
