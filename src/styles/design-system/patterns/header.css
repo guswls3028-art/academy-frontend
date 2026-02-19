@@ -67,13 +67,16 @@
   width: auto;
   height: 32px;
   min-width: 24px;
-  border-radius: 8px;
   overflow: visible;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
+  padding: 0;
+  /* 배경/보더 제거 - 투명 배경 이미지 사용 */
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 [data-app="admin"] .app-header__brandMark img {
