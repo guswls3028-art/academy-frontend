@@ -16,14 +16,13 @@ export const login = async (username: string, password: string) => {
   try {
     res = await api.post<LoginResponse>("/token/", body);
   } catch (err: unknown) {
-    const ax = err as { response?: { data?: { detail?: string | Record<string, unknown> } } };
+    const ax = err as { response?: { data?: { detail?: string | string[] | Record<string, unknown> } } };
     const detail = ax?.response?.data?.detail;
-    const msg =
-      typeof detail === "string"
-        ? detail
-        : detail && typeof detail === "object"
-          ? (detail as { detail?: string }).detail ?? JSON.stringify(detail)
-          : "로그인에 실패했습니다.";
+    let msg = "로그인에 실패했습니다.";
+    if (typeof detail === "string") msg = detail;
+    else if (Array.isArray(detail) && detail.length) msg = String(detail[0]);
+    else if (detail && typeof detail === "object")
+      msg = String(Object.values(detail).flat().find(Boolean) ?? msg);
     throw new Error(msg);
   }
 
