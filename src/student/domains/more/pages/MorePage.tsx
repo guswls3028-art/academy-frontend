@@ -81,7 +81,17 @@ export default function MorePage() {
         <button
           type="button"
           className="stu-btn stu-btn--danger"
-          style={{ ...linkStyle, width: "100%", marginBottom: 0, justifyContent: "center", border: "none", color: "#fff" }}
+          style={{
+            width: "100%",
+            marginBottom: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "var(--stu-space-4)",
+            padding: "var(--stu-space-4)",
+            fontSize: 15,
+            fontWeight: 700,
+          }}
           onClick={() => logout()}
         >
           <IconLogout style={{ width: 22, height: 22 }} />
