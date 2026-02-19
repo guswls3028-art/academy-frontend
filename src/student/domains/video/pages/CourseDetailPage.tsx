@@ -35,9 +35,9 @@ function SessionBox({
     const firstVideo = videos[0];
     const totalDuration = videos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
     
-    // 진행률 계산: 완료된 영상 수 / 전체 영상 수 (임시, 백엔드에서 progress 제공 시 교체)
-    // TODO: 백엔드 API에서 세션별 진행률을 가져와야 함
-    const completedVideos = videos.filter((v: any) => v.progress === 100 || v.completed).length;
+    // 진행률 계산: 백엔드에서 받은 progress 사용
+    // 완료된 영상 수 / 전체 영상 수로 세션 전체 진행률 계산
+    const completedVideos = videos.filter((v) => (v.progress ?? 0) >= 100 || v.completed).length;
     const progress = videos.length > 0 ? Math.round((completedVideos / videos.length) * 100) : 0;
     
     return {

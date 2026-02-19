@@ -228,10 +228,15 @@ export default function SessionDetailPage() {
   const sessionIdNum = sessionId ? parseInt(sessionId, 10) : null;
   const enrollmentId = searchParams.get("enrollment") ? parseInt(searchParams.get("enrollment")!, 10) : null;
   
-  // 현재 재생 중인 영상 ID (URL에서 가져오기)
-  const currentVideoId = searchParams.get("currentVideo") 
-    ? parseInt(searchParams.get("currentVideo")!, 10) 
-    : null;
+  // 현재 재생 중인 영상 ID (localStorage에서 가져오기 - VideoPlayerPage에서 설정)
+  const currentVideoId = useMemo(() => {
+    try {
+      const stored = localStorage.getItem("student_current_video_id");
+      return stored ? parseInt(stored, 10) : null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   const { data: videosData, isLoading } = useQuery({
     queryKey: ["student-session-videos", sessionIdNum, enrollmentId],
@@ -289,9 +294,8 @@ export default function SessionDetailPage() {
             }}
           >
             {videos.map((video) => {
-              // 진행률 계산 (임시, 백엔드에서 progress 제공 시 교체)
-              // TODO: 백엔드 API에서 각 영상의 progress를 가져와야 함
-              const progress = (video as any).progress || 0; // 0-100
+              // 백엔드에서 받은 progress 사용 (0-100)
+              const progress = video.progress ?? 0;
               const isCurrent = currentVideoId === video.id;
               
               return (

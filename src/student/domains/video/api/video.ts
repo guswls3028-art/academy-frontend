@@ -42,6 +42,8 @@ export type StudentVideoListItem = {
   status: string;
   thumbnail_url?: string | null;
   duration?: number | null;
+  progress?: number; // 0-100
+  completed?: boolean;
   allow_skip: boolean;
   max_speed: number;
   show_watermark: boolean;
@@ -111,4 +113,28 @@ export async function fetchStudentVideoPlayback(
     params: Object.keys(params).length > 0 ? params : undefined,
   });
   return res.data as StudentVideoPlayback;
+}
+
+/**
+ * 비디오 진행률 업데이트
+ * POST /student/video/videos/{videoId}/progress/
+ */
+export async function updateVideoProgress(
+  videoId: number,
+  data: {
+    progress?: number; // 0-100 또는 0-1
+    completed?: boolean;
+    last_position?: number; // seconds
+  }
+): Promise<{
+  id: number;
+  video_id: number;
+  enrollment_id: number;
+  progress: number;
+  progress_percent: number;
+  completed: boolean;
+  last_position: number;
+}> {
+  const res = await api.post(`/student/video/videos/${videoId}/progress/`, data);
+  return res.data;
 }

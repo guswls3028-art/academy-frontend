@@ -4,9 +4,10 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
-import { fetchStudentVideoPlayback } from "../api/video";
+import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgress } from "../api/video";
 import { IconCheck, IconRefresh, IconArrowRight } from "@/student/shared/ui/icons/Icons";
 import { Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -14,15 +15,17 @@ import StudentVideoPlayer, {
 } from "../playback/player/StudentVideoPlayer";
 import { safeParseInt } from "../playback/player/design/utils";
 
-function useQuery() {
+function useQueryParams() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
 export default function VideoPlayerPage() {
   const nav = useNavigate();
-  const q = useQuery();
+  const q = useQueryParams();
   const params = useParams();
+  const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
   const videoId =
     safeParseInt(params.videoId) ??
@@ -41,8 +44,10 @@ export default function VideoPlayerPage() {
     created_at?: string | null;
     view_count?: number | null;
     tags?: string[];
+    session_id?: number;
   }) | null>(null);
   const [boot, setBoot] = useState<PlaybackBootstrap | null>(null);
+  const [playbackData, setPlaybackData] = useState<any>(null);
 
   useEffect(() => {
     let alive = true;
@@ -57,6 +62,13 @@ export default function VideoPlayerPage() {
         return;
       }
 
+      // 현재 재생 중인 영상 ID를 localStorage에 저장 (SessionDetailPage에서 사용)
+      try {
+        localStorage.setItem("student_current_video_id", String(videoId));
+      } catch (e) {
+        console.warn("[VideoPlayerPage] Failed to save current video ID:", e);
+      }
+
       try {
         // 학생 앱 전용 API: 비디오 정보와 재생 정보를 한 번에 가져오기
         const playbackData = await fetchStudentVideoPlayback(videoId, enrollmentId || undefined);
@@ -69,6 +81,7 @@ export default function VideoPlayerPage() {
           created_at?: string | null;
           view_count?: number | null;
           tags?: string[];
+          session_id?: number;
         } = {
           id: Number(playbackData.video.id),
           title: String(playbackData.video.title ?? "영상"),
@@ -80,7 +93,11 @@ export default function VideoPlayerPage() {
           created_at: (playbackData.video as any).created_at ?? null,
           view_count: (playbackData.video as any).view_count ?? null,
           tags: Array.isArray((playbackData.video as any).tags) ? (playbackData.video as any).tags : [],
+          session_id: Number(playbackData.video.session_id),
         };
+
+        // playbackData 저장 (다음 강의 찾기용)
+        setPlaybackData(playbackData);
 
         // 재생 URL 확인 (play_url 우선, 없으면 hls_url 또는 mp4_url)
         const playUrl = playbackData.play_url || playbackData.hls_url || playbackData.mp4_url || "";
@@ -146,6 +163,68 @@ export default function VideoPlayerPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId, enrollmentId]);
+
+  // 컴포넌트 언마운트 시 현재 비디오 ID 제거
+  useEffect(() => {
+    return () => {
+      try {
+        localStorage.removeItem("student_current_video_id");
+      } catch (e) {
+        // Ignore
+      }
+    };
+  }, []);
+
+  // 다음 강의 찾기 (같은 세션 내에서)
+  const sessionId = video?.session_id;
+  const { data: sessionVideosData } = useQuery({
+    queryKey: ["student-session-videos", sessionId, enrollmentId],
+    queryFn: () => fetchStudentSessionVideos(sessionId!, enrollmentId || undefined),
+    enabled: !!sessionId && !!videoId,
+  });
+
+  const nextVideo = useMemo(() => {
+    if (!sessionVideosData?.items || !videoId) return null;
+    const videos = sessionVideosData.items;
+    const currentIndex = videos.findIndex((v) => v.id === videoId);
+    if (currentIndex >= 0 && currentIndex < videos.length - 1) {
+      return videos[currentIndex + 1];
+    }
+    return null;
+  }, [sessionVideosData, videoId]);
+
+  // 진행률 업데이트 mutation
+  const progressMutation = useMutation({
+    mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
+      if (!videoId) throw new Error("videoId가 필요합니다.");
+      return updateVideoProgress(videoId, data);
+    },
+    onSuccess: () => {
+      // 관련 쿼리 무효화하여 진행률 업데이트 반영
+      if (sessionId) {
+        queryClient.invalidateQueries({ queryKey: ["student-session-videos", sessionId, enrollmentId] });
+      }
+    },
+  });
+
+  // 수강 완료 처리
+  const handleComplete = () => {
+    if (!videoId || !video) return;
+    progressMutation.mutate({
+      progress: 100,
+      completed: true,
+    });
+  };
+
+  // 다시보기 처리 (진행률 초기화)
+  const handleRewatch = () => {
+    if (!videoId || !video) return;
+    progressMutation.mutate({
+      progress: 0,
+      completed: false,
+      last_position: 0,
+    });
+  };
 
   return (
     <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
@@ -248,10 +327,8 @@ export default function VideoPlayerPage() {
                 {/* 수강 완료 버튼 */}
                 <button
                   type="button"
-                  onClick={() => {
-                    // TODO: 수강 완료 처리
-                    console.log("수강 완료");
-                  }}
+                  onClick={handleComplete}
+                  disabled={progressMutation.isPending}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -280,10 +357,8 @@ export default function VideoPlayerPage() {
                 {/* 다시보기 버튼 */}
                 <button
                   type="button"
-                  onClick={() => {
-                    // TODO: 다시보기 처리 (재생 위치 초기화)
-                    console.log("다시보기");
-                  }}
+                  onClick={handleRewatch}
+                  disabled={progressMutation.isPending}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -310,40 +385,56 @@ export default function VideoPlayerPage() {
                 </button>
                 
                 {/* 다음 강의 버튼 */}
-                <Link
-                  to="#" // TODO: 다음 강의 링크
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // TODO: 다음 강의로 이동
-                    console.log("다음 강의");
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    background: "var(--stu-primary)",
-                    border: "none",
-                    color: "#fff",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    textDecoration: "none",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = "0.9";
-                    e.currentTarget.style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = "1";
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}
-                >
-                  <span>다음 강의</span>
-                  <IconArrowRight style={{ width: 18, height: 18 }} />
-                </Link>
+                {nextVideo ? (
+                  <Link
+                    to={`/student/video/play?video=${nextVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      background: "var(--stu-primary)",
+                      border: "none",
+                      color: "#fff",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textDecoration: "none",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = "0.9";
+                      e.currentTarget.style.transform = "translateY(-1px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = "1";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }}
+                  >
+                    <span>다음 강의</span>
+                    <IconArrowRight style={{ width: 18, height: 18 }} />
+                  </Link>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 16px",
+                      borderRadius: 8,
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      color: "rgba(255,255,255,0.5)",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: "not-allowed",
+                    }}
+                  >
+                    <span>다음 강의</span>
+                    <IconArrowRight style={{ width: 18, height: 18 }} />
+                  </div>
+                )}
               </div>
             </div>
             
@@ -356,25 +447,27 @@ export default function VideoPlayerPage() {
               }}
             />
             
-            {/* 자동 재생 안내 (선택사항) */}
-            <div
-              style={{
-                padding: "var(--stu-space-3)",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.05)",
-                fontSize: 14,
-                color: "rgba(255,255,255,0.7)",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <IconPlay style={{ width: 16, height: 16, opacity: 0.6 }} />
-              <span>다음 강의 자동재생 ON</span>
-              <span style={{ opacity: 0.5 }}>·</span>
-              <span style={{ opacity: 0.5 }}>5초 후 재생</span>
-            </div>
+            {/* 자동 재생 안내 (다음 강의가 있을 때만) */}
+            {nextVideo && (
+              <div
+                style={{
+                  padding: "var(--stu-space-3)",
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.05)",
+                  fontSize: 14,
+                  color: "rgba(255,255,255,0.7)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <IconPlay style={{ width: 16, height: 16, opacity: 0.6 }} />
+                <span>다음 강의 자동재생 ON</span>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span style={{ opacity: 0.5 }}>5초 후 재생</span>
+              </div>
+            )}
           </div>
         </>
       ) : (
