@@ -1,5 +1,8 @@
 # 프론트 배포 (Cloudflare Pages)
 
+> **⚠️ 패키지 매니저: pnpm 전용**  
+> `npm install` / `npm run build` 사용 금지. 설치·빌드 모두 `pnpm` 사용.
+
 배포 대상: **Cloudflare Pages** 단일 호스팅.  
 Cursor용 요약: `docs_cursor/04-deployment.md`.
 
