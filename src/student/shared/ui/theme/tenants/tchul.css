@@ -7,6 +7,10 @@
   --stu-bg: #fafbfc;
   --stu-surface: #ffffff;
   --stu-surface-soft: #f3f4f6;
+  /* Surface 레이어 명시적 정의 (다크 모드 방지) */
+  --stu-surface-0: #fafbfc;
+  --stu-surface-1: #ffffff;
+  --stu-surface-2: #f3f4f6;
   --stu-border: #e5e7eb;
   --stu-border-hover: #d1d5db;
 
