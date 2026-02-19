@@ -45,6 +45,30 @@
   overflow: auto;
 }
 
+/* 전체공개영상 영역 시각적 구분 */
+.gridWrapPublic {
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface));
+  border-left: 3px solid var(--color-brand-primary);
+  padding-left: calc(var(--space-4) - 3px);
+  position: relative;
+}
+
+.gridWrapPublic::before {
+  content: "전체공개영상";
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+}
+
 .placeholder {
   display: flex;
   align-items: center;

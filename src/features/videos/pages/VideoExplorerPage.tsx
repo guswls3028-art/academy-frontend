@@ -200,7 +200,9 @@ export default function VideoExplorerPage() {
             />
           </aside>
 
-          <div className={styles.gridWrap}>
+          <div
+            className={`${styles.gridWrap} ${selectedFolderId === "public" ? styles.gridWrapPublic : ""}`}
+          >
             {isLoading ? (
               <div className={styles.placeholder}>불러오는 중…</div>
             ) : selectedFolderId === null ? (
