@@ -45,27 +45,14 @@ export default function CourseCard({
   return (
     <Component
       {...props}
-      className="course-card"
+      className="course-card stu-section stu-section--pressable"
       style={{
         display: "block",
         width: "100%",
-        borderRadius: "var(--stu-radius-lg)",
+        borderRadius: "var(--stu-radius-md)",
         overflow: "hidden",
-        background: "var(--stu-surface)",
-        border: "1px solid var(--stu-border-divider)",
-        cursor: "pointer",
-        transition: "all 0.2s ease",
+        padding: 0,
         textAlign: "left",
-      }}
-      onMouseEnter={(e: any) => {
-        e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)";
-        e.currentTarget.style.borderColor = "var(--stu-border-divider-hover, var(--stu-border-divider))";
-      }}
-      onMouseLeave={(e: any) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.borderColor = "var(--stu-border-divider)";
       }}
     >
       {/* 썸네일 영역 */}

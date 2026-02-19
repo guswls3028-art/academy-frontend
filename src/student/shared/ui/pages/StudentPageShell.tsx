@@ -35,7 +35,7 @@ export default function StudentPageShell({
         {actions && <div>{actions}</div>}
       </div>
 
-      <div className="student-card">{children}</div>
+      <div className="stu-section">{children}</div>
     </div>
   );
 }
