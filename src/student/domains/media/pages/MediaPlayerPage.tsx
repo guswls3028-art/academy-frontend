@@ -17,7 +17,12 @@ function useQuery() {
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
-async function fetchVideo(videoId: number): Promise<VideoMetaLite> {
+async function fetchVideo(videoId: number): Promise<VideoMetaLite & { 
+  description?: string | null;
+  created_at?: string | null;
+  view_count?: number | null;
+  tags?: string[];
+}> {
   // ✅ backend: apps/support/video/urls.py router videos -> /api/v1/videos/videos/{id}/
   const res = await studentApi.get(`/api/v1/videos/videos/${videoId}/`);
   const v = res?.data || {};
@@ -28,6 +33,10 @@ async function fetchVideo(videoId: number): Promise<VideoMetaLite> {
     status: String(v.status ?? ""),
     thumbnail_url: v.thumbnail_url ?? null,
     hls_url: v.hls_url ?? null,
+    description: v.description ?? null,
+    created_at: v.created_at ?? null,
+    view_count: v.view_count ?? null,
+    tags: Array.isArray(v.tags) ? v.tags : [],
   };
 }
 
@@ -74,7 +83,12 @@ export default function MediaPlayerPage() {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [video, setVideo] = useState<VideoMetaLite | null>(null);
+  const [video, setVideo] = useState<(VideoMetaLite & { 
+    description?: string | null;
+    created_at?: string | null;
+    view_count?: number | null;
+    tags?: string[];
+  }) | null>(null);
   const [boot, setBoot] = useState<PlaybackBootstrap | null>(null);
 
   useEffect(() => {
