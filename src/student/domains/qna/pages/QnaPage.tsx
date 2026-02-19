@@ -1,18 +1,22 @@
 /**
- * 학생 Q&A — 메일 보내기처럼 단순히 질문만 전송
+ * 학생 Q&A — 메일 보내기처럼 질문 + 사진/파일 첨부 전송
  * 정렬·목록·상세는 관리자 페이지에서 처리
  */
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { fetchBlockTypes, createPost } from "@/features/community/api/community.api";
 
 const QNA_BLOCK_CODE = "qna";
+const MAX_FILES = 5;
+const MAX_SIZE_MB = 10;
 
 export default function QnaPage() {
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: blockTypes = [] } = useQuery({
     queryKey: ["community-block-types"],
