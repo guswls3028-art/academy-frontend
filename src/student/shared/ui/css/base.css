@@ -161,8 +161,71 @@ a {
 }
 
 /* =========================
-   2) Surface / Section (Premium SaaS Style)
-   미묘한 그림자, 질감, 깊이감 추가
+   2) Panel (OTT형 UI - 카드 대체)
+   프리미엄: Tint Layer, 밀도 변화, 재질감
+   ========================= */
+.stu-panel {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: 6px; /* OTT 스타일: 더 작은 radius */
+  padding: var(--stu-space-5);
+  position: relative;
+  overflow: hidden;
+  /* 프리미엄: Tint Layer (Shadow 대신) */
+}
+
+.stu-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02),
+    rgba(0, 0, 0, 0.02)
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stu-panel--soft {
+  background: var(--stu-surface-2);
+}
+
+.stu-panel--pressable {
+  cursor: pointer;
+  transition: 
+    background var(--stu-motion-base),
+    border-color var(--stu-motion-base),
+    transform var(--stu-motion-fast),
+    filter var(--stu-motion-fast);
+}
+
+.stu-panel--pressable:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-normal);
+}
+
+.stu-panel--pressable:active {
+  /* 프리미엄: 밀도 변화 (색이 아닌 재질) */
+  transform: scale(0.985);
+  filter: brightness(0.97);
+}
+
+.stu-panel--danger {
+  border-color: var(--stu-danger-border);
+}
+
+.stu-panel--media {
+  /* 영상 도메인 전용 (별도 스타일) */
+}
+
+/* =========================
+   3) Section (기존 호환성 유지)
    ========================= */
 .stu-section {
   background: var(--stu-surface-1);
@@ -278,7 +341,9 @@ a {
 
 .stu-card--pressable:active {
   background: var(--stu-tint-primary);
-  transform: translateY(0);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.985);
+  filter: brightness(0.97);
   box-shadow: 
     0 1px 2px rgba(0, 0, 0, 0.03),
     0 0 0 1px rgba(0, 0, 0, 0.02);
@@ -559,12 +624,18 @@ a {
 }
 
 /* =========================
-   7) Divider
+   7) Divider (프리미엄: Gradient)
    ========================= */
 .stu-divider {
   height: 1px;
   width: 100%;
-  background: var(--stu-border-subtle);
+  /* 프리미엄: 라인이 아니라 빛의 경계처럼 */
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--stu-border-subtle),
+    transparent
+  );
 }
 
 /* =========================
