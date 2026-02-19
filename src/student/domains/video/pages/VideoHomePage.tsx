@@ -96,11 +96,13 @@ export default function VideoHomePage() {
     queryFn: fetchVideoMe,
   });
 
+  // 전체공개영상: 내용물이 있던 없던 항상 카드 표시
   const publicCard = usePublicCourseCard(videoMe?.public ?? null);
+  // public이 null이어도 전체공개영상 카드는 표시 (내용 없으면 빈 상태)
+  const shouldShowPublicCard = true; // 항상 표시
 
-  const hasPublic = !!videoMe?.public?.session_id;
   const hasLectures = (videoMe?.lectures?.length ?? 0) > 0;
-  const hasAny = hasPublic || hasLectures;
+  const hasAny = shouldShowPublicCard || hasLectures;
 
   if (isLoading) {
     return (
@@ -144,18 +146,18 @@ export default function VideoHomePage() {
           gap: 16,
         }}
       >
-        {/* 전체공개영상 코스 카드 */}
-        {publicCard && (
+        {/* 전체공개영상 코스 카드 - 내용물이 있던 없던 항상 표시 */}
+        {shouldShowPublicCard && (
           <CourseCard
-            title={publicCard.title}
-            thumbnailUrl={publicCard.thumbnailUrl}
-            videoCount={publicCard.videoCount}
-            totalDuration={publicCard.totalDuration}
-            progress={publicCard.progress}
-            isNew={publicCard.isNew}
-            isContinue={publicCard.isContinue}
-            isCompleted={publicCard.isCompleted}
-            to={publicCard.to}
+            title={publicCard?.title ?? "전체공개영상"}
+            thumbnailUrl={publicCard?.thumbnailUrl ?? null}
+            videoCount={publicCard?.videoCount ?? 0}
+            totalDuration={publicCard?.totalDuration ?? 0}
+            progress={publicCard?.progress ?? 0}
+            isNew={publicCard?.isNew ?? false}
+            isContinue={publicCard?.isContinue ?? false}
+            isCompleted={publicCard?.isCompleted ?? false}
+            to={publicCard?.to ?? "/student/video/courses/public"}
           />
         )}
 

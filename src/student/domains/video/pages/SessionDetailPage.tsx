@@ -107,7 +107,8 @@ function VideoListItem({
               height: "100%",
               display: "grid",
               placeItems: "center",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+              // 2번 테넌트(tchul) 브랜드색 그라데이션
+              background: "linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%)",
             }}
           >
             <IconPlay style={{ width: 32, height: 32, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />

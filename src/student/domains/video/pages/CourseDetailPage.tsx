@@ -2,7 +2,7 @@
  * 수업 상세 페이지 — 상단에 수업 정보, 하단에 차시별 박스 (작은 썸네일 구조)
  */
 import { useMemo } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchVideoMe, fetchStudentSessionVideos } from "../api/video";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
@@ -129,7 +129,8 @@ function SessionBox({
               height: "100%",
               display: "grid",
               placeItems: "center",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+              // 2번 테넌트(tchul) 브랜드색 그라데이션
+              background: "linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%)",
             }}
           >
             <IconPlay style={{ width: 32, height: 32, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
@@ -219,9 +220,13 @@ function SessionBox({
 }
 
 export default function CourseDetailPage() {
-  const { lectureId } = useParams<{ lectureId: string }>();
+  const { lectureId } = useParams<{ lectureId?: string }>();
+  const location = useLocation();
   const nav = useNavigate();
-  const isPublic = lectureId === "public";
+  // 정적 라우트 video/courses/public 으로 왔을 때는 lectureId가 없으므로 pathname으로 판별
+  const isPublic =
+    lectureId === "public" ||
+    location.pathname.replace(/\/$/, "").endsWith("video/courses/public");
   const lectureIdNum = isPublic ? null : (lectureId ? parseInt(lectureId, 10) : null);
 
   const { data: videoMe, isLoading } = useQuery({
@@ -258,8 +263,11 @@ export default function CourseDetailPage() {
     );
   }
 
+  // 전체공개영상: 내용물이 있던 없던 항상 표시
   const sessions = isPublic 
-    ? (videoMe?.public?.session_id ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }] : [])
+    ? (videoMe?.public?.session_id 
+        ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }]
+        : [{ id: 0, title: "전체공개영상", order: 1, date: null }]) // 빈 세션 표시용 플레이스홀더
     : (lecture?.sessions ?? []);
 
   // 첫 번째 세션의 영상 정보 가져오기 (총 영상 개수 및 시간 계산용)
@@ -348,14 +356,36 @@ export default function CourseDetailPage() {
                 gap: "var(--stu-space-4)",
               }}
             >
-              {sessions.map((session) => (
-                <SessionBox
-                  key={session.id}
-                  sessionId={session.id}
-                  sessionTitle={session.title}
-                  order={session.order}
-                />
-              ))}
+              {sessions.map((session) => {
+                // 전체공개영상이지만 실제 세션이 없는 경우 (id === 0)
+                if (isPublic && session.id === 0) {
+                  return (
+                    <div
+                      key="public-empty"
+                      style={{
+                        padding: "var(--stu-space-6)",
+                        borderRadius: 10,
+                        background: "#1a1a1a",
+                        border: "2px solid rgba(255,255,255,0.15)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <EmptyState
+                        title="전체공개영상이 없습니다"
+                        description="전체공개영상이 등록되면 여기에 표시됩니다."
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <SessionBox
+                    key={session.id}
+                    sessionId={session.id}
+                    sessionTitle={session.title}
+                    order={session.order}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

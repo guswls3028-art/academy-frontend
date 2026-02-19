@@ -38,8 +38,8 @@ export default function StudentRouter() {
 
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="video" element={<VideoHomePage />} />
-        <Route path="video/courses/:lectureId" element={<CourseDetailPage />} />
         <Route path="video/courses/public" element={<CourseDetailPage />} />
+        <Route path="video/courses/:lectureId" element={<CourseDetailPage />} />
         <Route path="video/sessions/:sessionId" element={<VideoSessionDetailPage />} />
         <Route path="video/play" element={<VideoPlayerPage />} />
 

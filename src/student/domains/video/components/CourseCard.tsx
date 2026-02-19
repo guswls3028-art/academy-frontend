@@ -4,6 +4,7 @@
 import { Link } from "react-router-dom";
 import { IconPlay, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
+import VideoThumbnailWrapper from "./VideoThumbnailWrapper";
 
 type CourseCardProps = {
   title: string;
@@ -87,18 +88,47 @@ export default function CourseCard({
           position: "relative",
           background: "#111",
           zIndex: 0,
+          aspectRatio: "16 / 9",
+          overflow: "hidden",
         }}
       >
         {thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt={title}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-          />
+          <div style={{ width: "100%", height: "100%", position: "relative" }}>
+            {/* VideoThumbnail 컴포넌트 사용 (features에서 가져옴) */}
+            <VideoThumbnailWrapper
+              title={title}
+              thumbnail_url={thumbnailUrl}
+              status="READY"
+            />
+            {/* 재생 오버레이 - Media Tile System */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "grid",
+                placeItems: "center",
+                background: "rgba(0,0,0,0.15)",
+                opacity: 0.6,
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            >
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.9)",
+                  display: "grid",
+                  placeItems: "center",
+                  transform: "scale(0.9)",
+                  transition: "transform 0.2s ease",
+                }}
+              >
+                <IconPlay style={{ width: 28, height: 28, color: "#000", marginLeft: 2 }} />
+              </div>
+            </div>
+          </div>
         ) : (
           <div
             style={{
@@ -106,39 +136,13 @@ export default function CourseCard({
               height: "100%",
               display: "grid",
               placeItems: "center",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+              // 2번 테넌트(tchul) 브랜드색 그라데이션
+              background: "linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%)",
             }}
           >
             <IconPlay style={{ width: 48, height: 48, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
           </div>
         )}
-        
-        {/* 재생 오버레이 - Media Tile System (hover 제거) */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(0,0,0,0.15)",
-            opacity: 0.6,
-          }}
-        >
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.9)",
-              display: "grid",
-              placeItems: "center",
-              transform: "scale(0.9)",
-              transition: "transform 0.2s ease",
-            }}
-          >
-            <IconPlay style={{ width: 28, height: 28, color: "#000", marginLeft: 2 }} />
-          </div>
-        </div>
 
         {/* 진행률 바 */}
         {progress > 0 && (
