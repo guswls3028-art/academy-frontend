@@ -1,14 +1,21 @@
 /**
  * 학생 앱 전역 아이콘 — 단일 SSOT, 아이콘 방식
+ * tchul/9999 테넌트에서 .stu-icon 그라데이션은 tenants/tchul.css에서 적용
  */
 import type { SVGProps } from "react";
 
 const size = 24;
 const stroke = 2;
 
+const iconProps = { className: "stu-icon" } as const;
+
+function mergeIconProps(props: SVGProps<SVGSVGElement>) {
+  return { ...iconProps, ...props, className: [iconProps.className, props.className].filter(Boolean).join(" ") };
+}
+
 export function IconHome(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...props}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
       <path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" />
     </svg>
   );

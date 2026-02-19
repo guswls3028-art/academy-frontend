@@ -10,8 +10,11 @@ import "../theme/tenants/index.css";
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
 
+const TCHUL_TENANTS = ["tchul", "9999"];
+
 export default function StudentLayout() {
   const tenantCode = getTenantCodeForApiRequest();
+  const isTchulTheme = tenantCode != null && TCHUL_TENANTS.includes(String(tenantCode));
 
   return (
     <div
@@ -26,6 +29,17 @@ export default function StudentLayout() {
         paddingTop: "var(--stu-safe-top)",
       }}
     >
+      {isTchulTheme && (
+        <svg aria-hidden width={0} height={0} style={{ position: "absolute" }}>
+          <defs>
+            <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0d47a1" />
+              <stop offset="50%" stopColor="#00695c" />
+              <stop offset="100%" stopColor="#004d40" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )}
       <header
         style={{
           flexShrink: 0,
