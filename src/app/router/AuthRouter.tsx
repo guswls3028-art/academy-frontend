@@ -33,7 +33,7 @@ export default function AuthRouter() {
         path="tchul"
         element={
           <TenantLoginOrRedirect tenantId={2}>
-            <TenantLoginPage tenantId={2} />
+            <TchulLoginPage />
           </TenantLoginOrRedirect>
         }
       />
