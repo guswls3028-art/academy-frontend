@@ -197,16 +197,10 @@ function QnaWriteForm({
         placeholder="제목"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="ds-input"
+        className="stu-input"
         style={{
           width: "100%",
           marginBottom: "var(--stu-space-4)",
-          padding: "var(--stu-space-4)",
-          borderRadius: "var(--stu-radius-md)",
-          border: "1px solid var(--stu-border)",
-          background: "var(--stu-surface)",
-          color: "var(--stu-text)",
-          fontSize: 15,
         }}
       />
       <textarea
@@ -214,6 +208,7 @@ function QnaWriteForm({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         rows={5}
+        className="stu-textarea"
         style={{
           width: "100%",
           marginBottom: "var(--stu-space-4)",
