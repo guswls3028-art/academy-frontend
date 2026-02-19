@@ -523,7 +523,43 @@ a {
 }
 
 /* =========================
-   6) Divider
+   6) CTA Link (프리미엄 스타일)
+   ========================= */
+.stu-cta-link {
+  color: var(--stu-primary);
+  font-weight: 700;
+  font-size: var(--stu-font-size-13);
+  text-decoration: none;
+  transition: 
+    color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.stu-cta-link::after {
+  content: "→";
+  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+
+.stu-cta-link:hover {
+  color: var(--stu-primary-hover);
+  transform: translateX(2px);
+}
+
+.stu-cta-link:hover::after {
+  transform: translateX(2px);
+}
+
+.stu-cta-link:active {
+  transform: translateX(0);
+}
+
+/* =========================
+   7) Divider
    ========================= */
 .stu-divider {
   height: 1px;
@@ -608,11 +644,21 @@ a {
 }
 
 /* ======================================================
-   12) TabBar Active Accent (보조)
+   12) TabBar Active Accent (프리미엄 스타일)
    ====================================================== */
 
-.stu-tabbar a[aria-current="page"] {
-  border-bottom: 2px solid var(--stu-primary);
+.stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  /* 활성 탭에 미묘한 배경 */
+  background: var(--stu-tint-primary);
+  transform: scale(1.05);
+}
+
+.stu-tabbar .stu-tabbar__link:active {
+  transform: scale(0.98);
+}
+
+.stu-tabbar .stu-tabbar__link[aria-current="page"]:active {
+  transform: scale(1.02);
 }
 
 /* ======================================================
