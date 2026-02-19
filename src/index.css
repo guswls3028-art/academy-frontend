@@ -1,3 +1,4 @@
+/* 전역 디자인 분리: admin(data-app=admin) / auth(data-app=auth) / student(data-app=student) 각 레이아웃에서 data-app로 스코프 */
 @import "tailwindcss";
 @import "./styles/design-system/index.css";
 @import "./styles/design-system/ds/status.css";
