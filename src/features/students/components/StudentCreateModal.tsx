@@ -214,6 +214,14 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               autoFocus
             />
             <input
+              name="psNumber"
+              placeholder="로그인 아이디 (PS 번호, 선택·미입력 시 자동 부여)"
+              value={form.psNumber ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              disabled={busy}
+            />
+            <input
               name="initialPassword"
               type="password"
               placeholder="초기 비밀번호"
