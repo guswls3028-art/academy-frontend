@@ -30,6 +30,31 @@ const options = {
   desc: false,
 };
 
+/**
+ * stroke 제거, shape-rendering="geometricPrecision", fill-only closed path 정리
+ * (서브픽셀 안티앨리어싱 완화 · print-grade SVG)
+ */
+function toFillOnlyPrintGrade(svg) {
+  // 1) path에서 stroke, stroke-width 제거 (fill만 유지)
+  svg = svg.replace(/\s*stroke-width="[^"]*"/gi, "");
+  svg = svg.replace(/\s*stroke="[^"]*"/gi, "");
+
+  // 2) path d 내부 좌표를 1자리로 반올림 (서브픽셀 블러 감소)
+  svg = svg.replace(
+    /(\s)d="([^"]+)"/g,
+    (_, space, d) =>
+      space + 'd="' + d.replace(/[-+]?\d*\.?\d+/g, (n) => Number(n).toFixed(1)) + '"'
+  );
+
+  // 3) 루트 <svg>에 shape-rendering="geometricPrecision" 추가
+  svg = svg.replace(
+    /<svg\s/,
+    '<svg shape-rendering="geometricPrecision" '
+  );
+
+  return svg;
+}
+
 async function main() {
   const { data, info } = await sharp(INPUT)
     .resize(MAX_WIDTH, null, { fit: "inside" })
