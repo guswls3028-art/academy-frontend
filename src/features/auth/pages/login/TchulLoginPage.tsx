@@ -6,6 +6,7 @@ import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import TchulLogoTransparent from "../logos/TchulLogoTransparent.png";
+import "@/features/auth/themes/tchul.css";
 import styles from "./TchulLoginPage.module.css";
 
 export default function TchulLoginPage() {
