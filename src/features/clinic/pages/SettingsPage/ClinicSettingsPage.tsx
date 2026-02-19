@@ -38,6 +38,9 @@ export default function ClinicSettingsPage() {
         </div>
       </div>
 
+      {/* 패스카드 배경 색상 설정 */}
+      <ClinicIdcardColorSettings />
+
       <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
         <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
           <div className="text-sm font-semibold">클리닉 정책</div>
