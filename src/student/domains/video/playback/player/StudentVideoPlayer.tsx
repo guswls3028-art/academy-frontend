@@ -1088,6 +1088,10 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       <div className="svpLayout">
         <div className="svpPlayerCol">
           <div className="svpPlayerWrap" ref={wrapEl}>
+            <div
+              className={`svpControlLayer ${!showControls ? "svpControlLayer--hidden" : ""} ${isFullscreen ? "svpControlLayer--fullscreen" : ""}`}
+              style={{ transition: "opacity 0.2s ease" }}
+            >
             <div className="svpTopBar">
               <div className="svpTopLeft">
                 <div className="svpTitle" title={video.title}>
