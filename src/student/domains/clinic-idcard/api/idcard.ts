@@ -14,6 +14,7 @@ export type ClinicIdcardHistoryItem = {
 export type ClinicIdcardData = {
   student_name: string;
   profile_photo_url: string | null;
+  background_colors: [string, string, string];  // 위조 방지용 배경 그라데이션 색상 3개
   server_date: string;
   server_datetime: string;
   histories: ClinicIdcardHistoryItem[];
