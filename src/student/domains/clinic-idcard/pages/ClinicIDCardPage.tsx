@@ -1,11 +1,12 @@
 /**
- * 클리닉 인증 — 실제 API 연동
- * - 차시별 합불: progress.ClinicLink(is_auto) 단일 진실
- * - 서버 날짜·시각 크게 표시 (위조 방지, 이미지/띠 등 조작 불가)
- * - 1~n차시 이력 + 중앙에 n차시 합불여부 (클리닉 대상 = 빨간색 / 합격 = 초록)
+ * 클리닉 인증(패스카드) — 실무: 조교 1명이 100명가량 빠르게 시각 확인
+ * - 깡블랙 배경 + 눈에 띄는 색/애니메이션
+ * - 실시간 시계(초 단위 갱신)로 위조·스크린샷 즉시 판별
  */
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchClinicIdcard } from "../api/idcard";
+import "../styles/idcard.css";
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return "-";
