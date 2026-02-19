@@ -100,13 +100,26 @@
 .subtitle {
   font-size: 0.875rem;
   color: var(--color-text-muted);
-  margin-bottom: var(--space-6, 24px);
+  margin-bottom: var(--space-4, 16px);
 }
 
+/* 버튼 클릭 시 펼쳐지는 폼 */
 .form {
-  margin-top: var(--space-5, 20px);
-  padding-top: var(--space-5, 20px);
+  margin-top: var(--space-4, 16px);
+  padding-top: var(--space-4, 16px);
   border-top: 1px solid var(--color-border-divider, #e5e7eb);
+  animation: formExpand 0.25s ease-out;
+}
+
+@keyframes formExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .card input {
