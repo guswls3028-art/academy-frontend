@@ -1,5 +1,5 @@
 // PATH: src/features/auth/pages/login/TchulLoginPage.tsx
-// tchul.com 테넌트 전용 브랜드 로그인 랜딩 페이지 — 2컬럼 레이아웃
+// tchul.com 테넌트 전용 브랜드 로그인 — 단일 카드 (로고 참고 통합)
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
@@ -37,14 +37,12 @@ export default function TchulLoginPage() {
 
   return (
     <div data-app="auth" className={styles.root}>
-      <section className={styles.brand} aria-label="박철과학 브랜드">
-        <img src={TchulLogo} alt="박철과학" className={styles.brandLogo} />
-        <p className={styles.brandPhrase}>과학은 철두철미하게</p>
-        <h1 className={styles.brandTitle}>박철과학</h1>
-        <p className={styles.brandSubtitle}>관리자 로그인</p>
-      </section>
-      <div className={styles.formPanel}>
-        <form onSubmit={onSubmit} className={styles.formCard}>
+      <form onSubmit={onSubmit} className={styles.card} aria-label="박철과학 관리자 로그인">
+        <img src={TchulLogo} alt="박철과학" className={styles.logo} />
+        <p className={styles.phrase}>과학은 철두철미하게</p>
+        <h1 className={styles.title}>박철과학</h1>
+        <p className={styles.subtitle}>관리자 로그인</p>
+        <div className={styles.form}>
           <input
             placeholder="아이디"
             value={username}
@@ -61,9 +59,9 @@ export default function TchulLoginPage() {
           <Button type="submit" intent="primary" size="lg" disabled={pending} className="w-full">
             {pending ? "로그인 중..." : "로그인"}
           </Button>
-          {error && <div className={styles.formCard__error}>{error}</div>}
-        </form>
-      </div>
+          {error && <div className={styles.error}>{error}</div>}
+        </div>
+      </form>
     </div>
   );
 }
