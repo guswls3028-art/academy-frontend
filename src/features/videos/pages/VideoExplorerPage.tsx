@@ -122,12 +122,12 @@ export default function VideoExplorerPage() {
       if (selectedPublicFolderId) {
         // 폴더별 영상 조회
         return fetchSessionVideos(publicSession!.session_id).then((videos) =>
-          videos.filter((v) => (v as any).folder === selectedPublicFolderId)
+          videos.filter((v) => v.folder === selectedPublicFolderId)
         );
       }
       // 루트 폴더 영상 (folder가 null인 것만)
       return fetchSessionVideos(publicSession!.session_id).then((videos) =>
-        videos.filter((v) => !(v as any).folder)
+        videos.filter((v) => !v.folder)
       );
     },
     enabled: selectedFolderId === "public" && !!publicSession?.session_id,

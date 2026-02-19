@@ -17,6 +17,7 @@ export type VideoSourceType = "s3" | "unknown";
 export interface Video {
   id: number;
   session_id: number;
+  folder?: number | null; // 전체공개영상 폴더 ID
   title: string;
 
   file_key: string;
