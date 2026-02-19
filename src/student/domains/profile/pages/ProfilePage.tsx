@@ -97,7 +97,7 @@ export default function ProfilePage() {
           />
           <button
             type="button"
-            className="stu-btn-primary"
+            className="stu-btn stu-btn--primary stu-btn--sm"
             disabled={uploadMutation.isPending}
             onClick={() => inputRef.current?.click()}
           >
