@@ -4,6 +4,7 @@ import { Navigate } from "react-router-dom";
 import { useProgram } from "@/shared/program";
 import { resolveTenantCode, getTenantIdFromCode, getTenantCodeFromHostname } from "@/shared/tenant";
 import TenantLoginPage from "./TenantLoginPage";
+import TchulLoginPage from "./TchulLoginPage";
 
 const TENANT_ID_TO_PATH: Record<1 | 2 | 3 | 4, string> = {
   1: "/login/hakwonplus",
@@ -25,9 +26,8 @@ export default function LoginEntry() {
   const fromHost = getTenantCodeFromHostname();
   if (fromHost.ok) {
     const hostTenantId = getTenantIdFromCode(fromHost.code);
-    if (hostTenantId && hostTenantId !== 1) {
-      return <TenantLoginPage tenantId={hostTenantId} />;
-    }
+    if (hostTenantId === 2) return <TchulLoginPage />;
+    if (hostTenantId && hostTenantId !== 1) return <TenantLoginPage tenantId={hostTenantId} />;
   }
 
   const resolved = resolveTenantCode();
