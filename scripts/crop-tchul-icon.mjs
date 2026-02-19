@@ -29,8 +29,31 @@ async function main() {
   const channels = 4; // RGBA
   const buf = new Uint8ClampedArray(data);
 
-  // 아이콘은 상단에 있으므로 상단 40% 영역만 사용 (텍스트 제외)
-  const iconAreaHeight = Math.floor(height * 0.4);
+  // 텍스트 영역 감지: 하단에서 위로 스캔하면서 텍스트가 시작하는 위치 찾기
+  // 텍스트는 보통 가로로 긴 형태이므로, 한 줄에 많은 픽셀이 있는 영역을 찾음
+  let textStartY = height;
+  
+  // 하단 60% 영역에서 텍스트 시작점 찾기
+  for (let y = height - 1; y >= Math.floor(height * 0.4); y--) {
+    let nonTransparentCount = 0;
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * channels;
+      const alpha = buf[idx + 3];
+      if (alpha > 10) {
+        nonTransparentCount++;
+      }
+    }
+    // 한 줄에 충분히 많은 픽셀이 있으면 텍스트 영역으로 간주 (임계값 낮춤)
+    if (nonTransparentCount > width * 0.15) {
+      textStartY = y;
+      break;
+    }
+  }
+
+  // 아이콘 영역: 텍스트 시작점 위쪽만 사용 (여유있게 100px 더 위로)
+  const iconMaxY = Math.max(0, textStartY - 100);
+  
+  console.log(`Text starts at y=${textStartY}, icon max y=${iconMaxY}`);
   
   // 아이콘의 실제 경계 찾기 (좌우 패딩 없이)
   // 중앙 영역에 집중 (좌우 25% 제외하여 여백 제거)
@@ -43,8 +66,8 @@ async function main() {
   let minY = height;
   let maxY = 0;
 
-  // 상단 아이콘 영역의 중앙 부분만 스캔
-  for (let y = 0; y < iconAreaHeight; y++) {
+  // 텍스트 위쪽 아이콘 영역만 스캔
+  for (let y = 0; y < iconMaxY; y++) {
     for (let x = scanStartX; x < scanEndX; x++) {
       const idx = (y * width + x) * channels;
       const alpha = buf[idx + 3];
@@ -58,7 +81,6 @@ async function main() {
     }
   }
 
-  console.log(`Icon area height: ${iconAreaHeight}`);
   console.log(`Icon bounds: x=${minX}-${maxX}, y=${minY}-${maxY}`);
   console.log(`Icon size: ${maxX - minX + 1}x${maxY - minY + 1}`);
 
