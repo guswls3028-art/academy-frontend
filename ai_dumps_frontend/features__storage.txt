@@ -1,0 +1,2250 @@
+====================================================================================================
+# FRONTEND FOLDER: features__storage
+# ROOT PATH: C:\academyfront\src\features\storage
+====================================================================================================
+
+
+==========================================================================================
+# FILE: StorageRoutes.tsx
+==========================================================================================
+// PATH: src/features/storage/StorageRoutes.tsx
+// 저장소 통합 관리 — 내 저장소(선생님) / 학생 인벤토리 관리
+
+import { Routes, Route, Navigate } from "react-router-dom";
+import StoragePage from "./pages/StoragePage";
+
+export default function StorageRoutes() {
+  return (
+    <Routes>
+      <Route index element={<StoragePage />} />
+      <Route path="student/:studentPs" element={<StoragePage />} />
+      <Route path="*" element={<Navigate to="/admin/storage" replace />} />
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: api/storage.api.ts
+==========================================================================================
+// PATH: src/features/storage/api/storage.api.ts
+// 저장소 API (멀티테넌트 인벤토리)
+
+import api from "@/shared/api/axios";
+
+export type StorageQuota = {
+  usedBytes: number;
+  limitBytes: number;
+  plan: "lite" | "basic" | "premium";
+};
+
+export async function fetchStorageQuota(): Promise<StorageQuota> {
+  try {
+    const { data } = await api.get<StorageQuota>("/storage/quota/");
+    return data;
+  } catch {
+    return { usedBytes: 0, limitBytes: 10 * 1e9, plan: "basic" };
+  }
+}
+
+export type InventoryFolder = {
+  id: string;
+  name: string;
+  parentId: string | null;
+};
+
+export type InventoryFile = {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  icon: string;
+  folderId: string | null;
+  sizeBytes: number;
+  r2Key: string;
+  contentType: string;
+  createdAt: string;
+};
+
+export type InventoryListResponse = {
+  folders: InventoryFolder[];
+  files: InventoryFile[];
+};
+
+export async function fetchInventoryList(
+  scope: "admin" | "student",
+  studentPs?: string
+): Promise<InventoryListResponse> {
+  const params: Record<string, string> = { scope };
+  if (studentPs) params.student_ps = studentPs;
+  try {
+    const { data } = await api.get<InventoryListResponse>("/storage/inventory/", { params });
+    return data;
+  } catch {
+    return { folders: [], files: [] };
+  }
+}
+
+export async function createFolder(
+  scope: "admin" | "student",
+  parentId: string | null,
+  name: string,
+  studentPs?: string
+): Promise<InventoryFolder> {
+  const body: Record<string, unknown> = { scope, parent_id: parentId, name };
+  if (studentPs) body.student_ps = studentPs;
+  const { data } = await api.post<InventoryFolder>("/storage/inventory/folders/", body);
+  return data;
+}
+
+export type UploadFilePayload = {
+  scope: "admin" | "student";
+  folderId: string | null;
+  displayName: string;
+  description: string;
+  icon: string;
+  file: File;
+  studentPs?: string;
+};
+
+export async function uploadFile(payload: UploadFilePayload): Promise<InventoryFile> {
+  const form = new FormData();
+  form.append("file", payload.file);
+  form.append("display_name", payload.displayName);
+  form.append("description", payload.description);
+  form.append("icon", payload.icon);
+  form.append("scope", payload.scope);
+  if (payload.folderId) form.append("folder_id", payload.folderId);
+  if (payload.studentPs) form.append("student_ps", payload.studentPs);
+
+  const { data } = await api.post<InventoryFile>("/storage/inventory/upload/", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function deleteFile(scope: "admin" | "student", fileId: string, studentPs?: string): Promise<void> {
+  const params: Record<string, string> = { scope };
+  if (studentPs) params.student_ps = studentPs;
+  await api.delete(`/storage/inventory/files/${fileId}/`, { params });
+}
+
+export async function deleteFolder(
+  scope: "admin" | "student",
+  folderId: string,
+  studentPs?: string
+): Promise<void> {
+  const params: Record<string, string> = { scope };
+  if (studentPs) params.student_ps = studentPs;
+  await api.delete(`/storage/inventory/folders/${folderId}/`, { params });
+}
+
+export async function getPresignedUrl(r2Key: string, expiresIn?: number): Promise<{ url: string }> {
+  const { data } = await api.post<{ url: string }>("/storage/inventory/presign/", {
+    r2_key: r2Key,
+    expires_in: expiresIn ?? 3600,
+  });
+  return data;
+}
+
+export type MoveParams = {
+  scope: "admin" | "student";
+  type: "file" | "folder";
+  sourceId: string;
+  targetFolderId: string | null;
+  studentPs?: string;
+  onDuplicate?: "overwrite" | "rename";
+};
+
+export type MoveConflictError = {
+  status: number;
+  code: string;
+  existing_name: string;
+  detail: string;
+};
+
+export async function moveInventoryItem(params: MoveParams): Promise<{ ok: true }> {
+  const body: Record<string, unknown> = {
+    type: params.type,
+    source_id: params.sourceId,
+    target_folder_id: params.targetFolderId ?? null,
+    scope: params.scope,
+  };
+  if (params.scope === "student" && params.studentPs) body.student_ps = params.studentPs;
+  if (params.onDuplicate) body.on_duplicate = params.onDuplicate;
+
+  try {
+    const { data } = await api.post<{ ok?: boolean }>("/storage/inventory/move/", body);
+    return data as { ok: true };
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "response" in e) {
+      const ax = (e as { response?: { status?: number; data?: Record<string, unknown> } }).response;
+      if (ax?.status === 409 && ax?.data) {
+        const err = new Error(String(ax.data.detail ?? "Conflict")) as Error & MoveConflictError;
+        err.status = 409;
+        err.code = String(ax.data.code ?? "duplicate");
+        err.existing_name = String(ax.data.existing_name ?? "");
+        err.detail = String(ax.data.detail ?? "");
+        throw err;
+      }
+    }
+    throw e;
+  }
+}
+
+
+==========================================================================================
+# FILE: components/Breadcrumb.module.css
+==========================================================================================
+.root {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+}
+
+.sep {
+  color: var(--color-text-muted);
+  margin: 0 4px;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.link:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+}
+
+
+==========================================================================================
+# FILE: components/Breadcrumb.tsx
+==========================================================================================
+// PATH: src/features/storage/components/Breadcrumb.tsx
+
+import styles from "./Breadcrumb.module.css";
+
+type Crumb = { id: string | null; name: string };
+
+type BreadcrumbProps = {
+  path: Crumb[];
+  onSelect: (folderId: string | null) => void;
+};
+
+export default function Breadcrumb({ path, onSelect }: BreadcrumbProps) {
+  return (
+    <nav className={styles.root} aria-label="경로">
+      {path.map((crumb, i) => (
+        <span key={crumb.id ?? "root"} className={styles.segment}>
+          {i > 0 && <span className={styles.sep}>/</span>}
+          <button
+            type="button"
+            className={styles.link}
+            onClick={() => onSelect(crumb.id)}
+          >
+            {crumb.name}
+          </button>
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/FolderTree.module.css
+==========================================================================================
+.root {
+  padding: var(--space-2);
+  font-size: 13px;
+}
+
+.node {
+  margin-left: 0;
+}
+
+.children {
+  margin-left: var(--space-4);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.item:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.itemActive {
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  color: var(--color-brand-primary);
+}
+
+
+==========================================================================================
+# FILE: components/FolderTree.tsx
+==========================================================================================
+// PATH: src/features/storage/components/FolderTree.tsx
+// 재귀적 폴더 트리
+
+import { FolderOpen } from "lucide-react";
+import styles from "./FolderTree.module.css";
+
+type Folder = { id: string; name: string; parentId: string | null };
+
+type FolderTreeProps = {
+  folders: Folder[];
+  currentFolderId: string | null;
+  onSelect: (folderId: string | null) => void;
+};
+
+export default function FolderTree({
+  folders,
+  currentFolderId,
+  onSelect,
+}: FolderTreeProps) {
+  const roots = folders.filter((f) => !f.parentId);
+  return (
+    <div className={styles.root}>
+      <button
+        type="button"
+        className={styles.item + (currentFolderId === null ? " " + styles.itemActive : "")}
+        onClick={() => onSelect(null)}
+      >
+        <FolderOpen size={16} />
+        <span>내 저장소</span>
+      </button>
+      {roots.map((folder) => (
+        <TreeNode
+          key={folder.id}
+          folder={folder}
+          allFolders={folders}
+          currentFolderId={currentFolderId}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TreeNode({
+  folder,
+  allFolders,
+  currentFolderId,
+  onSelect,
+}: {
+  folder: Folder;
+  allFolders: Folder[];
+  currentFolderId: string | null;
+  onSelect: (folderId: string | null) => void;
+}) {
+  const children = allFolders.filter((f) => f.parentId === folder.id);
+  const isActive = currentFolderId === folder.id;
+
+  return (
+    <div className={styles.node}>
+      <button
+        type="button"
+        className={styles.item + (isActive ? " " + styles.itemActive : "")}
+        onClick={() => onSelect(folder.id)}
+      >
+        <FolderOpen size={16} />
+        <span>{folder.name}</span>
+      </button>
+      {children.length > 0 && (
+        <div className={styles.children}>
+          {children.map((child) => (
+            <TreeNode
+              key={child.id}
+              folder={child}
+              allFolders={allFolders}
+              currentFolderId={currentFolderId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/MoveDuplicateModal.tsx
+==========================================================================================
+// PATH: src/features/storage/components/MoveDuplicateModal.tsx
+// 이동 시 목적지에 같은 이름이 있을 때 덮어쓰기/이름 변경 선택
+
+import { Button, CloseButton } from "@/shared/ui/ds";
+import styles from "./MyStorageExplorer.module.css";
+
+type MoveDuplicateModalProps = {
+  existingName: string;
+  itemType: "file" | "folder";
+  onOverwrite: () => void;
+  onRename: () => void;
+  onCancel: () => void;
+};
+
+export default function MoveDuplicateModal({
+  existingName,
+  itemType,
+  onOverwrite,
+  onRename,
+  onCancel,
+}: MoveDuplicateModalProps) {
+  const label = itemType === "folder" ? "폴더" : "파일";
+  return (
+    <div className={styles.modalBackdrop} onClick={onCancel}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <span>이름 충돌</span>
+          <CloseButton onClick={onCancel} />
+        </div>
+        <div className={styles.modalBody}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-primary)" }}>
+            목적지에 같은 이름의 {label}(&quot;{existingName}&quot;)이(가) 있습니다.
+          </p>
+          <p style={{ margin: "var(--space-2) 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
+            덮어쓰기하거나 이름을 변경(예: {itemType === "file" ? "파일_복사본.pdf" : "폴더_복사본"})할 수 있습니다.
+          </p>
+        </div>
+        <div className={styles.modalFooter}>
+          <Button size="sm" intent="secondary" onClick={onCancel}>
+            취소
+          </Button>
+          <Button size="sm" intent="secondary" onClick={onRename}>
+            이름 변경
+          </Button>
+          <Button size="sm" intent="primary" onClick={onOverwrite}>
+            덮어쓰기
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/MyStorageExplorer.module.css
+==========================================================================================
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.addWrap {
+  position: relative;
+}
+
+.addBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+.addMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 51;
+}
+
+.addMenu button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.addMenu button:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.tree {
+  width: 200px;
+  min-width: 200px;
+  border-right: 1px solid var(--color-border-divider);
+  overflow: auto;
+}
+
+.gridWrap {
+  flex: 1;
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-4);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.item:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+.itemSelected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+}
+
+.itemAdd {
+  border-style: dashed;
+  color: var(--color-text-muted);
+}
+
+.itemAdd:hover {
+  color: var(--color-brand-primary);
+}
+.itemAdd.itemLocked {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.dropTarget {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-bg-surface));
+}
+
+.itemMoving {
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.movingLabel {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-brand-primary);
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.4);
+}
+
+.modal {
+  width: 90%;
+  max-width: 400px;
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.modalBody {
+  padding: var(--space-4);
+}
+
+.modalBody label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.modalBody input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  font-size: 13px;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+
+==========================================================================================
+# FILE: components/MyStorageExplorer.tsx
+==========================================================================================
+// PATH: src/features/storage/components/MyStorageExplorer.tsx
+// 내 저장소(선생님) — 좌측 폴더 트리, 상단 브레드크럼, 우측 아이콘 그리드 (파일 탐색기형)
+
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus } from "lucide-react";
+import { Button, CloseButton } from "@/shared/ui/ds";
+import {
+  fetchInventoryList,
+  fetchStorageQuota,
+  createFolder,
+  uploadFile,
+  deleteFolder,
+  deleteFile,
+  getPresignedUrl,
+  moveInventoryItem,
+  type InventoryFolder,
+  type InventoryFile,
+  type MoveConflictError,
+} from "../api/storage.api";
+import Breadcrumb from "./Breadcrumb";
+import FolderTree from "./FolderTree";
+import UploadModal from "./UploadModal";
+import MoveDuplicateModal from "./MoveDuplicateModal";
+import styles from "./MyStorageExplorer.module.css";
+
+const DRAG_TYPE = "application/x-storage-move";
+
+function getDragPayload(e: React.DragEvent): { type: "file" | "folder"; sourceId: string } | null {
+  try {
+    const raw = e.dataTransfer.getData(DRAG_TYPE);
+    return raw ? (JSON.parse(raw) as { type: "file" | "folder"; sourceId: string }) : null;
+  } catch {
+    return null;
+  }
+}
+
+const SCOPE = "admin" as const;
+
+export default function MyStorageExplorer() {
+  const qc = useQueryClient();
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [addChoiceOpen, setAddChoiceOpen] = useState(false);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{
+    type: "file" | "folder";
+    sourceId: string;
+    targetFolderId: string | null;
+    existingName: string;
+  } | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["storage-inventory", SCOPE],
+    queryFn: () => fetchInventoryList(SCOPE),
+  });
+  const { data: quota } = useQuery({
+    queryKey: ["storage-quota"],
+    queryFn: fetchStorageQuota,
+  });
+  const isLocked = quota?.plan === "lite";
+
+  const folders = data?.folders ?? [];
+  const files = data?.files ?? [];
+  const subFolders = folders.filter((f) => f.parentId === currentFolderId);
+  const subFiles = files.filter((f) => (f.folderId ?? null) === currentFolderId);
+
+  const allFoldersForTree = folders;
+  const breadcrumbPath = useBreadcrumbPath(allFoldersForTree, currentFolderId);
+
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim()) return;
+    try {
+      await createFolder(SCOPE, currentFolderId, newFolderName.trim());
+      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+      setNewFolderName("");
+      setNewFolderOpen(false);
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }, [currentFolderId, newFolderName, qc]);
+
+  const handleUpload = useCallback(
+    async (payload: { displayName: string; description: string; icon: string; file: File }) => {
+      try {
+        await uploadFile({
+          scope: SCOPE,
+          folderId: currentFolderId,
+          displayName: payload.displayName,
+          description: payload.description,
+          icon: payload.icon,
+          file: payload.file,
+        });
+        qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+        setUploadModalOpen(false);
+      } catch (e) {
+        alert((e as Error).message);
+      }
+    },
+    [currentFolderId, qc]
+  );
+
+  const handleDeleteSelected = useCallback(async () => {
+    for (const id of selectedFolderIds) {
+      try {
+        await deleteFolder(SCOPE, id);
+      } catch (e) {
+        alert((e as Error).message);
+        return;
+      }
+    }
+    if (selectedFileId) {
+      try {
+        await deleteFile(SCOPE, selectedFileId);
+      } catch (e) {
+        alert((e as Error).message);
+        return;
+      }
+    }
+    qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+    setSelectedFolderIds(new Set());
+    setSelectedFileId(null);
+  }, [selectedFolderIds, selectedFileId, qc]);
+
+  const hasSelection = selectedFolderIds.size > 0 || selectedFileId != null;
+
+  const handleMove = useCallback(
+    async (
+      targetFolderId: string | null,
+      type: "file" | "folder",
+      sourceId: string,
+      onDuplicate?: "overwrite" | "rename"
+    ) => {
+      setMovingId(sourceId);
+      const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>([
+        "storage-inventory",
+        SCOPE,
+      ]);
+      const applyOptimistic = () => {
+        if (!prev) return;
+        if (type === "file") {
+          const files = prev.files.map((f) =>
+            f.id === sourceId ? { ...f, folderId: targetFolderId } : f
+          );
+          qc.setQueryData(["storage-inventory", SCOPE], { ...prev, files });
+        } else {
+          const folders = prev.folders.map((f) =>
+            f.id === sourceId ? { ...f, parentId: targetFolderId } : f
+          );
+          qc.setQueryData(["storage-inventory", SCOPE], { ...prev, folders });
+        }
+      };
+      applyOptimistic();
+      try {
+        await moveInventoryItem({
+          scope: SCOPE,
+          type,
+          sourceId,
+          targetFolderId,
+          onDuplicate,
+        });
+        await qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
+      } catch (e) {
+        if (prev) qc.setQueryData(["storage-inventory", SCOPE], prev);
+        const ce = e as MoveConflictError & Error;
+        if (ce.status === 409 && ce.code === "duplicate") {
+          setConflict({
+            type,
+            sourceId,
+            targetFolderId,
+            existingName: ce.existing_name || "항목",
+          });
+        } else {
+          alert(ce?.message ?? "이동에 실패했습니다.");
+        }
+      } finally {
+        setMovingId(null);
+      }
+    },
+    [qc]
+  );
+
+  const resolveConflict = useCallback(
+    (choice: "overwrite" | "rename") => {
+      if (!conflict) return;
+      const { targetFolderId, type, sourceId } = conflict;
+      setConflict(null);
+      handleMove(targetFolderId, type, sourceId, choice);
+    },
+    [conflict, handleMove]
+  );
+
+  const openFileUrl = async (r2Key: string) => {
+    try {
+      const { url } = await getPresignedUrl(r2Key);
+      if (url) window.open(url, "_blank");
+    } catch {
+      window.open(r2Key, "_blank");
+    }
+  };
+
+  return (
+    <div className={styles.root}>
+      <div className={styles.toolbar}>
+        <Breadcrumb path={breadcrumbPath} onSelect={setCurrentFolderId} />
+        <div className={styles.actions}>
+          <div className={styles.addWrap}>
+            <Button
+              type="button"
+              intent="primary"
+              size="sm"
+              onClick={() => !isLocked && setAddChoiceOpen(true)}
+              disabled={isLocked}
+              title={isLocked ? "Lite 플랜에서는 인벤토리를 사용할 수 없습니다." : undefined}
+            >
+              <FilePlus size={16} style={{ marginRight: 6 }} />
+              추가
+            </Button>
+            {addChoiceOpen && (
+              <>
+                <div className={styles.addBackdrop} onClick={() => setAddChoiceOpen(false)} />
+                <div className={styles.addMenu}>
+                  <button type="button" onClick={() => setAddChoiceOpen(false) || setNewFolderOpen(true)}>
+                    <FolderPlus size={18} /> 폴더 생성
+                  </button>
+                  <button type="button" onClick={() => setAddChoiceOpen(false) || setUploadModalOpen(true)}>
+                    <FilePlus size={18} /> 파일 업로드
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          {hasSelection && (
+            <Button type="button" intent="danger" size="sm" onClick={handleDeleteSelected}>
+              삭제
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className={styles.body}>
+        <aside className={styles.tree}>
+          <FolderTree
+            folders={allFoldersForTree}
+            currentFolderId={currentFolderId}
+            onSelect={setCurrentFolderId}
+          />
+        </aside>
+        <div className={styles.gridWrap}>
+          {isLoading ? (
+            <div className={styles.placeholder}>로딩 중...</div>
+          ) : (
+            <div
+              className={styles.grid}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropTargetFolderId(currentFolderId);
+              }}
+              onDragLeave={() => setDropTargetFolderId(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropTargetFolderId(null);
+                const payload = getDragPayload(e);
+                if (payload && payload.sourceId) {
+                  handleMove(currentFolderId, payload.type, payload.sourceId);
+                }
+              }}
+            >
+              <div
+                className={styles.item + " " + styles.itemAdd + (isLocked ? " " + styles.itemLocked : "")}
+                onClick={() => !isLocked && setAddChoiceOpen(true)}
+                title={isLocked ? "Lite 플랜에서는 사용 불가" : "폴더 또는 파일 추가"}
+              >
+                <FilePlus size={32} />
+                <span>추가</span>
+              </div>
+              {subFolders.map((f) => (
+                <div
+                  key={f.id}
+                  draggable
+                  className={
+                    styles.item +
+                    (selectedFolderIds.has(f.id) ? " " + styles.itemSelected : "") +
+                    (dropTargetFolderId === f.id ? " " + styles.dropTarget : "") +
+                    (movingId === f.id ? " " + styles.itemMoving : "")
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFolderIds((prev) => new Set(prev).add(f.id));
+                    setSelectedFileId(null);
+                  }}
+                  onDoubleClick={() => setCurrentFolderId(f.id)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "folder" as const, sourceId: f.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    setDropTargetFolderId(f.id);
+                  }}
+                  onDragLeave={() => setDropTargetFolderId((id) => (id === f.id ? null : id))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDropTargetFolderId(null);
+                    const payload = getDragPayload(e);
+                    if (payload && payload.sourceId && payload.sourceId !== f.id) {
+                      handleMove(f.id, payload.type, payload.sourceId);
+                    }
+                  }}
+                >
+                  <FolderOpen size={36} />
+                  <span>{f.name}</span>
+                  {movingId === f.id && <span className={styles.movingLabel}>이동 중...</span>}
+                </div>
+              ))}
+              {subFiles.map((file) => (
+                <div
+                  key={file.id}
+                  draggable
+                  className={
+                    styles.item +
+                    (selectedFileId === file.id ? " " + styles.itemSelected : "") +
+                    (movingId === file.id ? " " + styles.itemMoving : "")
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFileId(file.id);
+                    setSelectedFolderIds(new Set());
+                  }}
+                  onDoubleClick={() => openFileUrl(file.r2Key)}
+                  title={file.description || file.displayName}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                >
+                  {file.contentType?.startsWith("image/") ? (
+                    <Image size={36} />
+                  ) : (
+                    <FileText size={36} />
+                  )}
+                  <span>{file.displayName}</span>
+                  {movingId === file.id && <span className={styles.movingLabel}>이동 중...</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {newFolderOpen && (
+        <div className={styles.modalBackdrop} onClick={() => setNewFolderOpen(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <span>폴더 생성</span>
+              <CloseButton onClick={() => setNewFolderOpen(false)} />
+            </div>
+            <div className={styles.modalBody}>
+              <label>폴더 이름</label>
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="이름 입력"
+              />
+            </div>
+            <div className={styles.modalFooter}>
+              <Button size="sm" intent="secondary" onClick={() => setNewFolderOpen(false)}>
+                취소
+              </Button>
+              <Button size="sm" intent="primary" onClick={handleCreateFolder}>
+                생성
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {uploadModalOpen && (
+        <UploadModal
+          onClose={() => setUploadModalOpen(false)}
+          onUpload={handleUpload}
+        />
+      )}
+
+      {conflict && (
+        <MoveDuplicateModal
+          existingName={conflict.existingName}
+          itemType={conflict.type}
+          onOverwrite={() => resolveConflict("overwrite")}
+          onRename={() => resolveConflict("rename")}
+          onCancel={() => setConflict(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function useBreadcrumbPath(
+  folders: InventoryFolder[],
+  folderId: string | null
+): { id: string | null; name: string }[] {
+  const path: { id: string | null; name: string }[] = [{ id: null, name: "내 저장소" }];
+  let currentId: string | null = folderId;
+  const seen = new Set<string>();
+  while (currentId && !seen.has(currentId)) {
+    seen.add(currentId);
+    const folder = folders.find((f) => f.id === currentId);
+    if (!folder) break;
+    path.push({ id: folder.id, name: folder.name });
+    currentId = folder.parentId;
+  }
+  path.reverse();
+  return path;
+}
+
+
+==========================================================================================
+# FILE: components/QuotaIndicator.module.css
+==========================================================================================
+.root {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  font-size: 13px;
+}
+
+.label {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.value {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.bar {
+  flex: 1;
+  max-width: 200px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-bg-surface-hover);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-brand-primary);
+  transition: width 0.2s;
+}
+
+.barOver {
+  background: var(--color-danger, #c62828);
+}
+
+
+==========================================================================================
+# FILE: components/QuotaIndicator.tsx
+==========================================================================================
+// PATH: src/features/storage/components/QuotaIndicator.tsx
+// 전체 테넌트 사용량 표시 (예: 4.2GB / 10GB)
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchStorageQuota } from "../api/storage.api";
+import styles from "./QuotaIndicator.module.css";
+
+type QuotaIndicatorProps = {
+  className?: string;
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)}GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)}MB`;
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)}KB`;
+  return `${bytes}B`;
+}
+
+export default function QuotaIndicator({ className }: QuotaIndicatorProps) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["storage-quota"],
+    queryFn: fetchStorageQuota,
+    staleTime: 60 * 1000,
+  });
+
+  if (isLoading || !data) {
+    return (
+      <div className={[styles.root, className].filter(Boolean).join(" ")}>
+        <span className={styles.label}>사용량</span>
+        <span className={styles.value}>—</span>
+      </div>
+    );
+  }
+
+  const { usedBytes, limitBytes, plan } = data;
+  const pct = limitBytes > 0 ? Math.min(100, (usedBytes / limitBytes) * 100) : 0;
+  const isLite = plan === "lite";
+  const isOver = limitBytes > 0 && usedBytes >= limitBytes;
+
+  return (
+    <div className={[styles.root, className].filter(Boolean).join(" ")}>
+      <span className={styles.label}>전체 테넌트 사용량</span>
+      <span className={styles.value}>
+        {formatBytes(usedBytes)} / {isLite ? "—" : formatBytes(limitBytes)}
+      </span>
+      {!isLite && limitBytes > 0 && (
+        <div className={styles.bar}>
+          <div
+            className={[styles.barFill, isOver ? styles.barOver : ""].filter(Boolean).join(" ")}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentInventoryManage.module.css
+==========================================================================================
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 300px;
+}
+
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  max-width: 400px;
+}
+
+.searchIcon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.placeholder {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: none;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.name {
+  font-weight: 600;
+  flex: 1;
+}
+
+.ps {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.backBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.backBtn {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.backBtn:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+.psLabel {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+
+==========================================================================================
+# FILE: components/StudentInventoryManage.tsx
+==========================================================================================
+// PATH: src/features/storage/components/StudentInventoryManage.tsx
+// 학생 인벤토리 관리 — 이름/PS 검색 후 해당 학생 인벤토리 진입
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Search, FolderOpen } from "lucide-react";
+import { fetchStudents } from "@/features/students/api/students";
+import type { ClientStudent } from "@/features/students/api/students";
+import StudentStorageExplorer from "./StudentStorageExplorer";
+import styles from "./StudentInventoryManage.module.css";
+
+type StudentInventoryManageProps = {
+  initialStudentPs?: string;
+  onOpenStudent?: (ps: string) => void;
+};
+
+export default function StudentInventoryManage({
+  initialStudentPs,
+  onOpenStudent,
+}: StudentInventoryManageProps) {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [selectedPs, setSelectedPs] = useState<string | null>(initialStudentPs ?? null);
+
+  useEffect(() => {
+    setSelectedPs(initialStudentPs ?? null);
+  }, [initialStudentPs]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["storage-student-search", debouncedSearch],
+    queryFn: () => fetchStudents(debouncedSearch, {}, "", 1, false),
+    enabled: debouncedSearch.length >= 1,
+  });
+
+  const students = data?.data ?? [];
+  const showExplorer = selectedPs != null;
+
+  const handleSelectStudent = (student: ClientStudent) => {
+    setSelectedPs(student.psNumber);
+    onOpenStudent?.(student.psNumber);
+    navigate(`/admin/storage/student/${student.psNumber}`, { replace: true });
+  };
+
+  const handleBack = () => {
+    setSelectedPs(null);
+    navigate("/admin/storage", { replace: true });
+  };
+
+  if (showExplorer) {
+    return (
+      <div className={styles.root}>
+        <div className={styles.backBar}>
+          <button type="button" className={styles.backBtn} onClick={handleBack}>
+            ← 목록으로
+          </button>
+          <span className={styles.psLabel}>학생 PS: {selectedPs}</span>
+        </div>
+        <StudentStorageExplorer studentPs={selectedPs} />
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.root}>
+      <div className={styles.searchWrap}>
+        <Search size={20} className={styles.searchIcon} />
+        <input
+          type="text"
+          className={styles.searchInput}
+          placeholder="학생 이름 또는 PS번호로 검색"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      {debouncedSearch.length < 1 ? (
+        <div className={styles.placeholder}>
+          학생 이름이나 PS번호를 입력하면 해당 학생의 인벤토리로 이동할 수 있습니다.
+        </div>
+      ) : isLoading ? (
+        <div className={styles.placeholder}>검색 중...</div>
+      ) : students.length === 0 ? (
+        <div className={styles.placeholder}>검색 결과가 없습니다.</div>
+      ) : (
+        <ul className={styles.list}>
+          {students.slice(0, 50).map((s) => (
+            <li key={s.id}>
+              <button
+                type="button"
+                className={styles.row}
+                onClick={() => handleSelectStudent(s)}
+              >
+                <FolderOpen size={18} />
+                <span className={styles.name}>{s.name}</span>
+                <span className={styles.ps}>{s.psNumber}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentStorageExplorer.tsx
+==========================================================================================
+// PATH: src/features/storage/components/StudentStorageExplorer.tsx
+// 학생 인벤토리 — 동일한 파일 탐색기 UI, scope=student
+
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FolderOpen, FileText, Image, FilePlus, FolderPlus } from "lucide-react";
+import { Button, CloseButton } from "@/shared/ui/ds";
+import {
+  fetchInventoryList,
+  createFolder,
+  uploadFile,
+  deleteFolder,
+  deleteFile,
+  getPresignedUrl,
+  moveInventoryItem,
+  type InventoryFolder,
+  type InventoryFile,
+  type MoveConflictError,
+} from "../api/storage.api";
+import Breadcrumb from "./Breadcrumb";
+import FolderTree from "./FolderTree";
+import UploadModal from "./UploadModal";
+import MoveDuplicateModal from "./MoveDuplicateModal";
+import styles from "./MyStorageExplorer.module.css";
+
+const DRAG_TYPE = "application/x-storage-move";
+
+function getDragPayload(e: React.DragEvent): { type: "file" | "folder"; sourceId: string } | null {
+  try {
+    const raw = e.dataTransfer.getData(DRAG_TYPE);
+    return raw ? (JSON.parse(raw) as { type: "file" | "folder"; sourceId: string }) : null;
+  } catch {
+    return null;
+  }
+}
+
+const SCOPE = "student" as const;
+
+type StudentStorageExplorerProps = {
+  studentPs: string;
+};
+
+export default function StudentStorageExplorer({ studentPs }: StudentStorageExplorerProps) {
+  const qc = useQueryClient();
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [addChoiceOpen, setAddChoiceOpen] = useState(false);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{
+    type: "file" | "folder";
+    sourceId: string;
+    targetFolderId: string | null;
+    existingName: string;
+  } | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["storage-inventory", SCOPE, studentPs],
+    queryFn: () => fetchInventoryList(SCOPE, studentPs),
+  });
+
+  const folders = data?.folders ?? [];
+  const files = data?.files ?? [];
+  const subFolders = folders.filter((f) => f.parentId === currentFolderId);
+  const subFiles = files.filter((f) => (f.folderId ?? null) === currentFolderId);
+  const breadcrumbPath = useBreadcrumbPath(folders, currentFolderId);
+
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim()) return;
+    try {
+      await createFolder(SCOPE, currentFolderId, newFolderName.trim(), studentPs);
+      qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
+      setNewFolderName("");
+      setNewFolderOpen(false);
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  }, [currentFolderId, newFolderName, studentPs, qc]);
+
+  const handleUpload = useCallback(
+    async (payload: { displayName: string; description: string; icon: string; file: File }) => {
+      try {
+        await uploadFile({
+          scope: SCOPE,
+          folderId: currentFolderId,
+          displayName: payload.displayName,
+          description: payload.description,
+          icon: payload.icon,
+          file: payload.file,
+          studentPs,
+        });
+        qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
+        setUploadModalOpen(false);
+      } catch (e) {
+        alert((e as Error).message);
+      }
+    },
+    [currentFolderId, studentPs, qc]
+  );
+
+  const handleDeleteSelected = useCallback(async () => {
+    for (const id of selectedFolderIds) {
+      try {
+        await deleteFolder(SCOPE, id, studentPs);
+      } catch (e) {
+        alert((e as Error).message);
+        return;
+      }
+    }
+    if (selectedFileId) {
+      try {
+        await deleteFile(SCOPE, selectedFileId, studentPs);
+      } catch (e) {
+        alert((e as Error).message);
+        return;
+      }
+    }
+    qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
+    setSelectedFolderIds(new Set());
+    setSelectedFileId(null);
+  }, [selectedFolderIds, selectedFileId, studentPs, qc]);
+
+  const hasSelection = selectedFolderIds.size > 0 || selectedFileId != null;
+
+  const handleMove = useCallback(
+    async (
+      targetFolderId: string | null,
+      type: "file" | "folder",
+      sourceId: string,
+      onDuplicate?: "overwrite" | "rename"
+    ) => {
+      setMovingId(sourceId);
+      const prev = qc.getQueryData<{ folders: InventoryFolder[]; files: InventoryFile[] }>([
+        "storage-inventory",
+        SCOPE,
+        studentPs,
+      ]);
+      const applyOptimistic = () => {
+        if (!prev) return;
+        if (type === "file") {
+          const files = prev.files.map((f) =>
+            f.id === sourceId ? { ...f, folderId: targetFolderId } : f
+          );
+          qc.setQueryData(["storage-inventory", SCOPE, studentPs], { ...prev, files });
+        } else {
+          const folders = prev.folders.map((f) =>
+            f.id === sourceId ? { ...f, parentId: targetFolderId } : f
+          );
+          qc.setQueryData(["storage-inventory", SCOPE, studentPs], { ...prev, folders });
+        }
+      };
+      applyOptimistic();
+      try {
+        await moveInventoryItem({
+          scope: SCOPE,
+          type,
+          sourceId,
+          targetFolderId,
+          studentPs,
+          onDuplicate,
+        });
+        await qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
+      } catch (e) {
+        if (prev) qc.setQueryData(["storage-inventory", SCOPE, studentPs], prev);
+        const ce = e as MoveConflictError & Error;
+        if (ce.status === 409 && ce.code === "duplicate") {
+          setConflict({
+            type,
+            sourceId,
+            targetFolderId,
+            existingName: ce.existing_name || "항목",
+          });
+        } else {
+          alert(ce?.message ?? "이동에 실패했습니다.");
+        }
+      } finally {
+        setMovingId(null);
+      }
+    },
+    [qc, studentPs]
+  );
+
+  const resolveConflict = useCallback(
+    (choice: "overwrite" | "rename") => {
+      if (!conflict) return;
+      const { targetFolderId, type, sourceId } = conflict;
+      setConflict(null);
+      handleMove(targetFolderId, type, sourceId, choice);
+    },
+    [conflict, handleMove]
+  );
+
+  const openFileUrl = async (r2Key: string) => {
+    try {
+      const { url } = await getPresignedUrl(r2Key);
+      if (url) window.open(url, "_blank");
+    } catch {
+      window.open(r2Key, "_blank");
+    }
+  };
+
+  return (
+    <div className={styles.root}>
+      <div className={styles.toolbar}>
+        <Breadcrumb path={breadcrumbPath} onSelect={setCurrentFolderId} />
+        <div className={styles.actions}>
+          <div className={styles.addWrap}>
+            <Button type="button" intent="primary" size="sm" onClick={() => setAddChoiceOpen(true)}>
+              <FilePlus size={16} style={{ marginRight: 6 }} />
+              추가
+            </Button>
+            {addChoiceOpen && (
+              <>
+                <div className={styles.addBackdrop} onClick={() => setAddChoiceOpen(false)} />
+                <div className={styles.addMenu}>
+                  <button type="button" onClick={() => setAddChoiceOpen(false) || setNewFolderOpen(true)}>
+                    <FolderPlus size={18} /> 폴더 생성
+                  </button>
+                  <button type="button" onClick={() => setAddChoiceOpen(false) || setUploadModalOpen(true)}>
+                    <FilePlus size={18} /> 파일 업로드
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          {hasSelection && (
+            <Button type="button" intent="danger" size="sm" onClick={handleDeleteSelected}>
+              삭제
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className={styles.body}>
+        <aside className={styles.tree}>
+          <FolderTree
+            folders={folders}
+            currentFolderId={currentFolderId}
+            onSelect={setCurrentFolderId}
+          />
+        </aside>
+        <div className={styles.gridWrap}>
+          {isLoading ? (
+            <div className={styles.placeholder}>로딩 중...</div>
+          ) : (
+            <div
+              className={styles.grid}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropTargetFolderId(currentFolderId);
+              }}
+              onDragLeave={() => setDropTargetFolderId(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropTargetFolderId(null);
+                const payload = getDragPayload(e);
+                if (payload && payload.sourceId) {
+                  handleMove(currentFolderId, payload.type, payload.sourceId);
+                }
+              }}
+            >
+              <div
+                className={styles.item + " " + styles.itemAdd}
+                onClick={() => setAddChoiceOpen(true)}
+                title="폴더 또는 파일 추가"
+              >
+                <FilePlus size={32} />
+                <span>추가</span>
+              </div>
+              {subFolders.map((f) => (
+                <div
+                  key={f.id}
+                  draggable
+                  className={
+                    styles.item +
+                    (selectedFolderIds.has(f.id) ? " " + styles.itemSelected : "") +
+                    (dropTargetFolderId === f.id ? " " + styles.dropTarget : "") +
+                    (movingId === f.id ? " " + styles.itemMoving : "")
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFolderIds((prev) => new Set(prev).add(f.id));
+                    setSelectedFileId(null);
+                  }}
+                  onDoubleClick={() => setCurrentFolderId(f.id)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "folder" as const, sourceId: f.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    setDropTargetFolderId(f.id);
+                  }}
+                  onDragLeave={() => setDropTargetFolderId((id) => (id === f.id ? null : id))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDropTargetFolderId(null);
+                    const payload = getDragPayload(e);
+                    if (payload && payload.sourceId && payload.sourceId !== f.id) {
+                      handleMove(f.id, payload.type, payload.sourceId);
+                    }
+                  }}
+                >
+                  <FolderOpen size={36} />
+                  <span>{f.name}</span>
+                  {movingId === f.id && <span className={styles.movingLabel}>이동 중...</span>}
+                </div>
+              ))}
+              {subFiles.map((file) => (
+                <div
+                  key={file.id}
+                  draggable
+                  className={
+                    styles.item +
+                    (selectedFileId === file.id ? " " + styles.itemSelected : "") +
+                    (movingId === file.id ? " " + styles.itemMoving : "")
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedFileId(file.id);
+                    setSelectedFolderIds(new Set());
+                  }}
+                  onDoubleClick={() => openFileUrl(file.r2Key)}
+                  title={file.description || file.displayName}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                >
+                  {file.contentType?.startsWith("image/") ? (
+                    <Image size={36} />
+                  ) : (
+                    <FileText size={36} />
+                  )}
+                  <span>{file.displayName}</span>
+                  {movingId === file.id && <span className={styles.movingLabel}>이동 중...</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {newFolderOpen && (
+        <div className={styles.modalBackdrop} onClick={() => setNewFolderOpen(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <span>폴더 생성</span>
+              <CloseButton onClick={() => setNewFolderOpen(false)} />
+            </div>
+            <div className={styles.modalBody}>
+              <label>폴더 이름</label>
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="이름 입력"
+              />
+            </div>
+            <div className={styles.modalFooter}>
+              <Button size="sm" intent="secondary" onClick={() => setNewFolderOpen(false)}>
+                취소
+              </Button>
+              <Button size="sm" intent="primary" onClick={handleCreateFolder}>
+                생성
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {uploadModalOpen && (
+        <UploadModal onClose={() => setUploadModalOpen(false)} onUpload={handleUpload} />
+      )}
+
+      {conflict && (
+        <MoveDuplicateModal
+          existingName={conflict.existingName}
+          itemType={conflict.type}
+          onOverwrite={() => resolveConflict("overwrite")}
+          onRename={() => resolveConflict("rename")}
+          onCancel={() => setConflict(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function useBreadcrumbPath(
+  folders: InventoryFolder[],
+  folderId: string | null
+): { id: string | null; name: string }[] {
+  const path: { id: string | null; name: string }[] = [{ id: null, name: "인벤토리" }];
+  let currentId: string | null = folderId;
+  const seen = new Set<string>();
+  while (currentId && !seen.has(currentId)) {
+    seen.add(currentId);
+    const folder = folders.find((f) => f.id === currentId);
+    if (!folder) break;
+    path.push({ id: folder.id, name: folder.name });
+    currentId = folder.parentId;
+  }
+  path.reverse();
+  return path;
+}
+
+
+==========================================================================================
+# FILE: components/UploadModal.module.css
+==========================================================================================
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.4);
+}
+
+.modal {
+  width: 90%;
+  max-width: 440px;
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.body {
+  padding: var(--space-4);
+}
+
+.field {
+  margin-bottom: var(--space-4);
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.field input[type="text"],
+.field textarea {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  font-size: 13px;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 56px;
+}
+
+.iconGrid {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.iconBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.iconBtn:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+  color: var(--color-text-primary);
+}
+
+.iconBtnActive {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  border: 0;
+}
+
+
+==========================================================================================
+# FILE: components/UploadModal.tsx
+==========================================================================================
+// PATH: src/features/storage/components/UploadModal.tsx
+// 파일 업로드 모달 — 제목, 설명, 아이콘(Lucide), 파일 선택
+
+import { useState, useRef } from "react";
+import { FileText, Image, File } from "lucide-react";
+import { Button, CloseButton } from "@/shared/ui/ds";
+import { compressImageToWebP } from "../utils/imageCompress";
+import styles from "./UploadModal.module.css";
+
+const ICON_OPTIONS = [
+  { id: "file-text", label: "문서", Icon: FileText },
+  { id: "image", label: "이미지", Icon: Image },
+  { id: "file", label: "파일", Icon: File },
+] as const;
+
+type UploadPayload = {
+  displayName: string;
+  description: string;
+  icon: string;
+  file: File;
+};
+
+type UploadModalProps = {
+  onClose: () => void;
+  onUpload: (payload: UploadPayload) => Promise<void>;
+};
+
+export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
+  const [displayName, setDisplayName] = useState("");
+  const [description, setDescription] = useState("");
+  const [icon, setIcon] = useState<string>("file-text");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.type.startsWith("image/")) {
+      try {
+        const compressed = await compressImageToWebP(f);
+        setFile(compressed);
+      } catch {
+        setFile(f);
+      }
+    } else {
+      setFile(f);
+    }
+    if (!displayName) setDisplayName(f.name.replace(/\.[^.]+$/, "") || f.name);
+    e.target.value = "";
+  };
+
+  const handleSubmit = async () => {
+    if (!file) {
+      alert("파일을 선택해 주세요.");
+      return;
+    }
+    setUploading(true);
+    try {
+      await onUpload({
+        displayName: displayName.trim() || file.name,
+        description,
+        icon,
+        file,
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className={styles.backdrop} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.header}>
+          <span>파일 업로드</span>
+          <CloseButton onClick={onClose} />
+        </div>
+        <div className={styles.body}>
+          <div className={styles.field}>
+            <label>제목</label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="제목"
+            />
+          </div>
+          <div className={styles.field}>
+            <label>설명</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="설명 (선택)"
+              rows={2}
+            />
+          </div>
+          <div className={styles.field}>
+            <label>아이콘</label>
+            <div className={styles.iconGrid}>
+              {ICON_OPTIONS.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={styles.iconBtn + (icon === id ? " " + styles.iconBtnActive : "")}
+                  onClick={() => setIcon(id)}
+                  title={label}
+                >
+                  <Icon size={24} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className={styles.field}>
+            <label>파일</label>
+            <input
+              ref={inputRef}
+              type="file"
+              className={styles.srOnly}
+              onChange={handleFileChange}
+              aria-hidden
+            />
+            <Button
+              type="button"
+              size="sm"
+              intent="secondary"
+              onClick={() => inputRef.current?.click()}
+            >
+              {file ? file.name : "파일 선택"}
+            </Button>
+          </div>
+        </div>
+        <div className={styles.footer}>
+          <Button size="sm" intent="secondary" onClick={onClose}>
+            취소
+          </Button>
+          <Button
+            size="sm"
+            intent="primary"
+            onClick={handleSubmit}
+            disabled={!file || uploading}
+          >
+            {uploading ? "업로드 중…" : "업로드"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/StoragePage.tsx
+==========================================================================================
+// PATH: src/features/storage/pages/StoragePage.tsx
+// 저장소 통합 — 뷰 스위처: 내 저장소(선생님) | 학생 인벤토리 관리
+
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import DomainLayout from "@/shared/ui/domain/DomainLayout";
+import MyStorageExplorer from "../components/MyStorageExplorer";
+import StudentInventoryManage from "../components/StudentInventoryManage";
+import QuotaIndicator from "../components/QuotaIndicator";
+import sharedStyles from "@/shared/ui/domain/StorageStyleTabs.module.css";
+
+type StorageTab = "mine" | "students";
+
+export default function StoragePage() {
+  const { studentPs } = useParams<{ studentPs?: string }>();
+  const [tab, setTab] = useState<StorageTab>(studentPs ? "students" : "mine");
+  useEffect(() => {
+    if (studentPs) setTab("students");
+  }, [studentPs]);
+
+  return (
+    <DomainLayout
+      title="저장소"
+      description="선생님 파일과 학생 인벤토리를 통합 관리합니다."
+    >
+      <div className={sharedStyles.wrap}>
+        {/* 뷰 스위처 */}
+        <div className={sharedStyles.tabs}>
+          <button
+            type="button"
+            className={sharedStyles.tab + (tab === "mine" ? " " + sharedStyles.tabActive : "")}
+            onClick={() => setTab("mine")}
+          >
+            내 저장소(선생님)
+          </button>
+          <button
+            type="button"
+            className={sharedStyles.tab + (tab === "students" ? " " + sharedStyles.tabActive : "")}
+            onClick={() => setTab("students")}
+          >
+            학생 인벤토리 관리
+          </button>
+        </div>
+
+        {/* 용량 인디케이터 */}
+        <div style={{ flexShrink: 0 }}>
+          <QuotaIndicator />
+        </div>
+
+        {/* 탭 콘텐츠 */}
+        {tab === "mine" && <MyStorageExplorer />}
+        {tab === "students" && (
+          <StudentInventoryManage
+            initialStudentPs={studentPs ?? undefined}
+            onOpenStudent={() => setTab("students")}
+          />
+        )}
+      </div>
+    </DomainLayout>
+  );
+}
+
+
+==========================================================================================
+# FILE: utils/imageCompress.ts
+==========================================================================================
+// PATH: src/features/storage/utils/imageCompress.ts
+// 이미지 WebP 압축 (브라우저 단)
+
+const DEFAULT_QUALITY = 0.85;
+const MAX_WIDTH = 1920;
+const MAX_HEIGHT = 1920;
+
+/**
+ * 이미지 파일을 WebP로 압축하여 Blob 반환.
+ * 지원 불가 시 원본 반환.
+ */
+export async function compressImageToWebP(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      let { width, height } = img;
+      if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+        const r = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+        width = Math.round(width * r);
+        height = Math.round(height * r);
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
+          }
+          const name = file.name.replace(/\.[^.]+$/, "") + ".webp";
+          resolve(new File([blob], name, { type: "image/webp" }));
+        },
+        "image/webp",
+        DEFAULT_QUALITY
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+    img.src = url;
+  });
+}

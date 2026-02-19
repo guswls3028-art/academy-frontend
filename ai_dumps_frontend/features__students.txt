@@ -1,0 +1,4483 @@
+====================================================================================================
+# FRONTEND FOLDER: features__students
+# ROOT PATH: C:\academyfront\src\features\students
+====================================================================================================
+
+
+==========================================================================================
+# FILE: StudentsLayout.tsx
+==========================================================================================
+// PATH: src/features/students/StudentsLayout.tsx
+import { Outlet } from "react-router-dom";
+import { DomainLayout } from "@/shared/ui/layout";
+
+const STUDENTS_TABS = [
+  { key: "home", label: "홈", path: "/admin/students/home" },
+  { key: "deleted", label: "삭제된 학생", path: "/admin/students/deleted" },
+];
+
+export default function StudentsLayout() {
+  return (
+    <DomainLayout
+      title="학생 관리"
+      description="학생 추가 · 학교 성적 · 상담"
+      tabs={STUDENTS_TABS}
+    >
+      <Outlet />
+    </DomainLayout>
+  );
+}
+
+
+==========================================================================================
+# FILE: StudentsRoutes.tsx
+==========================================================================================
+// PATH: src/features/students/StudentsRoutes.tsx
+import { Routes, Route, Navigate } from "react-router-dom";
+
+import StudentsLayout from "./StudentsLayout";
+
+import StudentsHomePage from "./pages/StudentsHomePage";
+import StudentsHistoryPage from "./pages/StudentsHistoryPage";
+import StudentsScoresPage from "./pages/StudentsScoresPage";
+import StudentDetailOverlay from "./overlays/StudentDetailOverlay";
+
+export default function StudentsRoutes() {
+  return (
+    <Routes>
+      <Route element={<StudentsLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<StudentsHomePage />} />
+        <Route path="history" element={<StudentsHistoryPage />} />
+        <Route path="scores" element={<StudentsScoresPage />} />
+      </Route>
+
+      {/* 학생 상세는 Overlay (직원과 동일 패턴) */}
+      <Route path=":studentId/*" element={<StudentDetailOverlay />} />
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: api/students.ts
+==========================================================================================
+// PATH: src/features/students/api/students.ts
+import api from "@/shared/api/axios";
+
+/* ===============================
+ * Types
+ * =============================== */
+
+export interface ClientStudentTag {
+  id: number;
+  name: string;
+  color: string;
+}
+
+export interface ClientEnrollmentLite {
+  id: number;
+  lectureName: string | null;
+  lectureColor: string | null;
+}
+
+export interface ClientStudent {
+  id: number;
+  name: string;
+  /** 학생앱에서 업로드한 프로필 사진 URL (없으면 null) */
+  profilePhotoUrl?: string | null;
+
+  psNumber: string;
+  omrCode: string;
+
+  studentPhone: string | null;
+  parentPhone: string | null;
+  /** True면 식별자로 가입, 표시 시 "식별자 XXXX-XXXX" */
+  usesIdentifier?: boolean;
+
+  school: string | null;
+  schoolClass: string | null;
+  major: string | null;
+
+  grade: number | null;
+  gender: string | null;
+
+  registeredAt: string | null;
+  active: boolean;
+  memo?: string | null;
+
+  schoolType: "MIDDLE" | "HIGH" | null;
+
+  tags: ClientStudentTag[];
+  enrollments: ClientEnrollmentLite[];
+  deletedAt?: string | null;
+}
+
+export interface StudentTag {
+  id: number;
+  name: string;
+  color: string;
+}
+
+/* ===============================
+ * Mapper
+ * =============================== */
+
+function safeStr(v: any): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+export function mapStudent(item: any): ClientStudent {
+  const phone = item?.phone ?? null;
+  const omrCode = item?.omr_code ?? "";
+
+  // 🔧 변경: UI에는 항상 phone만 전달
+  const displayPhone = phone ?? null;
+
+  const schoolType: "MIDDLE" | "HIGH" | null =
+    item?.school_type ??
+    (item?.middle_school ? "MIDDLE" : item?.high_school ? "HIGH" : null);
+
+  return {
+    id: Number(item?.id),
+    name: safeStr(item?.name),
+    profilePhotoUrl: item?.profile_photo_url ?? null,
+
+    psNumber: safeStr(item?.ps_number),
+    omrCode: safeStr(omrCode),
+
+    studentPhone: displayPhone ?? null,
+    parentPhone: item?.parent_phone ?? null,
+    usesIdentifier: !!item?.uses_identifier,
+
+    school: item?.high_school ?? item?.middle_school ?? null,
+    schoolClass: item?.high_school_class ?? null,
+    major: item?.major ?? null,
+
+    grade: item?.grade ?? null,
+    gender: item?.gender ?? null,
+
+    registeredAt: item?.created_at ?? null,
+    active: item?.is_managed ?? false,
+    memo: item?.memo ?? null,
+
+    schoolType,
+
+    tags: Array.isArray(item?.tags)
+      ? item.tags.map((t: any) => ({
+          id: Number(t?.id),
+          name: safeStr(t?.name),
+          color: safeStr(t?.color),
+        }))
+      : [],
+
+    enrollments: Array.isArray(item?.enrollments)
+      ? item.enrollments.map((en: any) => ({
+          id: Number(en?.id),
+          lectureName: en?.lecture_name ?? null,
+          lectureColor: en?.lecture_color ?? "#3b82f6",
+          lectureChipLabel: en?.lecture_chip_label ?? null,
+        }))
+      : [],
+    deletedAt: item?.deleted_at ?? null,
+  };
+}
+
+/* ===============================
+ * Ordering (server-side friendly)
+ * =============================== */
+
+const ORDERING_MAP: Record<string, string> = {
+  name: "name",
+  registeredAt: "created_at",
+  deletedAt: "deleted_at",
+  active: "is_managed",
+  psNumber: "ps_number",
+  studentPhone: "phone",
+  parentPhone: "parent_phone",
+  school: "high_school",
+  schoolClass: "high_school_class",
+  grade: "grade",
+  gender: "gender",
+};
+
+function buildOrdering(sort: string): string | undefined {
+  if (!sort) return undefined;
+
+  const isDesc = sort.startsWith("-");
+  const key = isDesc ? sort.slice(1) : sort;
+
+  const mapped = ORDERING_MAP[key];
+  if (!mapped) return undefined;
+
+  return isDesc ? `-${mapped}` : mapped;
+}
+
+/* ===============================
+ * List / Detail
+ * =============================== */
+
+export async function fetchStudents(
+  search: string,
+  filters: any = {},
+  sort: string = "",
+  page: number = 1,
+  deleted: boolean = false
+): Promise<{ data: ReturnType<typeof mapStudent>[]; count: number }> {
+  const ordering = buildOrdering(sort);
+
+  const params: Record<string, unknown> = {
+    search: search || undefined,
+    ...filters,
+    ordering: ordering || undefined,
+    page,
+    deleted: deleted ? "true" : undefined,
+  };
+  // 목록 필터: 백엔드에 반드시 전달 (school_type, grade)
+  if (filters.school_type != null && String(filters.school_type).trim() !== "") {
+    params.school_type = filters.school_type;
+  }
+  if (filters.grade != null && Number.isInteger(Number(filters.grade))) {
+    params.grade = Number(filters.grade);
+  }
+
+  const res = await api.get("/students/", { params: params as any });
+
+  const items = Array.isArray(res.data?.results)
+    ? res.data.results
+    : Array.isArray(res.data)
+    ? res.data
+    : [];
+  const count = typeof res.data?.count === "number" ? res.data.count : items.length;
+  const pageSize = typeof res.data?.page_size === "number" ? res.data.page_size : 50;
+
+  return {
+    data: items.map(mapStudent),
+    count,
+    pageSize,
+  };
+}
+
+export async function getStudentDetail(id: number) {
+  const res = await api.get(`/students/${id}/`);
+  return mapStudent(res.data);
+}
+
+/* ===============================
+ * CREATE
+ * =============================== */
+
+/** 전화번호를 백엔드 스펙(정규화: 숫자만 11자리)으로 정규화 */
+function normalizePhone(v: string): string {
+  return String(v ?? "").replace(/\D/g, "").slice(0, 11);
+}
+
+export async function createStudent(form: any) {
+  const name = safeStr(form?.name).trim();
+  const initialPassword = safeStr(form?.initialPassword).trim();
+
+  const studentPhoneRaw = safeStr(form?.studentPhone).trim();
+  const parentPhoneRaw = safeStr(form?.parentPhone).trim();
+  const parentPhone = normalizePhone(parentPhoneRaw);
+  const noPhone = !studentPhoneRaw;
+
+  const phone = noPhone
+    ? (parentPhone.length >= 8 ? `010${parentPhone.slice(-8)}` : "")
+    : normalizePhone(studentPhoneRaw);
+
+  const payload: Record<string, unknown> = {
+    name,
+    initial_password: initialPassword,
+    parent_phone: parentPhone,
+    school_type: form?.schoolType ?? "HIGH",
+    high_school: form?.schoolType === "HIGH" ? (form?.school?.trim() || null) : null,
+    middle_school: form?.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null,
+    high_school_class: form?.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null,
+    major: form?.schoolType === "HIGH" ? (form?.major?.trim() || null) : null,
+    grade: form?.grade ? Number(form.grade) : null,
+    gender: form?.gender || null,
+    memo: form?.memo?.trim() || null,
+    is_managed: !!form?.active,
+    send_welcome_message: !!form?.sendWelcomeMessage,
+    no_phone: noPhone,
+  };
+
+  if (phone) {
+    (payload as any).phone = phone;
+    (payload as any).omr_code = phone.slice(-8);
+  }
+
+  const psNumber = safeStr(form?.psNumber).trim();
+  if (psNumber) (payload as any).ps_number = psNumber;
+
+  const res = await api.post("/students/", payload);
+  return mapStudent(res.data);
+}
+
+/** 엑셀 일괄 등록 (600명+ 대량 업로드) */
+export async function bulkCreateStudents(
+  initialPassword: string,
+  students: Array<{
+    name: string;
+    phone: string;
+    parentPhone: string;
+    usesIdentifier?: boolean;
+    gender?: string | null;
+    schoolType?: "HIGH" | "MIDDLE";
+    school?: string | null;
+    grade?: number | null;
+    schoolClass?: string | null;
+    major?: string | null;
+    memo?: string | null;
+  }>,
+  sendWelcomeMessage = false
+) {
+  const payload = {
+    initial_password: initialPassword,
+    send_welcome_message: sendWelcomeMessage,
+    students: students.map((s) => ({
+      name: s.name.trim(),
+      phone: String(s.phone || "").replace(/\D/g, ""),
+      parent_phone: String(s.parentPhone || "").replace(/\D/g, ""),
+      uses_identifier: !!s.usesIdentifier,
+      gender: s.gender || "",
+      school_type: s.schoolType || "HIGH",
+      school: s.school || "",
+      high_school_class: s.schoolClass || "",
+      major: s.major || "",
+      grade: s.grade ?? null,
+      memo: s.memo || "",
+      is_managed: true,
+    })),
+  };
+  const res = await api.post("/students/bulk_create/", payload, { timeout: 120_000 });
+  return res.data as { created: number; failed: Array<{ row: number; name: string; error: string }>; total: number };
+}
+
+/** 학생 엑셀 일괄 등록 — 워커 전담. 파일 업로드 → excel_parsing job → 폴링으로 완료 대기 */
+export async function uploadStudentBulkFromExcel(
+  file: File,
+  initialPassword: string
+): Promise<{ job_id: string; status: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("initial_password", initialPassword);
+  const res = await api.post("/students/bulk_create_from_excel/", form, {
+    headers: { "Content-Type": undefined } as Record<string, unknown>,
+  });
+  return res.data as { job_id: string; status: string };
+}
+
+/* ===============================
+ * UPDATE
+ * =============================== */
+
+export async function updateStudent(id: number, form: any) {
+  const payload: any = {
+    grade: form?.grade ? Number(form.grade) : null,
+    gender: form?.gender ?? null,
+    memo: form?.memo ?? null,
+    is_managed: !!form?.active,
+  };
+
+  if (form?.parentPhone !== undefined) {
+    payload.parent_phone = normalizePhone(String(form.parentPhone));
+  }
+  if (form?.studentPhone !== undefined || form?.noPhone === true) {
+    const p =
+      form?.noPhone === true
+        ? (form?.omrCode ? `010${normalizePhone(String(form.omrCode)).slice(-8)}` : null)
+        : form?.studentPhone
+          ? normalizePhone(String(form.studentPhone))
+          : null;
+    payload.phone = p || null;
+    if (p) payload.omr_code = p.slice(-8);
+  }
+
+  if (form?.psNumber !== undefined) {
+    payload.ps_number = safeStr(form?.psNumber).trim();
+  }
+
+  if (form?.schoolType) {
+    payload.school_type = form.schoolType;
+    payload.high_school = form.schoolType === "HIGH" ? (form?.school?.trim() || null) : null;
+    payload.middle_school = form.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null;
+    payload.high_school_class =
+      form.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null;
+    payload.major = form.schoolType === "HIGH" ? (form?.major?.trim() || null) : null;
+  }
+
+  const res = await api.patch(`/students/${id}/`, payload);
+  return mapStudent(res.data);
+}
+
+/* ===============================
+ * TOGGLE ACTIVE
+ * =============================== */
+
+export async function toggleStudentActive(id: number, nextActive: boolean) {
+  const res = await api.patch(`/students/${id}/`, {
+    is_managed: nextActive,
+  });
+  return mapStudent(res.data);
+}
+
+/* ===============================
+ * DELETE
+ * =============================== */
+
+export async function deleteStudent(id: number) {
+  await api.delete(`/students/${id}/`);
+  return true;
+}
+
+/** 선택 학생 일괄 소프트 삭제 (30일 보관) */
+export async function bulkDeleteStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_delete/", { ids });
+  return res.data as { deleted: number };
+}
+
+/** 삭제된 학생 일괄 복원 */
+export async function bulkRestoreStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_restore/", { ids });
+  return res.data as { restored: number };
+}
+
+/** 삭제된 학생 즉시 영구 삭제 */
+export async function bulkPermanentDeleteStudents(ids: number[]) {
+  const res = await api.post("/students/bulk_permanent_delete/", { ids });
+  return res.data as { deleted: number };
+}
+
+/** 삭제된 학생 중 (이름+학부모전화) 중복 검사 — 고객 셀프 복구용 */
+export async function checkDeletedStudentDuplicates() {
+  const res = await api.get("/students/deleted_duplicates_check/");
+  return res.data as { duplicate_groups: number; records_to_remove: number };
+}
+
+/** 삭제된 학생 중복 정리 — 그룹당 1명만 유지, 나머지 영구 삭제 */
+export async function fixDeletedStudentDuplicates() {
+  const res = await api.post("/students/deleted_duplicates_fix/");
+  return res.data as { removed: number };
+}
+
+/** 충돌 해결 후 재등록 (삭제된 학생과 번호 충돌 시 복원 또는 즉시 삭제 후 재등록) */
+export async function bulkResolveConflicts(
+  password: string,
+  resolutions: Array<{
+    row: number;
+    student_id: number;
+    action: "restore" | "delete";
+    student_data: Record<string, unknown>;
+  }>,
+  sendWelcomeMessage = false
+) {
+  const res = await api.post("/students/bulk_resolve_conflicts/", {
+    initial_password: password,
+    send_welcome_message: sendWelcomeMessage,
+    resolutions: resolutions.map((r) => ({
+      row: r.row,
+      student_id: r.student_id,
+      action: r.action,
+      student_data: r.student_data,
+    })),
+  });
+  return res.data as { created: number; restored: number; failed: Array<{ row: number; name: string; error: string }> };
+}
+
+/* ===============================
+ * TAG
+ * =============================== */
+
+export async function getTags(): Promise<StudentTag[]> {
+  const res = await api.get(`/students/tags/`);
+  const items = Array.isArray(res.data?.results)
+    ? res.data.results
+    : Array.isArray(res.data)
+    ? res.data
+    : [];
+  return items.map((t: any) => ({
+    id: Number(t?.id),
+    name: safeStr(t?.name),
+    color: safeStr(t?.color),
+  }));
+}
+
+export async function createTag(name: string, color: string): Promise<StudentTag> {
+  const res = await api.post(`/students/tags/`, { name: name.trim(), color });
+  const t = res.data;
+  return {
+    id: Number(t?.id),
+    name: safeStr(t?.name),
+    color: safeStr(t?.color),
+  };
+}
+
+export async function attachStudentTag(studentId: number, tagId: number) {
+  await api.post(`/students/${studentId}/add_tag/`, { tag_id: tagId });
+}
+
+export async function detachStudentTag(studentId: number, tagId: number) {
+  await api.post(`/students/${studentId}/remove_tag/`, { tag_id: tagId });
+}
+
+/* ===============================
+ * MEMO
+ * =============================== */
+
+export async function createMemo(studentId: number, content: string) {
+  await api.patch(`/students/${studentId}/`, { memo: String(content ?? "") });
+}
+
+
+==========================================================================================
+# FILE: components/DeleteConfirmModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/DeleteConfirmModal.tsx
+import { useEffect, useMemo, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_DEFAULT_WIDTH } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+import { deleteStudent } from "../api/students";
+
+export default function DeleteConfirmModal({
+  open,
+  id,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  id: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  const title = useMemo(() => "학생 삭제", []);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    if (open) window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  async function handleDelete() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await deleteStudent(id);
+      onSuccess();
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminModal open={open} onClose={onClose} type="confirm" width={MODAL_DEFAULT_WIDTH}>
+      <ModalHeader
+        type="confirm"
+        title={title}
+        description="삭제된 데이터는 복구할 수 없습니다."
+      />
+
+      <ModalBody>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 850,
+            color: "var(--color-text-secondary)",
+            lineHeight: 1.6,
+          }}
+        >
+          해당 학생을 정말 삭제하시겠습니까?
+        </div>
+
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            borderRadius: 12,
+            border:
+              "1px solid color-mix(in srgb, var(--color-error) 22%, var(--color-border-divider))",
+            background:
+              "color-mix(in srgb, var(--color-error) 6%, var(--color-bg-surface))",
+            color: "var(--color-text-secondary)",
+            fontSize: 12,
+            fontWeight: 850,
+            letterSpacing: "-0.12px",
+          }}
+        >
+          삭제 후에는 학생 정보/태그/메모/연결된 이력이 복구되지 않습니다.
+        </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 850,
+              color: "var(--color-text-muted)",
+            }}
+          >
+            ESC 로 닫기
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
+            <Button intent="danger" onClick={handleDelete} disabled={busy}>
+              {busy ? "삭제 중…" : "삭제"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/EditStudentModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/EditStudentModal.tsx
+// 디자인: StudentCreateModal(1명 등록)과 동일 구조·클래스 — 쌍둥이 UX
+
+import { useEffect, useMemo, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+import {
+  formatPhoneForInput,
+  formatIdentifierForInput,
+  parsePhoneInput,
+  parseIdentifierInput,
+} from "@/shared/utils/phoneInput";
+import { updateStudent } from "../api/students";
+
+interface Props {
+  open: boolean;
+  initialValue: any;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function is8Digits(v: any) {
+  return /^\d{8}$/.test(String(v ?? ""));
+}
+
+export default function EditStudentModal({
+  open,
+  initialValue,
+  onClose,
+  onSuccess,
+}: Props) {
+  const initialNoPhone = useMemo(() => {
+    if (initialValue.usesIdentifier != null) return initialValue.usesIdentifier;
+    return initialValue.studentPhone && is8Digits(initialValue.studentPhone);
+  }, [initialValue.studentPhone, initialValue.usesIdentifier]);
+
+  const [noPhone, setNoPhone] = useState(initialNoPhone);
+  const [busy, setBusy] = useState(false);
+  /** 400 응답 시 백엔드 필드별 에러 (backend key -> message). setFields 개념으로 매핑 */
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const [form, setForm] = useState({
+    name: initialValue.name || "",
+    gender: initialValue.gender || "",
+    psNumber: initialValue.psNumber || "",
+    studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
+    omrCode: initialNoPhone ? initialValue.studentPhone || "" : "",
+    parentPhone: initialValue.parentPhone || "",
+    schoolType: initialValue.schoolType || "HIGH",
+    school: initialValue.school || "",
+    grade: initialValue.grade ? String(initialValue.grade) : "",
+    schoolClass: initialValue.schoolClass || "",
+    major: initialValue.major || "",
+    memo: initialValue.memo || "",
+    active: !!initialValue.active,
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose, form, noPhone, busy]);
+
+  useEffect(() => {
+    if (!open) return;
+    setNoPhone(initialNoPhone);
+    setBusy(false);
+    setFieldErrors({});
+    setForm({
+      name: initialValue.name || "",
+      gender: initialValue.gender || "",
+      psNumber: initialValue.psNumber || "",
+      studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
+      omrCode: initialNoPhone
+        ? (() => {
+            const p = String(initialValue.studentPhone || "").replace(/\D/g, "");
+            return p.length === 11 && p.startsWith("010") ? p.slice(-8) : p.slice(0, 8);
+          })()
+        : "",
+      parentPhone: initialValue.parentPhone || "",
+      schoolType: initialValue.schoolType || "HIGH",
+      school: initialValue.school || "",
+      grade: initialValue.grade ? String(initialValue.grade) : "",
+      schoolClass: initialValue.schoolClass || "",
+      major: initialValue.major || "",
+      memo: initialValue.memo || "",
+      active: !!initialValue.active,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialValue?.id]);
+
+  /** 백엔드 필드명 -> 프론트 필드명 (setFields 매핑) */
+  const backendToFrontendField: Record<string, string> = {
+    ps_number: "psNumber",
+    omr_code: noPhone ? "omrCode" : "studentPhone",
+    phone: "studentPhone",
+    parent_phone: "parentPhone",
+    name: "name",
+  };
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const { name, value } = e.target;
+    setForm((p) => {
+      const next = { ...p, [name]: value };
+      if (name === "school") {
+        const t = String(value ?? "").trim();
+        if (t.endsWith("고")) next.schoolType = "HIGH";
+        else if (t.endsWith("중")) next.schoolType = "MIDDLE";
+      }
+      return next;
+    });
+    if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+  }
+
+  function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
+    const raw = parsePhoneInput(value);
+    setForm((p) => ({ ...p, [name]: raw }));
+    if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
+  }
+
+  function handleIdentifierChange(value: string) {
+    const raw = parseIdentifierInput(value);
+    setForm((p) => ({ ...p, omrCode: raw }));
+    if (fieldErrors.omrCode) setFieldErrors((prev) => ({ ...prev, omrCode: "" }));
+  }
+
+  /** StudentUpdateSerializer / 모델 기준 필수: name, ps_number, phone, parent_phone (Create와 동일) */
+  function validate(): string | null {
+    if (!String(form.name || "").trim()) return "필수 입력입니다.";
+    if (!String(form.psNumber || "").trim()) return "필수 입력입니다.";
+
+    if (noPhone) {
+      const code = String(form.omrCode || "").trim();
+      if (!code) return "필수 입력입니다.";
+      if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
+    } else {
+      const phone = String(form.studentPhone || "").trim();
+      if (!phone) return "필수 입력입니다.";
+      if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+    }
+
+    const parent = String(form.parentPhone || "").trim();
+    if (!parent) return "필수 입력입니다.";
+    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+
+    return null;
+  }
+
+  async function handleSubmit() {
+    if (busy) return;
+
+    const err = validate();
+    if (err) return alert(err);
+
+    setBusy(true);
+    setFieldErrors({});
+    try {
+      await updateStudent(initialValue.id, { ...form, noPhone });
+      onSuccess();
+      onClose();
+    } catch (raw: any) {
+      const data = raw?.response?.data;
+      if (raw?.response?.status === 400 && data && typeof data === "object") {
+        const next: Record<string, string> = {};
+        for (const [backendKey, val] of Object.entries(data)) {
+          const msg = Array.isArray(val) ? val[0] : typeof val === "string" ? val : "";
+          if (!msg) continue;
+          const frontKey = backendToFrontendField[backendKey] ?? backendKey;
+          next[frontKey] = msg;
+        }
+        setFieldErrors(next);
+        const messages = Object.entries(next)
+          .map(([k, v]) => (k === "name" ? "이름" : k === "psNumber" ? "아이디" : k === "studentPhone" ? "학생 전화/식별자" : k === "omrCode" ? "식별자" : k === "parentPhone" ? "학부모 전화" : k) + ": " + v)
+          .join("\n");
+        alert(messages);
+      } else {
+        alert(raw?.message || "저장에 실패했습니다.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
+      <ModalHeader
+        type="action"
+        title="학생 수정"
+        description="⌘/Ctrl + Enter 로 저장"
+      />
+
+      <ModalBody>
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          {/* 필수 입력 — StudentCreateModal과 동일 구조·입체감 */}
+          <div className="modal-form-group">
+            <span className="modal-section-label">필수 입력</span>
+            <input
+              name="name"
+              placeholder="이름"
+              value={form.name ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.name || "").trim() ? "true" : "false"}
+              disabled={busy}
+              autoFocus
+            />
+            <input
+              name="psNumber"
+              placeholder="아이디(PS 번호)"
+              value={form.psNumber ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
+              disabled={busy}
+            />
+            <input
+              placeholder="학부모 전화 (010-XXXX-XXXX)"
+              value={formatPhoneForInput(form.parentPhone ?? "")}
+              onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
+              disabled={busy}
+              maxLength={13}
+              inputMode="numeric"
+              pattern="[0-9\-]*"
+            />
+            <div className="modal-form-row modal-form-row--1-auto">
+              {noPhone ? (
+                <input
+                  placeholder="식별자 (XXXX-XXXX)"
+                  value={formatIdentifierForInput(form.omrCode ?? "")}
+                  onChange={(e) => handleIdentifierChange(e.target.value)}
+                  className="ds-input"
+                  data-required="true"
+                  data-invalid={!String(form.omrCode || "").trim() ? "true" : "false"}
+                  disabled={busy}
+                  maxLength={9}
+                  inputMode="numeric"
+                  pattern="[0-9\-]*"
+                />
+              ) : (
+                <input
+                  placeholder="학생 전화 (010-XXXX-XXXX)"
+                  value={formatPhoneForInput(form.studentPhone ?? "")}
+                  onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
+                  className="ds-input"
+                  data-required="true"
+                  data-invalid={!String(form.studentPhone || "").trim() ? "true" : "false"}
+                  disabled={busy}
+                  maxLength={13}
+                  inputMode="numeric"
+                  pattern="[0-9\-]*"
+                />
+              )}
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                <Button
+                  intent={noPhone ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => {
+                    setNoPhone((v) => !v);
+                    setForm((p) => ({ ...p, studentPhone: "", omrCode: "" }));
+                  }}
+                  disabled={busy}
+                >
+                  {noPhone ? "전화 입력" : "식별자 사용"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* 선택 입력 — 강조색 없음, 입체감만 유지 (Create와 동일) */}
+          <div className="modal-form-group modal-form-group--neutral">
+            <span className="modal-section-label">선택 입력</span>
+            <div className="modal-form-row modal-form-row--1-auto">
+              <div style={{ minWidth: 0 }} aria-hidden />
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                  <button
+                    key={g.key}
+                    type="button"
+                    className={`student-gender-btn student-gender-btn--${g.key === "M" ? "m" : "f"}${form.gender === g.key ? " is-selected" : ""}`}
+                    aria-pressed={form.gender === g.key}
+                    onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                    disabled={busy}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="modal-form-row modal-form-row--1-auto-auto">
+              <input
+                name="school"
+                placeholder="학교명 (XX고·XX중 입력 시 자동 선택)"
+                value={form.school ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "HIGH" ? " is-selected" : ""}`}
+                  aria-pressed={form.schoolType === "HIGH"}
+                  onClick={() => setForm((p) => ({ ...p, schoolType: "HIGH" }))}
+                  disabled={busy}
+                >
+                  고등
+                </button>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "MIDDLE" ? " is-selected" : ""}`}
+                  aria-pressed={form.schoolType === "MIDDLE"}
+                  onClick={() => setForm((p) => ({ ...p, schoolType: "MIDDLE" }))}
+                  disabled={busy}
+                >
+                  중등
+                </button>
+              </div>
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                {["1", "2", "3"].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    className={`ds-choice-btn ds-choice-btn--primary${form.grade === g ? " is-selected" : ""}`}
+                    aria-pressed={form.grade === g}
+                    onClick={() => setForm((p) => ({ ...p, grade: g }))}
+                    disabled={busy}
+                  >
+                    {g}학년
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="modal-form-row modal-form-row--2">
+              <input
+                name="schoolClass"
+                placeholder="반"
+                value={form.schoolClass ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <input
+                name="major"
+                placeholder="계열(고등만)"
+                value={form.major ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+            </div>
+            <textarea
+              name="memo"
+              rows={3}
+              placeholder="메모"
+              value={form.memo ?? ""}
+              onChange={handleChange}
+              className="ds-textarea"
+              disabled={busy}
+            />
+          </div>
+
+          <div className="modal-form-row modal-form-row--1-auto">
+            <span className="modal-hint modal-hint--block" style={{ marginBottom: 0 }}>
+              상세에서 태그/메모/상태를 관리할 수 있습니다.
+            </span>
+            <button
+              type="button"
+              className="ds-status-badge"
+              data-status={form.active ? "active" : "inactive"}
+              aria-pressed={form.active}
+              onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
+              disabled={busy}
+            >
+              {form.active ? "활성" : "비활성"}
+            </button>
+          </div>
+        </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <span className="modal-hint" style={{ marginBottom: 0 }}>
+            ⌘/Ctrl + Enter 저장
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
+            <Button intent="primary" onClick={handleSubmit} disabled={busy}>
+              {busy ? "저장 중…" : "저장"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentCreateModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/StudentCreateModal.tsx
+// 엑셀 일괄 등록: 워커 전담 (파일 업로드 → excel_parsing job → 폴링). 프론트 파싱/청크 제거.
+
+import { useEffect, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { Button, Tabs } from "@/shared/ui/ds";
+import {
+  formatPhoneForInput,
+  parsePhoneInput,
+} from "@/shared/utils/phoneInput";
+import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
+import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents } from "../api/students";
+import { downloadStudentExcelTemplate } from "../excel/studentExcel";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import type { ClientStudent } from "../api/students";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  onBulkProgress?: (progress: { current: number; total: number } | null) => void;
+}
+
+const TAB_ITEMS = [
+  { key: "single", label: "1명만 등록" },
+  { key: "excel", label: "엑셀로 업로드" },
+];
+
+export default function StudentCreateModal({ open, onClose, onSuccess, onBulkProgress }: Props) {
+  const [activeTab, setActiveTab] = useState("single");
+  const [busy, setBusy] = useState(false);
+  const [excelBulkPassword, setExcelBulkPassword] = useState("");
+  const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
+  const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: typeof form } | null>(null);
+
+  const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    psNumber: "",
+    gender: "",
+    initialPassword: "",
+    studentPhone: "",
+    omrCode: "",
+    parentPhone: "",
+    schoolType: "HIGH",
+    school: "",
+    grade: "",
+    schoolClass: "",
+    major: "",
+    memo: "",
+    active: true,
+  });
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && activeTab === "single") handleSubmit();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose, form, busy, activeTab]);
+
+  useEffect(() => {
+    if (!open) return;
+    setActiveTab("single");
+    setBusy(false);
+    onBulkProgress?.(null);
+    setExcelBulkPassword("");
+    setSelectedExcelFile(null);
+    setSendWelcomeMessage(false);
+    setForm({
+      name: "",
+      psNumber: "",
+      gender: "",
+      initialPassword: "",
+      studentPhone: "",
+      omrCode: "",
+      parentPhone: "",
+      schoolType: "HIGH",
+      school: "",
+      grade: "",
+      schoolClass: "",
+      major: "",
+      memo: "",
+      active: true,
+    });
+  }, [open, onBulkProgress]);
+
+  function handleExcelFileSelect(file: File) {
+    setSelectedExcelFile(file);
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    const { name, value } = e.target;
+    setForm((p) => {
+      const next = { ...p, [name]: value };
+      if (name === "school") {
+        const t = String(value ?? "").trim();
+        if (t.endsWith("고")) next.schoolType = "HIGH";
+        else if (t.endsWith("중")) next.schoolType = "MIDDLE";
+      }
+      return next;
+    });
+  }
+
+  function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
+    const raw = parsePhoneInput(value);
+    setForm((p) => ({ ...p, [name]: raw }));
+  }
+
+  function validate(): string | null {
+    // 필수: 이름, 초기비밀번호, 학부모 전화번호 (학생 전화는 선택, 없으면 부모 전화 8자리로 OMR)
+    if (!String(form.name || "").trim()) return "이름을 입력해 주세요.";
+    if (!String(form.initialPassword || "").trim()) return "초기 비밀번호를 입력해 주세요.";
+
+    const parent = String(form.parentPhone || "").trim();
+    if (!parent) return "학부모 전화번호를 입력해 주세요.";
+    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+
+    const phone = String(form.studentPhone || "").trim();
+    if (phone && !/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+
+    return null;
+  }
+
+  async function handleSubmit() {
+    if (busy) return;
+
+    const err = validate();
+    if (err) return alert(err);
+
+    setBusy(true);
+    try {
+      const student = await createStudent({
+        ...form,
+        noPhone: !String(form.studentPhone || "").trim(),
+        sendWelcomeMessage,
+      });
+      const loginId = (student?.psNumber ?? form.psNumber?.trim()) || "(자동 부여됨)";
+      feedback.success(`등록 완료. 로그인 아이디: ${loginId} (초기 비밀번호로 로그인하세요)`);
+      onSuccess();
+      onClose();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { code?: string; deleted_student?: ClientStudent; detail?: unknown }; status?: number }; message?: string };
+      if (err?.response?.status === 409 && err.response.data?.code === "deleted_student_exists" && err.response.data?.deleted_student) {
+        const { mapStudent } = await import("../api/students");
+        setDeletedStudentConflict({
+          student: mapStudent(err.response.data.deleted_student),
+          formData: { ...form },
+        });
+        setBusy(false);
+        return;
+      }
+      const detail = err?.response?.data?.detail;
+      let msg: string;
+      if (typeof detail === "string") {
+        msg = detail;
+      } else if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+        const parts = (Object.entries(detail) as [string, unknown][]).map(([k, v]) => {
+          const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
+          return val ? `${k}: ${val}` : k;
+        });
+        msg = parts.length ? parts.join("\n") : "입력값을 확인해 주세요.";
+      } else if (detail) {
+        msg = JSON.stringify(detail);
+      } else {
+        msg = err instanceof Error ? err.message : "등록 요청 중 오류가 발생했습니다.";
+      }
+      feedback.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRestoreDeletedStudent() {
+    if (!deletedStudentConflict || busy) return;
+    setBusy(true);
+    try {
+      await bulkRestoreStudents([deletedStudentConflict.student.id]);
+      feedback.success("학생이 복원되었습니다.");
+      setDeletedStudentConflict(null);
+      onSuccess();
+      onClose();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "복원에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePermanentDeleteAndReregister() {
+    if (!deletedStudentConflict || busy) return;
+    setBusy(true);
+    try {
+      await bulkPermanentDeleteStudents([deletedStudentConflict.student.id]);
+      const student = await createStudent({
+        ...deletedStudentConflict.formData,
+        noPhone: !String(deletedStudentConflict.formData.studentPhone || "").trim(),
+        sendWelcomeMessage,
+      });
+      const loginId = (student?.psNumber ?? deletedStudentConflict.formData.psNumber?.trim()) || "(자동 부여됨)";
+      feedback.success(`등록 완료. 로그인 아이디: ${loginId} (초기 비밀번호로 로그인하세요)`);
+      setDeletedStudentConflict(null);
+      onSuccess();
+      onClose();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: unknown }; status?: number }; message?: string };
+      const detail = err?.response?.data?.detail;
+      const msg =
+        typeof detail === "string"
+          ? detail
+          : detail && typeof detail === "object" && !Array.isArray(detail)
+            ? Object.entries(detail)
+                .map(([k, v]) => {
+                  const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
+                  return val ? `${k}: ${val}` : k;
+                })
+                .join("\n")
+            : err instanceof Error
+              ? err.message
+              : "등록 요청 중 오류가 발생했습니다.";
+      feedback.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleExcelRegister() {
+    if (busy || !selectedExcelFile) return;
+    const pwd = String(excelBulkPassword || "").trim();
+    if (!pwd || pwd.length < 4) {
+      feedback.error("초기 비밀번호를 4자 이상 입력해 주세요.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { job_id } = await uploadStudentBulkFromExcel(selectedExcelFile, pwd);
+      if (!job_id) {
+        feedback.error("작업 ID를 받지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+      asyncStatusStore.addWorkerJob("학생 일괄 등록", job_id, "excel_parsing");
+      feedback.success("백그라운드에서 진행됩니다. 우하단에서 진행 상황을 확인할 수 있습니다.");
+      onSuccess();
+      onClose();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string }; status?: number }; message?: string };
+      const msg =
+        typeof err?.response?.data?.detail === "string"
+          ? err.response.data.detail
+          : err?.response?.data?.detail
+            ? String(err.response.data.detail)
+            : err instanceof Error
+              ? err.message
+              : "등록 요청 중 오류가 발생했습니다.";
+      feedback.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const handleClose = () => {
+    setDeletedStudentConflict(null);
+    onClose();
+  };
+
+  return (
+    <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md}>
+      <ModalHeader
+        type="action"
+        title="학생 등록"
+        description={activeTab === "single" ? "⌘/Ctrl + Enter 로 등록" : "엑셀 파일로 학생을 일괄 등록합니다"}
+      />
+
+      <div className="modal-tabs-area">
+        <Tabs value={activeTab} items={TAB_ITEMS} onChange={setActiveTab} />
+        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: "var(--space-3)", marginBottom: 0, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={Boolean(sendWelcomeMessage)}
+            onChange={(e) => setSendWelcomeMessage(e.target.checked)}
+            disabled={busy}
+          />
+          등록완료 후 학부모, 학생에게 가입성공 메세지 일괄발송
+        </label>
+      </div>
+
+      <ModalBody key={activeTab}>
+        {deletedStudentConflict ? (
+          <div className="modal-scroll-body modal-scroll-body--compact" style={{ padding: "var(--space-4)" }}>
+            <div style={{ marginBottom: "var(--space-4)", fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
+              삭제된 학생이 있습니다. 복원하시겠습니까?
+            </div>
+            <div style={{ marginBottom: "var(--space-4)", padding: "var(--space-3)", background: "var(--color-surface-secondary)", borderRadius: 8, fontSize: 14 }}>
+              <div style={{ marginBottom: "var(--space-2)" }}>
+                <strong>이름:</strong> {deletedStudentConflict.student.name || "-"}
+              </div>
+              <div style={{ marginBottom: "var(--space-2)" }}>
+                <strong>PS 번호:</strong> {deletedStudentConflict.student.psNumber || "-"}
+              </div>
+              <div style={{ marginBottom: "var(--space-2)" }}>
+                <strong>학부모 전화:</strong> {deletedStudentConflict.student.parentPhone || "-"}
+              </div>
+              {deletedStudentConflict.student.phone && (
+                <div>
+                  <strong>학생 전화:</strong> {deletedStudentConflict.student.phone}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+              <Button
+                type="primary"
+                onClick={handleRestoreDeletedStudent}
+                disabled={busy}
+                style={{ width: "100%" }}
+              >
+                복원
+              </Button>
+              <Button
+                onClick={handlePermanentDeleteAndReregister}
+                disabled={busy}
+                style={{ width: "100%" }}
+              >
+                즉시삭제 후 재등록
+              </Button>
+              <Button
+                onClick={() => setDeletedStudentConflict(null)}
+                disabled={busy}
+                style={{ width: "100%" }}
+              >
+                취소
+              </Button>
+            </div>
+          </div>
+        ) : activeTab === "single" ? (
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          {/* 필수 입력 — 세션 모달과 동일 구조·입체감 */}
+          <div className="modal-form-group">
+            <span className="modal-section-label">필수 입력</span>
+            <input
+              name="name"
+              placeholder="이름"
+              value={form.name ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.name || "").trim() ? "true" : "false"}
+              disabled={busy}
+              autoFocus
+            />
+            <input
+              name="psNumber"
+              placeholder="로그인 아이디 (PS 번호, 선택·미입력 시 자동 부여)"
+              value={form.psNumber ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              disabled={busy}
+            />
+            <input
+              name="initialPassword"
+              type="password"
+              placeholder="초기 비밀번호"
+              value={form.initialPassword ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
+              disabled={busy}
+            />
+            <input
+              placeholder="학부모 전화 (010-XXXX-XXXX)"
+              value={formatPhoneForInput(form.parentPhone ?? "")}
+              onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
+              className="ds-input"
+              data-required="true"
+              data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
+              disabled={busy}
+              maxLength={13}
+              inputMode="numeric"
+              pattern="[0-9\-]*"
+            />
+          </div>
+
+          {/* 선택 입력 — 강조색 없음, 입체감만 유지 */}
+          <div className="modal-form-group modal-form-group--neutral">
+            <span className="modal-section-label">선택 입력</span>
+            <div className="modal-form-row modal-form-row--1-auto">
+              <input
+                placeholder="학생 전화 (없으면 부모 전화로 OMR)"
+                value={formatPhoneForInput(form.studentPhone ?? "")}
+                onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
+                className="ds-input"
+                disabled={busy}
+                maxLength={13}
+                inputMode="numeric"
+                pattern="[0-9\-]*"
+              />
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                  <button
+                    key={g.key}
+                    type="button"
+                    className={`student-gender-btn student-gender-btn--${g.key === "M" ? "m" : "f"}${form.gender === g.key ? " is-selected" : ""}`}
+                    aria-pressed={form.gender === g.key}
+                    onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                    disabled={busy}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="modal-form-row modal-form-row--1-auto-auto">
+              <input
+                name="school"
+                placeholder="학교명 (XX고·XX중 입력 시 자동 선택)"
+                value={form.school ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "HIGH" ? " is-selected" : ""}`}
+                  aria-pressed={form.schoolType === "HIGH"}
+                  onClick={() => setForm((p) => ({ ...p, schoolType: "HIGH" }))}
+                  disabled={busy}
+                >
+                  고등
+                </button>
+                <button
+                  type="button"
+                  className={`ds-choice-btn ds-choice-btn--primary${form.schoolType === "MIDDLE" ? " is-selected" : ""}`}
+                  aria-pressed={form.schoolType === "MIDDLE"}
+                  onClick={() => setForm((p) => ({ ...p, schoolType: "MIDDLE" }))}
+                  disabled={busy}
+                >
+                  중등
+                </button>
+              </div>
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                {["1", "2", "3"].map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    className={`ds-choice-btn ds-choice-btn--primary${form.grade === g ? " is-selected" : ""}`}
+                    aria-pressed={form.grade === g}
+                    onClick={() => setForm((p) => ({ ...p, grade: g }))}
+                    disabled={busy}
+                  >
+                    {g}학년
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="modal-form-row modal-form-row--2">
+              <input
+                name="schoolClass"
+                placeholder="반"
+                value={form.schoolClass ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+              <input
+                name="major"
+                placeholder="계열(고등만)"
+                value={form.major ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+            </div>
+            <textarea
+              name="memo"
+              rows={3}
+              placeholder="메모"
+              value={form.memo ?? ""}
+              onChange={handleChange}
+              className="ds-textarea"
+              disabled={busy}
+            />
+          </div>
+
+          <div className="modal-form-row modal-form-row--1-auto">
+            <span className="modal-hint modal-hint--block" style={{ marginBottom: 0 }}>
+              등록 후 상세에서 태그/메모/상태를 관리할 수 있습니다.
+            </span>
+            <button
+              type="button"
+              className="ds-status-badge"
+              data-status={form.active ? "active" : "inactive"}
+              aria-pressed={form.active}
+              onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
+              disabled={busy}
+            >
+              {form.active ? "활성" : "비활성"}
+            </button>
+          </div>
+        </div>
+        ) : (
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
+            <div>
+              <label className="modal-section-label">초기 비밀번호 (일괄)</label>
+              <input
+                type="password"
+                placeholder="모든 학생에 적용할 초기 비밀번호 (4자 이상)"
+                value={excelBulkPassword ?? ""}
+                onChange={(e) => setExcelBulkPassword(e.target.value)}
+                className="ds-input"
+                disabled={busy}
+                style={{ width: "100%" }}
+              />
+            </div>
+            <Button intent="secondary" onClick={downloadStudentExcelTemplate} disabled={busy}>
+              엑셀 양식 다운로드
+            </Button>
+          </div>
+
+          <ExcelUploadZone onFileSelect={handleExcelFileSelect} disabled={busy} />
+
+          {selectedExcelFile && (
+            <div className="modal-form-group modal-form-group--row" style={{ justifyContent: "space-between" }}>
+              <span className="modal-section-label" style={{ marginBottom: 0 }}>
+                선택된 파일: {selectedExcelFile.name}
+              </span>
+              <Button
+                intent="ghost"
+                size="sm"
+                onClick={() => setSelectedExcelFile(null)}
+                disabled={busy}
+              >
+                취소
+              </Button>
+            </div>
+          )}
+        </div>
+        )}
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <span className="modal-hint" style={{ marginBottom: 0 }}>
+            {activeTab === "single"
+              ? "⌘/Ctrl + Enter 등록"
+              : selectedExcelFile
+              ? "초기 비밀번호 입력 후 등록"
+              : "엑셀 파일 선택 후 등록"}
+          </span>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={busy}>
+              취소
+            </Button>
+            {activeTab === "single" && (
+              <Button intent="primary" onClick={handleSubmit} disabled={busy}>
+                {busy ? "등록 중…" : "등록"}
+              </Button>
+            )}
+            {activeTab === "excel" && selectedExcelFile && (
+              <Button intent="primary" onClick={handleExcelRegister} disabled={busy}>
+                {busy ? "등록 중…" : "등록"}
+              </Button>
+            )}
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentFilterModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/StudentFilterModal.tsx
+import { useEffect, useMemo, useState } from "react";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  filters: any;
+  onApply: (next: any) => void;
+}
+
+function normalize(next: any) {
+  Object.keys(next).forEach((k) => {
+    const v = next[k];
+    if (v === "" || v == null) delete next[k];
+  });
+
+  if (typeof next.is_managed === "string") {
+    if (next.is_managed === "true") next.is_managed = true;
+    else if (next.is_managed === "false") next.is_managed = false;
+    else delete next.is_managed;
+  }
+
+  if (typeof next.grade === "string" && next.grade.trim()) {
+    const n = Number(next.grade);
+    if (Number.isFinite(n)) next.grade = n;
+    else delete next.grade;
+  }
+
+  if (typeof next.school_type === "string" && !next.school_type.trim()) {
+    delete next.school_type;
+  }
+
+  return next;
+}
+
+export default function StudentFilterModal({
+  open,
+  onClose,
+  filters,
+  onApply,
+}: Props) {
+  const [local, setLocal] = useState<any>(filters || {});
+  const title = useMemo(() => "고급 필터", []);
+
+  useEffect(() => {
+    if (!open) return;
+    setLocal(filters || {});
+  }, [open, filters]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    if (open) window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  function update(key: string, value: any) {
+    setLocal((prev: any) => ({ ...prev, [key]: value }));
+  }
+
+  function apply() {
+    const next = normalize({ ...local });
+    onApply(next);
+  }
+
+  function reset() {
+    setLocal({});
+  }
+
+  return (
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
+      <ModalHeader
+        type="action"
+        title={title}
+        description="조건에 맞는 학생만 조회합니다."
+      />
+
+      <ModalBody>
+        <div className="modal-scroll-body modal-scroll-body--compact">
+          <div className="modal-form-row modal-form-row--3">
+            <select
+              className="ds-select"
+              value={local.school_type ?? ""}
+              onChange={(e) => update("school_type", e.target.value)}
+            >
+              <option value="">학교급 전체</option>
+              <option value="HIGH">고등</option>
+              <option value="MIDDLE">중등</option>
+            </select>
+            <select
+              className="ds-select"
+              value={local.is_managed ?? ""}
+              onChange={(e) => update("is_managed", e.target.value)}
+            >
+              <option value="">상태 전체</option>
+              <option value="true">활성</option>
+              <option value="false">비활성</option>
+            </select>
+            <select
+              className="ds-select"
+              value={local.gender || ""}
+              onChange={(e) => update("gender", e.target.value)}
+            >
+              <option value="">성별 전체</option>
+              <option value="M">남</option>
+              <option value="F">여</option>
+            </select>
+          </div>
+          <div className="modal-form-row modal-form-row--3">
+            <input
+              className="ds-input"
+              placeholder="아이디"
+              value={local.ps_number || ""}
+              onChange={(e) => update("ps_number", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="OMR 식별자 (8자리)"
+              value={local.omr_code || ""}
+              onChange={(e) => update("omr_code", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="이름"
+              value={local.name || ""}
+              onChange={(e) => update("name", e.target.value)}
+            />
+          </div>
+          <div className="modal-form-row modal-form-row--3">
+            <input
+              className="ds-input"
+              placeholder="계열(major)"
+              value={local.major || ""}
+              onChange={(e) => update("major", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="고등학교"
+              value={local.high_school || ""}
+              onChange={(e) => update("high_school", e.target.value)}
+            />
+            <input
+              className="ds-input"
+              placeholder="중학교"
+              value={local.middle_school || ""}
+              onChange={(e) => update("middle_school", e.target.value)}
+            />
+          </div>
+          <div className="modal-form-row modal-form-row--1-auto">
+            <select
+              className="ds-select"
+              value={local.grade ?? ""}
+              onChange={(e) => update("grade", e.target.value)}
+              style={{ maxWidth: "12rem" }}
+            >
+              <option value="">학년 전체</option>
+              <option value="1">1학년</option>
+              <option value="2">2학년</option>
+              <option value="3">3학년</option>
+            </select>
+            <span className="modal-hint" style={{ marginBottom: 0 }}>
+              필터는 서버 조회에 반영되며, 빈 값은 자동 제거됩니다.
+            </span>
+          </div>
+        </div>
+      </ModalBody>
+
+      <ModalFooter
+        left={
+          <Button intent="ghost" onClick={reset}>
+            초기화
+          </Button>
+        }
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose}>
+              취소
+            </Button>
+            <Button intent="primary" onClick={apply}>
+              적용
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/StudentsTable.tsx
+==========================================================================================
+// PATH: src/features/students/components/StudentsTable.tsx
+import { useMemo } from "react";
+import { EmptyState } from "@/shared/ui/ds";
+import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
+
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlight(text: string, keyword: string) {
+  if (!keyword) return text;
+  const k = keyword.trim();
+  if (!k) return text;
+
+  const parts = String(text).split(new RegExp(`(${escapeRegExp(k)})`, "gi"));
+  return parts.map((p, i) =>
+    p.toLowerCase() === k.toLowerCase() ? (
+      <mark
+        key={`hl-${i}-${String(p).slice(0, 8)}`}
+        className="px-0.5 rounded"
+        style={{
+          backgroundColor: "var(--state-selected-bg)",
+          color: "inherit",
+        }}
+      >
+        {p}
+      </mark>
+    ) : (
+      p
+    )
+  );
+}
+
+export default function StudentsTable({
+  data = [],
+  search,
+  sort,
+  onSortChange,
+  onRowClick,
+  selectedIds = [],
+  onSelectionChange,
+  isDeletedTab = false,
+  onToggleActive,
+  togglingId = null,
+}: {
+  data: any[];
+  search: string;
+  sort: string;
+  onSortChange: (v: string) => void;
+  onRowClick: (id: number) => void;
+  selectedIds?: number[];
+  onSelectionChange?: (ids: number[]) => void;
+  isDeletedTab?: boolean;
+  /** 학생 도메인 예외: 테이블에서 활성/비활성 클릭 토글 */
+  onToggleActive?: (id: number, nextActive: boolean) => void;
+  togglingId?: number | null;
+}) {
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allIds = useMemo(() => data.map((s) => s.id), [data]);
+  const allSelected = data.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  function toggleSelect(id: number) {
+    if (!onSelectionChange) return;
+    if (selectedSet.has(id)) {
+      onSelectionChange(selectedIds.filter((x) => x !== id));
+    } else {
+      onSelectionChange([...selectedIds, id]);
+    }
+  }
+
+  /** 현재 페이지 전체 선택/해제 — 기존 선택 유지, 페이지 전환 시에도 선택 유지 */
+  function toggleSelectAll() {
+    if (!onSelectionChange) return;
+    if (allSelected) {
+      onSelectionChange(selectedIds.filter((id) => !allIds.includes(id)));
+    } else {
+      const merged = new Set([...selectedIds, ...allIds]);
+      onSelectionChange([...merged]);
+    }
+  }
+
+  // TABLE_COL SSOT: tableColumnSpec
+  const columns = useMemo(
+    () => [
+      { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
+      { key: "name", label: "이름", w: TABLE_COL.name },
+      { key: "parentPhone", label: "학부모 전화", w: TABLE_COL.phone },
+      { key: "studentPhone", label: "학생 전화", w: TABLE_COL.phone },
+      { key: "school", label: "학교", w: TABLE_COL.medium },
+      { key: "schoolClass", label: "반", w: TABLE_COL.short },
+      { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: TABLE_COL.medium },
+      { key: "tags", label: "태그", w: TABLE_COL.tag },
+      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: TABLE_COL.status }]),
+    ],
+    [isDeletedTab]
+  );
+  const tableWidth = useMemo(
+    () => columns.reduce((sum, c) => sum + c.w, 0),
+    [columns]
+  );
+
+  if (!data.length) {
+    return (
+      <EmptyState
+        scope="panel"
+        tone="empty"
+        title="학생 정보가 없습니다."
+        description="검색/필터 조건을 확인하거나, 새 학생을 등록해 주세요."
+      />
+    );
+  }
+
+  function sortHeader(colKey: string, label: string) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    const next = isAsc ? `-${colKey}` : isDesc ? "" : colKey;
+
+    return (
+      <th
+        key={colKey}
+        onClick={() => onSortChange(next)}
+        className="cursor-pointer select-none"
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        scope="col"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          {label}
+          <span
+            aria-hidden
+            style={{
+              fontSize: 11,
+              opacity: isAsc || isDesc ? 1 : 0.35,
+              color: "var(--color-primary)",
+            }}
+          >
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
+        </span>
+      </th>
+    );
+  }
+
+  return (
+    <div style={{ width: "fit-content" }}>
+    <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: tableWidth }}>
+      <colgroup>
+        {columns.map((c) => (
+          <col key={c.key} style={{ width: c.w }} />
+        ))}
+      </colgroup>
+
+      <thead>
+        <tr>
+          {columns.map((c) =>
+            c.key === "_checkbox" ? (
+              <th key="_checkbox" scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                {onSelectionChange ? (
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="전체 선택"
+                    className="cursor-pointer"
+                  />
+                ) : null}
+              </th>
+            ) : c.key === "tags" ? (
+              <th key="tags" scope="col">
+                태그
+              </th>
+            ) : (
+              sortHeader(c.key, c.label)
+            )
+          )}
+        </tr>
+      </thead>
+
+      <tbody>
+        {data.map((s) => (
+            <tr
+              key={s.id}
+              onClick={() => onRowClick(s.id)}
+              tabIndex={0}
+              role="button"
+              className={`group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(s.id) ? "ds-row-selected" : ""}`}
+            >
+              {/* 체크박스 — 타이트, 칸과 위치 일치 */}
+              <td onClick={(e) => e.stopPropagation()} style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
+                {onSelectionChange ? (
+                  <input
+                    type="checkbox"
+                    checked={selectedSet.has(s.id)}
+                    onChange={() => toggleSelect(s.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`${s.name} 선택`}
+                    className="cursor-pointer"
+                  />
+                ) : null}
+              </td>
+              {/* 이름 — 강의딱지·아바타·이름 */}
+              <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate">
+                <StudentNameWithLectureChip
+                  name={s.name ?? "-"}
+                  profilePhotoUrl={s.profilePhotoUrl}
+                  avatarSize={24}
+                    lectures={
+                      Array.isArray(s.enrollments) && s.enrollments.length > 0
+                        ? s.enrollments.map((en: { id: number; lectureName: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
+                            lectureName: en.lectureName ?? "??",
+                            color: en.lectureColor ?? undefined,
+                            chipLabel: en.lectureChipLabel ?? undefined,
+                          }))
+                        : undefined
+                    }
+                  chipSize={16}
+                  highlight={(text) => highlight(text, search)}
+                />
+              </td>
+
+              {/* 학부모 전화 */}
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(formatPhone(s.parentPhone), search)}
+              </td>
+
+              {/* 학생 전화 */}
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {highlight(formatStudentPhoneDisplay(s.studentPhone), search)}
+              </td>
+
+              {/* 학교 */}
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {s.school || "-"}
+              </td>
+
+              {/* 반 */}
+              <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate">
+                {s.schoolClass || "-"}
+              </td>
+
+              {/* 등록일 / 삭제일 */}
+              <td className="text-[13px] leading-6 font-semibold text-[var(--color-text-muted)] truncate">
+                {(isDeletedTab ? s.deletedAt : s.registeredAt)?.slice(0, 10) || "-"}
+              </td>
+
+              {/* 태그 */}
+              <td className="text-[12px] leading-5">
+                {Array.isArray(s.tags) && s.tags.length > 0 ? (
+                  <span className="flex flex-wrap gap-1 justify-center">
+                    {s.tags.slice(0, 3).map((t: { id: number; name: string; color: string }) => (
+                      <span
+                        key={t.id}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold truncate max-w-[70px]"
+                        style={{
+                          backgroundColor: t.color ? `${t.color}22` : "var(--color-bg-surface-soft)",
+                          color: t.color || "var(--color-text-secondary)",
+                          border: t.color ? `1px solid ${t.color}44` : undefined,
+                        }}
+                        title={t.name}
+                      >
+                        {t.name}
+                      </span>
+                    ))}
+                    {s.tags.length > 3 && (
+                      <span className="text-[11px] text-[var(--color-text-muted)]">
+                        +{s.tags.length - 3}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">-</span>
+                )}
+              </td>
+
+              {/* 상태 — 학생 도메인 예외: 클릭 시 토글(버튼형 연한 톤 뱃지) */}
+              {!isDeletedTab && (
+                <td onClick={(e) => e.stopPropagation()}>
+                  {onToggleActive ? (
+                    <button
+                      type="button"
+                      className="ds-status-badge ds-status-badge--action"
+                      data-status={s.active ? "active" : "inactive"}
+                      disabled={togglingId === s.id}
+                      onClick={() => onToggleActive(s.id, !s.active)}
+                      aria-label={s.active ? "비활성으로 변경" : "활성으로 변경"}
+                    >
+                      {togglingId === s.id ? "…" : s.active ? "활성" : "비활성"}
+                    </button>
+                  ) : (
+                    <span
+                      className="ds-status-badge"
+                      data-status={s.active ? "active" : "inactive"}
+                    >
+                      {s.active ? "활성" : "비활성"}
+                    </span>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+      </tbody>
+    </DomainTable>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/TagCreateModal.tsx
+==========================================================================================
+// PATH: src/features/students/components/TagCreateModal.tsx
+// 태그 생성 모달 — 이름 + 색상
+
+import { useState, useEffect } from "react";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
+import { createTag } from "../api/students";
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: (tag: { id: number; name: string; color: string }) => void;
+  /** 이미 사용 중인 색상 — 기본값이 이들과 최대한 차이나도록 선택됨 */
+  usedColors?: string[];
+};
+
+export default function TagCreateModal({
+  open,
+  onClose,
+  onSuccess,
+  usedColors = [],
+}: Props) {
+  const [name, setName] = useState("");
+  const [color, setColor] = useState(() => getDefaultColorForPicker(usedColors));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setColor(getDefaultColorForPicker(usedColors));
+    setBusy(false);
+    setError(null);
+  }, [open, usedColors]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  async function handleSubmit() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("태그 이름을 입력하세요.");
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      const tag = await createTag(trimmed, color);
+      onSuccess(tag);
+      onClose();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.name?.[0] ||
+        err?.response?.data?.detail ||
+        "태그 생성에 실패했습니다.";
+      setError(typeof msg === "string" ? msg : "태그 생성에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.sm}>
+      <ModalHeader
+        title="태그 생성"
+        description="이름과 색상을 정하면 꼬리표처럼 학생에 붙습니다."
+      />
+      <ModalBody>
+        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+          <div className="modal-form-group modal-form-group--compact">
+            <label className="modal-section-label">태그 이름</label>
+            <input
+              type="text"
+              className="ds-input w-full"
+              placeholder="예: VIP, 재수생, 수학반"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setError(null);
+              }}
+              maxLength={50}
+              style={{ fontSize: 14 }}
+              autoFocus
+            />
+            {error && (
+              <div className="modal-hint" style={{ marginTop: "var(--space-2)", color: "var(--color-error)" }}>
+                {error}
+              </div>
+            )}
+          </div>
+          <ColorPickerField label="색상" value={color} onChange={setColor} disabled={busy} />
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="ghost" size="sm" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={busy || !name.trim()}
+            >
+              {busy ? "생성 중…" : "생성 후 붙이기"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: excel/studentExcel.ts
+==========================================================================================
+// PATH: src/features/students/excel/studentExcel.ts
+// 엑셀 파싱·양식 단일진실 (SSOT) — 학생 일괄 등록 + 강의 수강생 엑셀 업로드. @see docs/DESIGN_SSOT.md §8
+
+import * as XLSX from "xlsx";
+
+/** 엑셀 양식 컬럼 — 구분(예시여부), 필수 우선, 선택옵션 뒤로 */
+export const EXCEL_HEADERS = [
+  { key: "remark", label: "구분", required: false },
+  { key: "name", label: "이름", required: true },
+  { key: "parentPhone", label: "학부모전화번호", required: true },
+  { key: "studentPhone", label: "학생전화번호", required: false },
+  { key: "gender", label: "성별", required: false },
+  { key: "schoolType", label: "학교유형", required: false },
+  { key: "school", label: "학교", required: false },
+  { key: "grade", label: "학년", required: false },
+  { key: "schoolClass", label: "반", required: false },
+  { key: "major", label: "계열", required: false },
+  { key: "memo", label: "메모", required: false },
+] as const;
+
+export type ExcelRowKey = Exclude<(typeof EXCEL_HEADERS)[number]["key"], "remark">;
+
+export interface ParsedStudentRow {
+  name: string;
+  gender: string;
+  studentPhone: string;
+  parentPhone: string;
+  /** 학생 전화가 없어 식별자(010+8자리)로 대체한 경우 true */
+  usesIdentifier?: boolean;
+  schoolType: "HIGH" | "MIDDLE";
+  school: string;
+  grade: string;
+  schoolClass: string;
+  major: string;
+  memo: string;
+}
+
+/** 전화번호에서 숫자만 추출 (01012345678). 엑셀 숫자 셀은 앞 0이 빠져 10자리로 올 수 있음. */
+function toRawPhone(v: unknown): string {
+  let s = String(v ?? "").replace(/\D/g, "");
+  // 엑셀에서 01012345678 이 숫자로 저장되면 1012345678(10자리)로 읽힘 → 0 붙여서 11자리로
+  if (s.length === 10 && s.startsWith("10")) s = "0" + s;
+  return s;
+}
+
+/**
+ * 학원별 양식 대응 — 헤더 별칭 매핑
+ * 각 필드에 매칭 가능한 대체 라벨 목록
+ */
+const HEADER_ALIASES: Record<string, readonly string[]> = {
+  remark: ["구분", "체크"],
+  name: ["이름", "성명", "학생명"],
+  studentPhone: ["학생전화번호", "학생핸드폰", "학생 전화번호", "학생 전화", "학생연락처"],
+  parentPhone: ["학부모전화번호", "부모핸드폰", "부모 전화", "학부모 전화", "보호자 전화", "보호자전화"],
+  gender: ["성별"],
+  schoolType: ["학교유형"],
+  school: ["학교", "학교(학년)", "학교명"], // 학교(학년) = 학교+학년 합쳐진 컬럼
+  grade: ["학년"],
+  schoolClass: ["반"],
+  major: ["계열"],
+  memo: ["메모"],
+  /** 엑셀 내 강의명 — 강의 일치 확인용(선택) */
+  lectureName: ["강의명", "강의", "과목", "수업명"],
+};
+
+function normalizeHeader(s: string): string {
+  return String(s ?? "").trim().replace(/\s/g, "");
+}
+
+/** 헤더 라벨이 특정 필드에 매칭되는지 확인 */
+function headerMatches(label: string, key: string): boolean {
+  const normalized = normalizeHeader(label);
+  const aliases = HEADER_ALIASES[key];
+  if (!aliases) return false;
+  const labels = EXCEL_HEADERS.filter((h) => h.key === key).map((h) => h.label);
+  const allLabels = [...new Set([...aliases, ...labels])];
+  return allLabels.some((a) => normalizeHeader(a) === normalized);
+}
+
+/** 헤더 인덱스 매핑 (첫 행 기준) — 별칭 포함 */
+function buildHeaderMap(headers: string[]): Record<string, number> {
+  const map: Record<string, number> = {};
+  headers.forEach((h, i) => {
+    const label = String(h ?? "").trim();
+    if (!label) return;
+    for (const key of Object.keys(HEADER_ALIASES) as (keyof typeof HEADER_ALIASES)[]) {
+      if (headerMatches(label, key) && map[key] === undefined) {
+        map[key] = i;
+        break;
+      }
+    }
+  });
+  return map;
+}
+
+/** 셀 값 → 문자열 */
+function cellStr(map: Record<string, number>, row: unknown[], key: ExcelRowKey): string {
+  const i = map[key];
+  if (i == null) return "";
+  const v = row[i];
+  return String(v ?? "").trim();
+}
+
+/** 헤더에만 있는 키(예: lectureName)용 셀 값 */
+function cellStrOptional(map: Record<string, number>, row: unknown[], key: string): string {
+  const i = map[key];
+  if (i == null) return "";
+  const v = (row as unknown[])[i];
+  return String(v ?? "").trim();
+}
+
+/**
+ * "학교(학년)" 형식 파싱 — 예: 숙명여고(０), 휘문중(3)
+ * 전각 숫자 ０→0 변환, 학교명과 학년 분리
+ */
+function parseSchoolGrade(value: string): { school: string; grade: string } {
+  const s = String(value ?? "").trim();
+  if (!s) return { school: "", grade: "" };
+  const m = s.match(/^(.+?)\(([０-９0-9]+)\)\s*$/);
+  if (!m) return { school: s, grade: "" };
+  const school = m[1].trim();
+  const gradeFullwidth = m[2].replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+  const grade = gradeFullwidth.replace(/\D/g, "") || "";
+  return { school, grade };
+}
+
+/** 학교명에서 학교유형 추론 (여고/부고/고→HIGH, 중→MIDDLE) */
+function inferSchoolType(school: string): "HIGH" | "MIDDLE" {
+  const s = school.trim();
+  if (/(중학교|중등|중\b)/.test(s)) return "MIDDLE";
+  if (/(여고|부고|고등|고등학교)/.test(s)) return "HIGH";
+  return "HIGH";
+}
+
+/**
+ * 엑셀 양식 다운로드 — 상단 안내문, 헤더, 예시 행 (xlsx 패키지로 동작 보장)
+ */
+export function downloadStudentExcelTemplate() {
+  const wb = XLSX.utils.book_new();
+  const headers = EXCEL_HEADERS.map((h) => h.label);
+  const exampleRow1 = [
+    "예시(등록안됨)",
+    "홍길동",
+    "01087654321",
+    "01012345678",
+    "M",
+    "HIGH",
+    "OO고등학교",
+    "1",
+    "1",
+    "인문계",
+    "",
+  ];
+  const exampleRow2 = [
+    "예시(등록안됨)",
+    "김영희",
+    "01011112222",
+    "01098765432",
+    "F",
+    "MIDDLE",
+    "OO중학교",
+    "2",
+    "3",
+    "",
+    "",
+  ];
+
+  const instructionRow1 = [
+    "◆ 필수 입력: 이름, 학부모전화번호. 학생전화번호는 선택(비워두면 학부모 전화 뒤 8자리로 OMR 식별). 아이디는 6자리 숫자로 자동 부여됩니다.",
+  ];
+  const instructionRow2 = [
+    "◆ 양식 규칙: 학부모전화번호·학생전화번호 010XXXXXXXX 11자리, 성별(M 또는 F), 학교유형(HIGH 또는 MIDDLE). 학교 비우면 비움, XX중/XX고 적으면 자동 반영.",
+  ];
+  const instructionRow3 = [
+    "◆ 7~8행은 예시입니다. 9행부터 학생 정보를 작성하세요.",
+  ];
+  const emptyRow: string[] = [];
+
+  const data = [
+    instructionRow1,
+    instructionRow2,
+    instructionRow3,
+    emptyRow,
+    headers,
+    exampleRow1,
+    exampleRow2,
+  ];
+  const sheet = XLSX.utils.aoa_to_sheet(data);
+  sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 22 : i === 1 ? 12 : 14 }));
+  XLSX.utils.book_append_sheet(wb, sheet, "학생목록");
+  XLSX.writeFile(wb, "학생_일괄등록_양식.xlsx");
+}
+
+/** parseStudentExcel 반환 타입 — 강의명은 엑셀 내 컬럼/첫 행에서 추출(선택) */
+export interface ParseStudentExcelResult {
+  rows: ParsedStudentRow[];
+  /** 엑셀에 적힌 강의명(강의 일치 확인용). 없으면 undefined */
+  lectureNameFromExcel?: string;
+}
+
+/**
+ * 엑셀 파일 파싱 → 학생 행 + 엑셀 강의명(있을 경우)
+ */
+export function parseStudentExcel(file: File): Promise<ParseStudentExcelResult> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        if (!data) {
+          reject(new Error("파일을 읽을 수 없습니다."));
+          return;
+        }
+        const wb = XLSX.read(data, { type: "binary" });
+        const firstSheet = wb.Sheets[wb.SheetNames[0]];
+        if (!firstSheet) {
+          reject(new Error("시트가 없습니다."));
+          return;
+        }
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
+        if (!rows.length) {
+          reject(new Error("데이터가 없습니다."));
+          return;
+        }
+        // 헤더 행 찾기 — 이름 + (학생전화 또는 학부모전화) 포함된 첫 행
+        const hasName = (r: unknown[]) =>
+          (r || []).some((c) => headerMatches(String(c ?? ""), "name"));
+        const hasPhone = (r: unknown[]) =>
+          (r || []).some(
+            (c) => headerMatches(String(c ?? ""), "studentPhone") || headerMatches(String(c ?? ""), "parentPhone")
+          );
+        let headerRowIndex = -1;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i] as unknown[];
+          if (hasName(row) && hasPhone(row)) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+        if (headerRowIndex < 0) {
+          reject(new Error("양식이 맞지 않습니다. 이름·전화번호 컬럼이 있는 행을 찾을 수 없습니다."));
+          return;
+        }
+        const headerRow = rows[headerRowIndex] as string[];
+        const map = buildHeaderMap(headerRow);
+
+        // 엑셀 강의명: (1) 헤더 위 행에서 "강의명"/"강의" 라벨 옆 셀 (2) 강의명 컬럼의 첫 값
+        let lectureNameFromExcel: string | undefined;
+        for (let r = 0; r < headerRowIndex; r++) {
+          const row = rows[r] as unknown[];
+          const arr = row ?? [];
+          for (let c = 0; c < arr.length - 1; c++) {
+            const label = String(arr[c] ?? "").trim();
+            const next = String(arr[c + 1] ?? "").trim();
+            if (
+              (normalizeHeader(label) === "강의명" || normalizeHeader(label) === "강의") &&
+              next
+            ) {
+              lectureNameFromExcel = next;
+              break;
+            }
+          }
+          if (lectureNameFromExcel) break;
+        }
+
+        const result: ParsedStudentRow[] = [];
+        const remarkVal = (m: Record<string, number>, row: unknown[]) => {
+          const i = m["remark"];
+          if (i == null || typeof i !== "number") return "";
+          return String((row as unknown[])[i] ?? "").trim();
+        };
+        for (let r = headerRowIndex + 1; r < rows.length; r++) {
+          const row = rows[r] as unknown[];
+          if (/예시/.test(remarkVal(map, row))) continue; // 예시 행 스킵
+          if (!lectureNameFromExcel && map["lectureName"] != null) {
+            const v = cellStrOptional(map, row, "lectureName");
+            if (v) lectureNameFromExcel = v;
+          }
+          const name = cellStr(map, row, "name");
+          const rawStudent = toRawPhone(cellStr(map, row, "studentPhone"));
+          let studentPhone = rawStudent;
+          let parentPhone = toRawPhone(cellStr(map, row, "parentPhone"));
+          let usesIdentifier = false;
+
+          // 8자리 숫자만 있으면 식별자(010+8자리)로 해석
+          if (rawStudent.length === 8 && /^\d{8}$/.test(rawStudent)) {
+            studentPhone = `010${rawStudent}`;
+            usesIdentifier = true;
+          }
+          // 학생 전화 없을 때: 학부모 전화 8자리로 OMR 식별 (백엔드에서 처리)
+          else if (!studentPhone || studentPhone.length !== 11 || !studentPhone.startsWith("010")) {
+            if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) continue; // 학부모도 없으면 스킵
+            studentPhone = "";
+            usesIdentifier = true;
+          }
+          if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) parentPhone = studentPhone;
+          if (!name && !studentPhone) continue; // 빈 행 스킵
+
+          const schoolCell = cellStr(map, row, "school");
+          const gradeCell = cellStr(map, row, "grade");
+          const { school: parsedSchool, grade: parsedGrade } = parseSchoolGrade(schoolCell);
+          const school = parsedSchool || schoolCell; // 학교(학년) 파싱 결과 또는 원본
+          const grade = parsedGrade || gradeCell;
+          const schoolTypeRaw = cellStr(map, row, "schoolType").toUpperCase();
+          const schoolType =
+            schoolTypeRaw === "MIDDLE" ? "MIDDLE" : school ? inferSchoolType(school) : "HIGH";
+
+          result.push({
+            name,
+            gender: cellStr(map, row, "gender").toUpperCase().slice(0, 1) || "",
+            studentPhone,
+            parentPhone,
+            usesIdentifier,
+            schoolType,
+            school,
+            grade,
+            schoolClass: cellStr(map, row, "schoolClass"),
+            major: cellStr(map, row, "major"),
+            memo: cellStr(map, row, "memo"),
+          });
+        }
+        resolve({ rows: result, lectureNameFromExcel: lectureNameFromExcel || undefined });
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error("파일 파싱 실패"));
+      }
+    };
+    reader.onerror = () => reject(new Error("파일 읽기 실패"));
+    reader.readAsBinaryString(file);
+  });
+}
+
+// ========== 차시 수강생 엑셀 (이름·전화 매칭 + N차시 출결 컬럼) ==========
+
+/** 차시 수강생 엑셀 한 행 — 이름·학부모전화로 매칭, 선택 차시 출결 값 */
+export interface SessionEnrollParsedRow {
+  name: string;
+  parentPhone: string;
+  /** 차시 order → 셀 값 (출, 영상, 결 등) */
+  sessionAttendance: Record<number, string>;
+}
+
+/** 헤더에서 "N차시" 컬럼 인덱스 → order 매핑 (1차시→1, 2차시→2, …) */
+function buildSessionColumnMap(headerRow: string[]): Record<number, number> {
+  const map: Record<number, number> = {};
+  headerRow.forEach((label, i) => {
+    const s = String(label ?? "").trim();
+    const m = s.match(/^제?\s*(\d+)\s*차시$/) || s.match(/^(\d+)\s*차시$/);
+    if (m) {
+      const order = parseInt(m[1], 10);
+      if (Number.isFinite(order)) map[order] = i;
+    }
+  });
+  return map;
+}
+
+/** 출결 셀 값 → API status (출/출석/현장→PRESENT, 영상/온라인→ONLINE 등) */
+export function mapAttendanceCellToStatus(cell: string): string | null {
+  const s = String(cell ?? "").trim();
+  if (!s) return null;
+  const n = s.replace(/\s/g, "");
+  if (/^(출|출석|현장|O|○|ㅇ)$/i.test(n)) return "PRESENT";
+  if (/^(영상|온라인|VOD|V)$/i.test(n)) return "ONLINE";
+  if (/^(결|결석|X|×|ㄴ)$/i.test(n)) return "ABSENT";
+  if (/^(지각|L)$/i.test(n)) return "LATE";
+  if (/^(보강|B)$/i.test(n)) return "SUPPLEMENT";
+  if (/^(조퇴|E)$/i.test(n)) return "EARLY_LEAVE";
+  if (/^(출튀|R)$/i.test(n)) return "RUNAWAY";
+  if (/^(자료|M)$/i.test(n)) return "MATERIAL";
+  if (/^(부재|I)$/i.test(n)) return "INACTIVE";
+  if (/^(탈퇴|S)$/i.test(n)) return "SECESSION";
+  return null;
+}
+
+/**
+ * 차시 수강생 엑셀 파싱 — 학생 도메인 엑셀과 동일하게 이름·학부모전화 컬럼 찾고,
+ * 추가로 "N차시" 컬럼에서 출결 값 수집. 양식이 달라도 이름+전화 있으면 처리.
+ */
+export function parseSessionEnrollExcel(file: File): Promise<SessionEnrollParsedRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        if (!data) {
+          reject(new Error("파일을 읽을 수 없습니다."));
+          return;
+        }
+        const wb = XLSX.read(data, { type: "binary" });
+        const firstSheet = wb.Sheets[wb.SheetNames[0]];
+        if (!firstSheet) {
+          reject(new Error("시트가 없습니다."));
+          return;
+        }
+        const rows = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
+        if (!rows.length) {
+          reject(new Error("데이터가 없습니다."));
+          return;
+        }
+        const hasName = (r: unknown[]) =>
+          (r || []).some((c) => headerMatches(String(c ?? ""), "name"));
+        const hasPhone = (r: unknown[]) =>
+          (r || []).some(
+            (c) =>
+              headerMatches(String(c ?? ""), "studentPhone") ||
+              headerMatches(String(c ?? ""), "parentPhone")
+          );
+        let headerRowIndex = -1;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i] as unknown[];
+          if (hasName(row) && hasPhone(row)) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+        if (headerRowIndex < 0) {
+          reject(new Error("양식이 맞지 않습니다. 이름·전화번호 컬럼이 있는 행을 찾을 수 없습니다."));
+          return;
+        }
+        const headerRow = rows[headerRowIndex] as string[];
+        const map = buildHeaderMap(headerRow);
+        const sessionColMap = buildSessionColumnMap(headerRow);
+        const result: SessionEnrollParsedRow[] = [];
+        const remarkVal = (m: Record<string, number>, row: unknown[]) => {
+          const i = m["remark"];
+          if (i == null || typeof i !== "number") return "";
+          return String((row as unknown[])[i] ?? "").trim();
+        };
+        for (let r = headerRowIndex + 1; r < rows.length; r++) {
+          const row = rows[r] as unknown[];
+          if (/예시/.test(remarkVal(map, row))) continue;
+          const name = cellStr(map, row, "name");
+          const parentPhone = toRawPhone(cellStr(map, row, "parentPhone"));
+          if (!parentPhone || parentPhone.length !== 11 || !parentPhone.startsWith("010")) {
+            if (!name) continue;
+          }
+          if (!name && !parentPhone) continue;
+          const sessionAttendance: Record<number, string> = {};
+          for (const [orderStr, colIndex] of Object.entries(sessionColMap)) {
+            const order = parseInt(orderStr, 10);
+            const v = row[colIndex];
+            const cell = String(v ?? "").trim();
+            if (cell) sessionAttendance[order] = cell;
+          }
+          result.push({
+            name: name.trim(),
+            parentPhone: parentPhone || "",
+            sessionAttendance,
+          });
+        }
+        resolve(result);
+      } catch (err) {
+        reject(err instanceof Error ? err : new Error("파일 파싱 실패"));
+      }
+    };
+    reader.onerror = () => reject(new Error("파일 읽기 실패"));
+    reader.readAsBinaryString(file);
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useStudentsQuery.ts
+==========================================================================================
+// PATH: src/features/students/hooks/useStudentsQuery.ts
+import { useQuery } from "@tanstack/react-query";
+import { fetchStudents } from "../api/students";
+
+function compare(a: any, b: any, key: string) {
+  const av = a[key];
+  const bv = b[key];
+
+  if (av == null && bv == null) return 0;
+  if (av == null) return -1;
+  if (bv == null) return 1;
+
+  if (key === "registeredAt") {
+    const at = new Date(av || "").getTime();
+    const bt = new Date(bv || "").getTime();
+    return at - bt;
+  }
+
+  if (typeof av === "boolean" && typeof bv === "boolean") {
+    return Number(av) - Number(bv);
+  }
+
+  if (typeof av === "number" && typeof bv === "number") {
+    return av - bv;
+  }
+
+  return String(av).localeCompare(String(bv), "ko");
+}
+
+const PAGE_SIZE = 50;
+
+export function useStudentsQuery(
+  search: string,
+  filters: any,
+  sort: string,
+  page: number = 1,
+  deleted: boolean = false
+) {
+  return useQuery({
+    queryKey: ["students", search, filters, sort, page, deleted],
+    queryFn: async () => {
+      const { data, count, pageSize } = await fetchStudents(search, filters, sort, page, deleted);
+
+      if (!sort) return { data, count, pageSize: pageSize ?? PAGE_SIZE };
+
+      const isDesc = sort.startsWith("-");
+      const key = isDesc ? sort.slice(1) : sort;
+
+      const sorted = [...data].sort((a, b) => compare(a, b, key));
+      const sortedData = isDesc ? sorted.reverse() : sorted;
+      return { data: sortedData, count, pageSize: pageSize ?? PAGE_SIZE };
+    },
+    staleTime: 1000 * 5,
+  });
+}
+
+
+==========================================================================================
+# FILE: inventory/r2InventoryPath.ts
+==========================================================================================
+/**
+ * R2 인벤토리 저장 경로·파일명 SSOT
+ * tenants / {tenant_id} / {student_ps} / inventory / {폴더트리} / {파일명}
+ *
+ * - DB 메타데이터는 R2 업로드 성공 후에만 생성. R2 실패 시 롤백/에러 반환.
+ * - 파일명 충돌 방지: 원본명 뒤에 타임스탬프(또는 짧은 해시) 부여.
+ * - 폴더 삭제: 비어있지 않은 폴더는 삭제 불가(안전장치). 먼저 하위를 비운 뒤 삭제.
+ */
+
+/**
+ * R2 객체 키 생성.
+ * @param tenantId - 태넌트 ID
+ * @param studentPs - 학생 PS 번호
+ * @param folderPath - 인벤토리 내 폴더 경로 (빈 문자열 = 루트). 예: "1학기/중간"
+ * @param originalFileName - 원본 파일명 (예: 성적표.jpg)
+ * @returns R2 key. 예: tenants/t1/12345/inventory/1학기/중간/성적표_240214_abc.jpg
+ */
+export function getInventoryR2Key(
+  tenantId: string,
+  studentPs: string,
+  folderPath: string,
+  originalFileName: string
+): string {
+  const safeName = safeInventoryFileName(originalFileName);
+  const prefix = `tenants/${tenantId}/${studentPs}/inventory`;
+  const path = folderPath ? `${prefix}/${folderPath}/${safeName}` : `${prefix}/${safeName}`;
+  return path;
+}
+
+/**
+ * 같은 폴더 내 이름 충돌 방지를 위해 원본 파일명에 타임스탬프(및 짧은 해시) 부여.
+ * 예: 성적표.jpg → 성적표_240214_a1b2.jpg
+ */
+export function safeInventoryFileName(originalFileName: string): string {
+  const lastDot = originalFileName.lastIndexOf(".");
+  const base = lastDot >= 0 ? originalFileName.slice(0, lastDot) : originalFileName;
+  const ext = lastDot >= 0 ? originalFileName.slice(lastDot) : "";
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const hash = Math.random().toString(36).slice(2, 6);
+  const safe = `${base}_${stamp}_${hash}${ext}`;
+  return safe;
+}
+
+/**
+ * 폴더 배열을 R2 경로 문자열로 변환.
+ * [{ name: "1학기" }, { name: "중간" }] → "1학기/중간"
+ */
+export function folderPathFromIds(
+  folders: { id: string; name: string; parentId: string | null }[],
+  folderId: string | null
+): string {
+  if (!folderId) return "";
+  const path: string[] = [];
+  let currentId: string | null = folderId;
+  while (currentId) {
+    const folder = folders.find((f) => f.id === currentId);
+    if (!folder) break;
+    path.unshift(folder.name);
+    currentId = folder.parentId;
+  }
+  return path.join("/");
+}
+
+
+==========================================================================================
+# FILE: overlays/StudentsDetailOverlay.tsx
+==========================================================================================
+// PATH: src/features/students/overlays/StudentsDetailOverlay.tsx
+// 학생 상세 오버레이 — 고급 SaaS 스타일, 기능·구성 동일
+
+import { useParams, useNavigate } from "react-router-dom";
+import { useState, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { createPortal } from "react-dom";
+
+import {
+  getStudentDetail,
+  getTags,
+  attachStudentTag,
+  detachStudentTag,
+  createMemo,
+  deleteStudent,
+  toggleStudentActive,
+} from "../api/students";
+
+import StudentFormModal from "../components/EditStudentModal";
+import TagCreateModal from "../components/TagCreateModal";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import { EmptyState, Button, CloseButton } from "@/shared/ui/ds";
+import { formatPhone, formatStudentPhoneDisplay, formatOmrCode } from "@/shared/utils/formatPhone";
+
+const TABS = [
+  { key: "enroll", label: "수강 이력" },
+  { key: "clinic", label: "클리닉/상담 이력" },
+  { key: "question", label: "질문 이력" },
+  { key: "score", label: "성적 이력" },
+  { key: "schoolScore", label: "학교 성적" },
+];
+
+/** 인벤토리 아이콘 프리셋 — 시험/자료 종류별 시각 구분 */
+const INVENTORY_ICON_PRESETS = [
+  { id: "mid1", label: "1학기 중간", emoji: "📄", color: "#c62828" },
+  { id: "final1", label: "1학기 기말", emoji: "📄", color: "#ad1457" },
+  { id: "mid2", label: "2학기 중간", emoji: "📄", color: "#6a1b9a" },
+  { id: "final2", label: "2학기 기말", emoji: "📄", color: "#1565c0" },
+  { id: "mock3", label: "모의고사 3월", emoji: "📋", color: "#00838f" },
+  { id: "mock6", label: "모의고사 6월", emoji: "📋", color: "#2e7d32" },
+  { id: "mock9", label: "모의고사 9월", emoji: "📋", color: "#ef6c00" },
+  { id: "custom", label: "학원 사설", emoji: "📌", color: "#37474f" },
+  { id: "misc", label: "기타", emoji: "📎", color: "#757575" },
+] as const;
+
+type StudentsDetailOverlayProps = {
+  /** 라우트가 아닌 곳(예: 모달)에서 띄울 때 전달. 있으면 onClose로만 닫고 라우트 변경 없음 */
+  studentId?: number;
+  onClose?: () => void;
+};
+
+export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps) {
+  const routeParams = useParams();
+  const navigate = useNavigate();
+  const id = props?.studentId ?? Number(routeParams.studentId);
+  const onClose = props?.onClose ?? (() => navigate(-1));
+  const qc = useQueryClient();
+
+  const [tab, setTab] = useState("enroll");
+  const [editOpen, setEditOpen] = useState(false);
+  const [tagCreateOpen, setTagCreateOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [inventoryTab, setInventoryTab] = useState<"score" | "misc" | "video" | "image">("score");
+  const [viewerItem, setViewerItem] = useState<{ type: "pdf" | "image" | "video"; url: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  type InventoryFolder = { id: string; name: string; parentId: string | null };
+  type UploadedInventoryItem = {
+    id: string;
+    title: string;
+    description: string;
+    fileName: string;
+    fileUrl: string;
+    fileType: "pdf" | "image";
+    iconPreset?: string;
+    folderId?: string | null;
+  };
+  const [scoreFolders, setScoreFolders] = useState<InventoryFolder[]>([]);
+  const [miscFolders, setMiscFolders] = useState<InventoryFolder[]>([]);
+  const [scoreCurrentFolderId, setScoreCurrentFolderId] = useState<string | null>(null);
+  const [miscCurrentFolderId, setMiscCurrentFolderId] = useState<string | null>(null);
+  const [uploadedScoreItems, setUploadedScoreItems] = useState<UploadedInventoryItem[]>([]);
+  const [uploadedMiscItems, setUploadedMiscItems] = useState<UploadedInventoryItem[]>([]);
+  const [addChoiceModal, setAddChoiceModal] = useState<"score" | "misc" | null>(null);
+  const [newFolderModal, setNewFolderModal] = useState<{ tab: "score" | "misc"; name: string } | null>(null);
+  const [addFileModal, setAddFileModal] = useState<{
+    tab: "score" | "misc";
+    file: File | null;
+    title: string;
+    description: string;
+    iconPreset: string;
+  } | null>(null);
+  const [editItem, setEditItem] = useState<{ item: UploadedInventoryItem; tab: "score" | "misc" } | null>(null);
+  const [inventoryMultiSelect, setInventoryMultiSelect] = useState(false);
+  const [inventorySelectedId, setInventorySelectedId] = useState<string | null>(null);
+  const [inventorySelectedIds, setInventorySelectedIds] = useState<Set<string>>(new Set());
+  const [inventorySelectedFolderIds, setInventorySelectedFolderIds] = useState<Set<string>>(new Set());
+
+  const currentFolders = inventoryTab === "score" ? scoreFolders : miscFolders;
+  const setCurrentFolders = inventoryTab === "score" ? setScoreFolders : setMiscFolders;
+  const currentFolderId = inventoryTab === "score" ? scoreCurrentFolderId : miscCurrentFolderId;
+  const setCurrentFolderId = inventoryTab === "score" ? setScoreCurrentFolderId : setMiscCurrentFolderId;
+
+  const handleInventoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAddFileModal((m) => (m ? { ...m, file, title: m.title || file.name.replace(/\.[^.]+$/, "") || file.name } : null));
+    e.target.value = "";
+  };
+
+  const openAddChoice = (tab: "score" | "misc") => setAddChoiceModal(tab);
+  const openUploadModal = () => {
+    if (!addChoiceModal) return;
+    setAddFileModal({
+      tab: addChoiceModal,
+      file: null,
+      title: "",
+      description: "",
+      iconPreset: INVENTORY_ICON_PRESETS[0].id,
+    });
+    setAddChoiceModal(null);
+  };
+  const openNewFolderModal = () => {
+    if (!addChoiceModal) return;
+    setNewFolderModal({ tab: addChoiceModal, name: "" });
+    setAddChoiceModal(null);
+  };
+
+  const confirmNewFolder = () => {
+    if (!newFolderModal || !newFolderModal.name.trim()) return;
+    const folder: InventoryFolder = {
+      id: crypto.randomUUID(),
+      name: newFolderModal.name.trim(),
+      parentId: currentFolderId,
+    };
+    setCurrentFolders((prev) => [...prev, folder]);
+    setNewFolderModal(null);
+  };
+
+  const confirmAddFile = () => {
+    if (!addFileModal || !addFileModal.file) return;
+    const { tab, file, title, description, iconPreset } = addFileModal;
+    const fileUrl = URL.createObjectURL(file);
+    const fileType = file.type.startsWith("image/") ? "image" as const : "pdf" as const;
+    const item: UploadedInventoryItem = {
+      id: crypto.randomUUID(),
+      title: title.trim() || file.name,
+      description,
+      fileName: file.name,
+      fileUrl,
+      fileType,
+      iconPreset,
+      folderId: currentFolderId,
+    };
+    if (tab === "score") setUploadedScoreItems((prev) => [...prev, item]);
+    else setUploadedMiscItems((prev) => [...prev, item]);
+    setAddFileModal(null);
+  };
+
+  const currentList = inventoryTab === "score" ? uploadedScoreItems : uploadedMiscItems;
+  const setCurrentList = inventoryTab === "score" ? setUploadedScoreItems : setUploadedMiscItems;
+  const subFolders = currentFolders.filter((f) => f.parentId === currentFolderId);
+  const currentListFiltered = currentList.filter((i) => (i.folderId ?? null) === currentFolderId);
+
+  const folderHasChildren = (folderId: string) => {
+    const hasSub = currentFolders.some((f) => f.parentId === folderId);
+    const hasFiles = currentList.some((i) => (i.folderId ?? null) === folderId);
+    return hasSub || hasFiles;
+  };
+
+  const selectedIds = inventoryMultiSelect ? inventorySelectedIds : (inventorySelectedId ? new Set([inventorySelectedId]) : new Set());
+  const hasSelection = selectedIds.size > 0 || inventorySelectedFolderIds.size > 0;
+
+  const toggleInventorySelection = (id: string) => {
+    setInventorySelectedFolderIds(new Set());
+    if (inventoryMultiSelect) {
+      setInventorySelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    } else {
+      setInventorySelectedId((prev) => (prev === id ? null : id));
+    }
+  };
+
+  const toggleFolderSelection = (folderId: string) => {
+    setInventorySelectedId(null);
+    setInventorySelectedIds(new Set());
+    if (inventoryMultiSelect) {
+      setInventorySelectedFolderIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(folderId)) next.delete(folderId);
+        else next.add(folderId);
+        return next;
+      });
+    } else {
+      setInventorySelectedFolderIds((prev) => (prev.has(folderId) ? new Set() : new Set([folderId])));
+    }
+  };
+
+  const openEditModal = () => {
+    if (!inventoryMultiSelect && selectedIds.size !== 1) return;
+    const singleId = Array.from(selectedIds)[0];
+    if (!singleId) return;
+    const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === singleId);
+    if (item)
+      setEditItem({
+        item: { ...item, iconPreset: item.iconPreset ?? "misc" },
+        tab: uploadedScoreItems.some((i) => i.id === singleId) ? "score" : "misc",
+      });
+  };
+
+  const confirmEditItem = () => {
+    if (!editItem) return;
+    const { item, tab } = editItem;
+    const updater = (prev: UploadedInventoryItem[]) =>
+      prev.map((i) => (i.id === item.id ? { ...i, title: item.title, description: item.description, iconPreset: item.iconPreset } : i));
+    if (tab === "score") setUploadedScoreItems(updater);
+    else setUploadedMiscItems(updater);
+    setEditItem(null);
+  };
+
+  const deleteSelectedInventory = () => {
+    const toDeleteFolderIds = Array.from(inventorySelectedFolderIds);
+    for (const fid of toDeleteFolderIds) {
+      if (folderHasChildren(fid)) {
+        alert("비어있지 않은 폴더는 지울 수 없습니다. 먼저 하위 파일·폴더를 비우거나 삭제하세요.");
+        return;
+      }
+    }
+    toDeleteFolderIds.forEach((fid) => setCurrentFolders((prev) => prev.filter((f) => f.id !== fid)));
+    if (currentFolderId && toDeleteFolderIds.includes(currentFolderId)) setCurrentFolderId(null);
+    setInventorySelectedFolderIds(new Set());
+
+    const toDelete = Array.from(selectedIds);
+    toDelete.forEach((id) => {
+      const item = [...uploadedScoreItems, ...uploadedMiscItems].find((i) => i.id === id);
+      if (item?.fileUrl.startsWith("blob:")) URL.revokeObjectURL(item.fileUrl);
+    });
+    setCurrentList((prev) => prev.filter((i) => !toDelete.includes(i.id)));
+    setInventorySelectedId(null);
+    setInventorySelectedIds(new Set());
+  };
+
+  const { data: student, isLoading } = useQuery({
+    queryKey: ["student", id],
+    queryFn: () => getStudentDetail(id),
+    enabled: !!id,
+  });
+
+  const { data: tags } = useQuery({
+    queryKey: ["tags"],
+    queryFn: getTags,
+  });
+
+  const addTag = useMutation({
+    mutationFn: (tagId: number) => attachStudentTag(id, tagId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student", id] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
+    },
+  });
+
+  const removeTag = useMutation({
+    mutationFn: (tagId: number) => detachStudentTag(id, tagId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
+  });
+
+  const updateMemo = useMutation({
+    mutationFn: (memo: string) => createMemo(id, memo),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["student", id] }),
+  });
+
+  const toggleActive = useMutation({
+    mutationFn: (nextActive: boolean) => toggleStudentActive(id, nextActive),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["student", id] });
+      qc.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+
+  async function handleDelete() {
+    if (!confirm("이 학생을 삭제하시겠습니까?")) return;
+    await deleteStudent(id);
+    qc.invalidateQueries({ queryKey: ["students"] });
+    onClose();
+  }
+
+  if (isLoading || !student) return null;
+
+  return (
+    <>
+      <div className="ds-overlay-backdrop" onClick={onClose} aria-hidden />
+
+      <div className="ds-overlay-wrap">
+        <div className="ds-overlay-panel ds-overlay-panel--student-detail" onClick={(e) => e.stopPropagation()}>
+          <CloseButton
+            className="ds-overlay-panel__close"
+            onClick={onClose}
+          />
+          <header className="ds-overlay-header">
+            <div className="ds-overlay-header__inner">
+              <div className="ds-overlay-header__left">
+                <div className="ds-overlay-header__avatar-wrap" aria-hidden>
+                  <span className="ds-overlay-header__avatar">
+                    {student.profilePhotoUrl ? (
+                      <img src={student.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (student.name || "?")[0]
+                    )}
+                  </span>
+                </div>
+                <div className="ds-overlay-header__title-block">
+                  <h1 className="ds-overlay-header__title">
+                    <StudentNameWithLectureChip
+                      name={student.name ?? ""}
+                      avatarSize={0}
+                      chipSize={36}
+                      lectures={
+                        Array.isArray(student.enrollments) && student.enrollments.length > 0
+                          ? student.enrollments.map((en: { lectureName?: string | null; lectureColor?: string | null; lectureChipLabel?: string | null }) => ({
+                              lectureName: en.lectureName ?? "—",
+                              color: en.lectureColor ?? undefined,
+                              chipLabel: en.lectureChipLabel ?? undefined,
+                            }))
+                          : undefined
+                      }
+                    />
+                  </h1>
+                  <div className="ds-overlay-header__pills">
+                    <span className="ds-badge ds-overlay-header__badge-id" title="아이디">
+                      {student.psNumber ?? "—"}
+                    </span>
+                    <span className="ds-badge ds-overlay-header__badge-code" title="시험 식별코드">
+                      {formatOmrCode(student.omrCode)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="ds-overlay-header__right">
+                <div className="ds-overlay-header__actions">
+                  <button
+                    type="button"
+                    onClick={() => toggleActive.mutate(!student.active)}
+                    disabled={toggleActive.isPending}
+                    className="ds-status-badge"
+                    data-status={student.active ? "active" : "inactive"}
+                  >
+                    {toggleActive.isPending ? "…" : student.active ? "활성" : "비활성"}
+                  </button>
+                  <Button type="button" intent="primary" size="sm" onClick={() => setEditOpen(true)}>
+                    수정
+                  </Button>
+                  <Button type="button" intent="danger" size="sm" onClick={handleDelete}>
+                    삭제
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div className="ds-overlay-body">
+            <div className="ds-overlay-body__grid">
+              {/* Left panel — 정보·태그·메모 */}
+              <div
+                style={{
+                  borderRadius: 12,
+                  padding: 16,
+                  background: "var(--bg-surface-soft)",
+                  border: "1px solid var(--color-border-divider)",
+                }}
+              >
+                <div className="ds-overlay-info-rows">
+                  <InfoRow
+                    label="식별코드"
+                    value={formatOmrCode(student.omrCode)}
+                    accent
+                  />
+                  <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} />
+                  <InfoRow
+                    label="학생 전화"
+                    value={formatStudentPhoneDisplay(student.studentPhone)}
+                  />
+                  <InfoRow label="성별" value={student.gender} />
+                  <InfoRow label="학교" value={student.school} />
+                  <InfoRow
+                    label="학년"
+                    value={student.grade ? `${student.grade}학년` : "-"}
+                  />
+                  <InfoRow label="반" value={student.schoolClass} />
+                  <InfoRow label="계열" value={student.major} />
+                </div>
+
+                <div style={{ marginTop: 20 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      marginBottom: 8,
+                      color: "var(--color-text-muted)",
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    태그
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {student.tags?.length ? (
+                      student.tags.map((t: any) => {
+                        const c = String(t.color || "").toLowerCase();
+                        const lightColors = ["#eab308", "#06b6d4"];
+                        const isLight = lightColors.some((x) => c === x);
+                        return (
+                        <span
+                          key={t.id}
+                          className="inline-flex items-center gap-1 group cursor-default"
+                          style={{
+                            padding: "6px 10px 6px 12px",
+                            borderRadius: "6px 6px 6px 2px",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            background: t.color,
+                            color: isLight ? "#1a1a1a" : "#fff",
+                            border: "none",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+                            textShadow: isLight ? "none" : "0 0 1px rgba(0,0,0,0.2)",
+                          }}
+                        >
+                          {t.name}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeTag.mutate(t.id);
+                            }}
+                            disabled={removeTag.isPending}
+                            aria-label={`${t.name} 태그 제거`}
+                            style={{
+                              marginLeft: 4,
+                              padding: 0,
+                              width: 16,
+                              height: 16,
+                              borderRadius: 999,
+                              border: "none",
+                              background: "rgba(0,0,0,0.2)",
+                              color: "#fff",
+                              fontSize: 12,
+                              cursor: removeTag.isPending ? "wait" : "pointer",
+                              display: "grid",
+                              placeItems: "center",
+                              lineHeight: 1,
+                            }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                        );
+                      })
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: "var(--color-text-muted)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        태그 없음
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      intent="primary"
+                      size="sm"
+                      onClick={() => setTagCreateOpen(true)}
+                    >
+                      + 태그 추가
+                    </Button>
+                    {tags?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id)).length > 0 && (
+                      <select
+                        className="ds-input"
+                        style={{ fontSize: 13, minWidth: 140 }}
+                        onChange={(e) => {
+                          const tagId = Number(e.target.value);
+                          if (tagId) addTag.mutate(tagId);
+                          e.currentTarget.value = "";
+                        }}
+                      >
+                        <option value="">기존 태그 선택…</option>
+                        {tags
+                          ?.filter((t: any) => !student.tags?.some((st: any) => st.id === t.id))
+                          .map((tag: any) => (
+                            <option key={tag.id} value={tag.id}>
+                              {tag.name}
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 20 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      marginBottom: 8,
+                      color: "var(--color-text-muted)",
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    메모
+                  </div>
+                  <textarea
+                    className="ds-textarea w-full"
+                    rows={4}
+                    defaultValue={student.memo}
+                    placeholder="메모..."
+                    onBlur={(e) => updateMemo.mutate(e.target.value)}
+                    style={{
+                      fontSize: 13,
+                      borderRadius: 12,
+                      border: "1px solid var(--color-border-divider)",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Right panel — 탭 + 콘텐츠 (페이지형 플랫탭) */}
+              <div
+                style={{
+                  borderRadius: 12,
+                  padding: 16,
+                  background: "color-mix(in srgb, var(--color-brand-primary) 4%, var(--bg-surface-soft))",
+                  border: "1px solid var(--color-border-divider)",
+                }}
+              >
+                <div className="ds-overlay-tabs">
+                  <div className="ds-tabs ds-tabs--flat">
+                    {TABS.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        className={`ds-tab ${tab === t.key ? "is-active" : ""}`}
+                        onClick={() => setTab(t.key)}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ minHeight: 260, marginTop: 16 }}>
+                  {tab === "enroll" ? (
+                    <EnrollmentsTab enrollments={student.enrollments} />
+                  ) : (
+                    <EmptyState scope="panel" tone="empty" title="데이터가 없습니다." />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 우하단 인벤토리 트리거 — 아이콘만 큼지막하게, 클릭 시 좌측 패널 */}
+          <div className="ds-overlay-inventory-wrap">
+            <button
+              type="button"
+              className="ds-inventory-trigger-btn"
+              onClick={() => setInventoryOpen(true)}
+              title="인벤토리"
+              aria-label="인벤토리 열기"
+            >
+              📁
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {inventoryOpen &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setInventoryOpen(false)} aria-hidden />
+            <div
+              className="ds-inventory-panel"
+              role="dialog"
+              aria-label="학생 인벤토리"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="ds-inventory-panel__header">
+                <span className="ds-inventory-panel__title">인벤토리 — {student.name}</span>
+                <div className="ds-inventory-panel__header-actions">
+                  <CloseButton onClick={() => setInventoryOpen(false)} />
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+                className="ds-sr-only"
+                aria-hidden
+                onChange={handleInventoryFileChange}
+              />
+              <div className="ds-inventory-panel__tabs-wrap">
+                <div className="ds-inventory-panel__multi-check">
+                  <input
+                    id="inv-multi"
+                    type="checkbox"
+                    checked={inventoryMultiSelect}
+                    onChange={(e) => {
+                      setInventoryMultiSelect(e.target.checked);
+                      if (!e.target.checked) setInventorySelectedIds(new Set());
+                    }}
+                    aria-label="다중 선택"
+                  />
+                  <label htmlFor="inv-multi">다중</label>
+                </div>
+                <div className="ds-inventory-panel__tabs">
+                  {(["score", "misc", "video", "image"] as const).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`ds-inventory-panel__tab ${inventoryTab === key ? "is-active" : ""}`}
+                      onClick={() => setInventoryTab(key)}
+                    >
+                      {key === "score" && "성적표"}
+                      {key === "misc" && "기타"}
+                      {key === "video" && "제출영상"}
+                      {key === "image" && "제출이미지"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="ds-inventory-panel__main">
+                {(inventoryTab === "score" || inventoryTab === "misc") && (
+                  <div className="ds-inventory-panel__tree">
+                    <div
+                      className={`ds-inventory-panel__tree-root ${currentFolderId === null ? "is-current" : ""}`}
+                      onClick={() => setCurrentFolderId(null)}
+                    >
+                      루트
+                    </div>
+                    {currentFolders
+                      .filter((f) => !f.parentId)
+                      .map((folder) => (
+                        <InventoryTreeFolder
+                          key={folder.id}
+                          folder={folder}
+                          allFolders={currentFolders}
+                          currentFolderId={currentFolderId}
+                          onSelect={setCurrentFolderId}
+                        />
+                      ))}
+                  </div>
+                )}
+              <div className="ds-inventory-panel__body">
+                <div className="ds-inventory-panel__grid">
+                  {inventoryTab === "score" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item ds-inventory-panel__item--add"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openAddChoice("score")}
+                        onKeyDown={(e) => e.key === "Enter" && openAddChoice("score")}
+                        title="폴더 추가 또는 업로드"
+                      >
+                        +
+                      </div>
+                      {subFolders.map((folder) => {
+                        const isSelected = inventorySelectedFolderIds.has(folder.id);
+                        return (
+                          <div
+                            key={folder.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--folder ${isSelected ? "is-selected" : ""}`}
+                            title={folder.name}
+                            onClick={() => toggleFolderSelection(folder.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentFolderId(folder.id);
+                            }}
+                          >
+                            <span className="ds-inventory-panel__item-icon">📁</span>
+                            <span className="ds-inventory-panel__item-title">{folder.name}</span>
+                          </div>
+                        );
+                      })}
+                      {currentListFiltered.map((item) => {
+                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === (item.iconPreset ?? "misc")) ?? INVENTORY_ICON_PRESETS[0];
+                        const isSelected = selectedIds.has(item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--uploaded ${isSelected ? "is-selected" : ""}`}
+                            title={item.description || item.title}
+                            onClick={() => toggleInventorySelection(item.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setViewerItem({ type: item.fileType, url: item.fileUrl, name: item.title });
+                            }}
+                          >
+                            <span
+                              className="ds-inventory-panel__item-icon-badge"
+                              style={{ backgroundColor: preset.color + "22", color: preset.color }}
+                            >
+                              {preset.emoji}
+                            </span>
+                            <span className="ds-inventory-panel__item-title">{item.title}</span>
+                            {item.description && <span className="ds-inventory-panel__item-desc">{item.description}</span>}
+                            <span className="ds-inventory-panel__item-filename">{item.fileName}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                  {inventoryTab === "misc" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item ds-inventory-panel__item--add"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openAddChoice("misc")}
+                        onKeyDown={(e) => e.key === "Enter" && openAddChoice("misc")}
+                        title="폴더 추가 또는 업로드"
+                      >
+                        +
+                      </div>
+                      {subFolders.map((folder) => {
+                        const isSelected = inventorySelectedFolderIds.has(folder.id);
+                        return (
+                          <div
+                            key={folder.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--folder ${isSelected ? "is-selected" : ""}`}
+                            title={folder.name}
+                            onClick={() => toggleFolderSelection(folder.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentFolderId(folder.id);
+                            }}
+                          >
+                            <span className="ds-inventory-panel__item-icon">📁</span>
+                            <span className="ds-inventory-panel__item-title">{folder.name}</span>
+                          </div>
+                        );
+                      })}
+                      {currentListFiltered.map((item) => {
+                        const preset = INVENTORY_ICON_PRESETS.find((p) => p.id === (item.iconPreset ?? "misc")) ?? INVENTORY_ICON_PRESETS[0];
+                        const isSelected = selectedIds.has(item.id);
+                        return (
+                          <div
+                            key={item.id}
+                            className={`ds-inventory-panel__item ds-inventory-panel__item--uploaded ${isSelected ? "is-selected" : ""}`}
+                            title={item.description || item.title}
+                            onClick={() => toggleInventorySelection(item.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setViewerItem({ type: item.fileType, url: item.fileUrl, name: item.title });
+                            }}
+                          >
+                            <span
+                              className="ds-inventory-panel__item-icon-badge"
+                              style={{ backgroundColor: preset.color + "22", color: preset.color }}
+                            >
+                              {preset.emoji}
+                            </span>
+                            <span className="ds-inventory-panel__item-title">{item.title}</span>
+                            {item.description && <span className="ds-inventory-panel__item-desc">{item.description}</span>}
+                            <span className="ds-inventory-panel__item-filename">{item.fileName}</span>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                  {inventoryTab === "video" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="학생 앱 제출분 (더블클릭)"
+                        onDoubleClick={() => setViewerItem({ type: "video", url: "#", name: "제출 영상 1" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">🎬</span>
+                        <span>제출 영상 1</span>
+                      </div>
+                    </>
+                  )}
+                  {inventoryTab === "image" && (
+                    <>
+                      <div
+                        className="ds-inventory-panel__item"
+                        title="학생 앱 제출분 (더블클릭)"
+                        onDoubleClick={() => setViewerItem({ type: "image", url: "#", name: "제출 이미지 1" })}
+                      >
+                        <span className="ds-inventory-panel__item-icon">🖼️</span>
+                        <span>제출 이미지 1</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              </div>
+              {(inventoryTab === "score" || inventoryTab === "misc") && (
+                <div className="ds-inventory-panel__footer">
+                  {hasSelection && (
+                    <>
+                      {!inventoryMultiSelect && selectedIds.size === 1 && inventorySelectedFolderIds.size === 0 && (
+                        <Button type="button" intent="secondary" size="sm" onClick={openEditModal}>
+                          수정
+                        </Button>
+                      )}
+                      <Button type="button" intent="danger" size="sm" onClick={deleteSelectedInventory}>
+                        삭제
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
+
+      {addChoiceModal && (
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setAddChoiceModal(null)} aria-hidden />
+            <div className="ds-inventory-choice-modal" role="dialog" aria-label="추가" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-choice-modal__title">추가</div>
+              <div className="ds-inventory-choice-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={openNewFolderModal}>
+                  폴더생성
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={openUploadModal}>
+                  업로드
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )
+      )}
+
+      {newFolderModal &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setNewFolderModal(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="폴더 생성" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">폴더 생성</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-folder-name">폴더 제목</label>
+                <input
+                  id="inv-folder-name"
+                  type="text"
+                  value={newFolderModal.name}
+                  onChange={(e) => setNewFolderModal((m) => (m ? { ...m, name: e.target.value } : null))}
+                  placeholder="폴더 제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setNewFolderModal(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmNewFolder}>
+                  생성
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {addFileModal &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setAddFileModal(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="파일 업로드" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">{addFileModal.tab === "score" ? "성적표 업로드" : "기타 자료 업로드"}</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-add-title">제목</label>
+                <input
+                  id="inv-add-title"
+                  type="text"
+                  value={addFileModal.title}
+                  onChange={(e) => setAddFileModal((m) => (m ? { ...m, title: e.target.value } : null))}
+                  placeholder="제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-add-desc">설명</label>
+                <textarea
+                  id="inv-add-desc"
+                  value={addFileModal.description}
+                  onChange={(e) => setAddFileModal((m) => (m ? { ...m, description: e.target.value } : null))}
+                  placeholder="설명 (호버 시 표시)"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <span className="ds-inventory-add-modal__icon-label">아이콘 (종류·색상)</span>
+                <div className="ds-inventory-add-modal__icon-grid">
+                  {INVENTORY_ICON_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`ds-inventory-add-modal__icon-opt ${addFileModal.iconPreset === p.id ? "is-selected" : ""}`}
+                      onClick={() => setAddFileModal((m) => (m ? { ...m, iconPreset: p.id } : null))}
+                      title={p.label}
+                    >
+                      <span className="ds-inventory-add-modal__icon-opt-emoji">{p.emoji}</span>
+                      <span className="ds-inventory-add-modal__icon-opt-swatch" style={{ backgroundColor: p.color }} />
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <label>파일</label>
+                <div className="ds-inventory-add-modal__file-btn">
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {addFileModal.file ? addFileModal.file.name : "파일 선택"}
+                  </Button>
+                </div>
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setAddFileModal(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmAddFile} disabled={!addFileModal.file}>
+                  업로드
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {editItem &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setEditItem(null)} aria-hidden />
+            <div className="ds-inventory-add-modal" role="dialog" aria-label="자료 수정" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-add-modal__title">자료 수정</div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-edit-title">제목</label>
+                <input
+                  id="inv-edit-title"
+                  type="text"
+                  value={editItem.item.title}
+                  onChange={(e) => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, title: e.target.value } })}
+                  placeholder="제목"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <label htmlFor="inv-edit-desc">설명</label>
+                <textarea
+                  id="inv-edit-desc"
+                  value={editItem.item.description}
+                  onChange={(e) => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, description: e.target.value } })}
+                  placeholder="설명 (호버 시 표시)"
+                />
+              </div>
+              <div className="ds-inventory-add-modal__field">
+                <span className="ds-inventory-add-modal__icon-label">아이콘 (종류·색상)</span>
+                <div className="ds-inventory-add-modal__icon-grid">
+                  {INVENTORY_ICON_PRESETS.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`ds-inventory-add-modal__icon-opt ${editItem.item.iconPreset === p.id ? "is-selected" : ""}`}
+                      onClick={() => setEditItem((prev) => prev && { ...prev, item: { ...prev.item, iconPreset: p.id } })}
+                      title={p.label}
+                    >
+                      <span className="ds-inventory-add-modal__icon-opt-emoji">{p.emoji}</span>
+                      <span className="ds-inventory-add-modal__icon-opt-swatch" style={{ backgroundColor: p.color }} />
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="ds-inventory-add-modal__actions">
+                <Button type="button" intent="secondary" size="sm" onClick={() => setEditItem(null)}>
+                  취소
+                </Button>
+                <Button type="button" intent="primary" size="sm" onClick={confirmEditItem}>
+                  저장
+                </Button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {viewerItem &&
+        createPortal(
+          <>
+            <div className="ds-overlay-backdrop" onClick={() => setViewerItem(null)} aria-hidden />
+            <div className="ds-inventory-viewer" role="dialog" aria-label="보기" onClick={(e) => e.stopPropagation()}>
+              <div className="ds-inventory-viewer__header">
+                <span className="ds-inventory-viewer__title">{viewerItem.name}</span>
+                <CloseButton onClick={() => setViewerItem(null)} />
+              </div>
+              <div className="ds-inventory-viewer__body">
+                {viewerItem.type === "pdf" && (
+                  viewerItem.url.startsWith("blob:") ? (
+                    <iframe src={viewerItem.url} title={viewerItem.name} className="ds-inventory-viewer__iframe" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">PDF 뷰어 (URL 연동 시 iframe 표시)</div>
+                  )
+                )}
+                {viewerItem.type === "image" && (
+                  viewerItem.url.startsWith("blob:") ? (
+                    <img src={viewerItem.url} alt={viewerItem.name} className="ds-inventory-viewer__img" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">이미지 뷰어 (URL 연동 시 img 표시)</div>
+                  )
+                )}
+                {viewerItem.type === "video" && (
+                  viewerItem.url.startsWith("blob:") ? (
+                    <video src={viewerItem.url} controls className="ds-inventory-viewer__video" />
+                  ) : (
+                    <div className="ds-inventory-viewer__placeholder">영상 뷰어 (URL 연동 시 video 표시)</div>
+                  )
+                )}
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {editOpen &&
+        createPortal(
+          <StudentFormModal
+            open={true}
+            initialValue={student}
+            onClose={() => setEditOpen(false)}
+            onSuccess={() => {
+              setEditOpen(false);
+              qc.invalidateQueries({ queryKey: ["student", id] });
+            }}
+          />,
+          document.body
+        )}
+
+      {tagCreateOpen &&
+        createPortal(
+          <TagCreateModal
+            open={true}
+            onClose={() => setTagCreateOpen(false)}
+            onSuccess={(tag) => {
+              addTag.mutate(tag.id);
+              setTagCreateOpen(false);
+            }}
+            usedColors={tags?.map((t: any) => t.color).filter(Boolean) ?? []}
+          />,
+          document.body
+        )}
+    </>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: any;
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className="ds-overlay-info-row"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        alignItems: "center",
+        padding: "6px 10px",
+        borderRadius: 8,
+        background: accent
+          ? "color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface))"
+          : "var(--color-bg-surface)",
+        border: "1px solid var(--color-border-divider)",
+        fontSize: 13,
+      }}
+    >
+      <span
+        style={{
+          fontWeight: 600,
+          color: "var(--color-text-muted)",
+          fontSize: 12,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontWeight: 700,
+          color: "var(--color-text-primary)",
+          textAlign: "right",
+        }}
+      >
+        {value || "-"}
+      </span>
+    </div>
+  );
+}
+
+function InventoryTreeFolder({
+  folder,
+  allFolders,
+  currentFolderId,
+  onSelect,
+}: {
+  folder: { id: string; name: string; parentId: string | null };
+  allFolders: { id: string; name: string; parentId: string | null }[];
+  currentFolderId: string | null;
+  onSelect: (id: string | null) => void;
+}) {
+  const children = allFolders.filter((f) => f.parentId === folder.id);
+  const isCurrent = currentFolderId === folder.id;
+  return (
+    <div>
+      <div
+        className={`ds-inventory-panel__tree-item ${isCurrent ? "is-current" : ""}`}
+        onClick={() => onSelect(folder.id)}
+      >
+        {folder.name}
+      </div>
+      {children.map((child) => (
+        <InventoryTreeFolder
+          key={child.id}
+          folder={child}
+          allFolders={allFolders}
+          currentFolderId={currentFolderId}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+}
+
+function EnrollmentsTab({ enrollments }: { enrollments: any[] }) {
+  if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
+
+  return (
+    <div style={{ display: "grid", gap: 10 }}>
+      {enrollments.map((en: any) => (
+        <div
+          key={en.id}
+          style={{
+            padding: "14px 16px",
+            borderRadius: 12,
+            background: "var(--color-bg-surface)",
+            border: "1px solid var(--color-border-divider)",
+            fontSize: 13,
+            fontWeight: 700,
+            transition: "border-color 0.15s, box-shadow 0.15s",
+          }}
+          className="hover:border-[var(--color-primary)]/30 hover:shadow-sm"
+        >
+          {en.lectureName || "-"}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/StudentsHomePage.tsx
+==========================================================================================
+// PATH: src/features/students/pages/StudentsHomePage.tsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+const STORAGE_KEY = "students-selected-ids";
+
+import { useStudentsQuery } from "../hooks/useStudentsQuery";
+import {
+  bulkDeleteStudents,
+  bulkRestoreStudents,
+  bulkPermanentDeleteStudents,
+  checkDeletedStudentDuplicates,
+  fixDeletedStudentDuplicates,
+  toggleStudentActive,
+} from "../api/students";
+import StudentsTable from "../components/StudentsTable";
+import StudentCreateModal from "../components/StudentCreateModal";
+import StudentFilterModal from "../components/StudentFilterModal";
+
+import { Button, EmptyState } from "@/shared/ui/ds";
+import { DomainListToolbar } from "@/shared/ui/domain";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+
+export default function StudentsHomePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const qc = useQueryClient();
+  const { openSendMessageModal } = useSendMessageModal();
+
+  const isDeletedTab = location.pathname.includes("/deleted");
+
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<any>({});
+  const [showCreate, setShowCreate] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
+  const [sort, setSort] = useState("-registeredAt");
+  const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<number[]>(() => {
+    try {
+      const k = `${STORAGE_KEY}-${isDeletedTab ? "deleted" : "home"}`;
+      const v = sessionStorage.getItem(k);
+      if (v) {
+        const arr = JSON.parse(v);
+        return Array.isArray(arr) ? arr.filter((x) => typeof x === "number") : [];
+      }
+    } catch {}
+    return [];
+  });
+  const [deleting, setDeleting] = useState(false);
+  const [duplicateFixing, setDuplicateFixing] = useState(false);
+  const [bulkUploadProgress, setBulkUploadProgress] = useState<{ current: number; total: number } | null>(null);
+
+  useEffect(() => {
+    setSort(isDeletedTab ? "-deletedAt" : "-registeredAt");
+  }, [isDeletedTab]);
+
+  const prevTabRef = useRef(isDeletedTab);
+  useEffect(() => {
+    if (prevTabRef.current !== isDeletedTab) {
+      prevTabRef.current = isDeletedTab;
+      setSelectedIds([]);
+    }
+  }, [isDeletedTab]);
+
+  useEffect(() => {
+    const k = `${STORAGE_KEY}-${isDeletedTab ? "deleted" : "home"}`;
+    sessionStorage.setItem(k, JSON.stringify(selectedIds));
+  }, [selectedIds, isDeletedTab]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 250);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filters, isDeletedTab]);
+
+  const { data: queryResult, isLoading } = useStudentsQuery(
+    search,
+    filters,
+    sort,
+    page,
+    isDeletedTab
+  );
+  const data = queryResult?.data ?? [];
+  const totalCount = queryResult?.count ?? 0;
+  const pageSize = queryResult?.pageSize ?? 50;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  const activeFilterCount = useMemo(
+    () => Object.keys(filters || {}).length,
+    [filters]
+  );
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, nextActive }: { id: number; nextActive: boolean }) =>
+      toggleStudentActive(id, nextActive),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["student"] });
+    },
+  });
+  const togglingId =
+    toggleActiveMutation.isPending && toggleActiveMutation.variables
+      ? toggleActiveMutation.variables.id
+      : null;
+
+  const selectionBar = (
+    <div className="flex flex-col gap-2">
+    <div className="flex flex-wrap items-center gap-2 pl-1">
+      <span
+        className="text-[13px] font-semibold"
+        style={{
+          color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+        }}
+      >
+        {selectedIds.length}명 선택됨
+      </span>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+        선택 해제
+      </Button>
+      <span className="text-[var(--color-border-divider)]">|</span>
+      {!isDeletedTab && (
+        <>
+          <Button intent="secondary" size="sm" onClick={() => openSendMessageModal({ studentIds: selectedIds, recipientLabel: `선택한 학생 ${selectedIds.length}명` })}>
+            메시지 발송
+          </Button>
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
+            엑셀 다운로드
+          </Button>
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("시급 태그 추가 기능 준비 중입니다.")}>
+            시급 태그 추가
+          </Button>
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
+            비밀번호 변경
+          </Button>
+          <Button
+            intent="danger"
+            size="sm"
+            disabled={selectedIds.length === 0 || deleting}
+            onClick={async () => {
+              if (selectedIds.length === 0) return;
+              const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
+              const parts = selected.map(
+                (s) => `${s.name}(${Array.isArray(s.enrollments) ? s.enrollments.length : 0}개 강의 수강 중)`
+              );
+              const msg =
+                parts.length > 0
+                  ? `${parts.join(", ")}\n\n위 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`
+                  : `선택한 ${selectedIds.length}명을 삭제하시겠습니까? 30일간 보관 후 자동 삭제됩니다.`;
+              if (!window.confirm(msg)) return;
+              setDeleting(true);
+              try {
+                const { deleted } = await bulkDeleteStudents(selectedIds);
+                setSelectedIds([]);
+                qc.invalidateQueries({ queryKey: ["students"] });
+                feedback.success(`${deleted}명 삭제되었습니다.`);
+              } catch (e: unknown) {
+                feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+              } finally {
+                setDeleting(false);
+              }
+            }}
+          >
+            {deleting ? "삭제 중…" : "삭제"}
+          </Button>
+        </>
+      )}
+      {isDeletedTab && (
+        <>
+          <Button
+            intent="primary"
+            size="sm"
+            disabled={selectedIds.length === 0 || deleting}
+            onClick={async () => {
+              if (selectedIds.length === 0) return;
+              if (!window.confirm(`선택한 ${selectedIds.length}명을 복원하시겠습니까?`)) return;
+              setDeleting(true);
+              try {
+                const { restored } = await bulkRestoreStudents(selectedIds);
+                setSelectedIds([]);
+                qc.invalidateQueries({ queryKey: ["students"] });
+                feedback.success(`${restored}명 복원되었습니다.`);
+              } catch (e: unknown) {
+                feedback.error(e instanceof Error ? e.message : "복원 중 오류가 발생했습니다.");
+              } finally {
+                setDeleting(false);
+              }
+            }}
+          >
+            {deleting ? "복원 중…" : "복원"}
+          </Button>
+          <Button
+            intent="danger"
+            size="sm"
+            disabled={selectedIds.length === 0 || deleting}
+            onClick={async () => {
+              if (selectedIds.length === 0) return;
+              if (!window.confirm(`선택한 ${selectedIds.length}명을 즉시 영구 삭제하시겠습니까? 복구할 수 없습니다.`)) return;
+              setDeleting(true);
+              try {
+                const { deleted } = await bulkPermanentDeleteStudents(selectedIds);
+                setSelectedIds([]);
+                qc.invalidateQueries({ queryKey: ["students"] });
+                feedback.success(`${deleted}명 영구 삭제되었습니다.`);
+              } catch (e: unknown) {
+                feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+              } finally {
+                setDeleting(false);
+              }
+            }}
+          >
+            {deleting ? "삭제 중…" : "즉시 삭제"}
+          </Button>
+        </>
+      )}
+    </div>
+
+    {totalPages > 1 && (
+      <div className="flex flex-wrap items-center gap-1 pl-1">
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPage(p)}
+            style={{
+              minWidth: 32,
+              height: 32,
+              padding: "0 8px",
+              fontSize: 13,
+              fontWeight: page === p ? 700 : 500,
+              borderRadius: 6,
+              border: page === p ? "2px solid var(--color-primary)" : "1px solid var(--color-border-divider)",
+              background: page === p ? "var(--state-selected-bg)" : "var(--color-bg-surface)",
+              color: page === p ? "var(--color-primary)" : "var(--color-text-secondary)",
+              cursor: "pointer",
+            }}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+    )}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={
+            isLoading ? (
+              "…"
+            ) : isDeletedTab ? (
+              // SSOT 디자인 예외: 삭제된 학생 탭에서만 총계 좌측에 중복 정리(새로고침) 아이콘 노출
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <button
+                  type="button"
+                  title="중복 정리"
+                  aria-label="중복 정리"
+                  disabled={deleting || duplicateFixing}
+                  onClick={async () => {
+                    try {
+                      const r = await checkDeletedStudentDuplicates();
+                      if (r.records_to_remove === 0) return;
+                      setDuplicateFixing(true);
+                      await fixDeletedStudentDuplicates();
+                      qc.invalidateQueries({ queryKey: ["students"] });
+                    } catch {
+                      // 조용히 실패 — 사용자에게 버그 존재를 노출하지 않음
+                    } finally {
+                      setDuplicateFixing(false);
+                    }
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 28,
+                    height: 28,
+                    padding: 0,
+                    border: "1px solid var(--color-border-divider)",
+                    borderRadius: 6,
+                    background: "var(--color-bg-surface)",
+                    color: "var(--color-text-secondary)",
+                    cursor: deleting || duplicateFixing ? "not-allowed" : "pointer",
+                    opacity: deleting || duplicateFixing ? 0.6 : 1,
+                  }}
+                >
+                  {duplicateFixing ? (
+                    <span style={{ fontSize: 12 }}>…</span>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M23 4v6h-6M1 20v-6h6" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                  )}
+                </button>
+                <span>총 {totalCount}명 (30일 후 자동 삭제)</span>
+              </span>
+            ) : (
+              `총 ${totalCount}명`
+            )
+          }
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="이름 / 아이디 / 전화번호 / 학교 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              style={{ maxWidth: 360 }}
+            />
+          }
+          filterSlot={
+            <Button intent="secondary" onClick={() => setShowFilter(true)}>
+              고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
+            </Button>
+          }
+          primaryAction={
+            !isDeletedTab ? (
+              <Button intent="primary" onClick={() => setShowCreate(true)}>
+                학생 추가
+              </Button>
+            ) : null
+          }
+          belowSlot={selectionBar}
+        />
+
+        {/* 엑셀 업로드 진행바 (모달 닫고 진행 중일 때) */}
+        {bulkUploadProgress && !showCreate && (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: "12px 16px",
+              background: "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))",
+              border: "1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border-divider))",
+              borderRadius: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 16,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  height: 8,
+                  background: "var(--color-bg-surface-soft)",
+                  borderRadius: 4,
+                  overflow: "hidden",
+                  marginBottom: 4,
+                }}
+              >
+                <div
+                  style={{
+                    width: `${(bulkUploadProgress.current / bulkUploadProgress.total) * 100}%`,
+                    height: "100%",
+                    background: "var(--color-primary)",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)" }}>
+                학생 등록 중… {Math.round((bulkUploadProgress.current / bulkUploadProgress.total) * 100)}%
+                ({bulkUploadProgress.current}/{bulkUploadProgress.total}명)
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* 테이블 */}
+        <div>
+          {isLoading ? (
+            <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+          ) : data?.length ? (
+            <StudentsTable
+              data={data}
+              search={search}
+              sort={sort}
+              onSortChange={setSort}
+              onRowClick={(id) => !isDeletedTab && navigate(`/admin/students/${id}`)}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              isDeletedTab={isDeletedTab}
+              onToggleActive={
+                !isDeletedTab
+                  ? (id, nextActive) => toggleActiveMutation.mutate({ id, nextActive })
+                  : undefined
+              }
+              togglingId={togglingId ?? undefined}
+            />
+          ) : (
+            <EmptyState
+              scope="panel"
+              tone="empty"
+              title={isDeletedTab ? "삭제된 학생이 없습니다" : "학생이 없습니다"}
+              description={
+                isDeletedTab
+                  ? "삭제한 학생은 30일간 여기에 보관됩니다."
+                  : "학생을 등록하면 목록/검색/이력 관리가 가능합니다."
+              }
+              actions={
+                !isDeletedTab ? (
+                  <Button intent="primary" onClick={() => setShowCreate(true)}>
+                    학생 추가
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
+        </div>
+      </div>
+
+      {/* MODALS */}
+      <StudentCreateModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onSuccess={() => {
+          setShowCreate(false);
+          setBulkUploadProgress(null);
+          qc.invalidateQueries({ queryKey: ["students"] });
+        }}
+        onBulkProgress={setBulkUploadProgress}
+      />
+
+      <StudentFilterModal
+        open={showFilter}
+        filters={filters}
+        onClose={() => setShowFilter(false)}
+        onApply={(next) => {
+          setFilters(next);
+          setShowFilter(false);
+        }}
+      />
+    </>
+  );
+}

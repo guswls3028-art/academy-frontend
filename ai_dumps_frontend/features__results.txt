@@ -1,0 +1,3320 @@
+====================================================================================================
+# FRONTEND FOLDER: features__results
+# ROOT PATH: C:\academyfront\src\features\results
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/adminExamItemScore.ts
+==========================================================================================
+/**
+ * PATH: src/features/results/api/adminExamItemScore.ts
+ *
+ * ✅ Admin Subjective Item Score API
+ *
+ * 책임:
+ * - 주관식 문항 점수 단위 PATCH
+ *
+ * ❗ 규칙:
+ * - 성공/실패 여부만 판단
+ * - 결과 상태는 반드시 detail 재조회로 확인
+ */
+
+import api from "@/shared/api/axios";
+
+export async function patchExamItemScore(params: {
+  examId: number;
+  enrollmentId: number;
+  questionId: number;
+  score: number;
+}) {
+  const { examId, enrollmentId, questionId, score } = params;
+
+  const res = await api.patch(
+    `/results/admin/exams/${examId}/enrollments/${enrollmentId}/items/${questionId}/`,
+    { score }
+  );
+
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/adminExamResultDetail.ts
+==========================================================================================
+/**
+ * PATH: src/features/results/api/adminExamResultDetail.ts
+ *
+ * ✅ Admin Exam Result Detail API (Phase 4 - A1)
+ *
+ * 변경 요약:
+ * - edit_state 필드 명시적 포함 (optional ❌)
+ * - 문항 단위 is_editable backend flag 반영
+ *
+ * ⚠️ 규칙:
+ * - edit_state 누락 시 프론트는 편집 불가 처리
+ */
+
+import api from "@/shared/api/axios";
+import type { EditState } from "../types/editState";
+
+export type ExamResultItem = {
+  question_id: number;
+  answer: string;
+  is_correct: boolean;
+  score: number;
+  max_score: number;
+
+  /**
+   * ✅ backend 책임
+   * - 주관식/객관식 판단 ❌
+   * - 프론트는 이 값만 신뢰
+   */
+  is_editable: boolean;
+
+  meta?: any;
+};
+
+export type ExamResultDetail = {
+  target_type: "exam";
+  target_id: number;
+  enrollment_id: number;
+
+  attempt_id: number | null;
+
+  total_score: number;
+  max_score: number;
+  submitted_at: string | null;
+
+  items: ExamResultItem[];
+
+  /**
+   * 🔒 Phase 4 핵심
+   * - 반드시 존재해야 함
+   * - 없으면 프론트는 Fail Closed
+   */
+  edit_state: EditState;
+};
+
+export async function fetchAdminExamResultDetail(
+  examId: number,
+  enrollmentId: number
+): Promise<ExamResultDetail> {
+  const res = await api.get(
+    `/results/admin/exams/${examId}/enrollments/${enrollmentId}/`
+  );
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/adminSessionExams.ts
+==========================================================================================
+// PATH: src/features/results/api/adminSessionExams.ts
+
+import api from "@/shared/api/axios";
+
+export type SessionExamRow = {
+  exam_id: number;
+  title: string;
+  open_at: string | null;
+  close_at: string | null;
+  allow_retake: boolean;
+  max_attempts: number;
+};
+
+export async function fetchAdminSessionExams(sessionId: number) {
+  const res = await api.get(
+    `/results/admin/sessions/${sessionId}/exams/`
+  );
+
+  const d = res.data;
+
+  // ✅ 방어 파싱만 추가 (이것만)
+  if (Array.isArray(d)) return d;
+  if (Array.isArray(d?.items)) return d.items;
+  if (Array.isArray(d?.results)) return d.results;
+
+  return [];
+}
+
+
+==========================================================================================
+# FILE: api/client.ts
+==========================================================================================
+// src/features/results/api/client.ts
+// ------------------------------------------------------------
+// Results Domain ApiClient
+// - 관리자 / 운영자용 성적·통계·오답 API 전용
+// - exams / lectures 도메인 접근 ❌
+// ------------------------------------------------------------
+
+import axios, { AxiosInstance } from "axios";
+
+type ClientOptions = {
+  baseUrl: string;
+  getAccessToken?: () => string | null;
+};
+
+export class ApiClient {
+  private http: AxiosInstance;
+
+  constructor({ baseUrl, getAccessToken }: ClientOptions) {
+    this.http = axios.create({
+      baseURL: baseUrl,
+    });
+
+    // ✅ access token 자동 주입
+    this.http.interceptors.request.use((config) => {
+      const token = getAccessToken?.();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    });
+  }
+
+  /* =====================================================
+   * 🔧 [추가]
+   * Generic HTTP helpers
+   *
+   * 목적:
+   * - hooks / panels 에서 api.get<T>() 패턴 사용 가능하게
+   * - axios 직접 노출 ❌
+   * - results 도메인 내부 통신 표준화
+   * ===================================================== */
+
+  async get<T = any>(url: string, config?: any): Promise<T> {
+    const res = await this.http.get(url, config);
+    return res.data as T;
+  }
+
+  async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const res = await this.http.post(url, data, config);
+    return res.data as T;
+  }
+
+  async put<T = any>(url: string, data?: any, config?: any): Promise<T> {
+    const res = await this.http.put(url, data, config);
+    return res.data as T;
+  }
+
+  async delete<T = any>(url: string, config?: any): Promise<T> {
+    const res = await this.http.delete(url, config);
+    return res.data as T;
+  }
+
+  /* =====================================================
+   * Admin Exam Results (도메인 전용 고수준 API)
+   * ===================================================== */
+
+  /**
+   * 관리자 시험 성적 리스트
+   * GET /results/admin/exams/{exam_id}/results/
+   */
+  async getAdminExamResults(examId: number) {
+    const res = await this.http.get(
+      `/results/admin/exams/${examId}/results/`
+    );
+    return res.data;
+  }
+
+  /**
+   * 관리자 시험 통계 요약
+   * GET /results/admin/exams/{exam_id}/summary/
+   */
+  async getAdminExamSummary(examId: number) {
+    const res = await this.http.get(
+      `/results/admin/exams/${examId}/summary/`
+    );
+    return res.data;
+  }
+
+  /**
+   * 세션 단위 성적 요약
+   * GET /results/admin/sessions/{session_id}/score-summary/
+   */
+  async getSessionScoreSummary(sessionId: number) {
+    const res = await this.http.get(
+      `/results/admin/sessions/${sessionId}/score-summary/`
+    );
+    return res.data;
+  }
+
+  /* =====================================================
+   * Question / Wrong Note
+   * ===================================================== */
+
+  /**
+   * 문항별 통계
+   * GET /results/admin/exams/{exam_id}/questions/
+   */
+  async getExamQuestionStats(examId: number) {
+    const res = await this.http.get(
+      `/results/admin/exams/${examId}/questions/`
+    );
+    return res.data;
+  }
+
+  /**
+   * 단일 학생 오답 노트
+   * GET /results/wrong-notes?exam_id=&enrollment_id=
+   */
+  async getWrongNotes(params: {
+    examId: number;
+    enrollmentId: number;
+  }) {
+    const res = await this.http.get(`/results/wrong-notes`, {
+      params: {
+        exam_id: params.examId,
+        enrollment_id: params.enrollmentId,
+      },
+    });
+    return res.data;
+  }
+}
+
+
+==========================================================================================
+# FILE: api/endpoints.ts
+==========================================================================================
+export const resultsEndpoints = {
+  // 1) Results
+  myExamResult: (examId: number) => `/results/me/exams/${examId}/`,
+  adminExamResults: (examId: number) => `/results/admin/exams/${examId}/results/`,
+  adminExamResultDetail: (examId: number, enrollmentId: number) =>
+    `/results/admin/exams/${examId}/enrollments/${enrollmentId}/`,
+
+  // 2) Analytics
+  adminExamSummary: (examId: number) => `/results/admin/exams/${examId}/summary/`,
+  sessionScoreSummary: (sessionId: number) => `/results/admin/sessions/${sessionId}/score-summary/`,
+  questionStats: (examId: number) => `/results/admin/exams/${examId}/questions/`,
+  topWrongQuestions: (examId: number, n = 5) => `/results/admin/exams/${examId}/questions/top-wrong/?n=${n}`,
+
+  // 3) Wrong notes
+  wrongNotes: (params: {
+    enrollment_id: number;
+    exam_id?: number;
+    lecture_id?: number;
+    from_session_order?: number;
+    offset?: number;
+    limit?: number;
+  }) => {
+    const q = new URLSearchParams();
+    q.set("enrollment_id", String(params.enrollment_id));
+    if (params.exam_id != null) q.set("exam_id", String(params.exam_id));
+    if (params.lecture_id != null) q.set("lecture_id", String(params.lecture_id));
+    if (params.from_session_order != null) q.set("from_session_order", String(params.from_session_order));
+    if (params.offset != null) q.set("offset", String(params.offset));
+    if (params.limit != null) q.set("limit", String(params.limit));
+    return `/results/wrong-notes?${q.toString()}`;
+  },
+
+  wrongNotePdfCreate: `/results/wrong-notes/pdf/`,
+  wrongNotePdfStatus: (jobId: number) => `/results/wrong-notes/pdf/${jobId}/`,
+};
+
+
+==========================================================================================
+# FILE: api/myExamResult.ts
+==========================================================================================
+// PATH: src/features/results/api/myExamResult.ts
+import api from "@/shared/api/axios";
+
+export type MyExamResultItem = {
+  question_id: number;
+  answer: string;
+  is_correct: boolean;
+  score: number;
+  max_score: number;
+  source: string;
+};
+
+export type MyExamResult = {
+  target_type: "exam";
+  target_id: number; // exam_id
+  enrollment_id: number;
+
+  // ✅ 백엔드가 내려줌 (대표 attempt 스냅샷 기준)
+  attempt_id: number | null;
+
+  total_score: number;
+  max_score: number;
+  submitted_at: string | null;
+
+  // ✅ 재시험 버튼 판단용: 백엔드 계산값
+  allow_retake: boolean;
+  max_attempts: number;
+  can_retake: boolean;
+
+  // ✅ progress pipeline 결과
+  clinic_required: boolean;
+
+  // ⚠️ 주의: passed는 현재 백엔드가 명시적으로 제공하지 않음
+  // - pass 여부를 화면에 보여주려면 pass_score 정책과 계산 기준을 백엔드와 먼저 확정해야 안전함
+  passed?: boolean;
+
+  items: MyExamResultItem[];
+};
+
+export async function fetchMyExamResult(examId: number): Promise<MyExamResult> {
+  const res = await api.get(`/results/me/exams/${examId}/`);
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/wrongNotes.ts
+==========================================================================================
+// PATH: src/features/results/api/wrongNotes.ts
+import api from "@/shared/api/axios";
+
+export type WrongNoteItem = {
+  exam_id: number;
+  attempt_id: number;
+
+  // ✅ 보완: 백엔드 응답에 존재 (표시/정렬/attempt 비교 UX에 유용)
+  attempt_created_at?: string | null;
+
+  question_id: number;
+  question_number?: number | null;
+
+  // ✅ 보완: 객관식/주관식 구분 및 UI 분기용
+  answer_type?: string;
+
+  student_answer: string;
+  correct_answer: string;
+
+  // ✅ 보완: 백엔드가 내려주는 is_correct/메타 기반 UI 처리 가능
+  is_correct?: boolean;
+
+  score: number;
+  max_score: number;
+
+  // ✅ 핵심: bbox 하이라이트, invalid_reason(LOW_CONFIDENCE 등) 표시용
+  meta?: any;
+
+  // ✅ 확장 포인트 (해설/지문 등)
+  extra?: any;
+};
+
+export type WrongNoteResponse = {
+  count: number;
+  next: number | null;
+  prev: number | null;
+  results: WrongNoteItem[];
+};
+
+export async function fetchWrongNotes(params: {
+  enrollment_id: number;
+  exam_id?: number;
+  lecture_id?: number;
+  from_session_order?: number;
+  offset?: number;
+  limit?: number;
+}) {
+  const res = await api.get("/results/wrong-notes", { params });
+  return res.data as WrongNoteResponse;
+}
+
+export type WrongNotePDFCreateResponse = {
+  job_id: number;
+  status: string; // PENDING/RUNNING/DONE/FAILED
+  status_url: string; // absolute url (backend provides)
+};
+
+export async function createWrongNotePDF(payload: {
+  enrollment_id: number;
+  exam_id?: number;
+  lecture_id?: number;
+  from_session_order?: number;
+}) {
+  const res = await api.post("/results/wrong-notes/pdf/", payload);
+  return res.data as WrongNotePDFCreateResponse;
+}
+
+export type WrongNotePDFStatusResponse = {
+  job_id: number;
+  status: string; // PENDING/RUNNING/DONE/FAILED
+  file_path: string;
+  file_url: string | null;
+  error_message: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchWrongNotePDFStatus(jobId: number) {
+  // ✅ 보완: polling 전용 API
+  const res = await api.get(`/results/wrong-notes/pdf/${jobId}/`);
+  return res.data as WrongNotePDFStatusResponse;
+}
+
+
+==========================================================================================
+# FILE: components/AdminExamResultsTable.tsx
+==========================================================================================
+/**
+ * PATH: src/features/results/components/AdminExamResultsTable.tsx
+ *
+ * ✅ AdminExamResultsTable (Backend Contract Aligned)
+ *
+ * 변경 요약:
+ * - exam_score / exam_max_score 의존 제거 (백엔드 리스트 계약에 없음)
+ * - final_score / passed 기반 표시
+ * - 대표 attempt/최종 점수 없는 케이스를 "—" 로 명확화
+ *
+ * ❗ 기존 props / 구조 유지
+ */
+
+import { AdminExamResultRow } from "../types/results.types";
+import { deriveFrontResultStatus } from "../utils/deriveFrontResultStatus";
+import FrontResultStatusBadge from "./FrontResultStatusBadge";
+
+function scoreCell(r: AdminExamResultRow) {
+  // 대표 attempt 기준 final_score가 단일 진실
+  const fs = r.final_score;
+  if (fs === null || fs === undefined) return "—";
+  if (typeof fs === "number") return String(fs);
+  return "—";
+}
+
+export default function AdminExamResultsTable({
+  rows,
+  onSelectEnrollment,
+}: {
+  rows: AdminExamResultRow[];
+  onSelectEnrollment: (id: number) => void;
+}) {
+  return (
+    <table className="w-full text-sm border">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="p-2 text-left">학생</th>
+          <th className="p-2 text-center">최종점수</th>
+          <th className="p-2 text-center">상태</th>
+          <th className="p-2 text-center">합격</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {rows.map((r) => {
+          const frontStatus = deriveFrontResultStatus(r);
+          const passed = r.passed;
+
+          return (
+            <tr
+              key={r.enrollment_id}
+              className="cursor-pointer hover:bg-gray-50"
+              onClick={() => onSelectEnrollment(r.enrollment_id)}
+              title={`enrollment_id: ${r.enrollment_id}`}
+            >
+              <td className="p-2">{r.student_name}</td>
+
+              <td className="p-2 text-center font-semibold">
+                {scoreCell(r)}
+              </td>
+
+              <td className="p-2 text-center">
+                <FrontResultStatusBadge status={frontStatus} />
+              </td>
+
+              <td className="p-2 text-center">
+                {passed === true ? (
+                  <span className="text-emerald-700 font-semibold">합격</span>
+                ) : passed === false ? (
+                  <span className="text-red-700 font-semibold">불합격</span>
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/AdminExamSummaryBar.tsx
+==========================================================================================
+// src/features/results/components/AdminExamSummaryBar.tsx
+
+import type { AdminExamSummary } from "../types/results.types";
+
+export default function AdminExamSummaryBar({ data }: { data: AdminExamSummary }) {
+  const avg = typeof data.avg_score === "number" ? data.avg_score.toFixed(1) : "-";
+
+  return (
+    <div className="grid grid-cols-6 gap-2 rounded bg-gray-50 p-3 text-sm">
+      <div>응시: {data.participant_count ?? "-"}</div>
+      <div>평균: {avg}</div>
+      <div>최저: {data.min_score ?? "-"}</div>
+      <div>최고: {data.max_score ?? "-"}</div>
+      <div>
+        합격률:{" "}
+        {typeof data.pass_rate === "number" ? `${(data.pass_rate * 100).toFixed(1)}%` : "-"}
+      </div>
+      <div>클리닉: {data.clinic_count ?? 0}</div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/AttemptSelectorPanel.tsx
+==========================================================================================
+/**
+ * PATH: src/features/results/components/AttemptSelectorPanel.tsx
+ *
+ * ✅ AttemptSelectorPanel (Representative Attempt UX 강화)
+ *
+ * 변경 사항(운영 필수):
+ * 1) 대표 Attempt 변경 성공 시 즉시 반영:
+ *    - attempts query invalidate
+ *    - 학생 상세(detail) invalidate
+ *    - 시험 결과 리스트 invalidate (final_score/passed/clinic_required 갱신)
+ * 2) attempt.status unknown 값 → LOCK 처리 (기존 유지)
+ * 3) grading 상태 attempt는 선택 불가 (기존 유지)
+ *
+ * 설계 계약:
+ * - 단일 진실 키: enrollment_id
+ * - 대표 Attempt 변경 = final_score/passed/clinic_required 재계산 트리거
+ */
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+type Attempt = {
+  id: number;
+  attempt_index: number;
+  is_retake: boolean;
+  is_representative: boolean;
+  status: string; // ❗ string 그대로 받음
+  created_at: string;
+
+  meta?: {
+    grading?: {
+      total_score?: number;
+      total_max_score?: number;
+    };
+  };
+};
+
+type Props = {
+  examId: number;
+  enrollmentId: number;
+  onChanged?: () => void;
+};
+
+async function fetchAttempts(examId: number, enrollmentId: number): Promise<Attempt[]> {
+  const res = await api.get(`/results/admin/exams/${examId}/enrollments/${enrollmentId}/attempts/`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+async function setRepresentativeAttempt(params: {
+  examId: number;
+  enrollmentId: number;
+  attemptId: number;
+}) {
+  return api.post(`/results/admin/exams/${params.examId}/representative-attempt/`, {
+    enrollment_id: params.enrollmentId,
+    attempt_id: params.attemptId,
+  });
+}
+
+export default function AttemptSelectorPanel({ examId, enrollmentId, onChanged }: Props) {
+  const qc = useQueryClient();
+
+  const q = useQuery({
+    queryKey: ["exam-attempts", examId, enrollmentId],
+    queryFn: () => fetchAttempts(examId, enrollmentId),
+    enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
+  });
+
+  const changeMut = useMutation({
+    mutationFn: setRepresentativeAttempt,
+
+    onSuccess: async () => {
+      /**
+       * ✅ 핵심: 대표 변경은 아래가 “즉시” 바뀌어야 운영에서 헷갈리지 않는다.
+       * - attempts 목록(대표 강조)
+       * - 학생 상세(대표 attempt_id/문항/총점)
+       * - 시험 리스트(final_score/passed/clinic_required)
+       */
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["exam-attempts", examId, enrollmentId] }),
+        qc.invalidateQueries({ queryKey: ["admin-exam-detail", examId, enrollmentId] }),
+        qc.invalidateQueries({ queryKey: ["admin-exam-results", examId] }),
+      ]);
+
+      onChanged?.();
+    },
+
+    onError: (e: any) => {
+      alert(e?.response?.data?.detail || "대표 attempt 변경 실패");
+    },
+  });
+
+  if (q.isLoading) {
+    return <div className="px-4 py-2 text-xs text-gray-500">Attempt 불러오는 중...</div>;
+  }
+
+  if (q.isError) {
+    return <div className="px-4 py-2 text-xs text-red-600">Attempt 조회 실패</div>;
+  }
+
+  const attempts = q.data ?? [];
+
+  return (
+    <div className="border-b bg-gray-50 px-4 py-3">
+      <div className="mb-2 text-xs font-semibold text-gray-700">Attempt 선택</div>
+
+      <div className="flex flex-wrap gap-2">
+        {attempts.map((a) => {
+          const raw = String(a.status).toLowerCase();
+          const isKnown = ["pending", "grading", "done", "failed"].includes(raw);
+          const isLocked = raw === "grading" || !isKnown;
+          const isActive = a.is_representative;
+
+          // ✅ "미채점" 보조 UX: done인데 meta 점수 없으면 운영상 위험 신호
+          const gradingScore = a.meta?.grading?.total_score;
+          const gradingMax = a.meta?.grading?.total_max_score;
+          const isUngradedHint =
+            raw === "done" &&
+            (gradingScore === undefined || gradingScore === null || gradingMax === undefined || gradingMax === null);
+
+          return (
+            <button
+              key={a.id}
+              type="button"
+              disabled={isLocked || isActive || changeMut.isPending}
+              onClick={() =>
+                changeMut.mutate({
+                  examId,
+                  enrollmentId,
+                  attemptId: a.id,
+                })
+              }
+              className={[
+                "rounded border px-3 py-1 text-xs",
+                isActive ? "border-blue-600 bg-blue-50 font-semibold" : "border-gray-300 bg-white",
+                isLocked ? "cursor-not-allowed opacity-40" : "hover:bg-gray-100",
+              ].join(" ")}
+              title={
+                !isKnown
+                  ? "알 수 없는 상태 (잠김)"
+                  : raw === "grading"
+                    ? "채점 중인 attempt는 선택할 수 없습니다"
+                    : isActive
+                      ? "현재 대표 attempt"
+                      : "대표 attempt로 설정"
+              }
+            >
+              #{a.attempt_index}
+              {a.is_retake && <span className="ml-1 text-[10px] text-orange-600">재시험</span>}
+              {isLocked && <span className="ml-1 text-[10px] text-red-600">잠김</span>}
+              {isUngradedHint && <span className="ml-1 text-[10px] text-blue-700">미채점</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/EditReasonInput.tsx
+==========================================================================================
+/**
+ * PATH: src/features/results/components/EditReasonInput.tsx
+ *
+ * ✅ EditReasonInput
+ *
+ * 책임:
+ * - 편집 사유 입력 (UI 전용)
+ *
+ * ⚠️ Phase 4:
+ * - 서버 전송 ❌
+ * - 상태 보존만
+ */
+
+type Props = {
+  value: string;
+  onChange: (v: string) => void;
+};
+
+export default function EditReasonInput({ value, onChange }: Props) {
+  return (
+    <div className="border-b bg-yellow-50 px-4 py-2">
+      <div className="mb-1 text-xs font-semibold text-yellow-800">
+        편집 사유 (선택)
+      </div>
+
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="예: 주관식 채점 보정"
+        className="w-full rounded border px-2 py-1 text-xs"
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/FrontResultStatusBadge.tsx
+==========================================================================================
+/**
+ * PATH: src/features/results/components/FrontResultStatusBadge.tsx
+ *
+ * ✅ FrontResultStatus 전용 Badge
+ *
+ * 사용 위치:
+ * - AdminExamResultsTable (상태 컬럼)
+ * - AdminStudentResultDrawer Header
+ *
+ * ❌ SubmissionStatusBadge 대체 아님
+ * - SubmissionStatusBadge는 "제출 상태" 전용
+ */
+
+import type { FrontResultStatus } from "../types/frontResultStatus";
+import { FRONT_RESULT_STATUS_LABEL, FRONT_RESULT_STATUS_TONE } from "../containers/frontResultStatusMaps";
+
+export default function FrontResultStatusBadge({
+  status,
+}: {
+  status: FrontResultStatus;
+}) {
+  const tone = FRONT_RESULT_STATUS_TONE[status];
+
+  return (
+    <span className="ds-status-badge" data-tone={tone}>
+      {FRONT_RESULT_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/ResultsExplorer.module.css
+==========================================================================================
+/* 성적 탐색기 — 저장소/메시지/시험과 동일한 폴더트리형 SSOT */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.tree {
+  width: 200px;
+  min-width: 200px;
+  border-right: 1px solid var(--color-border-divider);
+  overflow: auto;
+}
+
+.gridWrap {
+  flex: 1;
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-4);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.item:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+.itemAdd {
+  border-style: dashed;
+  color: var(--color-text-muted);
+}
+
+.itemAdd:hover {
+  color: var(--color-brand-primary);
+}
+
+.itemLabel {
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.itemMeta {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+
+==========================================================================================
+# FILE: components/WrongNotePanel.tsx
+==========================================================================================
+// PATH: src/features/results/components/WrongNotePanel.tsx
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import {
+  fetchWrongNotes,
+  createWrongNotePDF,
+  fetchWrongNotePDFStatus,
+  WrongNotePDFCreateResponse,
+} from "../api/wrongNotes";
+
+type Props = {
+  enrollmentId: number;
+  examId?: number;
+};
+
+export default function WrongNotePanel({ enrollmentId, examId }: Props) {
+  const { data } = useQuery({
+    queryKey: ["wrong-notes", enrollmentId, examId],
+    queryFn: () =>
+      fetchWrongNotes({
+        enrollment_id: enrollmentId,
+        exam_id: examId,
+      }),
+    enabled: Number.isFinite(enrollmentId),
+  });
+
+  // ==============================
+  // PDF 생성 상태 관리
+  // ==============================
+  const [pdfJob, setPdfJob] =
+    useState<WrongNotePDFCreateResponse | null>(null);
+  const [pdfFileUrl, setPdfFileUrl] = useState<string>("");
+  const [pdfError, setPdfError] = useState<string>("");
+
+  const pdfMutation = useMutation({
+    mutationFn: () =>
+      createWrongNotePDF({
+        enrollment_id: enrollmentId,
+        exam_id: examId,
+      }),
+    onSuccess: (res) => {
+      setPdfJob(res);
+      setPdfFileUrl("");
+      setPdfError("");
+    },
+    onError: (e: any) => {
+      setPdfError(String(e?.message || "PDF 생성 요청 실패"));
+    },
+  });
+
+  // ==============================
+  // PDF 상태 polling
+  // ==============================
+  useEffect(() => {
+    if (!pdfJob?.job_id) return;
+
+    let stopped = false;
+    const jobId = pdfJob.job_id;
+
+    const tick = async () => {
+      try {
+        const st = await fetchWrongNotePDFStatus(jobId);
+
+        if (st.status === "DONE") {
+          if (!stopped) {
+            setPdfFileUrl(st.file_url || "");
+            setPdfError("");
+          }
+          return;
+        }
+
+        if (st.status === "FAILED") {
+          if (!stopped) {
+            setPdfError(st.error_message || "PDF 생성 실패");
+          }
+          return;
+        }
+
+        if (!stopped) {
+          setTimeout(tick, 1500);
+        }
+      } catch (err: any) {
+        if (!stopped) {
+          setPdfError(
+            String(err?.message || "PDF 상태 조회 실패")
+          );
+          setTimeout(tick, 2000);
+        }
+      }
+    };
+
+    tick();
+    return () => {
+      stopped = true;
+    };
+  }, [pdfJob]);
+
+  const wrongList = useMemo(
+    () => data?.results ?? [],
+    [data]
+  );
+
+  return (
+    <div className="mt-4 rounded border bg-gray-50 p-3">
+      <div className="mb-2 text-sm font-semibold">
+        오답노트
+      </div>
+
+      {!data || wrongList.length === 0 ? (
+        <div className="text-xs text-gray-400">
+          오답이 없습니다.
+        </div>
+      ) : (
+        <ul className="space-y-1 text-xs">
+          {wrongList.map((it) => (
+            <li
+              /**
+               * 🔥 FIX: key에 index 사용 제거
+               * - attempt_id + question_id 조합은 도메인적으로 유니크
+               * - polling / refetch / pagination 에서도 안전
+               */
+              key={`${it.attempt_id}-${it.question_id}`}
+            >
+              Q{it.question_number ?? it.question_id} :{" "}
+              {it.student_answer} → {it.correct_answer}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          className="rounded bg-purple-600 px-3 py-1 text-xs text-white disabled:opacity-50"
+          onClick={() => pdfMutation.mutate()}
+          disabled={pdfMutation.isPending}
+        >
+          {pdfMutation.isPending
+            ? "요청 중..."
+            : "PDF 생성"}
+        </button>
+
+        {pdfJob && !pdfFileUrl && !pdfError && (
+          <span className="text-xs text-gray-500">
+            PDF 생성 중... ({pdfJob.status})
+          </span>
+        )}
+
+        {pdfError && (
+          <span className="text-xs text-red-600">
+            {pdfError}
+          </span>
+        )}
+
+        {pdfFileUrl && (
+          <a
+            className="text-xs text-blue-600 underline"
+            href={pdfFileUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            PDF 다운로드
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/attempt/AttemptMetaPanel.tsx
+==========================================================================================
+/**
+ * ✅ AttemptMetaPanel
+ *
+ * 책임:
+ * - confidence
+ * - invalid_reason
+ * - detected answer 등 "이유 설명"
+ */
+
+type Props = {
+  fact: {
+    meta?: any;
+    answer?: string;
+  } | null;
+};
+
+export default function AttemptMetaPanel({ fact }: Props) {
+  if (!fact) return null;
+
+  const omr = fact.meta?.omr;
+  const grading = fact.meta?.grading;
+
+  return (
+    <div className="rounded border bg-gray-50 p-3 text-sm">
+      <div className="mb-1 font-semibold">채점 정보</div>
+
+      <ul className="space-y-1 text-xs">
+        <li>감지 답안: {fact.answer || "-"}</li>
+
+        {typeof omr?.confidence === "number" && (
+          <li>
+            신뢰도:{" "}
+            <span
+              className={
+                omr.confidence < 0.7
+                  ? "font-semibold text-red-600"
+                  : ""
+              }
+            >
+              {omr.confidence}
+            </span>
+          </li>
+        )}
+
+        {grading?.invalid_reason && (
+          <li className="font-semibold text-red-600">
+            처리 사유: {grading.invalid_reason}
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/attempt/AttemptOMRViewer.tsx
+==========================================================================================
+import BBoxOverlay from "../bbox/BBoxOverlay";
+import { BBoxMeta } from "../bbox/types";
+
+/**
+ * ✅ AttemptOMRViewer
+ *
+ * 책임:
+ * - 선택된 문항의 meta.omr.bbox 를 화면에 표시
+ * - invalid_reason 시각적 강조
+ */
+type Props = {
+  imageSrc: string;
+  fact: {
+    meta?: any;
+  } | null;
+  originalWidth: number;
+  displayWidth: number;
+};
+
+export default function AttemptOMRViewer({
+  imageSrc,
+  fact,
+  originalWidth,
+  displayWidth,
+}: Props) {
+  if (!fact) {
+    return (
+      <div className="flex h-64 items-center justify-center rounded border text-sm text-gray-400">
+        문항을 선택하세요
+      </div>
+    );
+  }
+
+  const omr = fact.meta?.omr;
+  if (!omr?.bbox) {
+    return (
+      <div className="flex h-64 items-center justify-center rounded border text-sm text-gray-400">
+        BBox 정보 없음
+      </div>
+    );
+  }
+
+  const invalidReason = fact.meta?.grading?.invalid_reason;
+
+  const boxes: BBoxMeta[] = [
+    {
+      bbox: omr.bbox,
+      label: invalidReason ?? "OMR",
+      confidence: omr.confidence,
+      invalid_reason: invalidReason,
+    },
+  ];
+
+  return (
+    <div className="rounded border p-2">
+      <BBoxOverlay
+        src={imageSrc}
+        width={displayWidth}
+        originalWidth={originalWidth}
+        boxes={boxes}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/attempt/AttemptQuestionList.tsx
+==========================================================================================
+/**
+ * ✅ AttemptQuestionList
+ *
+ * 책임:
+ * - 문항 목록 표시
+ * - 정답/오답 상태 시각화
+ * - 선택 상태 관리 (상위에서 제어)
+ */
+
+type Fact = {
+  question_id: number;
+  is_correct: boolean;
+  meta?: any;
+};
+
+type Props = {
+  facts: Fact[];
+  selectedQuestionId: number | null;
+  onSelect: (qid: number) => void;
+};
+
+export default function AttemptQuestionList({
+  facts,
+  selectedQuestionId,
+  onSelect,
+}: Props) {
+  return (
+    <ul className="space-y-1 text-sm">
+      {facts.map((f) => {
+        const invalidReason =
+          f.meta?.grading?.invalid_reason ?? null;
+
+        return (
+          <li
+            key={f.question_id}
+            className={`cursor-pointer rounded px-2 py-1
+              ${
+                selectedQuestionId === f.question_id
+                  ? "bg-blue-100 font-semibold"
+                  : "hover:bg-gray-100"
+              }
+            `}
+            onClick={() => onSelect(f.question_id)}
+          >
+            Q{f.question_id}{" "}
+            {f.is_correct ? "✅" : "❌"}
+            {invalidReason && (
+              <span className="ml-1 text-xs text-red-600">
+                ({invalidReason})
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/attempt/AttemptViewerPanel.tsx
+==========================================================================================
+// PATH: src/features/results/components/attempt/AttemptViewerPanel.tsx
+
+import { useMemo, useState, useEffect } from "react";
+import AttemptQuestionList from "./AttemptQuestionList";
+import AttemptOMRViewer from "./AttemptOMRViewer";
+import AttemptMetaPanel from "./AttemptMetaPanel";
+
+/**
+ * ✅ AttemptViewerPanel
+ *
+ * 책임:
+ * - attempt_id 기준 ResultFact(meta 포함) 시각화
+ * - 문항 선택 → OMR Overlay → 메타 정보 표시
+ *
+ * 🔧 PATCH 요약:
+ * 1️⃣ 최초 진입 시 첫 문항 자동 선택 (UX 필수)
+ * 2️⃣ imageSrc / originalWidth 없을 때 meta 기반 fallback
+ * 3️⃣ OMR 이미지 미준비 상태 방어 UI
+ */
+type Fact = {
+  question_id: number;
+  answer: string;
+  is_correct: boolean;
+  score: number;
+  max_score: number;
+  meta?: any;
+};
+
+type Props = {
+  attemptId: number;
+  facts: Fact[];
+
+  // ✅ 외부에서 주입 가능 (권장)
+  imageSrc?: string;
+
+  // ✅ 없으면 meta에서 자동 추론
+  originalWidth?: number;
+
+  // ✅ 화면 표시용 width
+  displayWidth?: number;
+
+  // ✅ UX 옵션: 첫 문항 자동 선택
+  autoSelectFirst?: boolean;
+};
+
+/**
+ * 🔧 PATCH: meta 기반 image url 자동 추론
+ * - backend contract가 아직 고정되지 않은 상태를 대비
+ */
+function inferImageSrc(facts: Fact[]): string {
+  for (const f of facts) {
+    const m = f.meta;
+    const candidates = [
+      m?.omr?.image_url,
+      m?.omr?.imageUrl,
+      m?.image_url,
+      m?.imageUrl,
+      m?.omr?.page_image_url,
+    ];
+    const hit = candidates.find(
+      (v) => typeof v === "string" && v.length > 0
+    );
+    if (hit) return hit;
+  }
+  return "";
+}
+
+/**
+ * 🔧 PATCH: original width fallback
+ */
+function inferOriginalWidth(facts: Fact[]): number {
+  for (const f of facts) {
+    const w =
+      f.meta?.omr?.original_width ??
+      f.meta?.omr?.originalWidth ??
+      f.meta?.original_width ??
+      f.meta?.originalWidth;
+
+    const n = Number(w);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+
+  // ⚠️ 최후 fallback (scale 계산용)
+  return 1000;
+}
+
+export default function AttemptViewerPanel({
+  attemptId,
+  facts,
+  imageSrc,
+  originalWidth,
+  displayWidth = 520,
+  autoSelectFirst = true,
+}: Props) {
+  /**
+   * =====================================
+   * 선택된 문항 상태
+   * =====================================
+   */
+  const [selectedQuestionId, setSelectedQuestionId] =
+    useState<number | null>(null);
+
+  /**
+   * 🔥 PATCH #1
+   * 최초 진입 시 첫 문항 자동 선택
+   * - 없으면 우측 패널이 "빈 화면" → 고장난 UX
+   */
+  useEffect(() => {
+    if (!autoSelectFirst) return;
+    if (selectedQuestionId !== null) return;
+    if (facts.length === 0) return;
+
+    setSelectedQuestionId(facts[0].question_id);
+  }, [facts, selectedQuestionId, autoSelectFirst]);
+
+  const selectedFact = useMemo(
+    () =>
+      facts.find((f) => f.question_id === selectedQuestionId) ??
+      null,
+    [facts, selectedQuestionId]
+  );
+
+  /**
+   * 🔧 PATCH #2
+   * imageSrc / originalWidth 최종 결정
+   */
+  const finalImageSrc = imageSrc || inferImageSrc(facts);
+  const finalOriginalWidth =
+    typeof originalWidth === "number" && originalWidth > 0
+      ? originalWidth
+      : inferOriginalWidth(facts);
+
+  return (
+    <div className="flex h-full gap-4">
+      {/* ===============================
+          LEFT: 문항 리스트
+         =============================== */}
+      <div className="w-52 shrink-0 border-r pr-2">
+        <div className="mb-2 text-xs text-gray-500">
+          attempt #{attemptId}
+        </div>
+
+        <AttemptQuestionList
+          facts={facts.map((f) => ({
+            question_id: f.question_id,
+            is_correct: f.is_correct,
+            meta: f.meta,
+          }))}
+          selectedQuestionId={selectedQuestionId}
+          onSelect={setSelectedQuestionId}
+        />
+      </div>
+
+      {/* ===============================
+          RIGHT: OMR + 메타
+         =============================== */}
+      <div className="flex flex-1 flex-col gap-3">
+        {/* 🔥 PATCH #3: OMR 이미지 미존재 방어 */}
+        {!finalImageSrc ? (
+          <div className="rounded border bg-gray-50 p-4 text-sm text-gray-500">
+            OMR 이미지가 아직 준비되지 않았습니다.
+            <br />
+            <span className="text-xs">
+              (권장) backend에서 meta.omr.image_url 제공 또는
+              상위에서 imageSrc prop 주입
+            </span>
+          </div>
+        ) : (
+          <AttemptOMRViewer
+            imageSrc={finalImageSrc}
+            fact={selectedFact}
+            originalWidth={finalOriginalWidth}
+            displayWidth={displayWidth}
+          />
+        )}
+
+        <AttemptMetaPanel fact={selectedFact} />
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/bbox/BBoxLayer.tsx
+==========================================================================================
+// PATH: src/features/results/components/bbox/BBoxLayer.tsx
+import { BBoxMeta } from "./types";
+
+type Props = {
+  meta: BBoxMeta;
+  scale: number;
+};
+
+export default function BBoxLayer({ meta, scale }: Props) {
+  const { bbox } = meta;
+
+  return (
+    <div
+      className="absolute border-2 border-red-500 bg-red-200/20 pointer-events-none"
+      style={{
+        left: bbox.x * scale,
+        top: bbox.y * scale,
+        width: bbox.width * scale,
+        height: bbox.height * scale,
+      }}
+    >
+      {meta.label && (
+        <div className="absolute -top-5 left-0 rounded bg-red-600 px-1 text-[10px] text-white">
+          {meta.label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/bbox/BBoxOverlay.tsx
+==========================================================================================
+// PATH: src/features/results/components/bbox/BBoxOverlay.tsx
+import { useMemo } from "react";
+import BBoxLayer from "./BBoxLayer";
+import { BBoxMeta } from "./types";
+
+type Props = {
+  src: string;                // image or rendered PDF page
+  width: number;              // display width
+  originalWidth: number;      // backend 기준 원본 width
+  boxes: BBoxMeta[];
+};
+
+export default function BBoxOverlay({
+  src,
+  width,
+  originalWidth,
+  boxes,
+}: Props) {
+  const scale = useMemo(
+    () => width / originalWidth,
+    [width, originalWidth]
+  );
+
+  return (
+    <div className="relative">
+      <img src={src} style={{ width }} />
+
+      {boxes.map((b) => (
+        <BBoxLayer
+          /**
+           * 🔥 FIX: index key 제거
+           *
+           * bbox 좌표 자체가 "문항 영역의 정체성"
+           * - 좌표가 같으면 같은 박스
+           * - 좌표가 바뀌면 다른 박스
+           *
+           * invalid_reason / confidence 변경에도
+           * React reconciliation 안전
+           */
+          key={`${b.bbox.x}-${b.bbox.y}-${b.bbox.width}-${b.bbox.height}`}
+          meta={b}
+          scale={scale}
+        />
+      ))}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/bbox/types.ts
+==========================================================================================
+// PATH: src/features/results/components/bbox/types.ts
+
+export type BBox = {
+  x: number;      // left (px)
+  y: number;      // top (px)
+  width: number;
+  height: number;
+};
+
+export type BBoxMeta = {
+  bbox: BBox;
+  label?: string;          // e.g. "Q3"
+  confidence?: number;     // optional
+  invalid_reason?: string; // LOW_CONFIDENCE 등
+};
+
+
+==========================================================================================
+# FILE: containers/frontResultStatusMaps.ts
+==========================================================================================
+/**
+ * PATH: src/features/results/constants/frontResultStatusMaps.ts
+ *
+ * ✅ FrontResultStatus UI 규격
+ *
+ * - 모든 성적/제출 화면에서 이 규격만 사용
+ *
+ * UX 계약(운영 기준):
+ * - partial_done은 "부분 완료" 같은 애매한 단어 금지 → "미채점/후처리"로 고정
+ */
+
+import type { FrontResultStatus } from "../types/frontResultStatus";
+
+export const FRONT_RESULT_STATUS_LABEL: Record<FrontResultStatus, string> = {
+  waiting: "미제출",
+  processing: "채점중",
+  partial_done: "미채점",
+  done: "완료",
+  failed: "실패",
+};
+
+export const FRONT_RESULT_STATUS_COLOR: Record<FrontResultStatus, string> = {
+  waiting: "gray",
+  processing: "yellow",
+  partial_done: "blue",
+  done: "green",
+  failed: "red",
+};
+
+/** 공용 톤 SSOT: success | danger | warning | primary | neutral */
+export const FRONT_RESULT_STATUS_TONE: Record<FrontResultStatus, "success" | "danger" | "warning" | "primary" | "neutral"> = {
+  waiting: "neutral",
+  processing: "warning",
+  partial_done: "primary",
+  done: "success",
+  failed: "danger",
+};
+
+
+==========================================================================================
+# FILE: hooks/useAdminExamResults.ts
+==========================================================================================
+// FIX: pagination 대응
+
+import { useEffect, useState } from "react";
+import { ApiClient } from "../api/client";
+import { resultsEndpoints } from "../api/endpoints";
+import { AdminExamResultRow } from "../types/results.types";
+
+type AdminExamResultsResponse = {
+  count: number;
+  next: number | null;
+  previous: number | null;
+  results: AdminExamResultRow[];
+};
+
+export function useAdminExamResults(api: ApiClient, examId?: number) {
+  const [rows, setRows] = useState<AdminExamResultRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!examId) return;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    api
+      .get<AdminExamResultsResponse>(
+        resultsEndpoints.adminExamResults(examId)
+      )
+      .then((res) => {
+        if (cancelled) return;
+        setRows(Array.isArray(res?.results) ? res.results : []);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(String(e?.message || e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [api, examId]);
+
+  return { rows, loading, error };
+}
+
+
+==========================================================================================
+# FILE: hooks/useExamResult.ts
+==========================================================================================
+import { useEffect, useState } from "react";
+import { ApiClient } from "../api/client";
+import { resultsEndpoints } from "../api/endpoints";
+import { StudentExamResult } from "../types/results.types";
+
+export function useExamResult(api: ApiClient, examId?: number) {
+  const [data, setData] = useState<StudentExamResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!examId) return;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    api.get<StudentExamResult>(resultsEndpoints.myExamResult(examId))
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(String(e?.message || e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [api, examId]);
+
+  return { data, loading, error };
+}
+
+
+==========================================================================================
+# FILE: hooks/useExamSummary.ts
+==========================================================================================
+import { useEffect, useState } from "react";
+import { ApiClient } from "../api/client";
+import { resultsEndpoints } from "../api/endpoints";
+import { AdminExamSummary } from "../types/results.types";
+
+export function useExamSummary(api: ApiClient, examId?: number) {
+  const [data, setData] = useState<AdminExamSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!examId) return;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    api.get<AdminExamSummary>(resultsEndpoints.adminExamSummary(examId))
+      .then((res) => !cancelled && setData(res))
+      .catch((e) => !cancelled && setError(String(e?.message || e)))
+      .finally(() => !cancelled && setLoading(false));
+
+    return () => { cancelled = true; };
+  }, [api, examId]);
+
+  return { data, loading, error };
+}
+
+
+==========================================================================================
+# FILE: hooks/useMyExamResult.ts
+==========================================================================================
+// PATH: src/features/results/hooks/useMyExamResult.ts
+import { useQuery } from "@tanstack/react-query";
+import { fetchMyExamResult } from "../api/myExamResult";
+
+export function useMyExamResult(examId: number | undefined) {
+  // ✅ 너가 강조한 패턴 그대로: examId 준비 전이면 요청 금지
+  const safeId = Number(examId);
+  const enabled = Number.isFinite(safeId);
+
+  return useQuery({
+    queryKey: ["my-exam-result", safeId],
+    queryFn: () => fetchMyExamResult(safeId),
+    enabled, // 🔥 필수: undefined/NaN일 때 404/UX깨짐 방지
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useQuestionStats.ts
+==========================================================================================
+import { useEffect, useState } from "react";
+import { ApiClient } from "../api/client";
+import { resultsEndpoints } from "../api/endpoints";
+import { QuestionStat, TopWrongQuestion } from "../types/results.types";
+
+/**
+ * ✅ pagination 대응 버전
+ */
+type QuestionStatsResponse = {
+  count: number;
+  next: number | null;
+  previous: number | null;
+  results: QuestionStat[];
+};
+
+export function useQuestionStats(api: ApiClient, examId?: number) {
+  const [stats, setStats] = useState<QuestionStat[]>([]);
+  const [topWrong, setTopWrong] = useState<TopWrongQuestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!examId) return;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    Promise.all([
+      api.get<QuestionStatsResponse>(
+        resultsEndpoints.questionStats(examId)
+      ),
+      api.get<TopWrongQuestion[]>(
+        resultsEndpoints.topWrongQuestions(examId, 5)
+      ),
+    ])
+      .then(([statsRes, topWrongRes]) => {
+        if (cancelled) return;
+
+        // ✅ 핵심 FIX
+        setStats(
+          Array.isArray(statsRes?.results)
+            ? statsRes.results
+            : []
+        );
+
+        setTopWrong(Array.isArray(topWrongRes) ? topWrongRes : []);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(String(e?.message || e));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [api, examId]);
+
+  return { stats, topWrong, loading, error };
+}
+
+
+==========================================================================================
+# FILE: hooks/useSessionScoreSummary.ts
+==========================================================================================
+import { useEffect, useState } from "react";
+import { ApiClient } from "../api/client";
+import { resultsEndpoints } from "../api/endpoints";
+import { SessionScoreSummary } from "../types/results.types";
+
+export function useSessionScoreSummary(api: ApiClient, sessionId?: number) {
+  const [data, setData] = useState<SessionScoreSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    api.get<SessionScoreSummary>(resultsEndpoints.sessionScoreSummary(sessionId))
+      .then((res) => !cancelled && setData(res))
+      .catch((e) => !cancelled && setError(String(e?.message || e)))
+      .finally(() => !cancelled && setLoading(false));
+
+    return () => { cancelled = true; };
+  }, [api, sessionId]);
+
+  return { data, loading, error };
+}
+
+
+==========================================================================================
+# FILE: hooks/useWrongNotePDF.ts
+==========================================================================================
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ApiClient } from "../api/client";
+import { resultsEndpoints } from "../api/endpoints";
+import {
+  WrongNotePdfCreateResponse,
+  WrongNotePdfStatusResponse,
+} from "../types/results.types";
+
+export type CreatePdfPayload = {
+  enrollment_id: number;
+  lecture_id?: number;
+  exam_id?: number;
+  from_session_order?: number;
+};
+
+export function useWrongNotePDF(api: ApiClient) {
+  const [job, setJob] = useState<WrongNotePdfStatusResponse | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const timerRef = useRef<number | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (timerRef.current) window.clearInterval(timerRef.current);
+    timerRef.current = null;
+    setPolling(false);
+  }, []);
+
+  const pollStatus = useCallback((jobId: number) => {
+    stopPolling();
+    setPolling(true);
+
+    timerRef.current = window.setInterval(async () => {
+      try {
+        const res = await api.get<WrongNotePdfStatusResponse>(
+          resultsEndpoints.wrongNotePdfStatus(jobId)
+        );
+        setJob(res);
+
+        if (res.status === "DONE" || res.status === "FAILED") {
+          stopPolling();
+        }
+      } catch (e: any) {
+        setError(String(e?.message || e));
+        stopPolling();
+      }
+    }, 2000);
+  }, [api, stopPolling]);
+
+  const create = useCallback(async (payload: CreatePdfPayload) => {
+    setCreating(true);
+    setError(null);
+    setJob(null);
+
+    try {
+      const created = await api.post<WrongNotePdfCreateResponse>(
+        resultsEndpoints.wrongNotePdfCreate,
+        payload
+      );
+
+      const jobId = created.job_id;
+      // 즉시 1회 fetch 후 polling
+      const first = await api.get<WrongNotePdfStatusResponse>(
+        resultsEndpoints.wrongNotePdfStatus(jobId)
+      );
+      setJob(first);
+
+      if (first.status !== "DONE" && first.status !== "FAILED") {
+        pollStatus(jobId);
+      }
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setCreating(false);
+    }
+  }, [api, pollStatus]);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  return {
+    job,
+    creating,
+    polling,
+    error,
+    create,
+    stopPolling,
+  };
+}
+
+
+==========================================================================================
+# FILE: hooks/useWrongNotes.ts
+==========================================================================================
+import { useEffect, useMemo, useState } from "react";
+import { ApiClient } from "../api/client";
+import { resultsEndpoints } from "../api/endpoints";
+import { WrongNoteListResponse } from "../types/results.types";
+
+export type WrongNoteQuery = {
+  enrollmentId: number;
+  examId?: number;
+  lectureId?: number;
+  fromSessionOrder?: number;
+  offset?: number;
+  limit?: number;
+};
+
+export function useWrongNotes(api: ApiClient, q?: WrongNoteQuery) {
+  const [data, setData] = useState<WrongNoteListResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const key = useMemo(() => {
+    if (!q) return "";
+    return JSON.stringify(q);
+  }, [q]);
+
+  useEffect(() => {
+    if (!q?.enrollmentId) return;
+    let cancelled = false;
+
+    setLoading(true);
+    setError(null);
+
+    api.get<WrongNoteListResponse>(
+      resultsEndpoints.wrongNotes({
+        enrollment_id: q.enrollmentId,
+        exam_id: q.examId,
+        lecture_id: q.lectureId,
+        from_session_order: q.fromSessionOrder,
+        offset: q.offset,
+        limit: q.limit,
+      })
+    )
+      .then((res) => !cancelled && setData(res))
+      .catch((e) => !cancelled && setError(String(e?.message || e)))
+      .finally(() => !cancelled && setLoading(false));
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, key]);
+
+  return { data, loading, error };
+}
+
+
+==========================================================================================
+# FILE: pages/ResultsAdminPage.tsx
+==========================================================================================
+/**
+ * 성적 (사이드바) — 강의별 성적 진입점 · 차시 내 성적은 각 강의 > 차시에서 운영
+ * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
+ */
+
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { fetchLectures } from "@/features/lectures/api/sessions";
+import { DomainLayout } from "@/shared/ui/layout";
+import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { Button, EmptyState } from "@/shared/ui/ds";
+
+export default function ResultsAdminPage() {
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  const { data: lectures = [], isLoading } = useQuery({
+    queryKey: ["admin-results-lectures"],
+    queryFn: () => fetchLectures({ is_active: undefined }),
+  });
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return lectures;
+    const k = search.trim().toLowerCase();
+    return lectures.filter(
+      (l) =>
+        (l.title && l.title.toLowerCase().includes(k)) ||
+        (l.name && l.name.toLowerCase().includes(k)) ||
+        (l.subject && l.subject.toLowerCase().includes(k))
+    );
+  }, [lectures, search]);
+
+  const totalWidth = TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.status + TABLE_COL.actions;
+
+  return (
+    <DomainLayout
+      title="성적"
+      description="강의·시험 단위 성적을 통합 조회합니다. 차시별 채점·성적은 각 강의 > 차시에서 확인하세요."
+    >
+      <div className="flex flex-col gap-4">
+        <DomainListToolbar
+          totalLabel={isLoading ? "…" : `총 ${filtered.length}개 강의`}
+          searchSlot={
+            <input
+              className="ds-input"
+              placeholder="강의명 · 과목 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onBlur={() => setSearch(searchInput)}
+              onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
+              style={{ maxWidth: 280 }}
+            />
+          }
+          primaryAction={
+            <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+              강의 목록
+            </Button>
+          }
+        />
+
+        {isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : !filtered.length ? (
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            title="강의가 없습니다"
+            description="강의를 추가한 뒤, 각 강의 > 차시 > 성적 탭에서 시험·과제 성적을 관리할 수 있습니다."
+            actions={
+              <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
+                강의 목록
+              </Button>
+            }
+          />
+        ) : (
+          <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
+            <colgroup>
+              <col style={{ width: TABLE_COL.title }} />
+              <col style={{ width: TABLE_COL.subject }} />
+              <col style={{ width: TABLE_COL.medium }} />
+              <col style={{ width: TABLE_COL.status }} />
+              <col style={{ width: TABLE_COL.actions }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">강의명</th>
+                <th scope="col">과목</th>
+                <th scope="col">기간</th>
+                <th scope="col">상태</th>
+                <th scope="col" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((l) => (
+                <tr
+                  key={l.id}
+                  className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"
+                  onClick={() => navigate(`/admin/lectures/${l.id}`)}
+                >
+                  <td className="font-semibold text-[var(--color-text-primary)] truncate" title={l.title || l.name}>
+                    {l.title || l.name || "—"}
+                  </td>
+                  <td className="text-[var(--color-text-secondary)] truncate">{l.subject || "—"}</td>
+                  <td className="text-[var(--color-text-muted)]">
+                    {l.start_date && l.end_date
+                      ? `${l.start_date} ~ ${l.end_date}`
+                      : l.start_date || "—"}
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: l.is_active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                      }}
+                    >
+                      {l.is_active ? "활성" : "비활성"}
+                    </span>
+                  </td>
+                  <td onClick={(ev) => ev.stopPropagation()}>
+                    <Button
+                      intent="primary"
+                      size="sm"
+                      onClick={() => navigate(`/admin/lectures/${l.id}`)}
+                    >
+                      성적 보기
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DomainTable>
+        )}
+      </div>
+    </DomainLayout>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/ResultsExplorerPage.tsx
+==========================================================================================
+/**
+ * 성적 (사이드바 첫 페이지) — 저장소/메시지/시험과 동일한 폴더트리형 SSOT
+ * 강의명 > 1~n차시 트리, 우측에 해당 차시의 성적 링크 그리드
+ */
+
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueries } from "@tanstack/react-query";
+import { BarChart2 } from "lucide-react";
+import { Button } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
+import Breadcrumb from "@/features/storage/components/Breadcrumb";
+import LectureSessionTree from "@/features/exams/components/LectureSessionTree";
+import {
+  fetchLectures,
+  fetchSessions,
+  sortSessionsByDateDesc,
+  type Lecture,
+  type Session,
+} from "@/features/lectures/api/sessions";
+import styles from "../components/ResultsExplorer.module.css";
+
+type LectureWithSessions = Lecture & { sessions: Session[] };
+
+export default function ResultsExplorerPage() {
+  const navigate = useNavigate();
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+
+  const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
+    queryKey: ["admin-results-lectures"],
+    queryFn: () => fetchLectures({ is_active: undefined }),
+  });
+
+  const sessionQueries = useQueries({
+    queries: lectures.map((lec) => ({
+      queryKey: ["lecture-sessions-results", lec.id],
+      queryFn: () => fetchSessions(lec.id),
+      enabled: lectures.length > 0,
+    })),
+  });
+
+  const lecturesWithSessions: LectureWithSessions[] = useMemo(() => {
+    return lectures.map((lec, i) => {
+      const sessions = (sessionQueries[i]?.data as Session[] | undefined) ?? [];
+      return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
+    });
+  }, [lectures, sessionQueries]);
+
+  const selectedSession = useMemo(() => {
+    if (!selectedSessionId) return null;
+    for (const lec of lecturesWithSessions) {
+      const s = lec.sessions.find((x) => x.id === selectedSessionId);
+      if (s) return { lecture: lec, session: s };
+    }
+    return null;
+  }, [lecturesWithSessions, selectedSessionId]);
+
+  const breadcrumbPath = useMemo(() => {
+    const path: { id: string | null; name: string }[] = [{ id: null, name: "성적" }];
+    if (selectedSession) {
+      path.push({
+        id: String(selectedSession.lecture.id),
+        name: selectedSession.lecture.title || selectedSession.lecture.name || "강의",
+      });
+      path.push({ id: String(selectedSession.session.id), name: `${selectedSession.session.order}차시` });
+    }
+    return path;
+  }, [selectedSession]);
+
+  const handleBreadcrumbSelect = (id: string | null) => {
+    if (!id) {
+      setSelectedSessionId(null);
+      return;
+    }
+    const num = Number(id);
+    const asSession = lecturesWithSessions.some((l) => l.sessions.some((s) => s.id === num));
+    if (asSession) {
+      setSelectedSessionId(num);
+    } else {
+      const lec = lecturesWithSessions.find((l) => l.id === num);
+      const firstSession = lec?.sessions?.[0];
+      setSelectedSessionId(firstSession ? firstSession.id : null);
+    }
+  };
+
+  const sessionsLoading = sessionQueries.some((q) => q.isLoading);
+  const isLoading = lecturesLoading || sessionsLoading;
+
+  return (
+    <DomainLayout
+      title="성적"
+      description="강의·차시 단위 성적을 통합 조회합니다. 차시별 시험·과제 성적은 각 강의 > 차시에서 확인하세요."
+    >
+      <div className={styles.root}>
+        <div className={styles.toolbar}>
+          <Breadcrumb
+            path={breadcrumbPath.length > 1 ? breadcrumbPath : [{ id: null, name: "성적" }]}
+            onSelect={(id) => handleBreadcrumbSelect(id)}
+          />
+          <div className={styles.actions}>
+            <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
+              강의 목록
+            </Button>
+          </div>
+        </div>
+
+        <div className={styles.body}>
+          <aside className={styles.tree}>
+            <LectureSessionTree
+              lectures={lecturesWithSessions}
+              currentSessionId={selectedSessionId}
+              onSelectSession={setSelectedSessionId}
+            />
+          </aside>
+
+          <div className={styles.gridWrap}>
+            {isLoading ? (
+              <div className={styles.placeholder}>불러오는 중…</div>
+            ) : !selectedSessionId ? (
+              <div className={styles.placeholder}>좌측에서 차시를 선택하세요</div>
+            ) : !selectedSession ? (
+              <div className={styles.placeholder}>차시를 선택하세요</div>
+            ) : (
+              <div className={styles.grid}>
+                <div
+                  className={styles.item}
+                  onClick={() =>
+                    navigate(
+                      `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/scores`
+                    )
+                  }
+                  title="이 차시 성적 관리"
+                >
+                  <BarChart2 size={32} style={{ color: "var(--color-primary)" }} aria-hidden />
+                  <span className={styles.itemLabel}>성적 보기</span>
+                  <span className={styles.itemMeta}>
+                    {selectedSession.lecture.title || selectedSession.lecture.name} · {selectedSession.session.order}차시
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </DomainLayout>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/AdminExamAnalyticsPanel.tsx
+==========================================================================================
+// src/features/results/panels/AdminExamAnalyticsPanel.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+import type { SessionScoreSummary, QuestionStat, TopWrongQuestion } from "../types/results.types";
+
+type Props = {
+  sessionId: number;
+  examId: number;
+};
+
+type QuestionStatsResponse = {
+  count: number;
+  next: number | null;
+  previous: number | null;
+  results: QuestionStat[];
+};
+
+async function fetchSessionScoreSummary(sessionId: number): Promise<SessionScoreSummary> {
+  const res = await api.get(`/results/admin/sessions/${sessionId}/score-summary/`);
+  return res.data as SessionScoreSummary;
+}
+
+async function fetchQuestionStats(examId: number): Promise<QuestionStat[]> {
+  const res = await api.get(`/results/admin/exams/${examId}/questions/`);
+  const data = res.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
+async function fetchTopWrong(examId: number, n = 5): Promise<TopWrongQuestion[]> {
+  const res = await api.get(`/results/admin/exams/${examId}/questions/top-wrong/?n=${n}`);
+  return Array.isArray(res.data) ? (res.data as TopWrongQuestion[]) : [];
+}
+
+export default function AdminExamAnalyticsPanel({ sessionId, examId }: Props) {
+  const sessionQ = useQuery({
+    queryKey: ["session-score-summary-results", sessionId],
+    queryFn: () => fetchSessionScoreSummary(sessionId),
+    enabled: Number.isFinite(sessionId),
+  });
+
+  const qsQ = useQuery({
+    queryKey: ["exam-question-stats", examId], // ✅ exams/ExamSetupPanel invalidate랑 키 맞춤
+    queryFn: () => fetchQuestionStats(examId),
+    enabled: Number.isFinite(examId),
+  });
+
+  const topWrongQ = useQuery({
+    queryKey: ["exam-top-wrong", examId],
+    queryFn: () => fetchTopWrong(examId, 5),
+    enabled: Number.isFinite(examId),
+  });
+
+  if (sessionQ.isLoading || qsQ.isLoading) return <div>로딩중...</div>;
+  if (sessionQ.isError || qsQ.isError) return <div className="text-red-600">통계 조회 실패</div>;
+
+  const attemptStats = sessionQ.data?.attempt_stats;
+
+  return (
+    <div className="space-y-4 text-sm">
+      {sessionQ.data && (
+        <div className="rounded border p-3">
+          <div>세션 평균: {sessionQ.data.avg_score ?? "-"}</div>
+          <div>
+            재시험 비율:{" "}
+            {typeof attemptStats?.retake_ratio === "number"
+              ? `${(attemptStats.retake_ratio * 100).toFixed(1)}%`
+              : "-"}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className="mb-1 font-semibold">문항별 통계</div>
+        <ul>
+          {(qsQ.data ?? []).map((q) => (
+            <li key={q.question_id}>
+              Q{q.question_id} — 정답률 {(q.accuracy * 100).toFixed(1)}%
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <div className="mb-1 font-semibold">Top Wrong</div>
+        <ul>
+          {(topWrongQ.data ?? []).map((t) => (
+            <li key={t.question_id}>
+              Q{t.question_id}: {t.wrong_count}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/AdminExamDetail.tsx
+==========================================================================================
+/**
+ * PATH: src/features/exams/panels/AdminExam
+ *
+ * ✅ STEP 1 보조 UX
+ *
+ * 설계 계약:
+ * - Session → Exam 진입 시 Results 탭 자동 활성화
+ * - exams 도메인은 results 내부 로직을 침범하지 않는다
+ */
+
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+
+export default function AdminExamDetail() {
+  const [searchParams] = useSearchParams();
+
+  /**
+   * Session 경로에서 진입한 경우
+   * Results 탭 자동 선택
+   */
+  useEffect(() => {
+    if (searchParams.get("from") === "session") {
+      setActiveTab("results"); // 기존 탭 상태 setter 유지
+    }
+  }, [searchParams]);
+
+  // ... 기존 코드 전체 유지
+}
+
+
+==========================================================================================
+# FILE: panels/AdminExamWrongNotePanel.tsx
+==========================================================================================
+import { ApiClient } from "../api/client";
+import WrongNotePanel from "../components/WrongNotePanel";
+
+export default function AdminExamWrongNotePanel({
+  api,
+  enrollmentId,
+  examId,
+}: {
+  api: ApiClient;
+  enrollmentId: number;
+  examId: number;
+}) {
+  return (
+    <WrongNotePanel
+      enrollmentId={enrollmentId}
+      examId={examId}
+    />
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/ExamResultsPanel.tsx
+==========================================================================================
+/**
+ * PATH: src/features/results/panels/ExamResultsPanel.tsx
+ *
+ * ✅ STEP 1 — Results 자동 진입 & 자동 선택 처리
+ *
+ * 설계 계약:
+ * - Session → Exam 진입 시 자동 선택은 Results 도메인 책임
+ * - query param 기반 "최초 1회" 자동 선택
+ * - 이후 상태 변경은 사용자 클릭만 반영
+ *
+ * ❌ 금지:
+ * - session API 직접 호출
+ * - enrollment 계산
+ * - 전역 상태 / store 사용
+ */
+
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+
+import AdminExamResultsTable from "../components/AdminExamResultsTable";
+import StudentResultPanel from "./StudentResultPanel";
+
+import api from "@/shared/api/axios";
+import type { AdminExamResultRow } from "../types/results.types";
+
+type Props = {
+  examId: number;
+};
+
+/**
+ * 기존 API 호출 로직 유지
+ */
+async function fetchAdminExamResults(examId: number) {
+  const res = await api.get(
+    `/results/admin/exams/${examId}/results/`
+  );
+
+  return Array.isArray(res.data?.results)
+    ? res.data.results
+    : Array.isArray(res.data)
+    ? res.data
+    : [];
+}
+
+export default function ExamResultsPanel({ examId }: Props) {
+  const [searchParams] = useSearchParams();
+
+  /**
+   * 🔥 STEP 1 핵심
+   * - Session에서 넘어온 enrollmentId를 최초 선택값으로 사용
+   * - useState 초기값으로만 사용 (이후 자동 변경 ❌)
+   */
+  const initialEnrollmentId = Number(
+    searchParams.get("enrollmentId")
+  );
+
+  const [selectedEnrollmentId, setSelectedEnrollmentId] =
+    useState<number | null>(
+      Number.isFinite(initialEnrollmentId)
+        ? initialEnrollmentId
+        : null
+    );
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["admin-exam-results", examId],
+    queryFn: () => fetchAdminExamResults(examId),
+    enabled: Number.isFinite(examId),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="text-sm text-gray-500">
+        성적 불러오는 중...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-sm text-red-600">
+        성적 조회 실패
+      </div>
+    );
+  }
+
+  const rows: AdminExamResultRow[] = data ?? [];
+
+  if (rows.length === 0) {
+    return (
+      <div className="text-sm text-gray-500">
+        제출된 성적이 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-[calc(100vh-260px)] gap-4">
+      {/* ================= LEFT: 학생 리스트 ================= */}
+      <div className="w-[420px] shrink-0 overflow-auto border-r">
+        <AdminExamResultsTable
+          rows={rows}
+          onSelectEnrollment={setSelectedEnrollmentId}
+        />
+      </div>
+
+      {/* ================= RIGHT: 학생 상세 ================= */}
+      <div className="flex-1 overflow-auto">
+        {selectedEnrollmentId ? (
+          <StudentResultPanel
+            examId={examId}
+            enrollmentId={selectedEnrollmentId}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-gray-400">
+            좌측에서 학생을 선택하세요
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/SessionExamSummaryPanel.tsx
+==========================================================================================
+// PATH: src/features/results/panels/SessionExamSummaryPanel.tsx
+
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+type Props = {
+  sessionId: number;
+  activeExamId?: number;
+};
+
+type SessionExamSummaryRow = {
+  exam_id: number;
+  title: string;
+
+  participant_count: number;
+  avg_score: number;
+  min_score: number;
+  max_score: number;
+
+  pass_count: number;
+  fail_count: number;
+  pass_rate: number;
+
+  clinic_count: number;
+};
+
+type SessionExamsSummaryResponse = {
+  session_id: number;
+  exams: SessionExamSummaryRow[];
+};
+
+async function fetchSessionExamsSummary(
+  sessionId: number
+): Promise<SessionExamsSummaryResponse> {
+  const res = await api.get(
+    `/results/admin/sessions/${sessionId}/exams/summary/`
+  );
+  return res.data;
+}
+
+export default function SessionExamSummaryPanel({
+  sessionId,
+  activeExamId,
+}: Props) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["session-exams-summary", sessionId],
+    queryFn: () => fetchSessionExamsSummary(sessionId),
+    enabled: Number.isFinite(sessionId),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="text-sm text-gray-500">
+        성적 요약 불러오는 중...
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="text-sm text-red-600">
+        성적 요약 실패
+      </div>
+    );
+  }
+
+  if (!data.exams || data.exams.length === 0) {
+    return (
+      <div className="text-sm text-gray-500">
+        성적 데이터가 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-semibold">
+        시험별 성적 요약
+      </h3>
+
+      <table className="w-full border text-sm">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="border px-2 py-1 text-left">시험</th>
+            <th className="border px-2 py-1">응시</th>
+            <th className="border px-2 py-1">평균</th>
+            <th className="border px-2 py-1">최저</th>
+            <th className="border px-2 py-1">최고</th>
+            <th className="border px-2 py-1">합격률</th>
+            <th className="border px-2 py-1">클리닉</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {data.exams.map((row) => {
+            const isActive = row.exam_id === activeExamId;
+
+            return (
+              <tr
+                key={row.exam_id}
+                className={isActive ? "bg-blue-50" : ""}
+              >
+                <td className="border px-2 py-1 font-medium">
+                  {row.title}
+                </td>
+
+                <td className="border px-2 py-1 text-center">
+                  {row.participant_count}
+                </td>
+
+                <td className="border px-2 py-1 text-center">
+                  {row.avg_score.toFixed(1)}
+                </td>
+
+                <td className="border px-2 py-1 text-center">
+                  {row.min_score}
+                </td>
+
+                <td className="border px-2 py-1 text-center">
+                  {row.max_score}
+                </td>
+
+                <td className="border px-2 py-1 text-center">
+                  {(row.pass_rate * 100).toFixed(1)}%
+                </td>
+
+                <td className="border px-2 py-1 text-center">
+                  {row.clinic_count}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/StudentResultPanel.tsx
+==========================================================================================
+/**
+ * PATH: src/features/results/panels/StudentResultPanel.tsx
+ *
+ * ✅ FINAL (A2 + C-1 UX)
+ *
+ * - 상태 파생: deriveFrontResultStatusFromDetail 단일 기준
+ * - edit/read 모드 전역 시각 분리
+ * - lock_reason 항상 노출
+ * - EditReasonInput 연결 (UI only)
+ *
+ * ❌ 점수 계산 ❌
+ * ❌ optimistic update ❌
+ * ❌ 상태 판단 인라인 ❌
+ */
+
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+import { fetchAdminExamResultDetail } from "../api/adminExamResultDetail";
+import { patchExamItemScore } from "../api/adminExamItemScore";
+
+import AttemptSelectorPanel from "../components/AttemptSelectorPanel";
+import AttemptViewerPanel from "../components/attempt/AttemptViewerPanel";
+import FrontResultStatusBadge from "../components/FrontResultStatusBadge";
+
+// ✅ FIX: results 도메인 내부 컴포넌트
+import EditReasonInput from "@/features/results/components/EditReasonInput";
+
+import { deriveFrontResultStatusFromDetail } from "../utils/deriveFrontResultStatusFromDetail";
+
+type Props = {
+  examId: number;
+  enrollmentId: number;
+};
+
+export default function StudentResultPanel({ examId, enrollmentId }: Props) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["admin-exam-detail", examId, enrollmentId],
+    queryFn: () => fetchAdminExamResultDetail(examId, enrollmentId),
+    enabled: Number.isFinite(examId) && Number.isFinite(enrollmentId),
+  });
+
+  const [mode, setMode] = useState<"read" | "edit">("read");
+  const [tab, setTab] = useState<"items" | "omr">("items");
+  const [editReason, setEditReason] = useState("");
+
+  if (isLoading) {
+    return <div className="p-4 text-sm text-gray-500">상세 불러오는 중...</div>;
+  }
+
+  if (error || !data) {
+    return <div className="p-4 text-sm text-red-600">상세 조회 실패</div>;
+  }
+
+  const editState = data.edit_state;
+  const canEdit = editState.can_edit && !editState.is_locked;
+
+  const headerStatus = deriveFrontResultStatusFromDetail(data);
+
+  return (
+    <div className={`flex h-full flex-col ${mode === "edit" ? "bg-blue-50/20" : ""}`}>
+      {/* ================= Header ================= */}
+      <div className="border-b px-4 py-3">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <div className="text-sm font-semibold">
+              enrollment #{data.enrollment_id}
+            </div>
+
+            <div className="text-xs text-gray-500">
+              총점 {data.total_score}/{data.max_score}
+            </div>
+
+            {editState.is_locked && (
+              <div className="text-xs text-red-600">
+                🔒 {editState.lock_reason ?? "편집 잠김"}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <FrontResultStatusBadge status={headerStatus} />
+
+            {mode === "read" ? (
+              <button
+                className="rounded border px-3 py-1 text-xs disabled:opacity-40"
+                disabled={!canEdit}
+                title={
+                  !canEdit
+                    ? editState.is_locked
+                      ? editState.lock_reason ?? "편집 잠김"
+                      : "편집 권한 없음"
+                    : "편집 모드로 전환"
+                }
+                onClick={() => setMode("edit")}
+              >
+                편집
+              </button>
+            ) : (
+              <button
+                className="rounded border border-blue-600 bg-blue-50 px-3 py-1 text-xs font-semibold"
+                onClick={() => setMode("read")}
+              >
+                편집 종료
+              </button>
+            )}
+          </div>
+        </div>
+
+        {mode === "edit" && (
+          <div className="mt-2 text-xs text-blue-600">
+            ✏️ 편집 모드 · 변경 사항은 즉시 저장됩니다
+          </div>
+        )}
+      </div>
+
+      {/* ================= Edit Reason ================= */}
+      {mode === "edit" && (
+        <EditReasonInput value={editReason} onChange={setEditReason} />
+      )}
+
+      {/* ================= Attempt Selector ================= */}
+      {mode === "edit" && (
+        <AttemptSelectorPanel
+          examId={examId}
+          enrollmentId={enrollmentId}
+          onChanged={refetch}
+        />
+      )}
+
+      {/* ================= Tabs ================= */}
+      <div className="flex gap-4 border-b px-4 text-sm">
+        {[
+          ["items", "결과"],
+          ["omr", "OMR"],
+        ].map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k as any)}
+            className={`py-2 ${
+              tab === k
+                ? "border-b-2 border-blue-600 font-semibold"
+                : "text-gray-500"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ================= Body ================= */}
+      <div className="flex-1 overflow-auto p-4">
+        {tab === "items" && (
+          <ul className="space-y-1 text-sm">
+            {data.items.map((it) => {
+              const isEditableItem = it.is_editable === true;
+
+              return (
+                <li
+                  key={it.question_id}
+                  className={`flex items-center justify-between rounded border p-2 ${
+                    mode === "edit" && isEditableItem ? "bg-blue-50/40" : ""
+                  }`}
+                >
+                  <div>
+                    Q{it.question_id} {it.is_correct ? "✅" : "❌"}
+                  </div>
+
+                  {mode === "edit" && isEditableItem ? (
+                    <input
+                      type="number"
+                      min={0}
+                      max={it.max_score}
+                      defaultValue={it.score}
+                      className="w-16 rounded border px-1 py-0.5 text-xs"
+                      onBlur={async (e) => {
+                        const next = Number(e.target.value);
+
+                        if (!Number.isFinite(next)) {
+                          e.target.value = String(it.score);
+                          return;
+                        }
+
+                        try {
+                          await patchExamItemScore({
+                            examId,
+                            enrollmentId,
+                            questionId: it.question_id,
+                            score: next,
+                          });
+                          refetch();
+                        } catch {
+                          e.target.value = String(it.score);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="text-xs text-gray-500">
+                      {it.score}/{it.max_score}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {tab === "omr" && data.attempt_id && (
+          <AttemptViewerPanel
+            attemptId={data.attempt_id}
+            facts={data.items}
+            autoSelectFirst
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: types/editState.ts
+==========================================================================================
+/**
+ * PATH: src/features/results/types/editState.ts
+ *
+ * ✅ EditState (Phase 4 - A1)
+ *
+ * 설계 원칙:
+ * - backend 응답과 1:1 계약
+ * - optional ❌
+ * - 누락 = 시스템 오류
+ */
+
+export type EditState = {
+  can_edit: boolean;
+  is_locked: boolean;
+  lock_reason: string | null;
+
+  last_updated_by: {
+    id: number;
+    name: string;
+  } | null;
+
+  updated_at: string | null;
+};
+
+
+==========================================================================================
+# FILE: types/frontResultStatus.ts
+==========================================================================================
+/**
+ * PATH: src/features/results/types/frontResultStatus.ts
+ *
+ * ✅ FrontResultStatus (Frontend 전용 통합 상태)
+ *
+ * 목적:
+ * - submission / result 정보를 하나의 UX 상태로 통합
+ *
+ * ❌ 금지:
+ * - 점수 계산
+ * - 합불 판단
+ *
+ * ✅ 원칙:
+ * - backend가 내려준 값만 "조합"한다
+ * - results 도메인 내부에서만 사용
+ */
+
+export type FrontResultStatus =
+  | "waiting"        // 제출 없음
+  | "processing"    // 채점 중
+  | "partial_done"  // 주관식 미채점 등
+  | "done"          // 완료
+  | "failed";       // 실패
+
+
+==========================================================================================
+# FILE: types/results.types.ts
+==========================================================================================
+/**
+ * PATH: src/features/results/types/results.types.ts
+ *
+ * ✅ Results Domain Types (Backend Contract Aligned)
+ *
+ * 설계 계약(중요):
+ * - 단일 진실: 학생 식별은 enrollment_id
+ * - Admin Exam Results List 응답은 "대표 Attempt 기준 final_score"가 단일 진실
+ *
+ * 백엔드 스펙(고정):
+ * - GET /results/admin/exams/{exam_id}/results/
+ *   [
+ *     {
+ *       enrollment_id,
+ *       student_name,
+ *       final_score,
+ *       passed,
+ *       clinic_required,
+ *       submission_status
+ *     }
+ *   ]
+ *
+ * ⚠️ 레거시 호환:
+ * - 기존 프론트/백엔드 일부 환경에서 pagination({results:[]}) 또는
+ *   submission_id/submitted_at 등이 추가로 올 수 있어 optional로 허용.
+ */
+
+// ---------- 1) Student exam result ----------
+export type ResultItem = {
+  question_id: number;
+  answer: string;
+  is_correct: boolean;
+  score: number;
+  max_score: number;
+  source: string;
+};
+
+export type StudentExamResult = {
+  target_type: "exam" | "homework";
+  target_id: number;
+  enrollment_id: number;
+
+  attempt_id?: number | null;
+
+  total_score: number;
+  max_score: number;
+  submitted_at: string | null;
+
+  items: ResultItem[];
+
+  allow_retake?: boolean;
+  max_attempts?: number;
+  can_retake?: boolean;
+
+  clinic_required?: boolean;
+};
+
+// ---------- 2) Admin exam results list ----------
+export type AdminExamResultRow = {
+  // ✅ 단일 진실 키
+  enrollment_id: number;
+  student_name: string;
+
+  /**
+   * ✅ 대표 Attempt 기준 최종 점수
+   * - 대표 attempt가 없으면 null/undefined일 수 있음(운영 위험 케이스)
+   */
+  final_score?: number | null;
+
+  /**
+   * ✅ backend 계산 결과
+   */
+  passed?: boolean | null;
+  clinic_required?: boolean;
+
+  /**
+   * ✅ 제출/채점 파이프라인 상태
+   * 예: PENDING, GRADING, DONE, FAILED 등
+   */
+  submission_status?: string | null;
+
+  /**
+   * ==========================
+   * 레거시/확장 필드 (optional)
+   * ==========================
+   * - 일부 백엔드 구현에서 내려올 수 있음
+   */
+  submitted_at?: string | null;
+  submission_id?: number | null;
+
+  // ❌ 더 이상 exam_score/exam_max_score는 list contract에 없음
+  // - 상세(detail)에서만 total_score/max_score 확인
+};
+
+// ---------- 3) Exam summary ----------
+export type AdminExamSummary = {
+  participant_count: number;
+  avg_score: number;
+  min_score: number;
+  max_score: number;
+
+  pass_count: number;
+  fail_count: number;
+  pass_rate: number;
+
+  clinic_count: number;
+};
+
+// ---------- 4) Session score summary ----------
+export type SessionScoreSummary = {
+  participant_count: number;
+  avg_score: number;
+  min_score: number;
+  max_score: number;
+  pass_rate: number;
+  clinic_rate: number;
+  attempt_stats: {
+    avg_attempts: number;
+    retake_ratio: number;
+  };
+};
+
+// ---------- 5) Question stats ----------
+export type QuestionStat = {
+  question_id: number;
+  attempts: number;
+  correct: number;
+  accuracy: number;
+  avg_score: number;
+  max_score: number;
+};
+
+export type TopWrongQuestion = {
+  question_id: number;
+  wrong_count: number;
+};
+
+// ---------- 6) Wrong notes ----------
+export type WrongNoteItem = {
+  exam_id: number;
+  attempt_id: number;
+  attempt_created_at: string | null;
+
+  question_id: number;
+  question_number: number | null;
+  answer_type: string;
+
+  student_answer: string;
+  correct_answer: string;
+
+  is_correct: boolean;
+  score: number;
+  max_score: number;
+
+  meta?: unknown;
+  extra?: unknown;
+};
+
+export type WrongNoteListResponse = {
+  count: number;
+  next: number | null;
+  prev: number | null;
+  results: WrongNoteItem[];
+};
+
+// ---------- 7) PDF job ----------
+export type WrongNotePdfCreateResponse = {
+  job_id: number;
+  status: string;
+  status_url?: string;
+};
+
+export type WrongNotePdfStatusResponse = {
+  job_id: number;
+  status: "PENDING" | "RUNNING" | "DONE" | "FAILED" | string;
+  file_path: string;
+  file_url: string | null;
+  error_message: string;
+  created_at: string;
+  updated_at: string;
+};
+
+
+==========================================================================================
+# FILE: utils/deriveFrontResultStatus.ts
+==========================================================================================
+/**
+ * PATH: src/features/results/utils/deriveFrontResultStatus.ts
+ *
+ * ✅ FrontResultStatus (Row 기준 파생) - LOCKED (Backend Contract Aligned)
+ *
+ * 목적:
+ * - Admin 결과 리스트 Row에서 운영자가 이해 가능한 단일 상태 제공
+ *
+ * 🔒 절대 규칙:
+ * - 프론트 계산 ❌
+ * - 프론트 추측 ❌
+ * - 점수/문항/attempt 직접 해석 ❌
+ *
+ * 사용 신호(backend 계약):
+ * - submission_status (필수로 신뢰)
+ * - clinic_required (후처리/미채점/검수 필요 신호)
+ *
+ * 레거시 호환:
+ * - submission_id가 오는 환경도 있으나, 없다고 해서 waiting 처리하면 안 됨.
+ */
+
+import type { FrontResultStatus } from "../types/frontResultStatus";
+import type { AdminExamResultRow } from "../types/results.types";
+
+export function deriveFrontResultStatus(row: AdminExamResultRow): FrontResultStatus {
+  const raw = String(row.submission_status ?? "").toLowerCase().trim();
+
+  /**
+   * 1) 제출/상태 정보 자체가 없다
+   * - 이 경우만 waiting (진짜 미제출/미생성 케이스)
+   */
+  if (!raw) {
+    // 레거시: submission_id가 있으면 제출로 간주
+    if (row.submission_id) return "processing";
+    return "waiting";
+  }
+
+  /**
+   * 2) 명확한 실패
+   */
+  if (["failed", "error"].includes(raw)) {
+    return "failed";
+  }
+
+  /**
+   * 3) 파이프라인 진행 중
+   */
+  if (
+    [
+      "pending",
+      "submitted",
+      "dispatched",
+      "extracting",
+      "answers_ready",
+      "grading",
+      "running",
+      "processing",
+    ].includes(raw)
+  ) {
+    return "processing";
+  }
+
+  /**
+   * 4) 결과는 있으나 후처리/검수 필요
+   */
+  if (row.clinic_required) {
+    return "partial_done";
+  }
+
+  /**
+   * 5) 최종 확정
+   */
+  if (["done", "completed", "success"].includes(raw)) {
+    return "done";
+  }
+
+  /**
+   * 6) 알 수 없는 상태 값 방어
+   * - 운영 UX상 "processing"으로 두는 게 안전 (미제출로 오판 금지)
+   */
+  return "processing";
+}
+
+
+==========================================================================================
+# FILE: utils/deriveFrontResultStatusFromDetail.ts
+==========================================================================================
+/**
+ * PATH: src/features/results/utils/deriveFrontResultStatusFromDetail.ts
+ *
+ * ✅ FrontResultStatus (Detail 기준 파생) - FINAL (오판 방지)
+ *
+ * 목적:
+ * - StudentResultPanel(상세)에서 단일 상태 배지 표시
+ *
+ * 🔒 절대 규칙:
+ * - 주관식 여부(is_editable)로 "미채점"을 추측하지 않는다.
+ *   (만점이 아니면 미채점이라고 오판하는 운영 사고 방지)
+ *
+ * 백엔드가 detail에서 확정적으로 제공하는 신호만 사용:
+ * - submitted_at
+ * - attempt_id (대표 attempt 존재 여부)
+ *
+ * 참고:
+ * - "미채점/후처리"는 list(row)의 clinic_required/submission_status로 표현하는 것이 안전.
+ */
+
+import type { FrontResultStatus } from "../types/frontResultStatus";
+import type { ExamResultDetail } from "../api/adminExamResultDetail";
+
+export function deriveFrontResultStatusFromDetail(detail: ExamResultDetail): FrontResultStatus {
+  // 1) 제출 없음
+  if (!detail.submitted_at) {
+    return "waiting";
+  }
+
+  // 2) 대표 attempt 없음 → 비정상(운영 즉시 확인 필요)
+  if (!detail.attempt_id) {
+    return "failed";
+  }
+
+  // 3) 제출 있고 대표 attempt 있으면 일단 "완료"
+  // - 미채점 여부는 여기서 추측 금지
+  return "done";
+}

@@ -1,0 +1,2590 @@
+====================================================================================================
+# FRONTEND FOLDER: features__community
+# ROOT PATH: C:\academyfront\src\features\community
+====================================================================================================
+
+
+==========================================================================================
+# FILE: RedirectToCommunity.tsx
+==========================================================================================
+// PATH: src/features/community/RedirectToCommunity.tsx
+// 강의 내 자료실/게시판에서 통합 콘솔로 리다이렉트
+
+import { Navigate, useParams } from "react-router-dom";
+
+export function RedirectToCommunityMaterials() {
+  const { lectureId } = useParams<{ lectureId: string }>();
+  const id = lectureId != null && Number.isFinite(Number(lectureId)) ? lectureId : "";
+  if (!id) return <Navigate to="/admin/community/materials" replace />;
+  return <Navigate to={`/admin/community/materials?scope=lecture&lectureId=${id}`} replace />;
+}
+
+export function RedirectToCommunityNotice() {
+  const { lectureId } = useParams<{ lectureId: string }>();
+  const id = lectureId != null && Number.isFinite(Number(lectureId)) ? lectureId : "";
+  if (!id) return <Navigate to="/admin/community/admin?tab=notice" replace />;
+  return <Navigate to={`/admin/community/admin?tab=notice&scope=lecture&lectureId=${id}`} replace />;
+}
+
+
+==========================================================================================
+# FILE: community_code.html
+==========================================================================================
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<title>community</title>
+<style>
+body{background:#0f1115;color:#eaeaea;font-family:Consolas,monospace;padding:24px}
+h2{color:#7dd3fc;font-size:14px}
+pre{background:#111418;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px}
+section{margin-bottom:28px}
+</style>
+<h1>📦 community</h1>
+
+<section>
+<h2>components\BoardTabs.tsx</h2>
+<pre><code>// src/features/community/components/BoardTabs.tsx
+import { NavLink } from &quot;react-router-dom&quot;;
+
+export default function BoardTabs() {
+  const base = &quot;/community&quot;;
+
+  const tabClass = ({ isActive }: any) =&gt;
+    `px-3 py-2 text-sm font-medium border-b-2 ${
+      isActive 
+        ? &quot;border-blue-600 text-blue-600&quot;
+        : &quot;border-transparent text-gray-600 hover:text-gray-800&quot;
+    }`;
+
+  return (
+    &lt;div className=&quot;flex gap-6 border-b mb-6&quot;&gt;
+      &lt;NavLink to={`${base}/notice`} className={tabClass}&gt;공지사항&lt;/NavLink&gt;
+      &lt;NavLink to={`${base}/qna`} className={tabClass}&gt;질의응답&lt;/NavLink&gt;
+      &lt;NavLink to={`${base}/review`} className={tabClass}&gt;수강후기&lt;/NavLink&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+<section>
+<h2>pages\CommunityPage.tsx</h2>
+<pre><code>// src/features/community/pages/CommunityPage.tsx
+import PageContainer from &quot;@student/shared/components/Page&quot;;
+import PageHeader from &quot;@/shared/ui/dsHeader&quot;;
+import BoardTabs from &quot;../components/BoardTabs&quot;;
+import { Outlet } from &quot;react-router-dom&quot;;
+
+export default function CommunityPage() {
+  return (
+    &lt;PageContainer&gt;
+      &lt;PageHeader title=&quot;커뮤니티&quot; /&gt;
+
+      &lt;BoardTabs /&gt;
+
+      &lt;Outlet /&gt;
+    &lt;/PageContainer&gt;
+  );
+}
+</code></pre>
+</section>
+
+<section>
+<h2>pages\NoticeBoardPage.tsx</h2>
+<pre><code>export default function NoticeBoardPage() {
+  return (
+    &lt;div&gt;
+
+      &lt;p className=&quot;text-gray-500&quot;&gt;아직 등록된 공지가 없습니다.&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+<section>
+<h2>pages\QnaBoardPage.tsx</h2>
+<pre><code>import BoardTabs from &quot;../components/BoardTabs&quot;;
+
+export default function QnaBoardPage() {
+  return (
+    &lt;div className=&quot;p-6&quot;&gt;
+
+      {/* 검색 &amp; 필터 */}
+      &lt;div className=&quot;flex items-center gap-2 mb-4&quot;&gt;
+        &lt;select className=&quot;border rounded px-2 py-1 text-sm&quot;&gt;
+          &lt;option&gt;전체&lt;/option&gt;
+          &lt;option&gt;답변 필요&lt;/option&gt;
+        &lt;/select&gt;
+
+        &lt;input
+          className=&quot;border rounded px-2 py-1 text-sm flex-1&quot;
+          placeholder=&quot;검색&quot;
+        /&gt;
+
+        &lt;button className=&quot;px-3 py-1.5 bg-blue-600 text-white rounded text-sm&quot;&gt;
+          검색
+        &lt;/button&gt;
+      &lt;/div&gt;
+
+      {/* 리스트 */}
+      &lt;div className=&quot;border rounded p-4 text-sm text-gray-700 mb-3&quot;&gt;
+        &lt;div className=&quot;font-semibold&quot;&gt;예시 QnA 제목&lt;/div&gt;
+        &lt;div className=&quot;text-gray-500 text-xs&quot;&gt;작성자 · 날짜&lt;/div&gt;
+      &lt;/div&gt;
+
+      &lt;div className=&quot;text-center mt-6 text-gray-400 text-sm&quot;&gt;1&lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+<section>
+<h2>pages\ReviewBoardPage.tsx</h2>
+<pre><code>import BoardTabs from &quot;../components/BoardTabs&quot;;
+
+export default function ReviewBoardPage() {
+  return (
+    &lt;div className=&quot;p-6&quot;&gt;
+
+      &lt;div className=&quot;mt-6 text-gray-500 text-sm&quot;&gt;
+        아직 등록된 후기가 없습니다.
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+</code></pre>
+</section>
+
+</html>
+
+
+==========================================================================================
+# FILE: api/community.api.ts
+==========================================================================================
+// PATH: src/features/community/api/community.api.ts
+// Community SSOT API — scope-nodes, block-types, posts (공지/질의 등)
+// baseURL이 /api/v1 이므로 PREFIX = "/community" → /api/v1/community
+
+import api from "@/shared/api/axios";
+
+const PREFIX = "/community";
+
+export type CommunityScope = "all" | "lecture" | "session";
+
+export interface CommunityScopeParams {
+  scope: CommunityScope;
+  lectureId?: number | null;
+  sessionId?: number | null;
+}
+
+// ----------------------------------------
+// 신규 타입 (백엔드 community SSOT)
+// ----------------------------------------
+export interface BlockType {
+  id: number;
+  code: string;
+  label: string;
+  order: number;
+}
+
+export interface ScopeNodeMinimal {
+  id: number;
+  level: "COURSE" | "SESSION";
+  lecture: number;
+  session: number | null;
+  lecture_title: string;
+  session_title: string | null;
+}
+
+export interface PostMappingItem {
+  id: number;
+  post: number;
+  node: number;
+  node_detail: ScopeNodeMinimal;
+  created_at: string;
+}
+
+export interface PostEntity {
+  id: number;
+  tenant?: number;
+  block_type: number;
+  block_type_label: string;
+  title: string;
+  content: string;
+  created_by: number | null;
+  created_at: string;
+  mappings: PostMappingItem[];
+}
+
+// ----------------------------------------
+// Scope nodes (강의/차시 트리 → node_id 도출용)
+// ----------------------------------------
+export async function fetchScopeNodes(): Promise<ScopeNodeMinimal[]> {
+  const res = await api.get(`${PREFIX}/scope-nodes/`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+/** scope + lectureId/sessionId에 해당하는 단일 node_id. 없으면 null */
+export function resolveNodeIdFromScope(
+  nodes: ScopeNodeMinimal[],
+  params: CommunityScopeParams
+): number | null {
+  if (params.scope === "all") return null; // 전체 목록은 node_id 없이 조회
+  if (params.scope === "lecture" && params.lectureId != null) {
+    const n = nodes.find((x) => x.lecture === params.lectureId && x.session == null);
+    return n?.id ?? null;
+  }
+  if (params.scope === "session" && params.lectureId != null && params.sessionId != null) {
+    const n = nodes.find(
+      (x) => x.lecture === params.lectureId && x.session === params.sessionId
+    );
+    return n?.id ?? null;
+  }
+  return null;
+}
+
+// ----------------------------------------
+// Block types (커스텀 유형 생성/수정/삭제)
+// ----------------------------------------
+export async function fetchBlockTypes(): Promise<BlockType[]> {
+  const res = await api.get(`${PREFIX}/block-types/`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function createBlockType(data: {
+  label: string;
+  code?: string;
+  order?: number;
+}): Promise<BlockType> {
+  const res = await api.post(`${PREFIX}/block-types/`, data);
+  return res.data as BlockType;
+}
+
+export async function updateBlockType(
+  id: number,
+  data: { label?: string; code?: string; order?: number }
+): Promise<BlockType> {
+  const res = await api.patch(`${PREFIX}/block-types/${id}/`, data);
+  return res.data as BlockType;
+}
+
+export async function deleteBlockType(id: number): Promise<void> {
+  await api.delete(`${PREFIX}/block-types/${id}/`);
+}
+
+// ----------------------------------------
+// Post templates (양식 저장/불러오기)
+// ----------------------------------------
+export interface PostTemplate {
+  id: number;
+  name: string;
+  block_type: number | null;
+  block_type_label: string | null;
+  title: string;
+  content: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchPostTemplates(): Promise<PostTemplate[]> {
+  const res = await api.get(`${PREFIX}/post-templates/`);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+export async function createPostTemplate(data: {
+  name: string;
+  block_type?: number | null;
+  title?: string;
+  content?: string;
+  order?: number;
+}): Promise<PostTemplate> {
+  const res = await api.post(`${PREFIX}/post-templates/`, data);
+  return res.data as PostTemplate;
+}
+
+export async function updatePostTemplate(
+  id: number,
+  data: { name?: string; block_type?: number | null; title?: string; content?: string; order?: number }
+): Promise<PostTemplate> {
+  const res = await api.patch(`${PREFIX}/post-templates/${id}/`, data);
+  return res.data as PostTemplate;
+}
+
+export async function deletePostTemplate(id: number): Promise<void> {
+  await api.delete(`${PREFIX}/post-templates/${id}/`);
+}
+
+// ----------------------------------------
+// Posts (공지/질의 등)
+// ----------------------------------------
+/** node_id 있으면 해당 노드(및 상속) 게시물, 없으면 tenant 전체 */
+export async function fetchPosts(params: { nodeId?: number | null }): Promise<PostEntity[]> {
+  const url = params.nodeId != null
+    ? `${PREFIX}/posts/?node_id=${params.nodeId}`
+    : `${PREFIX}/posts/`;
+  const res = await api.get(url);
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+/** 게시물 단건 조회 (학생앱 상세 등) */
+export async function fetchPost(id: number): Promise<PostEntity | null> {
+  try {
+    const res = await api.get(`${PREFIX}/posts/${id}/`);
+    return res.data as PostEntity;
+  } catch {
+    return null;
+  }
+}
+
+/** 관리자 목록: block_type_id, lecture_id, page, page_size */
+export async function fetchAdminPosts(params: {
+  blockTypeId?: number | null;
+  lectureId?: number | null;
+  page?: number;
+  pageSize?: number;
+}): Promise<{ results: PostEntity[]; count: number }> {
+  const res = await api.get(`${PREFIX}/admin/posts/`, {
+    params: {
+      block_type_id: params.blockTypeId ?? undefined,
+      lecture_id: params.lectureId ?? undefined,
+      page: params.page ?? 1,
+      page_size: params.pageSize ?? 20,
+    },
+  });
+  const data = res.data as { results?: PostEntity[]; count?: number };
+  return {
+    results: Array.isArray(data.results) ? data.results : [],
+    count: typeof data.count === "number" ? data.count : 0,
+  };
+}
+
+export async function createPost(data: {
+  block_type: number;
+  title: string;
+  content: string;
+  created_by?: number | null;
+  node_ids: number[];
+}): Promise<PostEntity> {
+  const res = await api.post(`${PREFIX}/posts/`, data);
+  return res.data as PostEntity;
+}
+
+export async function updatePostNodes(postId: number, nodeIds: number[]): Promise<PostEntity> {
+  const res = await api.patch(`${PREFIX}/posts/${postId}/nodes/`, { node_ids: nodeIds });
+  return res.data as PostEntity;
+}
+
+// ----------------------------------------
+// 하위 호환용 별칭 (기존 페이지 점진 전환)
+// ----------------------------------------
+/** @deprecated use BlockType */
+export type BoardCategory = BlockType & { name?: string };
+
+/** @deprecated use PostEntity; 필드 매핑만 제공 */
+export interface BoardPost {
+  id: number;
+  tenant: number | null;
+  lecture: number | null;
+  session: number | null;
+  category: number;
+  title: string;
+  content: string;
+  created_by: number | null;
+  created_at: string;
+  attachments: { id: number; post: number; file: string }[];
+  lecture_title?: string;
+  category_name?: string;
+}
+
+function postEntityToBoardPost(p: PostEntity): BoardPost {
+  const firstNode = p.mappings?.[0]?.node_detail;
+  return {
+    id: p.id,
+    tenant: p.tenant ?? null,
+    lecture: firstNode?.lecture ?? null,
+    session: firstNode?.session ?? null,
+    category: p.block_type,
+    title: p.title,
+    content: p.content,
+    created_by: p.created_by ?? null,
+    created_at: p.created_at,
+    attachments: [],
+    lecture_title: firstNode?.lecture_title,
+    category_name: p.block_type_label,
+  };
+}
+
+/** scope/lecture/session에 맞는 node_id로 목록 조회 후 BoardPost[] 형태로 반환 (레거시 호환) */
+export async function fetchCommunityBoardPosts(
+  params: CommunityScopeParams & { categoryId?: number | null }
+): Promise<BoardPost[]> {
+  const nodes = await fetchScopeNodes();
+  const nodeId = resolveNodeIdFromScope(nodes, params);
+  const list = await fetchPosts({ nodeId: nodeId ?? undefined });
+  const filtered =
+    params.categoryId != null
+      ? list.filter((p) => p.block_type === params.categoryId)
+      : list;
+  return filtered.map(postEntityToBoardPost);
+}
+
+/** block-types를 카테고리 형태로 반환 (레거시 호환) */
+export async function fetchCommunityBoardCategories(
+  _params: CommunityScopeParams
+): Promise<BoardCategory[]> {
+  const list = await fetchBlockTypes();
+  return list.map((b) => ({
+    ...b,
+    name: b.label,
+    tenant: null,
+    lecture: null,
+  }));
+}
+
+/** block-types는 읽기 전용. 레거시 호출 시 no-op 또는 에러 방지용 */
+export async function createCommunityBoardCategory(_data: {
+  scope: CommunityScope;
+  lectureId?: number | null;
+  name: string;
+  order?: number;
+}): Promise<BoardCategory> {
+  throw new Error("block-types는 읽기 전용입니다. 관리자 설정을 사용하세요.");
+}
+
+/** JSON 기반 생성 (FormData 대체) */
+export async function createCommunityBoardPost(data: {
+  block_type: number;
+  title: string;
+  content: string;
+  node_ids: number[];
+}): Promise<BoardPost> {
+  const post = await createPost({
+    block_type: data.block_type,
+    title: data.title,
+    content: data.content,
+    node_ids: data.node_ids,
+  });
+  return postEntityToBoardPost(post);
+}
+
+// ----------------------------------------
+// 질의응답 (QNA = block_type QNA인 Post)
+// ----------------------------------------
+export interface Question {
+  id: number;
+  enrollment?: number;
+  title: string;
+  content: string;
+  created_at: string;
+  is_answered?: boolean;
+  student_name?: string;
+  lecture_id?: number;
+  lecture_title?: string;
+}
+
+function postEntityToQuestion(p: PostEntity): Question {
+  const firstNode = p.mappings?.[0]?.node_detail;
+  return {
+    id: p.id,
+    title: p.title,
+    content: p.content,
+    created_at: p.created_at,
+    lecture_id: firstNode?.lecture,
+    lecture_title: firstNode?.lecture_title,
+  };
+}
+
+/** QNA 타입 id로 필터한 목록 (scope → node_id 사용) */
+export async function fetchCommunityQuestions(
+  params?: CommunityScopeParams | null
+): Promise<Question[]> {
+  if (!params) {
+    const { results } = await fetchAdminPosts({ pageSize: 100 });
+    return results.map(postEntityToQuestion);
+  }
+  const nodes = await fetchScopeNodes();
+  const nodeId = resolveNodeIdFromScope(nodes, params);
+  const list = await fetchPosts({ nodeId: nodeId ?? undefined });
+  return list.map(postEntityToQuestion);
+}
+
+export interface Answer {
+  id: number;
+  question: number;
+  content: string;
+  created_at: string;
+}
+
+/** 답변 API 미제공 — 스텁 */
+export async function fetchQuestionAnswer(_questionId: number): Promise<Answer | null> {
+  return null;
+}
+
+/** 답변 API 미제공 — 스텁 */
+export async function createAnswer(_questionId: number, _content: string): Promise<Answer> {
+  throw new Error("답변 API가 준비 중입니다.");
+}
+
+// ----------------------------------------
+// 자료실 (백엔드 미제공 — 스텁)
+// ----------------------------------------
+export interface Material {
+  id: number;
+  tenant: number | null;
+  lecture: number | null;
+  session: number | null;
+  category: number | null;
+  title: string;
+  description: string;
+  file: string | null;
+  url: string | null;
+  order: number;
+  is_public: boolean;
+  created_at: string;
+  lecture_title?: string;
+}
+
+export interface MaterialCategory {
+  id: number;
+  tenant: number | null;
+  lecture: number | null;
+  name: string;
+  order: number;
+}
+
+export async function fetchCommunityMaterials(
+  _params: CommunityScopeParams & { categoryId?: number | null }
+): Promise<Material[]> {
+  return [];
+}
+
+export async function fetchCommunityMaterialCategories(
+  _params: CommunityScopeParams
+): Promise<MaterialCategory[]> {
+  return [];
+}
+
+export async function createCommunityMaterialCategory(_data: {
+  scope: CommunityScope;
+  lectureId?: number | null;
+  name: string;
+  order?: number;
+}): Promise<MaterialCategory> {
+  throw new Error("자료실 API가 준비 중입니다.");
+}
+
+export async function createCommunityMaterial(_formData: FormData): Promise<Material> {
+  throw new Error("자료실 API가 준비 중입니다.");
+}
+
+
+==========================================================================================
+# FILE: components/BlockTypeFormModal.tsx
+==========================================================================================
+// PATH: src/features/community/components/BlockTypeFormModal.tsx
+// 블록 유형 추가/수정 모달 — 게시관리·설정 양쪽에서 사용
+
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  createBlockType,
+  updateBlockType,
+  type BlockType,
+} from "../api/community.api";
+import { Button } from "@/shared/ui/ds";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+
+export interface BlockTypeFormModalProps {
+  edit?: BlockType;
+  onClose: () => void;
+  onSuccess: () => void;
+  /** 추가 시 생성된 유형 전달 (게시관리에서 즉시 선택용) */
+  onSuccessWithCreated?: (block: BlockType) => void;
+}
+
+export default function BlockTypeFormModal({
+  edit,
+  onClose,
+  onSuccess,
+  onSuccessWithCreated,
+}: BlockTypeFormModalProps) {
+  const [label, setLabel] = useState(edit?.label ?? "");
+  const [order, setOrder] = useState(edit?.order ?? 100);
+  const qc = useQueryClient();
+
+  const createMut = useMutation({
+    mutationFn: () => createBlockType({ label: label.trim(), order }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["community-block-types"] });
+      onSuccess();
+      onSuccessWithCreated?.(data);
+    },
+  });
+  const updateMut = useMutation({
+    mutationFn: () =>
+      updateBlockType(edit!.id, { label: label.trim(), order }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-block-types"] });
+      onSuccess();
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!label.trim()) return;
+    if (edit) updateMut.mutate();
+    else createMut.mutate();
+  };
+
+  const pending = createMut.isPending || updateMut.isPending;
+
+  return (
+    <AdminModal open onClose={onClose} type="action" width={420}>
+      <ModalHeader
+        type="action"
+        title={edit ? "유형 수정" : "유형 추가"}
+        description={edit ? "표시명과 순서를 수정합니다." : "글 작성 시 선택할 유형을 추가합니다."}
+      />
+      <ModalBody>
+        <div style={{ marginBottom: 12 }}>
+          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+            표시명
+          </label>
+          <input
+            className="ds-input w-full"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="예: 시험 공지"
+            disabled={pending}
+          />
+        </div>
+        <div style={{ marginBottom: 0 }}>
+          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+            정렬 순서 (작을수록 앞에 표시)
+          </label>
+          <input
+            type="number"
+            className="ds-input w-full"
+            value={order}
+            onChange={(e) => setOrder(Number(e.target.value) || 0)}
+            min={0}
+            disabled={pending}
+          />
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="secondary" size="sm" onClick={onClose} disabled={pending}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!label.trim() || pending}
+            >
+              {edit ? (updateMut.isPending ? "저장 중…" : "저장") : createMut.isPending ? "추가 중…" : "추가"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/BoardTabs.tsx
+==========================================================================================
+// src/features/community/components/BoardTabs.tsx
+// SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
+import { NavLink } from "react-router-dom";
+
+export default function BoardTabs() {
+  const base = "/admin/community";
+
+  const tabClass = ({ isActive }: { isActive: boolean }) =>
+    `ds-tab ${isActive ? "is-active" : ""}`;
+
+  return (
+    <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)] mb-6" role="tablist">
+      <NavLink to={`${base}/admin?tab=notice`} className={tabClass}>공지사항</NavLink>
+      <NavLink to={`${base}/qna`} className={tabClass}>질의응답</NavLink>
+      <NavLink to={`${base}/review`} className={tabClass}>수강후기</NavLink>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/CommunityScopeSelector.tsx
+==========================================================================================
+// PATH: src/features/community/components/CommunityScopeSelector.tsx
+// 노출 범위 선택: 통합 | 강의별 | 세션별 (CommunityScopeContext 연동)
+
+import { useQuery } from "@tanstack/react-query";
+import { useCommunityScope } from "../context/CommunityScopeContext";
+import { fetchLectures } from "@/features/lectures/api/sessions";
+import { fetchSessions } from "@/features/lectures/api/sessions";
+
+const WRAPPER_STYLE = {
+  padding: "var(--space-3) 0",
+  borderBottom: "1px solid var(--color-border-divider)",
+  marginBottom: "var(--space-4)",
+};
+
+export default function CommunityScopeSelector() {
+  const { scope, setScope, lectureId, setLectureId, sessionId, setSessionId } = useCommunityScope();
+
+  const { data: lectures = [] } = useQuery({
+    queryKey: ["lectures-list"],
+    queryFn: () => fetchLectures({ is_active: true }),
+  });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["lecture-sessions", lectureId],
+    queryFn: () => fetchSessions(lectureId!),
+    enabled: scope !== "all" && Number.isFinite(lectureId ?? 0),
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-3" style={WRAPPER_STYLE}>
+      <span
+        style={{
+          fontSize: "var(--text-sm)",
+          fontWeight: "var(--font-title)",
+          color: "var(--color-text-secondary)",
+        }}
+      >
+        노출 범위
+      </span>
+      <select
+        className="ds-input"
+        value={scope}
+        onChange={(e) => {
+          const v = e.target.value as "all" | "lecture" | "session";
+          setScope(v);
+          if (v === "all") {
+            setLectureId(null);
+            setSessionId(null);
+          } else if (v === "lecture") {
+            setSessionId(null);
+          }
+        }}
+        style={{ width: 140 }}
+      >
+        <option value="all">통합 (전체 학생)</option>
+        <option value="lecture">강의별</option>
+        <option value="session">세션별</option>
+      </select>
+
+      {(scope === "lecture" || scope === "session") && (
+        <select
+          className="ds-input"
+          value={lectureId ?? ""}
+          onChange={(e) => {
+            const v = e.target.value ? Number(e.target.value) : null;
+            setLectureId(v);
+            setSessionId(null);
+          }}
+          style={{ width: 220 }}
+        >
+          <option value="">강의 선택</option>
+          {lectures.map((lec) => (
+            <option key={lec.id} value={lec.id}>
+              {lec.title}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {scope === "session" && lectureId && (
+        <select
+          className="ds-input"
+          value={sessionId ?? ""}
+          onChange={(e) => setSessionId(e.target.value ? Number(e.target.value) : null)}
+          style={{ width: 200 }}
+        >
+          <option value="">차시 선택</option>
+          {sessions.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.order}차시 · {s.title || "제목 없음"}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: context/CommunityScopeContext.tsx
+==========================================================================================
+// PATH: src/features/community/context/CommunityScopeContext.tsx
+// 통합 | 강의별 | 세션별 scope + 선택된 강의/세션 (URL 쿼리와 동기화)
+
+import { createContext, useContext, useMemo, useState, useEffect, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
+import type { CommunityScope } from "../api/community.api";
+
+export type CommunityScopeContextValue = {
+  scope: CommunityScope;
+  setScope: (s: CommunityScope) => void;
+  lectureId: number | null;
+  setLectureId: (id: number | null) => void;
+  sessionId: number | null;
+  setSessionId: (id: number | null) => void;
+  /** 현재 scope에 따른 실제 사용할 lectureId (통합이면 null, 강의/세션별이면 선택된 강의) */
+  effectiveLectureId: number | null;
+};
+
+const CommunityScopeContext = createContext<CommunityScopeContextValue | null>(null);
+
+export function CommunityScopeProvider({ children }: { children: ReactNode }) {
+  const [searchParams] = useSearchParams();
+  const [scope, setScope] = useState<CommunityScope>("all");
+  const [lectureId, setLectureId] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<number | null>(null);
+
+  // URL 쿼리와 동기화 (강의 목록에서 바로가기 등으로 진입 시)
+  useEffect(() => {
+    const scopeParam = searchParams.get("scope") as CommunityScope | null;
+    const lid = searchParams.get("lectureId");
+    const sid = searchParams.get("sessionId");
+    if (scopeParam === "lecture" || scopeParam === "session" || scopeParam === "all") setScope(scopeParam);
+    if (lid != null && lid !== "" && Number.isFinite(Number(lid))) setLectureId(Number(lid));
+    else setLectureId(null);
+    if (sid != null && sid !== "" && Number.isFinite(Number(sid))) setSessionId(Number(sid));
+    else setSessionId(null);
+  }, [searchParams]);
+
+  const effectiveLectureId = useMemo(() => {
+    if (scope === "all") return null;
+    return lectureId;
+  }, [scope, lectureId]);
+
+  const value = useMemo<CommunityScopeContextValue>(
+    () => ({
+      scope,
+      setScope,
+      lectureId,
+      setLectureId,
+      sessionId,
+      setSessionId,
+      effectiveLectureId,
+    }),
+    [scope, lectureId, sessionId, effectiveLectureId]
+  );
+
+  return (
+    <CommunityScopeContext.Provider value={value}>
+      {children}
+    </CommunityScopeContext.Provider>
+  );
+}
+
+export function useCommunityScope() {
+  const ctx = useContext(CommunityScopeContext);
+  if (!ctx) throw new Error("useCommunityScope must be used within CommunityScopeProvider");
+  return ctx;
+}
+
+
+==========================================================================================
+# FILE: pages/CommunityAdminPage.tsx
+==========================================================================================
+// PATH: src/features/community/pages/CommunityAdminPage.tsx
+// 게시 관리: 게시판 관리(3패널) + 공지사항(ScopeSelector + 목록/작성)
+
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Layout, Tree, Table, Select, Tag, message } from "antd";
+import type { DataNode } from "antd/es/tree";
+import {
+  fetchScopeNodes,
+  fetchBlockTypes,
+  fetchAdminPosts,
+  updatePostNodes,
+  type PostEntity,
+  type ScopeNodeMinimal,
+} from "../api/community.api";
+import { EmptyState, Button } from "@/shared/ui/ds";
+import CommunityScopeSelector from "../components/CommunityScopeSelector";
+import BlockTypeFormModal from "../components/BlockTypeFormModal";
+import { NoticeBoardContent } from "./NoticeBoardPage";
+
+const PAGE_SIZE = 20;
+
+function buildTreeData(nodes: ScopeNodeMinimal[]): DataNode[] {
+  const byLecture = new Map<number, ScopeNodeMinimal[]>();
+  nodes.forEach((n) => {
+    const arr = byLecture.get(n.lecture) ?? [];
+    arr.push(n);
+    byLecture.set(n.lecture, arr);
+  });
+  return Array.from(byLecture.entries())
+    .map(([, list]) => {
+      const course = list.find((n) => n.session == null);
+      const sessions = list.filter((n) => n.session != null);
+      if (!course) return null;
+      return {
+        key: String(course.id),
+        title: course.lecture_title,
+        children: sessions.map((s) => ({
+          key: String(s.id),
+          title: s.session_title ?? "차시",
+        })),
+      };
+    })
+    .filter(Boolean) as DataNode[];
+}
+
+const SUB_TAB_BOARD = "board";
+const SUB_TAB_NOTICE = "notice";
+
+export default function CommunityAdminPage() {
+  const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const subTab = searchParams.get("tab") === SUB_TAB_NOTICE ? SUB_TAB_NOTICE : SUB_TAB_BOARD;
+  const setSubTab = (tab: string) => setSearchParams(tab === SUB_TAB_BOARD ? {} : { tab });
+
+  const [blockTypeId, setBlockTypeId] = useState<number | null>(null);
+  const [lectureId, setLectureId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [selectedPost, setSelectedPost] = useState<PostEntity | null>(null);
+  const [inspectorNodeIds, setInspectorNodeIds] = useState<number[]>([]);
+  const [showAddBlockType, setShowAddBlockType] = useState(false);
+
+  const { data: scopeNodes = [] } = useQuery({
+    queryKey: ["community-scope-nodes"],
+    queryFn: () => fetchScopeNodes(),
+  });
+
+  const { data: blockTypes = [] } = useQuery({
+    queryKey: ["community-block-types"],
+    queryFn: () => fetchBlockTypes(),
+  });
+
+  const { data: adminData, isLoading: loadingPosts } = useQuery({
+    queryKey: ["community-admin-posts", blockTypeId, lectureId, page],
+    queryFn: () =>
+      fetchAdminPosts({
+        blockTypeId: blockTypeId ?? undefined,
+        lectureId: lectureId ?? undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      }),
+  });
+
+  const treeData = useMemo(() => buildTreeData(scopeNodes), [scopeNodes]);
+
+  const lectureOptions = useMemo(() => {
+    const seen = new Set<number>();
+    return scopeNodes
+      .filter((n) => n.session == null)
+      .filter((n) => {
+        if (seen.has(n.lecture)) return false;
+        seen.add(n.lecture);
+        return true;
+      })
+      .map((n) => ({ label: n.lecture_title, value: n.lecture }));
+  }, [scopeNodes]);
+
+  const posts = adminData?.results ?? [];
+  const total = adminData?.count ?? 0;
+
+  const columns = [
+    {
+      title: "제목",
+      dataIndex: "title",
+      key: "title",
+      ellipsis: true,
+      render: (t: string, r: PostEntity) => (
+        <button
+          type="button"
+          className="text-left font-semibold text-[var(--color-primary)] hover:underline"
+          onClick={() => {
+            setSelectedPost(r);
+            setInspectorNodeIds(r.mappings?.map((m) => m.node) ?? []);
+          }}
+        >
+          {t}
+        </button>
+      ),
+    },
+    {
+      title: "유형",
+      dataIndex: "block_type_label",
+      key: "block_type_label",
+      width: 100,
+      render: (label: string) => <Tag>{label}</Tag>,
+    },
+    {
+      title: "노출 노드",
+      key: "nodes",
+      width: 220,
+      render: (_: unknown, r: PostEntity) => (
+        <div className="flex flex-wrap gap-1">
+          {r.mappings?.map((m) => (
+            <Tag key={m.id}>{m.node_detail?.lecture_title} {m.node_detail?.session_title ? `· ${m.node_detail.session_title}` : "(전체)"}</Tag>
+          )) ?? null}
+        </div>
+      ),
+    },
+    {
+      title: "작성일",
+      dataIndex: "created_at",
+      key: "created_at",
+      width: 110,
+      render: (v: string) => v?.slice(0, 10),
+    },
+  ];
+
+  const updateNodesMut = useMutation({
+    mutationFn: ({ postId, nodeIds }: { postId: number; nodeIds: number[] }) =>
+      updatePostNodes(postId, nodeIds),
+    onSuccess: () => {
+      message.success("노출 노드가 저장되었습니다.");
+      qc.invalidateQueries({ queryKey: ["community-admin-posts"] });
+      setSelectedPost(null);
+    },
+    onError: () => message.error("저장에 실패했습니다."),
+  });
+
+  const handleSaveNodes = () => {
+    if (!selectedPost || inspectorNodeIds.length === 0) return;
+    updateNodesMut.mutate({ postId: selectedPost.id, nodeIds: inspectorNodeIds });
+  };
+
+  const nodePickerOptions = useMemo(() => {
+    return scopeNodes.map((n) => ({
+      label: n.session_title ? `${n.lecture_title} · ${n.session_title}` : `${n.lecture_title} (전체)`,
+      value: n.id,
+    }));
+  }, [scopeNodes]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 border-b border-[var(--color-border-divider)] pb-2">
+        <button
+          type="button"
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            subTab === SUB_TAB_BOARD
+              ? "bg-[var(--color-primary)] text-white"
+              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)]"
+          }`}
+          onClick={() => setSubTab(SUB_TAB_BOARD)}
+        >
+          게시판 관리
+        </button>
+        <button
+          type="button"
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            subTab === SUB_TAB_NOTICE
+              ? "bg-[var(--color-primary)] text-white"
+              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)]"
+          }`}
+          onClick={() => setSubTab(SUB_TAB_NOTICE)}
+        >
+          공지사항
+        </button>
+      </div>
+
+      {subTab === SUB_TAB_NOTICE ? (
+        <>
+          <CommunityScopeSelector />
+          <NoticeBoardContent />
+        </>
+      ) : (
+    <Layout className="!bg-transparent !min-h-0">
+        <Layout.Sider
+          width={280}
+          className="!bg-[var(--color-bg-surface)] !rounded-xl border border-[var(--color-border-divider)] overflow-hidden"
+        >
+          <div className="p-3 border-b border-[var(--color-border-divider)] font-semibold text-sm text-[var(--color-text-secondary)]">
+            노출 위치 (ScopeNode)
+          </div>
+          <div className="p-2 overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
+            {treeData.length === 0 ? (
+              <EmptyState scope="panel" title="노드 없음" />
+            ) : (
+              <Tree
+                showLine
+                defaultExpandAll
+                treeData={treeData}
+                selectable={false}
+              />
+            )}
+          </div>
+        </Layout.Sider>
+
+        <Layout.Content className="px-4 !min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <Select
+              placeholder="유형"
+              allowClear
+              value={blockTypeId}
+              onChange={setBlockTypeId}
+              options={blockTypes.map((b) => ({ label: b.label, value: b.id }))}
+              style={{ width: 120 }}
+            />
+            <Button intent="secondary" size="sm" onClick={() => setShowAddBlockType(true)}>
+              + 블록 추가
+            </Button>
+            <Select
+              placeholder="강의"
+              allowClear
+              value={lectureId}
+              onChange={setLectureId}
+              options={lectureOptions}
+              style={{ width: 200 }}
+            />
+          </div>
+          <div className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
+            {loadingPosts ? (
+              <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+            ) : (
+              <Table
+                rowKey="id"
+                size="small"
+                pagination={{
+                  current: page,
+                  pageSize: PAGE_SIZE,
+                  total,
+                  onChange: setPage,
+                  showSizeChanger: false,
+                }}
+                columns={columns}
+                dataSource={posts}
+                locale={{ emptyText: "게시물이 없습니다." }}
+              />
+            )}
+          </div>
+        </Layout.Content>
+
+        <Layout.Sider
+          width={320}
+          className="!bg-[var(--color-bg-surface)] !rounded-xl border border-[var(--color-border-divider)] overflow-hidden"
+        >
+          <div className="p-3 border-b border-[var(--color-border-divider)] font-semibold text-sm text-[var(--color-text-secondary)]">
+            Inspector
+          </div>
+          <div className="p-4 overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
+            {!selectedPost ? (
+              <EmptyState scope="panel" title="글을 선택하세요" description="중앙 목록에서 행을 클릭하세요." />
+            ) : (
+              <>
+                <div className="mb-4">
+                  <div className="font-bold text-[var(--color-text-primary)] mb-1">{selectedPost.title}</div>
+                  <Tag>{selectedPost.block_type_label}</Tag>
+                  <div className="text-xs text-[var(--color-text-muted)] mt-2">
+                    {selectedPost.created_at?.slice(0, 16)}
+                  </div>
+                </div>
+                <div className="mb-2 text-sm font-semibold text-[var(--color-text-secondary)]">
+                  노출 노드
+                </div>
+                <Select
+                  mode="multiple"
+                  placeholder="노드 추가"
+                  value={inspectorNodeIds}
+                  onChange={setInspectorNodeIds}
+                  options={nodePickerOptions}
+                  style={{ width: "100%", marginBottom: 12 }}
+                  maxTagCount="responsive"
+                />
+                <div className="flex gap-2">
+                  <Button intent="primary" size="sm" onClick={handleSaveNodes} loading={updateNodesMut.isPending}>
+                    저장
+                  </Button>
+                  <Button intent="secondary" size="sm" onClick={() => setSelectedPost(null)}>
+                    닫기
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </Layout.Sider>
+      </Layout>
+      )}
+
+      {showAddBlockType && (
+        <BlockTypeFormModal
+          onClose={() => setShowAddBlockType(false)}
+          onSuccess={() => setShowAddBlockType(false)}
+          onSuccessWithCreated={(block) => setBlockTypeId(block.id)}
+        />
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/CommunityPage.tsx
+==========================================================================================
+// PATH: src/features/community/pages/CommunityPage.tsx
+// 커뮤니티 — 게시 관리(게시판+공지) · 질의응답 · 자료실 · 설정
+
+import { Outlet, useLocation } from "react-router-dom";
+import { DomainLayout } from "@/shared/ui/layout";
+import { CommunityScopeProvider } from "../context/CommunityScopeContext";
+import CommunityScopeSelector from "../components/CommunityScopeSelector";
+
+const COMMUNITY_TABS = [
+  { key: "admin", label: "게시 관리", path: "/admin/community/admin" },
+  { key: "qna", label: "질의응답", path: "/admin/community/qna" },
+  { key: "materials", label: "자료실", path: "/admin/community/materials" },
+  { key: "settings", label: "설정", path: "/admin/community/settings" },
+];
+
+function CommunityPageInner() {
+  const location = useLocation();
+  const isAdminPanel = location.pathname.endsWith("/admin");
+  const isSettingsPanel = location.pathname.endsWith("/settings");
+
+  return (
+    <DomainLayout
+      title="커뮤니티"
+      description="게시 관리 · 질의응답 · 자료실"
+      tabs={COMMUNITY_TABS}
+    >
+      {!isAdminPanel && !isSettingsPanel && <CommunityScopeSelector />}
+      <Outlet />
+    </DomainLayout>
+  );
+}
+
+export default function CommunityPage() {
+  return (
+    <CommunityScopeProvider>
+      <CommunityPageInner />
+    </CommunityScopeProvider>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/CommunitySettingsPage.tsx
+==========================================================================================
+// PATH: src/features/community/pages/CommunitySettingsPage.tsx
+// 블록 유형·양식 관리 — 커스텀 유형 추가/수정, 자주 쓰는 글 양식 저장·편집
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchBlockTypes,
+  deleteBlockType,
+  fetchPostTemplates,
+  createPostTemplate,
+  updatePostTemplate,
+  deletePostTemplate,
+  type BlockType,
+  type PostTemplate,
+} from "../api/community.api";
+import { Button, EmptyState } from "@/shared/ui/ds";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import BlockTypeFormModal from "../components/BlockTypeFormModal";
+
+const SECTION_STYLE = {
+  borderRadius: "var(--radius-xl)",
+  border: "1px solid var(--color-border-divider)",
+  background: "var(--color-bg-surface)",
+  padding: "var(--space-5)",
+  marginBottom: "var(--space-6)",
+};
+
+export default function CommunitySettingsPage() {
+  const qc = useQueryClient();
+  const [blockTypeModal, setBlockTypeModal] = useState<{ open: boolean; edit?: BlockType }>({ open: false });
+  const [templateModal, setTemplateModal] = useState<{ open: boolean; edit?: PostTemplate }>({ open: false });
+
+  const { data: blockTypes = [], isLoading: loadingTypes } = useQuery({
+    queryKey: ["community-block-types"],
+    queryFn: () => fetchBlockTypes(),
+  });
+
+  const { data: templates = [], isLoading: loadingTemplates } = useQuery({
+    queryKey: ["community-post-templates"],
+    queryFn: () => fetchPostTemplates(),
+  });
+
+  return (
+    <div className="max-w-4xl">
+      <h1 className="text-xl font-bold text-[var(--color-text-primary)] mb-1">설정</h1>
+      <p
+        className="mb-4"
+        style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}
+      >
+        게시물 유형과 자주 쓰는 글 양식을 관리합니다. 유형을 추가하면 글 작성 시 선택할 수 있고, 양식은 불러와서 수정해 쓰면 됩니다.
+      </p>
+
+      {/* 블록 유형 */}
+      <section style={SECTION_STYLE}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, margin: 0 }}>
+            블록 유형
+          </h2>
+          <Button
+            intent="primary"
+            size="sm"
+            onClick={() => setBlockTypeModal({ open: true })}
+          >
+            + 유형 추가
+          </Button>
+        </div>
+        {loadingTypes ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : blockTypes.length === 0 ? (
+          <EmptyState
+            scope="panel"
+            title="등록된 유형이 없습니다."
+            description="위 '유형 추가'로 공지·질의·오탈자 외에 필요한 유형을 만드세요."
+          />
+        ) : (
+          <ul className="flex flex-wrap gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {blockTypes.map((b) => (
+              <li
+                key={b.id}
+                className="flex items-center gap-2 rounded-lg border border-[var(--color-border-divider)] px-3 py-2 bg-[var(--color-bg-surface-soft)]"
+              >
+                <span style={{ fontWeight: 600 }}>{b.label}</span>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>({b.code})</span>
+                <Button
+                  intent="ghost"
+                  size="sm"
+                  onClick={() => setBlockTypeModal({ open: true, edit: b })}
+                >
+                  수정
+                </Button>
+                <Button
+                  intent="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm(`"${b.label}" 유형을 삭제할까요?`)) {
+                      deleteBlockType(b.id).then(() =>
+                        qc.invalidateQueries({ queryKey: ["community-block-types"] })
+                      );
+                    }
+                  }}
+                >
+                  삭제
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* 양식 */}
+      <section style={SECTION_STYLE}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, margin: 0 }}>
+            글 양식
+          </h2>
+          <Button
+            intent="primary"
+            size="sm"
+            onClick={() => setTemplateModal({ open: true })}
+          >
+            + 양식 추가
+          </Button>
+        </div>
+        {loadingTemplates ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : templates.length === 0 ? (
+          <EmptyState
+            scope="panel"
+            title="저장된 양식이 없습니다."
+            description="글 작성 화면에서 '양식으로 저장'하거나 여기서 '양식 추가'로 자주 쓰는 제목·내용을 등록하세요."
+          />
+        ) : (
+          <ul className="space-y-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {templates.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-lg border border-[var(--color-border-divider)] p-3 bg-[var(--color-bg-surface-soft)]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{t.name}</div>
+                    {t.block_type_label && (
+                      <span
+                        className="inline-block rounded px-2 py-0.5 text-xs"
+                        style={{ background: "var(--color-bg-muted)", color: "var(--color-text-secondary)" }}
+                      >
+                        {t.block_type_label}
+                      </span>
+                    )}
+                    {t.title && (
+                      <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginTop: 6 }}>
+                        {t.title.slice(0, 60)}{t.title.length > 60 ? "…" : ""}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      intent="ghost"
+                      size="sm"
+                      onClick={() => setTemplateModal({ open: true, edit: t })}
+                    >
+                      수정
+                    </Button>
+                    <Button
+                      intent="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (window.confirm(`"${t.name}" 양식을 삭제할까요?`)) {
+                          deletePostTemplate(t.id).then(() =>
+                            qc.invalidateQueries({ queryKey: ["community-post-templates"] })
+                          );
+                        }
+                      }}
+                    >
+                      삭제
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {blockTypeModal.open && (
+        <BlockTypeFormModal
+          edit={blockTypeModal.edit}
+          onClose={() => setBlockTypeModal({ open: false })}
+          onSuccess={() => setBlockTypeModal({ open: false })}
+        />
+      )}
+      {templateModal.open && (
+        <PostTemplateFormModal
+          edit={templateModal.edit}
+          blockTypes={blockTypes}
+          onClose={() => setTemplateModal({ open: false })}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["community-post-templates"] });
+            setTemplateModal({ open: false });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PostTemplateFormModal({
+  edit,
+  blockTypes,
+  onClose,
+  onSuccess,
+}: {
+  edit?: PostTemplate;
+  blockTypes: BlockType[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [name, setName] = useState(edit?.name ?? "");
+  const [blockTypeId, setBlockTypeId] = useState<number | null>(edit?.block_type ?? null);
+  const [title, setTitle] = useState(edit?.title ?? "");
+  const [content, setContent] = useState(edit?.content ?? "");
+
+  const createMut = useMutation({
+    mutationFn: () =>
+      createPostTemplate({
+        name: name.trim(),
+        block_type: blockTypeId ?? undefined,
+        title: title.trim() || undefined,
+        content: content.trim() || undefined,
+      }),
+    onSuccess: () => onSuccess(),
+  });
+  const updateMut = useMutation({
+    mutationFn: () =>
+      updatePostTemplate(edit!.id, {
+        name: name.trim(),
+        block_type: blockTypeId ?? undefined,
+        title: title.trim() || undefined,
+        content: content.trim() || undefined,
+      }),
+    onSuccess: () => onSuccess(),
+  });
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    if (edit) updateMut.mutate();
+    else createMut.mutate();
+  };
+
+  const pending = createMut.isPending || updateMut.isPending;
+
+  return (
+    <AdminModal open onClose={onClose} type="action" width={560}>
+      <ModalHeader
+        type="action"
+        title={edit ? "양식 수정" : "양식 추가"}
+        description={edit ? "양식 이름과 내용을 수정합니다." : "자주 쓰는 제목·내용을 저장해 두었다가 글 작성 시 불러올 수 있습니다."}
+      />
+      <ModalBody>
+        <div style={{ marginBottom: 12 }}>
+          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+            양식 이름
+          </label>
+          <input
+            className="ds-input w-full"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="예: 중간고사 공지"
+            disabled={pending}
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+            기본 유형 (선택)
+          </label>
+          <select
+            className="ds-input w-full"
+            value={blockTypeId ?? ""}
+            onChange={(e) => setBlockTypeId(e.target.value ? Number(e.target.value) : null)}
+            disabled={pending}
+          >
+            <option value="">선택 안 함</option>
+            {blockTypes.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+            제목 (기본값)
+          </label>
+          <input
+            className="ds-input w-full"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="불러올 때 채워질 제목"
+            disabled={pending}
+          />
+        </div>
+        <div style={{ marginBottom: 0 }}>
+          <label className="block text-sm font-semibold text-[var(--color-text-secondary)] mb-1">
+            내용 (기본값)
+          </label>
+          <textarea
+            className="ds-input w-full"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="불러올 때 채워질 본문"
+            rows={6}
+            style={{ resize: "vertical" }}
+            disabled={pending}
+          />
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="secondary" size="sm" onClick={onClose} disabled={pending}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!name.trim() || pending}
+            >
+              {edit ? (updateMut.isPending ? "저장 중…" : "저장") : createMut.isPending ? "추가 중…" : "추가"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MaterialsBoardPage.tsx
+==========================================================================================
+// PATH: src/features/community/pages/MaterialsBoardPage.tsx
+// 커뮤니티 자료실 — scope에 따라 목록
+
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCommunityScope } from "../context/CommunityScopeContext";
+import {
+  fetchCommunityMaterials,
+  fetchCommunityMaterialCategories,
+  type Material,
+  type MaterialCategory,
+} from "../api/community.api";
+import { fetchLectures } from "@/features/lectures/api/sessions";
+import { EmptyState, Button } from "@/shared/ui/ds";
+
+export default function MaterialsBoardPage() {
+  const { scope, sessionId, effectiveLectureId } = useCommunityScope();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+
+  const scopeParams = {
+    scope,
+    lectureId: effectiveLectureId ?? undefined,
+    sessionId: sessionId ?? undefined,
+  };
+
+  const { data: lectures = [] } = useQuery({
+    queryKey: ["lectures-list"],
+    queryFn: () => fetchLectures({ is_active: true }),
+  });
+
+  const { data: categories = [] } = useQuery<MaterialCategory[]>({
+    queryKey: ["community-material-categories", scope, effectiveLectureId, sessionId],
+    queryFn: () => fetchCommunityMaterialCategories(scopeParams),
+    enabled: true,
+  });
+
+  const { data: materials = [], isLoading } = useQuery<Material[]>({
+    queryKey: ["community-materials", scope, effectiveLectureId, sessionId, selectedCategoryId],
+    queryFn: () =>
+      fetchCommunityMaterials({
+        ...scopeParams,
+        categoryId: selectedCategoryId ?? undefined,
+      }),
+    enabled: scope === "all" || (scope === "lecture" && effectiveLectureId != null) || (scope === "session" && sessionId != null),
+  });
+
+  const lectureTitleMap = useMemo(() => {
+    const m = new Map<number, string>();
+    lectures.forEach((l) => m.set(l.id, l.title));
+    return m;
+  }, [lectures]);
+
+  if ((scope === "lecture" && effectiveLectureId == null) || (scope === "session" && (!effectiveLectureId || sessionId == null))) {
+    return (
+      <EmptyState
+        scope="panel"
+        title={scope === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
+        description={
+          scope === "session"
+            ? "노출 범위를 '세션별'로 두고 강의와 차시를 선택하면 해당 차시 자료를 볼 수 있습니다."
+            : "노출 범위를 '강의별'로 두고 위에서 강의를 선택하면 해당 강의의 자료실을 관리할 수 있습니다."
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <span
+          style={{
+            fontSize: "var(--text-sm)",
+            fontWeight: "var(--font-title)",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          {scope === "all" ? "전체 자료" : scope === "session" ? "해당 차시 자료" : "해당 강의 자료"} · {materials.length}개
+        </span>
+      </div>
+
+      {categories.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            intent={selectedCategoryId === null ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setSelectedCategoryId(null)}
+          >
+            전체
+          </Button>
+          {categories.map((c) => (
+            <Button
+              key={c.id}
+              intent={selectedCategoryId === c.id ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setSelectedCategoryId(c.id)}
+            >
+              {c.name}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : materials.length === 0 ? (
+        <EmptyState
+          scope="panel"
+          title="등록된 자료가 없습니다."
+          description="강의별 또는 세션별 노출 범위에서 자료를 추가하거나, 통합 자료실에 자료를 등록할 수 있습니다."
+        />
+      ) : (
+        <ul className="flex flex-col gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {materials.map((m) => (
+            <li
+              key={m.id}
+              style={{
+                padding: "var(--space-4)",
+                borderRadius: "var(--radius-lg)",
+                border: "1px solid var(--color-border-divider)",
+                background: "var(--color-bg-surface)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div
+                    style={{
+                      fontSize: "var(--text-md)",
+                      fontWeight: 700,
+                      color: "var(--color-text-primary)",
+                    }}
+                  >
+                    {m.title}
+                  </div>
+                  {m.description && (
+                    <div
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        color: "var(--color-text-secondary)",
+                        marginTop: 4,
+                      }}
+                    >
+                      {m.description}
+                    </div>
+                  )}
+                  {scope === "all" && m.lecture != null && m.lecture && (
+                    <span
+                      style={{
+                        fontSize: "var(--text-xs)",
+                        color: "var(--color-text-muted)",
+                        marginTop: 4,
+                        display: "inline-block",
+                      }}
+                    >
+                      {lectureTitleMap.get(m.lecture) ?? `강의 #${m.lecture}`}
+                    </span>
+                  )}
+                  <div
+                    style={{
+                      fontSize: "var(--text-xs)",
+                      color: "var(--color-text-muted)",
+                      marginTop: 6,
+                    }}
+                  >
+                    {new Date(m.created_at).toLocaleDateString("ko-KR")}
+                    {m.file && (
+                      <a
+                        href={m.file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2"
+                        style={{ color: "var(--color-primary)" }}
+                      >
+                        파일
+                      </a>
+                    )}
+                    {m.url && (
+                      <a
+                        href={m.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-2"
+                        style={{ color: "var(--color-primary)" }}
+                      >
+                        링크
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/NoticeBoardPage.tsx
+==========================================================================================
+// PATH: src/features/community/pages/NoticeBoardPage.tsx
+// 공지사항 목록+작성 (게시 관리 내 "공지사항" 탭에서 사용, 또는 단독 라우트용)
+
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCommunityScope } from "../context/CommunityScopeContext";
+import {
+  fetchScopeNodes,
+  resolveNodeIdFromScope,
+  fetchCommunityBoardPosts,
+  fetchCommunityBoardCategories,
+  createCommunityBoardPost,
+  fetchBlockTypes,
+  fetchPostTemplates,
+  createPostTemplate,
+  type BoardPost,
+  type BlockType,
+  type PostTemplate,
+  type ScopeNodeMinimal,
+  type CommunityScopeParams,
+} from "../api/community.api";
+import { fetchLectures } from "@/features/lectures/api/sessions";
+import { EmptyState, Button } from "@/shared/ui/ds";
+
+/** 게시 관리 내 "공지사항" 탭에서 임베드용. ScopeSelector는 상위(게시 관리)에서 노출. */
+export function NoticeBoardContent() {
+  const qc = useQueryClient();
+  const { scope, lectureId, sessionId, effectiveLectureId } = useCommunityScope();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const scopeParams = { scope, lectureId: effectiveLectureId ?? undefined, sessionId: sessionId ?? undefined };
+
+  const { data: lectures = [] } = useQuery({
+    queryKey: ["lectures-list"],
+    queryFn: () => fetchLectures({ is_active: true }),
+  });
+
+  const { data: scopeNodes = [] } = useQuery<ScopeNodeMinimal[]>({
+    queryKey: ["community-scope-nodes"],
+    queryFn: () => fetchScopeNodes(),
+    enabled: true,
+  });
+
+  const nodeId = useMemo(
+    () => resolveNodeIdFromScope(scopeNodes, scopeParams),
+    [scopeNodes, scope, effectiveLectureId, sessionId]
+  );
+
+  const { data: categories = [], isLoading: loadingCats } = useQuery<BlockType[]>({
+    queryKey: ["community-block-types"],
+    queryFn: () => fetchBlockTypes(),
+    enabled: true,
+  });
+
+  const { data: templates = [] } = useQuery<PostTemplate[]>({
+    queryKey: ["community-post-templates"],
+    queryFn: () => fetchPostTemplates(),
+    enabled: showCreate,
+  });
+
+  const { data: posts = [], isLoading: loadingPosts } = useQuery<BoardPost[]>({
+    queryKey: ["community-board-posts", scope, effectiveLectureId, sessionId, selectedCategoryId, nodeId],
+    queryFn: () =>
+      fetchCommunityBoardPosts({
+        ...scopeParams,
+        categoryId: selectedCategoryId ?? undefined,
+      }),
+    enabled: scope === "all" || (scope === "lecture" && effectiveLectureId != null) || (scope === "session" && sessionId != null),
+  });
+
+  const lectureTitleMap = useMemo(() => {
+    const m = new Map<number, string>();
+    lectures.forEach((l) => m.set(l.id, l.title));
+    return m;
+  }, [lectures]);
+
+  if ((scope === "lecture" && effectiveLectureId == null) || (scope === "session" && (!effectiveLectureId || sessionId == null))) {
+    return (
+      <EmptyState
+        scope="panel"
+        title={scope === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
+        description={
+          scope === "session"
+            ? "노출 범위를 '세션별'로 두고 강의와 차시를 선택하면 해당 차시 공지를 관리할 수 있습니다."
+            : "노출 범위를 '강의별'로 두고 위에서 강의를 선택하면 해당 강의의 공지를 관리할 수 있습니다."
+        }
+      />
+    );
+  }
+
+  const canCreate = scope === "all" || (scope === "lecture" && effectiveLectureId) || (scope === "session" && sessionId);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <span
+          style={{
+            fontSize: "var(--text-sm)",
+            fontWeight: "var(--font-title)",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          {scope === "all" ? "전체 공지" : scope === "session" ? "해당 차시 공지" : "해당 강의 공지"} · {posts.length}개
+        </span>
+        {canCreate && (
+          <Button intent="primary" size="sm" onClick={() => setShowCreate(true)}>
+            + 공지 작성
+          </Button>
+        )}
+      </div>
+
+      {categories.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            intent={selectedCategoryId === null ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setSelectedCategoryId(null)}
+          >
+            전체
+          </Button>
+          {categories.map((c) => (
+            <Button
+              key={c.id}
+              intent={selectedCategoryId === c.id ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setSelectedCategoryId(c.id)}
+            >
+              {c.label}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {loadingPosts ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : posts.length === 0 ? (
+        <EmptyState
+          scope="panel"
+          title="등록된 공지가 없습니다."
+          description="위 '공지 작성'으로 등록하거나, 노출 범위를 바꿔 다른 공지를 확인하세요."
+        />
+      ) : (
+        <ul className="flex flex-col gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {posts.map((p) => (
+            <li
+              key={p.id}
+              style={{
+                padding: "var(--space-4)",
+                borderRadius: "var(--radius-lg)",
+                border: "1px solid var(--color-border-divider)",
+                background: "var(--color-bg-surface)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div
+                    style={{
+                      fontSize: "var(--text-md)",
+                      fontWeight: 700,
+                      color: "var(--color-text-primary)",
+                    }}
+                  >
+                    {p.title}
+                  </div>
+                  {scope === "all" && p.lecture != null && p.lecture && (
+                    <span
+                      style={{
+                        fontSize: "var(--text-xs)",
+                        color: "var(--color-text-muted)",
+                        marginTop: 4,
+                        display: "inline-block",
+                      }}
+                    >
+                      {lectureTitleMap.get(p.lecture) ?? `강의 #${p.lecture}`}
+                    </span>
+                  )}
+                  <div
+                    style={{
+                      fontSize: "var(--text-xs)",
+                      color: "var(--color-text-muted)",
+                      marginTop: 6,
+                    }}
+                  >
+                    {new Date(p.created_at).toLocaleDateString("ko-KR")}
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {showCreate && canCreate && (
+        <NoticeCreateModal
+          scope={scope}
+          scopeNodes={scopeNodes}
+          scopeParams={scopeParams}
+          effectiveLectureId={effectiveLectureId ?? undefined}
+          sessionId={sessionId ?? undefined}
+          blockTypes={categories}
+          templates={templates}
+          onClose={() => setShowCreate(false)}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["community-board-posts"] });
+            setShowCreate(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function NoticeCreateModal({
+  scope,
+  scopeNodes,
+  scopeParams,
+  effectiveLectureId,
+  sessionId,
+  blockTypes,
+  templates,
+  onClose,
+  onSuccess,
+}: {
+  scope: "all" | "lecture" | "session";
+  scopeNodes: ScopeNodeMinimal[];
+  scopeParams: CommunityScopeParams;
+  effectiveLectureId?: number;
+  sessionId?: number | null;
+  blockTypes: BlockType[];
+  templates: PostTemplate[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [blockTypeId, setBlockTypeId] = useState<number | null>(blockTypes[0]?.id ?? null);
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const qc = useQueryClient();
+
+  const loadTemplate = (t: PostTemplate) => {
+    setTitle(t.title ?? "");
+    setContent(t.content ?? "");
+    if (t.block_type != null) setBlockTypeId(t.block_type);
+  };
+
+  const saveAsTemplateMut = useMutation({
+    mutationFn: () =>
+      createPostTemplate({
+        name: templateName.trim(),
+        block_type: blockTypeId ?? undefined,
+        title: title.trim() || undefined,
+        content: content.trim() || undefined,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-post-templates"] });
+      setShowSaveAsTemplate(false);
+      setTemplateName("");
+    },
+  });
+
+  const nodeIds = useMemo(() => {
+    if (scope === "lecture" && effectiveLectureId != null) {
+      const n = scopeNodes.find((x) => x.lecture === effectiveLectureId && x.session == null);
+      return n ? [n.id] : [];
+    }
+    if (scope === "session" && effectiveLectureId != null && sessionId != null) {
+      const n = scopeNodes.find(
+        (x) => x.lecture === effectiveLectureId && x.session === sessionId
+      );
+      return n ? [n.id] : [];
+    }
+    if (scope === "all" && selectedNodeId != null) return [selectedNodeId];
+    return [];
+  }, [scope, scopeNodes, effectiveLectureId, sessionId, selectedNodeId]);
+
+  const createMut = useMutation({
+    mutationFn: () =>
+      createCommunityBoardPost({
+        block_type: blockTypeId ?? blockTypes[0]!.id,
+        title: title.trim(),
+        content: content.trim(),
+        node_ids: nodeIds,
+      }),
+    onSuccess: () => onSuccess(),
+  });
+
+  const canSubmit =
+    title.trim() &&
+    content.trim() &&
+    blockTypes.length > 0 &&
+    (blockTypeId != null || blockTypes[0]?.id) &&
+    nodeIds.length > 0;
+
+  const courseNodes = useMemo(
+    () => scopeNodes.filter((n) => n.level === "COURSE"),
+    [scopeNodes]
+  );
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.4)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "var(--color-bg-surface)",
+          borderRadius: "var(--radius-xl)",
+          padding: "var(--space-6)",
+          maxWidth: 480,
+          width: "90%",
+          boxShadow: "var(--elevation-3)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 style={{ marginBottom: 16, fontSize: 18, fontWeight: 700 }}>공지 작성</h3>
+        {templates.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
+              양식에서 불러오기
+            </label>
+            <select
+              className="ds-input"
+              style={{ width: "100%" }}
+              value=""
+              onChange={(e) => {
+                const id = e.target.value ? Number(e.target.value) : 0;
+                const t = templates.find((x) => x.id === id);
+                if (t) loadTemplate(t);
+                e.target.value = "";
+              }}
+            >
+              <option value="">선택하세요</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                  {t.block_type_label ? ` (${t.block_type_label})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {blockTypes.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 16 }}>
+            블록 타입이 없습니다. 관리자 설정에서 확인하세요.
+          </p>
+        ) : (
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
+                유형
+              </label>
+              <select
+                className="ds-input"
+                value={blockTypeId ?? ""}
+                onChange={(e) => setBlockTypeId(e.target.value ? Number(e.target.value) : null)}
+                style={{ width: "100%" }}
+              >
+                {blockTypes.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {scope === "all" && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
+                  노출 위치(강의)
+                </label>
+                <select
+                  className="ds-input"
+                  value={selectedNodeId ?? ""}
+                  onChange={(e) => setSelectedNodeId(e.target.value ? Number(e.target.value) : null)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">선택하세요</option>
+                  {courseNodes.map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.lecture_title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
+                제목
+              </label>
+              <input
+                className="ds-input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="제목"
+                style={{ width: "100%" }}
+              />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
+                내용
+              </label>
+              <textarea
+                className="ds-input"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="내용"
+                rows={4}
+                style={{ width: "100%", resize: "vertical" }}
+              />
+            </div>
+          </>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex gap-2">
+            {(title.trim() || content.trim()) && (
+              <Button
+                intent="ghost"
+                size="sm"
+                onClick={() => setShowSaveAsTemplate(true)}
+              >
+                현재 내용을 양식으로 저장
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button intent="secondary" size="sm" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={() => createMut.mutate()}
+              disabled={!canSubmit || createMut.isPending}
+            >
+              {createMut.isPending ? "등록 중…" : "등록"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {showSaveAsTemplate && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1001,
+          }}
+          onClick={() => !saveAsTemplateMut.isPending && setShowSaveAsTemplate(false)}
+        >
+          <div
+            style={{
+              background: "var(--color-bg-surface)",
+              borderRadius: "var(--radius-lg)",
+              padding: "var(--space-5)",
+              minWidth: 320,
+              boxShadow: "var(--elevation-3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 style={{ marginBottom: 12, fontSize: 16, fontWeight: 700 }}>양식으로 저장</h4>
+            <input
+              className="ds-input"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="양식 이름 (예: 중간고사 공지)"
+              style={{ width: "100%", marginBottom: 16 }}
+              disabled={saveAsTemplateMut.isPending}
+            />
+            <div className="flex gap-2 justify-end">
+              <Button
+                intent="secondary"
+                size="sm"
+                onClick={() => setShowSaveAsTemplate(false)}
+                disabled={saveAsTemplateMut.isPending}
+              >
+                취소
+              </Button>
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => templateName.trim() && saveAsTemplateMut.mutate()}
+                disabled={!templateName.trim() || saveAsTemplateMut.isPending}
+              >
+                {saveAsTemplateMut.isPending ? "저장 중…" : "저장"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 블록 타입은 백엔드 시드/관리. 프론트에서 카테고리 추가 비활성화.
+
+/** 단독 라우트용(리다이렉트 대상 등). 기본은 게시 관리 내 공지사항 탭 사용 권장. */
+export default function NoticeBoardPage() {
+  return <NoticeBoardContent />;
+}
+
+
+==========================================================================================
+# FILE: pages/QnaBoardPage.tsx
+==========================================================================================
+// PATH: src/features/community/pages/QnaBoardPage.tsx
+// 커뮤니티 질의응답 — scope에 따라 목록 + 답변
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCommunityScope } from "../context/CommunityScopeContext";
+import {
+  fetchCommunityQuestions,
+  fetchQuestionAnswer,
+  createAnswer,
+  type Question,
+} from "../api/community.api";
+import { EmptyState, Button } from "@/shared/ui/ds";
+
+export default function QnaBoardPage() {
+  const qc = useQueryClient();
+  const { scope, lectureId, sessionId, effectiveLectureId } = useCommunityScope();
+  const [openedId, setOpenedId] = useState<number | null>(null);
+  const [filterAnswered, setFilterAnswered] = useState<"all" | "pending">("all");
+
+  const scopeParams = {
+    scope,
+    lectureId: effectiveLectureId ?? undefined,
+    sessionId: sessionId ?? undefined,
+  };
+
+  const { data: questions = [], isLoading } = useQuery<Question[]>({
+    queryKey: ["community-questions", scope, effectiveLectureId, sessionId],
+    queryFn: () => fetchCommunityQuestions(scopeParams),
+    enabled: scope === "all" || (scope === "lecture" && effectiveLectureId != null) || (scope === "session" && sessionId != null),
+  });
+
+  const filtered = filterAnswered === "pending"
+    ? questions.filter((q) => !q.is_answered)
+    : questions;
+
+  if ((scope === "lecture" && effectiveLectureId == null) || (scope === "session" && (!effectiveLectureId || sessionId == null))) {
+    return (
+      <EmptyState
+        scope="panel"
+        title={scope === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
+        description={
+          scope === "session"
+            ? "노출 범위를 '세션별'로 두고 강의와 차시를 선택하면 해당 차시 질의응답을 볼 수 있습니다."
+            : "노출 범위를 '강의별'로 두고 위에서 강의를 선택하면 해당 강의의 질의응답을 관리할 수 있습니다."
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <select
+          className="ds-input"
+          value={filterAnswered}
+          onChange={(e) => setFilterAnswered(e.target.value as "all" | "pending")}
+          style={{ width: 140 }}
+        >
+          <option value="all">전체</option>
+          <option value="pending">답변 대기</option>
+        </select>
+        <span
+          style={{
+            fontSize: "var(--text-sm)",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          {filtered.length}건
+        </span>
+      </div>
+
+      {isLoading ? (
+        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          scope="panel"
+          title="질문이 없습니다."
+          description="학생이 올린 질문이 여기에 표시됩니다."
+        />
+      ) : (
+        <ul className="flex flex-col gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {filtered.map((q) => (
+            <li key={q.id}>
+              <QuestionRow
+                question={q}
+                isOpen={openedId === q.id}
+                onToggle={() => setOpenedId((id) => (id === q.id ? null : q.id))}
+                onAnswerSuccess={() => {
+                  qc.invalidateQueries({ queryKey: ["community-questions"] });
+                  setOpenedId(null);
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function QuestionRow({
+  question,
+  isOpen,
+  onToggle,
+  onAnswerSuccess,
+}: {
+  question: Question;
+  isOpen: boolean;
+  onToggle: () => void;
+  onAnswerSuccess: () => void;
+}) {
+  const { data: answer } = useQuery({
+    queryKey: ["question-answer", question.id],
+    queryFn: () => fetchQuestionAnswer(question.id),
+    enabled: isOpen,
+  });
+
+  return (
+    <div
+      style={{
+        padding: "var(--space-4)",
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: "var(--text-md)",
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+          }}
+        >
+          {question.title}
+        </span>
+        <span
+          style={{
+            fontSize: "var(--text-xs)",
+            padding: "2px 8px",
+            borderRadius: 999,
+            background: question.is_answered
+              ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
+              : "var(--color-bg-surface-soft)",
+            color: question.is_answered ? "var(--color-primary)" : "var(--color-text-muted)",
+          }}
+        >
+          {question.is_answered ? "답변 완료" : "답변 대기"}
+        </span>
+      </button>
+      <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 6 }}>
+        {new Date(question.created_at).toLocaleDateString("ko-KR")}
+      </div>
+
+      {isOpen && (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--color-border-divider)" }}>
+          <div
+            style={{
+              fontSize: "var(--text-sm)",
+              color: "var(--color-text-secondary)",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {question.content}
+          </div>
+          {answer && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 12,
+                background: "var(--color-bg-surface-soft)",
+                borderRadius: "var(--radius-md)",
+                fontSize: "var(--text-sm)",
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>답변</div>
+              <div style={{ whiteSpace: "pre-wrap" }}>{answer.content}</div>
+            </div>
+          )}
+          {!question.is_answered && (
+            <AnswerForm questionId={question.id} onSuccess={onAnswerSuccess} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnswerForm({ questionId, onSuccess }: { questionId: number; onSuccess: () => void }) {
+  const [content, setContent] = useState("");
+  const qc = useQueryClient();
+  const createMut = useMutation({
+    mutationFn: () => createAnswer(questionId, content),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-questions"] });
+      qc.invalidateQueries({ queryKey: ["question-answer", questionId] });
+      setContent("");
+      onSuccess();
+    },
+  });
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <textarea
+        className="ds-input"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="답변 입력"
+        rows={3}
+        style={{ width: "100%", resize: "vertical" }}
+      />
+      <Button
+        intent="primary"
+        size="sm"
+        className="mt-2"
+        onClick={() => createMut.mutate()}
+        disabled={!content.trim() || createMut.isPending}
+      >
+        {createMut.isPending ? "등록 중…" : "답변 등록"}
+      </Button>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/ReviewBoardPage.tsx
+==========================================================================================
+import BoardTabs from "../components/BoardTabs";
+
+export default function ReviewBoardPage() {
+  return (
+    <div className="p-6">
+
+      <div className="mt-6 text-gray-500 text-sm">
+        아직 등록된 후기가 없습니다.
+      </div>
+    </div>
+  );
+}

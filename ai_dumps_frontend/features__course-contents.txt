@@ -1,0 +1,327 @@
+====================================================================================================
+# FRONTEND FOLDER: features__course-contents
+# ROOT PATH: C:\academyfront\src\features\course-contents
+====================================================================================================
+
+
+==========================================================================================
+# FILE: components/LectureSessionTree.module.css
+==========================================================================================
+/* 강의·차시 폴더 트리 — 저장소 FolderTree 스타일 통일 */
+
+.root {
+  padding: var(--space-2);
+  font-size: 13px;
+}
+
+.node {
+  margin-left: 0;
+}
+
+.children {
+  margin-left: var(--space-4);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.item:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.itemActive {
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  color: var(--color-brand-primary);
+}
+
+.sessionLabel {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+
+==========================================================================================
+# FILE: components/LectureSessionTree.tsx
+==========================================================================================
+// 강의·차시 폴더 트리 — 저장소 FolderTree와 유사한 구조
+
+import { BookOpen, ChevronRight } from "lucide-react";
+import type { Lecture, Session } from "@/features/lectures/api/sessions";
+import styles from "./LectureSessionTree.module.css";
+
+type LectureWithSessions = Lecture & { sessions: Session[] };
+
+type LectureSessionTreeProps = {
+  lectures: LectureWithSessions[];
+  selectedSessionId: number | null;
+  selectedLectureId: number | null;
+  onSelectLecture: (lectureId: number) => void;
+  onSelectSession: (lectureId: number, sessionId: number) => void;
+};
+
+export default function LectureSessionTree({
+  lectures,
+  selectedSessionId,
+  selectedLectureId,
+  onSelectLecture,
+  onSelectSession,
+}: LectureSessionTreeProps) {
+  const hasSelectedSession = selectedSessionId != null;
+  const hasSelectedLecture = selectedLectureId != null;
+
+  return (
+    <div className={styles.root}>
+      {lectures.length === 0 ? (
+        <div className="text-[var(--color-text-muted)] text-sm py-4">
+          강의가 없습니다
+        </div>
+      ) : (
+        lectures.map((lecture) => {
+          const isLectureActive = selectedLectureId === lecture.id && !hasSelectedSession;
+          const sessions = lecture.sessions ?? [];
+
+          return (
+            <div key={lecture.id} className={styles.node}>
+              <button
+                type="button"
+                className={styles.item + (isLectureActive ? " " + styles.itemActive : "")}
+                onClick={() => onSelectLecture(lecture.id)}
+              >
+                <BookOpen size={16} />
+                <span className="truncate" title={lecture.title || lecture.name}>
+                  {lecture.title || lecture.name || `강의 ${lecture.id}`}
+                </span>
+              </button>
+              {sessions.length > 0 && (
+                <div className={styles.children}>
+                  {sessions
+                    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                    .map((session) => {
+                      const isActive =
+                        selectedSessionId === session.id && selectedLectureId === lecture.id;
+                      const label = session.title || `차시 ${session.order ?? session.id}`;
+
+                      return (
+                        <div key={session.id} className={styles.node}>
+                          <button
+                            type="button"
+                            className={
+                              styles.item +
+                              (isActive ? " " + styles.itemActive : "") +
+                              " " +
+                              styles.sessionLabel
+                            }
+                            onClick={() => onSelectSession(lecture.id, session.id)}
+                          >
+                            <ChevronRight size={14} style={{ flexShrink: 0 }} />
+                            <span className="truncate" title={label}>
+                              {label}
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/CourseContentsPage.module.css
+==========================================================================================
+/* 강의 콘텐츠 통합 — 저장소 MyStorageExplorer 레이아웃 유사 */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+
+.total {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.tree {
+  width: 260px;
+  min-width: 260px;
+  border-right: 1px solid var(--color-border-divider);
+  overflow: auto;
+}
+
+.panel {
+  flex: 1;
+  padding: var(--space-6);
+  overflow: auto;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 200px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+
+==========================================================================================
+# FILE: pages/CourseContentsPage.tsx
+==========================================================================================
+/**
+ * 강의 콘텐츠 통합 — 영상·성적·시험·메시지를 폴더 트리로 관리
+ * 저장소와 동일한 좌측 트리 레이아웃: 강의명 > 차시1, 차시2...
+ * 클릭 시 해당 차시 상세로 이동 (영상/성적/시험 탭 포함)
+ */
+
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueries } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { fetchLectures, fetchSessions } from "@/features/lectures/api/sessions";
+import DomainLayout from "@/shared/ui/domain/DomainLayout";
+import LectureSessionTree from "../components/LectureSessionTree";
+import styles from "./CourseContentsPage.module.css";
+
+type LectureWithSessions = Lecture & { sessions: Session[] };
+
+function useLecturesWithSessions() {
+  const { data: lectures = [] } = useQuery({
+    queryKey: ["course-contents-lectures"],
+    queryFn: () => fetchLectures({ is_active: undefined }),
+  });
+
+  const sessionQueries = useQueries({
+    queries: lectures.map((l) => ({
+      queryKey: ["course-contents-sessions", l.id],
+      queryFn: () => fetchSessions(l.id),
+    })),
+  });
+
+  const withSessions: LectureWithSessions[] = useMemo(() => {
+    return lectures.map((lecture, i) => {
+      const sessions = sessionQueries[i]?.data ?? [];
+      return { ...lecture, sessions };
+    });
+  }, [lectures, sessionQueries]);
+
+  const isLoading = sessionQueries.some((q) => q.isLoading);
+
+  return { lectures: withSessions, isLoading };
+}
+
+export default function CourseContentsPage() {
+  const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  const { lectures, isLoading } = useLecturesWithSessions();
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return lectures;
+    const k = search.trim().toLowerCase();
+    return lectures.filter(
+      (l) =>
+        (l.title && l.title.toLowerCase().includes(k)) ||
+        (l.name && l.name.toLowerCase().includes(k)) ||
+        (l.subject && l.subject.toLowerCase().includes(k))
+    );
+  }, [lectures, search]);
+
+  const handleSelectLecture = (lectureId: number) => {
+    navigate(`/admin/lectures/${lectureId}`);
+  };
+
+  const handleSelectSession = (lectureId: number, sessionId: number) => {
+    navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}`);
+  };
+
+  return (
+    <DomainLayout
+      title="강의 콘텐츠"
+      description="영상·성적·시험·메시지를 강의·차시 단위로 통합 관리합니다. 차시를 클릭하면 해당 차시 상세로 이동합니다."
+    >
+      <div className={styles.wrap}>
+        <div className={styles.toolbar}>
+          <input
+            type="text"
+            className="ds-input"
+            placeholder="강의명 · 과목 검색"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onBlur={() => setSearch(searchInput)}
+            onKeyDown={(e) => e.key === "Enter" && setSearch(searchInput)}
+            style={{ maxWidth: 280 }}
+          />
+          <span className={styles.total}>
+            {isLoading ? "…" : `총 ${filtered.length}개 강의`}
+          </span>
+        </div>
+
+        <div className={styles.body}>
+          <aside className={styles.tree}>
+            <LectureSessionTree
+              lectures={filtered}
+              selectedSessionId={null}
+              selectedLectureId={null}
+              onSelectLecture={handleSelectLecture}
+              onSelectSession={handleSelectSession}
+            />
+          </aside>
+          <div className={styles.panel}>
+            {isLoading ? (
+              <div className={styles.placeholder}>로딩 중…</div>
+            ) : (
+              <div className={styles.placeholder}>
+                <p>좌측 트리에서 <strong>강의</strong>를 클릭하면 강의 상세로,</p>
+                <p><strong>차시</strong>를 클릭하면 해당 차시의 영상·성적·시험 관리 페이지로 이동합니다.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </DomainLayout>
+  );
+}

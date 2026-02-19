@@ -1,0 +1,2677 @@
+====================================================================================================
+# FRONTEND FOLDER: features__messages
+# ROOT PATH: C:\academyfront\src\features\messages
+====================================================================================================
+
+
+==========================================================================================
+# FILE: routes.tsx
+==========================================================================================
+// PATH: src/features/messages/routes.tsx
+
+import { Routes, Route, Navigate } from "react-router-dom";
+import MessageLayout from "./layout/MessageLayout";
+import MessageTemplatesPage from "./pages/MessageTemplatesPage";
+import MessageSendPage from "./pages/MessageSendPage";
+import MessageAutoSendPage from "./pages/MessageAutoSendPage";
+import MessageLogPage from "./pages/MessageLogPage";
+import MessageSettingsPage from "./pages/MessageSettingsPage";
+
+export function MessageRoutes() {
+  return (
+    <Routes>
+      <Route element={<MessageLayout />}>
+        <Route index element={<Navigate to="templates" replace />} />
+        <Route path="templates" element={<MessageTemplatesPage />} />
+        <Route path="send" element={<MessageSendPage />} />
+        <Route path="auto-send" element={<MessageAutoSendPage />} />
+        <Route path="log" element={<MessageLogPage />} />
+        <Route path="settings" element={<MessageSettingsPage />} />
+      </Route>
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: api/messages.api.ts
+==========================================================================================
+// PATH: src/features/messages/api/messages.api.ts
+// 알림톡 잔액 · 충전 · 카카오 연동 · 발송 로그 (Backend 연동 대비)
+
+import api from "@/shared/api/axios";
+
+const PREFIX = "/messaging";
+
+// ----------------------------------------
+// 타입 (1~4단계 백엔드 스키마와 맞춤)
+// ----------------------------------------
+
+export interface TenantMessagingInfo {
+  /** 학원 개별 카카오 프로필 ID (연동 시 저장) */
+  kakao_pfid: string | null;
+  /** 테넌트별 SMS/알림톡 발신번호 (예: 01031217466) */
+  messaging_sender: string | null;
+  /** 선불 충전 잔액 */
+  credit_balance: string;
+  /** 알림톡 기능 활성화 여부 */
+  is_active: boolean;
+  /** 건당 발송 단가 (학원별 책정) */
+  base_price: string;
+}
+
+export interface NotificationLogItem {
+  id: number;
+  sent_at: string;
+  /** 성공 여부 */
+  success: boolean;
+  /** 차감 금액 */
+  amount_deducted: string;
+  /** 수신자 수 또는 요약 */
+  recipient_summary?: string;
+  /** 템플릿/제목 요약 */
+  template_summary?: string;
+  /** 실패 시 사유 */
+  failure_reason?: string | null;
+}
+
+export interface NotificationLogParams {
+  page?: number;
+  page_size?: number;
+}
+
+export interface NotificationLogResponse {
+  results: NotificationLogItem[];
+  count: number;
+}
+
+// ----------------------------------------
+// API
+// ----------------------------------------
+
+/** 테넌트 메시징 정보 (잔액, PFID, 활성화, 단가) */
+export async function fetchMessagingInfo(): Promise<TenantMessagingInfo> {
+  const res = await api.get<TenantMessagingInfo>(`${PREFIX}/info/`);
+  return res.data;
+}
+
+/** 크레딧 충전 (결제 완료 후 호출) */
+export async function chargeCredits(amount: string): Promise<{ credit_balance: string }> {
+  const res = await api.post<{ credit_balance: string }>(`${PREFIX}/charge/`, {
+    amount,
+  });
+  return res.data;
+}
+
+/** 카카오 PFID 저장/연동 */
+export async function updateKakaoPfid(pfid: string): Promise<TenantMessagingInfo> {
+  const res = await api.patch<TenantMessagingInfo>(`${PREFIX}/info/`, { kakao_pfid: pfid });
+  return res.data;
+}
+
+/** 발신번호가 솔라피에 등록된 번호인지 인증 */
+export async function verifySender(phoneNumber: string): Promise<{
+  verified: boolean;
+  message: string;
+}> {
+  const res = await api.post<{ verified: boolean; message: string }>(
+    `${PREFIX}/verify-sender/`,
+    { phone_number: phoneNumber }
+  );
+  return res.data;
+}
+
+/** 메시징 설정 일부 수정 (발신번호, PFID 등) */
+export async function updateMessagingInfo(
+  payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender">>
+): Promise<TenantMessagingInfo> {
+  const res = await api.patch<TenantMessagingInfo>(`${PREFIX}/info/`, payload);
+  return res.data;
+}
+
+/** 채널 공유 확인 (파트너 등록 여부) — 4단계 */
+export async function checkChannelShared(): Promise<{ shared: boolean; message?: string }> {
+  const res = await api.get<{ shared: boolean; message?: string }>(`${PREFIX}/channel-check/`);
+  return res.data;
+}
+
+/** 발송 로그 목록 */
+export async function fetchNotificationLog(
+  params?: NotificationLogParams
+): Promise<NotificationLogResponse> {
+  const res = await api.get<NotificationLogResponse>(`${PREFIX}/log/`, { params });
+  return res.data;
+}
+
+// ----------------------------------------
+// 메시지 템플릿 (양식 저장)
+// ----------------------------------------
+
+export type MessageTemplateCategory = "default" | "lecture" | "clinic";
+
+export type SolapiStatus = "" | "PENDING" | "APPROVED" | "REJECTED";
+
+export interface MessageTemplateItem {
+  id: number;
+  category: MessageTemplateCategory;
+  name: string;
+  subject: string;
+  body: string;
+  /** 솔라피에서 발급된 템플릿 ID (검수 신청 후) */
+  solapi_template_id?: string;
+  /** 검수 상태: 미신청 / PENDING / APPROVED / REJECTED */
+  solapi_status?: SolapiStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MessageTemplatePayload {
+  category: MessageTemplateCategory;
+  name: string;
+  subject?: string;
+  body: string;
+}
+
+export async function fetchMessageTemplates(
+  category?: MessageTemplateCategory
+): Promise<MessageTemplateItem[]> {
+  const params = category ? { category } : {};
+  const res = await api.get<MessageTemplateItem[]>(`${PREFIX}/templates/`, { params });
+  return res.data;
+}
+
+export async function createMessageTemplate(
+  payload: MessageTemplatePayload
+): Promise<MessageTemplateItem> {
+  const res = await api.post<MessageTemplateItem>(`${PREFIX}/templates/`, payload);
+  return res.data;
+}
+
+export async function updateMessageTemplate(
+  id: number,
+  payload: Partial<MessageTemplatePayload>
+): Promise<MessageTemplateItem> {
+  const res = await api.patch<MessageTemplateItem>(`${PREFIX}/templates/${id}/`, payload);
+  return res.data;
+}
+
+export async function deleteMessageTemplate(id: number): Promise<void> {
+  await api.delete(`${PREFIX}/templates/${id}/`);
+}
+
+/** 템플릿 검수 신청 (솔라피 알림톡 템플릿 등록 → 카카오 검수 대기) */
+export async function submitMessageTemplateReview(
+  id: number
+): Promise<{ detail: string; template: MessageTemplateItem }> {
+  const res = await api.post<{ detail: string; template: MessageTemplateItem }>(
+    `${PREFIX}/templates/${id}/submit-review/`
+  );
+  return res.data;
+}
+
+// ----------------------------------------
+// 메시지 발송 (공용 모달에서 사용)
+// ----------------------------------------
+
+export type SendToType = "student" | "parent";
+
+/** sms=SMS만, alimtalk=알림톡만, both=알림톡→SMS폴백 */
+export type MessageMode = "sms" | "alimtalk" | "both";
+
+export interface SendMessagePayload {
+  student_ids: number[];
+  send_to: SendToType;
+  /** sms | alimtalk | both */
+  message_mode?: MessageMode;
+  template_id?: number | null;
+  raw_body?: string;
+  raw_subject?: string;
+}
+
+export interface SendMessageResponse {
+  detail: string;
+  enqueued: number;
+  skipped_no_phone: number;
+}
+
+export async function sendMessage(payload: SendMessagePayload): Promise<SendMessageResponse> {
+  const res = await api.post<SendMessageResponse>(`${PREFIX}/send/`, payload);
+  return res.data;
+}
+
+// ----------------------------------------
+// 자동발송 설정
+// ----------------------------------------
+
+export type AutoSendTrigger =
+  | "student_signup"
+  | "clinic_reminder"
+  | "clinic_reservation_created"
+  | "clinic_reservation_changed";
+
+export interface AutoSendConfigItem {
+  id: number | null;
+  trigger: AutoSendTrigger;
+  template: number | null;
+  template_name: string;
+  template_solapi_status: string;
+  enabled: boolean;
+  message_mode: MessageMode;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export const AUTO_SEND_TRIGGER_LABELS: Record<AutoSendTrigger, string> = {
+  student_signup: "가입 완료",
+  clinic_reminder: "클리닉 알림",
+  clinic_reservation_created: "클리닉 예약 생성",
+  clinic_reservation_changed: "클리닉 예약 변경",
+};
+
+export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {
+  const res = await api.get<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`);
+  return res.data;
+}
+
+export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>[]): Promise<AutoSendConfigItem[]> {
+  const payload = configs.map((c) => ({
+    trigger: c.trigger,
+    template_id: c.template,
+    enabled: c.enabled,
+    message_mode: c.message_mode,
+  }));
+  const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
+    configs: payload,
+  });
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: components/ChargeCreditsModal.tsx
+==========================================================================================
+// PATH: src/features/messages/components/ChargeCreditsModal.tsx
+// 크레딧 충전 모달 — 결제 완료 후 잔액 업데이트
+
+import { useState } from "react";
+import { Input } from "antd";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+import { useChargeCredits } from "../hooks/useMessagingInfo";
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+};
+
+export default function ChargeCreditsModal({ open, onClose }: Props) {
+  const [amount, setAmount] = useState("");
+  const { mutateAsync: charge, isPending } = useChargeCredits();
+
+  const handleSubmit = async () => {
+    const value = amount.trim();
+    if (!value || Number(value) <= 0) return;
+    try {
+      await charge(value);
+      setAmount("");
+      onClose();
+    } catch {
+      // 에러 토스트는 mutation/전역에서 처리 가능
+    }
+  };
+
+  return (
+    <AdminModal open={open} onClose={onClose} width={400}>
+      <ModalHeader title="알림톡 크레딧 충전" />
+      <ModalBody>
+        <p className="text-sm text-[var(--color-text-muted)] mb-3">
+          결제를 완료한 후, 충전할 금액을 입력하고 확인하세요.
+        </p>
+        <Input
+          type="number"
+          min={1}
+          placeholder="충전 금액 (원)"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          onPressEnter={handleSubmit}
+          disabled={isPending}
+          style={{ width: "100%" }}
+        />
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={isPending}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              onClick={handleSubmit}
+              disabled={!amount.trim() || Number(amount) <= 0 || isPending}
+            >
+              {isPending ? "처리 중…" : "결제 후 충전"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/SendMessageModal.tsx
+==========================================================================================
+// PATH: src/features/messages/components/SendMessageModal.tsx
+// 공용 메시지 발송 모달 — 직접 입력 또는 기존 템플릿 불러와서 발송
+
+import { useState, useEffect } from "react";
+import { Input } from "antd";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import {
+  fetchMessageTemplates,
+  sendMessage,
+  type MessageTemplateItem,
+  type MessageMode,
+  type SendToType,
+} from "../api/messages.api";
+import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
+import type { MessageTemplateCategory } from "../api/messages.api";
+
+export type SendMessageModalOpenOptions = {
+  studentIds: number[];
+  recipientLabel?: string;
+};
+
+export type SendMessageModalProps = {
+  open: boolean;
+  onClose: () => void;
+  /** 호출한 화면에서 넘긴 수신자(학생 ID). 비어 있으면 발송 불가 안내 */
+  initialStudentIds?: number[];
+  /** 수신자 설명 (예: "선택한 학생 3명") */
+  recipientLabel?: string;
+};
+
+type ContentMode = "free" | "template";
+
+export default function SendMessageModal({
+  open,
+  onClose,
+  initialStudentIds = [],
+  recipientLabel,
+}: SendMessageModalProps) {
+  const [contentMode, setContentMode] = useState<ContentMode>("free");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [sendTo, setSendTo] = useState<SendToType>("parent");
+  const [messageMode, setMessageMode] = useState<MessageMode>("sms");
+  const [sending, setSending] = useState(false);
+  const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
+
+  const studentIds = initialStudentIds;
+  const hasRecipients = studentIds.length > 0;
+  const canSend = hasRecipients && body.trim().length > 0;
+
+  useEffect(() => {
+    if (open) {
+      setSubject("");
+      setBody("");
+      setSelectedTemplateId(null);
+      setContentMode("free");
+      setSendTo("parent");
+      setMessageMode("sms");
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetchMessageTemplates()
+      .then((list) => {
+        if (!cancelled) setTemplates(list);
+      })
+      .catch(() => {
+        if (!cancelled) setTemplates([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const handleLoadTemplate = (t: MessageTemplateItem) => {
+    setSelectedTemplateId(t.id);
+    setSubject(t.subject ?? "");
+    setBody(t.body ?? "");
+    setContentMode("template");
+  };
+
+  const handleSend = async () => {
+    if (!canSend) return;
+    setSending(true);
+    try {
+      // 항상 현재 입력(직접 입력 또는 템플릿 불러온 뒤 수정한 내용)으로 발송
+      const payload: Parameters<typeof sendMessage>[0] = {
+        student_ids: studentIds,
+        send_to: sendTo,
+        message_mode: messageMode,
+        raw_body: body.trim(),
+      };
+      if (subject.trim()) payload.raw_subject = subject.trim();
+      if (selectedTemplateId) payload.template_id = selectedTemplateId;
+      const res = await sendMessage(payload);
+      feedback.success(res.detail || `${res.enqueued}건 발송 예정입니다.`);
+      if (res.skipped_no_phone > 0) {
+        feedback.info(`전화번호 없음으로 ${res.skipped_no_phone}명 제외되었습니다.`);
+      }
+      onClose();
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "response" in e
+          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null;
+      feedback.error(msg || "발송 요청에 실패했습니다.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (!open) return null;
+
+  const label =
+    recipientLabel ?? (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음");
+
+  return (
+    <AdminModal open={open} onClose={onClose} width={640}>
+      <ModalHeader title="메시지 발송" />
+      <ModalBody>
+        <div className="flex flex-col gap-4">
+          {/* 수신자 */}
+          <section>
+            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-1">수신자</div>
+            {hasRecipients ? (
+              <p className="text-sm text-[var(--color-text-muted)]">
+                {label} · 발송 대상:{" "}
+                <label className="inline-flex items-center gap-2 mr-4">
+                  <input
+                    type="radio"
+                    name="sendTo"
+                    checked={sendTo === "parent"}
+                    onChange={() => setSendTo("parent")}
+                  />
+                  학부모
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="sendTo"
+                    checked={sendTo === "student"}
+                    onChange={() => setSendTo("student")}
+                  />
+                  학생
+                </label>
+              </p>
+            ) : (
+              <p className="text-sm text-[var(--color-status-warning)]">
+                학생·강의·출결 페이지에서 수신자를 선택한 뒤 메시지 발송 버튼을 눌러 주세요.
+              </p>
+            )}
+          </section>
+
+          {/* 발송 유형: SMS만 / 알림톡만 / 알림톡→SMS 폴백 */}
+          <section>
+            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">발송 유형</div>
+            <div className="flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="messageMode"
+                  checked={messageMode === "sms"}
+                  onChange={() => setMessageMode("sms")}
+                />
+                <span>SMS만</span>
+              </label>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="messageMode"
+                  checked={messageMode === "alimtalk"}
+                  onChange={() => setMessageMode("alimtalk")}
+                />
+                <span>알림톡만</span>
+              </label>
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="messageMode"
+                  checked={messageMode === "both"}
+                  onChange={() => setMessageMode("both")}
+                />
+                <span>알림톡→SMS 폴백</span>
+              </label>
+            </div>
+            {messageMode !== "sms" && (
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                알림톡/폴백은 검수 승인된 템플릿이 필요합니다. 아래에서 템플릿을 선택하세요.
+              </p>
+            )}
+          </section>
+
+          {/* 내용: 직접 입력 / 템플릿 불러오기 */}
+          <section>
+            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">내용</div>
+            <div className="flex gap-3 mb-3">
+              <button
+                type="button"
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                  contentMode === "free"
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "bg-[var(--color-fill-secondary)] text-[var(--color-text-secondary)]"
+                }`}
+                onClick={() => {
+                  setContentMode("free");
+                  setSelectedTemplateId(null);
+                }}
+              >
+                직접 입력
+              </button>
+              <button
+                type="button"
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                  contentMode === "template"
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "bg-[var(--color-fill-secondary)] text-[var(--color-text-secondary)]"
+                }`}
+                onClick={() => setContentMode("template")}
+              >
+                템플릿 불러오기
+              </button>
+            </div>
+
+            {contentMode === "template" && templates.length > 0 && (
+              <div className="mb-3 p-3 rounded-lg bg-[var(--color-fill-secondary)]">
+                <div className="text-xs text-[var(--color-text-muted)] mb-2">저장된 템플릿 선택</div>
+                <div className="flex flex-wrap gap-2">
+                  {templates.map((t) => (
+                    <Button
+                      key={t.id}
+                      intent={selectedTemplateId === t.id ? "primary" : "secondary"}
+                      size="sm"
+                      onClick={() => handleLoadTemplate(t)}
+                    >
+                      {t.name}
+                      {t.category !== "default" && (
+                        <span className="ml-1 opacity-80">
+                          ({TEMPLATE_CATEGORY_LABELS[t.category as MessageTemplateCategory]})
+                        </span>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mb-2">
+              <label className="block text-xs text-[var(--color-text-muted)] mb-1">제목 (선택)</label>
+              <Input
+                placeholder="알림톡 제목"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                disabled={sending}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--color-text-muted)] mb-1">본문</label>
+              <Input.TextArea
+                placeholder="내용을 입력하거나 위에서 템플릿을 선택하세요. #{student_name_2}, #{student_name_3}, #{site_link} 등 변수는 발송 시 자동 치환됩니다."
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={8}
+                disabled={sending}
+                className="w-full"
+                style={{ resize: "vertical" }}
+              />
+            </div>
+          </section>
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose} disabled={sending}>
+              취소
+            </Button>
+            <Button
+              intent="primary"
+              onClick={handleSend}
+              disabled={!canSend || sending}
+            >
+              {sending ? "발송 중…" : "발송하기"}
+            </Button>
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/TemplateCategoryTree.module.css
+==========================================================================================
+.root {
+  padding: var(--space-2);
+  font-size: 13px;
+}
+
+.node {
+  margin-left: 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.item:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.itemActive {
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  color: var(--color-brand-primary);
+}
+
+
+==========================================================================================
+# FILE: components/TemplateCategoryTree.tsx
+==========================================================================================
+// PATH: src/features/messages/components/TemplateCategoryTree.tsx
+// 좌측 카테고리 트리 — 저장소 폴더 트리 스타일
+
+import { FolderOpen } from "lucide-react";
+import type { MessageTemplateCategory } from "../api/messages.api";
+import styles from "./TemplateCategoryTree.module.css";
+
+type TemplateCategoryTreeProps = {
+  currentCategory: MessageTemplateCategory;
+  onSelect: (category: MessageTemplateCategory) => void;
+};
+
+export default function TemplateCategoryTree({
+  currentCategory,
+  onSelect,
+}: TemplateCategoryTreeProps) {
+  return (
+    <div className={styles.root}>
+      <button
+        type="button"
+        className={styles.item + (currentCategory === "default" ? " " + styles.itemActive : "")}
+        onClick={() => onSelect("default")}
+      >
+        <FolderOpen size={16} />
+        <span>기본</span>
+      </button>
+      <div className={styles.node}>
+        <button
+          type="button"
+          className={styles.item + (currentCategory === "lecture" ? " " + styles.itemActive : "")}
+          onClick={() => onSelect("lecture")}
+        >
+          <FolderOpen size={16} />
+          <span>강의</span>
+        </button>
+      </div>
+      <div className={styles.node}>
+        <button
+          type="button"
+          className={styles.item + (currentCategory === "clinic" ? " " + styles.itemActive : "")}
+          onClick={() => onSelect("clinic")}
+        >
+          <FolderOpen size={16} />
+          <span>클리닉</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/TemplateEditModal.tsx
+==========================================================================================
+// PATH: src/features/messages/components/TemplateEditModal.tsx
+// 템플릿 추가/수정 모달 — 좌: 미리보기+블록 / 우: 본문(게시판형), 뷰 모드(잠금) 지원
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Input } from "antd";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { Button, Tabs } from "@/shared/ui/ds";
+import {
+  getBlocksForCategory,
+  renderPreviewText,
+  TEMPLATE_CATEGORY_LABELS,
+  type TemplateCategory,
+} from "../constants/templateBlocks";
+import type { MessageTemplateItem, MessageTemplatePayload } from "../api/messages.api";
+
+const CATEGORIES: TemplateCategory[] = ["default", "lecture", "clinic"];
+import "../styles/templateEditor.css";
+
+export type TemplateEditModalProps = {
+  open: boolean;
+  onClose: () => void;
+  category: TemplateCategory;
+  initial?: MessageTemplateItem | null;
+  /** true면 기존 템플릿을 잠금(읽기 전용) 상태로 연다. 더블클릭 시 사용 */
+  defaultLocked?: boolean;
+  onSubmit: (payload: MessageTemplatePayload) => void;
+  isPending?: boolean;
+};
+
+type EditorTab = "message" | "alimtalk";
+
+export default function TemplateEditModal({
+  open,
+  onClose,
+  category,
+  initial = null,
+  defaultLocked = false,
+  onSubmit,
+  isPending = false,
+}: TemplateEditModalProps) {
+  const [name, setName] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [activeTab, setActiveTab] = useState<EditorTab>("message");
+  const [selectedCategory, setSelectedCategory] = useState<TemplateCategory>(category);
+  const [isLocked, setIsLocked] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const blocks = getBlocksForCategory(selectedCategory);
+
+  useEffect(() => {
+    if (open) {
+      setName(initial?.name ?? "");
+      setSubject(initial?.subject ?? "");
+      setBody(initial?.body ?? "");
+      setActiveTab("message");
+      setSelectedCategory(initial?.category ?? category);
+      setIsLocked(Boolean(initial && defaultLocked));
+    }
+  }, [open, initial?.id, initial?.name, initial?.subject, initial?.body, initial?.category, category, defaultLocked]);
+
+  const insertBlock = useCallback(
+    (insertText: string) => {
+      const ta = bodyRef.current;
+      if (!ta) {
+        setBody((prev) => prev + insertText);
+        return;
+      }
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd ?? start;
+      const before = body.slice(0, start);
+      const after = body.slice(end);
+      setBody(before + insertText + after);
+      setTimeout(() => {
+        ta.focus();
+        const newPos = start + insertText.length;
+        ta.setSelectionRange(newPos, newPos);
+      }, 0);
+    },
+    [body]
+  );
+
+  const handleSubmit = () => {
+    const n = name.trim();
+    const b = body.trim();
+    if (!n || !b) return;
+    onSubmit({
+      category: selectedCategory,
+      name: n,
+      subject: subject.trim(),
+      body: b,
+    });
+  };
+
+  const previewBody = renderPreviewText(body);
+  const previewSubject = renderPreviewText(subject);
+  const locked = isLocked || isPending;
+  const showSubject = activeTab === "alimtalk";
+
+  const editorTabItems = [
+    { key: "message", label: "메시지" },
+    { key: "alimtalk", label: "알림톡" },
+  ] as const;
+
+  if (!open) return null;
+
+  const title = initial
+    ? isLocked
+      ? "템플릿 보기"
+      : "템플릿 수정"
+    : "템플릿 추가";
+
+  return (
+    <AdminModal open={open} onClose={onClose} width={1000}>
+      <ModalHeader title={title} />
+      <ModalBody>
+        <div className="template-editor flex gap-5" style={{ minHeight: 420 }}>
+          {/* 좌측: 미리보기 → 그 아래 블록 */}
+          <div
+            className="template-editor__left shrink-0 flex flex-col gap-4 p-4 overflow-hidden"
+            style={{ width: 300 }}
+          >
+            {/* 카테고리: 기본 | 강의 | 클리닉 (모달 내 입체탭) */}
+            <section>
+              <div className="template-editor__blocks-title mb-2">카테고리</div>
+              <div className="modal-tabs-elevated">
+                <div className="ds-tabs">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      className={`ds-tab ${selectedCategory === cat ? "is-active" : ""}`}
+                      onClick={() => !locked && setSelectedCategory(cat)}
+                      disabled={locked}
+                    >
+                      {TEMPLATE_CATEGORY_LABELS[cat]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="template-editor__preview-title mb-2">
+                실제 수신자에게 이렇게 보입니다
+              </div>
+              {activeTab === "message" ? (
+                <div className="template-preview-phone" aria-label="아이폰 메시지 미리보기">
+                  <div className="template-preview-phone__screen">
+                    <div className="template-preview-phone__bubble">
+                      {previewBody || (
+                        <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
+                      )}
+                    </div>
+                    <div className="template-preview-phone__time">오전 9:00</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
+                  <div className="template-preview-kakao__card">
+                    {previewSubject && (
+                      <div className="template-preview-kakao__title">{previewSubject}</div>
+                    )}
+                    <div className="template-preview-kakao__body">
+                      {previewBody || (
+                        <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
+                {activeTab === "message" ? "아이폰 메시지 예시" : "카카오톡 알림톡 예시"} (치환 변수는 샘플 값)
+              </p>
+            </section>
+
+            <section>
+              <div className="template-editor__blocks-title mb-2">삽입 블록</div>
+              <div className="flex flex-wrap gap-2">
+                {blocks.map((block) => (
+                  <button
+                    key={block.id}
+                    type="button"
+                    onClick={() => insertBlock(block.insertText)}
+                    disabled={locked}
+                    className="template-editor__block-btn px-2.5 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {block.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* 우측: 본문 영역 (이름, 탭, 제목, 본문) — 게시판 글쓰기처럼 큼 */}
+          <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-4 p-4">
+            <div>
+              <label className="template-editor__editor-title block mb-1">템플릿 이름</label>
+              <Input
+                placeholder="예: 출석 안내, 시험 일정 공지"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={locked}
+                className="template-editor__textarea"
+              />
+            </div>
+
+            <div className="modal-tabs-elevated template-editor__tabs">
+              <Tabs
+                value={activeTab}
+                onChange={(k) => setActiveTab(k as EditorTab)}
+                items={editorTabItems}
+              />
+            </div>
+
+            {/* 제목 영역 고정 높이 — 메시지↔알림톡 전환 시 레이아웃 흔들림 방지 */}
+            <div className="template-editor__subject-slot">
+              {showSubject ? (
+                <>
+                  <label className="template-editor__editor-title block mb-1">
+                    제목 (알림톡)
+                  </label>
+                  <Input
+                    placeholder="알림톡 제목"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    disabled={locked}
+                    className="template-editor__textarea"
+                  />
+                </>
+              ) : (
+                <div className="template-editor__subject-placeholder" aria-hidden />
+              )}
+            </div>
+
+            <div className="flex-1 min-h-0 flex flex-col">
+              <label className="template-editor__editor-title block mb-1">
+                본문 (직접 입력 또는 왼쪽 블록 클릭하여 삽입)
+              </label>
+              <Input.TextArea
+                ref={bodyRef}
+                placeholder="내용을 입력하세요. 왼쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={14}
+                disabled={locked}
+                className="template-editor__textarea w-full p-3"
+                style={{ resize: "vertical", fontFamily: "inherit", minHeight: 280 }}
+              />
+            </div>
+          </div>
+        </div>
+      </ModalBody>
+      <ModalFooter
+        right={
+          <>
+            {isLocked ? (
+              <>
+                <Button intent="secondary" onClick={onClose}>
+                  닫기
+                </Button>
+                <Button intent="primary" onClick={() => setIsLocked(false)}>
+                  수정하기
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button intent="secondary" onClick={onClose} disabled={isPending}>
+                  취소
+                </Button>
+                <Button
+                  intent="primary"
+                  onClick={handleSubmit}
+                  disabled={!name.trim() || !body.trim() || isPending}
+                >
+                  {isPending ? "저장 중…" : initial ? "수정" : "저장"}
+                </Button>
+              </>
+            )}
+          </>
+        }
+      />
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/TemplateExplorer.module.css
+==========================================================================================
+/* PATH: src/features/messages/components/TemplateExplorer.module.css
+ * 저장소 도메인과 동일한 파일 탐색기형 레이아웃
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 400px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.tree {
+  width: 200px;
+  min-width: 200px;
+  border-right: 1px solid var(--color-border-divider);
+  overflow: auto;
+}
+
+.gridWrap {
+  flex: 1;
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-4);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.item:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+.itemSelected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+}
+
+.itemAdd {
+  border-style: dashed;
+  color: var(--color-text-muted);
+}
+
+.itemAdd:hover {
+  color: var(--color-brand-primary);
+}
+
+.itemIcon {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.itemLabel {
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.itemMeta {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* Breadcrumb (storage와 동일 스타일) */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.breadcrumbSegment {
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumbSep {
+  color: var(--color-text-muted);
+  margin: 0 4px;
+}
+
+.breadcrumbLink {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.breadcrumbLink:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+}
+
+
+==========================================================================================
+# FILE: components/TemplateExplorer.tsx
+==========================================================================================
+// PATH: src/features/messages/components/TemplateExplorer.tsx
+// 템플릿 저장 — 저장소 도메인과 동일한 파일 탐색기형 UI (좌측 트리 + 우측 그리드)
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FiMessageSquare, FiClock } from "react-icons/fi";
+import { FilePlus } from "lucide-react";
+import { Button, EmptyState } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import Breadcrumb from "@/features/storage/components/Breadcrumb";
+import TemplateCategoryTree from "./TemplateCategoryTree";
+import TemplateEditModal from "./TemplateEditModal";
+import {
+  fetchMessageTemplates,
+  createMessageTemplate,
+  updateMessageTemplate,
+  deleteMessageTemplate,
+  submitMessageTemplateReview,
+  type MessageTemplateItem,
+  type MessageTemplatePayload,
+  type MessageTemplateCategory,
+} from "../api/messages.api";
+import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
+import styles from "./TemplateExplorer.module.css";
+
+const QUERY_KEY = ["messaging", "templates"] as const;
+
+function formatDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+/** 저장된 템플릿이 예약 발송용인지. 추후 API 필드 있으면 그걸로 대체 */
+function isScheduledTemplate(_t: MessageTemplateItem): boolean {
+  return false;
+}
+
+export type ModalOpenState = "create" | { template: MessageTemplateItem; mode: "view" | "edit" } | null;
+
+export default function TemplateExplorer() {
+  const qc = useQueryClient();
+  const [activeCategory, setActiveCategory] = useState<MessageTemplateCategory>("default");
+  const [modalOpen, setModalOpen] = useState<ModalOpenState>(null);
+
+  const { data: templates = [], isLoading } = useQuery({
+    queryKey: [...QUERY_KEY, activeCategory],
+    queryFn: () => fetchMessageTemplates(activeCategory),
+    staleTime: 30 * 1000,
+  });
+
+  const createMut = useMutation({
+    mutationFn: (payload: MessageTemplatePayload) => createMessageTemplate(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      setModalOpen(null);
+    },
+  });
+
+  const updateMut = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<MessageTemplatePayload> }) =>
+      updateMessageTemplate(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      setModalOpen(null);
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => deleteMessageTemplate(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUERY_KEY }),
+  });
+
+  const submitReviewMut = useMutation({
+    mutationFn: (id: number) => submitMessageTemplateReview(id),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      feedback.success(data.detail || "검수 신청이 완료되었습니다.");
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null;
+      feedback.error(msg || "검수 신청에 실패했습니다.");
+    },
+  });
+
+  const breadcrumbPath = [
+    { id: null, name: "템플릿" },
+    { id: activeCategory, name: TEMPLATE_CATEGORY_LABELS[activeCategory] },
+  ];
+
+  const isCreate = modalOpen === "create";
+  const isEditOrView = modalOpen !== null && modalOpen !== "create";
+  const editing = isEditOrView ? modalOpen.template : null;
+  const openAsView = isEditOrView && modalOpen.mode === "view";
+  const modalCategory = editing ? editing.category : activeCategory;
+
+  const descriptions: Record<MessageTemplateCategory, string> = {
+    default:
+      "어디서나 사용할 수 있는 기본 템플릿입니다. 이름 2/3글자, 사이트 링크 블록을 사용할 수 있습니다.",
+    lecture:
+      "강의·차시(세션) 내 학생 선택 후 메시지 발송할 때만 사용됩니다. 강의명, 출결, 시험/과제 성적 등 블록을 사용할 수 있습니다.",
+    clinic:
+      "클리닉 내 학생 선택 후 메시지 발송할 때만 사용됩니다. 클리닉 합불, 클리닉 날짜 블록을 사용할 수 있습니다.",
+  };
+
+  return (
+    <div className={styles.root}>
+      <div className={styles.toolbar}>
+        <Breadcrumb
+          path={breadcrumbPath}
+          onSelect={(id) => setActiveCategory((id as MessageTemplateCategory) ?? "default")}
+        />
+        <div className={styles.actions}>
+          <Button intent="primary" size="sm" onClick={() => setModalOpen("create")}>
+            <FilePlus size={16} style={{ marginRight: 6 }} />
+            추가
+          </Button>
+        </div>
+      </div>
+
+      <div className={styles.body}>
+        <aside className={styles.tree}>
+          <TemplateCategoryTree currentCategory={activeCategory} onSelect={setActiveCategory} />
+        </aside>
+
+        <div className={styles.gridWrap}>
+          {isLoading ? (
+            <div className={styles.placeholder}>불러오는 중…</div>
+          ) : templates.length === 0 ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
+              <EmptyState
+                scope="panel"
+                tone="empty"
+                title="저장된 템플릿이 없습니다"
+                description={descriptions[activeCategory]}
+                actions={
+                  <Button intent="primary" size="sm" onClick={() => setModalOpen("create")}>
+                    + 템플릿 추가
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <div className={styles.grid}>
+              <div
+                className={styles.item + " " + styles.itemAdd}
+                onClick={() => setModalOpen("create")}
+                title="새 템플릿 추가"
+              >
+                <FilePlus size={32} />
+                <span>추가</span>
+              </div>
+              {templates.map((t) => {
+                const scheduled = isScheduledTemplate(t);
+                return (
+                  <div
+                    key={t.id}
+                    role="button"
+                    tabIndex={0}
+                    className={styles.item}
+                    onDoubleClick={() => setModalOpen({ template: t, mode: "view" })}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("[data-action]")) return;
+                    }}
+                  >
+                    <div className={styles.itemIcon}>
+                      {scheduled ? (
+                        <FiClock size={36} aria-hidden />
+                      ) : (
+                        <FiMessageSquare size={36} aria-hidden />
+                      )}
+                    </div>
+                    <span className={styles.itemLabel} title={t.name}>
+                      {t.name}
+                    </span>
+                    <span className={styles.itemMeta}>{formatDate(t.updated_at)}</span>
+                    {t.solapi_status && (
+                      <span
+                        className={styles.itemMeta}
+                        style={{
+                          color:
+                            t.solapi_status === "APPROVED"
+                              ? "var(--color-success)"
+                              : t.solapi_status === "REJECTED"
+                                ? "var(--color-status-error)"
+                                : "var(--color-primary)",
+                        }}
+                      >
+                        {t.solapi_status === "PENDING" && "검수 대기"}
+                        {t.solapi_status === "APPROVED" && "승인"}
+                        {t.solapi_status === "REJECTED" && "반려"}
+                      </span>
+                    )}
+                    <div className="mt-2 flex gap-1.5 flex-wrap justify-center" data-action>
+                      <Button
+                        intent="secondary"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalOpen({ template: t, mode: "edit" });
+                        }}
+                      >
+                        수정
+                      </Button>
+                      {t.solapi_status !== "PENDING" && t.solapi_status !== "APPROVED" && (
+                        <Button
+                          intent="primary"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (
+                              window.confirm(
+                                `"${t.name}" 템플릿을 카카오 알림톡 검수 신청할까요? (PFID 연동 필요)`
+                              )
+                            ) {
+                              submitReviewMut.mutate(t.id);
+                            }
+                          }}
+                          disabled={submitReviewMut.isPending}
+                        >
+                          {submitReviewMut.isPending && submitReviewMut.variables === t.id
+                            ? "신청 중…"
+                            : "검수 신청"}
+                        </Button>
+                      )}
+                      <Button
+                        intent="danger"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`"${t.name}" 템플릿을 삭제할까요?`)) {
+                            deleteMut.mutate(t.id);
+                          }
+                        }}
+                        disabled={deleteMut.isPending}
+                      >
+                        삭제
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <TemplateEditModal
+        open={isCreate || isEditOrView}
+        onClose={() => setModalOpen(null)}
+        category={modalCategory}
+        initial={editing ?? undefined}
+        defaultLocked={openAsView}
+        onSubmit={(payload) => {
+          if (editing) {
+            updateMut.mutate({ id: editing.id, payload });
+          } else {
+            createMut.mutate(payload);
+          }
+        }}
+        isPending={createMut.isPending || updateMut.isPending}
+      />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: constants/templateBlocks.ts
+==========================================================================================
+// PATH: src/features/messages/constants/templateBlocks.ts
+// 카테고리별 삽입 블록 — 기본(공통) | 강의 | 클리닉
+//
+// 템플릿 구분:
+// - 일반 템플릿: 양식 저장. 메시지 발송 모달에서 "템플릿 불러오기"로 사용.
+// - 자동발송 템플릿: 자동발송 탭에서 트리거별로 연결. 가입 완료, 클리닉 알림 등.
+
+export interface TemplateBlock {
+  id: string;
+  label: string;
+  insertText: string;
+  previewValue: string;
+}
+
+/** 기본: 이름 2/3글자, 사이트링크. 다른 템플릿에도 공통 포함 */
+export const DEFAULT_BLOCKS: TemplateBlock[] = [
+  { id: "student_name_2", label: "이름 2글자", insertText: "#{student_name_2}", previewValue: "홍길" },
+  { id: "student_name_3", label: "이름 3글자", insertText: "#{student_name_3}", previewValue: "홍길동" },
+  { id: "site_link", label: "사이트 링크", insertText: "#{site_link}", previewValue: "https://example.com" },
+];
+
+/** 가입 완료(자동발송) 전용 */
+export const SIGNUP_BLOCKS: TemplateBlock[] = [
+  ...DEFAULT_BLOCKS,
+  { id: "student_id", label: "학생 ID", insertText: "#{student_id}", previewValue: "S001" },
+  { id: "student_password", label: "학생 비밀번호", insertText: "#{student_password}", previewValue: "****" },
+  { id: "parent_id", label: "학부모 ID(전화)", insertText: "#{parent_id}", previewValue: "010****1234" },
+  { id: "parent_password", label: "학부모 비밀번호", insertText: "#{parent_password}", previewValue: "****" },
+];
+
+/** 강의 전용: 강의·차시(세션) 내 학생 선택 발송 시 사용. 기본 + 아래 */
+const LECTURE_EXTRA_BLOCKS: TemplateBlock[] = [
+  { id: "lecture_name", label: "강의명", insertText: "#{lecture_name}", previewValue: "중등 수학" },
+  { id: "attendance_status", label: "출결", insertText: "#{attendance_status}", previewValue: "출석" },
+  { id: "exam_name", label: "시험 이름", insertText: "#{exam_name}", previewValue: "1차 모의고사" },
+  { id: "exam_score", label: "시험 성적", insertText: "#{exam_score}", previewValue: "85점" },
+  { id: "assignment_name", label: "과제 이름", insertText: "#{assignment_name}", previewValue: "챕터 3 문제" },
+  { id: "assignment_score", label: "과제 성적", insertText: "#{assignment_score}", previewValue: "90점" },
+  { id: "clinic_required", label: "클리닉 합불(필수대상자 여부)", insertText: "#{clinic_required}", previewValue: "필수대상자" },
+  { id: "video_name", label: "영상 이름", insertText: "#{video_name}", previewValue: "1강 식의 계산" },
+];
+
+/** 클리닉 전용: 클리닉 내 학생 선택 발송 시 사용. 기본 + 아래 */
+const CLINIC_EXTRA_BLOCKS: TemplateBlock[] = [
+  { id: "clinic_required", label: "클리닉 합불(필수대상자 여부)", insertText: "#{clinic_required}", previewValue: "필수대상자" },
+  { id: "clinic_date", label: "클리닉 날짜", insertText: "#{clinic_date}", previewValue: "12/25(목) 14:00" },
+];
+
+export type TemplateCategory = "default" | "lecture" | "clinic";
+
+export const LECTURE_BLOCKS: TemplateBlock[] = [...DEFAULT_BLOCKS, ...LECTURE_EXTRA_BLOCKS];
+export const CLINIC_BLOCKS: TemplateBlock[] = [...DEFAULT_BLOCKS, ...CLINIC_EXTRA_BLOCKS];
+
+const PREVIEW_MAP: Record<string, string> = Object.fromEntries(
+  [
+    ...DEFAULT_BLOCKS,
+    ...LECTURE_EXTRA_BLOCKS,
+    ...CLINIC_EXTRA_BLOCKS,
+  ].map((b) => [b.insertText, b.previewValue])
+);
+
+export function getBlocksForCategory(category: TemplateCategory): TemplateBlock[] {
+  switch (category) {
+    case "lecture":
+      return LECTURE_BLOCKS;
+    case "clinic":
+      return CLINIC_BLOCKS;
+    default:
+      return DEFAULT_BLOCKS;
+  }
+}
+
+export function renderPreviewText(text: string): string {
+  return text.replace(/#\{[^}]*\}/g, (match) => PREVIEW_MAP[match] ?? match);
+}
+
+export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
+  default: "기본",
+  lecture: "강의",
+  clinic: "클리닉",
+};
+
+
+==========================================================================================
+# FILE: context/SendMessageModalContext.tsx
+==========================================================================================
+// PATH: src/features/messages/context/SendMessageModalContext.tsx
+// 공용 메시지 발송 모달 — 어디서든 openSendMessageModal({ studentIds, recipientLabel }) 호출
+
+import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import SendMessageModal from "../components/SendMessageModal";
+
+export type OpenSendMessageOptions = {
+  studentIds: number[];
+  recipientLabel?: string;
+};
+
+type ContextValue = {
+  openSendMessageModal: (options: OpenSendMessageOptions) => void;
+};
+
+const SendMessageModalContext = createContext<ContextValue | null>(null);
+
+export function useSendMessageModal(): ContextValue {
+  const ctx = useContext(SendMessageModalContext);
+  if (!ctx) {
+    throw new Error("useSendMessageModal must be used within SendMessageModalProvider");
+  }
+  return ctx;
+}
+
+export function SendMessageModalProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [studentIds, setStudentIds] = useState<number[]>([]);
+  const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
+
+  const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
+    setStudentIds(options.studentIds);
+    setRecipientLabel(options.recipientLabel);
+    setOpen(true);
+  }, []);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setStudentIds([]);
+    setRecipientLabel(undefined);
+  }, []);
+
+  return (
+    <SendMessageModalContext.Provider value={{ openSendMessageModal }}>
+      {children}
+      <SendMessageModal
+        open={open}
+        onClose={close}
+        initialStudentIds={studentIds}
+        recipientLabel={recipientLabel}
+      />
+    </SendMessageModalContext.Provider>
+  );
+}
+
+
+==========================================================================================
+# FILE: hooks/useMessagingInfo.ts
+==========================================================================================
+// PATH: src/features/messages/hooks/useMessagingInfo.ts
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchMessagingInfo,
+  chargeCredits,
+  updateKakaoPfid,
+  updateMessagingInfo,
+  verifySender,
+  type TenantMessagingInfo,
+} from "../api/messages.api";
+
+const KEY = ["messaging", "info"] as const;
+
+/** 백엔드 미구현 시 UI 확인용 목 데이터 */
+const MOCK_INFO: TenantMessagingInfo = {
+  kakao_pfid: null,
+  messaging_sender: null,
+  credit_balance: "0",
+  is_active: false,
+  base_price: "8.5",
+};
+
+export function useMessagingInfo() {
+  const q = useQuery({
+    queryKey: KEY,
+    queryFn: async () => {
+      try {
+        return await fetchMessagingInfo();
+      } catch (e: unknown) {
+        const status = (e as { response?: { status?: number } })?.response?.status;
+        if (status === 404) return MOCK_INFO;
+        throw e;
+      }
+    },
+    staleTime: 60 * 1000,
+  });
+  return q;
+}
+
+export function useChargeCredits() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (amount: string) => chargeCredits(amount),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+export function useUpdateKakaoPfid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (pfid: string) => updateKakaoPfid(pfid),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+/** 메시징 설정 수정 (발신번호, PFID 등) */
+export function useUpdateMessagingInfo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (
+      payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender">>
+    ) => updateMessagingInfo(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+/** 발신번호 솔라피 등록 여부 인증 */
+export function useVerifySender() {
+  return useMutation({
+    mutationFn: (phoneNumber: string) => verifySender(phoneNumber),
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useNotificationLog.ts
+==========================================================================================
+// PATH: src/features/messages/hooks/useNotificationLog.ts
+
+import { useQuery } from "@tanstack/react-query";
+import {
+  fetchNotificationLog,
+  type NotificationLogParams,
+  type NotificationLogResponse,
+} from "../api/messages.api";
+
+const KEY = ["messaging", "log"] as const;
+
+const MOCK_LOG_RESPONSE: NotificationLogResponse = {
+  results: [],
+  count: 0,
+};
+
+export function useNotificationLog(params?: NotificationLogParams) {
+  return useQuery({
+    queryKey: [...KEY, params ?? {}],
+    queryFn: async () => {
+      try {
+        return await fetchNotificationLog(params);
+      } catch (e: unknown) {
+        const status = (e as { response?: { status?: number } })?.response?.status;
+        if (status === 404) return MOCK_LOG_RESPONSE;
+        throw e;
+      }
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+
+==========================================================================================
+# FILE: layout/MessageLayout.tsx
+==========================================================================================
+// PATH: src/features/messages/layout/MessageLayout.tsx
+// 메시지 — students 도메인 디자인 기반 (StorageStyleTabs)
+
+import { Outlet } from "react-router-dom";
+import { DomainLayout } from "@/shared/ui/layout";
+import { StorageStyleTabs } from "@/shared/ui/domain";
+import styles from "@/shared/ui/domain/StorageStyleTabs.module.css";
+
+const MESSAGE_TABS = [
+  { key: "templates", label: "템플릿 저장", path: "/admin/message/templates" },
+  { key: "send", label: "발송", path: "/admin/message/send" },
+  { key: "auto-send", label: "자동발송", path: "/admin/message/auto-send" },
+  { key: "log", label: "발송 내역", path: "/admin/message/log" },
+  { key: "settings", label: "설정", path: "/admin/message/settings" },
+];
+
+export default function MessageLayout() {
+  return (
+    <DomainLayout
+      title="메시지"
+      description="템플릿 · 발송 · 자동발송 · 설정"
+    >
+      <div className={styles.wrap}>
+        <StorageStyleTabs tabs={MESSAGE_TABS} />
+        <Outlet />
+      </div>
+    </DomainLayout>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessageAutoSendPage.tsx
+==========================================================================================
+// PATH: src/features/messages/pages/MessageAutoSendPage.tsx
+// 자동발송 — 트리거별 템플릿 설정 (가입 완료, 클리닉 알림 등)
+
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FiZap } from "react-icons/fi";
+import {
+  fetchAutoSendConfigs,
+  fetchMessageTemplates,
+  updateAutoSendConfigs,
+  type AutoSendConfigItem,
+  type AutoSendTrigger,
+  AUTO_SEND_TRIGGER_LABELS,
+  type MessageTemplateItem,
+} from "../api/messages.api";
+import { Button, Panel } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
+
+const QUERY_KEY = ["messaging", "auto-send"] as const;
+
+function TriggerRow({
+  config,
+  templates,
+  onUpdate,
+  saving,
+}: {
+  config: AutoSendConfigItem;
+  templates: MessageTemplateItem[];
+  onUpdate: (c: Partial<AutoSendConfigItem>) => void;
+  saving: boolean;
+}) {
+  const approvedTemplates = templates.filter((t) => t.solapi_status === "APPROVED");
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-4 py-4 border-b border-[var(--color-border-divider)] last:border-b-0"
+      style={{ alignItems: "center" }}
+    >
+      <div className="w-48 shrink-0">
+        <div className="flex items-center gap-2">
+          <FiZap size={16} style={{ color: "var(--color-primary)" }} aria-hidden />
+          <span className="font-medium text-[var(--color-text-primary)]">
+            {AUTO_SEND_TRIGGER_LABELS[config.trigger as AutoSendTrigger]}
+          </span>
+        </div>
+      </div>
+      <label className="inline-flex items-center gap-2 cursor-pointer shrink-0">
+        <input
+          type="checkbox"
+          checked={config.enabled}
+          onChange={(e) => onUpdate({ ...config, enabled: e.target.checked })}
+          disabled={saving}
+        />
+        <span className="text-sm text-[var(--color-text-secondary)]">활성화</span>
+      </label>
+      <select
+        className="ds-input text-sm"
+        value={config.template ?? ""}
+        onChange={(e) => {
+          const v = e.target.value;
+          onUpdate({ ...config, template: v ? Number(v) : null });
+        }}
+        disabled={saving}
+        style={{ minWidth: 180 }}
+      >
+        <option value="">템플릿 선택</option>
+        {templates.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+            {t.solapi_status === "APPROVED" ? " ✓" : t.solapi_status === "PENDING" ? " (검수대기)" : ""}
+          </option>
+        ))}
+      </select>
+      <select
+        className="ds-input text-sm"
+        value={config.message_mode}
+        onChange={(e) =>
+          onUpdate({ ...config, message_mode: e.target.value as AutoSendConfigItem["message_mode"] })
+        }
+        disabled={saving}
+        style={{ minWidth: 140 }}
+      >
+        <option value="sms">SMS만</option>
+        <option value="alimtalk">알림톡만</option>
+        <option value="both">알림톡→SMS 폴백</option>
+      </select>
+      {config.template_name && (
+        <span className="text-xs text-[var(--color-text-muted)] truncate max-w-[120px]">
+          {config.template_name}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export default function MessageAutoSendPage() {
+  const qc = useQueryClient();
+  const { data: configs = [], isLoading } = useQuery({
+    queryKey: QUERY_KEY,
+    queryFn: fetchAutoSendConfigs,
+    staleTime: 30 * 1000,
+  });
+  const { data: templates = [] } = useQuery({
+    queryKey: ["messaging", "templates"],
+    queryFn: () => fetchMessageTemplates(),
+    staleTime: 30 * 1000,
+  });
+
+  const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
+  useEffect(() => {
+    setLocalConfigs(configs);
+  }, [configs]);
+
+  const updateMut = useMutation({
+    mutationFn: updateAutoSendConfigs,
+    onSuccess: (data) => {
+      setLocalConfigs(data);
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      feedback.success("자동발송 설정이 저장되었습니다.");
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : null;
+      feedback.error(msg || "저장에 실패했습니다.");
+    },
+  });
+
+  const handleUpdate = (updated: Partial<AutoSendConfigItem>) => {
+    const next = localConfigs.map((c) =>
+      c.trigger === updated.trigger ? { ...c, ...updated } : c
+    );
+    setLocalConfigs(next);
+    updateMut.mutate(next);
+  };
+
+  if (isLoading) {
+    return (
+      <Panel variant="primary" title="자동발송">
+        <div className="py-12 text-center text-[var(--color-text-muted)] text-sm">
+          불러오는 중…
+        </div>
+      </Panel>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Panel
+        variant="primary"
+        title="자동발송"
+        description="특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다. 트리거별로 템플릿과 발송 방식을 선택하세요."
+      >
+        <div className="divide-y divide-[var(--color-border-divider)]">
+          {localConfigs.map((config) => (
+            <TriggerRow
+              key={config.trigger}
+              config={config}
+              templates={templates}
+              onUpdate={handleUpdate}
+              saving={updateMut.isPending}
+            />
+          ))}
+        </div>
+      </Panel>
+
+      <div
+        className="rounded-xl p-5 border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]"
+        style={{ fontSize: 13, color: "var(--color-text-muted)" }}
+      >
+        <div className="font-semibold text-[var(--color-text-primary)] mb-2">트리거 안내</div>
+        <ul className="space-y-1 list-disc list-inside">
+          <li><strong>가입 완료</strong>: 학생 가입 시 발송 (학부모 선택 시 학부모에게도 발송)</li>
+          <li><strong>클리닉 알림</strong>: 클리닉 세션 알림 발송</li>
+          <li><strong>클리닉 예약 생성</strong>: 클리닉 예약 시 발송 (추후 지원)</li>
+          <li><strong>클리닉 예약 변경</strong>: 클리닉 예약 변경 시 발송 (추후 지원)</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessageGuidePage.tsx
+==========================================================================================
+// PATH: src/features/messages/pages/MessageGuidePage.tsx
+// 메시지 기능 가이드
+
+import { Section, SectionHeader } from "@/shared/ui/ds";
+
+export default function MessageGuidePage() {
+  return (
+    <Section>
+      <SectionHeader title="가이드 확인" />
+      <p className="text-[var(--color-text-muted)] text-sm">
+        메시지 등록·발송 방법과 정책 안내를 확인할 수 있습니다.
+      </p>
+      <div className="mt-4 p-4 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--color-border-divider)] space-y-3 text-sm text-[var(--color-text-secondary)]">
+        <p>· 메시지 등록: 대상 선택 후 내용 작성 및 발송</p>
+        <p>· 로그: 발송 이력 및 수신 상태 조회</p>
+        <p>· 문자/알림 정책 및 이용 안내</p>
+      </div>
+    </Section>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessageLinkPage.tsx
+==========================================================================================
+// PATH: src/features/messages/pages/MessageLinkPage.tsx
+// 카카오 연동 — PFID 입력 + 연동 가이드
+
+import { useState, useEffect } from "react";
+import { Input } from "antd";
+import { Section, SectionHeader } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
+import { useMessagingInfo, useUpdateKakaoPfid } from "../hooks/useMessagingInfo";
+
+export default function MessageLinkPage() {
+  const { data: info } = useMessagingInfo();
+  const { mutate: updatePfid, isPending } = useUpdateKakaoPfid();
+  const [pfid, setPfid] = useState("");
+  useEffect(() => {
+    if (info?.kakao_pfid != null) setPfid(info.kakao_pfid);
+  }, [info?.kakao_pfid]);
+
+  const handleSavePfid = () => {
+    const value = pfid.trim();
+    if (!value) return;
+    updatePfid(value);
+  };
+
+  return (
+    <>
+      <Section>
+        <SectionHeader
+          title="카카오 알림톡 연동"
+          description="학원별 PFID를 설정하면 알림톡 발송이 가능합니다. 발신번호는 설정 > 내 정보에서 등록·인증할 수 있습니다."
+        />
+        <div className="space-y-6">
+          <div>
+            <label
+              className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2"
+              htmlFor="kakao-pfid"
+            >
+              카카오 PFID (프로필 ID)
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              <Input
+                id="kakao-pfid"
+                placeholder="예: @xxxxx"
+                value={pfid}
+                onChange={(e) => setPfid(e.target.value)}
+                disabled={isPending}
+                style={{ maxWidth: 320 }}
+              />
+              <Button
+                intent="primary"
+                onClick={handleSavePfid}
+                disabled={!pfid.trim() || isPending}
+              >
+                {isPending ? "저장 중…" : "연동 저장"}
+              </Button>
+            </div>
+            {info?.kakao_pfid && (
+              <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                현재 연동된 PFID: {info.kakao_pfid}
+              </p>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      <Section>
+        <SectionHeader
+          title="연동 가이드"
+          description="카카오 관리자 센터에서 파트너(현진님 계정)를 등록한 뒤 PFID를 입력하세요."
+        />
+        <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5 space-y-4 text-sm text-[var(--color-text-secondary)]">
+          <ol className="list-decimal list-inside space-y-2">
+            <li>카카오 비즈니스 채널을 개설하고 관리자 센터에 접속합니다.</li>
+            <li>채널 관리 → 파트너 관리에서 운영 파트너(현진님 계정)를 등록합니다.</li>
+            <li>연동이 완료되면 발급된 PFID(프로필 ID)를 위 입력란에 입력 후 저장합니다.</li>
+            <li>마스터 템플릿이 학원 PFID로 복사·검수 신청되면 알림톡 발송을 사용할 수 있습니다.</li>
+          </ol>
+          <div className="pt-2 border-t border-[var(--color-border-divider)]">
+            <p className="text-[var(--color-text-muted)]">
+              가이드 이미지나 상세 매뉴얼은 필요 시 이 영역에 추가할 수 있습니다.
+            </p>
+          </div>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessageLogPage.tsx
+==========================================================================================
+// PATH: src/features/messages/pages/MessageLogPage.tsx
+// 발송 내역 — 성공/실패 여부, 차감 금액 리스트 (students 도메인 디자인)
+
+import { Table } from "antd";
+import type { ColumnsType } from "antd/es/table";
+import { Panel, EmptyState } from "@/shared/ui/ds";
+import { useNotificationLog } from "../hooks/useNotificationLog";
+import type { NotificationLogItem } from "../api/messages.api";
+
+function formatDate(iso: string) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+export default function MessageLogPage() {
+  const { data, isLoading } = useNotificationLog({ page: 1, page_size: 50 });
+  const results = data?.results ?? [];
+  const count = data?.count ?? 0;
+
+  const columns: ColumnsType<NotificationLogItem> = [
+    {
+      title: "발송 일시",
+      dataIndex: "sent_at",
+      key: "sent_at",
+      width: 160,
+      render: (v: string) => formatDate(v),
+    },
+    {
+      title: "수신자 / 요약",
+      key: "recipient",
+      ellipsis: true,
+      render: (_, r) => r.recipient_summary ?? "—",
+    },
+    {
+      title: "템플릿",
+      dataIndex: "template_summary",
+      key: "template_summary",
+      ellipsis: true,
+      render: (v: string | undefined) => v ?? "—",
+    },
+    {
+      title: "결과",
+      dataIndex: "success",
+      key: "success",
+      width: 90,
+      render: (success: boolean) => (
+        <span
+          style={{
+            display: "inline-block",
+            padding: "2px 8px",
+            borderRadius: "var(--radius-md)",
+            fontSize: 12,
+            fontWeight: 600,
+            background: success
+              ? "color-mix(in srgb, var(--color-success) 14%, transparent)"
+              : "color-mix(in srgb, var(--color-error) 14%, transparent)",
+            color: success ? "var(--color-success)" : "var(--color-error)",
+          }}
+        >
+          {success ? "성공" : "실패"}
+        </span>
+      ),
+    },
+    {
+      title: "차감 금액",
+      dataIndex: "amount_deducted",
+      key: "amount_deducted",
+      width: 100,
+      align: "right",
+      render: (v: string) =>
+        v ? `${Number(v).toLocaleString()}원` : "—",
+    },
+    {
+      title: "비고",
+      dataIndex: "failure_reason",
+      key: "failure_reason",
+      width: 360,
+      render: (v: string | null | undefined) =>
+        v ? (
+          <span
+            style={{
+              color: "var(--color-error)",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {v}
+          </span>
+        ) : (
+          "—"
+        ),
+    },
+  ];
+
+  return (
+    <Panel
+      variant="primary"
+      title="발송 내역"
+      description="SMS·알림톡 발송 이력과 성공/실패, 차감 금액을 확인할 수 있습니다."
+    >
+      {isLoading ? (
+        <div className="py-12 text-center text-[var(--color-text-muted)] text-sm">
+          불러오는 중…
+        </div>
+      ) : results.length === 0 ? (
+        <EmptyState
+          title="발송 내역이 없습니다"
+          description="메시지를 발송하면 이곳에 기록됩니다."
+          tone="empty"
+          scope="panel"
+        />
+      ) : (
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={results}
+          pagination={
+            count <= (data?.results?.length ?? 0)
+              ? false
+              : { total: count, pageSize: 50, showSizeChanger: false }
+          }
+          size="small"
+          style={{ marginTop: 8 }}
+        />
+      )}
+    </Panel>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessagePage.tsx
+==========================================================================================
+export default function MessagePage() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-2">메시지</h1>
+      <p className="text-gray-600 text-sm">
+        학생/학부모 문자, 알림 발송 기능이 들어갈 예정입니다.
+      </p>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessageRegisterPage.tsx
+==========================================================================================
+// PATH: src/features/messages/pages/MessageRegisterPage.tsx
+// 메시지 등록 — 학생/학부모 문자·알림 발송
+
+import { Section, SectionHeader } from "@/shared/ui/ds";
+
+export default function MessageRegisterPage() {
+  return (
+    <Section>
+      <SectionHeader title="메시지 등록" />
+      <p className="text-[var(--color-text-muted)] text-sm">
+        학생·학부모 대상 문자 및 알림 메시지를 등록하고 발송할 수 있습니다.
+      </p>
+      <div className="mt-4 p-4 rounded-lg bg-[var(--bg-surface-elevated)] border border-[var(--color-border-divider)]">
+        <span className="text-[var(--color-text-muted)] text-sm">
+          발송 대상 선택, 메시지 작성, 예약 발송 등 기능이 이곳에 구현됩니다.
+        </span>
+      </div>
+    </Section>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessageSendPage.tsx
+==========================================================================================
+// PATH: src/features/messages/pages/MessageSendPage.tsx
+// 발송 — students 도메인 스타일, 메시지 발송 모달 오픈
+
+import { useNavigate } from "react-router-dom";
+import { Button, Panel } from "@/shared/ui/ds";
+import { useSendMessageModal } from "../context/SendMessageModalContext";
+
+export default function MessageSendPage() {
+  const navigate = useNavigate();
+  const { openSendMessageModal } = useSendMessageModal();
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Panel variant="primary" title="메시지 발송" description="학생·학부모에게 SMS 또는 알림톡을 발송합니다.">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            수신자를 선택한 뒤 발송 버튼을 눌러 메시지를 보낼 수 있습니다.
+            학생·강의·출결 페이지에서 수신자를 선택하거나, 아래에서 직접 발송 모달을 열 수 있습니다.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              intent="primary"
+              onClick={() => openSendMessageModal({ studentIds: [], recipientLabel: "수신자 없음" })}
+            >
+              메시지 발송
+            </Button>
+            <Button
+              intent="secondary"
+              onClick={() => navigate("/admin/students")}
+            >
+              학생 목록으로 이동
+            </Button>
+          </div>
+        </div>
+      </Panel>
+
+      <div
+        className="rounded-xl p-6 border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]"
+        style={{ color: "var(--color-text-secondary)", fontSize: 14 }}
+      >
+        <div className="font-semibold text-[var(--color-text-primary)] mb-3">발송 방법</div>
+        <ul className="list-disc list-inside space-y-1">
+          <li>학생·강의·출결 페이지에서 수신자를 선택한 뒤 「메시지 발송」 버튼을 누르세요.</li>
+          <li>발송 유형(SMS만 / 알림톡만 / 알림톡→SMS 폴백)을 선택할 수 있습니다.</li>
+          <li>템플릿을 불러오거나 직접 내용을 입력하여 발송할 수 있습니다.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessageSettingsPage.tsx
+==========================================================================================
+// PATH: src/features/messages/pages/MessageSettingsPage.tsx
+// 설정 — 카카오 연동 + 메시지 연동 + 가이드 통합
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Input } from "antd";
+import { FiMessageCircle } from "react-icons/fi";
+import { Panel, Button } from "@/shared/ui/ds";
+import { useMessagingInfo, useUpdateKakaoPfid } from "../hooks/useMessagingInfo";
+
+export default function MessageSettingsPage() {
+  const navigate = useNavigate();
+  const { data: info } = useMessagingInfo();
+  const { mutate: updatePfid, isPending } = useUpdateKakaoPfid();
+  const [pfid, setPfid] = useState("");
+
+  useEffect(() => {
+    if (info?.kakao_pfid != null) setPfid(info.kakao_pfid);
+  }, [info?.kakao_pfid]);
+
+  const handleSavePfid = () => {
+    const value = pfid.trim();
+    if (!value) return;
+    updatePfid(value);
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      {/* 카카오 알림톡 연동 */}
+      <Panel variant="primary" title="카카오 알림톡 연동" description="학원별 PFID를 설정하면 알림톡 발송이 가능합니다.">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <FiMessageCircle size={18} style={{ color: "var(--color-primary)" }} aria-hidden />
+            <span className="font-medium text-[var(--color-text-primary)]">카카오 PFID (프로필 ID)</span>
+          </div>
+          <div className="flex gap-2 flex-wrap items-center">
+            <Input
+              placeholder="예: @xxxxx"
+              value={pfid}
+              onChange={(e) => setPfid(e.target.value)}
+              disabled={isPending}
+              style={{ maxWidth: 320 }}
+            />
+            <Button
+              intent="primary"
+              onClick={handleSavePfid}
+              disabled={!pfid.trim() || isPending}
+            >
+              {isPending ? "저장 중…" : "연동 저장"}
+            </Button>
+          </div>
+          {info?.kakao_pfid && (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              현재 연동된 PFID: {info.kakao_pfid}
+            </p>
+          )}
+        </div>
+      </Panel>
+
+      {/* 메시지 연동 (발신번호) */}
+      <Panel variant="primary" title="메시지 연동" description="SMS·알림톡 발송 시 사용할 발신번호를 설정합니다.">
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            발신번호는 설정 &gt; 내 정보에서 등록·인증할 수 있습니다. 솔라피에 등록된 번호만 사용할 수 있습니다.
+          </p>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => navigate("/admin/settings/account")}
+            style={{ alignSelf: "flex-start" }}
+          >
+            설정 &gt; 내 정보로 이동
+          </Button>
+        </div>
+      </Panel>
+
+      {/* 가이드 */}
+      <Panel variant="primary" title="연동 가이드" description="카카오 알림톡 및 솔라피 연동 절차입니다.">
+        <div
+          className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5 space-y-4 text-sm text-[var(--color-text-secondary)]"
+        >
+          <ol className="list-decimal list-inside space-y-2">
+            <li>카카오 비즈니스 채널을 개설하고 관리자 센터에 접속합니다.</li>
+            <li>채널 관리 → 파트너 관리에서 운영 파트너(현진님 계정)를 등록합니다.</li>
+            <li>연동이 완료되면 발급된 PFID(프로필 ID)를 위 입력란에 입력 후 저장합니다.</li>
+            <li>설정 &gt; 내 정보에서 발신번호를 등록·인증합니다 (솔라피 연동 필요).</li>
+            <li>템플릿 저장에서 양식을 만들고, 검수 신청 후 승인되면 알림톡 발송을 사용할 수 있습니다.</li>
+          </ol>
+          <div className="pt-2 border-t border-[var(--color-border-divider)]">
+            <p className="text-[var(--color-text-muted)]">
+              가이드 이미지나 상세 매뉴얼은 필요 시 이 영역에 추가할 수 있습니다.
+            </p>
+          </div>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/MessageTemplatesPage.tsx
+==========================================================================================
+// PATH: src/features/messages/pages/MessageTemplatesPage.tsx
+// 템플릿 저장 — 저장소 도메인과 동일한 파일 탐색기형 UI
+
+import TemplateExplorer from "../components/TemplateExplorer";
+
+export type ModalOpenState = "create" | { template: import("../api/messages.api").MessageTemplateItem; mode: "view" | "edit" } | null;
+
+export default function MessageTemplatesPage() {
+  return <TemplateExplorer />;
+}
+
+
+==========================================================================================
+# FILE: styles/templateEditor.css
+==========================================================================================
+/* PATH: src/features/messages/styles/templateEditor.css
+ * 템플릿 에디터·카드 — 디자인 시스템 토큰만 사용 (students 도메인과 통일)
+ */
+
+/* ----- 좌측: 미리보기 + 블록 ----- */
+.template-editor__left {
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
+  border-left: 4px solid var(--color-primary);
+  border-radius: 12px;
+}
+
+.template-editor__preview-title,
+.template-editor__blocks-title {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* ----- 우측: 본문 편집 ----- */
+.template-editor__right {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-left: 4px solid var(--color-border-strong);
+  border-radius: 12px;
+}
+
+.template-editor__editor-title {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.template-editor__textarea {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  color: var(--color-text-primary);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.template-editor__textarea:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-border-focus) 25%, transparent);
+}
+
+.template-editor__textarea:disabled {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.template-editor__preview-placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ----- 아이폰 메시지 미리보기 ----- */
+.template-preview-phone {
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+  background: #1c1c1e;
+  border-radius: 36px;
+  padding: 12px;
+  box-shadow:
+    0 0 0 3px #2c2c2e,
+    0 0 0 6px #1c1c1e,
+    0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.template-preview-phone__screen {
+  background: #000;
+  border-radius: 28px;
+  min-height: 320px;
+  padding: 44px 12px 16px;
+  position: relative;
+}
+
+.template-preview-phone__screen::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 22px;
+  background: #000;
+  border-radius: 0 0 20px 20px;
+  z-index: 1;
+}
+
+.template-preview-phone__bubble {
+  max-width: 85%;
+  margin-left: auto;
+  padding: 10px 14px;
+  background: #34c759;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  border-radius: 18px 18px 4px 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.template-preview-phone__time {
+  margin-top: 4px;
+  margin-left: auto;
+  width: fit-content;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.template-preview-phone__bubble .template-editor__preview-placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ----- 카카오톡 알림톡 미리보기 ----- */
+.template-preview-kakao {
+  width: 100%;
+  max-width: 260px;
+  margin: 0 auto;
+  background: #b2c7d9;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 200px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.template-preview-kakao__card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid #fee500;
+}
+
+.template-preview-kakao__title {
+  padding: 12px 14px 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.template-preview-kakao__body {
+  padding: 12px 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #333;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 블록 버튼 (좌측) */
+.template-editor__block-btn {
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+.template-editor__block-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+  border-color: var(--color-primary);
+}
+
+/* 제목(알림톡) 슬롯 — 탭 전환 시 높이 고정 */
+.template-editor__subject-slot {
+  min-height: 56px;
+  flex-shrink: 0;
+}
+
+.template-editor__subject-placeholder {
+  height: 56px;
+  pointer-events: none;
+}
+
+/* 모달 내 메시지|알림톡 탭 — 디자인 토큰, 다크 테마 가독성 */
+.template-editor__tabs.ant-tabs {
+  display: block;
+}
+
+.template-editor__tabs .ant-tabs-nav {
+  display: flex;
+  margin: 0 0 12px 0;
+}
+
+.template-editor__tabs .ant-tabs-nav-list {
+  display: flex;
+  gap: var(--space-1, 4px);
+}
+
+.template-editor__tabs .ant-tabs-tab {
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.template-editor__tabs .ant-tabs-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.template-editor__tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--color-primary);
+}
+
+.template-editor__tabs .ant-tabs-tab-btn {
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.template-editor__tabs .ant-tabs-ink-bar {
+  background: var(--color-primary);
+  height: 2px;
+}
+
+/* ----- 템플릿 카드 그리드 ----- */
+.template-card {
+  background: var(--color-bg-surface);
+  border: 2px solid var(--color-border-divider);
+  border-radius: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.template-card:hover {
+  border-color: var(--color-border-focus);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.template-card__icon-wrap {
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  border-radius: 12px;
+}

@@ -1,0 +1,3226 @@
+====================================================================================================
+# FRONTEND FOLDER: features__clinic
+# ROOT PATH: C:\academyfront\src\features\clinic
+====================================================================================================
+
+
+==========================================================================================
+# FILE: ClinicLayout.tsx
+==========================================================================================
+// PATH: src/features/clinic/ClinicLayout.tsx
+// 클리닉 도메인 — Domain Header + ds-tabs + panel (프리미엄 SaaS 톤)
+
+import "./clinic.css";
+import { Outlet } from "react-router-dom";
+import { DomainLayout } from "@/shared/ui/layout";
+
+const CLINIC_TABS = [
+  { key: "home", label: "홈", path: "/admin/clinic/home" },
+  { key: "operations", label: "운영", path: "/admin/clinic/operations" },
+  { key: "bookings", label: "예약대상자", path: "/admin/clinic/bookings" },
+  { key: "reports", label: "리포트", path: "/admin/clinic/reports" },
+  { key: "settings", label: "설정", path: "/admin/clinic/settings" },
+];
+
+export default function ClinicLayout() {
+  return (
+    <DomainLayout
+      title="클리닉"
+      description="대상자·예약·운영을 한 화면에서. 대형 강사용 통제실."
+      tabs={CLINIC_TABS}
+    >
+      <Outlet />
+    </DomainLayout>
+  );
+}
+
+
+==========================================================================================
+# FILE: ClinicRoutes.tsx
+==========================================================================================
+import { Routes, Route, Navigate } from "react-router-dom";
+import ClinicLayout from "./ClinicLayout";
+
+import ClinicHomePage from "./pages/HomePage/ClinicHomePage";
+import ClinicOperationsPage from "./pages/OperationsPage/ClinicOperationsPage";
+import ClinicReportsPage from "./pages/ReportsPage/ClinicReportsPage";
+import ClinicSettingsPage from "./pages/SettingsPage/ClinicSettingsPage";
+import ClinicBookingsPage from "./pages/BookingsPage/ClinicBookingsPage";
+
+export default function ClinicRoutes() {
+  return (
+    <Routes>
+      <Route element={<ClinicLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<ClinicHomePage />} />
+        <Route path="operations" element={<ClinicOperationsPage />} />
+        <Route path="bookings" element={<ClinicBookingsPage />} />
+        <Route path="reports" element={<ClinicReportsPage />} />
+        <Route path="settings" element={<ClinicSettingsPage />} />
+      </Route>
+    </Routes>
+  );
+}
+
+
+==========================================================================================
+# FILE: clinic.css
+==========================================================================================
+/* PATH: src/features/clinic/clinic.css
+   클리닉 도메인 — 프리미엄 SaaS 영역 구분 (토큰 기반) */
+
+/* 카드 영역: 선·깊이로 구분 (12테마 공통) */
+.clinic-card {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-divider-strong);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-2);
+  overflow: hidden;
+}
+
+.clinic-card__header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface-soft));
+}
+
+.clinic-card__body {
+  padding: var(--space-6);
+}
+
+/* 주간 일정 요일 셀 */
+.clinic-day-cell {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  padding: var(--space-4);
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+
+.clinic-day-cell:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+/* KPI/숫자 강조 블록 */
+.clinic-kpi-block {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  padding: var(--space-4);
+}
+
+
+==========================================================================================
+# FILE: api/clinicMe.api.ts
+==========================================================================================
+import api from "@/shared/api/axios";
+
+/**
+ * 권한 단일진실
+ * - 스태프/관리자 UX 분기
+ * - (staff 도메인과 동일 스펙을 clinic에서 독립 사용)
+ */
+export type ClinicMe = {
+  is_authenticated: boolean;
+  is_superuser: boolean;
+  is_staff: boolean;
+  is_payroll_manager: boolean;
+};
+
+export async function fetchClinicMe() {
+  const res = await api.get("/staffs/me/");
+  return res.data as ClinicMe;
+}
+
+
+==========================================================================================
+# FILE: api/clinicParticipants.api.ts
+==========================================================================================
+// PATH: src/features/clinic/api/clinicParticipants.api.ts
+import api from "@/shared/api/axios";
+
+export type ClinicParticipantStatus =
+  | "booked"
+  | "attended"
+  | "no_show"
+  | "cancelled";
+
+export type ClinicParticipant = {
+  id: number;
+
+  // ✅ 백엔드 단일진실: session FK
+  session: number;
+
+  student_name: string;
+  enrollment_id?: number;
+  clinic_reason?: "exam" | "homework" | "both";
+
+  session_date: string;
+  session_start_time: string;
+  session_end_time?: string;
+  session_location: string;
+
+  status: ClinicParticipantStatus;
+  memo?: string;
+};
+
+export async function fetchClinicParticipants(params: {
+  session?: number; // ParticipantFilter.session (session_id)
+  session_date_from?: string;
+  session_date_to?: string;
+  status?: ClinicParticipantStatus;
+}) {
+  const res = await api.get("/clinic/participants/", { params });
+
+  // ✅ pagination 대응
+  if (Array.isArray(res.data)) return res.data as ClinicParticipant[];
+  if (Array.isArray(res.data?.results)) return res.data.results as ClinicParticipant[];
+  return [];
+}
+
+export async function patchClinicParticipantStatus(
+  id: number,
+  payload: { status: ClinicParticipantStatus; memo?: string }
+) {
+  const res = await api.patch(`/clinic/participants/${id}/set_status/`, payload);
+  return res.data as ClinicParticipant;
+}
+
+
+==========================================================================================
+# FILE: api/clinicSessions.api.ts
+==========================================================================================
+// PATH: src/features/clinic/api/clinicSessions.api.ts
+import api from "@/shared/api/axios";
+
+export type ClinicSessionTreeNode = {
+  id: number;
+  date: string; // YYYY-MM-DD
+  start_time: string; // "HH:MM:SS" or "HH:MM"
+  location: string;
+
+  participant_count: number;
+  booked_count: number;
+  no_show_count: number;
+};
+
+/**
+ * 운영 좌측 트리 전용
+ * GET /clinic/sessions/tree/?year=YYYY&month=MM
+ */
+export async function fetchClinicSessionTree(params: {
+  year: number;
+  month: number; // 1~12
+}) {
+  const res = await api.get("/clinic/sessions/tree/", { params });
+
+  if (Array.isArray(res.data)) return res.data as ClinicSessionTreeNode[];
+  if (Array.isArray(res.data?.results)) return res.data.results as ClinicSessionTreeNode[];
+  return [];
+}
+
+
+==========================================================================================
+# FILE: api/clinicSettings.api.ts
+==========================================================================================
+// PATH: src/features/clinic/api/clinicSettings.api.ts
+import api from "@/shared/api/axios";
+
+export type ClinicSettings = {
+  colors: [string, string, string];
+};
+
+export async function fetchClinicSettings(): Promise<ClinicSettings> {
+  const res = await api.get("/clinic/settings/");
+  const colors = res.data?.colors || ["#ef4444", "#3b82f6", "#22c55e"];
+  return {
+    colors: [colors[0] || "#ef4444", colors[1] || "#3b82f6", colors[2] || "#22c55e"],
+  };
+}
+
+export async function updateClinicSettings(colors: [string, string, string]): Promise<ClinicSettings> {
+  const res = await api.patch("/clinic/settings/", { colors });
+  const updatedColors = res.data?.colors || colors;
+  return {
+    colors: [updatedColors[0] || colors[0], updatedColors[1] || colors[1], updatedColors[2] || colors[2]],
+  };
+}
+
+
+==========================================================================================
+# FILE: api/clinicStudents.api.ts
+==========================================================================================
+// PATH: src/features/clinic/api/clinicStudents.api.ts
+import api from "@/shared/api/axios";
+
+export type ClinicStudent = {
+  id: number;
+  name: string;
+};
+
+function normalize(resData: any): ClinicStudent[] {
+  const arr = Array.isArray(resData)
+    ? resData
+    : Array.isArray(resData?.results)
+    ? resData.results
+    : [];
+  return arr.map((s: any) => ({ id: s.id, name: s.name })) as ClinicStudent[];
+}
+
+// ✅ 학생 검색 (2글자 이상일 때 사용)
+export async function searchClinicStudents(params: { q: string }) {
+  const res = await api.get("/students/", {
+    params: { search: params.q },
+  });
+  return normalize(res.data);
+}
+
+// ✅ 전체 학생 "초기 목록" (첫 페이지)
+export async function fetchClinicStudentsDefault() {
+  const res = await api.get("/students/");
+  return normalize(res.data);
+}
+
+
+==========================================================================================
+# FILE: api/clinicTargets.ts
+==========================================================================================
+import api from "@/shared/api/axios";
+
+/**
+ * 🔹 ClinicReason
+ * - backend(results)가 내려주는 판정 결과
+ * - exam / homework / both
+ */
+export type ClinicReason = "exam" | "homework" | "both";
+
+/**
+ * ✅ ClinicTarget
+ * - 시험 / 과제 기준으로 자동 선정된 클리닉 대상자
+ * - backend에서 ClinicLink(is_auto=True) 단일 기준으로 생성
+ *
+ * ⚠️ 설계 계약
+ * - 대상자 선정/판정 단일 진실은 backend(results)이다.
+ * - 프론트는 계산/필터링/추론을 하지 않고 "표시"만 한다.
+ * - enrollment_id 기준으로만 식별한다.
+ */
+export type ClinicTarget = {
+  enrollment_id: number;
+  student_name: string;
+  session_title: string;
+
+  clinic_reason?: ClinicReason;
+
+  reason?: "score" | "confidence"; // legacy (시험-only)
+  exam_score?: number;
+  cutline_score?: number;
+
+  homework_score?: number;
+  homework_cutline?: number;
+
+  created_at: string;
+};
+
+/**
+ * GET /results/admin/clinic-targets/
+ */
+export async function fetchClinicTargets() {
+  const res = await api.get("/results/admin/clinic-targets/");
+  return res.data as ClinicTarget[];
+}
+
+
+==========================================================================================
+# FILE: components/ClinicCreatePanel.tsx
+==========================================================================================
+// PATH: src/features/clinic/components/ClinicCreatePanel.tsx
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  Input,
+  Button,
+  Checkbox,
+  Segmented,
+  Select,
+  message,
+  Divider,
+} from "antd";
+import dayjs from "dayjs";
+
+import { DatePicker } from "@/shared/ui/date";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useClinicTargets } from "../hooks/useClinicTargets";
+import { useClinicStudentSearch } from "../hooks/useClinicStudentSearch";
+import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
+
+import api from "@/shared/api/axios";
+
+type TargetRow = {
+  enrollment_id: number;
+  student_name: string;
+};
+
+type StudentRow = {
+  id: number;
+  name: string;
+};
+
+const TIME_OPTIONS = Array.from({ length: 26 }, (_, i) => {
+  const h = Math.floor(i / 2) + 9;
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${String(h).padStart(2, "0")}:${m}`;
+});
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addMinutes(base: string | undefined, minutes: number) {
+  if (!base) return undefined;
+  const [h, m] = base.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  d.setMinutes(d.getMinutes() + minutes);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes()
+  ).padStart(2, "0")}`;
+}
+
+type Props = {
+  date?: string;
+  defaultMode?: "targets" | "students";
+  hideDatePicker?: boolean;
+  selectedTargetEnrollmentIds?: number[];
+  onChangeSelectedTargetEnrollmentIds?: (ids: number[]) => void;
+  onCreated?: () => void;
+};
+
+export default function ClinicCreatePanel({
+  date,
+  defaultMode = "targets",
+  hideDatePicker = false,
+  selectedTargetEnrollmentIds,
+  onChangeSelectedTargetEnrollmentIds,
+  onCreated,
+}: Props) {
+  const qc = useQueryClient();
+
+  const initialDate = date ?? todayISO();
+  const [selectedDate, setSelectedDate] = useState(dayjs(initialDate));
+
+  useEffect(() => {
+    if (date) setSelectedDate(dayjs(date));
+  }, [date]);
+
+  const [mode, setMode] = useState<"targets" | "students">(defaultMode);
+  const [keyword, setKeyword] = useState("");
+
+  const [internalSelected, setInternalSelected] = useState<number[]>([]);
+  const selected =
+    mode === "targets" && Array.isArray(selectedTargetEnrollmentIds)
+      ? selectedTargetEnrollmentIds
+      : internalSelected;
+
+  const setSelected = (next: number[] | ((prev: number[]) => number[])) => {
+    const resolved =
+      typeof next === "function" ? (next as any)(selected) : next;
+    if (mode === "targets" && onChangeSelectedTargetEnrollmentIds) {
+      onChangeSelectedTargetEnrollmentIds(resolved);
+      return;
+    }
+    setInternalSelected(resolved);
+  };
+
+  const [startTime, setStartTime] = useState<string>();
+  const [endTime, setEndTime] = useState<string>();
+
+  /**
+   * ✅ UX 수정 포인트
+   * - +30 / +1시간 버튼은 "누적"
+   * - endTime이 있으면 endTime 기준으로 추가
+   * - 없으면 startTime 기준으로 최초 계산
+   */
+  const quickAdd = (m: number) => {
+    if (!startTime) {
+      message.warning("시작 시간을 먼저 선택하세요.");
+      return;
+    }
+
+    // 기준점: endTime이 있으면 그 뒤에 누적, 없으면 startTime 기준
+    const base = endTime ?? startTime;
+    setEndTime(addMinutes(base, m));
+  };
+
+  const [room, setRoom] = useState("");
+  const [memo, setMemo] = useState("");
+
+  const targetsQ = useClinicTargets();
+  const studentsSearchQ = useClinicStudentSearch(keyword);
+
+  const studentsDefaultQ = useQuery({
+    queryKey: ["clinic-students-default"],
+    queryFn: fetchClinicStudentsDefault,
+    enabled: mode === "students" && keyword.trim().length < 2,
+    staleTime: 10_000,
+    retry: 0,
+  });
+
+  const rows = useMemo(() => {
+    if (mode === "targets") {
+      const arr = (targetsQ.data ?? []) as TargetRow[];
+      if (!keyword.trim()) return arr;
+      return arr.filter((t) =>
+        (t.student_name || "").includes(keyword.trim())
+      );
+    }
+    if (keyword.trim().length >= 2)
+      return (studentsSearchQ.data ?? []) as StudentRow[];
+    return (studentsDefaultQ.data ?? []) as StudentRow[];
+  }, [
+    mode,
+    targetsQ.data,
+    keyword,
+    studentsSearchQ.data,
+    studentsDefaultQ.data,
+  ]);
+
+  const allChecked = rows.length > 0 && selected.length === rows.length;
+
+  const toggleAll = () => {
+    if (allChecked) {
+      setSelected([]);
+      return;
+    }
+    if (mode === "targets") {
+      setSelected((rows as TargetRow[]).map((r) => r.enrollment_id));
+    } else {
+      setSelected((rows as StudentRow[]).map((r) => r.id));
+    }
+  };
+
+  const createSessionM = useMutation({
+    mutationFn: async (payload: {
+      date: string;
+      start_time: string;
+      duration_minutes: number;
+      location: string;
+      max_participants: number;
+    }) => {
+      const res = await api.post("/clinic/sessions/", payload);
+      return res.data as { id: number };
+    },
+  });
+
+  const submit = async () => {
+    if (!startTime || !endTime)
+      return message.warning("시작/종료 시간을 선택해주세요.");
+    if (selected.length === 0)
+      return message.warning("학생을 1명 이상 선택해주세요.");
+    if (!room.trim()) return message.warning("장소/룸을 입력해주세요.");
+
+    const [sh, sm] = startTime.split(":").map(Number);
+    const [eh, em] = endTime.split(":").map(Number);
+    const duration = eh * 60 + em - (sh * 60 + sm);
+
+    if (duration <= 0)
+      return message.error("종료 시간은 시작 시간 이후여야 합니다.");
+
+    try {
+      await createSessionM.mutateAsync({
+        date: selectedDate.format("YYYY-MM-DD"),
+        start_time: startTime,
+        duration_minutes: duration,
+        location: room.trim(),
+        max_participants: selected.length,
+      });
+
+      message.success("클리닉 생성 완료");
+      setSelected([]);
+      setMemo("");
+      setEndTime(undefined);
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
+      onCreated?.();
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || "생성 실패");
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
+      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)] flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold">클리닉 생성</div>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            시작·종료 시간 설정
+          </div>
+        </div>
+        <div className="text-xs text-[var(--text-muted)]">
+          선택 {selected.length}명
+        </div>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {!hideDatePicker && (
+          <DatePicker
+            value={selectedDate.format("YYYY-MM-DD")}
+            onChange={(s) => setSelectedDate(dayjs(s))}
+            placeholder="날짜 선택"
+          />
+        )}
+
+        <div className="flex gap-2">
+          <Select
+            placeholder="시작 시간"
+            options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
+            value={startTime}
+            onChange={(v) => {
+              setStartTime(v);
+              setEndTime(undefined); // 시작 시간 바뀌면 종료 리셋
+            }}
+            className="flex-1 bg-[var(--bg-surface)]"
+          />
+          <Select
+            placeholder="종료 시간"
+            options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
+            value={endTime}
+            onChange={setEndTime}
+            className="flex-1 bg-[var(--bg-surface)]"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <Button onClick={() => quickAdd(30)}>+30분</Button>
+          <Button onClick={() => quickAdd(60)}>+1시간</Button>
+        </div>
+
+        <Input
+          placeholder="장소 / 룸"
+          value={room}
+          onChange={(e) => setRoom(e.target.value)}
+          className="bg-[var(--bg-surface)]"
+        />
+
+        <Input.TextArea
+          rows={2}
+          placeholder="메모 (선택)"
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          className="bg-[var(--bg-surface)]"
+        />
+
+        <Divider className="my-2" />
+
+        <div className="space-y-2">
+          <Segmented
+            options={[
+              { label: "예약 대상자", value: "targets" },
+              { label: "전체 학생", value: "students" },
+            ]}
+            value={mode}
+            onChange={(v) => {
+              setMode(v as any);
+              setKeyword("");
+              setSelected([]);
+            }}
+          />
+
+          <Input
+            placeholder={
+              mode === "students"
+                ? "학생 검색 (2글자 이상)"
+                : "대상자 내 검색"
+            }
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            allowClear
+            className="bg-[var(--bg-surface)]"
+          />
+
+          <div className="flex items-center justify-between text-xs">
+            <Checkbox checked={allChecked} onChange={toggleAll}>
+              전체 선택
+            </Checkbox>
+          </div>
+
+          <div className="max-h-[360px] overflow-auto border rounded-lg p-2 space-y-1">
+            {rows.map((r: any) => {
+              const key =
+                mode === "targets" ? r.enrollment_id : r.id;
+              const label =
+                mode === "targets" ? r.student_name : r.name;
+              return (
+                <label
+                  key={key}
+                  className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-[var(--bg-surface-soft)]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(key)}
+                    onChange={(e) => {
+                      setSelected((prev) =>
+                        e.target.checked
+                          ? [...prev, key]
+                          : prev.filter((id) => id !== key)
+                      );
+                    }}
+                  />
+                  <span className="flex-1">{label}</span>
+                </label>
+              );
+            })}
+          </div>
+
+          <Button
+            type="primary"
+            block
+            loading={createSessionM.isPending}
+            onClick={submit}
+          >
+            선택 {selected.length}명 클리닉 생성
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/ClinicDaySchedulePanel.tsx
+==========================================================================================
+// PATH: src/features/clinic/components/ClinicDaySchedulePanel.tsx
+import { ClinicParticipant } from "../api/clinicParticipants.api";
+
+export default function ClinicDaySchedulePanel({
+  date,
+  rows,
+}: {
+  date: string;
+  rows: ClinicParticipant[];
+}) {
+  if (!rows.length) {
+    return (
+      <div className="rounded-2xl border bg-[var(--bg-surface)] p-5">
+        <div className="text-sm font-semibold">클리닉 일정</div>
+        <div className="mt-2 text-xs text-[var(--text-muted)]">
+          {date}에 잡힌 클리닉 일정이 없습니다.
+        </div>
+      </div>
+    );
+  }
+
+  const byTime = rows.reduce<Record<string, ClinicParticipant[]>>((acc, r) => {
+    const t = (r.session_start_time || "").slice(0, 5) || "-";
+    acc[t] ??= [];
+    acc[t].push(r);
+    return acc;
+  }, {});
+
+  const times = Object.keys(byTime).sort((a, b) => (a > b ? 1 : -1));
+
+  return (
+    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
+      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
+        <div className="text-sm font-semibold">클리닉 일정</div>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {times.map((time) => {
+          const items = byTime[time] ?? [];
+          return (
+            <div key={time}>
+              <div className="text-xs font-semibold mb-1">{time}</div>
+              <ul className="space-y-1">
+                {items.map((r) => (
+                  <li
+                    key={r.id}
+                    className="rounded-lg border bg-[var(--bg-surface-soft)] px-3 py-2"
+                  >
+                    <div className="text-sm font-semibold">{r.student_name}</div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      {r.session_location}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/ClinicRemoteControl.tsx
+==========================================================================================
+// PATH: src/features/clinic/components/ClinicRemoteControl.tsx
+// 클리닉 리모컨 - 선생님이 실시간으로 학생 패스카드 배경색 변경
+
+import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchClinicSettings, updateClinicSettings } from "../api/clinicSettings.api";
+import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import AdminModal from "@/shared/ui/modal/AdminModal";
+import { MODAL_WIDTH } from "@/shared/ui/modal";
+import ModalHeader from "@/shared/ui/modal/ModalHeader";
+import ModalBody from "@/shared/ui/modal/ModalBody";
+import ModalFooter from "@/shared/ui/modal/ModalFooter";
+
+// 미리 정의된 색상 팔레트
+const COLOR_PALETTE = [
+  // 빨강 계열
+  "#ef4444", "#dc2626", "#b91c1c", "#991b1b",
+  // 파랑 계열
+  "#3b82f6", "#2563eb", "#1d4ed8", "#1e40af",
+  // 초록 계열
+  "#22c55e", "#16a34a", "#15803d", "#166534",
+  // 노랑 계열
+  "#eab308", "#ca8a04", "#a16207", "#854d0e",
+  // 보라 계열
+  "#a855f7", "#9333ea", "#7e22ce", "#6b21a8",
+  // 핑크 계열
+  "#ec4899", "#db2777", "#be185d", "#9f1239",
+  // 오렌지 계열
+  "#f97316", "#ea580c", "#c2410c", "#9a3412",
+  // 청록 계열
+  "#14b8a6", "#0d9488", "#0f766e", "#115e59",
+];
+
+type ColorSelectModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (color: string) => void;
+  currentColor: string;
+};
+
+function ColorSelectModal({ open, onClose, onSelect, currentColor }: ColorSelectModalProps) {
+  const [customColor, setCustomColor] = useState(currentColor || "#ef4444");
+
+  const handleSelect = useCallback(() => {
+    onSelect(customColor);
+    onClose();
+  }, [customColor, onSelect, onClose]);
+
+  return (
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.mediumModal}>
+      <ModalHeader title="색상 선택" onClose={onClose} />
+      <ModalBody>
+        <div className="space-y-4">
+          {/* 미리 정의된 팔레트 */}
+          <div>
+            <div className="text-sm font-semibold mb-2">추천 색상</div>
+            <div className="grid grid-cols-8 gap-2">
+              {COLOR_PALETTE.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setCustomColor(color)}
+                  className={`w-10 h-10 rounded-md border-2 transition-all ${
+                    customColor === color
+                      ? "border-[var(--color-brand-primary)] scale-110"
+                      : "border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]"
+                  }`}
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* 커스텀 색상 선택 */}
+          <div>
+            <div className="text-sm font-semibold mb-2">커스텀 색상</div>
+            <div className="flex gap-2 items-center">
+              <input
+                type="color"
+                value={customColor}
+                onChange={(e) => setCustomColor(e.target.value)}
+                className="w-16 h-10 rounded border border-[var(--color-border-divider)] cursor-pointer"
+              />
+              <input
+                type="text"
+                value={customColor}
+                onChange={(e) => setCustomColor(e.target.value)}
+                className="flex-1 px-3 py-2 border border-[var(--color-border-divider)] rounded text-sm font-mono"
+                placeholder="#ef4444"
+              />
+            </div>
+          </div>
+
+          {/* 미리보기 */}
+          <div>
+            <div className="text-sm font-semibold mb-2">미리보기</div>
+            <div
+              className="w-full h-20 rounded-lg border border-[var(--color-border-divider)]"
+              style={{ backgroundColor: customColor }}
+            />
+          </div>
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button intent="secondary" onClick={onClose}>
+          취소
+        </Button>
+        <Button intent="primary" onClick={handleSelect}>
+          적용
+        </Button>
+      </ModalFooter>
+    </AdminModal>
+  );
+}
+
+export default function ClinicRemoteControl() {
+  const qc = useQueryClient();
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["clinic-settings"],
+    queryFn: fetchClinicSettings,
+    refetchInterval: 2000, // 2초마다 자동 갱신 (다른 선생님이 변경했을 경우 대비)
+  });
+
+  const [colorModalOpen, setColorModalOpen] = useState(false);
+  const [selectedColorIndex, setSelectedColorIndex] = useState<number | null>(null);
+
+  const updateMutation = useMutation({
+    mutationFn: (colors: [string, string, string]) => updateClinicSettings(colors),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-settings"] });
+      qc.invalidateQueries({ queryKey: ["clinic-idcard"] }); // 학생 앱도 갱신되도록
+      feedback.success("색상이 즉시 적용되었습니다!");
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail || "색상 변경에 실패했습니다.");
+    },
+  });
+
+  const handleColorSelect = useCallback(
+    (index: number) => {
+      setSelectedColorIndex(index);
+      setColorModalOpen(true);
+    },
+    []
+  );
+
+  const handleColorConfirm = useCallback(
+    (color: string) => {
+      if (selectedColorIndex === null || !settings) return;
+      const newColors: [string, string, string] = [...settings.colors];
+      newColors[selectedColorIndex] = color;
+      updateMutation.mutate(newColors);
+    },
+    [selectedColorIndex, settings, updateMutation]
+  );
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
+        <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
+      </div>
+    );
+  }
+
+  const colors = settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"];
+
+  return (
+    <>
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold">클리닉 리모컨</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                색상을 선택하면 학생 화면이 즉시 변경됩니다
+              </div>
+            </div>
+            <div className="px-2 py-1 bg-[var(--color-brand-primary)] text-white text-xs font-semibold rounded">
+              LIVE
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5">
+          <div className="space-y-3">
+            {/* 현재 색상 미리보기 */}
+            <div>
+              <div className="text-xs text-[var(--text-muted)] mb-2">현재 배경</div>
+              <div
+                className="w-full h-16 rounded-lg border border-[var(--border-divider)]"
+                style={{
+                  background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
+                  backgroundSize: "200% 200%",
+                }}
+              />
+            </div>
+
+            {/* 색상 선택 버튼 */}
+            <div className="grid grid-cols-3 gap-3">
+              {[0, 1, 2].map((index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleColorSelect(index)}
+                  className="relative group"
+                >
+                  <div
+                    className="w-full h-20 rounded-lg border-2 border-[var(--border-divider)] transition-all hover:border-[var(--color-brand-primary)] hover:scale-105"
+                    style={{ backgroundColor: colors[index] }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
+                    <div className="text-xs font-semibold text-white">클릭하여 변경</div>
+                  </div>
+                  <div className="mt-2 text-center">
+                    <div className="text-xs font-semibold text-[var(--text-primary)]">색상 {index + 1}</div>
+                    <div className="text-[10px] font-mono text-[var(--text-muted)]">{colors[index]}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ColorSelectModal
+        open={colorModalOpen}
+        onClose={() => {
+          setColorModalOpen(false);
+          setSelectedColorIndex(null);
+        }}
+        onSelect={handleColorConfirm}
+        currentColor={selectedColorIndex !== null ? colors[selectedColorIndex] : "#ef4444"}
+      />
+    </>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/OperationsSessionTree.tsx
+==========================================================================================
+// PATH: src/features/clinic/components/OperationsSessionTree.tsx
+import dayjs from "dayjs";
+import type { ClinicSessionTreeNode } from "../api/clinicSessions.api";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+function buildMonthDays(year: number, month: number) {
+  const first = dayjs(`${year}-${String(month).padStart(2, "0")}-01`);
+  const daysInMonth = first.daysInMonth();
+  return Array.from({ length: daysInMonth }, (_, i) =>
+    first.add(i, "day").format("YYYY-MM-DD")
+  );
+}
+
+// 월요일 시작 주차 묶기
+function groupDaysByWeek(days: string[]) {
+  const map = new Map<string, string[]>();
+  days.forEach((d) => {
+    const monday = dayjs(d).startOf("week").add(1, "day");
+    const key = monday.format("YYYY-MM-DD");
+    const arr = map.get(key) ?? [];
+    arr.push(d);
+    map.set(key, arr);
+  });
+  return Array.from(map.entries()).sort((a, b) => (a[0] > b[0] ? 1 : -1));
+}
+
+export default function OperationsSessionTree({
+  sessions,
+  selectedDay,
+  onSelectDay,
+  onClear,
+  year,
+  month,
+}: {
+  sessions: ClinicSessionTreeNode[];
+  selectedDay: string;
+  onSelectDay: (date: string) => void;
+  onClear: () => void;
+  year: number;
+  month: number;
+}) {
+  const byDate = sessions.reduce<Record<string, number>>((acc, s) => {
+    acc[s.date] = (acc[s.date] ?? 0) + (s.participant_count ?? 0);
+    return acc;
+  }, {});
+
+  const days = buildMonthDays(year, month);
+  const weeks = groupDaysByWeek(days);
+  const monthLabel = `${year}-${String(month).padStart(2, "0")}`;
+
+  return (
+    <div className="w-[320px] shrink-0 rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
+      <div className="px-4 py-3 border-b bg-[var(--bg-surface-soft)] flex items-center justify-between">
+        <div className="text-sm font-semibold">날짜 선택</div>
+        <button
+          type="button"
+          className="text-xs px-2 py-1 rounded border"
+          onClick={onClear}
+        >
+          초기화
+        </button>
+      </div>
+
+      <div className="p-3 space-y-2 max-h-[680px] overflow-auto">
+        <details open>
+          <summary className="cursor-pointer font-semibold">
+            {monthLabel}
+          </summary>
+
+          <div className="mt-2 pl-2 space-y-2">
+            {weeks.map(([weekKey, weekDays], idx) => (
+              <details key={weekKey}>
+                <summary className="cursor-pointer text-sm font-semibold">
+                  {idx + 1}주차
+                </summary>
+
+                <div className="mt-1 pl-2 space-y-1">
+                  {weekDays.map((d) => {
+                    const count = byDate[d] ?? 0;
+                    const active = d === selectedDay;
+
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => onSelectDay(d)}
+                        className={cx(
+                          "w-full rounded-lg border px-3 py-2 text-left text-sm",
+                          active
+                            ? "border-[var(--color-primary)] bg-[var(--bg-surface-soft)]"
+                            : count > 0
+                            ? "border-[color-mix(in_srgb,var(--color-primary)_30%,var(--border-divider))]"
+                            : "border-[var(--border-divider)]"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{d}</span>
+                          {count > 0 && (
+                            <span className="text-xs font-semibold text-[var(--color-primary)]">
+                              {count}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </details>
+            ))}
+          </div>
+        </details>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/TodayScheduleGrid.tsx
+==========================================================================================
+import { ClinicParticipant } from "../api/clinicParticipants.api";
+import { buildTimeSlots } from "../utils/timeSlots";
+
+export default function TodayScheduleGrid({
+  rows,
+}: {
+  rows: ClinicParticipant[];
+}) {
+  const slots = buildTimeSlots();
+
+  return (
+    <div className="grid grid-cols-4 gap-3">
+      {slots.map((t) => {
+        const items = rows.filter(
+          (r) => (r.session_start_time || "").slice(0, 5) === t
+        );
+
+        return (
+          <div
+            key={t}
+            className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-3"
+          >
+            <div className="text-xs font-semibold mb-2">{t}</div>
+
+            {items.length === 0 && (
+              <div className="text-[11px] text-[var(--text-muted)]">
+                예약 없음
+              </div>
+            )}
+
+            <div className="space-y-1">
+              {items.map((r) => (
+                <div
+                  key={r.id}
+                  className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-2 py-1"
+                >
+                  <div className="text-xs font-semibold">{r.student_name}</div>
+                  <div className="text-[11px] text-[var(--text-muted)]">
+                    {r.session_location}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/bookings/ClinicTargetTable.tsx
+==========================================================================================
+import { Checkbox, Input, Tag } from "antd";
+import { useMemo, useState } from "react";
+import { useClinicTargets } from "../../hooks/useClinicTargets";
+
+export default function ClinicTargetTable({
+  selected,
+  onChangeSelected,
+}: {
+  selected: number[];
+  onChangeSelected: (v: number[]) => void;
+}) {
+  const { data = [], isLoading } = useClinicTargets();
+  const [q, setQ] = useState("");
+
+  const rows = useMemo(() => {
+    if (!q.trim()) return data;
+    return data.filter(
+      (r) =>
+        r.student_name.includes(q) ||
+        String(r.enrollment_id).includes(q)
+    );
+  }, [data, q]);
+
+  const allChecked =
+    rows.length > 0 &&
+    rows.every((r) => selected.includes(r.enrollment_id));
+
+  return (
+    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
+      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
+        <div className="text-sm font-semibold">예약 대상자</div>
+        <Input
+          placeholder="학생명 / enrollment_id 검색"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="mt-2 bg-[var(--bg-surface)]"
+        />
+      </div>
+
+      <div className="px-5 py-3 flex items-center justify-between text-xs">
+        <Checkbox
+          checked={allChecked}
+          onChange={() =>
+            onChangeSelected(
+              allChecked ? [] : rows.map((r) => r.enrollment_id)
+            )
+          }
+        >
+          전체 선택
+        </Checkbox>
+        <span>선택 {selected.length}명</span>
+      </div>
+
+      <div className="max-h-[560px] overflow-auto">
+        {rows.map((r) => (
+          <label
+            key={r.enrollment_id}
+            className="flex items-center gap-3 px-5 py-3 border-t text-sm hover:bg-[var(--bg-surface-soft)]"
+          >
+            <Checkbox
+              checked={selected.includes(r.enrollment_id)}
+              onChange={(e) =>
+                onChangeSelected(
+                  e.target.checked
+                    ? [...selected, r.enrollment_id]
+                    : selected.filter((id) => id !== r.enrollment_id)
+                )
+              }
+            />
+
+            <div className="flex-1">
+              <div className="font-semibold">{r.student_name}</div>
+              <div className="text-xs text-[var(--text-muted)]">
+                enrollment_id: {r.enrollment_id}
+              </div>
+            </div>
+
+            {r.clinic_reason && (
+              <Tag color={r.clinic_reason === "both" ? "red" : "orange"}>
+                {r.clinic_reason}
+              </Tag>
+            )}
+          </label>
+        ))}
+
+        {!isLoading && rows.length === 0 && (
+          <div className="py-10 text-center text-xs text-[var(--text-muted)]">
+            대상자가 없습니다
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/bookings/WeeklyClinicBoard.tsx
+==========================================================================================
+import dayjs from "dayjs";
+import { Tag, message } from "antd";
+import { useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+type ClinicSession = {
+  id: number;
+  date: string;
+  start_time: string;
+  location: string;
+  participant_count: number;
+};
+
+function buildMixedWeek(todayISO: string) {
+  const today = dayjs(todayISO);
+  const raw = today.day();
+  const todayDow = raw === 0 ? 7 : raw;
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const dow = i + 1;
+    let diff = dow - todayDow;
+    if (diff < 0) diff += 7;
+    const date = today.add(diff, "day");
+    return {
+      date: date.format("YYYY-MM-DD"),
+      isNextWeek: diff > 0 && dow < todayDow,
+    };
+  });
+}
+
+export default function WeeklyClinicBoard({
+  baseDate,
+  selectedEnrollmentIds,
+}: {
+  baseDate: string;
+  selectedEnrollmentIds: number[];
+}) {
+  const qc = useQueryClient();
+  const days = useMemo(() => buildMixedWeek(baseDate), [baseDate]);
+
+  const dateFrom = days[0].date;
+  const dateTo = days[6].date;
+
+  const sessionsQ = useQuery({
+    queryKey: ["clinic-sessions-week-mixed", dateFrom, dateTo],
+    queryFn: async () => {
+      const res = await api.get("/clinic/sessions/", {
+        params: { date_from: dateFrom, date_to: dateTo },
+      });
+      return Array.isArray(res.data?.results)
+        ? res.data.results
+        : res.data;
+    },
+  });
+
+  const addParticipantM = useMutation({
+    mutationFn: async (payload: {
+      session: number;
+      enrollment_id: number;
+    }) =>
+      api.post("/clinic/participants/", {
+        session: payload.session,
+        enrollment_id: payload.enrollment_id,
+        source: "manual",
+        status: "booked",
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["clinic-sessions-week-mixed"] });
+    },
+  });
+
+  async function addToSession(sessionId: number) {
+    if (selectedEnrollmentIds.length === 0) {
+      message.warning("좌측에서 대상자를 먼저 선택하세요.");
+      return;
+    }
+    try {
+      for (const eid of selectedEnrollmentIds) {
+        await addParticipantM.mutateAsync({
+          session: sessionId,
+          enrollment_id: eid,
+        });
+      }
+      message.success("기존 클리닉에 추가했습니다.");
+    } catch {
+      message.error("추가 중 오류가 발생했습니다.");
+    }
+  }
+
+  const sessions: ClinicSession[] = sessionsQ.data ?? [];
+
+  return (
+    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
+      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
+        <div className="text-sm font-semibold">이번 주 클리닉</div>
+        <div className="text-xs text-[var(--text-muted)]">
+          오늘 기준 · 이전 요일은 다음주로 표시
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-px bg-[var(--border-divider)]">
+        {days.map(({ date, isNextWeek }) => {
+          const daySessions = sessions.filter((s) => s.date === date);
+
+          return (
+            <div
+              key={date}
+              className={[
+                "min-h-[180px] p-2",
+                isNextWeek
+                  ? "bg-[var(--bg-surface-soft)]"
+                  : "bg-[var(--bg-surface)]",
+              ].join(" ")}
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold">
+                    {dayjs(date).format("dd")}
+                  </div>
+                  <div className="text-[11px] text-[var(--text-muted)]">
+                    {date.slice(5)}
+                  </div>
+                </div>
+
+                {isNextWeek && (
+                  <Tag color="blue" className="text-[10px]">
+                    다음주
+                  </Tag>
+                )}
+              </div>
+
+              {daySessions.length === 0 && (
+                <div className="text-[11px] text-[var(--text-muted)]">
+                  일정 없음
+                </div>
+              )}
+
+              <div className="space-y-1">
+                {daySessions.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => addToSession(s.id)}
+                    className="
+                      w-full rounded-lg border border-[var(--border-divider)]
+                      px-2 py-1 text-left text-xs
+                      hover:bg-[var(--bg-surface-soft)]
+                    "
+                  >
+                    <div className="font-semibold">
+                      {s.start_time.slice(0, 5)}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      {s.location} · {s.participant_count}명
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="px-5 py-3 text-[11px] text-[var(--text-muted)]">
+        * 연한 배경은 다음 주 일정입니다.
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/home/ClinicTodaySummary.tsx
+==========================================================================================
+// PATH: src/features/clinic/components/home/ClinicTodaySummary.tsx
+import { KPI, Button } from "@/shared/ui/ds";
+import { ClinicParticipant } from "../../api/clinicParticipants.api";
+
+function groupBySession(rows: ClinicParticipant[]) {
+  const map = new Map<number, ClinicParticipant[]>();
+  rows.forEach((r) => {
+    if (!r.session) return;
+    map.set(r.session, [...(map.get(r.session) ?? []), r]);
+  });
+
+  const items = Array.from(map.entries()).map(([sessionId, rs]) => {
+    const first = rs[0];
+    const time = (first?.session_start_time || "").slice(0, 5) || "-";
+    const end = first?.session_end_time ? first.session_end_time.slice(0, 5) : "";
+    const location = first?.session_location || "";
+    const booked = rs.filter((x) => x.status === "booked").length;
+    const noShow = rs.filter((x) => x.status === "no_show").length;
+
+    return {
+      sessionId,
+      time,
+      end,
+      location,
+      total: rs.length,
+      booked,
+      noShow,
+    };
+  });
+
+  items.sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
+  return items;
+}
+
+export default function ClinicTodaySummary({
+  date,
+  rows,
+  loading,
+  onGoOperations,
+  onGoBookings,
+}: {
+  date: string;
+  rows: ClinicParticipant[];
+  loading: boolean;
+  onGoOperations: () => void;
+  onGoBookings: () => void;
+}) {
+  const sessions = groupBySession(rows);
+
+  const booked = rows.filter((r) => r.status === "booked").length;
+  const noShow = rows.filter((r) => r.status === "no_show").length;
+
+  return (
+    <div className="ds-panel" data-panel-variant="primary">
+      <div className="clinic-card__header flex items-center justify-between">
+        <div>
+          <div
+            style={{
+              fontSize: "var(--text-md)",
+              fontWeight: "var(--font-title)",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            오늘 클리닉
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--color-text-muted)",
+              marginTop: "var(--space-1)",
+            }}
+          >
+            {date}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" intent="secondary" onClick={onGoBookings}>
+            예약 추가
+          </Button>
+          <Button size="sm" intent="primary" onClick={onGoOperations}>
+            운영 처리
+          </Button>
+        </div>
+      </div>
+
+      <div
+        className="clinic-card__body"
+        style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}
+      >
+        <div className="grid grid-cols-3 gap-3">
+          <KPI label="총 인원" value={rows.length} />
+          <KPI label="예약" value={booked} />
+          <KPI
+            label="불참"
+            value={noShow}
+            hint={noShow > 0 ? "확인 필요" : undefined}
+          />
+        </div>
+        {noShow > 0 && (
+          <div
+            style={{
+              fontSize: "var(--text-sm)",
+              color: "var(--color-error)",
+              fontWeight: "var(--font-meta)",
+            }}
+          >
+            불참 {noShow}명
+          </div>
+        )}
+
+        {loading && (
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            불러오는 중...
+          </div>
+        )}
+
+        {!loading && sessions.length === 0 && (
+          <div
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            오늘 예정된 클리닉이 없습니다.
+          </div>
+        )}
+
+        {!loading && sessions.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+            {sessions.map((s) => (
+              <div
+                key={s.sessionId}
+                className="clinic-kpi-block"
+                style={{
+                  padding: "var(--space-3) var(--space-4)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: "var(--space-3)",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: "var(--text-xs)",
+                      fontWeight: "var(--font-title)",
+                      color: "var(--color-text-primary)",
+                    }}
+                  >
+                    {s.time}
+                    {s.end ? ` ~ ${s.end}` : ""} · {s.total}명
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-text-muted)",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {s.location}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--color-text-muted)",
+                      fontWeight: "var(--font-meta)",
+                    }}
+                  >
+                    예약 {s.booked}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: s.noShow > 0 ? "var(--color-error)" : "var(--color-text-muted)",
+                      fontWeight: "var(--font-meta)",
+                    }}
+                  >
+                    불참 {s.noShow}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/home/ClinicWeeklySummary.tsx
+==========================================================================================
+// PATH: src/features/clinic/components/home/ClinicWeeklySummary.tsx
+import dayjs from "dayjs";
+import { ClinicParticipant } from "../../api/clinicParticipants.api";
+
+type SessionBlock = {
+  sessionId: number;
+  start: string;
+  end?: string;
+  count: number;
+};
+
+function buildWeek(from: string) {
+  return Array.from({ length: 7 }, (_, i) =>
+    dayjs(from).add(i, "day").format("YYYY-MM-DD")
+  );
+}
+
+function buildSessionBlocks(rows: ClinicParticipant[]): SessionBlock[] {
+  const bySession = new Map<number, ClinicParticipant[]>();
+
+  rows.forEach((r) => {
+    if (!r.session) return;
+    bySession.set(r.session, [...(bySession.get(r.session) ?? []), r]);
+  });
+
+  const blocks: SessionBlock[] = [];
+
+  for (const [sessionId, items] of bySession.entries()) {
+    const first = items[0];
+    const start = (first.session_start_time || "").slice(0, 5);
+    const end = first.session_end_time
+      ? first.session_end_time.slice(0, 5)
+      : undefined;
+
+    blocks.push({
+      sessionId,
+      start,
+      end,
+      count: items.length,
+    });
+  }
+
+  blocks.sort((a, b) => (a.start > b.start ? 1 : -1));
+  return blocks;
+}
+
+export default function ClinicWeeklySummary({
+  from,
+  to,
+  rows,
+  loading,
+  onSelectDay,
+}: {
+  from: string;
+  to: string;
+  rows: ClinicParticipant[];
+  loading: boolean;
+  onSelectDay: (date: string) => void;
+}) {
+  const days = buildWeek(from);
+
+  const rowsByDay: Record<string, ClinicParticipant[]> = Object.fromEntries(
+    days.map((d) => [d, []])
+  );
+
+  rows.forEach((r) => {
+    if (rowsByDay[r.session_date]) {
+      rowsByDay[r.session_date].push(r);
+    }
+  });
+
+  return (
+    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
+      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
+        <div className="text-sm font-semibold">주간 요약</div>
+        <div className="text-xs text-[var(--text-muted)]">
+          {from} ~ {to}
+        </div>
+      </div>
+
+      <div className="p-5">
+        {loading && (
+          <div className="text-xs text-[var(--text-muted)]">불러오는 중...</div>
+        )}
+
+        {!loading && (
+          <div className="grid grid-cols-7 gap-2">
+            {days.map((d) => {
+              const dayRows = rowsByDay[d];
+              const blocks = buildSessionBlocks(dayRows);
+              const sessionCount = blocks.length;
+              const participantCount = dayRows.length;
+              const dow = dayjs(d).format("dd");
+
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => onSelectDay(d)}
+                  className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-3 text-left hover:bg-[var(--bg-surface)]"
+                >
+                  {/* 요일 헤더 */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold">{dow}</div>
+                    <div className="text-[11px] text-[var(--text-muted)]">
+                      {sessionCount}회 | {participantCount}명
+                    </div>
+                  </div>
+
+                  {/* 세션 타임 블록 */}
+                  <div className="mt-2 space-y-1">
+                    {blocks.map((b) => (
+                      <div
+                        key={b.sessionId}
+                        className="text-[11px] rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-2 py-1 font-medium"
+                      >
+                        [{b.start}
+                        {b.end ? ` ~ ${b.end}` : ""} | {b.count}명]
+                      </div>
+                    ))}
+
+                    {blocks.length === 0 && (
+                      <div className="text-[11px] text-[var(--text-muted)]">
+                        일정 없음
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="px-5 pb-4">
+        <div className="text-[11px] text-[var(--text-muted)]">
+          * 날짜 클릭 시 해당 일자의 운영 화면으로 이동합니다.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: hooks/index.ts
+==========================================================================================
+// PATH: src/features/clinic/hooks/index.ts
+export * from "./useClinicTargets";
+export * from "./useClinicParticipants";
+export * from "./useClinicStudentSearch";
+
+
+==========================================================================================
+# FILE: hooks/useClinicParticipants.ts
+==========================================================================================
+// PATH: src/features/clinic/hooks/useClinicParticipants.ts
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchClinicParticipants,
+  patchClinicParticipantStatus,
+  ClinicParticipantStatus,
+} from "../api/clinicParticipants.api";
+
+export function useClinicParticipants(params: {
+  session?: number;
+  session_date_from?: string;
+  session_date_to?: string;
+  status?: ClinicParticipantStatus;
+}) {
+  const qc = useQueryClient();
+
+  // ✅ Home / Reports 에서 날짜 기반 조회 허용
+  const enabled =
+    !!params.session ||
+    (!!params.session_date_from && !!params.session_date_to);
+
+  const listQ = useQuery({
+    queryKey: ["clinic-participants", params],
+    queryFn: () => fetchClinicParticipants(params),
+    enabled,
+  });
+
+  const patchM = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: any }) =>
+      patchClinicParticipantStatus(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+    },
+  });
+
+  return { listQ, patchM };
+}
+
+
+==========================================================================================
+# FILE: hooks/useClinicStudentSearch.ts
+==========================================================================================
+// PATH: src/features/clinic/hooks/useClinicStudentSearch.ts
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { searchClinicStudents } from "../api/clinicStudents.api";
+
+/**
+ * 대기업 실무 기준:
+ * - 입력 즉시 쿼리 X (디바운스)
+ * - 최소 2글자부터
+ * - 네트워크 흔들려도 UX 안정
+ */
+export function useClinicStudentSearch(raw: string) {
+  const [q, setQ] = useState(raw);
+
+  useEffect(() => {
+    const t = setTimeout(() => setQ(raw.trim()), 250);
+    return () => clearTimeout(t);
+  }, [raw]);
+
+  const enabled = useMemo(() => q.length >= 2, [q]);
+
+  return useQuery({
+    queryKey: ["clinic-student-search", q],
+    queryFn: () => searchClinicStudents({ q }),
+    enabled,
+    staleTime: 10_000,
+    retry: 0,
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useClinicTargets.ts
+==========================================================================================
+import { useQuery } from "@tanstack/react-query";
+import { fetchClinicTargets } from "../api/clinicTargets";
+
+export function useClinicTargets() {
+  return useQuery({
+    queryKey: ["clinic-targets"],
+    queryFn: fetchClinicTargets,
+    staleTime: 10_000,
+  });
+}
+
+
+==========================================================================================
+# FILE: pages/BookingsPage/ClinicBookingsPage.tsx
+==========================================================================================
+// PATH: src/features/clinic/pages/BookingsPage/ClinicBookingsPage.tsx
+import { useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import dayjs from "dayjs";
+
+import ClinicTargetTable from "../../components/bookings/ClinicTargetTable";
+import WeeklyClinicBoard from "../../components/bookings/WeeklyClinicBoard";
+import ClinicCreatePanel from "../../components/ClinicCreatePanel";
+import { useClinicTargets } from "../../hooks/useClinicTargets";
+import { useClinicParticipants } from "../../hooks/useClinicParticipants";
+
+function useQueryParam(name: string) {
+  const loc = useLocation();
+  return useMemo(() => new URLSearchParams(loc.search).get(name), [loc.search, name]);
+}
+
+export default function ClinicBookingsPage() {
+  const focus = useQueryParam("focus"); // "required" | null
+  const today = dayjs().format("YYYY-MM-DD");
+
+  const [selected, setSelected] = useState<number[]>([]);
+
+  // 이번 주(rolling이 아니라 월~일) 기준으로 "이미 예약된 enrollment" 체크
+  // - 예약 필수는 clinic 상태(취소 제외) 기준으로 미예약을 강조
+  const wk = useMemo(() => {
+    const d = dayjs(today);
+    const start = d.startOf("week").add(1, "day");
+    const end = start.add(6, "day");
+    return { from: start.format("YYYY-MM-DD"), to: end.format("YYYY-MM-DD") };
+  }, [today]);
+
+  const targetsQ = useClinicTargets();
+  const weekP = useClinicParticipants({
+    session_date_from: wk.from,
+    session_date_to: wk.to,
+  });
+
+  const bookedEnrollmentIds = useMemo(() => {
+    const set = new Set<number>();
+    (weekP.listQ.data ?? []).forEach((p) => {
+      if (!p.enrollment_id) return;
+      if (p.status === "cancelled") return;
+      set.add(p.enrollment_id);
+    });
+    return set;
+  }, [weekP.listQ.data]);
+
+  const requiredEnrollmentIds = useMemo(() => {
+    const targets = targetsQ.data ?? [];
+    return targets
+      .filter((t) => !bookedEnrollmentIds.has(t.enrollment_id))
+      .map((t) => t.enrollment_id);
+  }, [targetsQ.data, bookedEnrollmentIds]);
+
+  // focus=required 로 들어오면 "필수 대상자"를 자동 선택 (초기 1회)
+  const autoSelected = useMemo(() => {
+    if (focus !== "required") return null;
+    return requiredEnrollmentIds;
+  }, [focus, requiredEnrollmentIds]);
+
+  // 초기 자동 선택: 기존 selected가 비어있을 때만 덮어씀
+  if (autoSelected && selected.length === 0 && autoSelected.length > 0) {
+    // setState는 렌더 중 호출이지만, 이 컴포넌트는 라우트 진입 시 1회만 목적임
+    // 실제 런타임에서 경고가 싫으면 useEffect로 옮기면 됨 (여기선 국소 변경 유지)
+    setSelected(autoSelected);
+  }
+
+  return (
+    <div className="flex gap-4">
+      {/* 좌측: 예약 대상자 */}
+      <div className="w-[360px] shrink-0">
+        <ClinicTargetTable selected={selected} onChangeSelected={setSelected} />
+      </div>
+
+      {/* 중앙: 기존 클리닉 주간 보드 */}
+      <div className="flex-1">
+        <WeeklyClinicBoard baseDate={today} selectedEnrollmentIds={selected} />
+      </div>
+
+      {/* 우측: 생성 패널 (기존 유지) */}
+      <div className="w-[420px] shrink-0">
+        <ClinicCreatePanel
+          defaultMode="targets"
+          selectedTargetEnrollmentIds={selected}
+          onChangeSelectedTargetEnrollmentIds={setSelected}
+          onCreated={() => setSelected([])}
+        />
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/HomePage/ClinicHomePage.tsx
+==========================================================================================
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import dayjs from "dayjs";
+
+import { DatePicker } from "@/shared/ui/date";
+
+import { Button, KPI } from "@/shared/ui/ds";
+import { useClinicParticipants } from "../../hooks/useClinicParticipants";
+import { useClinicTargets } from "../../hooks/useClinicTargets";
+import ClinicTodaySummary from "../../components/home/ClinicTodaySummary";
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function weekRangeISO(base: string) {
+  const d = dayjs(base);
+  const start = d.startOf("week").add(1, "day");
+  const end = start.add(6, "day");
+  return { from: start.format("YYYY-MM-DD"), to: end.format("YYYY-MM-DD") };
+}
+
+export default function ClinicHomePage() {
+  const nav = useNavigate();
+  const [date, setDate] = useState(todayISO());
+
+  const wk = useMemo(() => weekRangeISO(date), [date]);
+
+  const todayQ = useClinicParticipants({
+    session_date_from: date,
+    session_date_to: date,
+  });
+
+  const weekQ = useClinicParticipants({
+    session_date_from: wk.from,
+    session_date_to: wk.to,
+  });
+
+  const targetsQ = useClinicTargets();
+
+  const bookedEnrollmentIds = useMemo(() => {
+    const set = new Set<number>();
+    (weekQ.listQ.data ?? []).forEach((p) => {
+      if (!p.enrollment_id) return;
+      if (p.status === "cancelled") return;
+      set.add(p.enrollment_id);
+    });
+    return set;
+  }, [weekQ.listQ.data]);
+
+  const requiredCount = useMemo(() => {
+    const targets = targetsQ.data ?? [];
+    return targets.filter((t) => !bookedEnrollmentIds.has(t.enrollment_id))
+      .length;
+  }, [targetsQ.data, bookedEnrollmentIds]);
+
+  const weekDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = dayjs(wk.from).add(i, "day");
+      return { date: d.format("YYYY-MM-DD"), dow: d.format("dd") };
+    });
+  }, [wk.from]);
+
+  const rowsByDay = useMemo(() => {
+    const map: Record<string, { total: number; byTime: Record<string, number> }> =
+      {};
+    weekDays.forEach((d) => {
+      map[d.date] = { total: 0, byTime: {} };
+    });
+
+    (weekQ.listQ.data ?? []).forEach((r) => {
+      const key = r.session_date;
+      if (!map[key]) return;
+      const t = (r.session_start_time || "").slice(0, 5);
+      map[key].byTime[t] = (map[key].byTime[t] ?? 0) + 1;
+      map[key].total += 1;
+    });
+
+    return map;
+  }, [weekQ.listQ.data, weekDays]);
+
+  return (
+    <div className="flex flex-col gap-[var(--space-6)]">
+        {/* 툴바: 날짜 선택 (도메인 타이틀은 Layout에서) */}
+        <div className="flex items-center justify-end">
+          <DatePicker
+            value={date}
+            onChange={setDate}
+            placeholder="날짜 선택"
+          />
+        </div>
+
+        {/* 상단 3열: 오늘 클리닉 · 예약 필수 · 예약 신청 */}
+        <div className="grid grid-cols-1 gap-[var(--space-6)] lg:grid-cols-3">
+          <ClinicTodaySummary
+            date={date}
+            rows={todayQ.listQ.data ?? []}
+            loading={todayQ.listQ.isLoading}
+            onGoOperations={() => nav("/admin/clinic/operations")}
+            onGoBookings={() => nav("/admin/clinic/bookings")}
+          />
+
+          <div className="ds-panel" data-panel-variant="default">
+            <div className="clinic-card__header">
+              <div
+                style={{
+                  fontSize: "var(--text-md)",
+                  color: "var(--color-text-primary)",
+                  fontWeight: "var(--font-title)",
+                }}
+              >
+                예약 필수 대상자
+              </div>
+              <div
+                className="mt-1"
+                style={{
+                  fontSize: "var(--text-sm)",
+                  color: "var(--color-text-muted)",
+                  fontWeight: "var(--font-meta)",
+                }}
+              >
+                이번 주 미예약
+              </div>
+            </div>
+            <div className="clinic-card__body flex items-end justify-between">
+              <KPI
+                label=""
+                value={requiredCount}
+                hint={requiredCount > 0 ? "확인 필요" : undefined}
+              />
+              <Button
+                type="button"
+                intent="primary"
+                size="sm"
+                onClick={() => nav("/admin/clinic/bookings?focus=required")}
+              >
+                관리 이동
+              </Button>
+            </div>
+          </div>
+
+          <div className="ds-panel" data-panel-variant="subtle">
+            <div className="clinic-card__header">
+              <div
+                style={{
+                  fontSize: "var(--text-md)",
+                  color: "var(--color-text-primary)",
+                  fontWeight: "var(--font-title)",
+                }}
+              >
+                예약 신청자
+              </div>
+            </div>
+            <div className="clinic-card__body">
+              <div
+                style={{
+                  fontSize: "var(--text-md)",
+                  color: "var(--color-text-muted)",
+                  fontWeight: "var(--font-meta)",
+                }}
+              >
+                현재 없음
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 주간 일정 */}
+        <div className="ds-panel" data-panel-variant="default">
+          <div className="clinic-card__header">
+            <div
+              style={{
+                fontSize: "var(--text-lg)",
+                fontWeight: "var(--font-title)",
+                color: "var(--color-text-primary)",
+              }}
+            >
+              주간 일정
+            </div>
+            <div
+              className="mt-1"
+              style={{
+                fontSize: "var(--text-sm)",
+                color: "var(--color-text-muted)",
+                fontWeight: "var(--font-meta)",
+              }}
+            >
+              {wk.from} ~ {wk.to}
+            </div>
+          </div>
+          <div
+            className="grid grid-cols-1 gap-[var(--space-4)] md:grid-cols-7"
+            style={{ padding: "var(--space-6)" }}
+          >
+            {weekDays.map((d) => {
+              const info = rowsByDay[d.date];
+              const times = Object.keys(info.byTime).sort();
+              const isToday = d.date === date;
+
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  onClick={() => {
+                    setDate(d.date);
+                    nav(`/admin/clinic/operations?date=${d.date}`);
+                  }}
+                  className="clinic-day-cell !block !w-full !text-left !justify-start"
+                  style={{
+                    borderColor: isToday ? "var(--color-primary)" : undefined,
+                    borderWidth: isToday ? 2 : 1,
+                    background: isToday
+                      ? "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))"
+                      : undefined,
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-between"
+                    style={{ marginBottom: "var(--space-3)" }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "var(--text-lg)",
+                        fontWeight: "var(--font-title)",
+                        color: isToday
+                          ? "var(--color-primary)"
+                          : "var(--color-text-primary)",
+                      }}
+                    >
+                      {d.dow}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "var(--text-sm)",
+                        color: "var(--color-text-muted)",
+                        fontWeight: "var(--font-meta)",
+                      }}
+                    >
+                      {times.length}회 · {info.total}명
+                    </div>
+                  </div>
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: "var(--space-2)" }}
+                  >
+                    {times.map((t) => (
+                      <div
+                        key={t}
+                        className="clinic-kpi-block text-sm font-medium"
+                        style={{
+                          color: "var(--color-text-primary)",
+                          fontWeight: "var(--font-meta)",
+                        }}
+                      >
+                        {t} 시작 · {info.byTime[t]}명
+                      </div>
+                    ))}
+                    {times.length === 0 && (
+                      <div
+                        style={{
+                          fontSize: "var(--text-sm)",
+                          color: "var(--color-text-muted)",
+                        }}
+                      >
+                        일정 없음
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/OperationsPage/ClinicOperationsPage.tsx
+==========================================================================================
+// PATH: src/features/clinic/pages/OperationsPage/ClinicOperationsPage.tsx
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import dayjs from "dayjs";
+import { useQuery } from "@tanstack/react-query";
+
+import { useClinicParticipants } from "../../hooks/useClinicParticipants";
+import type { ClinicParticipantStatus } from "../../api/clinicParticipants.api";
+
+import {
+  fetchClinicSessionTree,
+  type ClinicSessionTreeNode,
+} from "../../api/clinicSessions.api";
+
+import OperationsSessionTree from "../../components/OperationsSessionTree";
+import ClinicDaySchedulePanel from "../../components/ClinicDaySchedulePanel";
+import ClinicCreatePanel from "../../components/ClinicCreatePanel";
+import ClinicRemoteControl from "../../components/ClinicRemoteControl";
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function normalizeClinicStatusParam(
+  v: string | null
+): ClinicParticipantStatus | undefined {
+  if (!v) return undefined;
+  if (v === "NO_SHOW") return "no_show";
+  if (v === "DONE") return "attended";
+  if (v === "CANCELED") return "cancelled";
+  if (v === "BOOKED") return "booked";
+  if (
+    v === "no_show" ||
+    v === "attended" ||
+    v === "cancelled" ||
+    v === "booked"
+  ) {
+    return v;
+  }
+  return undefined;
+}
+
+function rangeFromMode(baseISO: string, mode: "day" | "week" | "month") {
+  const d = dayjs(baseISO);
+  if (mode === "day")
+    return { from: d.format("YYYY-MM-DD"), to: d.format("YYYY-MM-DD") };
+  if (mode === "week") {
+    const start = d.startOf("week").add(1, "day");
+    return {
+      from: start.format("YYYY-MM-DD"),
+      to: start.add(6, "day").format("YYYY-MM-DD"),
+    };
+  }
+  return {
+    from: d.startOf("month").format("YYYY-MM-DD"),
+    to: d.endOf("month").format("YYYY-MM-DD"),
+  };
+}
+
+export default function ClinicOperationsPage() {
+  const [sp] = useSearchParams();
+  const clinicStatus = normalizeClinicStatusParam(sp.get("status"));
+
+  const [baseDate, setBaseDate] = useState(() => todayISO());
+  const [mode, setMode] = useState<"day" | "week" | "month">("day");
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+
+  const range = useMemo(() => rangeFromMode(baseDate, mode), [baseDate, mode]);
+
+  const participants = useClinicParticipants({
+    session: selectedSessionId ?? undefined,
+    session_date_from: range.from,
+    session_date_to: range.to,
+    status: clinicStatus,
+  });
+
+  const ym = useMemo(() => {
+    const d = dayjs(baseDate);
+    return { year: d.year(), month: d.month() + 1 };
+  }, [baseDate]);
+
+  const treeQ = useQuery({
+    queryKey: ["clinic-sessions-tree", ym.year, ym.month],
+    queryFn: () => fetchClinicSessionTree({ year: ym.year, month: ym.month }),
+    retry: 0,
+  });
+
+  return (
+    <div className="flex gap-4">
+      {/* 좌측: 날짜 트리 */}
+      <div className="hidden lg:block">
+        <OperationsSessionTree
+          sessions={treeQ.data ?? []}
+          selectedDay={baseDate}
+          year={ym.year}
+          month={ym.month}
+          onSelectDay={(date) => {
+            setBaseDate(date);
+            setMode("day");
+            setSelectedSessionId(null);
+          }}
+          onClear={() => setSelectedSessionId(null)}
+        />
+      </div>
+
+      {/* 중간: 일정(참가자 기준) */}
+      <div className="w-[360px] shrink-0">
+        <ClinicDaySchedulePanel date={baseDate} rows={participants.listQ.data ?? []} />
+      </div>
+
+      {/* 우측: 생성 패널 + 리모컨 */}
+      <div className="flex-1 space-y-4">
+        <ClinicRemoteControl />
+        <ClinicCreatePanel date={baseDate} />
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/ReportsPage/ClinicReportsPage.tsx
+==========================================================================================
+// PATH: src/features/clinic/pages/ReportsPage/ClinicReportsPage.tsx
+
+import { useMemo, useState } from "react";
+import dayjs from "dayjs";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/shared/api/axios";
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
+}
+
+type ClinicSession = {
+  id: number;
+  date: string; // YYYY-MM-DD
+  start_time: string; // HH:MM or HH:MM:SS
+  duration_minutes?: number;
+  location?: string;
+  participant_count?: number;
+};
+
+type DayCell = {
+  date: string; // YYYY-MM-DD
+  isCurrentMonth: boolean;
+};
+
+function normalizeList(resData: any): any[] {
+  if (Array.isArray(resData)) return resData;
+  if (Array.isArray(resData?.results)) return resData.results;
+  return [];
+}
+
+function startTimeHHMM(v: string) {
+  if (!v) return "";
+  return v.slice(0, 5);
+}
+
+function buildMonthCalendar(year: number, month: number): DayCell[] {
+  const first = dayjs(`${year}-${String(month).padStart(2, "0")}-01`);
+  const startDow = first.day(); // 0=Sun
+  const start = first.subtract(startDow, "day");
+
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = start.add(i, "day");
+    return {
+      date: d.format("YYYY-MM-DD"),
+      isCurrentMonth: d.month() + 1 === month,
+    };
+  });
+}
+
+function monthRangeISO(year: number, month: number) {
+  const first = dayjs(`${year}-${String(month).padStart(2, "0")}-01`);
+  return {
+    from: first.startOf("month").format("YYYY-MM-DD"),
+    to: first.endOf("month").format("YYYY-MM-DD"),
+  };
+}
+
+export default function ClinicReportsPage() {
+  const today = dayjs();
+  const [ym, setYm] = useState(() => ({
+    year: today.year(),
+    month: today.month() + 1,
+  }));
+  const [mode, setMode] = useState<"detail" | "compact">("detail");
+
+  // compact 모드: "폴더 접기"처럼 날짜 단위 접기/펼치기
+  const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>(
+    {}
+  );
+
+  function moveMonth(diff: number) {
+    const d = dayjs(`${ym.year}-${String(ym.month).padStart(2, "0")}-01`).add(
+      diff,
+      "month"
+    );
+    setYm({ year: d.year(), month: d.month() + 1 });
+    setCollapsedDays({}); // 달 바뀌면 접기 상태 초기화
+  }
+
+  const range = useMemo(() => monthRangeISO(ym.year, ym.month), [ym.year, ym.month]);
+
+  const sessionsQ = useQuery({
+    queryKey: ["clinic-sessions-month", range.from, range.to],
+    queryFn: async () => {
+      const res = await api.get("/clinic/sessions/", {
+        params: { date_from: range.from, date_to: range.to, ordering: "date,start_time" },
+      });
+      const rows = normalizeList(res.data) as any[];
+      // 최소 필드만 안전하게 정규화
+      return rows.map((r: any) => ({
+        id: Number(r.id),
+        date: String(r.date),
+        start_time: String(r.start_time ?? ""),
+        duration_minutes:
+          r.duration_minutes == null ? undefined : Number(r.duration_minutes),
+        location: r.location == null ? undefined : String(r.location),
+        participant_count:
+          r.participant_count == null ? undefined : Number(r.participant_count),
+      })) as ClinicSession[];
+    },
+    staleTime: 10_000,
+    retry: 0,
+  });
+
+  const sessions = sessionsQ.data ?? [];
+
+  const sessionsByDate = useMemo(() => {
+    const map: Record<string, ClinicSession[]> = {};
+    sessions.forEach((s) => {
+      map[s.date] ??= [];
+      map[s.date].push(s);
+    });
+    // 시간순 정렬
+    Object.keys(map).forEach((k) => {
+      map[k].sort((a, b) => (startTimeHHMM(a.start_time) > startTimeHHMM(b.start_time) ? 1 : -1));
+    });
+    return map;
+  }, [sessions]);
+
+  const cells = useMemo(() => buildMonthCalendar(ym.year, ym.month), [ym.year, ym.month]);
+
+  const monthLabel = useMemo(() => {
+    // "2026 Jan" 형태
+    const d = dayjs(`${ym.year}-${String(ym.month).padStart(2, "0")}-01`);
+    return `${d.format("YYYY")} ${d.format("MMM")}`;
+  }, [ym.year, ym.month]);
+
+  const compactDays = useMemo(() => {
+    // 일정 있는 날짜만: 빈 캘린더 영역 자체를 없애버림
+    const keys = Object.keys(sessionsByDate).sort((a, b) => (a > b ? 1 : -1));
+    return keys.map((date) => ({
+      date,
+      dow: dayjs(date).format("dd"),
+      items: sessionsByDate[date] ?? [],
+    }));
+  }, [sessionsByDate]);
+
+  const hasAny = sessions.length > 0;
+
+  const toggleDay = (date: string) => {
+    setCollapsedDays((prev) => ({ ...prev, [date]: !prev[date] }));
+  };
+
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    compactDays.forEach((d) => (next[d.date] = false));
+    setCollapsedDays(next);
+  };
+
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    compactDays.forEach((d) => (next[d.date] = true));
+    setCollapsedDays(next);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="space-y-1">
+        <div className="text-xl font-semibold">리포트</div>
+        <div className="text-xs text-[var(--text-muted)]">
+          월 단위 클리닉 현황 (과거 기록 포함) · 서버 단일진실 기반
+        </div>
+      </div>
+
+      {/* Control Bar (LEFT ALIGNED — 절대 우측정렬 금지) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          className="h-[34px] px-3 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm hover:bg-[var(--bg-surface-soft)]"
+          onClick={() => moveMonth(-1)}
+        >
+          ← 이전달
+        </button>
+
+        <button
+          className="h-[34px] px-3 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm hover:bg-[var(--bg-surface-soft)]"
+          onClick={() => moveMonth(1)}
+        >
+          다음달 →
+        </button>
+
+        <div className="ml-2 px-2 py-1 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+          <div className="text-base font-semibold leading-none">{monthLabel}</div>
+        </div>
+
+        <div className="ml-2 flex gap-1">
+          <button
+            onClick={() => setMode("detail")}
+            className={cx(
+              "h-[32px] px-3 rounded-lg text-sm border border-[var(--border-divider)]",
+              mode === "detail" &&
+                "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-[var(--color-primary)]"
+            )}
+          >
+            자세히
+          </button>
+          <button
+            onClick={() => setMode("compact")}
+            className={cx(
+              "h-[32px] px-3 rounded-lg text-sm border border-[var(--border-divider)]",
+              mode === "compact" &&
+                "bg-[var(--color-primary)] text-[var(--color-on-primary)] border-[var(--color-primary)]"
+            )}
+          >
+            간략히
+          </button>
+        </div>
+
+        {mode === "compact" && (
+          <div className="flex items-center gap-2">
+            <button
+              className="h-[32px] px-3 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm hover:bg-[var(--bg-surface-soft)]"
+              onClick={expandAll}
+              disabled={!hasAny}
+            >
+              모두 펼치기
+            </button>
+            <button
+              className="h-[32px] px-3 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm hover:bg-[var(--bg-surface-soft)]"
+              onClick={collapseAll}
+              disabled={!hasAny}
+            >
+              모두 접기
+            </button>
+          </div>
+        )}
+
+        {sessionsQ.isLoading && (
+          <div className="text-xs text-[var(--text-muted)] ml-2">불러오는 중...</div>
+        )}
+      </div>
+
+      {/* Content */}
+      {mode === "detail" ? (
+        // ✅ 자세히: 달력 + 여백 + 시각 강조
+        <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-xs font-semibold">
+            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+              <div key={d} className="px-3 py-2">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 auto-rows-[132px]">
+            {cells.map((c) => {
+              const items = sessionsByDate[c.date] ?? [];
+              const has = items.length > 0;
+
+              return (
+                <div
+                  key={c.date}
+                  className={cx(
+                    "border-t border-r border-[var(--border-divider)] p-2",
+                    !c.isCurrentMonth && "bg-[var(--bg-surface-soft)] opacity-60",
+                    has && c.isCurrentMonth && "bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--bg-surface))]"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className={cx("text-xs font-semibold", has && "text-[var(--text-primary)]")}>
+                      {c.date.slice(8)}
+                    </div>
+
+                    {has && (
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full"
+                        style={{ background: "var(--color-primary)" }}
+                        title={`${items.length}개 일정`}
+                      />
+                    )}
+                  </div>
+
+                  {has && (
+                    <div className="mt-2 space-y-1">
+                      {items.slice(0, 3).map((s) => (
+                        <div
+                          key={s.id}
+                          className={cx(
+                            "text-[11px] rounded-md px-2 py-1 font-semibold",
+                            "border border-[color-mix(in_srgb,var(--color-primary)_20%,var(--border-divider))]",
+                            "bg-[var(--bg-surface)]"
+                          )}
+                        >
+                          {startTimeHHMM(s.start_time)} · 클리닉
+                          {s.location ? (
+                            <span className="ml-1 text-[var(--text-muted)] font-medium">
+                              · {s.location}
+                            </span>
+                          ) : null}
+                        </div>
+                      ))}
+
+                      {items.length > 3 && (
+                        <div className="text-[11px] text-[var(--text-muted)]">
+                          + {items.length - 3}개 더 있음
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="px-5 py-3 text-[11px] text-[var(--text-muted)] border-t border-[var(--border-divider)]">
+            * 데이터: /clinic/sessions/?date_from={range.from}&date_to={range.to}
+          </div>
+        </div>
+      ) : (
+        // ✅ 간략히: “달력 영역 자체 제거” + 일정 있는 날만 폴더식 리스트
+        <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+            <div className="text-sm font-semibold">월간 일정 (간략)</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1">
+              일정 있는 날짜만 표시 · 빈 날짜 영역은 접혀서 사라집니다.
+            </div>
+          </div>
+
+          <div className="p-4">
+            {!sessionsQ.isLoading && !hasAny && (
+              <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-4 text-sm text-[var(--text-muted)]">
+                이번 달에 잡힌 클리닉 일정이 없습니다.
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {compactDays.map((d) => {
+                const collapsed = !!collapsedDays[d.date];
+                const count = d.items.length;
+
+                return (
+                  <div
+                    key={d.date}
+                    className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden"
+                  >
+                    {/* 폴더 헤더 */}
+                    <button
+                      type="button"
+                      onClick={() => toggleDay(d.date)}
+                      className={cx(
+                        "w-full px-4 py-3 flex items-center justify-between text-left",
+                        "bg-[var(--bg-surface-soft)] hover:bg-[var(--bg-surface)]"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-block w-2.5 h-2.5 rounded-full"
+                          style={{ background: "var(--color-primary)" }}
+                        />
+                        <div className="text-sm font-semibold">
+                          {d.date} <span className="text-[var(--text-muted)] font-medium">({d.dow})</span>
+                        </div>
+                        <div className="text-xs text-[var(--text-muted)] ml-2">
+                          {count}개
+                        </div>
+                      </div>
+
+                      <div className="text-sm text-[var(--text-muted)]">
+                        {collapsed ? "▶" : "▼"}
+                      </div>
+                    </button>
+
+                    {/* 폴더 내용 */}
+                    {!collapsed && (
+                      <div className="px-4 py-3 space-y-2">
+                        {d.items.map((s) => (
+                          <div
+                            key={s.id}
+                            className={cx(
+                              "rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3",
+                              "flex items-center justify-between gap-3"
+                            )}
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold">
+                                {startTimeHHMM(s.start_time)} · 클리닉
+                              </div>
+                              <div className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
+                                {s.location ? s.location : "장소 미지정"}
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 text-xs font-semibold">
+                              {typeof s.participant_count === "number" ? `${s.participant_count}명` : ""}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="text-[11px] text-[var(--text-muted)] mt-3">
+              * 데이터: /clinic/sessions/?date_from={range.from}&date_to={range.to}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/SettingsPage/ClinicSettingsPage.tsx
+==========================================================================================
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchClinicMe } from "../../api/clinicMe.api";
+import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
+import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import AdminModal from "@/shared/ui/modal/AdminModal";
+import { MODAL_WIDTH } from "@/shared/ui/modal";
+import ModalHeader from "@/shared/ui/modal/ModalHeader";
+import ModalBody from "@/shared/ui/modal/ModalBody";
+import ModalFooter from "@/shared/ui/modal/ModalFooter";
+
+export default function ClinicSettingsPage() {
+  const qc = useQueryClient();
+  const meQ = useQuery({
+    queryKey: ["clinic-me"],
+    queryFn: fetchClinicMe,
+  });
+
+  const canManage = !!meQ.data?.is_payroll_manager || !!meQ.data?.is_superuser;
+
+  if (meQ.isLoading) {
+    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  }
+
+  if (!canManage) {
+    return (
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-5">
+        <div className="text-sm font-semibold">권한이 없습니다.</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">
+          설정은 관리자만 접근 가능합니다.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <div className="text-lg font-semibold">설정</div>
+        <div className="text-xs text-[var(--text-muted)]">
+          * 정책/기준/자동화 설정은 서버 단일진실로 관리됩니다.
+        </div>
+      </div>
+
+      {/* 패스카드 배경 색상 설정 */}
+      <ClinicIdcardColorSettings />
+
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+          <div className="text-sm font-semibold">클리닉 정책</div>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            * 이 영역은 백엔드 정책 API가 준비되면 그대로 연결합니다.
+          </div>
+        </div>
+
+        <div className="p-5 space-y-3">
+          <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-5">
+            <div className="text-sm font-semibold">예시</div>
+            <div className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed">
+              - ProgressPolicy (컷라인/판정 기준)
+              <br />
+              - 자동 대상자 생성 on/off
+              <br />
+              - 예약 슬롯(시간/정원) 규칙
+              <br />
+              * 프론트는 “설정 UI”만 제공하고 저장/검증은 서버가 담당
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-4">
+          <div className="text-[11px] text-[var(--text-muted)]">
+            * 설정은 운영 안정성을 위해 “서버 검증”이 반드시 필요합니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 패스카드 배경 색상 설정 컴포넌트 */
+function ClinicIdcardColorSettings() {
+  const qc = useQueryClient();
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["clinic-settings"],
+    queryFn: fetchClinicSettings,
+  });
+
+  const [localColors, setLocalColors] = useState<[string, string, string]>(
+    settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"]
+  );
+
+  const updateMutation = useMutation({
+    mutationFn: (colors: [string, string, string]) => updateClinicSettings(colors),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-settings"] });
+      feedback.success("패스카드 배경 색상이 변경되었습니다.");
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail || "색상 저장에 실패했습니다.");
+    },
+  });
+
+  // 설정 로드 시 로컬 상태 동기화
+  useEffect(() => {
+    if (settings?.colors) {
+      setLocalColors(settings.colors);
+    }
+  }, [settings?.colors]);
+
+  const presetPalettes: Array<{ name: string; colors: [string, string, string] }> = [
+    { name: "빨강-파랑-초록", colors: ["#ef4444", "#3b82f6", "#22c55e"] },
+    { name: "주황-보라-핑크", colors: ["#f97316", "#a855f7", "#ec4899"] },
+    { name: "청록-노랑-주황", colors: ["#06b6d4", "#eab308", "#f97316"] },
+    { name: "보라-핑크-빨강", colors: ["#9333ea", "#ec4899", "#ef4444"] },
+    { name: "초록-청록-파랑", colors: ["#22c55e", "#06b6d4", "#3b82f6"] },
+    { name: "노랑-주황-빨강", colors: ["#eab308", "#f97316", "#ef4444"] },
+  ];
+
+  const [colorSelectModalOpen, setColorSelectModalOpen] = useState(false);
+  const [selectingColorIndex, setSelectingColorIndex] = useState<number | null>(null);
+
+  const handleColorChange = (index: number, color: string) => {
+    const newColors: [string, string, string] = [...localColors] as [string, string, string];
+    newColors[index] = color;
+    setLocalColors(newColors);
+  };
+
+  const handlePresetSelect = (colors: [string, string, string]) => {
+    setLocalColors(colors);
+  };
+
+  const handleOpenColorModal = (index: number) => {
+    setSelectingColorIndex(index);
+    setColorSelectModalOpen(true);
+  };
+
+  const handleColorSelect = (color: string) => {
+    if (selectingColorIndex !== null) {
+      handleColorChange(selectingColorIndex, color);
+    }
+    setColorSelectModalOpen(false);
+    setSelectingColorIndex(null);
+  };
+
+  const handleSave = () => {
+    updateMutation.mutate(localColors);
+  };
+
+  return (
+    <>
+      <style>{`
+        @keyframes idcard-background-flow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+          <div className="text-sm font-semibold">패스카드 배경 색상 (위조 방지)</div>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            수업 종료 후 "오늘은 빨 파 초로 해"라고 하면 배경이 해당 색상으로 변경됩니다.
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* 현재 선택된 색상 미리보기 */}
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-[var(--text-muted)]">현재 색상 미리보기</div>
+            <div
+              className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
+              style={{
+                background: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
+                backgroundSize: "200% 200%",
+                animation: "idcard-background-flow 8s ease infinite",
+              }}
+            />
+          </div>
+
+          {/* 색상 3개 선택 버튼 */}
+          <div className="space-y-3">
+            <div className="text-xs font-semibold text-[var(--text-muted)]">색상 선택 (3개)</div>
+            <div className="grid grid-cols-3 gap-3">
+              {[0, 1, 2].map((index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleOpenColorModal(index)}
+                  className="group relative h-20 rounded-lg border-2 border-[var(--border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors flex flex-col items-center justify-center gap-1"
+                  style={{
+                    background: localColors[index],
+                  }}
+                >
+                  <div className="text-xs font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    색상 {index + 1}
+                  </div>
+                  <div className="text-[10px] font-mono text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {localColors[index]}
+                  </div>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 프리셋 팔레트 */}
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-[var(--text-muted)]">빠른 선택</div>
+            <div className="grid grid-cols-3 gap-2">
+              {presetPalettes.map((preset, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handlePresetSelect(preset.colors)}
+                  className="group relative h-16 rounded-lg border-2 border-[var(--border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors"
+                  style={{
+                    background: `linear-gradient(135deg, ${preset.colors[0]} 0%, ${preset.colors[1]} 50%, ${preset.colors[2]} 100%)`,
+                  }}
+                  title={preset.name}
+                >
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                  <div className="absolute bottom-1 left-1 right-1 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {preset.name}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 저장 버튼 */}
+          <div className="pt-2">
+            <Button
+              intent="primary"
+              onClick={handleSave}
+              disabled={updateMutation.isPending || isLoading}
+              className="w-full"
+            >
+              {updateMutation.isPending ? "저장 중…" : "색상 저장"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 색상 선택 모달 */}
+      <ColorSelectModal
+        open={colorSelectModalOpen}
+        onClose={() => {
+          setColorSelectModalOpen(false);
+          setSelectingColorIndex(null);
+        }}
+        onSelect={handleColorSelect}
+        currentColor={selectingColorIndex !== null ? localColors[selectingColorIndex] : null}
+      />
+    </>
+  );
+}
+
+/** 색상 선택 모달 컴포넌트 */
+function ColorSelectModal({
+  open,
+  onClose,
+  onSelect,
+  currentColor,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (color: string) => void;
+  currentColor: string | null;
+}) {
+  // 기본 색상 팔레트
+  const colorPalette: Array<{ name: string; color: string }> = [
+    { name: "빨강", color: "#ef4444" },
+    { name: "파랑", color: "#3b82f6" },
+    { name: "초록", color: "#22c55e" },
+    { name: "주황", color: "#f97316" },
+    { name: "보라", color: "#a855f7" },
+    { name: "핑크", color: "#ec4899" },
+    { name: "노랑", color: "#eab308" },
+    { name: "청록", color: "#06b6d4" },
+    { name: "검정", color: "#000000" },
+    { name: "흰색", color: "#ffffff" },
+    { name: "회색", color: "#6b7280" },
+    { name: "갈색", color: "#92400e" },
+  ];
+
+  const [customColor, setCustomColor] = useState(currentColor || "#ef4444");
+
+  useEffect(() => {
+    if (currentColor) {
+      setCustomColor(currentColor);
+    }
+  }, [currentColor]);
+
+  return (
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.mediumModal}>
+      <ModalHeader title="색상 선택" onClose={onClose} />
+      <ModalBody>
+        <div className="p-5 space-y-4">
+          {/* 기본 색상 팔레트 */}
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">기본 색상</div>
+            <div className="grid grid-cols-6 gap-2">
+              {colorPalette.map((item) => (
+                <button
+                  key={item.color}
+                  type="button"
+                  onClick={() => onSelect(item.color)}
+                  className={`h-12 rounded-lg border-2 transition-all hover:scale-105 ${
+                    currentColor === item.color
+                      ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)] ring-offset-2"
+                      : "border-[var(--border-divider)] hover:border-[var(--color-primary)]"
+                  }`}
+                  style={{ background: item.color }}
+                  title={item.name}
+                >
+                  <span className="sr-only">{item.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 커스텀 색상 선택 */}
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">커스텀 색상</div>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={customColor}
+                onChange={(e) => setCustomColor(e.target.value)}
+                className="h-12 w-12 rounded-lg border-2 border-[var(--border-divider)] cursor-pointer"
+              />
+              <input
+                type="text"
+                value={customColor}
+                onChange={(e) => {
+                  if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                    setCustomColor(e.target.value);
+                  }
+                }}
+                className="flex-1 h-12 px-3 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] font-mono text-sm"
+                placeholder="#RRGGBB"
+              />
+              <Button
+                intent="primary"
+                onClick={() => onSelect(customColor)}
+                className="h-12 px-4"
+              >
+                선택
+              </Button>
+            </div>
+          </div>
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button intent="secondary" onClick={onClose}>
+          취소
+        </Button>
+      </ModalFooter>
+    </AdminModal>
+  );
+}
+
+
+==========================================================================================
+# FILE: utils/buildRollingWeek.ts
+==========================================================================================
+// PATH: src/features/clinic/utils/buildRollingWeek.ts
+import dayjs from "dayjs";
+
+/**
+ * 오늘 기준 월~일 7칸 생성
+ * - 오늘 이전 요일은 "다음주"로 이동
+ * - dayjs().day()만 사용 (plugin 금지)
+ */
+export function buildRollingWeek(baseISO: string) {
+  const base = dayjs(baseISO);
+
+  // day(): 0=일, 1=월 ... 6=토
+  const raw = base.day();
+  const todayDow = raw === 0 ? 7 : raw; // 월=1 ~ 일=7
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const dow = i + 1; // 월=1
+    let diff = dow - todayDow;
+
+    if (diff < 0) diff += 7;
+
+    const date = base.add(diff, "day");
+
+    return {
+      dow,
+      dateISO: date.format("YYYY-MM-DD"),
+      label: date.format("MM-DD"),
+      isToday: diff === 0,
+      isNextWeek: diff > 0 && dow < todayDow,
+    };
+  });
+}
+
+
+==========================================================================================
+# FILE: utils/timeSlots.ts
+==========================================================================================
+export function buildTimeSlots(
+  start = 9,
+  end = 22,
+  stepMinutes = 60
+) {
+  const slots: string[] = [];
+  for (let h = start; h < end; h++) {
+    const hh = String(h).padStart(2, "0");
+    slots.push(`${hh}:00`);
+  }
+  return slots;
+}

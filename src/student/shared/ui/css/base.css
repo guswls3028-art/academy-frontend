@@ -42,6 +42,13 @@ body {
 
   /* iOS overscroll bounce color */
   overscroll-behavior-y: none;
+  
+  /* 프리미엄: 배경 질감 추가 (미묘한 그리드 패턴) */
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.008) 1px, transparent 0),
+    linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.01));
+  background-size: 24px 24px, 100% 100%;
+  background-position: 0 0, 0 0;
 }
 
 /* Media elements */

@@ -1,0 +1,2037 @@
+====================================================================================================
+# FRONTEND FOLDER: features__homework
+# ROOT PATH: C:\academyfront\src\features\homework
+====================================================================================================
+
+
+==========================================================================================
+# FILE: queryKeys.ts
+==========================================================================================
+// PATH: src/features/homework/queryKeys.ts
+
+export const QUERY_KEYS = {
+  // ===== Scores (Session 성적 탭 단일 진실) =====
+  SESSION_SCORES: (sessionId: number) => ["session-scores", sessionId] as const,
+
+  // ===== Homework (단일 진실들) =====
+  ADMIN_HOMEWORK: (homeworkId: number) =>
+    ["admin-homework", homeworkId] as const,
+
+  HOMEWORK_POLICY: (sessionId: number) =>
+    ["homework-policy", sessionId] as const,
+
+  HOMEWORK_ASSIGNMENTS: (homeworkId: number) =>
+    ["homework-assignments", homeworkId] as const,
+
+  HOMEWORK_SESSION_ENROLLMENTS: (sessionId: number) =>
+    ["homework-session-enrollments", sessionId] as const,
+
+  HOMEWORKS_LIST: (sessionId: number) => ["homeworks", sessionId] as const,
+};
+
+
+==========================================================================================
+# FILE: types.ts
+==========================================================================================
+// PATH: src/features/homework/types.ts
+/**
+ * HomeworkPolicy (Session 단위 정책)
+ *
+ * ✅ LOCKED
+ * - 프론트는 "설정 입력"만 한다
+ * - passed/clinic 판단은 서버 단일 진실
+ *
+ * ✅ 추가 요구사항
+ * - 커트라인 입력 모드 선택 (% or 문항수)
+ * - 반올림 단위는 유지
+ * - 클리닉 옵션은 UI에서 제거 (자동 제공)
+ */
+
+export type HomeworkCutlineMode = "PERCENT" | "COUNT";
+
+export type HomeworkPolicy = {
+  id: number;
+  session: number;
+
+  cutline_mode: HomeworkCutlineMode; // "PERCENT" | "COUNT"
+  cutline_value: number; // 70 or 40
+
+  round_unit_percent: number; // percent 모드에서만 실질 의미 (예: 5)
+
+  created_at: string;
+  updated_at: string;
+};
+
+
+==========================================================================================
+# FILE: 스펙.js
+==========================================================================================
+// ⚠️ LOCKED
+// - Homework 1개 = cutline 1개
+// - Homework는 session당 여러 개 가능
+// - HomeworkScore는 "확정 스냅샷"
+// - AI 판정은 CLOSED 이후에도 가능
+// - 학생 화면은 여기서 다루지 않음
+
+
+==========================================================================================
+# FILE: 스펙.ts
+==========================================================================================
+// ⚠️ LOCKED
+// - Homework 1개 = cutline 1개
+// - Homework는 session당 여러 개 가능
+// - HomeworkScore는 "확정 스냅샷"
+// - AI 판정은 CLOSED 이후에도 가능
+// - 학생 화면은 여기서 다루지 않음
+
+
+==========================================================================================
+# FILE: api/adminHomework.ts
+==========================================================================================
+// PATH: src/features/homework/api/adminHomework.ts
+import api from "@/shared/api/axios";
+
+export type AdminHomeworkDetail = {
+  id: number;
+  session_id?: number;
+
+  title: string;
+  description?: string;
+
+  status: "DRAFT" | "OPEN" | "CLOSED";
+
+  created_at: string;
+  updated_at: string;
+};
+
+function normalize(raw: any): AdminHomeworkDetail {
+  const rawSession = raw?.session_id ?? raw?.session ?? raw?.sessionId;
+
+  return {
+    id: Number(raw?.id),
+    session_id:
+      typeof rawSession === "number" && rawSession > 0 ? rawSession : undefined,
+
+    title: String(raw?.title ?? ""),
+    description: raw?.description ?? undefined,
+
+    status: (raw?.status ?? "DRAFT") as any,
+
+    created_at: String(raw?.created_at ?? ""),
+    updated_at: String(raw?.updated_at ?? ""),
+  };
+}
+
+export async function fetchAdminHomework(homeworkId: number) {
+  const res = await api.get(`/homeworks/${homeworkId}/`);
+  return normalize(res.data);
+}
+
+export async function updateAdminHomework(
+  homeworkId: number,
+  payload: Partial<AdminHomeworkDetail>
+) {
+  const res = await api.patch(`/homeworks/${homeworkId}/`, payload);
+  return normalize(res.data);
+}
+
+
+==========================================================================================
+# FILE: api/homeworkAssignments.ts
+==========================================================================================
+// PATH: src/features/homework/api/homeworkAssignments.ts
+/**
+ * Homework Assignments API
+ *
+ * 단일 진실:
+ * - GET  /homework/assignments/?homework_id=
+ * - PUT  /homework/assignments/?homework_id=  { enrollment_ids: number[] }
+ *
+ * 응답 가정(현재 너 코드 기준):
+ * - res.data.items: Array<{ enrollment_id, student_name, is_selected }>
+ */
+
+import api from "@/shared/api/axios";
+
+export type HomeworkAssignmentItem = {
+  enrollment_id: number;
+  student_name: string;
+  is_selected: boolean;
+};
+
+export type HomeworkAssignmentsResponse = {
+  items: HomeworkAssignmentItem[];
+  selected_ids: number[];
+};
+
+function normalizeItems(raw: any): HomeworkAssignmentItem[] {
+  const list = Array.isArray(raw?.items) ? raw.items : [];
+  return list.map((r: any) => ({
+    enrollment_id: Number(r?.enrollment_id),
+    student_name: String(r?.student_name ?? ""),
+    is_selected: Boolean(r?.is_selected),
+  }));
+}
+
+export async function fetchHomeworkAssignments(
+  homeworkId: number
+): Promise<HomeworkAssignmentsResponse> {
+  const hid = Number(homeworkId);
+  if (!Number.isFinite(hid) || hid <= 0) {
+    return { items: [], selected_ids: [] };
+  }
+
+  const res = await api.get("/homework/assignments/", {
+    params: { homework_id: hid },
+  });
+
+  const items = normalizeItems(res.data);
+  const selected_ids = items
+    .filter((x) => x.is_selected)
+    .map((x) => x.enrollment_id);
+
+  return { items, selected_ids };
+}
+
+export async function putHomeworkAssignments(params: {
+  homeworkId: number;
+  enrollment_ids: number[];
+}): Promise<void> {
+  const hid = Number(params.homeworkId);
+  await api.put(
+    "/homework/assignments/",
+    { enrollment_ids: params.enrollment_ids },
+    { params: { homework_id: hid } }
+  );
+}
+
+
+==========================================================================================
+# FILE: api/homeworkPolicy.ts
+==========================================================================================
+// PATH: src/features/homework/api/homeworkPolicy.ts
+/**
+ * HomeworkPolicy API
+ *
+ * ✅ 목표
+ * - 커트라인 모드(PERCENT/COUNT) + 값(cutline_value) 관리
+ * - 반올림 단위 유지
+ *
+ * 🔒 계약
+ * - POST 없음 (프론트 생성 금지)
+ * - passed/clinic 판단은 서버 단일 진실
+ */
+
+import api from "@/shared/api/axios";
+import type { HomeworkPolicy, HomeworkCutlineMode } from "../types";
+
+function normalize(raw: any): HomeworkPolicy {
+  const session = Number(raw?.session ?? raw?.session_id ?? 0);
+
+  // 서버가 새 스펙을 이미 지원하는 경우
+  const modeRaw = String(raw?.cutline_mode ?? "").toUpperCase();
+  const mode: HomeworkCutlineMode =
+    modeRaw === "COUNT" ? "COUNT" : "PERCENT";
+
+  const valueRaw =
+    raw?.cutline_value ??
+    // ⛑️ 구형 호환: cutline_percent만 있으면 percent 모드로 흡수
+    raw?.cutline_percent ??
+    80;
+
+  return {
+    id: Number(raw?.id),
+    session,
+
+    cutline_mode: mode,
+    cutline_value: Number(valueRaw),
+
+    round_unit_percent: Number(raw?.round_unit_percent ?? 5),
+
+    created_at: String(raw?.created_at ?? ""),
+    updated_at: String(raw?.updated_at ?? ""),
+  };
+}
+
+export async function fetchHomeworkPolicyBySession(
+  sessionId: number
+): Promise<HomeworkPolicy | null> {
+  if (!Number.isFinite(sessionId) || sessionId <= 0) return null;
+
+  const res = await api.get("/homework/policies/", {
+    params: { session: sessionId },
+  });
+
+  const data = res.data;
+  const list = Array.isArray(data?.results)
+    ? data.results
+    : Array.isArray(data)
+    ? data
+    : [];
+
+  if (list.length === 0) return null;
+  return normalize(list[0]);
+}
+
+/**
+ * PATCH /homework/policies/{id}/
+ *
+ * payload 예시:
+ * - { cutline_mode:"PERCENT", cutline_value:70, round_unit_percent:5 }
+ * - { cutline_mode:"COUNT", cutline_value:40 }
+ */
+export async function patchHomeworkPolicy(
+  id: number,
+  payload: Partial<
+    Pick<HomeworkPolicy, "cutline_mode" | "cutline_value" | "round_unit_percent">
+  >
+): Promise<HomeworkPolicy> {
+  const res = await api.patch(`/homework/policies/${id}/`, payload);
+  return normalize(res.data);
+}
+
+
+==========================================================================================
+# FILE: api/homeworkScores.ts
+==========================================================================================
+// PATH: src/features/homework/api/homeworkScores.ts
+/**
+ * HomeworkScore API
+ *
+ * ✅ LOCKED SPEC
+ * - GET   /homework/scores/?session=&lecture=&enrollment_id=&is_locked=
+ * - PATCH /homework/scores/{id}/
+ * - PATCH /homework/scores/quick/  (조교 빠른 입력)
+ *
+ * ✅ PATCH 에러 계약 (Backend 기준)
+ * - is_locked == true → 409 + {code:"LOCKED", lock_reason?}
+ *
+ * ✅ 주의
+ * - NO_SUBMISSION은 "PATCH 결과 payload 안에 progress.reason"으로 내려올 뿐,
+ *   PATCH 자체가 409를 내지 않음 (현재 백엔드 구현 기준)
+ *
+ * 🚫 프론트 금지
+ * - HomeworkScore 생성 ❌
+ * - passed 계산 ❌ (서버 PATCH 결과만 신뢰)
+ */
+
+import api from "@/shared/api/axios";
+import type { HomeworkScore } from "../types";
+
+export type HomeworkPatchErrorCode = "LOCKED" | "UNKNOWN";
+
+export type HomeworkPatchError = {
+  code: HomeworkPatchErrorCode;
+  detail: string;
+  lock_reason?: string | null;
+};
+
+function normalizeScore(raw: any): HomeworkScore {
+  return {
+    id: Number(raw?.id),
+
+    enrollment_id: Number(raw?.enrollment_id ?? raw?.enrollment ?? 0),
+    session: Number(raw?.session ?? raw?.session_id ?? 0),
+
+    score: raw?.score == null ? null : Number(raw.score),
+    max_score: raw?.max_score == null ? null : Number(raw.max_score),
+
+    teacher_approved: Boolean(raw?.teacher_approved ?? false),
+
+    // ✅ backend 단일 진실
+    passed: Boolean(raw?.passed ?? false),
+    clinic_required: Boolean(raw?.clinic_required ?? false),
+
+    is_locked: Boolean(raw?.is_locked ?? false),
+    lock_reason: (raw?.lock_reason ?? null) as any,
+
+    updated_by_user_id:
+      raw?.updated_by_user_id == null ? null : Number(raw.updated_by_user_id),
+
+    meta: raw?.meta ?? null,
+
+    created_at: String(raw?.created_at ?? ""),
+    updated_at: String(raw?.updated_at ?? ""),
+  };
+}
+
+/**
+ * GET /homework/scores/
+ */
+export async function fetchHomeworkScores(params: {
+  session?: number;
+  lecture?: number;
+  enrollment_id?: number;
+  is_locked?: boolean;
+}): Promise<HomeworkScore[]> {
+  const res = await api.get("/homework/scores/", { params });
+
+  const data = res.data;
+  const list = Array.isArray(data?.results)
+    ? data.results
+    : Array.isArray(data)
+    ? data
+    : [];
+
+  return list.map(normalizeScore);
+}
+
+/**
+ * PATCH /homework/scores/{id}/
+ */
+export async function patchHomeworkScore(
+  id: number,
+  payload: Partial<Pick<HomeworkScore, "score" | "max_score" | "teacher_approved">>
+): Promise<HomeworkScore> {
+  try {
+    const res = await api.patch(`/homework/scores/${id}/`, payload);
+    return normalizeScore(res.data);
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const data = e?.response?.data;
+
+    // ✅ backend LOCK 에러 규격
+    if (status === 409 && String(data?.code).toUpperCase() === "LOCKED") {
+      const err: HomeworkPatchError = {
+        code: "LOCKED",
+        detail: String(data?.detail ?? "score block is locked"),
+        lock_reason: data?.lock_reason ?? null,
+      };
+      throw err;
+    }
+
+    const err: HomeworkPatchError = {
+      code: "UNKNOWN",
+      detail: String(data?.detail ?? e?.message ?? "PATCH failed"),
+    };
+    throw err;
+  }
+}
+
+/**
+ * PATCH /homework/scores/quick/
+ *
+ * ✅ Quick 입력 (조교 UX)
+ * - percent 입력: score=85, max_score 생략/ null
+ * - raw/max 입력: score=18, max_score=20
+ *
+ * ❗주의
+ * - 이 호출은 "스냅샷 생성"을 의미하지만,
+ *   프론트에서는 "HomeworkScore 생성 API를 따로 만들지 않는다"는 계약 유지
+ *   → quick_patch만 upsert로 허용되는 통로
+ */
+export async function quickPatchHomeworkScore(payload: {
+  session_id: number;
+  enrollment_id: number;
+  score: number;
+  max_score?: number | null;
+}): Promise<HomeworkScore> {
+  try {
+    const res = await api.patch(`/homework/scores/quick/`, payload);
+    return normalizeScore(res.data);
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const data = e?.response?.data;
+
+    if (status === 409 && String(data?.code).toUpperCase() === "LOCKED") {
+      const err: HomeworkPatchError = {
+        code: "LOCKED",
+        detail: String(data?.detail ?? "score block is locked"),
+        lock_reason: data?.lock_reason ?? null,
+      };
+      throw err;
+    }
+
+    const err: HomeworkPatchError = {
+      code: "UNKNOWN",
+      detail: String(data?.detail ?? e?.message ?? "QUICK PATCH failed"),
+    };
+    throw err;
+  }
+}
+
+
+==========================================================================================
+# FILE: api/homeworks.ts
+==========================================================================================
+// PATH: src/features/homework/api/homeworks.ts
+/**
+ * Homework List/Create API
+ *
+ * ✅ 목표
+ * - SessionAssessmentSidePanel(세션 공용탭)에서 생성/삭제/선택 흐름을 시험과 동일하게 유지
+ * - 백엔드 endpoint/필드명이 약간 달라도 프론트가 흡수 (session vs session_id)
+ */
+
+import api from "@/shared/api/axios";
+
+export type HomeworkListItem = {
+  id: number;
+  title: string;
+  status: "DRAFT" | "OPEN" | "CLOSED";
+  session_id?: number;
+};
+
+function normalizeListItem(raw: any): HomeworkListItem {
+  const sid = raw?.session_id ?? raw?.session ?? raw?.sessionId;
+
+  return {
+    id: Number(raw?.id),
+    title: String(raw?.title ?? ""),
+    status: (raw?.status ?? "DRAFT") as any,
+    session_id: typeof sid === "number" && sid > 0 ? sid : undefined,
+  };
+}
+
+export async function fetchHomeworks(params?: { session_id?: number }) {
+  const res = await api.get("/homeworks/", { params });
+  const d = res.data;
+
+  const list = Array.isArray(d?.results)
+    ? d.results
+    : Array.isArray(d?.items)
+    ? d.items
+    : Array.isArray(d)
+    ? d
+    : [];
+
+  return list.map(normalizeListItem);
+}
+
+/**
+ * ✅ POST /homeworks/
+ * - payload는 backend 편차 흡수 위해 session_id + session 둘 다 보냄
+ */
+export async function createHomework(payload: {
+  session_id: number;
+  title: string;
+  status?: "DRAFT" | "OPEN" | "CLOSED";
+}) {
+  const res = await api.post("/homeworks/", {
+    session_id: payload.session_id,
+    session: payload.session_id, // ✅ 호환용 (backend가 session 필드만 받는 경우)
+    title: payload.title,
+    status: payload.status ?? "DRAFT",
+  });
+
+  return res.data;
+}
+
+/**
+ * ✅ DELETE /homeworks/{id}/
+ */
+export async function deleteHomework(homeworkId: number) {
+  const res = await api.delete(`/homeworks/${homeworkId}/`);
+  return res.data;
+}
+
+
+==========================================================================================
+# FILE: api/sessionEnrollments.ts
+==========================================================================================
+// PATH: src/features/homework/api/sessionEnrollments.ts
+/**
+ * SessionEnrollment API (homework wrapper)
+ *
+ * ✅ 단일 진실
+ * - 학생 목록: SessionEnrollment
+ * - 식별자: enrollment_id (student_id ❌)
+ *
+ * API:
+ * - GET /enrollments/session-enrollments/?session={sessionId}
+ */
+
+import api from "@/shared/api/axios";
+import type { SessionEnrollment } from "../types";
+
+export async function fetchSessionEnrollments(
+  sessionId: number
+): Promise<SessionEnrollment[]> {
+  const res = await api.get("/enrollments/session-enrollments/", {
+    params: { session: sessionId },
+  });
+
+  const data = res.data;
+  const list = Array.isArray(data?.results)
+    ? data.results
+    : Array.isArray(data)
+    ? data
+    : [];
+
+  return list.map((raw: any) => ({
+    id: Number(raw?.id),
+    session: Number(raw?.session),
+    enrollment: Number(raw?.enrollment),
+    student_name: String(raw?.student_name ?? ""),
+    created_at: String(raw?.created_at ?? ""),
+  }));
+}
+
+
+==========================================================================================
+# FILE: components/AdminHomeworkDetail.tsx
+==========================================================================================
+// PATH: src/features/homework/components/AdminHomeworkDetail.tsx
+/**
+ * AdminHomeworkDetail
+ *
+ * ✅ 시험 UX 100% 복제
+ * 탭: setup / assets / submissions / results
+ *
+ * 🚫 금지
+ * - 점수 계산 ❌
+ * - passed 계산 ❌
+ * - HomeworkScore 생성 ❌
+ */
+
+import { useState } from "react";
+import type { HomeworkTabKey, HomeworkSummary } from "../types";
+
+import HomeworkHeader from "./common/HomeworkHeader";
+import HomeworkTabs from "./common/HomeworkTabs";
+import { useAdminHomework } from "../hooks/useAdminHomework";
+import HomeworkSetupPanel from "../panels/HomeworkSetupPanel";
+import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
+import HomeworkSubmissionsPanel from "../panels/HomeworkSubmissionsPanel";
+import HomeworkResultsPanel from "../panels/HomeworkResultsPanel";
+
+export default function AdminHomeworkDetail({ homeworkId }: { homeworkId: number }) {
+  const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
+  const { data, isLoading, isError } = useAdminHomework(homeworkId);
+
+  if (!Number.isFinite(homeworkId) || homeworkId <= 0) {
+    return (
+      <div className="rounded border bg-yellow-50 p-4 text-sm text-yellow-800">
+        homeworkId가 올바르지 않습니다.
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return <div className="text-sm text-gray-500">과제 정보 불러오는 중...</div>;
+  }
+
+  if (isError || !data) {
+    return <div className="text-sm text-red-600">과제 정보를 불러오지 못했습니다.</div>;
+  }
+
+  const summary: HomeworkSummary = {
+    id: data.id,
+    title: data.title,
+    status: data.status,
+  };
+
+  return (
+    <div className="space-y-6">
+      <HomeworkHeader homework={summary} />
+      <HomeworkTabs activeTab={activeTab} onChange={setActiveTab} />
+
+      {activeTab === "setup" && <HomeworkSetupPanel homeworkId={homeworkId} />}
+      {activeTab === "assets" && <HomeworkAssetsPanel homeworkId={homeworkId} />}
+      {activeTab === "submissions" && <HomeworkSubmissionsPanel homeworkId={homeworkId} />}
+      {activeTab === "results" && <HomeworkResultsPanel homeworkId={homeworkId} />}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/CreateHomeworkModal.tsx
+==========================================================================================
+// PATH: src/features/homework/components/CreateHomeworkModal.tsx
+// ------------------------------------------------------------
+// CreateHomeworkModal ✅ FINAL (시험 생성 UX와 동일한 위치에서 사용)
+// ------------------------------------------------------------
+// 책임:
+// - 과제 생성 UI
+// - 생성 성공 시 onCreated(newId) 호출
+//
+// ✅ 백엔드 편차 흡수:
+// - session_id / session 둘 다 전송
+// ------------------------------------------------------------
+
+import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+
+import { createHomework } from "../api/homeworks";
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+  sessionId: number;
+  onCreated: (newId: number) => void;
+};
+
+type HomeworkStatus = "DRAFT" | "OPEN" | "CLOSED";
+
+export default function CreateHomeworkModal({
+  open,
+  onClose,
+  sessionId,
+  onCreated,
+}: Props) {
+  const [title, setTitle] = useState("");
+  const [status, setStatus] = useState<HomeworkStatus>("DRAFT");
+
+  // 모달 열릴 때 기본값 리셋
+  useEffect(() => {
+    if (open) {
+      setTitle("");
+      setStatus("DRAFT");
+    }
+  }, [open]);
+
+  const m = useMutation({
+    mutationFn: async () => {
+      const res = await createHomework({
+        session_id: sessionId,
+        title: title.trim(),
+        status,
+      });
+      return res;
+    },
+    onSuccess: (data: any) => {
+      const newId = Number(data?.id);
+      if (Number.isFinite(newId) && newId > 0) {
+        onCreated(newId);
+        onClose();
+        return;
+      }
+
+      // id가 다른 키로 오면 여기도 흡수
+      const fallbackId = Number(data?.homework_id ?? data?.pk ?? NaN);
+      if (Number.isFinite(fallbackId) && fallbackId > 0) {
+        onCreated(fallbackId);
+        onClose();
+        return;
+      }
+
+      alert(
+        "과제 생성은 성공했지만 응답에서 id를 찾지 못했습니다.\n백엔드 응답 포맷을 확인하세요."
+      );
+    },
+    onError: (e: any) => {
+      const detail =
+        e?.response?.data?.detail ||
+        e?.message ||
+        "과제 생성 실패 (API 연결 확인 필요)";
+      alert(detail);
+    },
+  });
+
+  if (!open) return null;
+
+  const disabled =
+    m.isPending || title.trim().length === 0 || !(sessionId > 0);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-md rounded-xl bg-[var(--bg-surface)] p-5 shadow-lg">
+        <div className="mb-3 text-lg font-semibold text-[var(--text-primary)]">
+          과제 생성
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+              제목
+            </div>
+            <input
+              className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              placeholder="예) 1주차 과제"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+              상태
+            </div>
+            <select
+              className="w-full rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)]"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as HomeworkStatus)}
+            >
+              <option value="DRAFT">DRAFT</option>
+              <option value="OPEN">OPEN</option>
+              <option value="CLOSED">CLOSED</option>
+            </select>
+          </div>
+
+          <div className="pt-2 text-xs text-[var(--text-muted)]">
+            session_id: {sessionId}
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            className="rounded border border-[var(--border-divider)] px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]"
+            onClick={onClose}
+            disabled={m.isPending}
+          >
+            취소
+          </button>
+
+          <button
+            className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            onClick={() => m.mutate()}
+            disabled={disabled}
+          >
+            {m.isPending ? "생성 중..." : "생성"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/HomeworkEnrollmentManageModal.tsx
+==========================================================================================
+// PATH: src/features/homework/components/HomeworkEnrollmentManageModal.tsx
+/**
+ * HomeworkEnrollmentManageModal
+ *
+ * ✅ 과제 전용 대상 학생 관리 모달 (대기업 UX 개선 버전)
+ *
+ * 책임:
+ * - homework_assignment 관리 UI
+ * - enrollment 선택/해제
+ *
+ * UX 원칙:
+ * - "저장 가능 상태"를 버튼/문구로 명확히 보여준다 (클릭했는데 무반응 금지)
+ * - 변경사항 있을 때 닫기/오버레이/ESC는 confirm
+ * - loading/saving 상태에서 상호작용 최소화
+ *
+ * ❌ 금지:
+ * - 점수 / HomeworkScore / quick_patch
+ * - 시험 / 성적 모달 재사용
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import type { EnrollmentRow } from "@/features/sessions/components/enrollment/types";
+
+type Props = {
+  open: boolean;
+  onClose: () => void;
+
+  title: string;
+  description?: string;
+
+  rows: EnrollmentRow[];
+  loading?: boolean;
+  error?: string | null;
+
+  selectedIds: Set<number>;
+  onToggle: (id: number) => void;
+  onSetSelectedIds: (next: Set<number>) => void;
+
+  onSave: () => void;
+  saving?: boolean;
+
+  /** ✅ Panel이 단일 진실로 계산해서 내려준다 */
+  dirty: boolean;
+};
+
+export default function HomeworkEnrollmentManageModal({
+  open,
+  onClose,
+  title,
+  description,
+  rows,
+  loading = false,
+  error,
+  selectedIds,
+  onToggle,
+  onSetSelectedIds,
+  onSave,
+  saving = false,
+  dirty,
+}: Props) {
+  const [keyword, setKeyword] = useState("");
+
+  useEffect(() => {
+    if (!open) setKeyword("");
+  }, [open]);
+
+  // ESC 닫기 + dirty confirm
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      safeClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, dirty, saving, loading]);
+
+  const filtered = useMemo(() => {
+    const k = keyword.trim().toLowerCase();
+    if (!k) return rows;
+    return rows.filter((r) =>
+      (r.student_name ?? "").toLowerCase().includes(k)
+    );
+  }, [rows, keyword]);
+
+  if (!open) return null;
+
+  const canInteract = !loading && !saving;
+  const canSave = dirty && !loading && !saving;
+
+  const safeClose = () => {
+    if (saving) return; // 저장중 닫기 금지
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    const ok = window.confirm(
+      "변경사항이 있습니다.\n저장하지 않고 닫을까요?"
+    );
+    if (ok) onClose();
+  };
+
+  const selectAll = () => {
+    if (!canInteract) return;
+    const next = new Set(selectedIds);
+    filtered.forEach((r) => next.add(r.enrollment_id));
+    onSetSelectedIds(next);
+  };
+
+  const clearAll = () => {
+    if (!canInteract) return;
+    const next = new Set(selectedIds);
+    filtered.forEach((r) => next.delete(r.enrollment_id));
+    onSetSelectedIds(next);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+      onMouseDown={(e) => {
+        // 오버레이 클릭 닫기 (카드 내부 클릭은 무시)
+        if (e.target === e.currentTarget) safeClose();
+      }}
+    >
+      <div className="w-full max-w-2xl overflow-hidden rounded-xl bg-[var(--bg-surface)] shadow-lg">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--border-divider)] px-5 py-4">
+          <div className="min-w-0">
+            <div className="text-base font-semibold text-[var(--text-primary)]">
+              {title}
+            </div>
+            {description && (
+              <div className="mt-1 text-xs text-[var(--text-secondary)]">
+                {description}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className={[
+              "shrink-0 text-sm",
+              saving ? "text-[var(--text-disabled)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]",
+            ].join(" ")}
+            onClick={safeClose}
+            disabled={saving}
+          >
+            닫기
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="space-y-4 px-5 py-4">
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="학생 이름 검색"
+              className="h-9 w-[240px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+              disabled={!canInteract}
+            />
+
+            <div className="text-xs text-[var(--text-secondary)]">
+              선택됨 <b>{selectedIds.size}</b>명 / 전체 {rows.length}명
+              {loading && (
+                <span className="ml-2 text-[var(--text-muted)]">불러오는 중...</span>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={selectAll}
+                disabled={!canInteract || filtered.length === 0}
+                className="h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 text-sm hover:bg-[var(--bg-surface-soft)] disabled:opacity-50"
+              >
+                현재 목록 전체 선택
+              </button>
+              <button
+                type="button"
+                onClick={clearAll}
+                disabled={!canInteract || filtered.length === 0}
+                className="h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 text-sm hover:bg-[var(--bg-surface-soft)] disabled:opacity-50"
+              >
+                현재 목록 전체 해제
+              </button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded border border-[var(--color-danger)] bg-[var(--color-danger-soft)] px-4 py-3 text-sm text-[var(--color-danger)]">
+              {error}
+            </div>
+          )}
+
+          <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3 text-xs text-[var(--text-secondary)]">
+            ⚠ 저장 버튼을 눌러야 서버에 실제 반영됩니다.
+          </div>
+
+          {/* Table */}
+          <div className="max-h-[360px] overflow-auto rounded border border-[var(--border-divider)]">
+            {loading ? (
+              <div className="p-6 text-sm text-[var(--text-muted)]">
+                불러오는 중...
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-6 text-sm text-[var(--text-muted)]">
+                표시할 학생이 없습니다.
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)] text-[var(--text-secondary)]">
+                  <tr>
+                    <th className="w-12 px-3 py-2 text-left">선택</th>
+                    <th className="px-3 py-2 text-left">학생</th>
+                    <th className="px-3 py-2 text-left">enrollment_id</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r) => {
+                    const checked = selectedIds.has(r.enrollment_id);
+                    return (
+                      <tr
+                        key={r.enrollment_id}
+                        className="border-t border-[var(--border-divider)] hover:bg-[var(--bg-surface-soft)]"
+                      >
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={!canInteract}
+                            onChange={() => onToggle(r.enrollment_id)}
+                          />
+                        </td>
+                        <td className="px-3 py-2 font-medium text-[var(--text-primary)]">
+                          {r.student_name || "(이름 없음)"}
+                        </td>
+                        <td className="px-3 py-2 text-[var(--text-muted)]">
+                          {r.enrollment_id}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-[var(--border-divider)] px-5 py-4">
+          <div className="text-xs text-[var(--text-muted)]">
+            {saving
+              ? "저장 중... 잠시만 기다려주세요."
+              : dirty
+              ? "변경사항이 있습니다. 저장하면 확정됩니다."
+              : "변경사항 없음"}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="h-9 rounded border border-[var(--border-divider)] px-4 text-sm hover:bg-[var(--bg-surface-soft)] disabled:opacity-50"
+              onClick={safeClose}
+              disabled={saving}
+            >
+              취소
+            </button>
+
+            <button
+              type="button"
+              className="h-9 rounded bg-[var(--color-primary)] px-4 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={onSave}
+              disabled={!canSave}
+              title={
+                !dirty
+                  ? "변경사항이 없어서 저장할 수 없습니다."
+                  : loading
+                  ? "로딩 중에는 저장할 수 없습니다."
+                  : saving
+                  ? "저장 중..."
+                  : "저장"
+              }
+            >
+              {saving ? "저장중..." : "선택 확정(저장)"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/HomeworkPolicyCard.tsx
+==========================================================================================
+// PATH: src/features/homework/components/HomeworkPolicyCard.tsx
+/**
+ * HomeworkPolicyCard
+ *
+ * ⚠️ 로직 / 상태 / API 변경 없음
+ * ✅ 전역 디자인 토큰 적용만 수행
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import type { HomeworkPolicy, HomeworkCutlineMode } from "../types";
+
+type PatchPayload = Partial<
+  Pick<HomeworkPolicy, "cutline_mode" | "cutline_value" | "round_unit_percent">
+>;
+
+export default function HomeworkPolicyCard({
+  policy,
+  onPatch,
+  isPatching,
+}: {
+  policy: HomeworkPolicy | null;
+  onPatch: (payload: PatchPayload) => void;
+  isPatching: boolean;
+}) {
+  const canEdit = !!policy && !isPatching;
+
+  const [mode, setMode] = useState<HomeworkCutlineMode>(
+    policy?.cutline_mode ?? "PERCENT"
+  );
+  const [cutlineValue, setCutlineValue] = useState<number>(
+    policy?.cutline_value ?? 80
+  );
+  const [roundUnit, setRoundUnit] = useState<number>(
+    policy?.round_unit_percent ?? 5
+  );
+
+  useEffect(() => {
+    setMode(policy?.cutline_mode ?? "PERCENT");
+    setCutlineValue(policy?.cutline_value ?? 80);
+    setRoundUnit(policy?.round_unit_percent ?? 5);
+  }, [
+    policy?.id,
+    policy?.cutline_mode,
+    policy?.cutline_value,
+    policy?.round_unit_percent,
+  ]);
+
+  const dirty = useMemo(() => {
+    if (!policy) return false;
+    return (
+      mode !== policy.cutline_mode ||
+      cutlineValue !== policy.cutline_value ||
+      roundUnit !== policy.round_unit_percent
+    );
+  }, [policy, mode, cutlineValue, roundUnit]);
+
+  const clampCutline = (v: number, nextMode: HomeworkCutlineMode) => {
+    if (!Number.isFinite(v)) return 0;
+    if (nextMode === "PERCENT") return Math.max(0, Math.min(100, v));
+    return Math.max(0, v);
+  };
+
+  const helperText = useMemo(() => {
+    if (mode === "COUNT") return "예: 40문항 이상 통과";
+    return `예: 70% (반올림 단위 ${roundUnit}% 적용)`;
+  }, [mode, roundUnit]);
+
+  if (!policy) {
+    return (
+      <div className="rounded border bg-[var(--bg-surface-soft)] p-3 text-sm text-[var(--text-muted)]">
+        ⚠️ 이 세션의 과제 정책이 아직 없습니다.
+        <div className="mt-1 text-xs">
+          - 정책 생성은 백엔드에서만 가능합니다.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 커트라인 기준 */}
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-[var(--text-secondary)]">
+          커트라인 기준
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={!canEdit}
+            onClick={() => {
+              const nextMode: HomeworkCutlineMode = "PERCENT";
+              setMode(nextMode);
+              setCutlineValue((prev) => clampCutline(prev, nextMode));
+            }}
+            className={[
+              "rounded border px-3 py-2 text-sm",
+              mode === "PERCENT"
+                ? "border-[var(--color-primary)] bg-[var(--bg-surface-soft)] font-semibold text-[var(--color-primary)]"
+                : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]",
+              !canEdit ? "opacity-50" : "",
+            ].join(" ")}
+          >
+            퍼센트 (%)
+          </button>
+
+          <button
+            type="button"
+            disabled={!canEdit}
+            onClick={() => {
+              const nextMode: HomeworkCutlineMode = "COUNT";
+              setMode(nextMode);
+              setCutlineValue((prev) => clampCutline(prev, nextMode));
+            }}
+            className={[
+              "rounded border px-3 py-2 text-sm",
+              mode === "COUNT"
+                ? "border-[var(--color-primary)] bg-[var(--bg-surface-soft)] font-semibold text-[var(--color-primary)]"
+                : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]",
+              !canEdit ? "opacity-50" : "",
+            ].join(" ")}
+          >
+            문항 수
+          </button>
+        </div>
+
+        <div className="text-xs text-[var(--text-muted)]">
+          {helperText}
+        </div>
+      </div>
+
+      {/* 값 설정 */}
+      <div className="grid grid-cols-2 gap-3">
+        <label className="text-sm">
+          <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+            커트라인 값
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={mode === "PERCENT" ? 100 : undefined}
+              className="w-full rounded border px-3 py-2 text-sm bg-[var(--bg-app)]"
+              value={Number.isFinite(cutlineValue) ? cutlineValue : 0}
+              onChange={(e) =>
+                setCutlineValue(
+                  clampCutline(Number(e.target.value), mode)
+                )
+              }
+              disabled={!canEdit}
+            />
+            <span className="text-xs text-[var(--text-muted)]">
+              {mode === "PERCENT" ? "%" : "문항"}
+            </span>
+          </div>
+        </label>
+
+        <label className="text-sm">
+          <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+            반올림 단위
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={50}
+              className="w-full rounded border px-3 py-2 text-sm bg-[var(--bg-app)]"
+              value={Number.isFinite(roundUnit) ? roundUnit : 5}
+              onChange={(e) =>
+                setRoundUnit(Math.max(1, Number(e.target.value)))
+              }
+              disabled={!canEdit || mode !== "PERCENT"}
+            />
+            <span className="text-xs text-[var(--text-muted)]">%</span>
+          </div>
+        </label>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-2">
+        <div className="text-xs text-[var(--text-muted)]">
+          ※ 판정은 서버 결과만 표시
+        </div>
+
+        <button
+          type="button"
+          className="btn disabled:opacity-50"
+          disabled={!canEdit || !dirty}
+          onClick={() => {
+            onPatch({
+              cutline_mode: mode,
+              cutline_value: cutlineValue,
+              round_unit_percent: roundUnit,
+            });
+          }}
+        >
+          {isPatching ? "저장 중..." : "정책 저장"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/common/HomeworkHeader.tsx
+==========================================================================================
+// PATH: src/features/homework/components/common/HomeworkHeader.tsx
+/**
+ * HomeworkHeader
+ * - exams/common/ExamHeader UX 복제
+ * - 과제 점수/판정은 "세션 > 성적"에서 처리(고정 안내)
+ */
+
+import type { HomeworkSummary } from "../../types";
+
+export default function HomeworkHeader({
+  homework,
+}: {
+  homework: HomeworkSummary;
+}) {
+  const statusLabel =
+    homework.status === "OPEN"
+      ? "OPEN"
+      : homework.status === "CLOSED"
+      ? "CLOSED"
+      : "DRAFT";
+
+  return (
+    <div className="mb-6 space-y-2">
+      <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+        {homework.title}
+      </h2>
+
+      <div className="text-sm text-[var(--text-secondary)]">
+        상태: <span className="font-medium">{statusLabel}</span>
+      </div>
+
+      <div className="text-xs text-[var(--text-muted)]">
+        ※ 과제의 <b>성적 입력 · 판정</b>은 <b>세션 &gt; 성적</b> 메뉴에서
+        진행합니다.
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: components/common/HomeworkTabs.tsx
+==========================================================================================
+// PATH: src/features/homework/components/common/HomeworkTabs.tsx
+// SSOT: 페이지 탭 → 플랫탭 (ds-tabs--flat + ds-tab)
+import type { HomeworkTabKey } from "../../types";
+
+const TABS: { key: HomeworkTabKey; label: string }[] = [
+  { key: "setup", label: "기본 설정" },
+  { key: "assets", label: "자산" },
+  { key: "submissions", label: "제출" },
+  { key: "results", label: "결과 · 통계" },
+];
+
+export default function HomeworkTabs({
+  activeTab,
+  onChange,
+}: {
+  activeTab: HomeworkTabKey;
+  onChange: (tab: HomeworkTabKey) => void;
+}) {
+  return (
+    <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)]" role="tablist">
+      {TABS.map((tab) => (
+        <button
+          key={tab.key}
+          type="button"
+          role="tab"
+          aria-selected={activeTab === tab.key}
+          onClick={() => onChange(tab.key)}
+          className={`ds-tab ${activeTab === tab.key ? "is-active" : ""}`}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: hooks/useAdminHomework.ts
+==========================================================================================
+// PATH: src/features/homework/hooks/useAdminHomework.ts
+import { useQuery } from "@tanstack/react-query";
+import { fetchAdminHomework } from "../api/adminHomework";
+
+export function useAdminHomework(homeworkId?: number) {
+  const id = Number(homeworkId);
+
+  return useQuery({
+    queryKey: ["admin-homework", id],
+    queryFn: () => fetchAdminHomework(id),
+    enabled: Number.isFinite(id) && id > 0,
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useHomeworkAssignments.ts
+==========================================================================================
+// PATH: src/features/homework/hooks/useHomeworkAssignments.ts
+/**
+ * useHomeworkAssignments
+ * - 과제 대상 학생(선택 상태 포함) 단일 진실 query
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import { QUERY_KEYS } from "../queryKeys";
+import { fetchHomeworkAssignments } from "../api/homeworkAssignments";
+
+export function useHomeworkAssignments(homeworkId: number) {
+  const hid = Number(homeworkId);
+  const enabled = Number.isFinite(hid) && hid > 0;
+
+  return useQuery({
+    queryKey: QUERY_KEYS.HOMEWORK_ASSIGNMENTS(hid),
+    queryFn: () => fetchHomeworkAssignments(hid),
+    enabled,
+    // UX: 페이지 다시 들어왔을 때 "0명" 같은 깜빡임 줄이기
+    staleTime: 10_000,
+  });
+}
+
+
+==========================================================================================
+# FILE: hooks/useHomeworkPolicy.ts
+==========================================================================================
+// PATH: src/features/homework/hooks/useHomeworkPolicy.ts
+/**
+ * useHomeworkPolicy (FIX: 현 types.ts 스펙과 일치)
+ *
+ * ✅ 책임
+ * - sessionId 기준 policy 조회
+ * - policy PATCH 후 invalidate
+ *
+ * 🔒 계약
+ * - POST 없음 (프론트 생성 금지)
+ * - passed 계산 없음 (서버 단일 진실)
+ */
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchHomeworkPolicyBySession,
+  patchHomeworkPolicy,
+} from "../api/homeworkPolicy";
+import type { HomeworkPolicy } from "../types";
+
+type PatchData = Partial<
+  Pick<HomeworkPolicy, "cutline_mode" | "cutline_value" | "round_unit_percent">
+>;
+
+export function useHomeworkPolicy(sessionId: number) {
+  const qc = useQueryClient();
+
+  const safeSessionId =
+    Number.isFinite(sessionId) && sessionId > 0 ? sessionId : 0;
+
+  const q = useQuery({
+    queryKey: ["homework-policy", safeSessionId],
+    queryFn: () => fetchHomeworkPolicyBySession(safeSessionId),
+    enabled: safeSessionId > 0,
+  });
+
+  const patchPolicy = useMutation({
+    mutationFn: async (payload: { id: number; data: PatchData }) =>
+      patchHomeworkPolicy(payload.id, payload.data),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["homework-policy", safeSessionId] });
+    },
+  });
+
+  return {
+    ...q,
+    patchPolicy,
+  };
+}
+
+
+==========================================================================================
+# FILE: hooks/useSessionEnrollments.ts
+==========================================================================================
+// PATH: src/features/homework/hooks/useSessionEnrollments.ts
+/**
+ * useSessionEnrollments
+ * - homework 도메인에서 “대상 학생 목록” 단일 진실 조회
+ */
+
+import { useQuery } from "@tanstack/react-query";
+import { fetchSessionEnrollments } from "../api/sessionEnrollments";
+
+export function useSessionEnrollments(sessionId: number) {
+  return useQuery({
+    queryKey: ["homework-session-enrollments", sessionId],
+    queryFn: () => fetchSessionEnrollments(sessionId),
+    enabled: Number.isFinite(sessionId) && sessionId > 0,
+  });
+}
+
+
+==========================================================================================
+# FILE: panels/HomeworkAssetsPanel.tsx
+==========================================================================================
+// PATH: src/features/homework/panels/HomeworkAssetsPanel.tsx
+/**
+ * HomeworkAssetsPanel
+ *
+ * ✅ exams/panels/ExamAssetsPanel UX 복제
+ *
+ * ⚠️ Homework asset API는 아직 미확정 → UI 슬롯만 제공
+ */
+
+export default function HomeworkAssetsPanel({
+  homeworkId,
+}: {
+  homeworkId: number;
+}) {
+  return (
+    <div className="space-y-6">
+      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
+        <div className="border-b border-[var(--border-divider)] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-primary)]">
+            자산
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            과제에 연결된 파일/자료를 관리합니다.
+          </div>
+        </div>
+
+        <div className="space-y-3 p-4 text-sm text-[var(--text-primary)]">
+          <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-3 text-xs text-[var(--text-muted)]">
+            ⚠️ Homework asset API가 아직 확정되지 않아 UI 슬롯만 제공합니다.
+            <div className="mt-2 text-xs">
+              연결 후보:
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                <li>GET /homeworks/{`{id}`}/assets/</li>
+                <li>POST /homeworks/{`{id}`}/assets/ (multipart)</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="text-xs text-[var(--text-muted)]">
+            homeworkId: {homeworkId}
+          </div>
+
+          <button
+            type="button"
+            className="rounded border border-[var(--border-divider)] px-3 py-2 text-sm hover:bg-[var(--bg-surface-soft)]"
+            onClick={() => alert("asset 업로드는 API 확정 후 연결")}
+          >
+            + 자산 업로드
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/HomeworkResultsPanel.tsx
+==========================================================================================
+// PATH: src/features/homework/panels/HomeworkResultsPanel.tsx
+/**
+ * HomeworkResultsPanel
+ *
+ * 요구사항:
+ * - “미제출 학생만” 뜨면 됨
+ *
+ * ⚠️ 단일 진실이 아직 확정되지 않았으므로 UI 슬롯만 제공
+ */
+
+import { useMemo } from "react";
+import { useAdminHomework } from "../hooks/useAdminHomework";
+
+export default function HomeworkResultsPanel({
+  homeworkId,
+}: {
+  homeworkId: number;
+}) {
+  const { data } = useAdminHomework(homeworkId);
+
+  const sessionId = useMemo(() => {
+    const v = Number(data?.session_id);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  }, [data?.session_id]);
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
+        <div className="border-b border-[var(--border-divider)] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-primary)]">
+            결과
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            이 탭은 <b>미제출 학생</b>만 표시합니다.
+          </div>
+        </div>
+
+        <div className="space-y-2 p-4 text-sm text-[var(--text-primary)]">
+          <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-3 text-xs text-[var(--text-muted)]">
+            ⚠️ 미제출 판단 데이터 소스(API)가 아직 확정되지 않아 UI 슬롯만
+            제공합니다.
+          </div>
+
+          <div className="text-xs text-[var(--text-muted)]">
+            sessionId: {sessionId || "-"}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/HomeworkSetupPanel.tsx
+==========================================================================================
+/**
+ * HomeworkSetupPanel
+ * - setup 탭 화면
+ * - 커트라인(policy) + 과제 대상자 요약
+ */
+
+import { useMemo } from "react";
+import { useAdminHomework } from "../hooks/useAdminHomework";
+
+import HomeworkPolicyPanel from "./setup/HomeworkPolicyPanel";
+import HomeworkEnrollmentPanel from "./setup/HomeworkEnrollmentPanel";
+
+export default function HomeworkSetupPanel({ homeworkId }: { homeworkId: number }) {
+  const { data } = useAdminHomework(homeworkId);
+
+  const sessionId = useMemo(() => {
+    const v = Number(data?.session_id);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  }, [data?.session_id]);
+
+  return (
+    <div className="space-y-6">
+      <HomeworkPolicyPanel sessionId={sessionId} />
+      <HomeworkEnrollmentPanel homeworkId={homeworkId} />
+
+      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 text-sm text-[var(--text-secondary)]">
+        ℹ️ 과제 점수 입력·판정은 <b>세션 &gt; 성적</b> 메뉴에서 진행합니다.
+      </section>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/HomeworkSubmissionsPanel.tsx
+==========================================================================================
+// PATH: src/features/homework/panels/HomeworkSubmissionsPanel.tsx
+/**
+ * HomeworkSubmissionsPanel
+ *
+ * ✅ 의도
+ * - 신규 제출 시스템 만들지 않음
+ * - submissions 도메인 재사용 전제
+ *
+ * ⚠️ 현재는 API 스펙 미확정 → UI 슬롯만 제공
+ */
+
+import { useMemo } from "react";
+import { useAdminHomework } from "../hooks/useAdminHomework";
+
+export default function HomeworkSubmissionsPanel({
+  homeworkId,
+}: {
+  homeworkId: number;
+}) {
+  const { data } = useAdminHomework(homeworkId);
+
+  const sessionId = useMemo(() => {
+    const v = Number(data?.session_id);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  }, [data?.session_id]);
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
+        <div className="border-b border-[var(--border-divider)] px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-primary)]">
+            제출
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            온라인 과제 제출은 <b>submissions</b> 도메인을 재사용합니다.
+          </div>
+        </div>
+
+        <div className="space-y-2 p-4 text-sm text-[var(--text-primary)]">
+          <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-3 text-xs text-[var(--text-muted)]">
+            ✅ 여기는 아래 중 하나로 연결하면 됩니다.
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>기존 Submission 업로드/등록 컴포넌트 재사용</li>
+              <li>
+                submissions API에 homework target_type 지원 시
+                목록/업로드 UI 제공
+              </li>
+            </ul>
+          </div>
+
+          <div className="text-xs text-[var(--text-muted)]">
+            sessionId: {sessionId || "-"}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 text-sm text-[var(--text-muted)]">
+        ℹ️ 이 탭은 “제출 원본 관리” 목적이며, 점수/판정은 성적탭에서
+        합니다.
+      </section>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/setup/HomeworkEnrollmentPanel.tsx
+==========================================================================================
+// PATH: src/features/homework/panels/setup/HomeworkEnrollmentPanel.tsx
+/**
+ * HomeworkEnrollmentPanel ✅ FINAL (0명 문제 종결판)
+ *
+ * 규칙(대기업 기준):
+ * - "선택됨 N명" 요약은 항상 서버 단일 진실(query)로 표시
+ * - 모달은 편집용 임시 state만 사용
+ * - 저장 성공 시에만 invalidate (닫기/취소 시 invalidate 금지)
+ * - 모달 open 시 refetch로 최신 편집 시작
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import HomeworkEnrollmentManageModal from "@/features/homework/components/HomeworkEnrollmentManageModal";
+import type { EnrollmentRow } from "@/features/sessions/components/enrollment/types";
+
+import { QUERY_KEYS } from "@/features/homework/queryKeys";
+import { useAdminHomework } from "@/features/homework/hooks/useAdminHomework";
+import { useHomeworkAssignments } from "@/features/homework/hooks/useHomeworkAssignments";
+import {
+  putHomeworkAssignments,
+  type HomeworkAssignmentsResponse,
+} from "@/features/homework/api/homeworkAssignments";
+
+export default function HomeworkEnrollmentPanel({
+  homeworkId,
+}: {
+  homeworkId: number;
+}) {
+  const qc = useQueryClient();
+  const hid = Number(homeworkId);
+  const hasHomework = Number.isFinite(hid) && hid > 0;
+
+  const { data: homework } = useAdminHomework(hid);
+  const sessionId = Number(homework?.session_id ?? 0);
+
+  // ✅ 단일 진실 query (요약 표시용)
+  const {
+    data: assignments,
+    isLoading: loadingAssignments,
+    isError: isAssignmentsError,
+    refetch: refetchAssignments,
+  } = useHomeworkAssignments(hid);
+
+  // ----------------------------
+  // modal local editing states
+  // ----------------------------
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [rows, setRows] = useState<EnrollmentRow[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [originSelectedIds, setOriginSelectedIds] = useState<Set<number>>(
+    new Set()
+  );
+
+  const selectedCount = useMemo(() => {
+    // ✅ 요약은 단일 진실
+    return assignments?.selected_ids?.length ?? 0;
+  }, [assignments?.selected_ids]);
+
+  const hydrateLocalFromQuery = (q: HomeworkAssignmentsResponse | undefined) => {
+    const items = q?.items ?? [];
+    const normalizedRows: EnrollmentRow[] = items.map((x) => ({
+      enrollment_id: x.enrollment_id,
+      student_name: x.student_name,
+    }));
+    const initSelected = new Set<number>(q?.selected_ids ?? []);
+    setRows(normalizedRows);
+    setSelectedIds(new Set(initSelected));
+    setOriginSelectedIds(new Set(initSelected));
+  };
+
+  // 모달 열 때 최신 데이터로 편집 시작
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    setError(null);
+
+    // 1) 최신화
+    Promise.resolve(refetchAssignments())
+      .then((res) => {
+        if (cancelled) return;
+        hydrateLocalFromQuery(res.data);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // refetch 실패해도 기존 캐시로라도 편집 시작
+        hydrateLocalFromQuery(assignments);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // ----------------------------
+  // dirty 계산 (모달 내부 단일 진실)
+  // ----------------------------
+  const dirty = useMemo(() => {
+    if (selectedIds.size !== originSelectedIds.size) return true;
+    for (const id of selectedIds) {
+      if (!originSelectedIds.has(id)) return true;
+    }
+    return false;
+  }, [selectedIds, originSelectedIds]);
+
+  const toggleOne = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  // ----------------------------
+  // SAVE (성공 시에만 invalidate)
+  // ----------------------------
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      setError(null);
+      await putHomeworkAssignments({
+        homeworkId: hid,
+        enrollment_ids: Array.from(selectedIds),
+      });
+    },
+    onSuccess: async () => {
+      // ✅ 편집 상태 확정
+      setOriginSelectedIds(new Set(selectedIds));
+      setOpen(false);
+
+      // ✅ 단일 진실 동기화 (저장 성공 시만)
+      await qc.invalidateQueries({
+        queryKey: QUERY_KEYS.HOMEWORK_ASSIGNMENTS(hid),
+      });
+
+      if (Number.isFinite(sessionId) && sessionId > 0) {
+        await qc.invalidateQueries({
+          queryKey: QUERY_KEYS.SESSION_SCORES(sessionId),
+        });
+
+        await qc.invalidateQueries({
+          queryKey: QUERY_KEYS.HOMEWORK_SESSION_ENROLLMENTS(sessionId),
+        });
+      }
+    },
+    onError: (e: any) => {
+      setError(e?.response?.data?.detail || "저장에 실패했습니다. 다시 시도해주세요.");
+    },
+  });
+
+  return (
+    <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
+      <div className="border-b border-[var(--border-divider)] px-4 py-3">
+        <div className="text-sm font-semibold text-[var(--text-primary)]">
+          과제 대상 학생
+        </div>
+        <div className="text-xs text-[var(--text-muted)]">
+          이 과제에 포함될 학생을 선택합니다.
+        </div>
+      </div>
+
+      <div className="space-y-3 p-4">
+        {!hasHomework && (
+          <div className="rounded border bg-[var(--bg-surface-soft)] p-3 text-sm text-[var(--text-muted)]">
+            ⚠️ homeworkId가 없어 대상자를 관리할 수 없습니다.
+          </div>
+        )}
+
+        {hasHomework && (
+          <>
+            <div className="flex items-center justify-between rounded border bg-[var(--bg-surface-soft)] px-3 py-2">
+              <div className="text-sm text-[var(--text-primary)]">
+                선택됨{" "}
+                <span className="font-semibold">
+                  {loadingAssignments ? "..." : selectedCount}
+                </span>
+                명
+                {isAssignmentsError && (
+                  <span className="ml-2 text-xs text-[var(--color-danger)]">
+                    (불러오기 실패)
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-[var(--text-muted)]">homework #{hid}</div>
+            </div>
+
+            <button
+              type="button"
+              className="rounded border border-[var(--border-divider)] px-3 py-2 text-sm hover:bg-[var(--bg-surface-soft)]"
+              onClick={() => setOpen(true)}
+            >
+              대상자 목록 보기 / 관리
+            </button>
+          </>
+        )}
+      </div>
+
+      <HomeworkEnrollmentManageModal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="과제 대상 학생 관리"
+        description="이 과제에 포함할 학생을 선택 후 저장하세요."
+        rows={rows}
+        loading={saveMut.isPending ? false : false /* 모달 내부 로딩은 refetch로 처리 */}
+        error={error}
+        selectedIds={selectedIds}
+        onToggle={toggleOne}
+        onSetSelectedIds={setSelectedIds}
+        onSave={() => {
+          if (saveMut.isPending) return;
+          if (!dirty) return;
+          saveMut.mutate();
+        }}
+        saving={saveMut.isPending}
+        dirty={dirty}
+      />
+    </section>
+  );
+}
+
+
+==========================================================================================
+# FILE: panels/setup/HomeworkPolicyPanel.tsx
+==========================================================================================
+// PATH: src/features/homework/panels/setup/HomeworkPolicyPanel.tsx
+/**
+ * HomeworkPolicyPanel
+ * - exams/setup/ExamPolicyPanel UX 복제
+ * - Wrapper 카드(과제 설정)만 담당
+ */
+
+import { useMemo } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { useHomeworkPolicy } from "../../hooks/useHomeworkPolicy";
+import { patchHomeworkPolicy } from "../../api/homeworkPolicy";
+import HomeworkPolicyCard from "../../components/HomeworkPolicyCard";
+import type { HomeworkPolicy } from "../../types";
+
+export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }) {
+  const qc = useQueryClient();
+
+  const safeSessionId = useMemo(() => {
+    const v = Number(sessionId);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  }, [sessionId]);
+
+  const { data: policy, isLoading, isError } = useHomeworkPolicy(safeSessionId);
+
+  const updateMut = useMutation({
+    mutationFn: (payload: {
+      id: number;
+      data: Partial<
+        Pick<HomeworkPolicy, "cutline_mode" | "cutline_value" | "round_unit_percent">
+      >;
+    }) => patchHomeworkPolicy(payload.id, payload.data),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["homework-policy", safeSessionId] });
+      alert("과제 정책이 저장되었습니다.");
+    },
+    onError: (e: any) => {
+      alert(e?.response?.data?.detail || "과제 정책 저장 실패");
+    },
+  });
+
+  return (
+    <section className="space-y-3">
+      <div className="rounded border bg-[var(--bg-surface)]">
+        <div className="border-b px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--text-primary)]">
+            과제 설정
+          </div>
+          <div className="text-xs text-[var(--text-muted)]">
+            커트라인 기준(%/문항 수) · 반올림 단위 설정
+          </div>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {!safeSessionId && (
+            <div className="rounded border bg-[var(--bg-surface-soft)] p-3 text-sm text-[var(--text-muted)]">
+              ⚠️ sessionId가 없어 과제 정책을 조회할 수 없습니다.
+            </div>
+          )}
+
+          {safeSessionId > 0 && isLoading && (
+            <div className="text-sm text-[var(--text-muted)]">정책 불러오는 중...</div>
+          )}
+
+          {safeSessionId > 0 && isError && (
+            <div className="text-sm text-red-600">정책 조회 실패</div>
+          )}
+
+          {safeSessionId > 0 && !isLoading && !isError && (
+            <HomeworkPolicyCard
+              policy={policy ?? null}
+              isPatching={updateMut.isPending}
+              onPatch={(data) => {
+                if (!policy) return;
+                updateMut.mutate({ id: policy.id, data });
+              }}
+            />
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}

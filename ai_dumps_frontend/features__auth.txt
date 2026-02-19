@@ -1,0 +1,943 @@
+====================================================================================================
+# FRONTEND FOLDER: features__auth
+# ROOT PATH: C:\academyfront\src\features\auth
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/auth.ts
+==========================================================================================
+// PATH: src/features/auth/api/auth.ts
+import api from "@/shared/api/axios";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
+
+export type LoginResponse = {
+  access: string;
+  refresh: string;
+};
+
+export const login = async (username: string, password: string) => {
+  const tenantCode = getTenantCodeForApiRequest();
+  const body: Record<string, string> = { username, password };
+  if (tenantCode) body.tenant_code = tenantCode;
+
+  let res;
+  try {
+    res = await api.post<LoginResponse>("/token/", body);
+  } catch (err: unknown) {
+    const ax = err as { response?: { data?: { detail?: string | string[] | Record<string, unknown> } } };
+    const detail = ax?.response?.data?.detail;
+    let msg = "로그인에 실패했습니다.";
+    if (typeof detail === "string") msg = detail;
+    else if (Array.isArray(detail) && detail.length) msg = String(detail[0]);
+    else if (detail && typeof detail === "object")
+      msg = String(Object.values(detail).flat().find(Boolean) ?? msg);
+    throw new Error(msg);
+  }
+
+  const access = String(res.data?.access || "").trim();
+  const refresh = String(res.data?.refresh || "").trim();
+
+  if (!access || !refresh) {
+    throw new Error("Invalid token response");
+  }
+
+  localStorage.setItem("access", access);
+  localStorage.setItem("refresh", refresh);
+
+  return res.data;
+};
+
+export const logout = () => {
+  localStorage.removeItem("access");
+  localStorage.removeItem("refresh");
+  window.location.href = "/login";
+};
+
+
+==========================================================================================
+# FILE: context/AuthContext.tsx
+==========================================================================================
+// PATH: src/features/auth/context/AuthContext.tsx
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import api from "@/shared/api/axios";
+
+export type TenantRole =
+  | "owner"
+  | "admin"
+  | "teacher"
+  | "staff"
+  | "student"
+  | "parent";
+
+export interface User {
+  id: number;
+  username: string;
+
+  name: string | null;
+  phone: string | null;
+
+  is_staff: boolean;
+  is_superuser: boolean;
+
+  tenantRole: TenantRole | null;
+  /** 학부모일 때 연결된 학생 ID (첫 번째) */
+  linkedStudentId?: number | null;
+}
+
+type AuthState = {
+  user: User | null;
+  isLoading: boolean;
+  refreshMe: () => Promise<void>;
+  clearAuth: () => void;
+};
+
+const AuthContext = createContext<AuthState | null>(null);
+
+function getAccessToken(): string | null {
+  try {
+    return localStorage.getItem("access");
+  } catch {
+    return null;
+  }
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const clearAuth = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    setUser(null);
+  };
+
+  const refreshMe = async () => {
+    const access = getAccessToken();
+    if (!access) {
+      setUser(null);
+      return;
+    }
+
+    try {
+      const res = await api.get<User>("/core/me/");
+      setUser(res.data ?? null);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 403 || status === 404) {
+        clearAuth();
+      }
+      throw err;
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const access = getAccessToken();
+        if (!access) {
+          setUser(null);
+          return;
+        }
+
+        const res = await api.get<User>("/core/me/");
+        setUser(res.data ?? null);
+      } catch (err: any) {
+        const status = err?.response?.status;
+        if (status === 401 || status === 403 || status === 404) {
+          clearAuth();
+        } else {
+          setUser(null);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
+
+  const value = useMemo<AuthState>(
+    () => ({
+      user,
+      isLoading,
+      refreshMe,
+      clearAuth,
+    }),
+    [user, isLoading]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuthContext() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuthContext must be used within AuthProvider");
+  }
+  return ctx;
+}
+
+
+==========================================================================================
+# FILE: hooks/useAuth.ts
+==========================================================================================
+// PATH: src/features/auth/hooks/useAuth.ts
+import { useAuthContext } from "@/features/auth/context/AuthContext";
+
+export default function useAuth() {
+  const { user, isLoading, refreshMe, clearAuth } = useAuthContext();
+
+  return {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    refreshMe,
+    clearAuth,
+  };
+}
+
+
+==========================================================================================
+# FILE: pages/TenantRequiredPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/TenantRequiredPage.tsx
+import { Link } from "react-router-dom";
+
+export default function TenantRequiredPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#0b0d12]">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <h1 className="text-xl font-black mb-2">접근 불가</h1>
+        <p className="text-sm font-semibold text-gray-700 mb-4">
+          이 서비스는 학원(테넌트) 도메인을 통해서만 접근할 수 있습니다.
+        </p>
+
+        <div className="text-xs text-gray-500 mb-6">
+          올바른 도메인으로 접속했는지 확인해주세요.
+        </div>
+
+        <Link
+          to="/login"
+          className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-white font-semibold"
+        >
+          로그인 페이지로 이동
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/login/CustomLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/CustomLoginPage.tsx
+// program.ui_config 기반 커스텀 로그인 — 프리미엄 SaaS auth-card 공통 스타일
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "@/features/auth/api/auth";
+import useAuth from "@/features/auth/hooks/useAuth";
+import { Button } from "@/shared/ui/ds";
+import { useProgram } from "@/shared/program";
+
+export default function CustomLoginPage() {
+  const { program } = useProgram();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      await login(username, password);
+      await refreshMe();
+      navigate("/", { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <div data-app="auth" className="auth-shell">
+      <form onSubmit={onSubmit} className="auth-card">
+        {program?.ui_config?.logo_url && (
+          <img
+            src={program.ui_config.logo_url}
+            alt=""
+            className="auth-card__logo"
+          />
+        )}
+        <h1 className="auth-card__title">
+          {program?.ui_config?.login_title ?? "로그인"}
+        </h1>
+        {program?.ui_config?.login_subtitle && (
+          <p className="auth-card__subtitle">
+            {program.ui_config.login_subtitle}
+          </p>
+        )}
+        <input
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+        />
+        <input
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+        <Button type="submit" intent="primary" size="lg" disabled={pending} className="w-full">
+          {pending ? "로그인 중..." : "로그인"}
+        </Button>
+        {error && <div className="auth-card__error">{error}</div>}
+      </form>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/login/HakwonPlusLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/HakwonPlusLoginPage.tsx
+// 테넌트 1 (hakwonplus.com) 전용 — TenantLoginPage 래퍼
+import TenantLoginPage from "./TenantLoginPage";
+
+export default function HakwonPlusLoginPage() {
+  return <TenantLoginPage tenantId={1} />;
+}
+
+
+==========================================================================================
+# FILE: pages/login/LimglishLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/CustomLoginPage.tsx
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "@/features/auth/api/auth";
+import useAuth from "@/features/auth/hooks/useAuth";
+import { Button } from "@/shared/ui/ds";
+import { useProgram } from "@/shared/program";
+
+export default function CustomLoginPage() {
+  const { program } = useProgram();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+
+    setPending(true);
+    setError("");
+
+    try {
+      await login(username, password);
+      await refreshMe();
+      navigate("/", { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <div
+      className="auth-shell flex min-h-screen items-center justify-center bg-[#0b0d12]"
+      style={{ color: "#000" }}
+    >
+      <form
+        onSubmit={onSubmit}
+        style={{ color: "#000" }}
+        className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl"
+      >
+        {program?.ui_config?.logo_url && (
+          <img
+            src={program.ui_config.logo_url}
+            alt="logo"
+            className="mb-4 h-10"
+          />
+        )}
+
+        <h1 style={{ color: "#000" }} className="mb-1 text-xl font-bold">
+          {program?.ui_config?.login_title ?? "로그인"}
+        </h1>
+
+        {program?.ui_config?.login_subtitle && (
+          <p style={{ color: "#444" }} className="mb-4 text-sm">
+            {program.ui_config.login_subtitle}
+          </p>
+        )}
+
+        <input
+          style={{ color: "#000" }}
+          className="mb-2 w-full rounded border px-3 py-2"
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+
+        <input
+          style={{ color: "#000" }}
+          className="mb-3 w-full rounded border px-3 py-2"
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <Button
+          type="submit"
+          intent="primary"
+          size="lg"
+          disabled={pending}
+          className="w-full"
+        >
+          {pending ? "로그인 중..." : "로그인"}
+        </Button>
+
+        {error && (
+          <div style={{ color: "red" }} className="mt-3 text-sm font-semibold">
+            {error}
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/login/LoginEntry.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/LoginEntry.tsx
+// 테넌트별 로그인: hostname이 테넌트 도메인이면 /login 에서 바로 해당 로그인 폼 (URL은 항상 /login 만 노출)
+import { Navigate } from "react-router-dom";
+import { useProgram } from "@/shared/program";
+import {
+  resolveTenantCode,
+  getTenantIdFromCode,
+  getTenantCodeFromHostname,
+  getLoginPathForTenantId,
+} from "@/shared/tenant";
+import TenantLoginPage from "./TenantLoginPage";
+import { DEDICATED_LOGIN_COMPONENTS } from "./dedicatedLoginComponents";
+
+export default function LoginEntry() {
+  const { program, isLoading } = useProgram();
+
+  if (isLoading) return null;
+
+  if (!program) {
+    return <Navigate to="/error/tenant-required" replace />;
+  }
+
+  // 테넌트 전용 도메인 접속 시 /login 에서 바로 해당 폼 표시 (storage 무시, URL 항상 /login)
+  const fromHost = getTenantCodeFromHostname();
+  if (fromHost.ok) {
+    const hostTenantId = getTenantIdFromCode(fromHost.code);
+    if (hostTenantId != null && hostTenantId !== 1) {
+      const Dedicated = hostTenantId ? DEDICATED_LOGIN_COMPONENTS[hostTenantId] : null;
+      if (Dedicated) return <Dedicated />;
+      return <TenantLoginPage tenantId={hostTenantId} />;
+    }
+  }
+
+  const resolved = resolveTenantCode();
+  const code = resolved.ok ? resolved.code : program.tenantCode;
+  const tenantId = getTenantIdFromCode(code);
+  const path = tenantId ? getLoginPathForTenantId(tenantId) : "/login/hakwonplus";
+  return <Navigate to={path} replace />;
+}
+
+
+==========================================================================================
+# FILE: pages/login/TchulLoginPage.module.css
+==========================================================================================
+/* PATH: src/features/auth/pages/login/TchulLoginPage.module.css
+ * tchul.com 로고 중심 로그인 — 카드 없음, 흰 배경, 로그인 전용 디자인(전역 DS 미사용)
+ */
+
+/* 색상/그라데이션은 SSOT: @/features/auth/themes/tchul.css */
+.root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--tchul-bg);
+  color: var(--tchul-text);
+}
+
+.center {
+  width: 100%;
+  max-width: 32rem;
+  text-align: center;
+}
+
+/* 로고 원본 크기 수준으로 확대 (이미지 2816×1504 비율 유지) */
+.logo {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto 1.5rem;
+}
+
+/* 로그인 전용 버튼 — 로고 컬러패턴(블루→청록→그린) 반영 */
+.btnPrimary {
+  display: inline-block;
+  min-width: 8rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+  background: var(--tchul-gradient);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.05s ease;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.form {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--tchul-border);
+  animation: formExpand 0.28s ease-out;
+}
+
+@keyframes formExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9375rem;
+  color: var(--tchul-text);
+  background: var(--tchul-surface);
+  border: 1px solid var(--tchul-border);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input::placeholder {
+  color: var(--tchul-text-muted);
+}
+
+.input:hover {
+  border-color: var(--tchul-border-hover);
+}
+
+.input:focus {
+  border-color: var(--tchul-blue);
+  box-shadow: 0 0 0 3px var(--tchul-focus);
+}
+
+.form .btnPrimary {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.error {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--tchul-error);
+}
+
+
+==========================================================================================
+# FILE: pages/login/TchulLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/TchulLoginPage.tsx
+// tchul.com 테넌트 전용 — 로고 중심, 카드 없음, 전역 DS 독립(버튼/폼 이 페이지 전용 스타일)
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "@/features/auth/api/auth";
+import useAuth from "@/features/auth/hooks/useAuth";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+import TchulLogoTransparent from "../logos/TchulLogoTransparent.png";
+import "@/features/auth/themes/tchul.css";
+import styles from "./TchulLoginPage.module.css";
+
+export default function TchulLoginPage() {
+  useDocumentTitle();
+
+  const [formExpanded, setFormExpanded] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      await login(username, password);
+      await refreshMe();
+      navigate("/", { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <div data-app="auth" data-tenant="tchul" className={styles.root}>
+      <div className={styles.center}>
+        <img src={TchulLogoTransparent} alt="박철과학" className={styles.logo} />
+        {!formExpanded ? (
+          <>
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              onClick={() => setFormExpanded(true)}
+            >
+              로그인
+            </button>
+          </>
+        ) : (
+          <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
+            <input
+              className={styles.input}
+              placeholder="아이디"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+            />
+            <input
+              className={styles.input}
+              type="password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <button
+              type="submit"
+              className={styles.btnPrimary}
+              disabled={pending}
+            >
+              {pending ? "로그인 중..." : "로그인"}
+            </button>
+            {error && <div className={styles.error}>{error}</div>}
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/login/TenantLoginPage.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/TenantLoginPage.tsx
+// 테넌트별 로그인 — program.ui_config 우선, 없으면 정적 브랜딩(로고/타이틀)
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { login } from "@/features/auth/api/auth";
+import useAuth from "@/features/auth/hooks/useAuth";
+import { Button } from "@/shared/ui/ds";
+import { useProgram } from "@/shared/program";
+import { type TenantId, getTenantBranding } from "@/shared/tenant";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+
+type Props = { tenantId: TenantId };
+
+export default function TenantLoginPage({ tenantId }: Props) {
+  const { program } = useProgram();
+  const staticBranding = getTenantBranding(tenantId);
+  const logoUrl = program?.ui_config?.logo_url ?? staticBranding.logoUrl;
+  const loginTitle = program?.ui_config?.login_title ?? staticBranding.loginTitle;
+  const loginSubtitle = program?.ui_config?.login_subtitle ?? staticBranding.loginSubtitle;
+
+  const [logoError, setLogoError] = useState(false);
+  const showLogoImg = logoUrl && !logoError;
+
+  // 브라우저 타이틀 설정
+  useDocumentTitle();
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  const navigate = useNavigate();
+  const { refreshMe } = useAuth();
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      await login(username, password);
+      await refreshMe();
+      navigate("/", { replace: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <div data-app="auth" className="auth-shell">
+      <form onSubmit={onSubmit} className="auth-card">
+        {showLogoImg && (
+          <img
+            src={logoUrl}
+            alt=""
+            className="auth-card__logo"
+            onError={() => setLogoError(true)}
+          />
+        )}
+        {logoUrl && !showLogoImg && (
+          <div className="auth-card__logo-text" aria-hidden>
+            {loginTitle}
+          </div>
+        )}
+        <h1 className="auth-card__title">{loginTitle}</h1>
+        {loginSubtitle && <p className="auth-card__subtitle">{loginSubtitle}</p>}
+        <input
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+        />
+        <input
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+        <Button type="submit" intent="primary" size="lg" disabled={pending} className="w-full">
+          {pending ? "로그인 중..." : "로그인"}
+        </Button>
+        {error && <div className="auth-card__error">{error}</div>}
+      </form>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/login/dedicatedLoginComponents.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/login/dedicatedLoginComponents.tsx
+// 전용 로그인 페이지를 쓰는 테넌트만 등록 (tenants/*.ts dedicatedLoginPage: true 와 1:1)
+// 9999: 로컬에서 2번(tchul)과 동일 화면 사용, 나중에 제거 예정
+import type { ComponentType } from "react";
+import type { TenantId } from "@/shared/tenant";
+import TchulLoginPage from "./TchulLoginPage";
+
+export const DEDICATED_LOGIN_COMPONENTS: Partial<Record<TenantId, ComponentType>> = {
+  2: TchulLoginPage,
+  9999: TchulLoginPage,
+};
+
+
+==========================================================================================
+# FILE: pages/logos/TchulLogoInline.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/logos/TchulLogoInline.tsx
+// 박철과학 로고 — 원본과 동일하게 SVG+텍스트 구현 (배경 없음)
+import styles from "../login/TchulLoginPage.module.css";
+
+export default function TchulLogoInline() {
+  return (
+    <div className={styles.logoBlock} aria-hidden>
+      <svg
+        className={styles.logoIcon}
+        viewBox="0 0 160 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label="박철과학"
+      >
+        <defs>
+          <linearGradient id="tchul-icon-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#2a7fb4" />
+            <stop offset="50%" stopColor="#36a798" />
+            <stop offset="100%" stopColor="#65c36a" />
+          </linearGradient>
+        </defs>
+        {/* Open book — 왼쪽 페이지 */}
+        <path
+          d="M 28 68 L 28 32 L 52 28 L 52 72 L 28 68 Z"
+          stroke="url(#tchul-icon-grad)"
+          strokeWidth="3.5"
+          fill="none"
+          strokeLinejoin="round"
+        />
+        {/* Open book — 오른쪽 페이지 */}
+        <path
+          d="M 52 28 L 52 72 L 76 68 L 76 32 L 52 28 Z"
+          stroke="url(#tchul-icon-grad)"
+          strokeWidth="3.5"
+          fill="none"
+          strokeLinejoin="round"
+        />
+        {/* DNA 이중나선 — 왼쪽 가닥 (책 중심 통과) */}
+        <path
+          d="M 38 70 Q 44 56 50 48 Q 54 40 58 34 Q 64 28 72 26 Q 80 24 88 28 Q 96 34 100 42"
+          stroke="url(#tchul-icon-grad)"
+          strokeWidth="2.8"
+          fill="none"
+          strokeLinecap="round"
+        />
+        {/* DNA 이중나선 — 오른쪽 가닥 */}
+        <path
+          d="M 44 66 Q 50 52 54 44 Q 60 36 66 30 Q 74 26 84 26 Q 92 28 98 34 Q 104 40 106 48"
+          stroke="url(#tchul-icon-grad)"
+          strokeWidth="2.8"
+          fill="none"
+          strokeLinecap="round"
+        />
+        {/* DNA 가로 막대(rungs) */}
+        {[
+          [40, 68, 48, 66],
+          [48, 54, 54, 52],
+          [52, 42, 58, 40],
+          [58, 32, 66, 30],
+          [72, 26, 82, 26],
+          [88, 28, 96, 34],
+          [100, 40, 104, 46],
+        ].map(([x1, y1, x2, y2], i) => (
+          <line
+            key={i}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="url(#tchul-icon-grad)"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+        ))}
+      </svg>
+      <p className={styles.logoTitle}>박철 과학</p>
+      <p className={styles.logoSub}>Fe Lab</p>
+      <p className={styles.logoSlogan}>
+        과학은 <span className={styles.logoHighlight}>철두철미하게</span>, 결과는{" "}
+        <span className={styles.logoHighlight}>철웅성처럼</span>.
+      </p>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/logos/TchulLogoTraced.tsx
+==========================================================================================
+// PATH: src/features/auth/pages/logos/TchulLogoTraced.tsx
+// TchulLogo.png를 bitmap tracing(imagetracerjs)으로 벡터화한 SVG — 재구성/디자인 없음, 픽셀 기반 path
+import type { FC } from "react";
+import tracedSvg from "./TchulLogoTraced.svg?raw";
+import styles from "../login/TchulLoginPage.module.css";
+
+const TchulLogoTraced: FC = () => (
+  <div
+    className={styles.logoBlock}
+    aria-hidden
+    dangerouslySetInnerHTML={{ __html: tracedSvg }}
+  />
+);
+
+export default TchulLogoTraced;
+
+
+==========================================================================================
+# FILE: themes/tchul.css
+==========================================================================================
+/* PATH: src/features/auth/themes/tchul.css
+ * tchul 테넌트 색상 SSOT — 화이트톤 + 로고 컬러 + 그라데이션
+ * TchulLoginPage 등 tchul 전용 UI는 이 변수만 참조
+ */
+
+[data-app="auth"][data-tenant="tchul"] {
+  /* 화이트톤 */
+  --tchul-bg: #fafbfc;
+  --tchul-surface: #ffffff;
+  --tchul-border: #e5e7eb;
+  --tchul-border-hover: #d1d5db;
+
+  /* 텍스트 */
+  --tchul-text: #1a1d21;
+  --tchul-text-muted: #6b7280;
+
+  /* 로고 컬러 — 단색 */
+  --tchul-blue: #0d47a1;
+  --tchul-blue-hover: #0a3d8a;
+  --tchul-teal: #00695c;
+  --tchul-teal-hover: #005a4a;
+  --tchul-green: #004d40;
+  --tchul-green-hover: #003d2e;
+
+  /* 포커스 / 에러 */
+  --tchul-focus: rgba(13, 71, 161, 0.2);
+  --tchul-error: #b91c1c;
+
+  /* 그라데이션 모드 — 로고 컬러패턴 */
+  --tchul-gradient: linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%);
+  --tchul-gradient-hover: linear-gradient(135deg, #0a3d8a 0%, #005a4a 50%, #003d2e 100%);
+}
+
+
+==========================================================================================
+# FILE: utils/tenant.ts
+==========================================================================================
+

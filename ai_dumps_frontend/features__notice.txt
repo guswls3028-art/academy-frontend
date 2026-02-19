@@ -1,0 +1,256 @@
+====================================================================================================
+# FRONTEND FOLDER: features__notice
+# ROOT PATH: C:\academyfront\src\features\notice
+====================================================================================================
+
+
+==========================================================================================
+# FILE: types.ts
+==========================================================================================
+// PATH: src/features/notice/types.ts
+export type NoticeLevel = "info" | "warning" | "success" | "error";
+
+export type Notice = {
+  id: string;
+  title: string;
+  body?: string;
+  level: NoticeLevel;
+  created_at: string;
+};
+
+
+==========================================================================================
+# FILE: context/NoticeContext.tsx
+==========================================================================================
+// PATH: src/features/notice/context/NoticeContext.tsx
+import { createContext, useContext, useMemo, useState } from "react";
+import type { Notice } from "../types";
+
+type NoticeState = {
+  notices: Notice[];
+  unreadCount: number;
+  remove: (id: string) => void;
+  clear: () => void;
+  push: (n: Notice) => void;
+};
+
+const NoticeContext = createContext<NoticeState | null>(null);
+
+export function NoticeProvider({ children }: { children: React.ReactNode }) {
+  const [notices, setNotices] = useState<Notice[]>([
+    {
+      id: "n-001",
+      title: "시험 채점이 완료되었습니다",
+      body: "고2 모의고사 · 결과 업데이트됨",
+      level: "success",
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: "n-002",
+      title: "오늘 클리닉 일정이 있습니다",
+      body: "오후 6시 · 중3 수학",
+      level: "info",
+      created_at: new Date().toISOString(),
+    },
+  ]);
+
+  const unreadCount = useMemo(() => notices.length, [notices]);
+
+  function remove(id: string) {
+    setNotices((prev) => prev.filter((n) => n.id !== id));
+  }
+
+  function clear() {
+    setNotices([]);
+  }
+
+  function push(n: Notice) {
+    setNotices((prev) => [n, ...prev]);
+  }
+
+  return (
+    <NoticeContext.Provider value={{ notices, unreadCount, remove, clear, push }}>
+      {children}
+    </NoticeContext.Provider>
+  );
+}
+
+export function useNotices() {
+  const ctx = useContext(NoticeContext);
+  if (!ctx) {
+    throw new Error("useNotices must be used within NoticeProvider");
+  }
+  return ctx;
+}
+
+
+==========================================================================================
+# FILE: overlays/NoticeOverlay.tsx
+==========================================================================================
+// PATH: src/features/notice/overlays/NoticeOverlay.tsx
+import Panel from "@/shared/ui/ds/Panel";
+import { Button } from "@/shared/ui/ds";
+import { useNotices } from "../context/NoticeContext";
+
+function levelColor(level: string) {
+  if (level === "success") return "var(--color-success)";
+  if (level === "warning") return "var(--color-warning)";
+  if (level === "error") return "var(--color-error)";
+  return "var(--color-info)";
+}
+
+export default function NoticeOverlay({ onClose }: { onClose: () => void }) {
+  const { notices, remove, clear } = useNotices();
+
+  return (
+    <div className="fixed inset-0 z-[120] flex justify-end bg-black/30">
+      <div
+        className="w-[420px] h-full"
+        style={{
+          background: "var(--color-bg-surface)",
+          borderLeft: "1px solid var(--color-border-divider)",
+        }}
+      >
+        <div
+          style={{
+            height: 56,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 20px",
+            borderBottom: "1px solid var(--color-border-divider)",
+          }}
+        >
+          <div style={{ fontWeight: 900, letterSpacing: "-0.2px" }}>알림</div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Button type="button" intent="ghost" size="sm" onClick={clear} className="text-xs font-black text-[var(--color-text-muted)]">
+              모두 지우기
+            </Button>
+            <Button type="button" intent="ghost" size="sm" onClick={onClose} className="text-xs font-black text-[var(--color-text-muted)]">
+              닫기
+            </Button>
+          </div>
+        </div>
+
+        <div style={{ padding: 16, overflow: "auto", height: "calc(100% - 56px)" }}>
+          {notices.length === 0 && (
+            <div
+              style={{
+                padding: 40,
+                textAlign: "center",
+                color: "var(--color-text-muted)",
+                fontSize: 13,
+                fontWeight: 800,
+              }}
+            >
+              알림이 없습니다
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {notices.map((n) => (
+              <Panel
+                key={n.id}
+                header={
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 999,
+                          background: levelColor(n.level),
+                          flex: "0 0 auto",
+                        }}
+                      />
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 900,
+                          letterSpacing: "-0.15px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={n.title}
+                      >
+                        {n.title}
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      intent="ghost"
+                      size="sm"
+                      onClick={() => remove(n.id)}
+                      className="text-xs font-black text-[var(--color-text-muted)]"
+                      aria-label="알림 제거"
+                      title="알림 제거"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                }
+              >
+                {n.body && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: "var(--color-text-muted)",
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {n.body}
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "var(--color-text-disabled)",
+                  }}
+                >
+                  {new Date(n.created_at).toLocaleString("ko-KR")}
+                </div>
+              </Panel>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: pages/NoticePage.tsx
+==========================================================================================
+// PATH: src/features/notice/pages/NoticePage.tsx
+import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
+import { useState } from "react";
+import { Button } from "@/shared/ui/ds";
+
+export default function NoticePage() {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div style={{ minHeight: 400 }}>
+      {open && <NoticeOverlay onClose={() => setOpen(false)} />}
+      {!open && (
+        <div style={{ padding: 24 }}>
+          <div style={{ fontSize: 18, fontWeight: 900 }}>알림</div>
+          <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+            이 페이지는 디버그/검증용입니다. 실제 사용은 Header의 🔔 오버레이를 사용합니다.
+          </div>
+          <Button type="button" intent="secondary" size="md" onClick={() => setOpen(true)} className="mt-4">
+            알림 오버레이 열기
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,1828 @@
+====================================================================================================
+# FRONTEND FOLDER: student__shared
+# ROOT PATH: C:\academyfront\src\student\shared
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api/studentApi.ts
+==========================================================================================
+// src/student/shared/api/studentApi.ts
+/**
+ * ✅ studentApi (LOCK v1)
+ * - 학생 전용 API wrapper
+ * - 내부적으로 shared axios를 그대로 사용 (모노레포 공존)
+ *
+ * 원칙:
+ * - baseURL / auth / interceptors는 shared/api/axios가 책임
+ * - student는 "호출"만 한다 (판단/계산 ❌)
+ */
+
+import api from "@/shared/api/axios";
+
+export default api;
+
+
+==========================================================================================
+# FILE: tenant/studentTenantBranding.ts
+==========================================================================================
+/**
+ * 학생앱 전용 테넌트 브랜딩 SSOT
+ * - 레이아웃(로고, 타이틀)은 여기서만 참조. 테넌트 추가 시 이 파일과 theme/tenants/{code}.css 만 수정.
+ */
+import { getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
+
+// tchul 전용 로고 (auth SSOT와 동일 에셋)
+import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
+
+export type StudentTenantBranding = {
+  /** 로고 이미지 URL (없으면 상단바에서 텍스트 배지 사용) */
+  logoUrl: string | null;
+  /** 상단바·앱 타이틀 (예: 학원플러스, 박철과학) */
+  title: string;
+};
+
+/** 2번(tchul) 테넌트 디자인. 9999는 로컬 개발용으로 2번과 동일한 로고·타이틀 사용 */
+const TCHUL_DESIGN_CODES = ["tchul", "9999"] as const;
+
+/**
+ * 학생앱에서 사용할 테넌트별 브랜딩.
+ * 테넌트 추가 시 여기에 code → { logoUrl?, title } 매핑 추가.
+ */
+function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
+  if (!code) {
+    return { logoUrl: null, title: "학원플러스" };
+  }
+  const normalized = code.trim().toLowerCase();
+  const tenantId = getTenantIdFromCode(normalized);
+  const fallback: StudentTenantBranding = { logoUrl: null, title: "학원플러스" };
+  if (!tenantId) return fallback;
+
+  const branding = getTenantBranding(tenantId);
+  const base = { title: branding.loginTitle || fallback.title };
+
+  if (TCHUL_DESIGN_CODES.includes(normalized as (typeof TCHUL_DESIGN_CODES)[number])) {
+    return { ...base, logoUrl: TchulLogoTransparent, title: "박철과학" };
+  }
+
+  return { ...base, logoUrl: branding.logoUrl ?? null };
+}
+
+/**
+ * 현재 테넌트 코드에 대한 학생앱 브랜딩 (로고·타이틀).
+ * StudentLayout / StudentTopBar 에서 사용.
+ */
+export function getStudentTenantBranding(tenantCode: string | null): StudentTenantBranding {
+  return getStudentBrandingByCode(tenantCode);
+}
+
+
+==========================================================================================
+# FILE: ui/css/base.css
+==========================================================================================
+/* PATH: src/student/shared/ui/css/base.css */
+/**
+ * ✅ Student UI Base (LOCK v1)
+ * - 운영 프로덕션급 베이스 스타일
+ * - tokens/palette/typography/shadow 위에 얹는 "공용 뼈대"
+ *
+ * 원칙:
+ * - 도메인 판단/로직 없음
+ * - 컴포넌트 디자인을 "막지 않되", 일관된 기본을 제공
+ */
+
+/* =========================
+   0) CSS Reset (Modern)
+   ========================= */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--stu-bg);
+  color: var(--stu-text);
+  font-family: var(--stu-font-sans);
+  font-size: var(--stu-font-size-14);
+  line-height: var(--stu-line-20);
+  letter-spacing: -0.1px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* iOS overscroll bounce color */
+  overscroll-behavior-y: none;
+  
+  /* 프리미엄: 배경 질감 추가 (미묘한 그리드 패턴) */
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.008) 1px, transparent 0),
+    linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.01));
+  background-size: 24px 24px, 100% 100%;
+  background-position: 0 0, 0 0;
+}
+
+/* Media elements */
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Forms */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--stu-primary) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Selection */
+::selection {
+  background: color-mix(in srgb, var(--stu-primary) 22%, transparent);
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================
+   1) Layout Helpers
+   ========================= */
+.stu-page {
+  width: 100%;
+  max-width: var(--stu-page-max-w);
+  margin: 0 auto;
+}
+
+.stu-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--stu-space-6);
+}
+
+.stu-row {
+  display: flex;
+  align-items: center;
+  gap: var(--stu-space-4);
+}
+
+.stu-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-6);
+}
+
+.stu-wrap {
+  flex-wrap: wrap;
+}
+
+.stu-center {
+  display: grid;
+  place-items: center;
+}
+
+.stu-muted {
+  color: var(--stu-text-muted);
+  font-size: var(--stu-font-size-13);
+  line-height: var(--stu-line-18);
+}
+
+.stu-caption {
+  color: var(--stu-text-subtle);
+  font-size: var(--stu-font-size-12);
+  line-height: var(--stu-line-16);
+}
+
+/* Back-compat for existing classes used in domains */
+.student-muted {
+  color: var(--stu-text-muted);
+  font-size: var(--stu-font-size-13);
+  line-height: var(--stu-line-18);
+}
+
+/* =========================
+   2) Surface / Section (Premium SaaS Style)
+   미묘한 그림자, 질감, 깊이감 추가
+   ========================= */
+.stu-section {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: var(--stu-radius-md);
+  padding: var(--stu-space-8);
+  /* 프리미엄: 미묘한 그림자로 깊이감 추가 */
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 2px 4px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.01);
+  position: relative;
+  /* 미묘한 질감을 위한 오버레이 */
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.stu-section--nested {
+  background: var(--stu-surface-2);
+  border: 1px solid var(--stu-border-subtle);
+  /* 중첩된 섹션은 더 미묘한 그림자 */
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.015),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.stu-section--pressable {
+  transition: 
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.stu-section--pressable:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-normal);
+  /* 호버 시 그림자 강화 */
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+  transform: translateY(-1px);
+}
+
+.stu-section--pressable:active {
+  background: var(--stu-tint-primary);
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+/* Section Header (Primary Tint로 브랜딩) */
+.stu-section-header {
+  border-left: 3px solid var(--stu-primary);
+  padding-left: var(--stu-space-6);
+  margin-bottom: var(--stu-space-6);
+}
+
+/* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
+.stu-card {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: var(--stu-radius-md);
+  padding: var(--stu-space-8);
+  /* 프리미엄: 미묘한 그림자와 질감 */
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 2px 4px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.01);
+  position: relative;
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.stu-card--soft {
+  background: var(--stu-surface-2);
+  border: 1px solid var(--stu-border-subtle);
+  /* 부드러운 카드는 더 미묘한 그림자 */
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.015),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.stu-card--pressable {
+  transition: 
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.stu-card--pressable:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-normal);
+  /* 호버 시 그림자 강화와 미묘한 상승 효과 */
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+  transform: translateY(-1px);
+}
+
+.stu-card--pressable:active {
+  background: var(--stu-tint-primary);
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+/* Back-compat for existing class used in StudentPageShell */
+.student-card {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: var(--stu-radius-md);
+  padding: var(--stu-space-8);
+  /* 프리미엄 스타일 적용 */
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 2px 4px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.01);
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* =========================
+   3) Buttons (class-based)
+   - TSX Button primitive가 없더라도 즉시 쓸 수 있게
+   ========================= */
+.stu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 44px; /* touch target */
+  padding: 10px 14px;
+  border-radius: var(--stu-radius-md);
+  font-weight: 600; /* Premium SaaS: 더 부드러운 느낌 */
+  letter-spacing: -0.1px;
+
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--stu-text);
+
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  transition: 
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stu-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.stu-btn:active {
+  /* transform 제거 - Premium SaaS 스타일 */
+}
+
+.stu-btn--primary {
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  border: 1px solid var(--stu-primary);
+  /* 프리미엄: 미묘한 그림자로 깊이감 */
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.stu-btn--primary:hover {
+  background: var(--stu-primary-hover);
+  border-color: var(--stu-primary-hover);
+  /* 호버 시 그림자 강화 */
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.12),
+    0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.stu-btn--primary:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.stu-btn--secondary {
+  background: var(--stu-surface-1);
+  border-color: var(--stu-border-normal);
+  color: var(--stu-text);
+  /* 미묘한 그림자 */
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+}
+
+.stu-btn--secondary:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-strong);
+  box-shadow: 
+    0 2px 2px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+.stu-btn--secondary:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.stu-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--stu-text);
+}
+
+.stu-btn--ghost:hover {
+  background: var(--stu-tint-primary);
+  border-color: transparent;
+}
+
+.stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: 1px solid var(--stu-danger);
+  /* 프리미엄: 미묘한 그림자 */
+  box-shadow: 
+    0 1px 2px rgba(185, 28, 28, 0.2),
+    0 2px 4px rgba(185, 28, 28, 0.15);
+}
+
+.stu-btn--danger:hover {
+  background: var(--stu-danger-hover);
+  border-color: var(--stu-danger-hover);
+  box-shadow: 
+    0 2px 4px rgba(185, 28, 28, 0.25),
+    0 4px 8px rgba(185, 28, 28, 0.2);
+  transform: translateY(-1px);
+}
+
+.stu-btn--danger:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 2px rgba(185, 28, 28, 0.2);
+}
+
+.stu-btn--sm {
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: var(--stu-radius-sm);
+  font-size: var(--stu-font-size-13);
+}
+
+.stu-btn--lg {
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: var(--stu-radius-lg);
+  font-size: var(--stu-font-size-15);
+}
+
+/* =========================
+   4) Inputs
+   ========================= */
+.stu-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--stu-radius-md);
+  border: 1px solid var(--stu-border-normal);
+  background: var(--stu-surface-1);
+  color: var(--stu-text);
+  /* 프리미엄: 미묘한 인셋 그림자 */
+  box-shadow: 
+    inset 0 1px 2px rgba(0, 0, 0, 0.02),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+
+  transition: 
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stu-input::placeholder {
+  color: var(--stu-text-subtle);
+}
+
+.stu-input:focus {
+  outline: none;
+  border-color: var(--stu-primary);
+  border-width: 2px;
+  /* 포커스 시 미묘한 외부 그림자 */
+  box-shadow: 
+    inset 0 1px 2px rgba(0, 0, 0, 0.02),
+    0 0 0 3px rgba(13, 71, 161, 0.1),
+    0 0 0 1px var(--stu-primary);
+}
+
+.stu-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+/* =========================
+   5) Badges / Pills
+   ========================= */
+.stu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: var(--stu-font-size-12);
+  line-height: var(--stu-line-16);
+  font-weight: 900;
+  border: 1px solid transparent;
+}
+
+.stu-badge--neutral {
+  background: var(--stu-surface-2);
+  border-color: var(--stu-border-normal);
+  color: var(--stu-text);
+}
+
+.stu-badge--success {
+  background: var(--stu-success-bg);
+  border-color: var(--stu-success-border);
+  color: var(--stu-success-text);
+}
+
+.stu-badge--warn {
+  background: var(--stu-warn-bg);
+  border-color: var(--stu-warn-border);
+  color: var(--stu-warn-text);
+}
+
+.stu-badge--danger {
+  background: var(--stu-danger-bg);
+  border-color: var(--stu-danger-border);
+  color: var(--stu-danger-text);
+}
+
+/* =========================
+   6) Divider
+   ========================= */
+.stu-divider {
+  height: 1px;
+  width: 100%;
+  background: var(--stu-border-subtle);
+}
+
+/* =========================
+   7) Skeleton
+   ========================= */
+.stu-skel {
+  border-radius: var(--stu-radius-md);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--stu-surface-2) 85%, #fff),
+    color-mix(in srgb, var(--stu-surface-1) 85%, #fff),
+    color-mix(in srgb, var(--stu-surface-2) 85%, #fff)
+  );
+  background-size: 200% 100%;
+  animation: stuShimmer 1.05s ease-in-out infinite;
+}
+
+@keyframes stuShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* =========================
+   8) Toast Host (future)
+   ========================= */
+.stu-toast-host {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px) + var(--stu-tabbar-h));
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* =========================
+   9) Mobile tuning
+   ========================= */
+@media (max-width: 640px) {
+  body {
+    font-size: var(--stu-font-size-14);
+  }
+
+  .stu-section,
+  .stu-card,
+  .student-card {
+    padding: var(--stu-space-8);
+    border-radius: var(--stu-radius-md);
+  }
+}
+
+/* ======================================================
+   10) Section – Advanced Interaction (Premium SaaS)
+   Shadow 제거, Border + Tint 기반
+   ====================================================== */
+
+/* Section 포커스 접근성 (Border 기반) */
+.stu-section--pressable:focus-within,
+.stu-card--pressable:focus-within {
+  border-color: var(--stu-primary);
+  border-width: 2px;
+  outline: none;
+}
+
+/* ======================================================
+   11) Button – Premium SaaS Interaction
+   Shadow 제거, Border 기반
+   ====================================================== */
+
+/* 버튼 포커스 (Border 기반) */
+.stu-btn:focus-visible {
+  outline: 2px solid var(--stu-primary);
+  outline-offset: 2px;
+}
+
+/* ======================================================
+   12) TabBar Active Accent (보조)
+   ====================================================== */
+
+.stu-tabbar a[aria-current="page"] {
+  border-bottom: 2px solid var(--stu-primary);
+}
+
+/* ======================================================
+   13) Subtle Motion (Premium SaaS)
+   Shadow 관련 transition 제거
+   ====================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  .stu-section--pressable,
+  .stu-card--pressable,
+  .stu-btn {
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+}
+
+/* ======================================================
+   14) [data-app="student"] 스코프 — 전역 DS/Tailwind에 덮이지 않도록
+   관리자(data-app=admin) / 로그인(data-app=auth) / 학생(data-app=student) 분리
+   ====================================================== */
+[data-app="student"] .stu-btn--primary {
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  border: 1px solid var(--stu-primary);
+}
+[data-app="student"] .stu-btn--primary:hover:not(:disabled) {
+  background: var(--stu-primary-hover);
+  border-color: var(--stu-primary-hover);
+}
+[data-app="student"] .stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: 1px solid var(--stu-danger);
+}
+[data-app="student"] .stu-btn--danger:hover:not(:disabled) {
+  background: var(--stu-danger-hover);
+  border-color: var(--stu-danger-hover);
+}
+[data-app="student"] .stu-btn--secondary {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-normal);
+  color: var(--stu-text);
+}
+[data-app="student"] .stu-btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--stu-text);
+}
+[data-app="student"] .stu-btn--ghost:hover:not(:disabled) {
+  background: var(--stu-tint-primary);
+}
+
+
+==========================================================================================
+# FILE: ui/icons/Icons.tsx
+==========================================================================================
+/**
+ * 학생 앱 전역 아이콘 — 단일 SSOT, 아이콘 방식
+ * tchul/9999 테넌트에서 .stu-icon 그라데이션은 tenants/tchul.css에서 적용
+ */
+import type { SVGProps } from "react";
+
+const size = 24;
+const stroke = 2;
+
+const iconProps = { className: "stu-icon" } as const;
+
+function mergeIconProps(props: SVGProps<SVGSVGElement>) {
+  return { ...iconProps, ...props, className: [iconProps.className, props.className].filter(Boolean).join(" ") };
+}
+
+export function IconHome(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M3 11.5L12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconPlay(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <polygon points="8 5 19 12 8 19" stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconCalendar(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth={stroke} />
+      <path d="M8 3v4M16 3v4M3 9h18" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconGrade(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M12 2l3 6.5 6.5.5-5 4.5 1.5 6.5L12 16l-5.5 4 1.5-6.5-5-4.5 6.5-.5L12 2z" stroke="currentColor" strokeWidth={stroke} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconMore(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <circle cx="12" cy="6" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <circle cx="12" cy="18" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconUser(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth={stroke} />
+      <path d="M5 20c0-4 3.5-6 7-6s7 2 7 6" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconBoard(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth={stroke} />
+      <path d="M7 8h10M7 12h10M7 16h6" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconCheck(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconChevronRight(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconClipboard(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconExam(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M9 12h6M9 16h6M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconNotice(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m-6 0H9" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconLogout(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconVideoThumb({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="100%" viewBox="0 0 16 9" fill="none">
+      <rect width="16" height="9" fill="var(--stu-surface-soft)" />
+      <path d="M6 4.5v-2l3 2-3 2v-2z" fill="var(--stu-text-muted)" />
+    </svg>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/layout/EmptyState.tsx
+==========================================================================================
+// PATH: src/student/shared/ui/layout/EmptyState.tsx
+/**
+ * ✅ EmptyState (LOCK v2)
+ * - base.css 디자인 시스템 흡수
+ * - inline style 제거
+ * - 테마 변경 시 자동 반응
+ */
+
+export default function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="stu-section stu-section--nested">
+      <div className="stu-stack" style={{ gap: "var(--stu-space-4)" }}>
+        <div className="stu-h3">{title}</div>
+        {description && <div className="stu-muted">{description}</div>}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/layout/SectionHeader.tsx
+==========================================================================================
+// PATH: src/student/shared/ui/layout/SectionHeader.tsx
+/**
+ * ✅ SectionHeader (LOCK v2)
+ * - 타이포/간격을 typography + base.css로 통일
+ * - 페이지/카드 어디서든 일관된 헤더
+ */
+
+import { ReactNode } from "react";
+
+export default function SectionHeader({
+  title,
+  right,
+}: {
+  title: string;
+  right?: ReactNode;
+}) {
+  return (
+    <div className="stu-between" style={{ marginBottom: "var(--stu-space-6)" }}>
+      <div className="stu-h3">{title}</div>
+      {right && <div>{right}</div>}
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/layout/StudentLayout.tsx
+==========================================================================================
+/**
+ * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
+ * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
+ */
+import { Outlet } from "react-router-dom";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import "../theme/tokens.css";
+import "../theme/tenants/index.css";
+
+import StudentTopBar from "./StudentTopBar";
+import StudentTabBar from "./StudentTabBar";
+import { useFavicon } from "@/shared/hooks/useFavicon";
+
+/** 2번(tchul) 테넌트. 9999는 로컬 개발용으로 2번과 동일한 테마 사용 (별도 카피 없음) */
+const TCHUL_THEME_TENANTS = ["tchul", "9999"];
+
+export default function StudentLayout() {
+  const tenantCode = getTenantCodeForApiRequest();
+  useFavicon();
+  const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
+
+  return (
+    <div
+      data-app="student"
+      data-student-tenant={tenantCode || undefined}
+      data-student-theme={useTchulTheme ? "tchul" : undefined}
+      style={{
+        minHeight: "100dvh",
+        background: "var(--stu-bg)",
+        color: "var(--stu-text)",
+        display: "flex",
+        flexDirection: "column",
+        paddingTop: "var(--stu-safe-top)",
+      }}
+    >
+      {useTchulTheme && (
+        <svg aria-hidden width={0} height={0} style={{ position: "absolute" }}>
+          <defs>
+            <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0d47a1" />
+              <stop offset="50%" stopColor="#00695c" />
+              <stop offset="100%" stopColor="#004d40" />
+            </linearGradient>
+          </defs>
+        </svg>
+      )}
+      <header
+        style={{
+          flexShrink: 0,
+          position: "sticky",
+          top: 0,
+          zIndex: "var(--stu-z-header)",
+          background: "var(--stu-header-bg)",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid var(--stu-border)",
+        }}
+      >
+        <StudentTopBar tenantCode={tenantCode} />
+      </header>
+
+      <main
+        style={{
+          flex: 1,
+          overflow: "auto",
+          WebkitOverflowScrolling: "touch",
+          paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
+        }}
+      >
+        <div style={{ maxWidth: "var(--stu-page-max-w)", margin: "0 auto", padding: "var(--stu-space-4)" }}>
+          <Outlet />
+        </div>
+      </main>
+
+      <StudentTabBar />
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/layout/StudentTabBar.tsx
+==========================================================================================
+/**
+ * 하단 탭바 — 5개: 홈 | 영상 | 일정 | 성적 | 더보기
+ * 유튜브 모바일형, 아이콘 + 라벨
+ */
+import { NavLink } from "react-router-dom";
+import { IconHome, IconPlay, IconCalendar, IconGrade, IconMore } from "../icons/Icons";
+
+const tabs: { to: string; label: string; icon: React.ReactNode }[] = [
+  { to: "/student/dashboard", label: "홈", icon: <IconHome /> },
+  { to: "/student/video", label: "영상", icon: <IconPlay /> },
+  { to: "/student/sessions", label: "일정", icon: <IconCalendar /> },
+  { to: "/student/grades", label: "성적", icon: <IconGrade /> },
+  { to: "/student/more", label: "더보기", icon: <IconMore /> },
+];
+
+export default function StudentTabBar() {
+  return (
+    <nav
+      aria-label="하단 메뉴"
+      className="stu-tabbar"
+      style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: "var(--stu-z-tabbar)",
+        paddingBottom: "var(--stu-safe-bottom)",
+        background: "var(--stu-tabbar-bg)",
+        backdropFilter: "blur(20px)",
+        borderTop: "1px solid var(--stu-border)",
+        boxShadow: "var(--stu-shadow-3)",
+      }}
+    >
+      <div
+        style={{
+          height: "var(--stu-tabbar-h)",
+          display: "grid",
+          gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
+          alignItems: "center",
+          maxWidth: "var(--stu-page-max-w)",
+          margin: "0 auto",
+          padding: "0 var(--stu-space-4)",
+        }}
+      >
+        {tabs.map((t) => (
+          <NavLink
+            key={t.to}
+            to={t.to}
+            className="stu-tabbar__link"
+            style={({ isActive }) => ({
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 2,
+              height: "100%",
+              color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
+              transition: "color 0.15s ease",
+            })}
+          >
+            <span style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center" }} aria-hidden>
+              {t.icon}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/layout/StudentTopBar.tsx
+==========================================================================================
+/**
+ * 상단 바 — 좌: 로고·타이틀 고정(박철과학 등) / 우: 학생 아바타 + 이름
+ */
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
+import { fetchMyProfile } from "@/student/domains/profile/api/profile";
+
+type Props = { tenantCode: string | null };
+
+const AVATAR_SIZE = 28;
+
+export default function StudentTopBar({ tenantCode }: Props) {
+  const branding = getStudentTenantBranding(tenantCode);
+  const { data: profile } = useQuery({
+    queryKey: ["student", "me"],
+    queryFn: fetchMyProfile,
+  });
+
+  return (
+    <div
+      style={{
+        height: "var(--stu-header-h)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 var(--stu-space-4)",
+        maxWidth: "var(--stu-page-max-w)",
+        margin: "0 auto",
+      }}
+    >
+      <Link
+        to="/student/dashboard"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 10,
+          color: "var(--stu-text)",
+          textDecoration: "none",
+        }}
+        aria-label="홈"
+      >
+        {branding.logoUrl ? (
+          <img
+            src={branding.logoUrl}
+            alt=""
+            style={{
+              height: 32,
+              width: "auto",
+              maxWidth: 120,
+              objectFit: "contain",
+              display: "block",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              background: "var(--stu-primary)",
+              color: "var(--stu-primary-contrast)",
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 800,
+              fontSize: 14,
+            }}
+          >
+            H
+          </div>
+        )}
+        <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>
+          {branding.title}
+        </span>
+      </Link>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
+        {profile && (
+          <>
+            <div
+              style={{
+                width: AVATAR_SIZE,
+                height: AVATAR_SIZE,
+                borderRadius: "50%",
+                overflow: "hidden",
+                flexShrink: 0,
+                background: "var(--stu-surface-soft)",
+                border: "1px solid var(--stu-border)",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 12,
+                fontWeight: 800,
+                color: "var(--stu-primary)",
+              }}
+            >
+              {profile.profile_photo_url ? (
+                <img
+                  src={profile.profile_photo_url}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                (profile.name || "?")[0]
+              )}
+            </div>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: 14,
+                color: "var(--stu-text)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 100,
+              }}
+            >
+              {profile.name || "학생"}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/pages/StudentPageShell.tsx
+==========================================================================================
+// PATH: src/student/shared/components/StudentPageShell.tsx
+
+import { ReactNode } from "react";
+
+export default function StudentPageShell({
+  title,
+  description,
+  actions,
+  children,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
+          {description && (
+            <div className="student-muted" style={{ marginTop: 4 }}>
+              {description}
+            </div>
+          )}
+        </div>
+        {actions && <div>{actions}</div>}
+      </div>
+
+      <div className="stu-section">{children}</div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/theme/palette.css
+==========================================================================================
+/* PATH: src/student/shared/ui/theme/palette.css */
+/**
+ * ✅ Student Color System (LOCK v1)
+ * - "의미 기반" 팔레트 (대기업 정석)
+ * - 컴포넌트는 특정 HEX가 아니라 의미 토큰을 사용한다.
+ *
+ * 포함:
+ * - Light 기본
+ * - Dark 확장 (prefers-color-scheme)
+ */
+
+:root {
+  /* =========================
+     Brand / Primary
+     ========================= */
+  --stu-primary: #2f6bff;
+  --stu-primary-hover: #275de0;
+  --stu-primary-contrast: #ffffff;
+
+  /* =========================
+     Background / Surface
+     ========================= */
+  --stu-bg: #f6f7fb;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f3f5fb;
+
+  /* =========================
+     Borders
+     ========================= */
+  --stu-border: rgba(17, 17, 17, 0.08);
+
+  /* =========================
+     Text
+     ========================= */
+  --stu-text: #111111;
+  --stu-text-muted: rgba(17, 17, 17, 0.62);
+  --stu-text-subtle: rgba(17, 17, 17, 0.42);
+
+  /* =========================
+     State Colors (semantic)
+     ========================= */
+  --stu-success: #16a34a;
+  --stu-warn: #f59e0b;
+  --stu-danger: #ef4444;
+
+  --stu-success-hover: #12803b;
+  --stu-danger-hover: #dc2626;
+
+  --stu-success-bg: color-mix(in srgb, var(--stu-success) 12%, #ffffff);
+  --stu-success-border: color-mix(in srgb, var(--stu-success) 22%, #ffffff);
+  --stu-success-text: color-mix(in srgb, var(--stu-success) 92%, #000000);
+
+  --stu-warn-bg: color-mix(in srgb, var(--stu-warn) 14%, #ffffff);
+  --stu-warn-border: color-mix(in srgb, var(--stu-warn) 26%, #ffffff);
+  --stu-warn-text: color-mix(in srgb, var(--stu-warn) 92%, #000000);
+
+  --stu-danger-bg: color-mix(in srgb, var(--stu-danger) 12%, #ffffff);
+  --stu-danger-border: color-mix(in srgb, var(--stu-danger) 22%, #ffffff);
+  --stu-danger-text: color-mix(in srgb, var(--stu-danger) 92%, #000000);
+
+  /* =========================
+     Overlay / Backdrop
+     ========================= */
+  --stu-backdrop: rgba(0, 0, 0, 0.35);
+  --stu-glass: rgba(255, 255, 255, 0.72);
+  --stu-glass-border: rgba(255, 255, 255, 0.55);
+}
+
+/* Dark mode (auto) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --stu-primary: #5b8cff;
+    --stu-primary-hover: #4a79e6;
+    --stu-primary-contrast: #0b0d12;
+
+    --stu-bg: #0b0d12;
+    --stu-surface: #121626;
+    --stu-surface-soft: #0f1422;
+
+    --stu-border: rgba(255, 255, 255, 0.12);
+
+    --stu-text: rgba(255, 255, 255, 0.92);
+    --stu-text-muted: rgba(255, 255, 255, 0.66);
+    --stu-text-subtle: rgba(255, 255, 255, 0.46);
+
+    --stu-backdrop: rgba(0, 0, 0, 0.55);
+    --stu-glass: rgba(18, 22, 38, 0.72);
+    --stu-glass-border: rgba(255, 255, 255, 0.12);
+  }
+}
+
+
+==========================================================================================
+# FILE: ui/theme/shadow.css
+==========================================================================================
+/* PATH: src/student/shared/ui/theme/shadow.css */
+/**
+ * ✅ Student Elevation / Shadow (LOCK v1)
+ * - iOS/Material 혼합 스타일의 "카드/시트/탭바" 음영 기준
+ */
+
+:root {
+  --stu-shadow-0: none;
+
+  /* card */
+  --stu-shadow-1: 0 1px 0 rgba(0, 0, 0, 0.03),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+
+  --stu-shadow-2: 0 1px 0 rgba(0, 0, 0, 0.03),
+    0 14px 38px rgba(0, 0, 0, 0.10);
+
+  /* floating sheet / tabbar */
+  --stu-shadow-3: 0 1px 0 rgba(0, 0, 0, 0.04),
+    0 18px 60px rgba(0, 0, 0, 0.18);
+
+  --stu-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Dark mode: shadows soften */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --stu-shadow-1: 0 1px 0 rgba(0, 0, 0, 0.35),
+      0 10px 28px rgba(0, 0, 0, 0.55);
+
+    --stu-shadow-2: 0 1px 0 rgba(0, 0, 0, 0.40),
+      0 16px 44px rgba(0, 0, 0, 0.62);
+
+    --stu-shadow-3: 0 1px 0 rgba(0, 0, 0, 0.45),
+      0 22px 72px rgba(0, 0, 0, 0.72);
+  }
+}
+
+
+==========================================================================================
+# FILE: ui/theme/tokens.css
+==========================================================================================
+@import "../theme/typography.css";
+@import "../theme/shadow.css";
+@import "../css/base.css";
+
+/* PATH: src/student/shared/ui/theme/tokens.css
+ * 단일 모바일 테마 — 프리미엄 대형학원 SaaS
+ * (레가시 프리셋 제거, 단일 SSOT)
+ */
+/* ========== 1. Color palette ========== */
+:root {
+  /* Light Mode (기본) - Premium SaaS Surface System */
+  --stu-bg: #f8fafc; /* surface-0: 페이지 배경 */
+  --stu-surface: #ffffff; /* surface-1: 섹션 배경 */
+  --stu-surface-soft: #f1f5f9; /* surface-2: 패널/중첩 배경 */
+  
+  /* Surface 레이어 명시적 정의 */
+  --stu-surface-0: #f8fafc;
+  --stu-surface-1: #ffffff;
+  --stu-surface-2: #f1f5f9;
+  
+  --stu-border: rgba(17, 17, 17, 0.08);
+  --stu-border-subtle: rgba(17, 17, 17, 0.06);
+  --stu-border-normal: rgba(17, 17, 17, 0.08);
+  --stu-border-strong: rgba(17, 17, 17, 0.12);
+
+  /* Light Mode 텍스트 색상 (어두운 색상) */
+  --stu-text: rgba(17, 17, 17, 0.95);
+  --stu-text-muted: rgba(17, 17, 17, 0.65);
+  --stu-text-subtle: rgba(17, 17, 17, 0.45);
+
+  --stu-primary: #3b82f6;
+  --stu-primary-hover: #2563eb;
+  --stu-primary-contrast: #fff;
+  --stu-glow-primary: 0 0 20px rgba(59, 130, 246, 0.35);
+
+  --stu-success: #22c55e;
+  --stu-success-bg: rgba(34, 197, 94, 0.15);
+  --stu-success-border: rgba(34, 197, 94, 0.4);
+  --stu-success-text: #22c55e;
+
+  --stu-warn: #f59e0b;
+  --stu-warn-bg: rgba(245, 158, 11, 0.15);
+  --stu-warn-border: rgba(245, 158, 11, 0.4);
+  --stu-warn-text: #f59e0b;
+
+  --stu-danger: #ef4444;
+  --stu-danger-hover: #dc2626;
+  --stu-danger-bg: rgba(239, 68, 68, 0.15);
+  --stu-danger-border: rgba(239, 68, 68, 0.4);
+  --stu-danger-text: #ef4444;
+
+  /* 헤더/탭바 (테넌트별 오버라이드용) */
+  --stu-header-bg: rgba(248, 250, 252, 0.95);
+  --stu-tabbar-bg: rgba(255, 255, 255, 0.98);
+
+  /* 테넌트별 오버라이드용 (그라데이션·포커스) — 기본은 단색 */
+  --stu-gradient: var(--stu-primary);
+  --stu-focus: rgba(59, 130, 246, 0.15);
+  
+  /* Primary Tint (멀티테넌트 브랜딩용) */
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+}
+
+/* Dark Mode (선택적) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --stu-bg: #0b0f19;
+    --stu-surface: #121827;
+    --stu-surface-soft: #1a2235;
+    --stu-surface-0: #0b0f19;
+    --stu-surface-1: #121827;
+    --stu-surface-2: #1a2235;
+    
+    --stu-border: rgba(255, 255, 255, 0.1);
+    --stu-border-subtle: rgba(255, 255, 255, 0.08);
+    --stu-border-normal: rgba(255, 255, 255, 0.12);
+    --stu-border-strong: rgba(255, 255, 255, 0.16);
+    
+    --stu-text: rgba(255, 255, 255, 0.95);
+    --stu-text-muted: rgba(255, 255, 255, 0.65);
+    --stu-text-subtle: rgba(255, 255, 255, 0.45);
+    
+    --stu-header-bg: rgba(11, 15, 25, 0.85);
+    --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
+    
+    --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1));
+    --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1));
+  }
+}
+
+/* ========== 2. Typography ========== */
+:root {
+  --stu-font-sans: "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, sans-serif;
+  --stu-font-size-12: 12px;
+  --stu-font-size-13: 13px;
+  --stu-font-size-14: 14px;
+  --stu-font-size-15: 15px;
+  --stu-font-size-16: 16px;
+  --stu-font-size-18: 18px;
+  --stu-font-size-20: 20px;
+  --stu-line-16: 1.35;
+  --stu-line-18: 1.4;
+  --stu-line-20: 1.45;
+}
+
+/* ========== 3. Shadow (shadow.css에서 상세 정의) ========== */
+:root {
+  --stu-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --stu-shadow-2: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --stu-shadow-3: 0 10px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ========== 4. Layout & spacing ========== */
+:root {
+  --stu-header-h: 52px;
+  --stu-tabbar-h: 60px;
+  --stu-page-max-w: 100%;
+  --stu-space-1: 2px;
+  --stu-space-2: 4px;
+  --stu-space-3: 6px;
+  --stu-space-4: 8px;
+  --stu-space-5: 10px;
+  --stu-space-6: 12px;
+  --stu-space-8: 16px;
+  --stu-space-10: 20px;
+  --stu-space-12: 24px;
+  --stu-space-16: 32px;
+  /* Premium SaaS: 작은 radius (6-8px) */
+  --stu-radius-sm: 6px;
+  --stu-radius-md: 8px;
+  --stu-radius-lg: 8px; /* 영상 플레이어 제외 일반 UI는 8px */
+  --stu-radius-xl: 12px; /* 특수 케이스용 */
+  --stu-z-header: 200;
+  --stu-z-tabbar: 220;
+  --stu-z-modal: 500;
+  --stu-z-toast: 650;
+  --stu-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --stu-safe-top: env(safe-area-inset-top, 0px);
+  --stu-touch: 44px;
+}
+
+
+==========================================================================================
+# FILE: ui/theme/typography.css
+==========================================================================================
+/* PATH: src/student/shared/ui/theme/typography.css */
+/**
+ * ✅ Student Typography (LOCK v1)
+ * - 모바일/프로덕션 기준 폰트 스택 + 스케일
+ */
+
+:root {
+  /* Font stack */
+  --stu-font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, "Apple SD Gothic Neo",
+    "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif;
+
+  /* Font sizes */
+  --stu-font-size-12: 12px;
+  --stu-font-size-13: 13px;
+  --stu-font-size-14: 14px;
+  --stu-font-size-15: 15px;
+  --stu-font-size-16: 16px;
+  --stu-font-size-18: 18px;
+  --stu-font-size-20: 20px;
+  --stu-font-size-22: 22px;
+
+  /* Line heights */
+  --stu-line-16: 16px;
+  --stu-line-18: 18px;
+  --stu-line-20: 20px;
+  --stu-line-22: 22px;
+  --stu-line-24: 24px;
+  --stu-line-28: 28px;
+
+  /* Weights (semantic) */
+  --stu-w-regular: 500;
+  --stu-w-medium: 600;
+  --stu-w-bold: 800;
+  --stu-w-black: 900;
+}
+
+/* Type utility classes (optional) */
+.stu-h1 {
+  font-size: var(--stu-font-size-22);
+  line-height: var(--stu-line-28);
+  font-weight: var(--stu-w-black);
+  letter-spacing: -0.3px;
+}
+
+.stu-h2 {
+  font-size: var(--stu-font-size-20);
+  line-height: var(--stu-line-24);
+  font-weight: var(--stu-w-black);
+  letter-spacing: -0.25px;
+}
+
+.stu-h3 {
+  font-size: var(--stu-font-size-18);
+  line-height: var(--stu-line-22);
+  font-weight: var(--stu-w-bold);
+  letter-spacing: -0.2px;
+}
+
+.stu-body {
+  font-size: var(--stu-font-size-14);
+  line-height: var(--stu-line-20);
+  font-weight: var(--stu-w-regular);
+}
+
+.stu-body-strong {
+  font-size: var(--stu-font-size-14);
+  line-height: var(--stu-line-20);
+  font-weight: var(--stu-w-bold);
+}
+
+.stu-caption {
+  font-size: var(--stu-font-size-12);
+  line-height: var(--stu-line-16);
+  font-weight: var(--stu-w-bold);
+}
+
+
+==========================================================================================
+# FILE: ui/theme/tenants/README.md
+==========================================================================================
+# 학생앱 테넌트별 테마
+
+- **기본 테마**: 상위 `tokens.css` (다크 톤, 학원플러스 등)
+- **테넌트 오버라이드**: 이 폴더에 `{code}.css` 추가 후 **`index.css`에만** `@import "{code}.css";` 추가
+  - 셀렉터: `[data-student-tenant="{code}"]`
+  - `--stu-*` 변수 재정의 (색상, 헤더/탭바, `--stu-gradient`, `--stu-focus` 등)
+  - 테넌트 전용 클래스 오버라이드 가능 (예: `.stu-tabbar__link`, `.stu-btn--primary`)
+- **테넌트 추가 시**
+  1. `tenants/{code}.css` 생성
+  2. `tenants/index.css`에 `@import "{code}.css";` 한 줄 추가
+  3. `student/shared/tenant/studentTenantBranding.ts`에 로고·타이틀 추가
+- **tchul(2번)**: auth 로그인 페이지 SSOT 색상·그라데이션 적용 (`@/features/auth/themes/tchul.css` 참고)
+
+
+==========================================================================================
+# FILE: ui/theme/tenants/index.css
+==========================================================================================
+/* PATH: src/student/shared/ui/theme/tenants/index.css
+ * 테넌트별 학생앱 테마 SSOT — 여기서만 import 추가. 셀렉터는 [data-student-tenant="{code}"]
+ */
+@import "./tchul.css";
+/* 추가 테넌트: tenants/{code}.css 생성 후 @import "./{code}.css"; */
+
+
+==========================================================================================
+# FILE: ui/theme/tenants/tchul.css
+==========================================================================================
+/* PATH: src/student/shared/ui/theme/tenants/tchul.css
+ * 2번(tchul) 테마. 9999는 data-student-theme="tchul" 로 이 테마를 "사용" (카피 아님, 구조적 재사용)
+ * 색상 SSOT: @/features/auth/themes/tchul.css (화이트톤 + 블루→청록→그린 그라데이션)
+ */
+[data-student-theme="tchul"] {
+  /* 배경·서페이스 (화이트톤) */
+  --stu-bg: #fafbfc;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #f3f4f6;
+  /* Surface 레이어 명시적 정의 (다크 모드 방지) */
+  --stu-surface-0: #fafbfc;
+  --stu-surface-1: #ffffff;
+  --stu-surface-2: #f3f4f6;
+  --stu-border: #e5e7eb;
+  --stu-border-hover: #d1d5db;
+
+  /* 텍스트 */
+  --stu-text: #1a1d21;
+  --stu-text-muted: #6b7280;
+  --stu-text-subtle: #9ca3af;
+
+  /* 프라이머리 — 로고 컬러 (블루), 버튼/탭 강조는 --stu-gradient 사용 */
+  --stu-primary: #0d47a1;
+  --stu-primary-hover: #0a3d8a;
+  --stu-primary-contrast: #fff;
+  --stu-glow-primary: 0 0 20px rgba(13, 71, 161, 0.25);
+
+  /* 로고 그라데이션 (auth tchul.css SSOT) — CTA·탭 활성 등 */
+  --stu-gradient: linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%);
+  --stu-focus: rgba(13, 71, 161, 0.2);
+
+  /* 성공/경고/에러 */
+  --stu-success: #22c55e;
+  --stu-success-bg: rgba(34, 197, 94, 0.12);
+  --stu-success-border: rgba(34, 197, 94, 0.35);
+  --stu-success-text: #22c55e;
+
+  --stu-warn: #f59e0b;
+  --stu-warn-bg: rgba(245, 158, 11, 0.12);
+  --stu-warn-border: rgba(245, 158, 11, 0.35);
+  --stu-warn-text: #f59e0b;
+
+  --stu-danger: #b91c1c;
+  --stu-danger-hover: #991b1b;
+  --stu-danger-bg: rgba(185, 28, 28, 0.12);
+  --stu-danger-border: rgba(185, 28, 28, 0.35);
+  --stu-danger-text: #b91c1c;
+
+  /* 헤더/탭바 (화이트톤 + 하단 보더) */
+  --stu-header-bg: rgba(250, 251, 252, 0.92);
+  --stu-tabbar-bg: rgba(250, 251, 252, 0.95);
+
+  /* Primary Tint (다크 모드 방지) */
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+}
+
+/* tchul 테마: 다크 모드 미디어 쿼리 오버라이드 (항상 라이트 모드 유지) */
+@media (prefers-color-scheme: dark) {
+  [data-student-theme="tchul"] {
+    /* 다크 모드에서도 밝은 색상 유지 */
+    --stu-bg: #fafbfc;
+    --stu-surface: #ffffff;
+    --stu-surface-soft: #f3f4f6;
+    --stu-surface-0: #fafbfc;
+    --stu-surface-1: #ffffff;
+    --stu-surface-2: #f3f4f6;
+    --stu-text: #1a1d21;
+    --stu-text-muted: #6b7280;
+    --stu-text-subtle: #9ca3af;
+    --stu-header-bg: rgba(250, 251, 252, 0.92);
+    --stu-tabbar-bg: rgba(250, 251, 252, 0.95);
+  }
+}
+
+/* tchul 테마: 포커스 링 (auth와 동일) */
+[data-student-theme="tchul"] :focus-visible {
+  outline: 3px solid var(--stu-focus);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* tchul 테마: 하단 탭바 활성 탭 — 그라데이션 인디케이터 */
+[data-student-theme="tchul"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  color: #0d47a1;
+  font-weight: 800;
+  position: relative;
+}
+
+[data-student-theme="tchul"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--stu-gradient);
+}
+
+/* tchul 테마: primary 버튼 그라데이션 (로그인 페이지와 동일) */
+[data-student-theme="tchul"] .stu-btn--primary {
+  background: var(--stu-gradient);
+}
+
+[data-student-theme="tchul"] .stu-btn--primary:hover {
+  filter: brightness(0.92);
+  background: var(--stu-gradient);
+}
+
+/* tchul 테마: 로그아웃 등 danger 버튼 채움 색상 (전역 DS에 덮이지 않도록) */
+[data-student-theme="tchul"] .stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: none;
+}
+[data-student-theme="tchul"] .stu-btn--danger:hover {
+  background: var(--stu-danger-hover);
+  filter: brightness(0.95);
+}
+
+/* tchul 테마: 모든 아이콘 그라데이션 톤 (SVG .stu-icon — 루트·자식 모두) */
+[data-student-theme="tchul"] .stu-icon,
+[data-student-theme="tchul"] .stu-icon path,
+[data-student-theme="tchul"] .stu-icon circle,
+[data-student-theme="tchul"] .stu-icon polygon,
+[data-student-theme="tchul"] .stu-icon rect {
+  stroke: url(#stu-gradient-tchul);
+}
+[data-student-theme="tchul"] .stu-icon path[fill="currentColor"],
+[data-student-theme="tchul"] .stu-icon circle[fill="currentColor"],
+[data-student-theme="tchul"] .stu-icon polygon[fill="currentColor"] {
+  fill: url(#stu-gradient-tchul);
+}
+
+
+==========================================================================================
+# FILE: utils/date.ts
+==========================================================================================
+// src/student/shared/utils/date.ts
+/**
+ * ✅ date utils
+ * - 포맷만 담당 (계산/판단 ❌)
+ */
+
+export function formatYmd(iso?: string | null) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
