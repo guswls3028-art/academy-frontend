@@ -23,6 +23,8 @@ body {
 
 .idcard-page--black {
   background: #000;
+  background-size: 200% 200%;
+  animation: idcard-background-flow 8s ease infinite;
 }
 
 .idcard-page__loading,
