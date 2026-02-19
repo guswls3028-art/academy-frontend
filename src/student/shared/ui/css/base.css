@@ -379,7 +379,7 @@ a {
   padding: 10px 14px;
   border-radius: var(--stu-radius-md);
   font-weight: 600; /* Premium SaaS: 더 부드러운 느낌 */
-  letter-spacing: -0.1px;
+  letter-spacing: -0.01em; /* 프리미엄: 음수 letter-spacing */
 
   border: 1px solid transparent;
   background: transparent;
@@ -389,11 +389,13 @@ a {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 
+  /* 프리미엄: Motion Token 사용 */
   transition: 
-    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    background var(--stu-motion-base),
+    border-color var(--stu-motion-base),
+    box-shadow var(--stu-motion-base),
+    transform var(--stu-motion-fast),
+    filter var(--stu-motion-fast);
 }
 
 .stu-btn:disabled {
@@ -426,7 +428,9 @@ a {
 }
 
 .stu-btn--primary:active {
-  transform: translateY(0);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.95);
   box-shadow: 
     0 1px 2px rgba(0, 0, 0, 0.1);
 }
@@ -451,7 +455,9 @@ a {
 }
 
 .stu-btn--secondary:active {
-  transform: translateY(0);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.97);
   box-shadow: 
     0 1px 1px rgba(0, 0, 0, 0.04);
 }
@@ -487,7 +493,9 @@ a {
 }
 
 .stu-btn--danger:active {
-  transform: translateY(0);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.95);
   box-shadow: 
     0 1px 2px rgba(185, 28, 28, 0.2);
 }
