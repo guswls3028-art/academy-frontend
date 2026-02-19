@@ -46,6 +46,7 @@ export default function StudentTabBar() {
           <NavLink
             key={t.to}
             to={t.to}
+            className="stu-tabbar__link"
             style={({ isActive }) => ({
               display: "flex",
               flexDirection: "column",
