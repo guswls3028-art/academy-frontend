@@ -100,15 +100,15 @@ async function main() {
 
   await image
     .extract({
-      left: cropX,
-      top: cropY,
-      width: squareSize,
-      height: squareSize,
+      left: finalCropX,
+      top: finalCropY,
+      width: finalSize,
+      height: finalSize,
     })
     .png()
     .toFile(OUTPUT);
 
-  console.log(`✓ Created: ${OUTPUT} (${squareSize}x${squareSize})`);
+  console.log(`✓ Created: ${OUTPUT} (${finalSize}x${finalSize})`);
 }
 
 main().catch((e) => {
