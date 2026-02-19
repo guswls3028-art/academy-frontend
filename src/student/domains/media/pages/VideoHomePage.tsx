@@ -138,8 +138,8 @@ export default function VideoHomePage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: "var(--stu-space-4)",
+          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+          gap: 16,
         }}
       >
         {/* 전체공개영상 코스 카드 */}

@@ -45,24 +45,19 @@ export default function CourseCard({
   return (
     <Component
       {...props}
-      className="course-card stu-section stu-section--pressable"
+      className="media-tile"
       style={{
         display: "block",
         width: "100%",
-        borderRadius: "var(--stu-radius-md)",
-        overflow: "hidden",
-        padding: 0,
         textAlign: "left",
       }}
     >
       {/* 썸네일 영역 */}
       <div
+        className="media-tile__thumb"
         style={{
           position: "relative",
-          width: "100%",
-          aspectRatio: "16/9",
-          background: "var(--stu-surface-soft)",
-          overflow: "hidden",
+          background: "#111",
         }}
       >
         {thumbnailUrl ? (
@@ -205,16 +200,14 @@ export default function CourseCard({
       </div>
 
       {/* 정보 영역 */}
-      <div style={{ padding: "var(--stu-space-6)" }}>
+      <div className="media-tile__title" style={{ marginTop: 6 }}>
         <h3
           style={{
-            fontSize: 16,
-            fontWeight: 700,
+            fontSize: 14,
+            fontWeight: 600,
             margin: 0,
             marginBottom: "var(--stu-space-2)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            lineHeight: 1.3,
             color: "var(--stu-text)",
           }}
         >
