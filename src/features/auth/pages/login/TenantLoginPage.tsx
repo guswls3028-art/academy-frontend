@@ -50,8 +50,18 @@ export default function TenantLoginPage({ tenantId }: Props) {
   return (
     <div data-app="auth" className="auth-shell">
       <form onSubmit={onSubmit} className="auth-card">
-        {logoUrl && (
-          <img src={logoUrl} alt="logo" className="auth-card__logo" />
+        {showLogoImg && (
+          <img
+            src={logoUrl}
+            alt=""
+            className="auth-card__logo"
+            onError={() => setLogoError(true)}
+          />
+        )}
+        {logoUrl && !showLogoImg && (
+          <div className="auth-card__logo-text" aria-hidden>
+            {loginTitle}
+          </div>
         )}
         <h1 className="auth-card__title">{loginTitle}</h1>
         {loginSubtitle && <p className="auth-card__subtitle">{loginSubtitle}</p>}
