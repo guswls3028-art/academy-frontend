@@ -64,20 +64,20 @@ export default function SessionDetailPage() {
           {Array.isArray(data.exam_ids) && data.exam_ids.length > 0 ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {data.exam_ids.map((eid) => (
-                <Link key={eid} to={`/student/exams/${eid}`} className="stu-cta-link">
+                <Link key={eid} to={`/student/exams/${eid}`} style={btnStyle}>
                   시험 #{eid}
                 </Link>
               ))}
             </div>
           ) : (
-            <Link to="/student/exams" className="stu-cta-link">
+            <Link to="/student/exams" style={btnStyle}>
               시험 목록 보기
             </Link>
           )}
         </ActionCard>
 
         <ActionCard title="성적" desc="결과 요약 화면으로 이동합니다.">
-          <Link to="/student/grades" style={btnStyle}>
+          <Link to="/student/grades" className="stu-cta-link">
             성적 보기
           </Link>
         </ActionCard>
