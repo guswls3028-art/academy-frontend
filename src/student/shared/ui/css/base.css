@@ -155,33 +155,60 @@ a {
 
 /* =========================
    2) Surface / Section (Premium SaaS Style)
-   Shadow 제거, Border 기반 레이어 시스템
+   미묘한 그림자, 질감, 깊이감 추가
    ========================= */
 .stu-section {
   background: var(--stu-surface-1);
   border: 1px solid var(--stu-border-subtle);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* Shadow 제거 - Border만 사용 */
+  /* 프리미엄: 미묘한 그림자로 깊이감 추가 */
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 2px 4px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.01);
+  position: relative;
+  /* 미묘한 질감을 위한 오버레이 */
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
+  background-size: 20px 20px;
 }
 
 .stu-section--nested {
   background: var(--stu-surface-2);
   border: 1px solid var(--stu-border-subtle);
+  /* 중첩된 섹션은 더 미묘한 그림자 */
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.015),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .stu-section--pressable {
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: 
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
 
 .stu-section--pressable:hover {
   background: var(--stu-tint-hover);
   border-color: var(--stu-border-normal);
+  /* 호버 시 그림자 강화 */
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+  transform: translateY(-1px);
 }
 
 .stu-section--pressable:active {
   background: var(--stu-tint-primary);
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
 }
 
 /* Section Header (Primary Tint로 브랜딩) */
