@@ -2,11 +2,7 @@
  * 학생앱 전용 테넌트 브랜딩 SSOT
  * - 레이아웃(로고, 타이틀)은 여기서만 참조. 테넌트 추가 시 이 파일과 theme/tenants/{code}.css 만 수정.
  */
-import {
-  getTenantIdFromCode,
-  getTenantBranding,
-  type TenantId,
-} from "@/shared/tenant";
+import { getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 
 // tchul 전용 로고 (auth SSOT와 동일 에셋)
 import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
