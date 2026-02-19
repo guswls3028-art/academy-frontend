@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgress } from "../api/video";
-import { IconCheck, IconRefresh, IconArrowRight } from "@/student/shared/ui/icons/Icons";
+import { IconCheck, IconRefresh, IconArrowRight, IconPlay } from "@/student/shared/ui/icons/Icons";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -24,7 +24,6 @@ export default function VideoPlayerPage() {
   const nav = useNavigate();
   const q = useQueryParams();
   const params = useParams();
-  const queryClient = useQueryClient();
   const queryClient = useQueryClient();
 
   const videoId =
@@ -176,7 +175,17 @@ export default function VideoPlayerPage() {
   }, []);
 
   // 다음 강의 찾기 (같은 세션 내에서)
-  const sessionId = video?.session_id;
+  // sessionId를 별도 state로 관리하여 Hook 순서 일관성 유지
+  const [sessionId, setSessionId] = useState<number | null>(null);
+  
+  useEffect(() => {
+    if (video?.session_id) {
+      setSessionId(video.session_id);
+    } else {
+      setSessionId(null);
+    }
+  }, [video?.session_id]);
+  
   const { data: sessionVideosData } = useQuery({
     queryKey: ["student-session-videos", sessionId, enrollmentId],
     queryFn: () => fetchStudentSessionVideos(sessionId!, enrollmentId || undefined),

@@ -1,7 +1,7 @@
 /**
  * 차시 상세 페이지 — 영상 목록 (작은 썸네일 구조)
  */
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudentSessionVideos } from "../api/video";
@@ -229,13 +229,30 @@ export default function SessionDetailPage() {
   const enrollmentId = searchParams.get("enrollment") ? parseInt(searchParams.get("enrollment")!, 10) : null;
   
   // 현재 재생 중인 영상 ID (localStorage에서 가져오기 - VideoPlayerPage에서 설정)
-  const currentVideoId = useMemo(() => {
+  // useMemo 대신 useState + useEffect 사용하여 Hook 순서 일관성 유지
+  const [currentVideoId, setCurrentVideoId] = useState<number | null>(null);
+  
+  useEffect(() => {
     try {
       const stored = localStorage.getItem("student_current_video_id");
-      return stored ? parseInt(stored, 10) : null;
+      setCurrentVideoId(stored ? parseInt(stored, 10) : null);
     } catch {
-      return null;
+      setCurrentVideoId(null);
     }
+    
+    // localStorage 변경 감지 (다른 탭/창에서 변경 시)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "student_current_video_id") {
+        try {
+          setCurrentVideoId(e.newValue ? parseInt(e.newValue, 10) : null);
+        } catch {
+          setCurrentVideoId(null);
+        }
+      }
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
   const { data: videosData, isLoading } = useQuery({
