@@ -140,12 +140,20 @@
   fill: url(#stu-gradient-tchul);
 }
 
-/* tchul 테마: 배경은 흰색 유지, UI 요소에 그라데이션 적용 */
+/* tchul 테마: 배경에 약한 그라데이션 적용 */
 [data-student-theme="tchul"] [data-app="student"] {
-  /* 배경은 흰색 유지 (그라데이션 제거) */
-  background-image: var(--stu-bg-pattern);
-  background-size: var(--stu-bg-pattern-size);
+  /* 배경에 약한 그라데이션 + 기존 패턴 */
+  background-image: 
+    /* 약한 브랜드 그라데이션 */
+    linear-gradient(135deg, rgba(13, 71, 161, 0.04) 0%, rgba(0, 105, 92, 0.03) 50%, rgba(0, 77, 64, 0.03) 100%),
+    /* 기존 패턴 */
+    var(--stu-bg-pattern);
+  background-size: 
+    100% 100%,
+    var(--stu-bg-pattern-size);
   background-color: var(--stu-bg);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 /* tchul 테마: 헤더에 약한 그라데이션 적용 */
