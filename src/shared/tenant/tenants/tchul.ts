@@ -1,5 +1,6 @@
 // PATH: src/shared/tenant/tenants/tchul.ts
 // 테넌트 2: 박철과학 (tchul.com)
+// 색상/테마 SSOT: @/features/auth/themes/tchul.css (화이트톤 + 그라데이션)
 import type { TenantDef } from "./types";
 
 export const tchul: TenantDef = {
