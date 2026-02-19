@@ -47,14 +47,17 @@ async function startPlayback(params: {
   deviceId: string;
 }): Promise<PlaybackBootstrap> {
   // 학생 앱 전용 API 사용: /student/video/videos/{id}/playback/
-  // 이 엔드포인트는 GET 요청이지만, 백엔드에서 재생 세션을 시작하고 play_url을 반환합니다
   const playbackData = await fetchStudentVideoPlayback(params.videoId, params.enrollmentId);
   
-  // play_url이 없으면 hls_url 사용
+  // play_url이 없으면 hls_url 또는 mp4_url 사용
   const playUrl = playbackData.hls_url || playbackData.mp4_url || "";
   
+  if (!playUrl) {
+    throw new Error("재생 URL을 가져올 수 없습니다.");
+  }
+  
   return {
-    token: "", // 학생 앱에서는 token이 필요 없을 수 있음
+    token: `student-${params.videoId}-${Date.now()}`, // 학생 앱용 임시 token
     session_id: null,
     expires_at: null,
     access_mode: playbackData.policy?.access_mode || "FREE_REVIEW",
