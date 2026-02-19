@@ -31,13 +31,30 @@ function VideoListItem({
         gap: 12,
         padding: "var(--stu-space-3)",
         borderRadius: 10,
-        background: "var(--stu-surface-1)",
-        border: "1px solid var(--stu-border-subtle)",
+        background: "#1a1a1a",
+        border: "1px solid rgba(255,255,255,0.1)",
         textDecoration: "none",
         color: "inherit",
-        transition: "transform var(--stu-motion-fast), filter var(--stu-motion-fast)",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        cursor: "pointer",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
       }}
-      className="stu-panel--pressable"
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.5)";
+        e.currentTarget.style.background = "#222";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
+        e.currentTarget.style.background = "#1a1a1a";
+      }}
+      onMouseDown={(e) => {
+        e.currentTarget.style.transform = "translateY(0) scale(0.98)";
+      }}
+      onMouseUp={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
     >
       {/* 썸네일 */}
       <div
