@@ -185,9 +185,12 @@ export const asyncStatusStore = {
     emit();
   },
 
-  /** 완료된 항목 일괄 제거 (휴지통) */
+  /** 완료된 항목 일괄 제거 (휴지통) — 현재 테넌트 소속만 제거, 테넌트 격리 */
   clearCompleted(): void {
-    tasks = tasks.filter((t) => t.status === "pending");
+    const scope = this._getTenantScope();
+    tasks = tasks.filter(
+      (t) => t.status === "pending" || (t.tenantScope ?? "") !== scope
+    );
     emit();
   },
 
