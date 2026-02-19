@@ -92,41 +92,42 @@ export default function DashboardPage() {
 
       {/* 빠른 메뉴 */}
       <section>
-        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 700, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
-          빠른 메뉴
-        </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--stu-space-4)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Link
             to="/student/video"
-            className="stu-panel stu-panel--pressable"
-            style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
+            className="stu-action-tile"
           >
-            <IconPlay style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
-            <div style={{ fontWeight: 700, fontSize: 14 }}>영상</div>
+            <div className="stu-action-tile__icon">
+              <IconPlay style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+            </div>
+            <div className="stu-action-tile__label">영상</div>
           </Link>
           <Link
             to="/student/exams"
-            className="stu-panel stu-panel--pressable"
-            style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
+            className="stu-action-tile"
           >
-            <IconExam style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
-            <div style={{ fontWeight: 700, fontSize: 14 }}>시험</div>
+            <div className="stu-action-tile__icon">
+              <IconExam style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+            </div>
+            <div className="stu-action-tile__label">시험</div>
           </Link>
           <Link
             to="/student/grades"
-            className="stu-panel stu-panel--pressable"
-            style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
+            className="stu-action-tile"
           >
-            <IconGrade style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
-            <div style={{ fontWeight: 700, fontSize: 14 }}>성적</div>
+            <div className="stu-action-tile__icon">
+              <IconGrade style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+            </div>
+            <div className="stu-action-tile__label">성적</div>
           </Link>
           <Link
             to="/student/sessions"
-            className="stu-panel stu-panel--pressable"
-            style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
+            className="stu-action-tile"
           >
-            <IconCalendar style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
-            <div style={{ fontWeight: 700, fontSize: 14 }}>일정</div>
+            <div className="stu-action-tile__icon">
+              <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+            </div>
+            <div className="stu-action-tile__label">일정</div>
           </Link>
         </div>
       </section>
