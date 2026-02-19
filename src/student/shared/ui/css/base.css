@@ -230,8 +230,8 @@ a {
 }
 
 /* =========================
-   3) Buttons & Text CTA (Premium SaaS Style)
-   - Shadow 제거, Text CTA 추가
+   3) Buttons (class-based)
+   - TSX Button primitive가 없더라도 즉시 쓸 수 있게
    ========================= */
 .stu-btn {
   display: inline-flex;
@@ -242,7 +242,7 @@ a {
   min-height: 44px; /* touch target */
   padding: 10px 14px;
   border-radius: var(--stu-radius-md);
-  font-weight: 600; /* 800 → 600 (더 부드러운 느낌) */
+  font-weight: 800;
   letter-spacing: -0.1px;
 
   border: 1px solid transparent;
@@ -253,34 +253,7 @@ a {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 
-  transition: background 120ms ease, border-color 120ms ease;
-  /* transform, box-shadow 제거 */
-}
-
-/* Text CTA (Premium SaaS 스타일) */
-.stu-cta-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 500;
-  color: var(--stu-primary);
-  text-decoration: none;
-  cursor: pointer;
-  transition: color 120ms ease;
-}
-
-.stu-cta-link:hover {
-  color: var(--stu-primary-hover);
-}
-
-.stu-cta-link::after {
-  content: "→";
-  font-size: 0.9em;
-  transition: transform 120ms ease;
-}
-
-.stu-cta-link:hover::after {
-  transform: translateX(2px);
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .stu-btn:disabled {
@@ -295,12 +268,14 @@ a {
 .stu-btn--primary {
   background: var(--stu-primary);
   color: var(--stu-primary-contrast);
-  box-shadow: var(--stu-shadow-1);
+  border: 1px solid var(--stu-primary);
+  /* Shadow 제거 */
 }
 
 .stu-btn--primary:hover {
   background: var(--stu-primary-hover);
-  box-shadow: var(--stu-shadow-2);
+  border-color: var(--stu-primary-hover);
+  /* Shadow 제거 */
 }
 
 .stu-btn--secondary {
