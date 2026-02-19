@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 type Props = { tenantCode: string | null };
 
@@ -46,7 +46,16 @@ export default function StudentTopBar({ tenantCode }: Props) {
         aria-label="홈"
       >
         {isTchulTheme ? (
-          <TchulLogoIcon size={32} />
+          <img
+            src={TchulLogoIcon}
+            alt=""
+            style={{
+              height: 32,
+              width: 32,
+              objectFit: "contain",
+              display: "block",
+            }}
+          />
         ) : branding.logoUrl ? (
           <img
             src={branding.logoUrl}
