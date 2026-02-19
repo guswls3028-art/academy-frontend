@@ -76,8 +76,13 @@ export default function VideoExplorerPage() {
   });
 
   const lecturesWithSessions: LectureWithSessions[] = useMemo(() => {
-    return lectures.map((lec, i) => {
-      const sessions = (sessionQueries[i]?.data as Session[] | undefined) ?? [];
+    // 전체공개영상 Lecture는 제외 (별도로 최상단에 표시되므로)
+    const filteredLectures = lectures.filter(
+      (lec) => lec.title !== "전체공개영상" && lec.name !== "전체공개영상"
+    );
+    return filteredLectures.map((lec, i) => {
+      const originalIndex = lectures.indexOf(lec);
+      const sessions = (sessionQueries[originalIndex]?.data as Session[] | undefined) ?? [];
       return { ...lec, sessions: sortSessionsByDateDesc(sessions) };
     });
   }, [lectures, sessionQueries]);
