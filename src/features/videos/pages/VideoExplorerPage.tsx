@@ -46,9 +46,12 @@ function formatDate(iso: string | null): string {
   }
 }
 
+const PUBLIC_LECTURE_TITLE = "전체공개영상";
+
 export default function VideoExplorerPage() {
   const navigate = useNavigate();
   const [selectedFolderId, setSelectedFolderId] = useState<VideoFolderId>(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
     queryKey: ["admin-videos-lectures"],
@@ -70,20 +73,27 @@ export default function VideoExplorerPage() {
     });
   }, [lectures, sessionQueries]);
 
+  const { data: publicSession, isLoading: publicSessionLoading } = useQuery({
+    queryKey: ["public-session"],
+    queryFn: fetchPublicSession,
+    enabled: selectedFolderId === "public",
+  });
+
   const { data: sessionVideos = [], isLoading: sessionVideosLoading } = useQuery({
     queryKey: ["session-videos", selectedFolderId],
     queryFn: () => fetchSessionVideos(selectedFolderId as number),
     enabled: typeof selectedFolderId === "number",
   });
 
-  const { data: allVideos = [], isLoading: allVideosLoading } = useQuery({
-    queryKey: ["all-videos"],
-    queryFn: fetchAllVideos,
-    enabled: selectedFolderId === "public",
+  const { data: publicVideos = [], isLoading: publicVideosLoading } = useQuery({
+    queryKey: ["session-videos", "public", publicSession?.session_id],
+    queryFn: () => fetchSessionVideos(publicSession!.session_id),
+    enabled: selectedFolderId === "public" && !!publicSession?.session_id,
   });
 
-  const videos = selectedFolderId === "public" ? allVideos : sessionVideos;
-  const videosLoading = selectedFolderId === "public" ? allVideosLoading : sessionVideosLoading;
+  const videos = selectedFolderId === "public" ? publicVideos : sessionVideos;
+  const videosLoading =
+    selectedFolderId === "public" ? publicSessionLoading || publicVideosLoading : sessionVideosLoading;
 
   const sessionsLoading = sessionQueries.some((q) => q.isLoading);
   const isLoading = lecturesLoading || sessionsLoading;
