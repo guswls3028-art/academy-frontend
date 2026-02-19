@@ -40,6 +40,7 @@ export type StudentVideoListItem = {
   title: string;
   status: string;
   thumbnail_url?: string | null;
+  duration?: number | null;
 
   allow_skip: boolean;
   max_speed: number;
