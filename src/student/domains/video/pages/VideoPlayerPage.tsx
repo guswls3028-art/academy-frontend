@@ -1,5 +1,5 @@
 // PATH: src/student/domains/video/pages/VideoPlayerPage.tsx
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
@@ -195,24 +195,26 @@ export default function VideoPlayerPage() {
       return updateVideoProgress(videoId, data);
     },
     onSuccess: () => {
-      // 관련 쿼리 무효화하여 진행률 업데이트 반영
       if (sessionId) {
         queryClient.invalidateQueries({ queryKey: ["student-session-videos", sessionId, enrollmentId] });
       }
     },
   });
 
-  // 진행률 전달 콜백: 참조 안정화로 자식 useEffect 의존성 변경 시 cleanup→mutate→invalidate 무한 루프 방지 (React #310)
+  const progressMutationRef = useRef(progressMutation);
+  progressMutationRef.current = progressMutation;
+
+  // 진행률 전달 콜백: videoId만 deps로 고정 → progressMutation 참조 변경 시에도 콜백 안정 (React #310 방지)
   const onLeaveProgress = useCallback(
     (data: { progress?: number; completed?: boolean; last_position?: number }) => {
       if (!videoId) return;
-      progressMutation.mutate({
+      progressMutationRef.current.mutate({
         progress: data.progress,
         last_position: data.last_position,
         completed: data.completed,
       });
     },
-    [videoId, progressMutation]
+    [videoId]
   );
 
   // 수강 완료 처리

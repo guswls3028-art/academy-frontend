@@ -502,6 +502,9 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     }
   }, [bootstrap.policy]);
 
+  const queueEventRef = useRef(queueEvent);
+  queueEventRef.current = queueEvent;
+
   const flushEvents = useCallback(async () => {
     const token = tokenRef.current;
     if (!token) return;
@@ -591,22 +594,22 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Visibility / Focus events
+  // Visibility / Focus events (ref 사용으로 queueEvent 변경 시 effect 재실행 방지, React #310)
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const onVis = () => {
       if (document.hidden) {
-        queueEvent("VISIBILITY_HIDDEN", { hidden: true });
+        queueEventRef.current("VISIBILITY_HIDDEN", { hidden: true });
       } else {
-        queueEvent("VISIBILITY_VISIBLE", { hidden: false });
+        queueEventRef.current("VISIBILITY_VISIBLE", { hidden: false });
         if (monitoringEnabled) {
           const token = tokenRef.current;
           if (token) postRefresh(token).catch(() => {});
         }
       }
     };
-    const onBlur = () => queueEvent("FOCUS_LOST", {});
-    const onFocus = () => queueEvent("FOCUS_GAINED", {});
+    const onBlur = () => queueEventRef.current("FOCUS_LOST", {});
+    const onFocus = () => queueEventRef.current("FOCUS_GAINED", {});
 
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("blur", onBlur);
@@ -617,7 +620,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onFocus);
     };
-  }, [queueEvent, monitoringEnabled]);
+  }, [monitoringEnabled]);
 
   // ---------------------------------------------------------------------------
   // Video event binding
