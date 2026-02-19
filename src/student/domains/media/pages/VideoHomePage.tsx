@@ -88,32 +88,22 @@ function useLectureCourseCard(lecture: { id: number; title: string; sessions: Ar
 }
 
 export default function VideoHomePage() {
-  const [expandedLectureIds, setExpandedLectureIds] = useState<Set<number>>(new Set());
-  const enrollmentId: number | null = null;
-
   const { data: videoMe, isLoading, isError } = useQuery({
     queryKey: ["student-video-me"],
     queryFn: fetchVideoMe,
   });
 
+  const publicCard = usePublicCourseCard(videoMe?.public ?? null);
+
   const hasPublic = !!videoMe?.public?.session_id;
   const hasLectures = (videoMe?.lectures?.length ?? 0) > 0;
   const hasAny = hasPublic || hasLectures;
 
-  const toggleLecture = (lectureId: number) => {
-    setExpandedLectureIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(lectureId)) next.delete(lectureId);
-      else next.add(lectureId);
-      return next;
-    });
-  };
-
   if (isLoading) {
     return (
       <div style={{ padding: "var(--stu-space-4)" }}>
-        <div className="stu-skel" style={{ height: 120, borderRadius: "var(--stu-radius-lg)" }} />
-        <div className="stu-skel" style={{ height: 80, marginTop: 12, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel" style={{ height: 200, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
       </div>
     );
   }
@@ -130,86 +120,61 @@ export default function VideoHomePage() {
   }
 
   return (
-    <div style={{ padding: "var(--stu-space-2) 0" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
-        영상
+    <div style={{ padding: "var(--stu-space-4)" }}>
+      <h1
+        style={{
+          fontSize: 24,
+          fontWeight: 800,
+          marginBottom: "var(--stu-space-6)",
+          color: "var(--stu-text-primary)",
+        }}
+      >
+        수강 가능한 강의
       </h1>
 
-      {/* 전체공개영상 */}
-      {hasPublic && videoMe?.public && (
-        <section style={{ marginBottom: "var(--stu-space-10)" }}>
-          <h2
-            style={{
-              fontSize: 16,
-              fontWeight: 800,
-              marginBottom: "var(--stu-space-4)",
-              paddingLeft: "var(--stu-space-2)",
-            }}
-          >
-            전체공개영상
-          </h2>
-          <SessionVideoList
-            sessionId={videoMe.public.session_id}
-            sessionTitle=""
-            enrollmentId={null}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          gap: "var(--stu-space-4)",
+        }}
+      >
+        {/* 전체공개영상 코스 카드 */}
+        {publicCard && (
+          <CourseCard
+            title={publicCard.title}
+            thumbnailUrl={publicCard.thumbnailUrl}
+            videoCount={publicCard.videoCount}
+            totalDuration={publicCard.totalDuration}
+            progress={publicCard.progress}
+            isNew={publicCard.isNew}
+            isContinue={publicCard.isContinue}
+            isCompleted={publicCard.isCompleted}
+            to={publicCard.to}
           />
-        </section>
-      )}
+        )}
 
-      {/* 강의별 차시 */}
-      {(videoMe?.lectures ?? []).map((lec) => {
-        const isExpanded = expandedLectureIds.has(lec.id);
-        return (
-          <section key={lec.id} style={{ marginBottom: "var(--stu-space-6)" }}>
-            <button
-              type="button"
-              onClick={() => toggleLecture(lec.id)}
-              className="stu-card stu-card--pressable"
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
-                padding: "var(--stu-space-4)",
-                border: "none",
-                background: "var(--stu-surface)",
-                borderRadius: "var(--stu-radius-lg)",
-                cursor: "pointer",
-                textAlign: "left",
-                fontSize: 16,
-                fontWeight: 800,
-              }}
-            >
-              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {lec.title}
-              </span>
-              <IconChevronRight
-                style={{
-                  width: 22,
-                  height: 22,
-                  flexShrink: 0,
-                  color: "var(--stu-text-muted)",
-                  transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                  transition: "transform 0.2s ease",
-                }}
-              />
-            </button>
-            {isExpanded && (
-              <div style={{ marginTop: "var(--stu-space-4)", paddingLeft: "var(--stu-space-2)" }}>
-                {lec.sessions.map((s) => (
-                  <SessionVideoList
-                    key={s.id}
-                    sessionId={s.id}
-                    sessionTitle={formatSessionTitle(s)}
-                    enrollmentId={enrollmentId}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-        );
-      })}
+        {/* 강의별 코스 카드 */}
+        {(videoMe?.lectures ?? []).map((lec) => {
+          const cardData = useLectureCourseCard(lec);
+          if (!cardData) return null;
+          
+          return (
+            <CourseCard
+              key={lec.id}
+              title={cardData.title}
+              thumbnailUrl={cardData.thumbnailUrl}
+              videoCount={cardData.videoCount}
+              totalDuration={cardData.totalDuration}
+              progress={cardData.progress}
+              isNew={cardData.isNew}
+              isContinue={cardData.isContinue}
+              isCompleted={cardData.isCompleted}
+              to={cardData.to}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
