@@ -123,13 +123,18 @@ export default function VideoHomePage() {
   }
 
   return (
-    <div style={{ padding: "var(--stu-space-4)" }}>
+    <div style={{ 
+      padding: "var(--stu-space-4)",
+      background: "#000",
+      minHeight: "100vh",
+      color: "#fff",
+    }}>
       <h1
         style={{
           fontSize: 24,
           fontWeight: 800,
           marginBottom: "var(--stu-space-6)",
-          color: "var(--stu-text)",
+          color: "#fff",
         }}
       >
         수강 가능한 강의
