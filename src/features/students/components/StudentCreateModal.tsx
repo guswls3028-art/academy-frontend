@@ -72,6 +72,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     setSendWelcomeMessage(false);
     setForm({
       name: "",
+      psNumber: "",
       gender: "",
       initialPassword: "",
       studentPhone: "",
