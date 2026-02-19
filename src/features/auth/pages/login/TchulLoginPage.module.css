@@ -38,7 +38,7 @@
   font-weight: 600;
   line-height: 1.25;
   color: #fff;
-  background: var(--tchul-gradient);
+  background: var(--tchul-btn-gradient);
   border: none;
   border-radius: 10px;
   cursor: pointer;
@@ -61,7 +61,7 @@
 .form {
   margin-top: 1.25rem;
   padding-top: 1.25rem;
-  border-top: 1px solid var(--tchul-login-border);
+  border-top: 1px solid var(--tchul-border);
   animation: formExpand 0.28s ease-out;
 }
 
@@ -82,25 +82,25 @@
   padding: 0.75rem 1rem;
   margin-bottom: 0.75rem;
   font-size: 0.9375rem;
-  color: var(--tchul-login-text);
-  background: #fff;
-  border: 1px solid var(--tchul-login-border);
+  color: var(--tchul-text);
+  background: var(--tchul-surface);
+  border: 1px solid var(--tchul-border);
   border-radius: 10px;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .input::placeholder {
-  color: var(--tchul-login-muted);
+  color: var(--tchul-text-muted);
 }
 
 .input:hover {
-  border-color: #d1d5db;
+  border-color: var(--tchul-border-hover);
 }
 
 .input:focus {
-  border-color: var(--tchul-login-primary);
-  box-shadow: 0 0 0 3px var(--tchul-login-focus);
+  border-color: var(--tchul-blue);
+  box-shadow: 0 0 0 3px var(--tchul-focus);
 }
 
 .form .btnPrimary {
