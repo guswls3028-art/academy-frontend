@@ -1,6 +1,6 @@
 /* PATH: src/student/shared/ui/theme/tenants/tchul.css
- * tchul 테넌트 학생앱 테마 — auth SSOT 색상 규칙 적용 (화이트톤 + 로고 컬러)
- * 색상 SSOT: @/features/auth/themes/tchul.css
+ * tchul(2번) 테넌트 학생앱 테마 — auth 로그인 페이지 SSOT 색상·로고 규칙 적용
+ * 색상 SSOT: @/features/auth/themes/tchul.css (화이트톤 + 블루→청록→그린 그라데이션)
  */
 
 [data-student-tenant="tchul"] {
@@ -9,17 +9,22 @@
   --stu-surface: #ffffff;
   --stu-surface-soft: #f3f4f6;
   --stu-border: #e5e7eb;
+  --stu-border-hover: #d1d5db;
 
   /* 텍스트 */
   --stu-text: #1a1d21;
   --stu-text-muted: #6b7280;
   --stu-text-subtle: #9ca3af;
 
-  /* 프라이머리 — 로고 컬러 (블루), 강조는 그라데이션용 변수 별도 사용 가능 */
+  /* 프라이머리 — 로고 컬러 (블루), 버튼/탭 강조는 --stu-gradient 사용 */
   --stu-primary: #0d47a1;
   --stu-primary-hover: #0a3d8a;
   --stu-primary-contrast: #fff;
   --stu-glow-primary: 0 0 20px rgba(13, 71, 161, 0.25);
+
+  /* 로고 그라데이션 (auth tchul.css SSOT) — CTA·탭 활성 등 */
+  --stu-gradient: linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%);
+  --stu-focus: rgba(13, 71, 161, 0.2);
 
   /* 성공/경고/에러 */
   --stu-success: #22c55e;
@@ -38,7 +43,33 @@
   --stu-danger-border: rgba(185, 28, 28, 0.35);
   --stu-danger-text: #b91c1c;
 
-  /* 헤더/탭바 (화이트톤 반영) */
+  /* 헤더/탭바 (화이트톤 + 하단 보더) */
   --stu-header-bg: rgba(250, 251, 252, 0.92);
-  --stu-tabbar-bg: rgba(250, 251, 252, 0.92);
+  --stu-tabbar-bg: rgba(250, 251, 252, 0.95);
+}
+
+/* tchul 전용: 포커스 링 (auth와 동일) */
+[data-student-tenant="tchul"] :focus-visible {
+  outline: 3px solid var(--stu-focus);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* tchul 전용: 하단 탭바 활성 탭 — 그라데이션 인디케이터 */
+[data-student-tenant="tchul"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  color: #0d47a1;
+  font-weight: 800;
+  position: relative;
+}
+
+[data-student-tenant="tchul"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--stu-gradient);
 }
