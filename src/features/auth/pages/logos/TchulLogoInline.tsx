@@ -30,15 +30,15 @@ export default function TchulLogoInline() {
         />
         {/* Open book — 오른쪽 페이지 */}
         <path
-          d="M 52 28 L 52 72 L 132 68 L 132 32 L 52 28 Z"
+          d="M 52 28 L 52 72 L 76 68 L 76 32 L 52 28 Z"
           stroke="url(#tchul-icon-grad)"
           strokeWidth="3.5"
           fill="none"
           strokeLinejoin="round"
         />
-        {/* DNA 이중나선 — 왼쪽 가닥 */}
+        {/* DNA 이중나선 — 왼쪽 가닥 (책 중심 통과) */}
         <path
-          d="M 42 72 Q 48 58 52 50 Q 56 42 62 35 Q 70 28 80 26 Q 95 22 108 28 Q 118 34 122 42"
+          d="M 38 70 Q 44 56 50 48 Q 54 40 58 34 Q 64 28 72 26 Q 80 24 88 28 Q 96 34 100 42"
           stroke="url(#tchul-icon-grad)"
           strokeWidth="2.8"
           fill="none"
@@ -46,7 +46,7 @@ export default function TchulLogoInline() {
         />
         {/* DNA 이중나선 — 오른쪽 가닥 */}
         <path
-          d="M 48 68 Q 54 54 58 46 Q 64 38 72 32 Q 82 26 95 24 Q 108 24 118 32 Q 126 38 128 48"
+          d="M 44 66 Q 50 52 54 44 Q 60 36 66 30 Q 74 26 84 26 Q 92 28 98 34 Q 104 40 106 48"
           stroke="url(#tchul-icon-grad)"
           strokeWidth="2.8"
           fill="none"
@@ -54,13 +54,13 @@ export default function TchulLogoInline() {
         />
         {/* DNA 가로 막대(rungs) */}
         {[
-          [44, 66, 52, 64],
-          [50, 54, 58, 52],
-          [54, 44, 62, 42],
-          [62, 34, 72, 32],
-          [78, 28, 92, 26],
-          [100, 26, 112, 30],
-          [116, 36, 122, 42],
+          [40, 68, 48, 66],
+          [48, 54, 54, 52],
+          [52, 42, 58, 40],
+          [58, 32, 66, 30],
+          [72, 26, 82, 26],
+          [88, 28, 96, 34],
+          [100, 40, 104, 46],
         ].map(([x1, y1, x2, y2], i) => (
           <line
             key={i}
