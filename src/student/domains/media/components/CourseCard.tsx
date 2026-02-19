@@ -84,22 +84,16 @@ export default function CourseCard({
           </div>
         )}
         
-        {/* 재생 오버레이 */}
+        {/* 재생 오버레이 - hover 효과 제거 (Media Tile System) */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             display: "grid",
             placeItems: "center",
-            background: "rgba(0,0,0,0.3)",
-            opacity: 0,
-            transition: "opacity 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = "1";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = "0";
+            background: "rgba(0,0,0,0.2)",
+            opacity: 0.7,
+            transition: "opacity var(--stu-motion-fast)",
           }}
         >
           <div
