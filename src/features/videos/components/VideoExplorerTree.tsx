@@ -46,7 +46,7 @@ function FolderTreeNode({
         type="button"
         className={styles.item + (isActive ? " " + styles.itemActive : "")}
         onClick={() => onSelectFolder(folderId)}
-        style={{ marginLeft: `${level * var(--space-4, 16)}px` }}
+        style={{ marginLeft: `${level * 16}px` }}
       >
         <FolderOpen size={16} aria-hidden />
         <span>{folder.name}</span>
