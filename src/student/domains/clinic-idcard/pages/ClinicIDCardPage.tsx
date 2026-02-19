@@ -24,7 +24,36 @@ function formatDisplayDate(isoDate: string): string {
   }
 }
 
+/** 실시간 시각 문자열 (초 단위) — 위조/스크린샷 시 초가 멈춰 보이므로 판별용 */
+function useLiveClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function formatLiveTime(d: Date): string {
+  const h = d.getHours();
+  const ampm = h < 12 ? "오전" : "오후";
+  const h12 = h % 12 || 12;
+  const m = d.getMinutes();
+  const s = d.getSeconds();
+  return `${ampm} ${h12}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function formatLiveDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  const w = weekdays[d.getDay()];
+  return `${y}년 ${m}월 ${day}일 ${w}`;
+}
+
 export default function ClinicIDCardPage() {
+  const liveNow = useLiveClock();
   const { data, isLoading, error } = useQuery({
     queryKey: ["clinic-idcard"],
     queryFn: fetchClinicIdcard,
@@ -32,38 +61,16 @@ export default function ClinicIDCardPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          background: "#0f1419",
-          color: "#fff",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-        }}
-      >
-        <div style={{ fontSize: 18, color: "var(--stu-text-muted)" }}>불러오는 중…</div>
+      <div className="idcard-page idcard-page--black">
+        <div className="idcard-page__loading">불러오는 중…</div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          background: "#0f1419",
-          color: "#fff",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-        }}
-      >
-        <div style={{ fontSize: 16, color: "#f87171" }}>
+      <div className="idcard-page idcard-page--black">
+        <div className="idcard-page__error">
           {error instanceof Error ? error.message : "데이터를 불러올 수 없습니다."}
         </div>
       </div>
@@ -73,83 +80,30 @@ export default function ClinicIDCardPage() {
   const isClinicTarget = data.current_result === "FAIL";
 
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "#0f1419",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "var(--stu-space-6) var(--stu-space-4)",
-        paddingTop: "max(var(--stu-safe-top), 24px)",
-      }}
-    >
-      {/* 서버 기준 오늘 날짜 — 위조 방지용으로 크게 */}
-      <div
-        style={{
-          fontSize: "clamp(1.25rem, 5vw, 1.75rem)",
-          fontWeight: 800,
-          letterSpacing: "-0.02em",
-          marginBottom: 8,
-          color: "#94a3b8",
-        }}
-      >
-        조회 일시
+    <div className="idcard-page idcard-page--black">
+      {/* LIVE 뱃지 + 실시간 시계 (초 단위) — 위조 판별용 */}
+      <div className="idcard-page__live-badge">
+        <span className="idcard-page__live-dot" aria-hidden />
+        <span>LIVE</span>
       </div>
-      <div
-        style={{
-          fontSize: "clamp(1.5rem, 6vw, 2.25rem)",
-          fontWeight: 900,
-          letterSpacing: "-0.02em",
-          marginBottom: 24,
-          color: "#e2e8f0",
-        }}
-      >
-        {formatDisplayDate(data.server_date)}
-      </div>
-      <div
-        style={{
-          fontSize: "clamp(1rem, 4vw, 1.25rem)",
-          fontWeight: 700,
-          color: "#64748b",
-          marginBottom: 32,
-        }}
-      >
-        {data.server_datetime ? new Date(data.server_datetime).toLocaleTimeString("ko-KR") : ""}
+
+      <div className="idcard-page__label">조회 일시</div>
+      <div className="idcard-page__date">{formatLiveDate(liveNow)}</div>
+      <div className="idcard-page__time" aria-live="polite">
+        {formatLiveTime(liveNow)}
       </div>
 
       {/* 학생 이름 */}
-      <div
-        style={{
-          fontSize: "clamp(1.25rem, 5vw, 1.5rem)",
-          fontWeight: 800,
-          marginBottom: 28,
-        }}
-      >
-        {data.student_name || "-"}
-      </div>
+      <div className="idcard-page__name">{data.student_name || "-"}</div>
 
-      {/* 중앙: n차시 합불여부 — 클리닉 대상(빨강) / 합격(초록) */}
+      {/* 패스카드: 클리닉 대상(빨강) / 합격(초록) — 애니메이션으로 생동감 */}
       <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          padding: "28px 20px",
-          borderRadius: 16,
-          textAlign: "center",
-          marginBottom: 32,
-          background: isClinicTarget
-            ? "linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)"
-            : "linear-gradient(135deg, #15803d 0%, #14532d 100%)",
-          color: "#fff",
-          boxShadow: isClinicTarget ? "0 8px 24px rgba(185,28,28,0.35)" : "0 8px 24px rgba(21,128,61,0.35)",
-        }}
+        className={`idcard-page__pass-card ${isClinicTarget ? "idcard-page__pass-card--clinic" : "idcard-page__pass-card--pass"}`}
       >
-        <div style={{ fontSize: "clamp(1.5rem, 6vw, 2.25rem)", fontWeight: 900 }}>
+        <div className="idcard-page__pass-card-title">
           {isClinicTarget ? "클리닉 대상" : "클리닉 대상 아님"}
         </div>
-        <div style={{ fontSize: "clamp(0.9rem, 3.5vw, 1.1rem)", fontWeight: 700, marginTop: 8, opacity: 0.95 }}>
+        <div className="idcard-page__pass-card-sub">
           {isClinicTarget ? "해당 차시 이수·합격 후 해제됩니다." : "합격"}
         </div>
       </div>
