@@ -12,9 +12,11 @@ import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@/features/notice/context/NoticeContext";
 import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { useFavicon } from "@/shared/hooks/useFavicon";
 
 function AppLayoutContent() {
   const isMobile = useIsMobile();
+  useFavicon();
 
   return (
     <>
