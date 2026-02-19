@@ -164,6 +164,16 @@ export async function fetchPosts(params: { nodeId?: number | null }): Promise<Po
   return Array.isArray(res.data) ? res.data : [];
 }
 
+/** 게시물 단건 조회 (학생앱 상세 등) */
+export async function fetchPost(id: number): Promise<PostEntity | null> {
+  try {
+    const res = await api.get(`${PREFIX}/posts/${id}/`);
+    return res.data as PostEntity;
+  } catch {
+    return null;
+  }
+}
+
 /** 관리자 목록: block_type_id, lecture_id, page, page_size */
 export async function fetchAdminPosts(params: {
   blockTypeId?: number | null;
