@@ -26,7 +26,7 @@ export default function StudentLayout() {
       data-student-theme={useTchulTheme ? "tchul" : undefined}
       style={{
         minHeight: "100dvh",
-        background: "var(--stu-bg)",
+        backgroundColor: "var(--stu-bg)",
         color: "var(--stu-text)",
         display: "flex",
         flexDirection: "column",
