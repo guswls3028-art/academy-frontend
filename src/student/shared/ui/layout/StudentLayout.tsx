@@ -53,6 +53,8 @@ export default function StudentLayout() {
           background: "var(--stu-header-bg)",
           backdropFilter: "blur(12px)",
           borderBottom: "1px solid var(--stu-border)",
+          /* 프리미엄: 헤더에 미묘한 그림자 */
+          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
         }}
       >
         <StudentTopBar tenantCode={tenantCode} />

@@ -223,6 +223,11 @@ a {
   border-left: 3px solid var(--stu-primary);
   padding-left: var(--stu-space-6);
   margin-bottom: var(--stu-space-6);
+  /* 프리미엄: 섹션 헤더에 미묘한 배경 */
+  background: linear-gradient(to right, var(--stu-tint-primary), transparent);
+  padding-top: var(--stu-space-2);
+  padding-bottom: var(--stu-space-2);
+  border-radius: var(--stu-radius-sm) 0 0 var(--stu-radius-sm);
 }
 
 /* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
