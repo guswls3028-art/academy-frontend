@@ -4,6 +4,36 @@ import type { AccessMode, VideoRule } from "@/features/videos/types/access-mode"
 
 export type StudentVideoRule = VideoRule; // Legacy type
 
+/** GET /student/video/me/ 응답 — 영상 탭용 */
+export type StudentVideoMeSession = {
+  id: number;
+  title: string;
+  order: number;
+  date: string | null;
+};
+export type StudentVideoMeLecture = {
+  id: number;
+  title: string;
+  sessions: StudentVideoMeSession[];
+};
+export type StudentVideoMePublic = {
+  session_id: number;
+  lecture_id: number;
+} | null;
+export type StudentVideoMeResponse = {
+  public: StudentVideoMePublic;
+  lectures: StudentVideoMeLecture[];
+};
+
+export async function fetchVideoMe(): Promise<StudentVideoMeResponse> {
+  const res = await api.get<StudentVideoMeResponse>("/student/video/me/");
+  const d = res.data;
+  return {
+    public: d?.public ?? null,
+    lectures: Array.isArray(d?.lectures) ? d.lectures : [],
+  };
+}
+
 export type StudentVideoListItem = {
   id: number;
   session_id: number;
