@@ -37,7 +37,7 @@ export default function TchulLoginPage() {
   }
 
   return (
-    <div data-app="auth" className={styles.root}>
+    <div data-app="auth" data-tenant="tchul" className={styles.root}>
       <div className={styles.center}>
         <img src={TchulLogoTransparent} alt="박철과학" className={styles.logo} />
         {!formExpanded ? (

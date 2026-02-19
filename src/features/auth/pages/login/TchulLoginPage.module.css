@@ -2,24 +2,15 @@
  * tchul.com 로고 중심 로그인 — 카드 없음, 흰 배경, 로그인 전용 디자인(전역 DS 미사용)
  */
 
+/* 색상/그라데이션은 SSOT: @/features/auth/themes/tchul.css */
 .root {
-  --tchul-login-bg: #fafbfc;
-  --tchul-login-text: #1a1d21;
-  --tchul-login-muted: #6b7280;
-  --tchul-login-border: #e5e7eb;
-  /* 로고 컬러패턴: 블루 → 청록 → 그린 그라데이션 */
-  --tchul-btn-gradient: linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%);
-  --tchul-btn-gradient-hover: linear-gradient(135deg, #0a3d8a 0%, #005a4a 50%, #003d2e 100%);
-  --tchul-login-focus: rgba(13, 71, 161, 0.2);
-  --tchul-login-error: #b91c1c;
-
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background: var(--tchul-login-bg);
-  color: var(--tchul-login-text);
+  background: var(--tchul-bg);
+  color: var(--tchul-text);
 }
 
 .center {
@@ -47,7 +38,7 @@
   font-weight: 600;
   line-height: 1.25;
   color: #fff;
-  background: var(--tchul-btn-gradient);
+  background: var(--tchul-gradient);
   border: none;
   border-radius: 10px;
   cursor: pointer;
