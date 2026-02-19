@@ -308,7 +308,7 @@ export default function CourseDetailPage() {
             style={{
               fontSize: 18,
               fontWeight: 700,
-              color: "var(--stu-text)",
+              color: "#fff",
               marginBottom: "var(--stu-space-4)",
             }}
           >
