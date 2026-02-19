@@ -8,10 +8,6 @@ import { IconGrade, IconExam, IconChevronRight } from "@/student/shared/ui/icons
 export default function GradesPage() {
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
-        성적
-      </h1>
-
       <Link
         to="/student/exams"
         className="stu-card stu-card--pressable"

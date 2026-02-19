@@ -6,6 +6,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import "../theme/tokens.css";
 import "../theme/tenants/index.css";
+import "../theme/video.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
@@ -22,18 +23,19 @@ export default function StudentLayout() {
   useDocumentTitle(); // 브라우저 타이틀 설정
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
   
-  // 영상 플레이어 페이지인지 확인
-  const isVideoPlayerPage = location.pathname.includes("/student/video/play");
+  // 영상 페이지 전체인지 확인 (영상 홈, 코스 상세, 세션 상세, 플레이어 모두 포함)
+  const isVideoPage = location.pathname.startsWith("/student/video");
 
   return (
     <div
       data-app="student"
       data-student-tenant={tenantCode || undefined}
       data-student-theme={useTchulTheme ? "tchul" : undefined}
+      data-video-page={isVideoPage ? "true" : undefined}
       style={{
         minHeight: "100dvh",
-        backgroundColor: "var(--stu-bg)",
-        color: "var(--stu-text)",
+        backgroundColor: isVideoPage ? "#000" : "var(--stu-bg)",
+        color: isVideoPage ? "#fff" : "var(--stu-text)",
         display: "flex",
         flexDirection: "column",
         paddingTop: "var(--stu-safe-top)",
@@ -57,35 +59,35 @@ export default function StudentLayout() {
           position: "sticky",
           top: 0,
           zIndex: "var(--stu-z-header)",
-          background: isVideoPlayerPage ? "rgba(0, 0, 0, 0.9)" : "var(--stu-header-bg)",
-          backdropFilter: isVideoPlayerPage ? "blur(16px)" : "blur(12px)",
-          borderBottom: isVideoPlayerPage ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid var(--stu-border)",
+          background: "var(--stu-header-bg)",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid var(--stu-border)",
           /* 프리미엄: 헤더에 미묘한 그림자 */
-          boxShadow: isVideoPlayerPage ? "0 2px 8px rgba(0, 0, 0, 0.5)" : "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
+          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
         }}
       >
-        <StudentTopBar tenantCode={tenantCode} isDarkMode={isVideoPlayerPage} />
+        <StudentTopBar tenantCode={tenantCode} />
       </header>
 
       <main
+        className={isVideoPage ? "video-page-main" : ""}
         style={{
           flex: 1,
-          overflow: "auto",
+          overflow: isVideoPage ? undefined : "auto", // 영상 페이지는 CSS로 제어
           WebkitOverflowScrolling: "touch",
           paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
-          backgroundColor: isVideoPlayerPage ? "#000" : "transparent",
         }}
       >
         <div style={{ 
-          maxWidth: isVideoPlayerPage ? "100%" : "var(--stu-page-max-w)", 
+          maxWidth: isVideoPage ? "100%" : "var(--stu-page-max-w)", 
           margin: "0 auto", 
-          padding: isVideoPlayerPage ? 0 : "var(--stu-space-4)" 
+          padding: isVideoPage ? 0 : "var(--stu-space-4)" 
         }}>
           <Outlet />
         </div>
       </main>
 
-      <StudentTabBar isDarkMode={isVideoPlayerPage} />
+      <StudentTabBar />
     </div>
   );
 }

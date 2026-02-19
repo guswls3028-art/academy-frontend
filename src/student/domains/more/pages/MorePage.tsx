@@ -31,10 +31,6 @@ const linkStyle: React.CSSProperties = {
 export default function MorePage() {
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
-        더보기
-      </h1>
-
       <section style={{ marginBottom: "var(--stu-space-8)" }}>
         <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
           학습

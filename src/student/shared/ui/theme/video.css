@@ -1,0 +1,324 @@
+/* PATH: src/student/shared/ui/theme/video.css
+ * 영상 탭 전역 디자인 시스템
+ * data-video-page="true" 속성을 가진 컨테이너에 적용
+ * 영상 도메인 전용 다크 모드 테마
+ */
+
+/* =========================
+   영상 탭 전역 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+/* =========================
+   헤더 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] header {
+  background: rgba(0, 0, 0, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 헤더 내부 텍스트 및 링크 */
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link,
+[data-app="student"][data-video-page="true"] header .stu-topbar__name,
+[data-app="student"][data-video-page="true"] header a,
+[data-app="student"][data-video-page="true"] header span:not([class*="stu-icon"]) {
+  color: #fff !important;
+}
+
+/* 헤더 로고 아이콘 - 회색 잔배경 완전 제거 (더 강력한 방법) */
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link {
+  background: transparent !important;
+  background-color: transparent !important;
+  isolation: isolate;
+  position: relative;
+  overflow: visible;
+}
+
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link::before,
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link::after {
+  display: none !important;
+  content: none !important;
+}
+
+[data-app="student"][data-video-page="true"] header .stu-topbar__logo,
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link img {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  mix-blend-mode: normal !important;
+  /* 이미지 자체의 회색 배경을 제거하기 위한 필터 */
+  filter: brightness(1.1) contrast(1.1) drop-shadow(0 0 0 transparent) !important;
+  /* PNG 투명 배경 강제 */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  /* 부모 배경 격리 */
+  isolation: isolate;
+  /* 배경 완전 제거 */
+  -webkit-background-clip: padding-box;
+  background-clip: padding-box;
+  /* 이미지 주변 여백 제거 */
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  /* 이미지 자체의 배경 제거 */
+  display: block;
+  /* 이미지의 알파 채널 강제 */
+  opacity: 1 !important;
+}
+
+/* 이미지 주변 여백 및 배경 제거 */
+[data-app="student"][data-video-page="true"] header .stu-topbar__logo::before,
+[data-app="student"][data-video-page="true"] header .stu-topbar__logo::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
+/* 이미지가 투명 배경을 가진 PNG인 경우 처리 - 최종 강제 */
+[data-app="student"][data-video-page="true"] header .stu-topbar__logo {
+  /* 이미지 자체의 회색 배경을 제거하기 위한 필터 */
+  filter: brightness(1.1) contrast(1.1) drop-shadow(0 0 0 transparent) !important;
+  /* 이미지 렌더링 최적화 */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  /* 배경 완전 제거 */
+  background: none !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  /* 이미지의 알파 채널 강제 */
+  opacity: 1 !important;
+  /* 이미지 자체의 배경색 제거 */
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* 헤더 아바타 */
+[data-app="student"][data-video-page="true"] header .stu-topbar__avatar {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+}
+
+/* 헤더 내부 모든 요소 강제 적용 */
+[data-app="student"][data-video-page="true"] header > div > div {
+  color: #fff !important;
+}
+
+/* =========================
+   하단 탭바 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar {
+  background: rgba(0, 0, 0, 0.9) !important;
+  backdrop-filter: blur(20px) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 탭바 링크 색상 - 더 밝게 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent !important;
+}
+
+/* 탭바 active 상태 - 다크모드에 맞게 (base.css의 흰색 배경 오버라이드) */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link[aria-current="page"],
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link.active {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  transform: scale(1) !important; /* base.css의 scale 제거 */
+}
+
+/* 탭바 아이콘 - 더 밝게 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link span {
+  opacity: 1 !important;
+}
+
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link[aria-current="page"] span {
+  opacity: 1 !important;
+}
+
+/* =========================
+   메인 콘텐츠 영역
+   ========================= */
+[data-app="student"][data-video-page="true"] main {
+  background-color: #000 !important;
+}
+
+/* 영상 탭 스크롤바 숨기기 - 최종 강제 적용 */
+[data-app="student"][data-video-page="true"] main,
+[data-app="student"][data-video-page="true"] main.video-page-main {
+  overflow-y: auto !important; /* 스크롤 기능은 유지 */
+  overflow-x: hidden !important;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+[data-app="student"][data-video-page="true"] main::-webkit-scrollbar,
+[data-app="student"][data-video-page="true"] main.video-page-main::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important; /* Chrome, Safari, Opera */
+  background: transparent !important;
+}
+
+[data-app="student"][data-video-page="true"] main::-webkit-scrollbar-track,
+[data-app="student"][data-video-page="true"] main.video-page-main::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
+}
+
+[data-app="student"][data-video-page="true"] main::-webkit-scrollbar-thumb,
+[data-app="student"][data-video-page="true"] main.video-page-main::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
+/* 모든 하위 요소에도 적용 */
+[data-app="student"][data-video-page="true"] main *,
+[data-app="student"][data-video-page="true"] main.video-page-main * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+[data-app="student"][data-video-page="true"] main *::-webkit-scrollbar,
+[data-app="student"][data-video-page="true"] main.video-page-main *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+
+/* =========================
+   영상 페이지 내부 컴포넌트
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-panel,
+[data-app="student"][data-video-page="true"] .stu-section,
+[data-app="student"][data-video-page="true"] .stu-card {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-muted,
+[data-app="student"][data-video-page="true"] .stu-caption {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* =========================
+   액션 타일 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-action-tile {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-action-tile__label {
+  color: #fff !important;
+}
+
+/* =========================
+   EmptyState 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-section--nested {
+  background: #1a1a1a !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__icon {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__icon-svg {
+  stroke: rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__title {
+  color: #fff !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__description {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* =========================
+   아이콘 다크 모드 - 더 밝게
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-icon {
+  opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* 탭바 SVG 아이콘 - 그라데이션 적용 (테두리 포함 전체 채움) */
+[data-app="student"][data-video-page="true"][data-student-theme="tchul"] nav.stu-tabbar svg,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-icon {
+  opacity: 1 !important;
+  stroke: url(#stu-gradient-tchul) !important;
+  fill: url(#stu-gradient-tchul) !important;
+}
+
+/* 탭바 아이콘 내부 모든 요소에 그라데이션 적용 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg path,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg circle,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg rect,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg polygon,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg * {
+  fill: url(#stu-gradient-tchul) !important;
+  stroke: url(#stu-gradient-tchul) !important;
+}
+
+/* IconPlay의 polygon 그라데이션 적용 (재생 아이콘) - fill로 채움 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg polygon {
+  fill: url(#stu-gradient-tchul) !important;
+  stroke: url(#stu-gradient-tchul) !important;
+  stroke-width: 0 !important; /* fill로 채우므로 stroke 제거 */
+}
+
+/* IconMore의 circle 그라데이션 적용 (더보기 아이콘) - fill로 채움 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg circle {
+  fill: url(#stu-gradient-tchul) !important;
+  stroke: url(#stu-gradient-tchul) !important;
+  stroke-width: 0 !important; /* fill로 채우므로 stroke 제거 */
+}
+
+/* IconHome, IconCalendar, IconGrade 등의 path 그라데이션 적용 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg path {
+  fill: url(#stu-gradient-tchul) !important;
+  stroke: url(#stu-gradient-tchul) !important;
+  stroke-width: 2 !important; /* 테두리도 그라데이션으로 */
+}
+
+/* 비활성 탭 아이콘은 약간 투명하게 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link:not([aria-current="page"]) svg {
+  opacity: 0.7 !important;
+}
+
+/* 활성 탭 아이콘은 완전 불투명 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link[aria-current="page"] svg {
+  opacity: 1 !important;
+}
+
+/* 일반 SVG (탭바 외부) */
+[data-app="student"][data-video-page="true"] svg:not(nav.stu-tabbar svg) {
+  opacity: 1 !important;
+  stroke: rgba(255, 255, 255, 0.9) !important;
+  fill: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* =========================
+   링크 및 버튼 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-cta-link {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-cta-link:hover {
+  color: #fff !important;
+}

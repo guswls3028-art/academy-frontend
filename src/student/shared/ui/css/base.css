@@ -51,6 +51,7 @@ body {
   background-position: 0 0, 0 0;
 }
 
+
 /* Media elements */
 img,
 picture,
@@ -171,12 +172,15 @@ a {
    ========================= */
 .stu-panel {
   background: var(--stu-surface-1);
-  border: 1px solid var(--stu-border-subtle);
-  border-radius: 6px;
+  border: 2px solid var(--stu-border-subtle);
+  border-radius: 12px;
   padding: var(--stu-space-5);
   position: relative;
   overflow: hidden;
-  /* 프리미엄: Tint Layer (Shadow 대신) */
+  /* 프리미엄: 질감과 위계를 위한 그림자 */
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .stu-panel::after {
@@ -185,8 +189,9 @@ a {
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.02),
-    rgba(0, 0, 0, 0.02)
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
   );
   pointer-events: none;
   z-index: 0;
@@ -321,28 +326,58 @@ a {
    Action Tiles (Quick Action Buttons)
    ========================= */
 .stu-action-tile {
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px;
-  background: var(--stu-surface-1);
+  /* background 단축형 대신 background-color 사용 (테넌트별 그라데이션 오버라이드 가능) */
+  background-color: var(--stu-surface-1);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  transition: transform var(--stu-motion-fast);
+  transition: transform var(--stu-motion-fast), box-shadow var(--stu-motion-fast), border-color var(--stu-motion-fast);
   text-decoration: none;
   color: inherit;
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
+  position: relative;
+  overflow: hidden;
+  /* 프리미엄: 질감과 위계 */
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.stu-action-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-action-tile > * {
+  position: relative;
+  z-index: 1;
 }
 
 .stu-action-tile:active {
   transform: scale(0.96);
+  box-shadow: 
+    0 1px 4px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .stu-action-tile__icon {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: var(--stu-tint-primary);
+  /* background 단축형 대신 background-color 사용 (테넌트별 그라데이션 오버라이드 가능) */
+  background-color: var(--stu-tint-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -388,12 +423,17 @@ a {
     background var(--stu-motion-base),
     border-color var(--stu-motion-base),
     transform var(--stu-motion-fast),
-    filter var(--stu-motion-fast);
+    filter var(--stu-motion-fast),
+    box-shadow var(--stu-motion-fast);
 }
 
 /* 프리미엄: hover 제거 - 상태 기반 강조만 사용 */
 .stu-panel--pressable:hover {
   /* 상태 variant가 있으면 hover 효과 제거 */
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-color: var(--stu-border-normal);
 }
 
 .stu-panel--nav.stu-panel--pressable:hover {
@@ -405,6 +445,9 @@ a {
   /* 프리미엄: 밀도 변화 (색이 아닌 재질) */
   transform: scale(0.985);
   filter: brightness(0.97);
+  box-shadow: 
+    0 1px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* =========================
@@ -412,28 +455,43 @@ a {
    ========================= */
 .stu-section {
   background: var(--stu-surface-1);
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* 프리미엄: 미묘한 그림자로 깊이감 추가 */
+  /* 프리미엄: 질감과 위계를 위한 그림자 */
   box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.02),
-    0 2px 4px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.01);
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   position: relative;
-  /* 미묘한 질감을 위한 오버레이 */
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
-  background-size: 20px 20px;
+  overflow: hidden;
+}
+
+.stu-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-section > * {
+  position: relative;
+  z-index: 1;
 }
 
 .stu-section--nested {
   background: var(--stu-surface-2);
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
   /* 중첩된 섹션은 더 미묘한 그림자 */
   box-shadow: 
-    0 1px 1px rgba(0, 0, 0, 0.015),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    0 2px 6px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .stu-section--pressable {
@@ -479,27 +537,43 @@ a {
 /* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
 .stu-card {
   background: var(--stu-surface-1);
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* 프리미엄: 미묘한 그림자와 질감 */
+  /* 프리미엄: 질감과 위계를 위한 그림자 */
   box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.02),
-    0 2px 4px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.01);
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   position: relative;
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
-  background-size: 20px 20px;
+  overflow: hidden;
+}
+
+.stu-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .stu-card--soft {
   background: var(--stu-surface-2);
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
   /* 부드러운 카드는 더 미묘한 그림자 */
   box-shadow: 
-    0 1px 1px rgba(0, 0, 0, 0.015),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    0 2px 6px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .stu-card--pressable {
@@ -516,10 +590,9 @@ a {
   border-color: var(--stu-border-normal);
   /* 호버 시 그림자 강화와 미묘한 상승 효과 */
   box-shadow: 
-    0 2px 4px rgba(0, 0, 0, 0.04),
-    0 4px 8px rgba(0, 0, 0, 0.05),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
-  transform: translateY(-1px);
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
 }
 
 .stu-card--pressable:active {
@@ -528,8 +601,8 @@ a {
   transform: scale(0.985);
   filter: brightness(0.97);
   box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+    0 1px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Back-compat for existing class used in StudentPageShell */

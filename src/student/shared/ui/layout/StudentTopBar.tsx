@@ -36,6 +36,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
     >
       <Link
         to="/student/dashboard"
+        className="stu-topbar__home-link"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -49,11 +50,22 @@ export default function StudentTopBar({ tenantCode }: Props) {
           <img
             src={TchulLogoIcon}
             alt=""
+            className="stu-topbar__logo"
             style={{
               height: 32,
               width: 32,
               objectFit: "contain",
               display: "block",
+              background: "transparent",
+              backgroundColor: "transparent",
+              backgroundImage: "none",
+              mixBlendMode: "normal",
+              isolation: "isolate",
+              // 이미지의 알파 채널 강제 및 배경 제거
+              imageRendering: "crisp-edges",
+              WebkitImageRendering: "crisp-edges",
+              // 이미지 자체의 회색 배경 제거를 위한 필터
+              filter: "brightness(1.1) contrast(1.1)",
             }}
           />
         ) : branding.logoUrl ? (
@@ -101,6 +113,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
         {profile && (
           <>
             <div
+              className="stu-topbar__avatar"
               style={{
                 width: AVATAR_SIZE,
                 height: AVATAR_SIZE,
@@ -127,6 +140,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
               )}
             </div>
             <span
+              className="stu-topbar__name"
               style={{
                 fontWeight: 700,
                 fontSize: 14,

@@ -22,7 +22,6 @@ export default function SessionListPage() {
   if (isError || !data) {
     return (
       <div style={{ padding: "var(--stu-space-4) 0" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)" }}>일정</h1>
         <EmptyState title="일정을 불러오지 못했습니다." description="잠시 후 다시 시도해주세요." />
       </div>
     );
@@ -31,7 +30,6 @@ export default function SessionListPage() {
   if (data.length === 0) {
     return (
       <div style={{ padding: "var(--stu-space-4) 0" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)" }}>일정</h1>
         <EmptyState title="등록된 차시가 없습니다." description="수강 중인 강의/차시를 확인해주세요." />
       </div>
     );
@@ -39,9 +37,6 @@ export default function SessionListPage() {
 
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
-        일정
-      </h1>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
         {data.map((s) => {
           // 상태 기반 Panel variant 결정

@@ -56,7 +56,8 @@ export default function StudentTabBar() {
               gap: 2,
               height: "100%",
               color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
-              transition: "color 180ms cubic-bezier(0.4, 0, 0.2, 1), transform 180ms cubic-bezier(0.4, 0, 0.2, 1)",
+              background: isActive ? undefined : "transparent",
+              transition: "color 180ms cubic-bezier(0.4, 0, 0.2, 1), transform 180ms cubic-bezier(0.4, 0, 0.2, 1), background 180ms cubic-bezier(0.4, 0, 0.2, 1)",
               borderRadius: "var(--stu-radius-sm)",
               position: "relative",
             })}

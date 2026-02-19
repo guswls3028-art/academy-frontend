@@ -26,10 +26,6 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)", letterSpacing: "-0.01em" }}>
-        홈
-      </h1>
-
       {/* 공지 */}
       <Link
         to="/student/qna"

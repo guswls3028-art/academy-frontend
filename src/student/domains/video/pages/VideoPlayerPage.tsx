@@ -199,15 +199,15 @@ export default function VideoPlayerPage() {
               marginTop: "var(--stu-space-6)",
               padding: "var(--stu-space-5)",
               borderRadius: 12,
-              background: "var(--stu-surface-1)",
-              border: "1px solid var(--stu-border-subtle)",
+              background: "#1a1a1a",
+              border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
             <h2
               style={{
                 fontSize: 18,
                 fontWeight: 700,
-                color: "var(--stu-text)",
+                color: "#fff",
                 marginBottom: "var(--stu-space-4)",
               }}
             >
@@ -222,7 +222,7 @@ export default function VideoPlayerPage() {
                 gap: "var(--stu-space-4)",
                 marginBottom: "var(--stu-space-4)",
                 fontSize: 14,
-                color: "var(--stu-text-muted)",
+                color: "rgba(255,255,255,0.7)",
               }}
             >
               {video.view_count != null && (
@@ -276,7 +276,7 @@ export default function VideoPlayerPage() {
                 style={{
                   fontSize: 14,
                   lineHeight: 1.6,
-                  color: "var(--stu-text)",
+                  color: "rgba(255,255,255,0.9)",
                   whiteSpace: "pre-wrap",
                 }}
               >
