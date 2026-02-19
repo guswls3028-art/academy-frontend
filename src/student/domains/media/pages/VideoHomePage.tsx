@@ -21,117 +21,70 @@ function formatSessionTitle(s: { title: string; order: number; date?: string | n
   return dateStr ? `${s.order}차시 ${dateStr}` : `${s.order}차시`;
 }
 
-function SessionVideoList({
-  sessionId,
-  sessionTitle,
-  enrollmentId,
-}: {
-  sessionId: number;
-  sessionTitle: string;
-  enrollmentId?: number | null;
-}) {
-  const { data, isLoading } = useQuery({
-    queryKey: ["student-session-videos", sessionId, enrollmentId],
-    queryFn: () => fetchStudentSessionVideos(sessionId, enrollmentId),
-    enabled: !!sessionId,
+// 전체공개영상 세션용 코스 카드 데이터 계산
+function usePublicCourseCard(publicSession: { session_id: number } | null) {
+  const { data: videosData } = useQuery({
+    queryKey: ["student-session-videos", publicSession?.session_id, null],
+    queryFn: () => fetchStudentSessionVideos(publicSession!.session_id, null),
+    enabled: !!publicSession?.session_id,
   });
 
-  const items = data?.items ?? [];
-  if (isLoading) {
-    return (
-      <div className="stu-card" style={{ padding: "var(--stu-space-8)" }}>
-        <div className="stu-skel" style={{ height: 80 }} />
-        <div className="stu-skel" style={{ height: 80, marginTop: 8 }} />
-      </div>
-    );
-  }
-  if (items.length === 0) return null;
+  return useMemo(() => {
+    if (!videosData?.items || videosData.items.length === 0) return null;
+    
+    const videos = videosData.items;
+    const totalDuration = videos.reduce((sum, v) => sum + ((v as { duration?: number }).duration ?? 0), 0);
+    const firstVideo = videos[0];
+    
+    return {
+      title: "전체공개영상",
+      thumbnailUrl: firstVideo.thumbnail_url,
+      videoCount: videos.length,
+      totalDuration,
+      progress: 0, // TODO: 진행률 계산
+      isNew: false,
+      isContinue: false,
+      isCompleted: false,
+      to: `/student/video/play?video=${firstVideo.id}`,
+    };
+  }, [videosData]);
+}
 
-  return (
-    <section style={{ marginBottom: "var(--stu-space-6)" }}>
-      {sessionTitle ? (
-        <h3
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            marginBottom: "var(--stu-space-3)",
-            paddingLeft: "var(--stu-space-2)",
-            color: "var(--stu-text-muted)",
-          }}
-        >
-          {sessionTitle}
-        </h3>
-      ) : null}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
-        {items.map((v) => (
-          <Link
-            key={v.id}
-            to={`/student/video/play?video=${v.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
-            className="stu-card stu-card--pressable"
-            style={{
-              display: "flex",
-              gap: "var(--stu-space-4)",
-              padding: 0,
-              overflow: "hidden",
-              textDecoration: "none",
-              color: "inherit",
-            }}
-          >
-            <div
-              style={{
-                width: 160,
-                minWidth: 160,
-                aspectRatio: "16/9",
-                background: "var(--stu-surface-soft)",
-                position: "relative",
-              }}
-            >
-              {v.thumbnail_url ? (
-                <img
-                  src={v.thumbnail_url}
-                  alt=""
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    display: "grid",
-                    placeItems: "center",
-                    color: "var(--stu-text-muted)",
-                  }}
-                >
-                  <IconPlay style={{ width: 40, height: 40 }} />
-                </div>
-              )}
-              <span
-                style={{
-                  position: "absolute",
-                  right: 4,
-                  bottom: 4,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  background: "rgba(0,0,0,0.8)",
-                  color: "#fff",
-                  padding: "2px 4px",
-                  borderRadius: 4,
-                }}
-              >
-                {formatDuration((v as { duration?: number }).duration ?? 0)}
-              </span>
-            </div>
-            <div style={{ flex: 1, minWidth: 0, padding: "var(--stu-space-4)", display: "flex", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {v.title}
-              </span>
-              <IconChevronRight style={{ width: 20, height: 20, flexShrink: 0, color: "var(--stu-text-muted)" }} />
-            </div>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
+// 강의별 코스 카드 데이터 계산
+function useLectureCourseCard(lecture: { id: number; title: string; sessions: Array<{ id: number }> }) {
+  const sessionIds = lecture.sessions.map((s) => s.id);
+  const sessionQueries = useQuery({
+    queryKey: ["student-lecture-videos", lecture.id],
+    queryFn: async () => {
+      const allVideos: Array<{ duration?: number; thumbnail_url?: string | null }> = [];
+      for (const sessionId of sessionIds) {
+        const res = await fetchStudentSessionVideos(sessionId, null);
+        allVideos.push(...res.items);
+      }
+      return allVideos;
+    },
+    enabled: sessionIds.length > 0,
+  });
+
+  return useMemo(() => {
+    if (!sessionQueries.data || sessionQueries.data.length === 0) return null;
+    
+    const videos = sessionQueries.data;
+    const totalDuration = videos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
+    const firstVideo = videos[0];
+    
+    return {
+      title: lecture.title,
+      thumbnailUrl: firstVideo.thumbnail_url,
+      videoCount: videos.length,
+      totalDuration,
+      progress: 0, // TODO: 진행률 계산
+      isNew: false,
+      isContinue: false,
+      isCompleted: false,
+      to: `/student/video/play?video=${firstVideo.id}`,
+    };
+  }, [lecture, sessionQueries.data]);
 }
 
 export default function VideoHomePage() {
