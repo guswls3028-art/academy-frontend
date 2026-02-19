@@ -158,25 +158,9 @@ export default function VideoHomePage() {
         )}
 
         {/* 강의별 코스 카드 */}
-        {(videoMe?.lectures ?? []).map((lec) => {
-          const cardData = useLectureCourseCard(lec);
-          if (!cardData) return null;
-          
-          return (
-            <CourseCard
-              key={lec.id}
-              title={cardData.title}
-              thumbnailUrl={cardData.thumbnailUrl}
-              videoCount={cardData.videoCount}
-              totalDuration={cardData.totalDuration}
-              progress={cardData.progress}
-              isNew={cardData.isNew}
-              isContinue={cardData.isContinue}
-              isCompleted={cardData.isCompleted}
-              to={cardData.to}
-            />
-          );
-        })}
+        {(videoMe?.lectures ?? []).map((lec) => (
+          <LectureCourseCard key={lec.id} lecture={lec} />
+        ))}
       </div>
     </div>
   );
