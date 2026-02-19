@@ -12,6 +12,7 @@ import styles from "./TchulLoginPage.module.css";
 export default function TchulLoginPage() {
   useDocumentTitle();
 
+  const [formExpanded, setFormExpanded] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
@@ -37,29 +38,43 @@ export default function TchulLoginPage() {
 
   return (
     <div data-app="auth" className={styles.root}>
-      <form onSubmit={onSubmit} className={styles.card} aria-label="박철과학 관리자 로그인">
+      <div className={styles.card}>
         <img src={TchulLogoTransparent} alt="박철과학" className={styles.logo} />
-        <p className={styles.subtitle}>관리자 로그인</p>
-        <div className={styles.form}>
-          <input
-            placeholder="아이디"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-          />
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-          <Button type="submit" intent="primary" size="lg" disabled={pending} className="w-full">
-            {pending ? "로그인 중..." : "로그인"}
-          </Button>
-          {error && <div className={styles.error}>{error}</div>}
-        </div>
-      </form>
+        {!formExpanded ? (
+          <>
+            <p className={styles.subtitle}>관리자 로그인</p>
+            <Button
+              type="button"
+              intent="primary"
+              size="lg"
+              className={styles.ctaButton}
+              onClick={() => setFormExpanded(true)}
+            >
+              로그인
+            </Button>
+          </>
+        ) : (
+          <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
+            <input
+              placeholder="아이디"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+            />
+            <input
+              type="password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+            <Button type="submit" intent="primary" size="lg" disabled={pending} className="w-full">
+              {pending ? "로그인 중..." : "로그인"}
+            </Button>
+            {error && <div className={styles.error}>{error}</div>}
+          </form>
+        )}
+      </div>
     </div>
   );
 }
