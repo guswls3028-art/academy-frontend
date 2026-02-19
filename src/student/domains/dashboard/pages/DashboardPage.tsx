@@ -55,11 +55,11 @@ export default function DashboardPage() {
 
       {/* 오늘 일정 */}
       <section style={{ marginBottom: "var(--stu-space-8)" }}>
-        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
+        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 700, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
           오늘 일정
         </h2>
         {todaySessions.length === 0 ? (
-          <div className="stu-card stu-card--soft" style={{ padding: "var(--stu-space-6)" }}>
+          <div className="stu-panel stu-panel--soft" style={{ padding: "var(--stu-space-6)" }}>
             <div className="stu-muted" style={{ fontSize: 14 }}>오늘 예정된 수업이 없습니다.</div>
             <Link to="/student/sessions" className="stu-cta-link" style={{ marginTop: 8 }}>
                 전체 일정 보기
@@ -71,14 +71,14 @@ export default function DashboardPage() {
               <Link
                 key={s.id}
                 to={`/student/sessions/${s.id}`}
-                className="stu-card stu-card--pressable"
+                className="stu-panel stu-panel--pressable"
                 style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}
               >
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--stu-primary)", opacity: 0.9, display: "grid", placeItems: "center" }}>
                   <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary-contrast)" }} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{s.title}</div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{s.title}</div>
                   <div className="stu-muted" style={{ fontSize: 12 }}>{formatYmd(s.date ?? null)}</div>
                 </div>
               </Link>
@@ -94,41 +94,41 @@ export default function DashboardPage() {
 
       {/* 빠른 메뉴 */}
       <section>
-        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
+        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 700, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
           빠른 메뉴
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--stu-space-4)" }}>
           <Link
             to="/student/video"
-            className="stu-card stu-card--pressable"
+            className="stu-panel stu-panel--pressable"
             style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
           >
             <IconPlay style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
-            <div style={{ fontWeight: 800, fontSize: 14 }}>영상</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>영상</div>
           </Link>
           <Link
             to="/student/exams"
-            className="stu-card stu-card--pressable"
+            className="stu-panel stu-panel--pressable"
             style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
           >
             <IconExam style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
-            <div style={{ fontWeight: 800, fontSize: 14 }}>시험</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>시험</div>
           </Link>
           <Link
             to="/student/grades"
-            className="stu-card stu-card--pressable"
+            className="stu-panel stu-panel--pressable"
             style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
           >
             <IconGrade style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
-            <div style={{ fontWeight: 800, fontSize: 14 }}>성적</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>성적</div>
           </Link>
           <Link
             to="/student/sessions"
-            className="stu-card stu-card--pressable"
+            className="stu-panel stu-panel--pressable"
             style={{ padding: "var(--stu-space-6)", textAlign: "center", textDecoration: "none", color: "inherit" }}
           >
             <IconCalendar style={{ width: 28, height: 28, margin: "0 auto 8px", color: "var(--stu-primary)" }} />
-            <div style={{ fontWeight: 800, fontSize: 14 }}>일정</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>일정</div>
           </Link>
         </div>
       </section>
