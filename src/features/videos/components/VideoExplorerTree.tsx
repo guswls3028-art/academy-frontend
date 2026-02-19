@@ -3,14 +3,16 @@
 import { FolderOpen } from "lucide-react";
 import type { Lecture } from "@/features/lectures/api/sessions";
 import type { Session } from "@/features/lectures/api/sessions";
+import type { VideoFolder } from "../api/videos";
 import styles from "./VideoExplorerTree.module.css";
 
 type LectureWithSessions = Lecture & { sessions?: Session[] };
 
-export type VideoFolderId = "public" | number | null; // "public" | sessionId
+export type VideoFolderId = "public" | number | null; // "public" | sessionId | folderId (음수는 폴더 ID)
 
 type Props = {
   lectures: LectureWithSessions[];
+  publicFolders?: VideoFolder[];
   currentFolderId: VideoFolderId;
   onSelectFolder: (folderId: VideoFolderId) => void;
 };
