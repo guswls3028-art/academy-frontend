@@ -59,7 +59,6 @@ export default function VideoExplorerPage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [addChoiceModalOpen, setAddChoiceModalOpen] = useState(false);
-  const [addChoiceModalOpen, setAddChoiceModalOpen] = useState(false);
 
   const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
     queryKey: ["admin-videos-lectures"],
