@@ -5,15 +5,16 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 import sharp from "sharp";
 
+const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INPUT = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogo.png");
 const OUTPUT_SVG = path.join(__dirname, "out/tchul-logo-traced.svg");
 const MAX_WIDTH = 400;
 
-// imagetracerjs is CJS
-const ImageTracer = (await import("../node_modules/imagetracerjs/imagetracer_v1.2.6.js")).default;
+const ImageTracer = require("../node_modules/imagetracerjs/imagetracer_v1.2.6.js");
 
 const options = {
   ltres: 0.01,
