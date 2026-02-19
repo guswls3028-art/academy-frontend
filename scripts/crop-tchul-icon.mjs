@@ -29,29 +29,8 @@ async function main() {
   const channels = 4; // RGBA
   const buf = new Uint8ClampedArray(data);
 
-  // 텍스트 영역 찾기: 하단에서 시작해서 투명하지 않은 영역이 많이 나타나는 곳
-  // 아이콘은 상단에, 텍스트는 하단에 있음
-  let textStartY = height;
-  
-  // 하단에서 위로 스캔하면서 텍스트 영역 시작점 찾기
-  for (let y = height - 1; y >= Math.floor(height * 0.4); y--) {
-    let nonTransparentCount = 0;
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * channels;
-      const alpha = buf[idx + 3];
-      if (alpha > 10) {
-        nonTransparentCount++;
-      }
-    }
-    // 한 줄에 충분히 많은 픽셀이 있으면 텍스트 영역으로 간주
-    if (nonTransparentCount > width * 0.3) {
-      textStartY = y;
-      break;
-    }
-  }
-
-  // 아이콘 영역: 텍스트 시작점 위쪽만
-  const iconHeight = textStartY;
+  // 아이콘은 상단에 있으므로 상단 40% 영역만 사용 (텍스트 제외)
+  const iconAreaHeight = Math.floor(height * 0.4);
   
   // 아이콘의 실제 경계 찾기 (좌우 패딩 없이)
   let minX = width;
@@ -59,7 +38,8 @@ async function main() {
   let minY = height;
   let maxY = 0;
 
-  for (let y = 0; y < iconHeight; y++) {
+  // 상단 아이콘 영역만 스캔
+  for (let y = 0; y < iconAreaHeight; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * channels;
       const alpha = buf[idx + 3];
