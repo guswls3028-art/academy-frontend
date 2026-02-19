@@ -194,7 +194,7 @@ export default function CourseCard({
 
       {/* 정보 영역 */}
       <div style={{ marginTop: 6 }}>
-        <div className="media-tile__title" style={{ marginBottom: 4 }}>
+        <div className="media-tile__title" style={{ fontWeight: 600, color: "var(--stu-text)", marginBottom: 4 }}>
           {title}
         </div>
         <div
