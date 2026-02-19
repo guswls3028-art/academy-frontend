@@ -9,14 +9,16 @@ import { fetchClinicIdcard } from "../api/idcard";
 
 function formatDisplayDate(isoDate: string): string {
   if (!isoDate) return "-";
+  const parts = isoDate.split("T")[0].split("-");
+  if (parts.length !== 3) return isoDate;
+  const [y, m, d] = parts.map(Number);
+  const weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+  const months = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
   try {
-    const d = new Date(isoDate + "Z");
-    return d.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "long",
-    });
+    const date = new Date(y, m - 1, d);
+    const w = date.getDay();
+    return `${y}년 ${months[m - 1]} ${d}일 ${weekdays[w]}`;
   } catch {
     return isoDate;
   }
