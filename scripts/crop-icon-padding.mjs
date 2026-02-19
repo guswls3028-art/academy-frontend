@@ -11,6 +11,7 @@ import sharp from "sharp";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INPUT = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogoIcon.png");
+const OUTPUT_TEMP = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogoIcon.temp.png");
 const OUTPUT = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogoIcon.png");
 
 async function main() {
@@ -65,6 +66,7 @@ async function main() {
 
   console.log(`Cropping: x=${finalCropX}, y=0, size=${finalSize}x${finalSize}`);
 
+  // 임시 파일에 저장 후 원본 파일로 교체
   await image
     .extract({
       left: finalCropX,
@@ -73,7 +75,10 @@ async function main() {
       height: finalSize,
     })
     .png()
-    .toFile(OUTPUT);
+    .toFile(OUTPUT_TEMP);
+
+  // 임시 파일을 원본 파일로 교체
+  fs.renameSync(OUTPUT_TEMP, OUTPUT);
 
   console.log(`✓ Created: ${OUTPUT} (${finalSize}x${finalSize})`);
 }
