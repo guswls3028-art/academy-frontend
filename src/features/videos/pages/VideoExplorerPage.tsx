@@ -73,7 +73,11 @@ export default function VideoExplorerPage() {
   }, [lectures, sessionQueries]);
 
   // 사이드바로 진입 시에도 media API가 먼저 호출되도록 마운트 시점에 public-session prefetch
-  const { data: publicSession, isLoading: publicSessionLoading } = useQuery({
+  const {
+    data: publicSession,
+    isLoading: publicSessionLoading,
+    isError: publicSessionError,
+  } = useQuery({
     queryKey: ["public-session"],
     queryFn: fetchPublicSession,
     enabled: true,
