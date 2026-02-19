@@ -140,3 +140,9 @@
 [data-student-theme="tchul"] .stu-icon polygon[fill="currentColor"] {
   fill: url(#stu-gradient-tchul);
 }
+
+/* tchul 테마: 프리미엄 배경 질감 적용 */
+[data-student-theme="tchul"] [data-app="student"] {
+  background-image: var(--stu-bg-pattern);
+  background-size: var(--stu-bg-pattern-size);
+}
