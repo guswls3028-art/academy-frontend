@@ -450,35 +450,25 @@ a {
     font-size: var(--stu-font-size-14);
   }
 
+  .stu-section,
   .stu-card,
   .student-card {
     padding: var(--stu-space-8);
-    border-radius: var(--stu-radius-lg);
+    border-radius: var(--stu-radius-md);
   }
 }
 
 /* ======================================================
-   10) Card – Advanced Interaction (LOCK v2)
+   10) Section – Advanced Interaction (Premium SaaS)
+   Shadow 제거, Border + Tint 기반
    ====================================================== */
 
-/* 기본 카드 hover 깊이 강화 */
-.stu-card--pressable {
-  position: relative;
-  will-change: transform, box-shadow;
-}
-
-/* 다크 네온 REAL 전용: 은은한 glow */
-@media (prefers-color-scheme: dark) {
-  .stu-card--pressable:hover {
-    box-shadow: var(--stu-shadow-2),
-      var(--stu-glow-primary, 0 0 0 transparent);
-  }
-}
-
-/* 카드 포커스 접근성 */
+/* Section 포커스 접근성 (Border 기반) */
+.stu-section--pressable:focus-within,
 .stu-card--pressable:focus-within {
-  box-shadow: var(--stu-shadow-2),
-    0 0 0 4px color-mix(in srgb, var(--stu-primary) 22%, transparent);
+  border-color: var(--stu-primary);
+  border-width: 2px;
+  outline: none;
 }
 
 /* ======================================================
