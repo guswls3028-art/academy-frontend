@@ -254,7 +254,7 @@ function ClinicIdcardColorSettings() {
 
           {/* 현재 선택된 색상 미리보기 */}
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-[var(--text-muted)]">현재 색상</div>
+            <div className="text-xs font-semibold text-[var(--text-muted)]">현재 색상 미리보기</div>
             <div
               className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
               style={{
@@ -263,7 +263,7 @@ function ClinicIdcardColorSettings() {
                 animation: "idcard-background-flow 8s ease infinite",
               }}
             />
-        </div>
+          </div>
 
         {/* 색상 3개 선택 */}
         <div className="space-y-3">
