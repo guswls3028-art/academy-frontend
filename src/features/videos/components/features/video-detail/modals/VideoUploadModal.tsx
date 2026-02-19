@@ -62,32 +62,51 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   const pickFile = () => fileInputRef.current?.click();
 
   const handleUpload = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
     setIsUploading(true);
 
     // 모달은 바로 닫고, 업로드는 백그라운드에서 실행
     onClose();
 
-    try {
-      await uploadVideo({
-        sessionId,
-        file,
-        title,
-        description,
-        showWatermark,
-        allowSkip,
-        maxSpeed,
-      });
-      feedback.success("업로드 완료. 인코딩은 우하단 작업 박스에서 이어서 진행됩니다.");
-    } catch (error) {
-      const msg =
-        (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
-          ?.detail ||
-        (error as Error)?.message ||
-        "업로드에 실패했습니다.";
-      feedback.error(msg);
-    } finally {
-      setIsUploading(false);
+    let successCount = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileTitle = i === 0 ? title.trim() : `${title.trim()} (${i + 1})`;
+
+      try {
+        await uploadVideo({
+          sessionId,
+          file,
+          title: fileTitle,
+          description,
+          showWatermark,
+          allowSkip,
+          maxSpeed,
+        });
+        successCount += 1;
+      } catch (error) {
+        const msg =
+          (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
+            ?.detail ||
+          (error as Error)?.message ||
+          "업로드에 실패했습니다.";
+        errors.push(`${file.name}: ${msg}`);
+      }
+    }
+
+    setIsUploading(false);
+
+    if (successCount > 0) {
+      feedback.success(
+        errors.length > 0
+          ? `${successCount}개 업로드 완료. ${errors.length}개 실패. 인코딩은 우하단 작업 박스에서 확인하세요.`
+          : `${successCount}개 업로드 완료. 인코딩은 우하단 작업 박스에서 이어서 진행됩니다.`
+      );
+    }
+    if (errors.length > 0) {
+      errors.forEach((e) => feedback.error(e));
     }
   };
 
