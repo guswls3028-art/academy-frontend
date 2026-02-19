@@ -266,6 +266,14 @@ export default function VideoExplorerPage() {
           </div>
         </div>
       </div>
+
+      {uploadTargetSessionId != null && (
+        <VideoUploadModal
+          sessionId={uploadTargetSessionId}
+          isOpen={uploadModalOpen}
+          onClose={closeUploadModal}
+        />
+      )}
     </DomainLayout>
   );
 }
