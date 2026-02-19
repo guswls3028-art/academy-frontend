@@ -136,17 +136,19 @@ export default function TemplateExplorer() {
           {isLoading ? (
             <div className={styles.placeholder}>불러오는 중…</div>
           ) : templates.length === 0 ? (
-            <EmptyState
-              scope="panel"
-              tone="empty"
-              title="저장된 템플릿이 없습니다"
-              description={descriptions[activeCategory]}
-              actions={
-                <Button intent="primary" size="sm" onClick={() => setModalOpen("create")}>
-                  + 템플릿 추가
-                </Button>
-              }
-            />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
+              <EmptyState
+                scope="panel"
+                tone="empty"
+                title="저장된 템플릿이 없습니다"
+                description={descriptions[activeCategory]}
+                actions={
+                  <Button intent="primary" size="sm" onClick={() => setModalOpen("create")}>
+                    + 템플릿 추가
+                  </Button>
+                }
+              />
+            </div>
           ) : (
             <div className={styles.grid}>
               <div
