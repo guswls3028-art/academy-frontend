@@ -244,6 +244,25 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     tokenRef.current = bootstrap.token;
   }, [bootstrap.token]);
 
+  // 나갈 때(언마운트) 현재 시청 위치 한 번 자동 저장 — DB는 이 시점에만 1회 쓰기
+  useEffect(() => {
+    return () => {
+      if (!onLeaveProgress) return;
+      const el = videoEl.current;
+      if (!el) return;
+      const lastPosition = Math.max(0, maxWatchedRef.current || 0);
+      const dur = Number(el.duration);
+      const progressPercent =
+        dur > 0 && Number.isFinite(dur) ? Math.min(100, (lastPosition / dur) * 100) : 0;
+      const completed = dur > 0 && lastPosition >= dur - 0.5;
+      onLeaveProgress({
+        progress: progressPercent,
+        last_position: Math.round(lastPosition),
+        completed,
+      });
+    };
+  }, [onLeaveProgress]);
+
   // ---------------------------------------------------------------------------
   // Fullscreen sync + body scroll lock (모바일 Player Mode)
   // ---------------------------------------------------------------------------
