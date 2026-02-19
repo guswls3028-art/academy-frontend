@@ -9,10 +9,11 @@ import {
   parsePhoneInput,
 } from "@/shared/utils/phoneInput";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
-import { createStudent, uploadStudentBulkFromExcel } from "../api/students";
+import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents } from "../api/students";
 import { downloadStudentExcelTemplate } from "../excel/studentExcel";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import type { ClientStudent } from "../api/students";
 
 interface Props {
   open: boolean;
@@ -31,6 +32,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [busy, setBusy] = useState(false);
   const [excelBulkPassword, setExcelBulkPassword] = useState("");
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
+  const [deletedStudentConflict, setDeletedStudentConflict] = useState<{ student: ClientStudent; formData: typeof form } | null>(null);
 
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [form, setForm] = useState({
