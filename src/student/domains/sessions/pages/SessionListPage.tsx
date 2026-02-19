@@ -13,8 +13,8 @@ export default function SessionListPage() {
   if (isLoading) {
     return (
       <div style={{ padding: "var(--stu-space-4) 0" }}>
-        <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius-lg)", marginBottom: 8 }} />
-        <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius-md)", marginBottom: 8 }} />
+        <div className="stu-skel" style={{ height: 72, borderRadius: "var(--stu-radius-md)" }} />
       </div>
     );
   }

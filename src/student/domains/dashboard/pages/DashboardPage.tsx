@@ -61,7 +61,7 @@ export default function DashboardPage() {
         {todaySessions.length === 0 ? (
           <div className="stu-card stu-card--soft" style={{ padding: "var(--stu-space-6)" }}>
             <div className="stu-muted" style={{ fontSize: 14 }}>오늘 예정된 수업이 없습니다.</div>
-            <Link to="/student/sessions" className="stu-btn stu-btn--ghost stu-btn--sm" style={{ marginTop: 8 }}>
+            <Link to="/student/sessions" className="stu-cta-link" style={{ marginTop: 8 }}>
                 전체 일정 보기
             </Link>
           </div>
