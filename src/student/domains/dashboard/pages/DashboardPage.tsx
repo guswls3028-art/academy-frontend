@@ -50,7 +50,7 @@ export default function DashboardPage() {
           <div style={{ fontWeight: 800, fontSize: 15 }}>공지·Q&A</div>
           <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>소통 게시판에서 확인하세요</div>
         </div>
-        <span className="stu-muted" style={{ fontSize: 12 }}>보기</span>
+        <span className="stu-cta-link" style={{ fontSize: 13 }}>보기</span>
       </Link>
 
       {/* 오늘 일정 */}
