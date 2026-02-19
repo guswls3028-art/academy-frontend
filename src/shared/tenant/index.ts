@@ -20,7 +20,7 @@
  *   and helps transitional tooling / diagnostics.
  */
 
-import { HOSTNAME_TO_TENANT_CODE } from "./tenants";
+import { HOSTNAME_TO_TENANT_CODE } from "./config";
 
 export const TENANT_STORAGE_KEY = "tenant_code";
 
