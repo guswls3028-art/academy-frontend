@@ -80,15 +80,12 @@ export default function ClinicIDCardPage() {
       {/* 학생 이름 */}
       <div className="idcard-page__name">{data.student_name || "-"}</div>
 
-      {/* 패스카드: 클리닉 대상(빨강) / 합격(초록) — 애니메이션으로 생동감 */}
+      {/* 패스카드: 합격 / 클리닉 예약 대상자 — 큼지막하게 한 줄로 */}
       <div
         className={`idcard-page__pass-card ${isClinicTarget ? "idcard-page__pass-card--clinic" : "idcard-page__pass-card--pass"}`}
       >
         <div className="idcard-page__pass-card-title">
-          {isClinicTarget ? "클리닉 대상" : "클리닉 대상 아님"}
-        </div>
-        <div className="idcard-page__pass-card-sub">
-          {isClinicTarget ? "해당 차시 이수·합격 후 해제됩니다." : "합격"}
+          {isClinicTarget ? "클리닉 예약 대상자" : "합격"}
         </div>
       </div>
 
@@ -114,7 +111,7 @@ export default function ClinicIDCardPage() {
 
       {isClinicTarget && (
         <div className="idcard-page__clinic-notice">
-          클리닉 대상 — 선생님 안내에 따라 참여해 주세요.
+          선생님 안내에 따라 클리닉 참여해 주세요.
         </div>
       )}
     </div>

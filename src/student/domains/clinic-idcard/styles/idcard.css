@@ -122,16 +122,10 @@ body {
 }
 
 .idcard-page__pass-card-title {
-  font-size: clamp(1.5rem, 6vw, 2.25rem);
+  font-size: clamp(2rem, 10vw, 3.5rem);
   font-weight: 900;
-  letter-spacing: -0.02em;
-}
-
-.idcard-page__pass-card-sub {
-  font-size: clamp(0.9rem, 3.5vw, 1.1rem);
-  font-weight: 700;
-  margin-top: 8px;
-  opacity: 0.95;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 /* ---------- 차시 이력 ---------- */
