@@ -197,7 +197,7 @@ export default function VideoHomePage() {
           <SessionVideoList
             sessionId={videoMe.public.session_id}
             sessionTitle=""
-            enrollmentId={enrollmentId}
+            enrollmentId={null}
           />
         </section>
       )}

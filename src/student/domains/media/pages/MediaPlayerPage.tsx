@@ -190,7 +190,7 @@ export default function MediaPlayerPage() {
         <StudentVideoPlayer
           video={video}
           bootstrap={boot}
-          enrollmentId={Number(enrollmentId)}
+          enrollmentId={enrollmentId ? Number(enrollmentId) : 0}
           onFatal={(reason) => setErr(reason)}
         />
       ) : (
