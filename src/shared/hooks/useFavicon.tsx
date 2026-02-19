@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import { resolveTenantCode } from "@/shared/tenant";
 import { getTenantIdFromCode } from "@/shared/tenant";
-import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 /**
  * 테넌트에 따라 favicon을 동적으로 설정합니다.
@@ -30,8 +30,8 @@ export function useFavicon() {
         document.head.appendChild(faviconLink);
       }
       
-      // Tchul 로고를 favicon으로 설정
-      faviconLink.href = TchulLogoTransparent;
+      // Tchul 로고를 favicon으로 설정 (배경 제거 아이콘 버전)
+      faviconLink.href = TchulLogoIcon;
       faviconLink.type = "image/png";
     }
   }, []);

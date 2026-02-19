@@ -34,7 +34,7 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
   const base = { title: branding.loginTitle || fallback.title };
 
   if (TCHUL_DESIGN_CODES.includes(normalized as (typeof TCHUL_DESIGN_CODES)[number])) {
-    return { ...base, logoUrl: TchulLogoTransparent, title: "박철과학" };
+    return { ...base, logoUrl: TchulLogoIcon, title: "박철과학" };
   }
 
   return { ...base, logoUrl: branding.logoUrl ?? null };
