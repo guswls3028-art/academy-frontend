@@ -169,18 +169,9 @@ export default function VideoPlayerPage() {
     };
   }, []);
 
-  // 다음 강의 찾기 (같은 세션 내에서)
-  // sessionId를 별도 state로 관리하여 Hook 순서 일관성 유지
-  const [sessionId, setSessionId] = useState<number | null>(null);
-  
-  useEffect(() => {
-    if (video?.session_id) {
-      setSessionId(video.session_id);
-    } else {
-      setSessionId(null);
-    }
-  }, [video?.session_id]);
-  
+  // 다음 강의 찾기 (같은 세션 내에서). sessionId는 video에서 파생해 effect 제거(무한 리렌더 방지)
+  const sessionId = video?.session_id ?? null;
+
   const { data: sessionVideosData } = useQuery({
     queryKey: ["student-session-videos", sessionId, enrollmentId],
     queryFn: () => fetchStudentSessionVideos(sessionId!, enrollmentId || undefined),

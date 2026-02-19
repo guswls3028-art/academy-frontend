@@ -266,20 +266,19 @@ export default function CourseDetailPage() {
     );
   }
 
-  // 전체공개영상: 내용물이 있던 없던 항상 표시
-  const sessions = isPublic 
-    ? (videoMe?.public?.session_id 
+  // 전체공개영상: 테넌트 내 학생이면 세션만 있으면 표시 (enrollment 불필요)
+  const sessions = isPublic
+    ? (videoMe?.public?.session_id
         ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }]
-        : [{ id: 0, title: "전체공개영상", order: 1, date: null }]) // 빈 세션 표시용 플레이스홀더
+        : [{ id: 0, title: "전체공개영상", order: 1, date: null }])
     : (lecture?.sessions ?? []);
 
-  // 첫 번째 세션의 영상 정보 가져오기 (총 영상 개수 및 시간 계산용)
-  const firstSessionId = sessions[0]?.id;
+  const firstSessionId = sessions[0]?.id ?? 0;
   const enrollmentIdForLecture = isPublic ? null : (lecture ? (videoMe?.lectures?.find((l) => l.id === lecture.id)?.enrollment_id ?? null) : null);
   const { data: firstSessionVideos } = useQuery({
     queryKey: ["student-session-videos", firstSessionId, enrollmentIdForLecture],
-    queryFn: () => fetchStudentSessionVideos(firstSessionId!, enrollmentIdForLecture ?? undefined),
-    enabled: !!firstSessionId,
+    queryFn: () => fetchStudentSessionVideos(firstSessionId, enrollmentIdForLecture ?? undefined),
+    enabled: !!firstSessionId && firstSessionId > 0,
   });
 
   const totalVideos = useMemo(() => {
