@@ -214,7 +214,15 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
 
     const url = bootstrap.play_url || video.hls_url || "";
     if (!url) {
-      onFatal?.("play_url_not_provided");
+      onFatal?.("재생 URL이 제공되지 않았습니다. (play_url 또는 hls_url 필요)");
+      return;
+    }
+    
+    // URL 유효성 검사
+    try {
+      new URL(url);
+    } catch {
+      onFatal?.(`잘못된 재생 URL 형식입니다: ${url}`);
       return;
     }
 
