@@ -925,9 +925,35 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       const t = e.changedTouches?.[0];
       if (!t) return;
       e.preventDefault();
-      onStageTap(t.clientX, t.clientY);
+      if (!swipeHandledRef.current) onStageTap(t.clientX, t.clientY);
+      swipeHandledRef.current = false;
+      touchStartRef.current = null;
     },
     [onStageTap, onStageTouchEndLongPress]
+  );
+
+  const onStageTouchMove = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      const start = touchStartRef.current;
+      const t = e.touches?.[0];
+      if (!start || !t) return;
+      const layer = gestureLayerRef.current;
+      const rect = layer?.getBoundingClientRect?.();
+      if (!rect) return;
+      const dy = start.y - t.clientY;
+      if (Math.abs(dy) < 15) return;
+      swipeHandledRef.current = true;
+      if (start.rightHalf) {
+        const delta = dy * 0.008;
+        const v = clamp((start.volume ?? volume) + delta, 0, 1);
+        setVolume(v);
+        const el = videoEl.current;
+        if (el) try { el.volume = v; } catch {}
+        if (v <= 0.0001) setMuted(true);
+        else setMuted(false);
+      }
+    },
+    [volume]
   );
 
   // 롱프레스 500ms → 2배속 (모바일)
