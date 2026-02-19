@@ -201,12 +201,107 @@ export default function MediaPlayerPage() {
           description={err}
         />
       ) : video && boot ? (
-        <StudentVideoPlayer
-          video={video}
-          bootstrap={boot}
-          enrollmentId={enrollmentId ? Number(enrollmentId) : 0}
-          onFatal={(reason) => setErr(reason)}
-        />
+        <>
+          {/* 상단: 영상 플레이어 */}
+          <StudentVideoPlayer
+            video={video}
+            bootstrap={boot}
+            enrollmentId={enrollmentId ? Number(enrollmentId) : 0}
+            onFatal={(reason) => setErr(reason)}
+          />
+          
+          {/* 하단: 영상 요약 정보 */}
+          <div
+            style={{
+              marginTop: "var(--stu-space-6)",
+              padding: "var(--stu-space-5)",
+              borderRadius: 12,
+              background: "var(--stu-surface-1)",
+              border: "1px solid var(--stu-border-subtle)",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: "var(--stu-text)",
+                marginBottom: "var(--stu-space-4)",
+              }}
+            >
+              영상 정보
+            </h2>
+            
+            {/* 메타 정보 */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "var(--stu-space-4)",
+                marginBottom: "var(--stu-space-4)",
+                fontSize: 14,
+                color: "var(--stu-text-muted)",
+              }}
+            >
+              {video.view_count != null && (
+                <div>
+                  <span style={{ fontWeight: 600 }}>조회수:</span> {video.view_count.toLocaleString()}회
+                </div>
+              )}
+              {video.created_at && (
+                <div>
+                  <span style={{ fontWeight: 600 }}>업로드:</span> {new Date(video.created_at).toLocaleDateString("ko-KR")}
+                </div>
+              )}
+              {video.duration && (
+                <div>
+                  <span style={{ fontWeight: 600 }}>재생시간:</span> {Math.floor(video.duration / 60)}분 {Math.floor(video.duration % 60)}초
+                </div>
+              )}
+            </div>
+
+            {/* 태그 */}
+            {video.tags && video.tags.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginBottom: "var(--stu-space-4)",
+                }}
+              >
+                {video.tags.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      background: "var(--stu-tint-primary)",
+                      color: "var(--stu-text)",
+                      fontSize: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* 설명 */}
+            {video.description && (
+              <div
+                style={{
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  color: "var(--stu-text)",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {video.description}
+              </div>
+            )}
+          </div>
+        </>
       ) : (
         <EmptyState title="데이터가 없습니다" description="다시 시도해주세요." />
       )}
