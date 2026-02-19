@@ -62,9 +62,9 @@ export default function ExamDetailPage() {
   return (
     <StudentPageShell
       title={exam.title}
-      description="자산 다운로드 / 제출 / 결과 조회"
+      description="제출 / 결과 조회"
       actions={
-        <Link to="/student/exams" style={linkBtn}>
+        <Link to="/student/exams" className="stu-cta-link">
           목록
         </Link>
       }
