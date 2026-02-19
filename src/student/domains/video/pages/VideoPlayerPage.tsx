@@ -290,6 +290,14 @@ export default function VideoPlayerPage() {
             bootstrap={boot}
             enrollmentId={enrollmentId ? Number(enrollmentId) : 0}
             onFatal={(reason) => setErr(reason)}
+            onLeaveProgress={(data) => {
+              if (!videoId) return;
+              progressMutation.mutate({
+                progress: data.progress,
+                last_position: data.last_position,
+                completed: data.completed,
+              });
+            }}
           />
           
           {/* 하단: 행동 중심 UI (YouTube SaaS 스타일) */}
