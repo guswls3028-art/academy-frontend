@@ -34,7 +34,7 @@ export default function GradesPage() {
         <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)" }} />
       </Link>
 
-      <div className="stu-card stu-card--soft" style={{ padding: "var(--stu-space-8)" }}>
+      <div className="stu-section stu-section--nested">
         <EmptyState
           title="성적 요약"
           description="시험 결과는 위 '시험 결과'에서 확인할 수 있습니다. 과제·출결 종합 성적은 추후 제공됩니다."

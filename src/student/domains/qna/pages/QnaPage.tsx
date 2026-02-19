@@ -65,9 +65,8 @@ export default function QnaPage() {
       description="궁금한 점을 적어 보내면 선생님이 확인해 주세요."
     >
       <div
-        className="stu-card stu-card--soft"
+        className="stu-section stu-section--nested"
         style={{
-          padding: "var(--stu-space-6)",
           display: "flex",
           flexDirection: "column",
           gap: "var(--stu-space-4)",

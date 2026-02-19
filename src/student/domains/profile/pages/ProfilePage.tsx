@@ -52,7 +52,7 @@ export default function ProfilePage() {
 
   return (
     <StudentPageShell title="내 정보" description="프로필 사진과 이름이 헤더에 표시됩니다.">
-      <div className="stu-card stu-card--soft" style={{ padding: "var(--stu-space-10)" }}>
+      <div className="stu-section stu-section--nested">
         <div
           style={{
             display: "flex",

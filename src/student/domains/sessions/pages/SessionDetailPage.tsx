@@ -100,21 +100,12 @@ function ActionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14, background: "#fff" }}>
-      <div style={{ fontWeight: 800 }}>{title}</div>
-      <div style={{ marginTop: 4, fontSize: 13, color: "#666" }}>{desc}</div>
-      <div style={{ marginTop: 10 }}>{children}</div>
+    <div className="stu-section">
+      <div className="stu-section-header" style={{ fontWeight: 700, fontSize: 15 }}>
+        {title}
+      </div>
+      <div className="stu-muted" style={{ fontSize: 13, marginBottom: "var(--stu-space-4)" }}>{desc}</div>
+      <div>{children}</div>
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  display: "inline-block",
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: "1px solid #ddd",
-  textDecoration: "none",
-  background: "#fafafa",
-  color: "#111",
-  fontWeight: 700,
-};
