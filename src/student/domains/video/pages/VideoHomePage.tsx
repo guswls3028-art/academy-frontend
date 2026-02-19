@@ -104,7 +104,7 @@ export default function VideoHomePage() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: "var(--stu-space-4)" }}>
+      <div style={{ padding: "var(--stu-space-4)", background: "#000", minHeight: "100vh", color: "#fff" }}>
         <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
         <div className="stu-skel" style={{ height: 200, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
       </div>
@@ -113,7 +113,7 @@ export default function VideoHomePage() {
 
   if (isError || !hasAny) {
     return (
-      <div style={{ padding: "var(--stu-space-4)" }}>
+      <div style={{ padding: "var(--stu-space-4)", background: "#000", minHeight: "100vh", color: "#fff" }}>
         <EmptyState
           title="등록된 영상이 없습니다"
           description="전체공개 영상이나 수강 중인 강의의 차시 영상이 여기에 표시됩니다."
