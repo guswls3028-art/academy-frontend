@@ -1,9 +1,9 @@
 /* PATH: src/student/shared/ui/theme/tenants/tchul.css
- * tchul(2번) 테넌트 학생앱 테마 — auth 로그인 페이지 SSOT 색상·로고 규칙 적용
+ * tchul(2번) + 9999(로컬) 학생앱 테마 — auth 로그인 페이지 SSOT 색상·로고 규칙 적용
  * 색상 SSOT: @/features/auth/themes/tchul.css (화이트톤 + 블루→청록→그린 그라데이션)
  */
-
-[data-student-tenant="tchul"] {
+[data-student-tenant="tchul"],
+[data-student-tenant="9999"] {
   /* 배경·서페이스 (화이트톤) */
   --stu-bg: #fafbfc;
   --stu-surface: #ffffff;
@@ -48,8 +48,9 @@
   --stu-tabbar-bg: rgba(250, 251, 252, 0.95);
 }
 
-/* tchul 전용: 포커스 링 (auth와 동일) */
-[data-student-tenant="tchul"] :focus-visible {
+/* tchul/9999: 포커스 링 (auth와 동일) */
+[data-student-tenant="tchul"] :focus-visible,
+[data-student-tenant="9999"] :focus-visible {
   outline: 3px solid var(--stu-focus);
   outline-offset: 2px;
   border-radius: 10px;
