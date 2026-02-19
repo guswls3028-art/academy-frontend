@@ -58,9 +58,6 @@ export default function VideoExplorerPage() {
   const [uploadTargetSessionId, setUploadTargetSessionId] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
-  const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const queryClient = useQueryClient();
 
   const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
     queryKey: ["admin-videos-lectures"],
