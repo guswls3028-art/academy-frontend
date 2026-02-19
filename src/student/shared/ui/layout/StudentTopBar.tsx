@@ -1,15 +1,21 @@
 /**
- * 상단 바 — 테넌트별 로고·타이틀 (studentTenantBranding SSOT)
+ * 상단 바 — 좌: 로고·타이틀 고정(박철과학 등) / 우: 학생 아바타 + 이름
  */
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
+import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 
 type Props = { tenantCode: string | null };
 
+const AVATAR_SIZE = 28;
+
 export default function StudentTopBar({ tenantCode }: Props) {
-  const loc = useLocation();
-  const isHome = loc.pathname === "/student" || loc.pathname.startsWith("/student/dashboard");
   const branding = getStudentTenantBranding(tenantCode);
+  const { data: profile } = useQuery({
+    queryKey: ["student", "me"],
+    queryFn: fetchMyProfile,
+  });
 
   return (
     <div
@@ -63,9 +69,62 @@ export default function StudentTopBar({ tenantCode }: Props) {
           </div>
         )}
         <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>
-          {isHome ? branding.title : "학생"}
+          {branding.title}
         </span>
       </Link>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
+        {profile && (
+          <>
+            <div
+              style={{
+                width: AVATAR_SIZE,
+                height: AVATAR_SIZE,
+                borderRadius: "50%",
+                overflow: "hidden",
+                flexShrink: 0,
+                background: "var(--stu-surface-soft)",
+                border: "1px solid var(--stu-border)",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 12,
+                fontWeight: 800,
+                color: "var(--stu-primary)",
+              }}
+            >
+              {profile.profile_photo_url ? (
+                <img
+                  src={profile.profile_photo_url}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                (profile.name || "?")[0]
+              )}
+            </div>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: 14,
+                color: "var(--stu-text)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 100,
+              }}
+            >
+              {profile.name || "학생"}
+            </span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
