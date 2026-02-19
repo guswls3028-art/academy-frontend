@@ -108,51 +108,19 @@ export default function ClinicIDCardPage() {
         </div>
       </div>
 
-      {/* 차시별 이력 (1~n) — 읽기 전용, 클릭 불가 */}
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 700,
-          color: "#64748b",
-          marginBottom: 12,
-          alignSelf: "flex-start",
-          maxWidth: 420,
-          width: "100%",
-        }}
-      >
-        차시별 이력 (합격/클리닉 대상)
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
-          gap: 10,
-          width: "100%",
-          maxWidth: 420,
-        }}
-      >
+      {/* 차시별 이력 (1~n) — 읽기 전용 */}
+      <div className="idcard-page__history-label">차시별 이력 (합격/클리닉 대상)</div>
+      <div className="idcard-page__history-grid">
         {data.histories.length === 0 ? (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", color: "#64748b", fontSize: 14 }}>
-            차시 이력이 없습니다.
-          </div>
+          <div className="idcard-page__history-empty">차시 이력이 없습니다.</div>
         ) : (
           data.histories.map((h) => (
             <div
               key={h.session_order}
-              style={{
-                padding: "14px 8px",
-                borderRadius: 12,
-                textAlign: "center",
-                fontWeight: 800,
-                fontSize: 14,
-                background: h.clinic_required ? "#7f1d1d" : "#14532d",
-                color: "#fff",
-                pointerEvents: "none",
-                userSelect: "none",
-              }}
+              className={`idcard-page__history-item ${h.clinic_required ? "idcard-page__history-item--clinic" : "idcard-page__history-item--pass"}`}
             >
               {h.session_order}차시
-              <div style={{ marginTop: 6, fontSize: 12, opacity: 0.95 }}>
+              <div className="idcard-page__history-item-sub">
                 {h.clinic_required ? "클리닉 대상" : "합격"}
               </div>
             </div>
@@ -161,15 +129,7 @@ export default function ClinicIDCardPage() {
       </div>
 
       {isClinicTarget && (
-        <div
-          style={{
-            marginTop: 28,
-            color: "#fca5a5",
-            fontSize: 15,
-            fontWeight: 700,
-            textAlign: "center",
-          }}
-        >
+        <div className="idcard-page__clinic-notice">
           클리닉 대상 — 선생님 안내에 따라 참여해 주세요.
         </div>
       )}
