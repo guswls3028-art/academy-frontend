@@ -94,8 +94,12 @@
   filter: brightness(0.95);
 }
 
-/* tchul 테마: 모든 아이콘 그라데이션 톤 (SVG .stu-icon) */
-[data-student-theme="tchul"] .stu-icon {
+/* tchul 테마: 모든 아이콘 그라데이션 톤 (SVG .stu-icon — 루트·자식 모두) */
+[data-student-theme="tchul"] .stu-icon,
+[data-student-theme="tchul"] .stu-icon path,
+[data-student-theme="tchul"] .stu-icon circle,
+[data-student-theme="tchul"] .stu-icon polygon,
+[data-student-theme="tchul"] .stu-icon rect {
   stroke: url(#stu-gradient-tchul);
 }
 [data-student-theme="tchul"] .stu-icon path[fill="currentColor"],
