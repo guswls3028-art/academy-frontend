@@ -374,8 +374,8 @@ a {
 }
 
 .stu-badge--neutral {
-  background: var(--stu-surface-soft);
-  border-color: var(--stu-border);
+  background: var(--stu-surface-2);
+  border-color: var(--stu-border-normal);
   color: var(--stu-text);
 }
 
@@ -403,7 +403,7 @@ a {
 .stu-divider {
   height: 1px;
   width: 100%;
-  background: var(--stu-border);
+  background: var(--stu-border-subtle);
 }
 
 /* =========================
