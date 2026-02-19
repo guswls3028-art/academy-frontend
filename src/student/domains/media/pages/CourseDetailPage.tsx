@@ -217,7 +217,7 @@ export default function CourseDetailPage() {
   }
 
   const sessions = isPublic 
-    ? (videoMe?.public?.session_id ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 0, date: null }] : [])
+    ? (videoMe?.public?.session_id ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }] : [])
     : (lecture?.sessions ?? []);
 
   // 첫 번째 세션의 첫 번째 영상으로 썸네일 가져오기
