@@ -53,7 +53,7 @@ async function main() {
     }
   }
 
-  console.log(`Text starts at y=${textStartY}`);
+  console.log(`Icon area height: ${iconAreaHeight}`);
   console.log(`Icon bounds: x=${minX}-${maxX}, y=${minY}-${maxY}`);
   console.log(`Icon size: ${maxX - minX + 1}x${maxY - minY + 1}`);
 
