@@ -205,6 +205,8 @@ export default function SessionEnrollModal({
     queryKey: ["session-enroll-modal-students", search, apiFilters, sort, page],
     queryFn: () => fetchStudents(search, apiFilters, sort, page),
     enabled: isOpen && activeTab === "existing",
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const students = studentsData?.data ?? [];
