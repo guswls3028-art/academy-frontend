@@ -213,7 +213,20 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     el.src = "";
 
     const url = bootstrap.play_url || video.hls_url || "";
+    
+    // 디버깅: URL 확인
+    console.log("[StudentVideoPlayer] attachSource:", {
+      play_url: bootstrap.play_url,
+      video_hls_url: video.hls_url,
+      final_url: url,
+      hasUrl: !!url,
+    });
+    
     if (!url) {
+      console.error("[StudentVideoPlayer] No play URL available:", {
+        bootstrap: bootstrap,
+        video: video,
+      });
       onFatal?.("재생 URL이 제공되지 않았습니다. (play_url 또는 hls_url 필요)");
       return;
     }
@@ -221,7 +234,8 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     // URL 유효성 검사
     try {
       new URL(url);
-    } catch {
+    } catch (e) {
+      console.error("[StudentVideoPlayer] Invalid URL format:", url, e);
       onFatal?.(`잘못된 재생 URL 형식입니다: ${url}`);
       return;
     }

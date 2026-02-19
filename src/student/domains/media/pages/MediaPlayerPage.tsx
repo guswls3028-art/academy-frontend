@@ -119,8 +119,22 @@ export default function MediaPlayerPage() {
 
         if (!alive) return;
 
+        // 디버깅: API 응답 확인
+        console.log("[StudentVideoPlayer] Playback bootstrap:", {
+          token: b.token,
+          play_url: b.play_url,
+          hasPlayUrl: !!b.play_url,
+          playUrlLength: b.play_url?.length,
+          policy: b.policy,
+        });
+
         if (!b.token || !b.play_url) {
-          setErr("재생 세션 생성 실패");
+          console.error("[StudentVideoPlayer] Missing token or play_url:", {
+            token: b.token,
+            play_url: b.play_url,
+            bootstrap: b,
+          });
+          setErr(`재생 세션 생성 실패: ${!b.token ? "token 없음" : ""} ${!b.play_url ? "play_url 없음" : ""}`);
           setLoading(false);
           return;
         }
@@ -132,8 +146,10 @@ export default function MediaPlayerPage() {
         setLoading(false);
       } catch (e: any) {
         if (!alive) return;
+        console.error("[StudentVideoPlayer] Error loading playback:", e);
         const msg =
           e?.response?.data?.detail ||
+          e?.response?.data?.message ||
           e?.message ||
           "재생 페이지 로드에 실패했습니다.";
         setErr(String(msg));
