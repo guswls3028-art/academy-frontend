@@ -30,11 +30,10 @@ export default function StudentLayout() {
       data-app="student"
       data-student-tenant={tenantCode || undefined}
       data-student-theme={useTchulTheme ? "tchul" : undefined}
-      data-video-player={isVideoPlayerPage ? "true" : undefined}
       style={{
         minHeight: "100dvh",
-        backgroundColor: isVideoPlayerPage ? "#000" : "var(--stu-bg)",
-        color: isVideoPlayerPage ? "#fff" : "var(--stu-text)",
+        backgroundColor: "var(--stu-bg)",
+        color: "var(--stu-text)",
         display: "flex",
         flexDirection: "column",
         paddingTop: "var(--stu-safe-top)",
@@ -58,14 +57,14 @@ export default function StudentLayout() {
           position: "sticky",
           top: 0,
           zIndex: "var(--stu-z-header)",
-          background: "var(--stu-header-bg)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid var(--stu-border)",
+          background: isVideoPlayerPage ? "rgba(0, 0, 0, 0.9)" : "var(--stu-header-bg)",
+          backdropFilter: isVideoPlayerPage ? "blur(16px)" : "blur(12px)",
+          borderBottom: isVideoPlayerPage ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid var(--stu-border)",
           /* 프리미엄: 헤더에 미묘한 그림자 */
-          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
+          boxShadow: isVideoPlayerPage ? "0 2px 8px rgba(0, 0, 0, 0.5)" : "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
         }}
       >
-        <StudentTopBar tenantCode={tenantCode} />
+        <StudentTopBar tenantCode={tenantCode} isDarkMode={isVideoPlayerPage} />
       </header>
 
       <main
@@ -74,14 +73,19 @@ export default function StudentLayout() {
           overflow: "auto",
           WebkitOverflowScrolling: "touch",
           paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
+          backgroundColor: isVideoPlayerPage ? "#000" : "transparent",
         }}
       >
-        <div style={{ maxWidth: "var(--stu-page-max-w)", margin: "0 auto", padding: "var(--stu-space-4)" }}>
+        <div style={{ 
+          maxWidth: isVideoPlayerPage ? "100%" : "var(--stu-page-max-w)", 
+          margin: "0 auto", 
+          padding: isVideoPlayerPage ? 0 : "var(--stu-space-4)" 
+        }}>
           <Outlet />
         </div>
       </main>
 
-      <StudentTabBar />
+      <StudentTabBar isDarkMode={isVideoPlayerPage} />
     </div>
   );
 }
