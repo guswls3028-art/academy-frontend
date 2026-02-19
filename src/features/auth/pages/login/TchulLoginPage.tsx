@@ -1,12 +1,12 @@
 // PATH: src/features/auth/pages/login/TchulLoginPage.tsx
-// tchul.com 테넌트 전용 브랜드 로그인 — 단일 카드 (로고 참고 통합)
+// tchul.com 테넌트 전용 브랜드 로그인 — 단일 카드 (로고 SVG+텍스트 구현, 배경 없음)
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { Button } from "@/shared/ui/ds";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
-import TchulLogo from "../logos/TchulLogo.png";
+import TchulLogoInline from "../logos/TchulLogoInline";
 import styles from "./TchulLoginPage.module.css";
 
 export default function TchulLoginPage() {

@@ -35,6 +35,46 @@
   margin: 0 auto var(--space-5, 20px);
 }
 
+/* 인라인 로고 블록 (SVG+텍스트, 배경 없음) */
+.logoBlock {
+  margin-bottom: var(--space-4, 16px);
+}
+
+.logoIcon {
+  display: block;
+  width: 100%;
+  max-width: 140px;
+  height: auto;
+  margin: 0 auto var(--space-3, 12px);
+}
+
+.logoTitle {
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1);
+}
+
+.logoSub {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-2);
+}
+
+.logoSlogan {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.logoHighlight {
+  color: #00695c;
+  font-weight: 600;
+}
+
 .phrase {
   font-size: 1rem;
   font-weight: 600;
