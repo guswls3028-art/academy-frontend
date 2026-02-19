@@ -218,33 +218,58 @@ a {
   margin-bottom: var(--stu-space-6);
 }
 
-/* Back-compat: 기존 카드 클래스 → Section으로 매핑 */
+/* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
 .stu-card {
   background: var(--stu-surface-1);
   border: 1px solid var(--stu-border-subtle);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* Shadow 제거 */
+  /* 프리미엄: 미묘한 그림자와 질감 */
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 2px 4px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.01);
+  position: relative;
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
+  background-size: 20px 20px;
 }
 
 .stu-card--soft {
   background: var(--stu-surface-2);
   border: 1px solid var(--stu-border-subtle);
+  /* 부드러운 카드는 더 미묘한 그림자 */
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.015),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .stu-card--pressable {
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: 
+    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
 
 .stu-card--pressable:hover {
   background: var(--stu-tint-hover);
   border-color: var(--stu-border-normal);
-  /* transform, shadow 제거 */
+  /* 호버 시 그림자 강화와 미묘한 상승 효과 */
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+  transform: translateY(-1px);
 }
 
 .stu-card--pressable:active {
   background: var(--stu-tint-primary);
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
 }
 
 /* Back-compat for existing class used in StudentPageShell */
@@ -253,7 +278,14 @@ a {
   border: 1px solid var(--stu-border-subtle);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* Shadow 제거 */
+  /* 프리미엄 스타일 적용 */
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.02),
+    0 2px 4px rgba(0, 0, 0, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.01);
+  background-image: 
+    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
+  background-size: 20px 20px;
 }
 
 /* =========================
