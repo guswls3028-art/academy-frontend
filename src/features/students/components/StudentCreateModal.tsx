@@ -35,6 +35,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [form, setForm] = useState({
     name: "",
+    psNumber: "",
     gender: "",
     initialPassword: "",
     studentPhone: "",
