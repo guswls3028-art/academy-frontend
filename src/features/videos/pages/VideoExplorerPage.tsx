@@ -11,11 +11,12 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import VideoExplorerTree, { type VideoFolderId } from "../components/VideoExplorerTree";
+import VideoUploadModal from "../components/features/video-detail/modals/VideoUploadModal";
 import VideoThumbnail from "../ui/VideoThumbnail";
 import VideoStatusBadge from "../ui/VideoStatusBadge";
 import {
   fetchSessionVideos,
-  fetchAllVideos,
+  fetchPublicSession,
   type Video as ApiVideo,
 } from "../api/videos";
 import {
