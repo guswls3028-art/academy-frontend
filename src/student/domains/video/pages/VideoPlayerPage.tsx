@@ -85,7 +85,17 @@ export default function VideoPlayerPage() {
         
         if (!playUrl) {
           console.error("[VideoPlayerPage] No play URL available:", playbackData);
-          setErr("재생 URL을 가져올 수 없습니다.");
+          const videoStatus = playbackData.video?.status;
+          const detail = playbackData.detail || "";
+          
+          // 백엔드에서 제공한 상세 에러 메시지가 있으면 사용
+          if (detail) {
+            setErr(detail);
+          } else if (videoStatus && videoStatus !== "READY") {
+            setErr(`비디오가 아직 준비되지 않았습니다. (상태: ${videoStatus})`);
+          } else {
+            setErr("재생 URL을 가져올 수 없습니다. 비디오 파일이 처리 중이거나 업로드되지 않았을 수 있습니다.");
+          }
           setLoading(false);
           return;
         }
@@ -103,8 +113,12 @@ export default function VideoPlayerPage() {
 
         console.log("[VideoPlayerPage] Playback ready:", {
           videoId,
-          playUrl,
+          playUrl: playUrl.substring(0, 200) + (playUrl.length > 200 ? "..." : ""), // URL 일부만 로깅
+          hlsUrl: playbackData.hls_url?.substring(0, 200),
+          mp4Url: playbackData.mp4_url?.substring(0, 200),
+          videoStatus: playbackData.video?.status,
           hasPolicy: !!playbackData.policy,
+          fullResponse: playbackData, // 전체 응답도 로깅 (디버깅용)
         });
 
         setVideo(v);

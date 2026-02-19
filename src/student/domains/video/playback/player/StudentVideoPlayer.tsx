@@ -319,13 +319,29 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
 
           if (data?.fatal) {
             const errorMsg = data?.details || data?.type || "알 수 없는 오류";
-            const is404 = errorMsg.includes("404") || errorMsg.includes("Not Found");
-            const message = is404 
-              ? `비디오 파일을 찾을 수 없습니다 (404). 서버에 비디오 파일이 있는지 확인해주세요.`
-              : `재생 오류가 발생했습니다: ${errorMsg}`;
-            setToast({ text: message, kind: "danger" });
+            const errorCode = data?.response?.code || data?.code;
+            const is404 = errorCode === 404 || errorMsg.includes("404") || errorMsg.includes("Not Found");
+            const isNetworkError = errorCode === -1 || errorCode === -2 || errorMsg.includes("network") || errorMsg.includes("NetworkError");
+            
+            let message = "";
             if (is404) {
-              onFatal?.(`비디오 파일을 찾을 수 없습니다: ${url}`);
+              message = `비디오 파일을 찾을 수 없습니다. 비디오가 아직 처리 중이거나 업로드되지 않았을 수 있습니다.`;
+            } else if (isNetworkError) {
+              message = `네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.`;
+            } else {
+              message = `재생 오류가 발생했습니다: ${errorMsg}`;
+            }
+            
+            console.error("[StudentVideoPlayer] HLS.js fatal error:", {
+              errorCode,
+              errorMsg,
+              url,
+              data,
+            });
+            
+            setToast({ text: message, kind: "danger" });
+            if (is404 || isNetworkError) {
+              onFatal?.(message);
             }
           }
         });
