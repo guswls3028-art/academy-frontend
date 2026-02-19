@@ -190,7 +190,7 @@ export function getTenantCodeForApiRequest(): string | null {
     const pathParts = pathname.split("/").filter(Boolean);
     const loginIdx = pathParts.indexOf("login");
     const fromPath =
-      loginIdx >= 0 && parts[loginIdx + 1] ? parts[loginIdx + 1] : null;
+      loginIdx >= 0 && pathParts[loginIdx + 1] ? pathParts[loginIdx + 1] : null;
     if (fromPath) {
       try {
         sessionStorage.setItem("tenantCode", fromPath);
