@@ -16,7 +16,6 @@ import OperationsSessionTree from "../../components/OperationsSessionTree";
 import ClinicDaySchedulePanel from "../../components/ClinicDaySchedulePanel";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
 import ClinicRemoteControl from "../../components/ClinicRemoteControl";
-import ClinicRemoteControl from "../../components/ClinicRemoteControl";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
