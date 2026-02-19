@@ -236,7 +236,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     } catch {}
     el.src = "";
 
-    const url = bootstrap.play_url || video.hls_url || "";
+    let url = bootstrap.play_url || video.hls_url || "";
     
     // 디버깅: URL 확인
     console.log("[StudentVideoPlayer] attachSource:", {
@@ -255,7 +255,25 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       return;
     }
     
-    // URL 유효성 검사
+    // 상대 경로인 경우 절대 URL로 변환
+    try {
+      // 절대 URL인지 확인
+      new URL(url);
+    } catch (e) {
+      // 상대 경로인 경우 API 베이스 URL과 결합
+      const baseURL = studentApi.defaults.baseURL || "https://api.hakwonplus.com";
+      // baseURL이 이미 슬래시로 끝나면 제거, url이 슬래시로 시작하면 제거
+      const base = baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL;
+      const path = url.startsWith("/") ? url : `/${url}`;
+      url = `${base}${path}`;
+      console.log("[StudentVideoPlayer] Converted relative URL to absolute:", {
+        original: bootstrap.play_url || video.hls_url,
+        baseURL: base,
+        final: url,
+      });
+    }
+    
+    // 최종 URL 유효성 검사
     try {
       new URL(url);
     } catch (e) {
