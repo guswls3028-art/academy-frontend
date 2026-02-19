@@ -135,6 +135,8 @@ function VideoListItem({
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
+          position: "relative",
+          zIndex: 1,
         }}
       >
         <div
@@ -148,6 +150,7 @@ function VideoListItem({
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
             lineHeight: 1.4,
+            textShadow: "0 1px 2px rgba(0,0,0,0.5)",
           }}
         >
           {video.title}
