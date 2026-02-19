@@ -75,6 +75,12 @@ export default function VideoPlayerPage() {
         if (!alive) return;
 
         // 비디오 정보 추출
+        const vd = playbackData?.video;
+        if (!vd || typeof vd.id === "undefined") {
+          setErr("재생 정보 형식이 올바르지 않습니다.");
+          setLoading(false);
+          return;
+        }
         const v: VideoMetaLite & {
           description?: string | null;
           created_at?: string | null;
@@ -82,17 +88,17 @@ export default function VideoPlayerPage() {
           tags?: string[];
           session_id?: number;
         } = {
-          id: Number(playbackData.video.id),
-          title: String(playbackData.video.title ?? "영상"),
-          duration: playbackData.video.duration == null ? null : Number(playbackData.video.duration),
-          status: String(playbackData.video.status ?? ""),
-          thumbnail_url: playbackData.video.thumbnail_url ?? null,
+          id: Number(vd.id),
+          title: String(vd.title ?? "영상"),
+          duration: vd.duration == null ? null : Number(vd.duration),
+          status: String(vd.status ?? ""),
+          thumbnail_url: vd.thumbnail_url ?? null,
           hls_url: playbackData.hls_url ?? null,
-          description: (playbackData.video as any).description ?? null,
-          created_at: (playbackData.video as any).created_at ?? null,
-          view_count: (playbackData.video as any).view_count ?? null,
-          tags: Array.isArray((playbackData.video as any).tags) ? (playbackData.video as any).tags : [],
-          session_id: Number(playbackData.video.session_id),
+          description: (vd as Record<string, unknown>).description ?? null,
+          created_at: (vd as Record<string, unknown>).created_at ?? null,
+          view_count: (vd as Record<string, unknown>).view_count ?? null,
+          tags: Array.isArray((vd as Record<string, unknown>).tags) ? (vd as Record<string, unknown>).tags as string[] : [],
+          session_id: Number(vd.session_id),
         };
 
         // playbackData 저장 (다음 강의 찾기용)
