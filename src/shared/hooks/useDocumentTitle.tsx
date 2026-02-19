@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 import { useProgram } from "@/shared/program";
 import { resolveTenantCode } from "@/shared/tenant";
-import { getTenantIdFromCode } from "@/shared/tenant";
+import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 
 export function useDocumentTitle(title?: string) {
   const { program } = useProgram();
@@ -23,13 +23,9 @@ export function useDocumentTitle(title?: string) {
       // 학생 앱: 테넌트별 타이틀 설정
       const tenantResult = resolveTenantCode();
       if (tenantResult.ok) {
-        const tenantId = getTenantIdFromCode(tenantResult.code);
-        const isTchul = tenantResult.code === "tchul" || tenantResult.code === "9999" || tenantId === 2;
-        
-        if (isTchul) {
-          document.title = "박철과학";
-          return;
-        }
+        const branding = getStudentTenantBranding(tenantResult.code);
+        document.title = branding.title;
+        return;
       }
       // 기본 학생 앱 타이틀
       document.title = "학원플러스";
