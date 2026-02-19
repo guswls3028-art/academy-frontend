@@ -233,20 +233,20 @@ export default function VideoExplorerPage() {
               </div>
             ) : (
               <div className={styles.grid}>
-                {selectedSession && (
+                {(selectedFolderId === "public" && publicSession) || selectedSession ? (
                   <div
                     className={styles.item + " " + styles.itemAdd}
                     onClick={() =>
-                      navigate(
-                        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}`
-                      )
+                      selectedFolderId === "public" && publicSession
+                        ? openUploadModal(publicSession.session_id)
+                        : selectedSession && openUploadModal(selectedSession.session.id)
                     }
                     title="영상 추가"
                   >
                     <FilePlus size={32} />
                     <span>추가</span>
                   </div>
-                )}
+                ) : null}
                 {videos.map((v) => (
                   <div key={v.id} className={styles.item} onClick={() => openVideoDetail(v)}>
                     <VideoThumbnail
