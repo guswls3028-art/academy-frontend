@@ -22,10 +22,10 @@ export type ClinicSession = {
  */
 export type ClinicBookingRequest = {
   id: number;
-  session: number;
+  session: number | null; // ✅ 세션이 없을 수 있음
   session_date: string;
   session_start_time: string;
-  session_location: string;
+  session_location: string | null; // ✅ 세션이 없으면 null
   status: "pending" | "approved" | "rejected" | "cancelled" | "booked";
   memo?: string;
   created_at: string;
@@ -100,10 +100,10 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
       )
       .map((p: any) => ({
         id: p.id,
-        session: p.session,
+        session: p.session || null, // ✅ 세션이 없을 수 있음
         session_date: p.session_date,
         session_start_time: p.session_start_time,
-        session_location: p.session_location,
+        session_location: p.session_location || null, // ✅ 세션이 없으면 null
         status: p.status === "approved" ? "booked" : p.status, // approved는 booked로 매핑
         memo: p.memo,
         created_at: p.created_at,
@@ -127,15 +127,27 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
  * - enrollment_id: 활성 enrollment 자동 조회
  */
 export async function createClinicBookingRequest(data: {
-  session: number;
+  session?: number;
+  date?: string; // YYYY-MM-DD (세션이 없을 때)
+  start_time?: string; // HH:MM (세션이 없을 때)
   memo?: string;
 }): Promise<ClinicBookingRequest> {
   const payload: any = {
-    session: data.session,
     source: "student_request",
     status: "pending",
     memo: data.memo,
   };
+
+  if (data.session) {
+    // 기존 세션 선택 방식
+    payload.session = data.session;
+  } else if (data.date && data.start_time) {
+    // 시간 직접 선택 방식 (세션이 없을 때)
+    payload.requested_date = data.date;
+    payload.requested_start_time = data.start_time;
+  } else {
+    throw new Error("session 또는 (date + start_time) 중 하나는 필수입니다.");
+  }
 
   const res = await api.post("/clinic/participants/", payload);
 
@@ -144,7 +156,7 @@ export async function createClinicBookingRequest(data: {
     session: res.data.session,
     session_date: res.data.session_date,
     session_start_time: res.data.session_start_time,
-    session_location: res.data.session_location,
+    session_location: res.data.session_location || null,
     status: res.data.status,
     memo: res.data.memo,
     created_at: res.data.created_at,

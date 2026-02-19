@@ -126,23 +126,12 @@ export default function ClinicPage() {
         memo: memo.trim() || undefined,
       });
     } else if (selectedTime && selectedDate) {
-      // 시간 직접 선택 방식 - 해당 시간에 맞는 세션 찾기
-      const matchingSession = sessions.find((s) => {
-        const sessionDate = s.date;
-        const sessionTime = s.start_time.slice(0, 5); // HH:MM 형식
-        return sessionDate === selectedDate && sessionTime === selectedTime;
+      // 시간 직접 선택 방식 - 세션이 없어도 예약 신청 가능
+      bookingMutation.mutate({
+        date: selectedDate,
+        start_time: selectedTime,
+        memo: memo.trim() || undefined,
       });
-      
-      if (matchingSession) {
-        // 해당 시간의 세션을 찾았으면 예약
-        bookingMutation.mutate({
-          session: matchingSession.id,
-          memo: memo.trim() || undefined,
-        });
-      } else {
-        // 세션이 없으면 사용자에게 알림
-        alert(`선택한 시간(${selectedTime})에 해당하는 클리닉 세션이 없습니다.\n선생님이 먼저 해당 시간의 클리닉 세션을 생성해주세요.`);
-      }
     }
   };
 
@@ -159,40 +148,24 @@ export default function ClinicPage() {
       return;
     }
 
-    // 새로 선택한 세션이나 시간 확인
-    let newSessionId: number | null = null;
-    
-    if (selectedSessionId) {
-      newSessionId = selectedSessionId;
-    } else if (selectedTime) {
-      // 시간 선택 시 해당 시간의 세션 찾기
-      const matchingSession = sessions.find((s) => {
-        const sessionDate = s.date;
-        const sessionTime = s.start_time.slice(0, 5);
-        return sessionDate === selectedDate && sessionTime === selectedTime;
-      });
-      
-      if (matchingSession) {
-        newSessionId = matchingSession.id;
-      } else {
-        alert(`선택한 시간(${selectedTime})에 해당하는 클리닉 세션이 없습니다.\n선생님이 먼저 해당 시간의 클리닉 세션을 생성해주세요.`);
-        return;
-      }
-    }
-
-    if (!newSessionId) {
-      alert("변경할 시간을 선택해주세요.");
-      return;
-    }
-
     // 기존 예약 취소 후 새 예약 신청
     if (confirm("기존 예약을 취소하고 새로 신청하시겠습니까?")) {
       cancelMutation.mutate(existingBooking.id, {
         onSuccess: () => {
-          bookingMutation.mutate({
-            session: newSessionId!,
-            memo: memo.trim() || undefined,
-          });
+          if (selectedSessionId) {
+            // 세션 선택 방식
+            bookingMutation.mutate({
+              session: selectedSessionId,
+              memo: memo.trim() || undefined,
+            });
+          } else if (selectedTime) {
+            // 시간 직접 선택 방식
+            bookingMutation.mutate({
+              date: selectedDate,
+              start_time: selectedTime,
+              memo: memo.trim() || undefined,
+            });
+          }
         },
       });
     }
@@ -309,7 +282,8 @@ export default function ClinicPage() {
                 }}
               >
                 <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>
-                  현재 예약: {formatTime(existingBookingForDate.session_start_time)} @ {existingBookingForDate.session_location}
+                  현재 예약: {formatTime(existingBookingForDate.session_start_time)}
+                  {existingBookingForDate.session_location && ` @ ${existingBookingForDate.session_location}`}
                 </div>
                 <div className="stu-muted" style={{ fontSize: 12 }}>
                   상태:{" "}
