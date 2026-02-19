@@ -18,6 +18,9 @@ export default function StudentTopBar({ tenantCode }: Props) {
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
   });
+  
+  const currentTenantCode = getTenantCodeForApiRequest();
+  const isTchulTheme = currentTenantCode != null && ["tchul", "9999"].includes(String(currentTenantCode));
 
   return (
     <div
@@ -42,7 +45,29 @@ export default function StudentTopBar({ tenantCode }: Props) {
         }}
         aria-label="홈"
       >
-        {branding.logoUrl ? (
+        {isTchulTheme ? (
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "6px 0",
+            }}
+          >
+            <img
+              src={TchulLogoIcon}
+              alt=""
+              style={{
+                height: "100%",
+                width: "auto",
+                objectFit: "contain",
+                display: "block",
+              }}
+            />
+          </div>
+        ) : branding.logoUrl ? (
           <img
             src={branding.logoUrl}
             alt=""

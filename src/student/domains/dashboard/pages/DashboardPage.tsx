@@ -7,10 +7,14 @@ import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessio
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { IconPlay, IconCalendar, IconGrade, IconExam, IconNotice } from "@/student/shared/ui/icons/Icons";
 import { formatYmd } from "@/student/shared/utils/date";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 export default function DashboardPage() {
   const { data: dashboard, isLoading: dashLoading } = useStudentDashboard();
   const { data: sessions, isLoading: sessionsLoading } = useMySessions();
+  const tenantCode = getTenantCodeForApiRequest();
+  const isTchulTheme = tenantCode != null && ["tchul", "9999"].includes(String(tenantCode));
 
   const today = new Date().toISOString().slice(0, 10);
   const todaySessions = (sessions ?? []).filter((s) => (s.date ?? "").slice(0, 10) === today);
