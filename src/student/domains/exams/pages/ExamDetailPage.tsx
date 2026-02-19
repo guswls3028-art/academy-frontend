@@ -74,28 +74,29 @@ export default function ExamDetailPage() {
         {/* 다운로드 기능 제거됨 (의도적으로 미제공) */}
 
         {/* ===== Actions ===== */}
-        <div style={card}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>응시 / 결과</div>
+        <div className="stu-section">
+          <div className="stu-section-header" style={{ fontWeight: 700, fontSize: 15 }}>
+            응시 / 결과
+          </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Link to={`/student/exams/${exam.id}/result`} style={linkBtn}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+            <Link to={`/student/exams/${exam.id}/result`} className="stu-cta-link">
               결과 보기
             </Link>
 
             {/* ✅ can_retake만 신뢰 */}
-            <Link
-              to={`/student/exams/${exam.id}/submit`}
-              style={{
-                ...linkBtn,
-                opacity: canRetake ? 1 : 0.4,
-                pointerEvents: canRetake ? "auto" : "none",
-              }}
-            >
-              {canRetake ? "제출하기" : "재시험 불가"}
-            </Link>
+            {canRetake ? (
+              <Link to={`/student/exams/${exam.id}/submit`} className="stu-cta-link">
+                제출하기
+              </Link>
+            ) : (
+              <div className="stu-muted" style={{ fontSize: 13 }}>
+                재시험 불가
+              </div>
+            )}
           </div>
 
-          <div style={{ marginTop: 8, fontSize: 12, color: "#777" }}>
+          <div style={{ marginTop: "var(--stu-space-6)", fontSize: 12, color: "var(--stu-text-muted)" }}>
             ※ 재시험 가능 여부는 결과 API의 <b>can_retake</b>만 신뢰합니다.
           </div>
         </div>
