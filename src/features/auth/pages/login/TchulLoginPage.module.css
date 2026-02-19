@@ -1,120 +1,89 @@
 /* PATH: src/features/auth/pages/login/TchulLoginPage.module.css
- * tchul.com 전용 브랜드 로그인 — 단일 페이지 (로고·브랜드·폼 한 카드)
+ * tchul.com 로고 중심 로그인 — 카드 없음, 흰 배경, 로그인 전용 디자인(전역 DS 미사용)
  */
 
 .root {
-  --tchul-bg: linear-gradient(160deg, #0d47a1 0%, #00695c 45%, #004d40 100%);
+  --tchul-login-bg: #fafbfc;
+  --tchul-login-text: #1a1d21;
+  --tchul-login-muted: #6b7280;
+  --tchul-login-border: #e5e7eb;
+  --tchul-login-primary: #0d47a1;
+  --tchul-login-primary-hover: #0a3d8a;
+  --tchul-login-focus: rgba(13, 71, 161, 0.2);
+  --tchul-login-error: #b91c1c;
+
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-6, 24px);
-  background: var(--tchul-bg);
+  padding: 2rem;
+  background: var(--tchul-login-bg);
+  color: var(--tchul-login-text);
 }
 
-.card {
+.center {
   width: 100%;
-  max-width: 28rem;
-  padding: var(--space-8, 40px);
-  border-radius: 20px;
-  background: #fff;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.06),
-    0 12px 24px rgba(0, 0, 0, 0.08),
-    0 32px 64px rgba(0, 0, 0, 0.12);
-  color: var(--color-text-primary);
+  max-width: 22rem;
   text-align: center;
 }
 
-/* 로고 원본 비율·크기로 카드 안에 크게 노출 */
 .logo {
   display: block;
   width: 100%;
   max-width: 100%;
   height: auto;
   object-fit: contain;
-  margin: 0 auto var(--space-5, 20px);
-}
-
-.ctaButton {
-  width: 100%;
-  margin-top: var(--space-2);
-}
-
-/* 인라인 로고 블록 (SVG+텍스트, 배경 없음) */
-.logoBlock {
-  margin-bottom: var(--space-4, 16px);
-}
-
-.logoIcon {
-  display: block;
-  width: 100%;
-  max-width: 140px;
-  height: auto;
-  margin: 0 auto var(--space-3, 12px);
-}
-
-.logoTitle {
-  font-size: 1.375rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-1);
-}
-
-.logoSub {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-2);
-}
-
-.logoSlogan {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.logoHighlight {
-  color: #36a798;
-  font-weight: 600;
-}
-
-.phrase {
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #0d47a1;
-  margin-bottom: var(--space-1);
-}
-
-.title {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  color: var(--color-text-primary);
-  margin-bottom: var(--space-1);
+  margin: 0 auto 1.5rem;
 }
 
 .subtitle {
   font-size: 0.875rem;
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-4, 16px);
+  font-weight: 500;
+  color: var(--tchul-login-muted);
+  margin: 0 0 1.25rem;
+  letter-spacing: 0.02em;
 }
 
-/* 버튼 클릭 시 펼쳐지는 폼 */
+/* 로그인 전용 버튼 — 전역 .ds-button 영향 없음 */
+.btnPrimary {
+  display: block;
+  width: 100%;
+  padding: 0.875rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #fff;
+  background: var(--tchul-login-primary);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.05s ease;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--tchul-login-primary-hover);
+}
+
+.btnPrimary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .form {
-  margin-top: var(--space-4, 16px);
-  padding-top: var(--space-4, 16px);
-  border-top: 1px solid var(--color-border-divider, #e5e7eb);
-  animation: formExpand 0.25s ease-out;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--tchul-login-border);
+  animation: formExpand 0.28s ease-out;
 }
 
 @keyframes formExpand {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
@@ -122,35 +91,40 @@
   }
 }
 
-.card input {
+.input {
+  display: block;
   width: 100%;
-  padding: 12px 16px;
-  margin-bottom: var(--space-3, 12px);
-  border-radius: 10px;
-  border: 1px solid var(--color-border-divider, #e5e7eb);
-  background: var(--color-bg-surface, #fff);
-  color: var(--color-text-primary);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
   font-size: 0.9375rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.card input::placeholder {
-  color: var(--color-text-muted);
-}
-
-.card input:hover {
-  border-color: var(--color-border-divider, #d1d5db);
-}
-
-.card input:focus {
+  color: var(--tchul-login-text);
+  background: #fff;
+  border: 1px solid var(--tchul-login-border);
+  border-radius: 10px;
   outline: none;
-  border-color: var(--color-border-focus, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input::placeholder {
+  color: var(--tchul-login-muted);
+}
+
+.input:hover {
+  border-color: #d1d5db;
+}
+
+.input:focus {
+  border-color: var(--tchul-login-primary);
+  box-shadow: 0 0 0 3px var(--tchul-login-focus);
+}
+
+.form .btnPrimary {
+  margin-top: 0.25rem;
 }
 
 .error {
-  margin-top: var(--space-3, 12px);
+  margin-top: 0.75rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--color-text-error, var(--color-danger, #dc2626));
+  color: var(--tchul-login-error);
 }
