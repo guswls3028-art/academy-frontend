@@ -31,7 +31,7 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background: var(--stu-bg);
+  background-color: var(--stu-bg);
   color: var(--stu-text);
   font-family: var(--stu-font-sans);
   font-size: var(--stu-font-size-14);
