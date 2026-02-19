@@ -920,12 +920,13 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
 
   const onStageTouchEnd = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
+      onStageTouchEndLongPress();
       const t = e.changedTouches?.[0];
       if (!t) return;
       e.preventDefault();
       onStageTap(t.clientX, t.clientY);
     },
-    [onStageTap]
+    [onStageTap, onStageTouchEndLongPress]
   );
 
   // 롱프레스 500ms → 2배속 (모바일)
