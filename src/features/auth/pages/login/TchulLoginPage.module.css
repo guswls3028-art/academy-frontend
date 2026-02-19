@@ -91,16 +91,16 @@
 }
 
 .input::placeholder {
-  color: var(--tchul-text-muted);
+  color: var(--tchul-login-muted);
 }
 
 .input:hover {
-  border-color: var(--tchul-border-hover);
+  border-color: #d1d5db;
 }
 
 .input:focus {
-  border-color: var(--tchul-blue);
-  box-shadow: 0 0 0 3px var(--tchul-focus);
+  border-color: var(--tchul-login-primary);
+  box-shadow: 0 0 0 3px var(--tchul-login-focus);
 }
 
 .form .btnPrimary {
@@ -113,5 +113,5 @@
   margin-top: 0.75rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--tchul-login-error);
+  color: var(--tchul-error);
 }
