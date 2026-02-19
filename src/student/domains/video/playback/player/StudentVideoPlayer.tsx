@@ -893,10 +893,8 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
 
   const onStageTap = useCallback(
     (clientX: number, clientY: number) => {
-      const wrap = wrapEl.current;
-      if (!wrap) return;
-      const stage = wrap.querySelector(".svpVideoStage") as HTMLElement;
-      const rect = stage?.getBoundingClientRect?.();
+      const layer = gestureLayerRef.current;
+      const rect = layer?.getBoundingClientRect?.();
       if (!rect) return;
 
       lastTapRef.current = { time: Date.now(), x: clientX, y: clientY };
@@ -904,7 +902,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
       tapTimerRef.current = setTimeout(() => {
         tapTimerRef.current = null;
-        const r = stage?.getBoundingClientRect?.();
+        const r = gestureLayerRef.current?.getBoundingClientRect?.();
         if (r) resolveTap(lastTapRef.current.x, r);
       }, 200);
     },
