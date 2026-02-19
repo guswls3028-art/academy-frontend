@@ -56,6 +56,9 @@ async function main() {
     ""
   );
 
+  // Fill-only, print-grade: stroke 제거 · shape-rendering · 좌표 정규화
+  svg = toFillOnlyPrintGrade(svg);
+
   fs.mkdirSync(path.dirname(OUTPUT_SVG), { recursive: true });
   fs.writeFileSync(OUTPUT_SVG, svg, "utf8");
   console.log("Written:", OUTPUT_SVG, "size:", (svg.length / 1024).toFixed(1), "KB");
