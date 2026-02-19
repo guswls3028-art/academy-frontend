@@ -103,10 +103,10 @@ function ClinicIdcardColorSettings() {
 
   // 설정 로드 시 로컬 상태 동기화
   useEffect(() => {
-    if (settings && JSON.stringify(settings.colors) !== JSON.stringify(localColors)) {
+    if (settings?.colors) {
       setLocalColors(settings.colors);
     }
-  }, [settings]);
+  }, [settings?.colors]);
 
   const presetPalettes: Array<{ name: string; colors: [string, string, string] }> = [
     { name: "빨강-파랑-초록", colors: ["#ef4444", "#3b82f6", "#22c55e"] },
