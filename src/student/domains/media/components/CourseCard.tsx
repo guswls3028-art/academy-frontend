@@ -205,7 +205,7 @@ export default function CourseCard({
       </div>
 
       {/* 정보 영역 */}
-      <div style={{ padding: "var(--stu-space-4)" }}>
+      <div style={{ padding: "var(--stu-space-6)" }}>
         <h3
           style={{
             fontSize: 16,
