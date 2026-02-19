@@ -30,8 +30,8 @@ export default function TchulLoginPage() {
       await login(username, password);
       await refreshMe();
       navigate("/", { replace: true });
-    } catch {
-      setError("아이디 또는 비밀번호를 확인해주세요.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.");
       setPending(false);
     }
   }
