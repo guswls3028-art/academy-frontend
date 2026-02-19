@@ -48,17 +48,19 @@ function SessionVideoList({
 
   return (
     <section style={{ marginBottom: "var(--stu-space-6)" }}>
-      <h3
-        style={{
-          fontSize: 14,
-          fontWeight: 700,
-          marginBottom: "var(--stu-space-3)",
-          paddingLeft: "var(--stu-space-2)",
-          color: "var(--stu-text-muted)",
-        }}
-      >
-        {sessionTitle}
-      </h3>
+      {sessionTitle ? (
+        <h3
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            marginBottom: "var(--stu-space-3)",
+            paddingLeft: "var(--stu-space-2)",
+            color: "var(--stu-text-muted)",
+          }}
+        >
+          {sessionTitle}
+        </h3>
+      ) : null}
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         {items.map((v) => (
           <Link
