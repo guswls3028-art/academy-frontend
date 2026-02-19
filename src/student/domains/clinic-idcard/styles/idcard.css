@@ -1,4 +1,6 @@
-/* PATH: src/student/domains/clinic-idcard/styles/idcard.css */
+/* PATH: src/student/domains/clinic-idcard/styles/idcard.css
+ * 패스카드: 깡블랙 배경, 실시간 시계(위조 판별), 눈에 띄는 애니메이션
+ */
 
 html,
 body {
@@ -6,6 +8,191 @@ body {
   padding: 0;
 }
 
+/* ---------- 페이지 공통: 깡블랙 ---------- */
+.idcard-page {
+  min-height: 100dvh;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--stu-space-6, 24px) var(--stu-space-4, 16px);
+  padding-top: max(var(--stu-safe-top, 0px), 24px);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.idcard-page--black {
+  background: #000;
+}
+
+.idcard-page__loading,
+.idcard-page__error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+}
+
+.idcard-page__loading {
+  font-size: 18px;
+  color: #94a3b8;
+}
+
+.idcard-page__error {
+  font-size: 16px;
+  color: #f87171;
+}
+
+/* ---------- LIVE 뱃지 + 실시간 시계 (초 단위) ---------- */
+.idcard-page__live-badge {
+  position: absolute;
+  top: max(var(--stu-safe-top, 0px), 16px);
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #22c55e;
+}
+
+.idcard-page__live-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: idcard-pulse 1.2s ease-in-out infinite;
+}
+
+.idcard-page__label {
+  font-size: clamp(1.25rem, 5vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  color: #94a3b8;
+}
+
+.idcard-page__date {
+  font-size: clamp(1.5rem, 6vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  color: #e2e8f0;
+}
+
+.idcard-page__time {
+  font-size: clamp(1.5rem, 6vw, 2.5rem);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  margin-bottom: 32px;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.idcard-page__name {
+  font-size: clamp(1.25rem, 5vw, 1.5rem);
+  font-weight: 800;
+  margin-bottom: 28px;
+  color: #fff;
+}
+
+/* ---------- 패스카드: 애니메이션으로 생동감·위조 판별 ---------- */
+.idcard-page__pass-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 20px;
+  border-radius: 16px;
+  text-align: center;
+  margin-bottom: 32px;
+  color: #fff;
+  animation: idcard-card-glow 2.5s ease-in-out infinite;
+}
+
+.idcard-page__pass-card--pass {
+  background: linear-gradient(135deg, #22c55e 0%, #15803d 50%, #14532d 100%);
+  box-shadow: 0 0 24px rgba(34, 197, 94, 0.4), 0 8px 32px rgba(21, 128, 61, 0.35);
+}
+
+.idcard-page__pass-card--clinic {
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 50%, #7f1d1d 100%);
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.4), 0 8px 32px rgba(185, 28, 28, 0.35);
+}
+
+.idcard-page__pass-card-title {
+  font-size: clamp(1.5rem, 6vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.idcard-page__pass-card-sub {
+  font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+  font-weight: 700;
+  margin-top: 8px;
+  opacity: 0.95;
+}
+
+/* ---------- 차시 이력 ---------- */
+.idcard-page__history-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 12px;
+  align-self: flex-start;
+  max-width: 420px;
+  width: 100%;
+}
+
+.idcard-page__history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.idcard-page__history-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.idcard-page__history-item {
+  padding: 14px 8px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  pointer-events: none;
+  user-select: none;
+}
+
+.idcard-page__history-item--pass {
+  background: #14532d;
+}
+
+.idcard-page__history-item--clinic {
+  background: #7f1d1d;
+}
+
+.idcard-page__history-item-sub {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.95;
+}
+
+.idcard-page__clinic-notice {
+  margin-top: 28px;
+  color: #fca5a5;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ---------- 레거시 클래스 (호환) ---------- */
 .idcard-root {
   min-height: 100vh;
   padding: 24px;
@@ -63,7 +250,7 @@ body {
   background: #22c55e;
   border-radius: 50%;
   margin-right: 6px;
-  animation: pulse 1s infinite;
+  animation: idcard-pulse 1s infinite;
 }
 
 .history-strip {
@@ -84,6 +271,29 @@ body {
 
 .history-item.fail {
   background: #dc2626;
+}
+
+/* ---------- 키프레임 ---------- */
+@keyframes idcard-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes idcard-card-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.08);
+  }
 }
 
 @keyframes pulse {
