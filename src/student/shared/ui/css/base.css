@@ -242,7 +242,7 @@ a {
   min-height: 44px; /* touch target */
   padding: 10px 14px;
   border-radius: var(--stu-radius-md);
-  font-weight: 800;
+  font-weight: 600; /* Premium SaaS: 더 부드러운 느낌 */
   letter-spacing: -0.1px;
 
   border: 1px solid transparent;

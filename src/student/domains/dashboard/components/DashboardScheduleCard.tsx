@@ -31,7 +31,7 @@ export default function DashboardScheduleCard({
               style={{
                 padding: 12,
                 borderRadius: "var(--stu-radius-md)",
-                background: "var(--stu-card)",
+                background: "var(--stu-surface-2)",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
