@@ -1,5 +1,5 @@
 /**
- * 수업 상세 페이지 — 상단에 수업 정보, 하단에 차시별 박스
+ * 수업 상세 페이지 — 상단에 수업 정보, 하단에 차시별 박스 (작은 썸네일 구조)
  */
 import { useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
@@ -261,7 +261,7 @@ export default function CourseDetailPage() {
     ? (videoMe?.public?.session_id ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }] : [])
     : (lecture?.sessions ?? []);
 
-  // 첫 번째 세션의 첫 번째 영상으로 썸네일 가져오기
+  // 첫 번째 세션의 영상 정보 가져오기 (총 영상 개수 및 시간 계산용)
   const firstSessionId = sessions[0]?.id;
   const { data: firstSessionVideos } = useQuery({
     queryKey: ["student-session-videos", firstSessionId, null],
@@ -269,7 +269,6 @@ export default function CourseDetailPage() {
     enabled: !!firstSessionId,
   });
 
-  const courseThumbnail = firstSessionVideos?.items?.[0]?.thumbnail_url;
   const totalVideos = useMemo(() => {
     // TODO: 모든 세션의 영상 개수 합산 (현재는 첫 번째 세션만)
     return firstSessionVideos?.items?.length ?? 0;
@@ -283,70 +282,42 @@ export default function CourseDetailPage() {
   return (
     <StudentPageShell title="">
       <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
-        {/* 상단: 수업 정보 */}
+        {/* 상단: 수업 정보 (썸네일 배너 제거) */}
         <div
           style={{
-            borderRadius: 16,
-            overflow: "hidden",
-            background: "#1a1a1a",
-            border: "1px solid rgba(255,255,255,0.1)",
             marginBottom: "var(--stu-space-6)",
           }}
         >
-          {/* 썸네일 배너 */}
-          {courseThumbnail && (
-            <div
-              style={{
-                width: "100%",
-                aspectRatio: "16 / 9",
-                background: "#111",
-                position: "relative",
-              }}
-            >
-              <img
-                src={courseThumbnail}
-                alt={lecture?.title ?? "전체공개영상"}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                }}
-              />
+          <h1
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: "#fff",
+              marginBottom: "var(--stu-space-3)",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {isPublic ? "전체공개영상" : lecture?.title ?? "수업"}
+          </h1>
+          
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              fontSize: 14,
+              color: "rgba(255,255,255,0.7)",
+              marginBottom: "var(--stu-space-4)",
+            }}
+          >
+            <div>
+              <span style={{ fontWeight: 600 }}>차시:</span> {sessions.length}개
             </div>
-          )}
-
-          {/* 수업 정보 */}
-          <div style={{ padding: "var(--stu-space-5)" }}>
-            <h1
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: "#fff",
-                marginBottom: "var(--stu-space-3)",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {isPublic ? "전체공개영상" : lecture?.title ?? "수업"}
-            </h1>
-            
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                fontSize: 14,
-                color: "rgba(255,255,255,0.7)",
-              }}
-            >
+            {totalVideos > 0 && (
               <div>
-                <span style={{ fontWeight: 600 }}>차시:</span> {sessions.length}개
+                <span style={{ fontWeight: 600 }}>영상:</span> {totalVideos}개 · {formatDuration(totalDuration)}
               </div>
-              {totalVideos > 0 && (
-                <div>
-                  <span style={{ fontWeight: 600 }}>영상:</span> {totalVideos}개 · {formatDuration(totalDuration)}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
 

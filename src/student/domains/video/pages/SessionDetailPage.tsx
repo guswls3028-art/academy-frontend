@@ -1,5 +1,5 @@
 /**
- * 차시 상세 페이지 — 상단에 첫 영상 썸네일, 하단에 영상 목록
+ * 차시 상세 페이지 — 영상 목록 (작은 썸네일 구조)
  */
 import { useMemo } from "react";
 import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
@@ -100,10 +100,10 @@ function VideoListItem({
               height: "100%",
               display: "grid",
               placeItems: "center",
-              background: "linear-gradient(135deg, var(--stu-surface-soft) 0%, var(--stu-surface) 100%)",
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
             }}
           >
-            <IconPlay style={{ width: 32, height: 32, color: "var(--stu-text-muted)", opacity: 0.5 }} />
+            <IconPlay style={{ width: 32, height: 32, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
           </div>
         )}
 
@@ -185,7 +185,6 @@ export default function SessionDetailPage() {
   });
 
   const videos = videosData?.items ?? [];
-  const firstVideo = videos[0];
 
   if (isLoading) {
     return (
@@ -214,121 +213,7 @@ export default function SessionDetailPage() {
   return (
     <StudentPageShell title="">
       <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
-        {/* 상단: 첫 번째 영상 썸네일 배너 */}
-        {firstVideo && (
-          <div
-            style={{
-              borderRadius: 16,
-              overflow: "hidden",
-              background: "#1a1a1a",
-              border: "1px solid rgba(255,255,255,0.1)",
-              marginBottom: "var(--stu-space-6)",
-            }}
-          >
-            <div
-              style={{
-                position: "relative",
-                width: "100%",
-                aspectRatio: "16 / 9",
-                background: "#111",
-              }}
-            >
-              {firstVideo.thumbnail_url ? (
-                <img
-                  src={firstVideo.thumbnail_url}
-                  alt={firstVideo.title}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    display: "grid",
-                    placeItems: "center",
-                    background: "linear-gradient(135deg, var(--stu-surface-soft) 0%, var(--stu-surface) 100%)",
-                  }}
-                >
-                  <IconPlay style={{ width: 64, height: 64, color: "var(--stu-text-muted)", opacity: 0.5 }} />
-                </div>
-              )}
-
-              {/* 재생 버튼 */}
-              <Link
-                to={`/student/video/play?video=${firstVideo.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "grid",
-                  placeItems: "center",
-                  background: "rgba(0,0,0,0.2)",
-                  textDecoration: "none",
-                }}
-              >
-                <div
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: "50%",
-                    background: "rgba(255,255,255,0.95)",
-                    display: "grid",
-                    placeItems: "center",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-                  }}
-                >
-                  <IconPlay style={{ width: 32, height: 32, color: "#000", marginLeft: 4 }} />
-                </div>
-              </Link>
-
-              {/* 영상 시간 */}
-              {firstVideo.duration && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: 12,
-                    right: 12,
-                    padding: "4px 10px",
-                    borderRadius: 6,
-                    background: "rgba(0,0,0,0.8)",
-                    color: "#fff",
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  {formatDuration(firstVideo.duration)}
-                </div>
-              )}
-            </div>
-
-            {/* 영상 제목 */}
-            <div style={{ padding: "var(--stu-space-4)" }}>
-              <h1
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "#fff",
-                  marginBottom: 4,
-                }}
-              >
-                {firstVideo.title}
-              </h1>
-              <div
-                style={{
-                  fontSize: 14,
-                  color: "rgba(255,255,255,0.7)",
-                }}
-              >
-                {videos.length}개 영상
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 하단: 영상 목록 */}
+        {/* 하단: 영상 목록 (큰 썸네일 배너 제거) */}
         <div>
           <h2
             style={{
