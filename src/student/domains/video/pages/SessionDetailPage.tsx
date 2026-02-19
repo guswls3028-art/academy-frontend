@@ -8,7 +8,7 @@ import { fetchStudentSessionVideos } from "../api/video";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { IconPlay } from "@/student/shared/ui/icons/Icons";
-import { formatDurationDetailed } from "../utils/format";
+import { formatDuration, formatDurationDetailed } from "../utils/format";
 
 // 영상 목록 아이템 컴포넌트
 function VideoListItem({ 
