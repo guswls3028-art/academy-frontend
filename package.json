@@ -5,6 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "trace:tchul-logo": "node scripts/trace-tchul-logo.mjs",
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
     "build": "vite build && node scripts/ensure-spa-mode.js",
