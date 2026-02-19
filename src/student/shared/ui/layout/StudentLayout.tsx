@@ -3,7 +3,6 @@
  * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
  */
 import { Outlet } from "react-router-dom";
-import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import "../theme/tokens.css";
 import "../theme/tenants/tchul.css";
@@ -54,7 +53,6 @@ export default function StudentLayout() {
       </main>
 
       <StudentTabBar />
-      <AsyncStatusBar />
     </div>
   );
 }
