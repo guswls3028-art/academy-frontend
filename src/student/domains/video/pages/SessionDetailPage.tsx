@@ -275,7 +275,7 @@ export default function SessionDetailPage() {
                 style={{
                   fontSize: 18,
                   fontWeight: 700,
-                  color: "var(--stu-text)",
+                  color: "#fff",
                   marginBottom: 4,
                 }}
               >
@@ -284,7 +284,7 @@ export default function SessionDetailPage() {
               <div
                 style={{
                   fontSize: 14,
-                  color: "var(--stu-text-muted)",
+                  color: "rgba(255,255,255,0.7)",
                 }}
               >
                 {videos.length}개 영상
