@@ -7,7 +7,7 @@ export const local: TenantDef = {
   code: "9999",
   name: "학원플러스 (로컬)",
   hostnames: ["localhost", "127.0.0.1"],
-  loginPath: "/login/hakwonplus",
+  loginPath: "/login/tchul",
   branding: {
     loginTitle: "로컬 개발 (9999)",
     loginSubtitle: undefined,
