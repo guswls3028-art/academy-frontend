@@ -5,11 +5,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
-import {
-  fetchBlockTypes,
-  createPost,
-  type BlockType,
-} from "@/features/community/api/community.api";
+import { fetchBlockTypes, createPost } from "@/features/community/api/community.api";
 
 const QNA_BLOCK_CODE = "qna";
 
