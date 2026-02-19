@@ -51,7 +51,11 @@ export type TenantBranding = {
 
 const ID_TO_BRANDING: Record<TenantId, TenantBranding> = {
   1: { loginTitle: "HakwonPlus 관리자 로그인", loginSubtitle: undefined, logoUrl: undefined },
-  2: { loginTitle: "tchul.com 로그인", loginSubtitle: undefined, logoUrl: undefined },
+  2: {
+    loginTitle: "박철과학",
+    loginSubtitle: "관리자 로그인",
+    logoUrl: "/tenants/tchul/logo.png",
+  },
   3: { loginTitle: "limglish 로그인", loginSubtitle: undefined, logoUrl: undefined },
   4: { loginTitle: "ymath 로그인", loginSubtitle: undefined, logoUrl: undefined },
   9999: { loginTitle: "로컬 개발 (9999)", loginSubtitle: undefined, logoUrl: undefined },
