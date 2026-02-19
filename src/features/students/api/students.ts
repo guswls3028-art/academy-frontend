@@ -317,32 +317,21 @@ export async function updateStudent(id: number, form: any) {
   };
 
   if (form?.parentPhone !== undefined) {
-    payload.parent_phone = safeStr(form?.parentPhone).trim();
+    payload.parent_phone = normalizePhone(String(form.parentPhone));
   }
-
-  const phone =
-    form?.noPhone === true
-      ? `010${safeStr(form?.omrCode).trim()}`
-      : form?.studentPhone
-      ? safeStr(form?.studentPhone).trim()
-      : undefined;
-
-  if (phone) {
-    payload.phone = phone;
-    payload.omr_code = safeStr(phone).slice(-8);
+  if (form?.studentPhone !== undefined || form?.noPhone === true) {
+    const p =
+      form?.noPhone === true
+        ? (form?.omrCode ? `010${normalizePhone(String(form.omrCode)).slice(-8)}` : null)
+        : form?.studentPhone
+          ? normalizePhone(String(form.studentPhone))
+          : null;
+    payload.phone = p || null;
+    if (p) payload.omr_code = p.slice(-8);
   }
 
   if (form?.psNumber !== undefined) {
     payload.ps_number = safeStr(form?.psNumber).trim();
-  }
-
-  if (form?.parentPhone !== undefined) {
-    payload.parent_phone = normalizePhone(String(form.parentPhone));
-  }
-  if (form?.studentPhone !== undefined) {
-    const p = normalizePhone(String(form.studentPhone));
-    payload.phone = p || null;
-    if (p) payload.omr_code = p.slice(-8);
   }
 
   if (form?.schoolType) {
