@@ -91,7 +91,7 @@
 }
 
 .input::placeholder {
-  color: var(--tchul-login-muted);
+  color: var(--tchul-text-muted);
 }
 
 .input:hover {
