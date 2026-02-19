@@ -38,7 +38,7 @@
   font-weight: 600;
   line-height: 1.25;
   color: #fff;
-  background: var(--tchul-btn-gradient);
+  background: var(--tchul-gradient);
   border: none;
   border-radius: 10px;
   cursor: pointer;
