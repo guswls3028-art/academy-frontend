@@ -11,7 +11,7 @@ import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 
-/** 2번(tchul) 테넌트. 9999는 디버깅용으로 이 테마를 "사용" (별도 카피 없음) */
+/** 2번(tchul) 테넌트. 9999는 로컬 개발용으로 2번과 동일한 테마 사용 (별도 카피 없음) */
 const TCHUL_THEME_TENANTS = ["tchul", "9999"];
 
 export default function StudentLayout() {
