@@ -15,8 +15,6 @@ export async function fetchMyProfile(): Promise<MyProfile> {
 export async function updateMyProfilePhoto(file: File): Promise<MyProfile> {
   const form = new FormData();
   form.append("profile_photo", file);
-  const res = await api.patch<MyProfile>("/student/me/", form, {
-    headers: { "Content-Type": undefined } as Record<string, unknown>,
-  });
+  const res = await api.patch<MyProfile>("/student/me/", form);
   return res.data;
 }
