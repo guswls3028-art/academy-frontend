@@ -88,3 +88,16 @@
   filter: brightness(0.92);
   background: var(--stu-gradient);
 }
+
+/* tchul/9999: 로그아웃 등 danger 버튼 채움 색상 (전역 DS에 덮이지 않도록) */
+[data-student-tenant="tchul"] .stu-btn--danger,
+[data-student-tenant="9999"] .stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: none;
+}
+[data-student-tenant="tchul"] .stu-btn--danger:hover,
+[data-student-tenant="9999"] .stu-btn--danger:hover {
+  background: var(--stu-danger-hover);
+  filter: brightness(0.95);
+}
