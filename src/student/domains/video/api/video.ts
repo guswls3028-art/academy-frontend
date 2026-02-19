@@ -87,10 +87,13 @@ export async function fetchStudentSessionVideos(
   sessionId: number,
   enrollmentId?: number | null
 ): Promise<StudentSessionVideosResponse> {
+  if (Number.isNaN(Number(sessionId)) || sessionId < 1) {
+    throw new Error("유효한 차시가 아닙니다.");
+  }
   const res = await api.get(`/student/video/sessions/${sessionId}/videos/`, {
     params: enrollmentId ? { enrollment: enrollmentId } : undefined,
   });
-  const d = res.data;
+  const d = res?.data;
   return {
     items: Array.isArray(d?.items) ? d.items : [],
   };
@@ -108,6 +111,9 @@ export async function fetchStudentVideoPlayback(
   const params: Record<string, string> = {};
   if (enrollmentId) {
     params.enrollment = String(enrollmentId);
+  }
+  if (Number.isNaN(Number(videoId)) || videoId < 1) {
+    throw new Error("유효한 영상이 아닙니다.");
   }
   const res = await api.get(`/student/video/videos/${videoId}/playback/`, {
     params: Object.keys(params).length > 0 ? params : undefined,
@@ -139,6 +145,9 @@ export async function updateVideoProgress(
   completed: boolean;
   last_position: number;
 }> {
+  if (Number.isNaN(Number(videoId)) || videoId < 1) {
+    throw new Error("유효한 영상이 아닙니다.");
+  }
   const res = await api.post(`/student/video/videos/${videoId}/progress/`, data);
   const out = res?.data;
   if (out == null || typeof out !== "object") {
