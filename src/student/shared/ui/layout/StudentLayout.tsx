@@ -10,16 +10,18 @@ import "../theme/tenants/index.css";
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
 
-const TCHUL_TENANTS = ["tchul", "9999"];
+/** 2번(tchul) 테넌트. 9999는 디버깅용으로 이 테마를 "사용" (별도 카피 없음) */
+const TCHUL_THEME_TENANTS = ["tchul", "9999"];
 
 export default function StudentLayout() {
   const tenantCode = getTenantCodeForApiRequest();
-  const isTchulTheme = tenantCode != null && TCHUL_TENANTS.includes(String(tenantCode));
+  const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
 
   return (
     <div
       data-app="student"
       data-student-tenant={tenantCode || undefined}
+      data-student-theme={useTchulTheme ? "tchul" : undefined}
       style={{
         minHeight: "100dvh",
         background: "var(--stu-bg)",
@@ -29,7 +31,7 @@ export default function StudentLayout() {
         paddingTop: "var(--stu-safe-top)",
       }}
     >
-      {isTchulTheme && (
+      {useTchulTheme && (
         <svg aria-hidden width={0} height={0} style={{ position: "absolute" }}>
           <defs>
             <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
