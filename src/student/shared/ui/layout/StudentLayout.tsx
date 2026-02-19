@@ -31,7 +31,7 @@ export default function StudentLayout() {
         display: "flex",
         flexDirection: "column",
         paddingTop: "var(--stu-safe-top)",
-        // 배경은 흰색 유지 (그라데이션 제거)
+        // 배경 그라데이션은 CSS에서 적용 (tchul.css)
       }}
     >
       {useTchulTheme && (
