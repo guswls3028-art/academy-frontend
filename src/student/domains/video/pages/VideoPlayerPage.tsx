@@ -102,8 +102,7 @@ export default function VideoPlayerPage() {
         const playUrl = playbackData.play_url || playbackData.hls_url || playbackData.mp4_url || "";
         
         if (!playUrl) {
-          console.error("[VideoPlayerPage] No play URL available:", playbackData);
-          const videoStatus = playbackData.video?.status;
+          const videoStatus = playbackData?.video?.status;
           const detail = playbackData.detail || "";
           
           // 백엔드에서 제공한 상세 에러 메시지가 있으면 사용
@@ -128,16 +127,6 @@ export default function VideoPlayerPage() {
           policy: playbackData.policy || {},
           play_url: playUrl,
         };
-
-        console.log("[VideoPlayerPage] Playback ready:", {
-          videoId,
-          playUrl: playUrl.substring(0, 200) + (playUrl.length > 200 ? "..." : ""), // URL 일부만 로깅
-          hlsUrl: playbackData.hls_url?.substring(0, 200),
-          mp4Url: playbackData.mp4_url?.substring(0, 200),
-          videoStatus: playbackData.video?.status,
-          hasPolicy: !!playbackData.policy,
-          fullResponse: playbackData, // 전체 응답도 로깅 (디버깅용)
-        });
 
         setVideo(v);
         setBoot(b);
