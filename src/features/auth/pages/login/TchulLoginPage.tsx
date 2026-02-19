@@ -41,7 +41,6 @@ export default function TchulLoginPage() {
         <img src={TchulLogoTransparent} alt="박철과학" className={styles.logo} />
         {!formExpanded ? (
           <>
-            <p className={styles.subtitle}>관리자 로그인</p>
             <button
               type="button"
               className={styles.btnPrimary}
