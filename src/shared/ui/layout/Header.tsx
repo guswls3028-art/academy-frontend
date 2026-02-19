@@ -14,6 +14,9 @@ import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
 import { fetchMe, displayUsername, meToStaffRole } from "@/features/profile/api/profile.api";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+import { resolveTenantCode } from "@/shared/tenant";
+import { getTenantIdFromCode } from "@/shared/tenant";
+import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
 
 function IconMenu() {
   return (
