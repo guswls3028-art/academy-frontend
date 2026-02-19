@@ -8,6 +8,7 @@
     "trace:tchul-logo": "node scripts/trace-tchul-logo.mjs",
     "svg:fill-only": "node scripts/svg-to-fill-only.mjs",
     "logo:remove-bg": "node scripts/remove-white-background.mjs",
+    "logo:crop-icon": "node scripts/crop-tchul-icon.mjs",
     "dev": "vite",
     "dev:remote": "env-cmd -f .env.remote vite",
     "build": "vite build && node scripts/ensure-spa-mode.js",
