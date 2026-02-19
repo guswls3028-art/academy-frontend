@@ -80,6 +80,7 @@ function VideoListItem({
           overflow: "hidden",
           background: "#111",
           flexShrink: 0,
+          zIndex: 0,
         }}
       >
         {video.thumbnail_url ? (

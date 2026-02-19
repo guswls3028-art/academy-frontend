@@ -173,13 +173,14 @@ function SessionBox({
         </div>
 
         {/* 정보 영역 */}
-        <div style={{ padding: "var(--stu-space-4)" }}>
+        <div style={{ padding: "var(--stu-space-4)", position: "relative", zIndex: 1 }}>
           <div
             style={{
               fontSize: 14,
               fontWeight: 600,
               color: "#fff",
               marginBottom: 4,
+              textShadow: "0 1px 2px rgba(0,0,0,0.5)",
             }}
           >
             {order}차시 · {sessionTitle}
