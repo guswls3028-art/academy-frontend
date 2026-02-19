@@ -1,5 +1,6 @@
 // PATH: src/features/auth/api/auth.ts
 import api from "@/shared/api/axios";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 export type LoginResponse = {
   access: string;
@@ -7,7 +8,11 @@ export type LoginResponse = {
 };
 
 export const login = async (username: string, password: string) => {
-  const res = await api.post<LoginResponse>("/token/", { username, password });
+  const tenantCode = getTenantCodeForApiRequest();
+  const body: Record<string, string> = { username, password };
+  if (tenantCode) body.tenant_code = tenantCode;
+
+  const res = await api.post<LoginResponse>("/token/", body);
 
   const access = String(res.data?.access || "").trim();
   const refresh = String(res.data?.refresh || "").trim();
