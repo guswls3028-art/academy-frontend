@@ -932,10 +932,8 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   const onStageTouchStart = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
       if (speedLocked) return;
-      const wrap = wrapEl.current;
-      if (!wrap) return;
-      const stage = wrap.querySelector(".svpVideoStage") as HTMLElement;
-      const rect = stage?.getBoundingClientRect?.();
+      const layer = gestureLayerRef.current;
+      const rect = layer?.getBoundingClientRect?.();
       if (!rect) return;
       const t = e.touches?.[0];
       if (!t) return;
@@ -1139,20 +1137,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
               </div>
             </div>
 
-            <div
-              className="svpVideoStage"
-              onDoubleClick={onStageDoubleClick}
-              onTouchStart={onStageTouchStart}
-              onTouchEnd={onStageTouchEnd}
-              onTouchCancel={onStageTouchCancel}
-              role="presentation"
-            >
-              {/* GestureLayer: 터치 캡처 (touch-action:none으로 브라우저 제스처 차단) */}
-              <div
-                className="svpGestureLayer"
-                aria-hidden
-                onDoubleClick={(e) => e.stopPropagation()}
-              />
+            <div className="svpVideoStage" role="presentation">
               <video
                 ref={videoEl}
                 className="svpVideo"
