@@ -261,14 +261,15 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       new URL(url);
     } catch (e) {
       // 상대 경로인 경우 API 베이스 URL과 결합
-      const baseURL = studentApi.defaults.baseURL || "https://api.hakwonplus.com";
+      // studentApi.defaults.baseURL은 /api/v1이 포함되어 있으므로, 직접 환경 변수 사용
+      const apiBase = String(import.meta.env.VITE_API_BASE_URL || "https://api.hakwonplus.com").trim();
       // baseURL이 이미 슬래시로 끝나면 제거, url이 슬래시로 시작하면 제거
-      const base = baseURL.endsWith("/") ? baseURL.slice(0, -1) : baseURL;
+      const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
       const path = url.startsWith("/") ? url : `/${url}`;
       url = `${base}${path}`;
       console.log("[StudentVideoPlayer] Converted relative URL to absolute:", {
         original: bootstrap.play_url || video.hls_url,
-        baseURL: base,
+        apiBase: apiBase,
         final: url,
       });
     }
