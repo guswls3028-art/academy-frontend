@@ -6,7 +6,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
-import { FilePlus, FolderPlus, X } from "lucide-react";
+import { FilePlus, FolderPlus, X, Video, Folder } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
@@ -58,6 +58,7 @@ export default function VideoExplorerPage() {
   const [uploadTargetSessionId, setUploadTargetSessionId] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [addChoiceModalOpen, setAddChoiceModalOpen] = useState(false);
 
   const { data: lectures = [], isLoading: lecturesLoading } = useQuery({
     queryKey: ["admin-videos-lectures"],

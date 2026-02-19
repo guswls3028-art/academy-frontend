@@ -81,10 +81,15 @@ export default function VideoExplorerTree({
     <div className={styles.root}>
       <button
         type="button"
-        className={styles.item + (currentFolderId === "public" ? " " + styles.itemActive : "")}
+        className={
+          styles.item +
+          " " +
+          styles.itemPublic +
+          (currentFolderId === "public" ? " " + styles.itemActive : "")
+        }
         onClick={() => onSelectFolder("public")}
       >
-        <FolderOpen size={16} aria-hidden />
+        <FolderOpen size={18} aria-hidden />
         <span>전체공개영상</span>
       </button>
       {currentFolderId === "public" && rootFolders.length > 0 && (

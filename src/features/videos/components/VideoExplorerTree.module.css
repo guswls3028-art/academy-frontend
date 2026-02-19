@@ -44,3 +44,27 @@
   background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
   color: var(--color-brand-primary);
 }
+
+/* 전체공개영상 최상단 항목 강조 스타일 */
+.itemPublic {
+  font-weight: 600;
+  font-size: 14px;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  transition: all 0.15s ease;
+}
+
+.itemPublic:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+  transform: translateX(2px);
+}
+
+.itemPublic.itemActive {
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-bg-surface));
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+}
