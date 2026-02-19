@@ -113,10 +113,21 @@ export default function ClinicIDCardPage() {
           <img
             src={data.profile_photo_url}
             alt={data.student_name || ""}
-            onError={() => {
+            onError={(e) => {
               // 이미지 로딩 실패 시 이니셜 표시로 전환
+              console.error("프로필 사진 로딩 실패:", data.profile_photo_url);
               setProfilePhotoError(true);
+              // 이미지 요소 숨기기
+              const img = e.target as HTMLImageElement;
+              if (img) {
+                img.style.display = "none";
+              }
             }}
+            onLoad={() => {
+              // 이미지 로딩 성공 시 에러 상태 리셋
+              setProfilePhotoError(false);
+            }}
+            crossOrigin="anonymous"
           />
         </div>
       ) : (
