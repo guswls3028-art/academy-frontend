@@ -143,15 +143,22 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       onSuccess();
       onClose();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: unknown } }; message?: string };
-      const msg =
-        typeof err?.response?.data?.detail === "string"
-          ? err.response.data.detail
-          : err?.response?.data?.detail
-            ? JSON.stringify(err.response.data.detail)
-            : err instanceof Error
-              ? err.message
-              : "등록 요청 중 오류가 발생했습니다.";
+      const err = e as { response?: { data?: { detail?: unknown }; status?: number }; message?: string };
+      const detail = err?.response?.data?.detail;
+      let msg: string;
+      if (typeof detail === "string") {
+        msg = detail;
+      } else if (detail && typeof detail === "object" && !Array.isArray(detail)) {
+        const parts = (Object.entries(detail) as [string, unknown][]).map(([k, v]) => {
+          const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
+          return val ? `${k}: ${val}` : k;
+        });
+        msg = parts.length ? parts.join("\n") : "입력값을 확인해 주세요.";
+      } else if (detail) {
+        msg = JSON.stringify(detail);
+      } else {
+        msg = err instanceof Error ? err.message : "등록 요청 중 오류가 발생했습니다.";
+      }
       feedback.error(msg);
     } finally {
       setBusy(false);
