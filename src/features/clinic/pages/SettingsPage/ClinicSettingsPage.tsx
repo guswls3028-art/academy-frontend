@@ -4,6 +4,10 @@ import { fetchClinicMe } from "../../api/clinicMe.api";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import AdminModal, { MODAL_WIDTH } from "@/shared/ui/modal/AdminModal";
+import ModalHeader from "@/shared/ui/modal/ModalHeader";
+import ModalBody from "@/shared/ui/modal/ModalBody";
+import ModalFooter from "@/shared/ui/modal/ModalFooter";
 
 export default function ClinicSettingsPage() {
   const qc = useQueryClient();
