@@ -145,7 +145,15 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       onSuccess();
       onClose();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: unknown }; status?: number }; message?: string };
+      const err = e as { response?: { data?: { code?: string; deleted_student?: ClientStudent; detail?: unknown }; status?: number }; message?: string };
+      if (err?.response?.status === 409 && err.response.data?.code === "deleted_student_exists" && err.response.data?.deleted_student) {
+        setDeletedStudentConflict({
+          student: err.response.data.deleted_student as ClientStudent,
+          formData: { ...form },
+        });
+        setBusy(false);
+        return;
+      }
       const detail = err?.response?.data?.detail;
       let msg: string;
       if (typeof detail === "string") {
@@ -161,6 +169,60 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       } else {
         msg = err instanceof Error ? err.message : "등록 요청 중 오류가 발생했습니다.";
       }
+      feedback.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRestoreDeletedStudent() {
+    if (!deletedStudentConflict || busy) return;
+    setBusy(true);
+    try {
+      await bulkRestoreStudents([deletedStudentConflict.student.id]);
+      feedback.success("학생이 복원되었습니다.");
+      setDeletedStudentConflict(null);
+      onSuccess();
+      onClose();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      feedback.error(err?.response?.data?.detail || err?.message || "복원에 실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePermanentDeleteAndReregister() {
+    if (!deletedStudentConflict || busy) return;
+    setBusy(true);
+    try {
+      await bulkPermanentDeleteStudents([deletedStudentConflict.student.id]);
+      const student = await createStudent({
+        ...deletedStudentConflict.formData,
+        noPhone: !String(deletedStudentConflict.formData.studentPhone || "").trim(),
+        sendWelcomeMessage,
+      });
+      const loginId = (student?.psNumber ?? deletedStudentConflict.formData.psNumber?.trim()) || "(자동 부여됨)";
+      feedback.success(`등록 완료. 로그인 아이디: ${loginId} (초기 비밀번호로 로그인하세요)`);
+      setDeletedStudentConflict(null);
+      onSuccess();
+      onClose();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: unknown }; status?: number }; message?: string };
+      const detail = err?.response?.data?.detail;
+      const msg =
+        typeof detail === "string"
+          ? detail
+          : detail && typeof detail === "object" && !Array.isArray(detail)
+            ? Object.entries(detail)
+                .map(([k, v]) => {
+                  const val = Array.isArray(v) ? v.join(" ") : String(v ?? "");
+                  return val ? `${k}: ${val}` : k;
+                })
+                .join("\n")
+            : err instanceof Error
+              ? err.message
+              : "등록 요청 중 오류가 발생했습니다.";
       feedback.error(msg);
     } finally {
       setBusy(false);
