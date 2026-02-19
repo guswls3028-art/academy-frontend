@@ -131,7 +131,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             />
           </div>
 
-          {/* 파일 — 드롭존만, 영역 안 문구로 안내 */}
+          {/* 파일 — 드롭존만, 다중 선택 가능 */}
           <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
             <div
               className="video-upload-modal__dropzone video-upload-modal__dropzone--compact"
@@ -144,12 +144,25 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                   pickFile();
                 }
               }}
-              aria-label="동영상 파일 선택"
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const items = e.dataTransfer?.files;
+                if (items?.length) {
+                  setFiles((prev) => [...prev, ...Array.from(items)].filter((f) => f.type.startsWith("video/")));
+                }
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              aria-label="동영상 파일 선택 (다중 선택 가능)"
             >
-              {file ? (
-                <span className="video-upload-modal__filename">{file.name}</span>
+              {files.length > 0 ? (
+                <span className="video-upload-modal__filename">
+                  {files.length === 1
+                    ? files[0].name
+                    : `${files.length}개 파일 선택됨: ${files.map((f) => f.name).join(", ")}`}
+                </span>
               ) : (
-                <span className="video-upload-modal__prompt">파일: 클릭해서 업로드 (mp4 등)</span>
+                <span className="video-upload-modal__prompt">파일: 클릭 또는 드래그하여 업로드 (mp4 등, 다중 선택 가능)</span>
               )}
             </div>
             <input
@@ -157,7 +170,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               type="file"
               className="hidden"
               accept="video/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              multiple
+              onChange={(e) => {
+                const list = e.target.files ? Array.from(e.target.files) : [];
+                setFiles((prev) => (list.length > 0 ? [...prev, ...list] : prev));
+                e.target.value = "";
+              }}
             />
           </div>
 
