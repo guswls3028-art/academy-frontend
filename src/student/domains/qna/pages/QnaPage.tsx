@@ -174,6 +174,7 @@ function QnaWriteForm({
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const qc = useQueryClient();
+  const effectiveBlockTypeId = blockTypeId ?? blockTypes[0]?.id;
   const createMut = useMutation({
     mutationFn: () =>
       createPost({
@@ -189,8 +190,6 @@ function QnaWriteForm({
       onSuccess();
     },
   });
-
-  const effectiveBlockTypeId = blockTypeId ?? blockTypes[0]?.id;
   const canSubmit = title.trim().length > 0 && content.trim().length > 0 && effectiveBlockTypeId != null;
 
   return (
