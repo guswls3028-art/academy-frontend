@@ -179,3 +179,11 @@ export function IconArrowRight(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+export function IconPencil(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M12 19l7-7-3-3-7 7 3 3zM5 19l-1.5-1.5 7-7 3 3L5 19z" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

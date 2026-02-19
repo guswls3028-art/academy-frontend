@@ -30,6 +30,7 @@ export function useClinicParticipants(params: {
       patchClinicParticipantStatus(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
   });
 

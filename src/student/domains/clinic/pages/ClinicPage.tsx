@@ -1,13 +1,12 @@
 /**
- * 클리닉 페이지 — 예약현황 + 일정 한눈에 보기 + 예약 기능 통합
- * 
- * 기능:
- * - 내 예약 현황 (승인 대기, 승인됨)
- * - 클리닉 일정 캘린더 뷰
- * - 달력 날짜 클릭 시 예약 필드 표시
- * - 예약 신청 기능
+ * 클리닉 홈 — 패스카드(리모콘 연동) + 내 예약 현황 + 일정/예약
+ *
+ * - 실시간 패스카드: 선생 앱 리모콘 색상 연동, 클리닉 인증용
+ * - 내 예약 현황: 승인 대기 / 승인됨 실데이터
+ * - 캘린더 + 예약 신청
  */
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import ClinicCalendar from "@/student/shared/ui/components/ClinicCalendar";
@@ -37,15 +36,15 @@ export default function ClinicPage() {
   // 알림 카운트 갱신을 위한 훅
   const { refetch: refetchNotifications } = useNotificationCounts();
 
-  // 내 예약 신청 목록 조회
+  // 내 예약 신청 목록 조회 (알림·클리닉 공통 키로 캐시 공유)
   const { data: myRequests = [], isLoading: requestsLoading } = useQuery({
-    queryKey: ["clinic-my-booking-requests"],
+    queryKey: ["student", "clinic", "bookings"],
     queryFn: fetchMyClinicBookingRequests,
   });
 
   // 예약 가능한 세션 목록 조회
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
-    queryKey: ["clinic-available-sessions"],
+    queryKey: ["student", "clinic", "available-sessions"],
     queryFn: () => {
       const today = new Date();
       const twoWeeksLater = new Date(today);
@@ -62,8 +61,8 @@ export default function ClinicPage() {
     mutationFn: (data: { session: number; memo?: string }) =>
       createClinicBookingRequest(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-available-sessions"] });
-      qc.invalidateQueries({ queryKey: ["clinic-my-booking-requests"] });
+      qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
+      qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
       qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       refetchNotifications();
@@ -85,8 +84,8 @@ export default function ClinicPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: number) => cancelClinicBookingRequest(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clinic-my-booking-requests"] });
-      qc.invalidateQueries({ queryKey: ["clinic-available-sessions"] });
+      qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
+      qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       refetchNotifications();
       alert("예약 신청이 취소되었습니다.");
@@ -232,6 +231,28 @@ export default function ClinicPage() {
   return (
     <StudentPageShell title="클리닉">
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+        {/* 실시간 패스카드 (선생 리모콘 연동) */}
+        <Link
+          to="/student/idcard"
+          className="stu-panel stu-panel--pressable"
+          style={{
+            display: "block",
+            textDecoration: "none",
+            color: "inherit",
+            padding: "var(--stu-space-4)",
+            background: "linear-gradient(135deg, var(--stu-surface-soft) 0%, var(--stu-surface) 100%)",
+            border: "1px solid var(--stu-border)",
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>클리닉 인증 패스</div>
+          <div className="stu-muted" style={{ fontSize: 13 }}>
+            클리닉 참여 시 인증용 패스카드를 보여주세요. 선생님이 실시간으로 설정한 화면이 반영됩니다.
+          </div>
+          <div style={{ marginTop: "var(--stu-space-2)", fontSize: 13, color: "var(--stu-primary)", fontWeight: 600 }}>
+            패스카드 보기 →
+          </div>
+        </Link>
+
         {/* 성공 메시지 */}
         {showSuccessMessage && (
           <div
@@ -437,10 +458,15 @@ export default function ClinicPage() {
           </div>
         )}
 
-        {/* 내 예약 현황 */}
+        {/* 내 예약 현황 (클리닉 신청자 실데이터) */}
         <div className="stu-section stu-section--nested">
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
-            내 예약 현황
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--stu-space-4)", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>내 예약 현황</div>
+            {(pendingBookings.length > 0 || approvedBookings.length > 0) && (
+              <span className="stu-muted" style={{ fontSize: 13 }}>
+                승인 대기 {pendingBookings.length}건 · 승인됨 {approvedBookings.length}건
+              </span>
+            )}
           </div>
 
           {/* 승인 대기 */}

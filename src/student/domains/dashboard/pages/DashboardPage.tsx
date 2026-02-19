@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
-import { IconPlay, IconCalendar, IconGrade, IconExam, IconNotice, IconClipboard, IconClinic, IconCalendarPlus } from "@/student/shared/ui/icons/Icons";
+import { IconPlay, IconCalendar, IconGrade, IconExam, IconNotice, IconClipboard, IconClinic } from "@/student/shared/ui/icons/Icons";
 import { formatYmd } from "@/student/shared/utils/date";
 import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
 import NotificationBadge from "@/student/shared/ui/components/NotificationBadge";
@@ -52,16 +52,30 @@ export default function DashboardPage() {
         <span className="stu-cta-link" style={{ fontSize: 13 }}>보기</span>
       </Link>
 
-      {/* 오늘 일정 */}
+      {/* 오늘 일정 → 전체 일정 보기 (우측 일정 아이콘) */}
       <section style={{ marginBottom: "var(--stu-space-8)" }}>
         {todaySessions.length === 0 ? (
-          <div className="stu-status-surface">
-            <div className="stu-status-eyebrow">TODAY</div>
-            <div className="stu-status-title">예정된 수업이 없습니다</div>
-            <Link to="/student/sessions" className="stu-cta-link" style={{ marginTop: 8, display: "inline-block" }}>
-              전체 일정 보기
-            </Link>
-          </div>
+          <Link
+            to="/student/sessions"
+            className="stu-status-surface stu-panel--pressable"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "var(--stu-space-4)",
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <div>
+              <div className="stu-status-eyebrow">TODAY</div>
+              <div className="stu-status-title">예정된 수업이 없습니다</div>
+              <span className="stu-cta-link" style={{ marginTop: 8, display: "inline-block" }}>
+                전체 일정 보기
+              </span>
+            </div>
+            <IconCalendar style={{ width: 24, height: 24, color: "var(--stu-primary)", flexShrink: 0 }} />
+          </Link>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
             {todaySessions.slice(0, 3).map((s) => (
@@ -80,11 +94,24 @@ export default function DashboardPage() {
                 </div>
               </Link>
             ))}
-            {todaySessions.length > 3 && (
-              <Link to="/student/sessions" className="stu-cta-link" style={{ fontSize: 13, paddingLeft: 4 }}>
-                더보기
-              </Link>
-            )}
+            <Link
+              to="/student/sessions"
+              className="stu-panel stu-panel--pressable"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "var(--stu-space-4)",
+                textDecoration: "none",
+                color: "inherit",
+                padding: "var(--stu-space-3)",
+              }}
+            >
+              <span className="stu-cta-link" style={{ fontSize: 13 }}>
+                전체 일정 보기
+              </span>
+              <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary)", flexShrink: 0 }} />
+            </Link>
           </div>
         )}
       </section>
@@ -144,15 +171,6 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="stu-action-tile__label">성적</div>
-          </Link>
-          <Link
-            to="/student/sessions"
-            className="stu-action-tile"
-          >
-            <div className="stu-action-tile__icon">
-              <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
-            </div>
-            <div className="stu-action-tile__label">일정</div>
           </Link>
           <Link
             to="/student/clinic"

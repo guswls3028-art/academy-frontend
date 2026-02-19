@@ -4,10 +4,12 @@
  * - 질문 상세 및 답변 보기
  * - 질문하기 기능
  */
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { fetchBlockTypes, createPost, fetchPostReplies, type PostEntity, type Answer } from "@/features/community/api/community.api";
+import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { fetchMyQnaQuestions, fetchQnaQuestionDetail, hasAnswer, isPendingAnswer } from "../api/qna.api";
 import { formatYmd } from "@/student/shared/utils/date";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
@@ -18,8 +20,19 @@ const MAX_FILES = 5;
 const MAX_SIZE_MB = 10;
 
 export default function QnaPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
+
+  // 알림에서 "답변 달림" 클릭 시 해당 질문 상세로 열기
+  useEffect(() => {
+    const openId = (location.state as { openQuestionId?: number } | null)?.openQuestionId;
+    if (openId != null) {
+      setSelectedQuestionId(openId);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   // 내 질문 목록 조회
   const { data: questions = [], isLoading: questionsLoading, refetch: refetchQuestions } = useQuery({
@@ -47,30 +60,35 @@ export default function QnaPage() {
 
   if (showQuestionForm) {
     return (
-      <QuestionFormPage
-        onBack={() => setShowQuestionForm(false)}
-        onSuccess={() => {
-          setShowQuestionForm(false);
-          refetchQuestions();
-        }}
-      />
+      <div data-page="qna">
+        <QuestionFormPage
+          onBack={() => setShowQuestionForm(false)}
+          onSuccess={() => {
+            setShowQuestionForm(false);
+            refetchQuestions();
+          }}
+        />
+      </div>
     );
   }
 
   if (selectedQuestionId && questionDetail) {
     return (
-      <QuestionDetailPage
-        question={questionDetail}
-        onBack={() => setSelectedQuestionId(null)}
-      />
+      <div data-page="qna">
+        <QuestionDetailPage
+          question={questionDetail}
+          onBack={() => setSelectedQuestionId(null)}
+        />
+      </div>
     );
   }
 
   return (
-    <StudentPageShell
-      title="QnA"
-      description="내가 작성한 질문과 답변을 확인하세요."
-    >
+    <div data-page="qna">
+      <StudentPageShell
+        title="QnA"
+        description="내가 작성한 질문과 답변을 확인하세요."
+      >
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
         {/* 질문하기 버튼 */}
         <button
@@ -139,6 +157,7 @@ export default function QnaPage() {
         )}
       </div>
     </StudentPageShell>
+    </div>
   );
 }
 
@@ -376,9 +395,18 @@ function QuestionFormPage({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hadFilesOnSubmitRef = useRef(false);
 
-  const { data: blockTypes = [], isLoading: blockTypesLoading } = useQuery({
+  const {
+    data: blockTypes = [],
+    isLoading: blockTypesLoading,
+    isError: blockTypesError,
+  } = useQuery({
     queryKey: ["community-block-types"],
     queryFn: () => fetchBlockTypes(),
+  });
+
+  const { data: profile } = useQuery({
+    queryKey: ["student", "me"],
+    queryFn: fetchMyProfile,
   });
 
   const qnaBlockType =
@@ -391,16 +419,17 @@ function QuestionFormPage({
         throw new Error("질문 유형을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       }
       hadFilesOnSubmitRef.current = files.length > 0;
+      const me = qc.getQueryData<{ id: number }>(["student", "me"]) ?? profile;
       return createPost({
         block_type: effectiveBlockTypeId,
         title: title.trim(),
         content: content.trim(),
+        created_by: me?.id ?? undefined,
         node_ids: [],
       });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
-      qc.invalidateQueries({ queryKey: ["student-community-posts"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       setTitle("");
       setContent("");
@@ -452,7 +481,7 @@ function QuestionFormPage({
             질문 유형을 불러오는 중…
           </div>
         )}
-        {!blockTypesLoading && blockTypes.length === 0 && (
+        {!blockTypesLoading && blockTypesError && (
           <div
             role="alert"
             style={{
@@ -465,6 +494,11 @@ function QuestionFormPage({
             }}
           >
             질문 유형을 불러올 수 없습니다. 새로고침하거나 관리자에게 문의해 주세요.
+          </div>
+        )}
+        {!blockTypesLoading && !blockTypesError && blockTypes.length === 0 && (
+          <div className="stu-muted" style={{ padding: "var(--stu-space-2)", fontSize: 13 }}>
+            등록된 질문 유형이 없습니다. 관리자에게 문의해 주세요.
           </div>
         )}
         {createMut.isError && (

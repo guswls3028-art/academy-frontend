@@ -9,61 +9,46 @@ import { Link } from "react-router-dom";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { useNotificationCounts } from "../hooks/useNotificationCounts";
 import { fetchMyClinicBookingRequests } from "@/student/domains/clinic/api/clinicBooking.api";
-import { fetchPosts } from "@/features/community/api/community.api";
-import { fetchMyProfile } from "@/student/domains/profile/api/profile";
+import { fetchMyQnaQuestions } from "@/student/domains/qna/api/qna.api";
 import { useQuery } from "@tanstack/react-query";
 import { IconClinic, IconNotice } from "@/student/shared/ui/icons/Icons";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { formatYmd } from "@/student/shared/utils/date";
 
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
 export default function NotificationsPage() {
   const { data: counts, isLoading: countsLoading } = useNotificationCounts();
-
-  const { data: studentProfile } = useQuery({
-    queryKey: ["student", "me"],
-    queryFn: fetchMyProfile,
-    staleTime: 5 * 60 * 1000, // 5분간 캐시
-  });
 
   const { data: clinicBookings, isLoading: clinicLoading } = useQuery({
     queryKey: ["student", "clinic", "bookings"],
     queryFn: fetchMyClinicBookingRequests,
-    staleTime: 30000, // 30초간 캐시
+    staleTime: 30000,
   });
 
-  const { data: qnaPosts, isLoading: qnaLoading } = useQuery({
-    queryKey: ["student", "qna", "posts"],
-    queryFn: () => fetchPosts({ nodeId: null }),
-    staleTime: 30000, // 30초간 캐시
+  const { data: myQnaQuestions = [], isLoading: qnaLoading } = useQuery({
+    queryKey: ["student", "qna", "questions"],
+    queryFn: fetchMyQnaQuestions,
+    staleTime: 30000,
   });
 
   const isLoading = countsLoading || clinicLoading || qnaLoading;
+  const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
 
-  const now = Date.now();
-  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-
-  // 클리닉 예약 승인 알림
   const approvedClinicBookings = (clinicBookings || []).filter((b) => {
     if (b.status !== "booked" && b.status !== "approved") return false;
-    const changeDate = b.status_changed_at 
+    const changeDate = b.status_changed_at
       ? new Date(b.status_changed_at).getTime()
-      : b.updated_at 
-      ? new Date(b.updated_at).getTime()
-      : new Date(b.created_at).getTime();
+      : b.updated_at
+        ? new Date(b.updated_at).getTime()
+        : new Date(b.created_at).getTime();
     return changeDate > sevenDaysAgo;
   });
 
-  // QnA 답변 알림 (QnA 타입이고 답변이 달린 것)
-  // 주의: 백엔드에서 student별 필터링이 필요하지만, 현재는 모든 QnA를 표시
-  const answeredQnaPosts = (qnaPosts || []).filter((p) => {
-    const isQna = (p.block_type_label || "").toLowerCase().includes("qna");
-    if (!isQna) return false;
-    
-    const hasReplies = (p.replies_count || 0) > 0;
-    if (!hasReplies) return false;
-    
-    if (!p.updated_at) return false;
-    return new Date(p.updated_at).getTime() > sevenDaysAgo;
+  const answeredQnaPosts = myQnaQuestions.filter((p) => {
+    if ((p.replies_count || 0) === 0) return false;
+    const updatedTime = p.updated_at ? new Date(p.updated_at).getTime() : new Date(p.created_at).getTime();
+    return updatedTime > sevenDaysAgo;
   });
 
   const hasNotifications = (counts?.total || 0) > 0;
@@ -100,7 +85,7 @@ export default function NotificationsPage() {
                 {approvedClinicBookings.map((booking) => (
                   <Link
                     key={booking.id}
-                    to="/student/clinic/booking"
+                    to="/student/clinic"
                     className="stu-panel stu-panel--pressable"
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
@@ -128,13 +113,14 @@ export default function NotificationsPage() {
                 {answeredQnaPosts.map((post) => (
                   <Link
                     key={post.id}
-                    to={`/student/notices/${post.id}`}
+                    to="/student/qna"
+                    state={{ openQuestionId: post.id }}
                     className="stu-panel stu-panel--pressable"
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{post.title}</div>
                     <div className="stu-muted" style={{ fontSize: 12 }}>
-                      답변이 달렸습니다 · {post.replies_count}개
+                      답변이 달렸습니다 · {post.replies_count ?? 0}개
                     </div>
                   </Link>
                 ))}

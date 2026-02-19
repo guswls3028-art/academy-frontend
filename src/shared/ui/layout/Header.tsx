@@ -6,6 +6,7 @@ import { Dropdown, Input, Badge } from "antd";
 import ThemeOverlay from "@/features/settings/overlays/ThemeOverlay";
 import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
 import { useNotices } from "@/features/notice/context/NoticeContext";
+import { useAdminNotificationCounts } from "@/features/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
 import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
@@ -184,7 +185,9 @@ export default function Header() {
   }, [isOnDashboard, searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
-  const { unreadCount, notices } = useNotices();
+  const { notices } = useNotices();
+  const { counts: adminCounts, items: adminNotificationItems } = useAdminNotificationCounts();
+  const unreadCount = adminCounts.total;
 
   const openNoticeAndCloseAlarm = () => {
     setAlarmDropdownOpen(false);
@@ -367,31 +370,33 @@ export default function Header() {
                   </button>
                 </div>
                 <div className="app-header__alarmDropdownList">
-                  {notices.length === 0 ? (
+                  {adminNotificationItems.length === 0 ? (
                     <div className="app-header__alarmDropdownEmpty">알림이 없습니다</div>
                   ) : (
-                    notices.slice(0, 5).map((n) => (
+                    adminNotificationItems.map((item) => (
                       <div
-                        key={n.id}
+                        key={item.type}
                         className="app-header__alarmDropdownItem"
-                        data-level={n.level}
-                        onClick={openNoticeAndCloseAlarm}
+                        data-level="info"
+                        onClick={() => {
+                          setAlarmDropdownOpen(false);
+                          nav(item.to);
+                        }}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            openNoticeAndCloseAlarm();
+                            setAlarmDropdownOpen(false);
+                            nav(item.to);
                           }
                         }}
                       >
                         <div className="app-header__alarmDropdownItemInner">
                           <span className="app-header__alarmDropdownItemAccent" aria-hidden />
                           <div className="app-header__alarmDropdownItemContent">
-                            <strong>{n.title}</strong>
-                            {n.body != null && n.body !== "" && (
-                              <span className="app-header__alarmDropdownItemBody">{n.body}</span>
-                            )}
+                            <strong>{item.label}</strong>
+                            <span className="app-header__alarmDropdownItemBody">{item.count}건</span>
                           </div>
                         </div>
                       </div>

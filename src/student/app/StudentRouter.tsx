@@ -30,7 +30,6 @@ import NoticeDetailPage from "@/student/domains/notices/pages/NoticeDetailPage";
 import NotificationsPage from "@/student/domains/notifications/pages/NotificationsPage";
 import ClinicIDCardPage from "@/student/domains/clinic-idcard/pages/ClinicIDCardPage";
 import ClinicPage from "@/student/domains/clinic/pages/ClinicPage";
-import ClinicBookingPage from "@/student/domains/clinic/pages/ClinicBookingPage";
 import AttendancePage from "@/student/domains/attendance/pages/AttendancePage";
 
 export default function StudentRouter() {
@@ -66,7 +65,6 @@ export default function StudentRouter() {
                 <Route path="notifications" element={<NotificationsPage />} />
                 <Route path="idcard" element={<ClinicIDCardPage />} />
                 <Route path="clinic" element={<ClinicPage />} />
-                <Route path="clinic/booking" element={<ClinicBookingPage />} />
         <Route path="attendance" element={<AttendancePage />} />
       </Route>
 

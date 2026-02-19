@@ -162,13 +162,17 @@ export async function deletePostTemplate(id: number): Promise<void> {
 // ----------------------------------------
 // Posts (공지/질의 등)
 // ----------------------------------------
-/** node_id 있으면 해당 노드(및 상속) 게시물, 없으면 tenant 전체 */
+/** node_id 있으면 해당 노드(및 상속) 게시물, 없으면 tenant 전체. DRF 페이지네이션(results) 지원 */
 export async function fetchPosts(params: { nodeId?: number | null }): Promise<PostEntity[]> {
   const url = params.nodeId != null
     ? `${PREFIX}/posts/?node_id=${params.nodeId}`
     : `${PREFIX}/posts/`;
   const res = await api.get(url);
-  return Array.isArray(res.data) ? res.data : [];
+  const data = res.data as PostEntity[] | { results?: PostEntity[] };
+  if (data != null && Array.isArray((data as { results?: PostEntity[] }).results)) {
+    return (data as { results: PostEntity[] }).results;
+  }
+  return Array.isArray(data) ? data : [];
 }
 
 /** 게시물 단건 조회 (학생앱 상세 등) */
@@ -313,7 +317,7 @@ export async function createCommunityBoardPost(data: {
 }
 
 // ----------------------------------------
-// 질의응답 (QNA = block_type QNA인 Post)
+// QnA (block_type qna인 Post)
 // ----------------------------------------
 export interface Question {
   id: number;
@@ -327,7 +331,7 @@ export interface Question {
   lecture_title?: string;
 }
 
-function postEntityToQuestion(p: PostEntity): Question {
+function postEntityToQuestion(p: PostEntity): Omit<Question, "is_answered"> {
   const firstNode = p.mappings?.[0]?.node_detail;
   return {
     id: p.id,
@@ -339,18 +343,39 @@ function postEntityToQuestion(p: PostEntity): Question {
   };
 }
 
-/** QNA 타입 id로 필터한 목록 (scope → node_id 사용) */
+/** 블록타입 code가 "qna"인 id 반환 (선생/학생 앱 공통). 없으면 null */
+export async function getQnaBlockTypeId(): Promise<number | null> {
+  const types = await fetchBlockTypes();
+  const qna = types.find((t) => (t.code || "").toLowerCase() === "qna");
+  return qna?.id ?? null;
+}
+
+/** QNA 블록타입만 필터한 질문 목록 (code "qna" 기준 — 선생 앱과 동일) */
 export async function fetchCommunityQuestions(
   params?: CommunityScopeParams | null
 ): Promise<Question[]> {
+  const qnaBlockTypeId = await getQnaBlockTypeId();
+  const toQuestion = (p: PostEntity): Question => ({
+    ...postEntityToQuestion(p),
+    is_answered: (p.replies_count ?? 0) > 0,
+  });
+
+  const isQnaPost = (p: PostEntity) =>
+    qnaBlockTypeId != null ? p.block_type === qnaBlockTypeId : (p.block_type_label || "").toLowerCase().includes("qna");
+
   if (!params) {
-    const { results } = await fetchAdminPosts({ pageSize: 100 });
-    return results.map(postEntityToQuestion);
+    const { results } = await fetchAdminPosts({
+      blockTypeId: qnaBlockTypeId ?? undefined,
+      pageSize: 500,
+    });
+    const filtered = qnaBlockTypeId != null ? results : results.filter(isQnaPost);
+    return filtered.map(toQuestion);
   }
   const nodes = await fetchScopeNodes();
   const nodeId = resolveNodeIdFromScope(nodes, params);
   const list = await fetchPosts({ nodeId: nodeId ?? undefined });
-  return list.map(postEntityToQuestion);
+  const qnaOnly = list.filter(isQnaPost);
+  return qnaOnly.map(toQuestion);
 }
 
 export interface Answer {
@@ -373,15 +398,25 @@ export async function fetchPostReplies(postId: number): Promise<Answer[]> {
   }
 }
 
-/** 답변 API 미제공 — 스텁 (하위 호환) */
+/** 질문의 첫 번째 답변 조회 (하위 호환) */
 export async function fetchQuestionAnswer(questionId: number): Promise<Answer | null> {
   const replies = await fetchPostReplies(questionId);
   return replies.length > 0 ? replies[0] : null;
 }
 
-/** 답변 API 미제공 — 스텁 */
-export async function createAnswer(_questionId: number, _content: string): Promise<Answer> {
-  throw new Error("답변 API가 준비 중입니다.");
+/** 게시물(질문)에 답변 등록 — POST /community/posts/:id/replies/ */
+export async function createAnswer(questionId: number, content: string): Promise<Answer> {
+  const res = await api.post<{ id: number; post: number; question: number; content: string; created_at: string }>(
+    `${PREFIX}/posts/${questionId}/replies/`,
+    { content }
+  );
+  const d = res.data;
+  return {
+    id: d.id,
+    question: d.question ?? d.post,
+    content: d.content,
+    created_at: d.created_at,
+  };
 }
 
 // ----------------------------------------

@@ -11,7 +11,7 @@ export default function BoardTabs() {
   return (
     <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)] mb-6" role="tablist">
       <NavLink to={`${base}/admin?tab=notice`} className={tabClass}>공지사항</NavLink>
-      <NavLink to={`${base}/qna`} className={tabClass}>질의응답</NavLink>
+      <NavLink to={`${base}/qna`} className={tabClass}>QnA</NavLink>
       <NavLink to={`${base}/review`} className={tabClass}>수강후기</NavLink>
     </div>
   );

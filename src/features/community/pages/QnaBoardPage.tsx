@@ -1,5 +1,5 @@
 // PATH: src/features/community/pages/QnaBoardPage.tsx
-// 커뮤니티 질의응답 — scope에 따라 목록 + 답변
+// 커뮤니티 QnA — scope에 따라 목록 + 답변
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,8 +41,8 @@ export default function QnaBoardPage() {
         title={scope === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
         description={
           scope === "session"
-            ? "노출 범위를 '세션별'로 두고 강의와 차시를 선택하면 해당 차시 질의응답을 볼 수 있습니다."
-            : "노출 범위를 '강의별'로 두고 위에서 강의를 선택하면 해당 강의의 질의응답을 관리할 수 있습니다."
+            ? "노출 범위를 '세션별'로 두고 강의와 차시를 선택하면 해당 차시 QnA를 볼 수 있습니다."
+            : "노출 범위를 '강의별'로 두고 위에서 강의를 선택하면 해당 강의의 QnA를 관리할 수 있습니다."
         }
       />
     );
@@ -205,6 +205,7 @@ function AnswerForm({ questionId, onSuccess }: { questionId: number; onSuccess: 
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-questions"] });
       qc.invalidateQueries({ queryKey: ["question-answer", questionId] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
       setContent("");
       onSuccess();
     },
