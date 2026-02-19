@@ -52,9 +52,12 @@ function formatDate(iso: string | null): string {
 
 export default function VideoExplorerPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedFolderId, setSelectedFolderId] = useState<VideoFolderId>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [uploadTargetSessionId, setUploadTargetSessionId] = useState<number | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const queryClient = useQueryClient();
