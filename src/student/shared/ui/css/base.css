@@ -36,7 +36,7 @@ body {
   font-family: var(--stu-font-sans);
   font-size: var(--stu-font-size-14);
   line-height: var(--stu-line-20);
-  letter-spacing: -0.1px;
+  letter-spacing: -0.01em; /* 프리미엄: 음수 letter-spacing */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
