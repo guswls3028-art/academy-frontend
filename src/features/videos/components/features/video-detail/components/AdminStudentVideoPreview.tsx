@@ -4,7 +4,7 @@
 // - audit / progress / heartbeat 저장 ❌
 // - 정책(enforcement)만 동일 적용 ✅
 
-import StudentVideoPlayer from "@/student/media/playback/player/StudentVideoPlayer";
+import StudentVideoPlayer from "@/student/domains/video/playback/player/StudentVideoPlayer";
 
 interface Props {
   videoId: number;
