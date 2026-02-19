@@ -209,6 +209,39 @@ export default function VideoExplorerPage() {
     setUploadTargetSessionId(null);
   };
 
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim() || !publicSession) return;
+    try {
+      const parentId =
+        selectedPublicFolderId && selectedFolderId !== "public" ? selectedPublicFolderId : null;
+      await createVideoFolder(publicSession.session_id, newFolderName.trim(), parentId);
+      queryClient.invalidateQueries({ queryKey: ["video-folders", publicSession.session_id] });
+      setNewFolderName("");
+      setNewFolderOpen(false);
+    } catch (e) {
+      alert((e as Error).message || "폴더 생성에 실패했습니다.");
+    }
+  }, [newFolderName, publicSession, selectedPublicFolderId, selectedFolderId, queryClient]);
+
+  const handleDeleteFolder = useCallback(
+    async (folderId: number) => {
+      if (!confirm("폴더를 삭제하시겠습니까? 폴더 내 영상이 있으면 삭제할 수 없습니다.")) return;
+      try {
+        await deleteVideoFolder(folderId);
+        queryClient.invalidateQueries({ queryKey: ["video-folders", publicSession?.session_id] });
+        queryClient.invalidateQueries({
+          queryKey: ["session-videos", publicSession?.session_id],
+        });
+        if (selectedFolderId === -folderId) {
+          setSelectedFolderId("public");
+        }
+      } catch (e) {
+        alert((e as Error).message || "폴더 삭제에 실패했습니다.");
+      }
+    },
+    [publicSession, selectedFolderId, queryClient]
+  );
+
   return (
     <DomainLayout
       title="영상"
