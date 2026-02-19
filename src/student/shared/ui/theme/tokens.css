@@ -41,6 +41,10 @@
   /* 헤더/탭바 (테넌트별 오버라이드용) */
   --stu-header-bg: rgba(11, 15, 25, 0.85);
   --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
+
+  /* 테넌트별 오버라이드용 (그라데이션·포커스) — 기본은 단색 */
+  --stu-gradient: var(--stu-primary);
+  --stu-focus: rgba(59, 130, 246, 0.25);
 }
 
 /* ========== 2. Typography ========== */
