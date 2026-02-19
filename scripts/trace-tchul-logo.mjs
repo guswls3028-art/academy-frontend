@@ -59,6 +59,7 @@ async function main() {
   fs.mkdirSync(path.dirname(OUTPUT_SVG), { recursive: true });
   fs.writeFileSync(OUTPUT_SVG, svg, "utf8");
   console.log("Written:", OUTPUT_SVG, "size:", (svg.length / 1024).toFixed(1), "KB");
+  console.log("(TchulLogoTraced.tsx uses this file; no manual copy needed.)");
 }
 
 main().catch((e) => {
