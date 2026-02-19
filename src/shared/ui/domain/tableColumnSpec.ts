@@ -10,7 +10,7 @@ export const TABLE_COL = {
   /** 체크박스 전용 (학생 테이블 기준) */
   checkbox: 28,
   /** 이름·주요 식별 컬럼 (딱지+이름 등) — 학생 테이블 기준 */
-  name: 168,
+  name: 140,
   /** 출결/강의 목록 등 이름만 짧게 (레거시·모달용, 신규는 name 사용) */
   nameCompact: 116,
   /** 모달 내 이름 열 — nameCompact보다 아주 조금 넓게 */
