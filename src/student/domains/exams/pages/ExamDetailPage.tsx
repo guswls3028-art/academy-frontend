@@ -71,32 +71,7 @@ export default function ExamDetailPage() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* ===== Assets ===== */}
-        <div style={card}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>자산</div>
-
-          {assetsQ.isLoading && <div style={{ fontSize: 13, color: "#666" }}>자산 불러오는 중...</div>}
-          {assetsQ.isError && <div style={{ fontSize: 13, color: "#c00" }}>자산 조회 실패</div>}
-
-          {assetsQ.data && assetsQ.data.length === 0 && (
-            <div style={{ fontSize: 13, color: "#777" }}>등록된 자산이 없습니다.</div>
-          )}
-
-          {assetsQ.data && assetsQ.data.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {assetsQ.data.map((a) => (
-                <a
-                  key={a.id}
-                  href={a.download_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ ...linkBtn, width: "fit-content" }}
-                >
-                  다운로드: {a.asset_type}
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* 다운로드 기능 제거됨 (의도적으로 미제공) */}
 
         {/* ===== Actions ===== */}
         <div style={card}>
