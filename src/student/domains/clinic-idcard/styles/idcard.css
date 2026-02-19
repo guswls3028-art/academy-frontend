@@ -88,8 +88,8 @@ body {
   font-weight: 900;
   letter-spacing: 0.02em;
   margin-bottom: 32px;
-  color: #fff;
   font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease;
 }
 
 .idcard-page__name {
@@ -99,7 +99,46 @@ body {
   color: #fff;
 }
 
-/* ---------- 패스카드: 애니메이션으로 생동감·위조 판별 ---------- */
+/* ---------- 프로필 사진 (신원 확인용) — 좌측 상단 ---------- */
+.idcard-page__profile-photo {
+  position: absolute;
+  top: max(var(--stu-safe-top, 0px), 16px);
+  left: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+}
+
+.idcard-page__profile-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.idcard-page__profile-initials {
+  position: absolute;
+  top: max(var(--stu-safe-top, 0px), 16px);
+  left: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  z-index: 10;
+}
+
+/* ---------- 패스카드: 흐르는 그라데이션 + 애니메이션으로 생동감·위조 판별 ---------- */
 .idcard-page__pass-card {
   width: 100%;
   max-width: 420px;
@@ -108,16 +147,39 @@ body {
   text-align: center;
   margin-bottom: 32px;
   color: #fff;
+  position: relative;
+  overflow: hidden;
   animation: idcard-card-glow 2.5s ease-in-out infinite;
+}
+
+.idcard-page__pass-card::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  animation: idcard-shimmer 3s linear infinite;
+  pointer-events: none;
 }
 
 .idcard-page__pass-card--pass {
   background: linear-gradient(135deg, #22c55e 0%, #15803d 50%, #14532d 100%);
+  background-size: 200% 200%;
+  animation: idcard-card-glow 2.5s ease-in-out infinite, idcard-gradient-flow 4s ease infinite;
   box-shadow: 0 0 24px rgba(34, 197, 94, 0.4), 0 8px 32px rgba(21, 128, 61, 0.35);
 }
 
 .idcard-page__pass-card--clinic {
   background: linear-gradient(135deg, #ef4444 0%, #b91c1c 50%, #7f1d1d 100%);
+  background-size: 200% 200%;
+  animation: idcard-card-glow 2.5s ease-in-out infinite, idcard-gradient-flow 4s ease infinite;
   box-shadow: 0 0 24px rgba(239, 68, 68, 0.4), 0 8px 32px rgba(185, 28, 28, 0.35);
 }
 
