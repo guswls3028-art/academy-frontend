@@ -55,6 +55,7 @@ export default function ClinicIDCardPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["clinic-idcard"],
     queryFn: fetchClinicIdcard,
+    refetchInterval: 2000, // 2초마다 자동 갱신 (선생님이 색상 변경 시 즉시 반영)
   });
 
   // 데이터가 변경되면 프로필 사진 에러 상태 리셋
