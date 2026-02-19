@@ -174,6 +174,18 @@ export function getTenantCodeForApiRequest(): string | null {
       } catch {}
       return fromHost;
     }
+    // 서브도메인(예: student.hakwonplus.com) → 부모 도메인 테넌트 코드 사용 (학생앱 403 방지)
+    const parts = hostname.split(".");
+    if (parts.length >= 2) {
+      const parentDomain = parts.slice(-2).join(".");
+      const fromParent = HOSTNAME_TO_TENANT_CODE[parentDomain];
+      if (fromParent) {
+        try {
+          sessionStorage.setItem("tenantCode", fromParent);
+        } catch {}
+        return fromParent;
+      }
+    }
     const pathname = window.location.pathname || "";
     const parts = pathname.split("/").filter(Boolean);
     const loginIdx = parts.indexOf("login");
