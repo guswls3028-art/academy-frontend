@@ -262,7 +262,7 @@ a {
 }
 
 .stu-btn:active {
-  transform: translateY(1px);
+  /* transform 제거 - Premium SaaS 스타일 */
 }
 
 .stu-btn--primary {

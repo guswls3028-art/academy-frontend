@@ -15,36 +15,14 @@ export default function ExamActionButton({
 }: ExamActionButtonProps) {
   if (disabled) {
     return (
-      <div
-        style={{
-          padding: "10px 14px",
-          borderRadius: 12,
-          border: "1px solid var(--stu-border)",
-          background: "var(--stu-surface)",
-          color: "var(--stu-text-muted)",
-          fontWeight: 800,
-          opacity: 0.5,
-        }}
-      >
+      <div className="stu-muted" style={{ fontSize: 14 }}>
         {label}
       </div>
     );
   }
 
   return (
-    <Link
-      to={to}
-      style={{
-        padding: "10px 14px",
-        borderRadius: 12,
-        border: "1px solid var(--stu-border)",
-        background: "var(--stu-primary, #111)",
-        color: "#fff",
-        fontWeight: 900,
-        textDecoration: "none",
-        display: "inline-block",
-      }}
-    >
+    <Link to={to} className="stu-cta-link">
       {label}
     </Link>
   );
