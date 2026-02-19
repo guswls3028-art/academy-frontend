@@ -46,8 +46,6 @@ function formatDate(iso: string | null): string {
   }
 }
 
-const PUBLIC_LECTURE_TITLE = "전체공개영상";
-
 export default function VideoExplorerPage() {
   const navigate = useNavigate();
   const [selectedFolderId, setSelectedFolderId] = useState<VideoFolderId>(null);
