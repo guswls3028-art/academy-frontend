@@ -45,9 +45,14 @@ async function main() {
 
   let svg = ImageTracer.imagedataToSVG(imageData, options);
 
-  // 흰색/밝은 배경 path 제거 (fill이 #fff 또는 rgb(240 이상,240 이상,240 이상)인 path)
+  // 흰색 배경 path 제거
   svg = svg.replace(
-    /<path[^>]*\sfill="(?:#fff|#ffffff|rgb\s*\(\s*25[0-5]\s*,\s*25[0-5]\s*,\s*25[0-5]\s*\)|rgb\s*\(\s*2[4-5]\d\s*,\s*2[4-5]\d\s*,\s*2[4-5]\d\s*\))"[^>]*\s*d="[^"]*"[^>]*\/?>/gi,
+    /<path[^>]*\sfill="(?:#fff|#ffffff|rgb\s*\(\s*255\s*,\s*255\s*,\s*255\s*\))"[^>]*\/?>/gi,
+    ""
+  );
+  // 거의 흰색 rgb(24x~255, 24x~255, 24x~255) path 제거
+  svg = svg.replace(
+    /<path\s[^>]*fill="rgb\s*\(\s*2[4-5]\d\s*,\s*2[4-5]\d\s*,\s*2[4-5]\d\s*\)"[^>]*\/?>/gi,
     ""
   );
 
