@@ -5,8 +5,6 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
-import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 type Props = { tenantCode: string | null };
 
