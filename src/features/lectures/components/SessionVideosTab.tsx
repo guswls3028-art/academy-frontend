@@ -60,6 +60,31 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     },
   });
 
+  /** 영상 제목 패턴(예: "수학의 정석 1", "수학의 정석 2")에서 묶음 base 추출. DB 변경 없이 표시용 그룹핑만. */
+  const groupedVideos = useMemo(() => {
+    const groups = new Map<string, MediaVideo[]>();
+    const ungrouped: MediaVideo[] = [];
+    const pattern = /^(.+)\s+(\d+)$/;
+
+    for (const v of videos) {
+      const m = v.title?.trim().match(pattern);
+      if (m) {
+        const base = m[1].trim();
+        const list = groups.get(base) ?? [];
+        list.push(v);
+        list.sort((a, b) => {
+          const na = parseInt(a.title?.match(/\s+(\d+)$/)?.[1] ?? "0", 10);
+          const nb = parseInt(b.title?.match(/\s+(\d+)$/)?.[1] ?? "0", 10);
+          return na - nb;
+        });
+        groups.set(base, list);
+      } else {
+        ungrouped.push(v);
+      }
+    }
+    return { groups, ungrouped };
+  }, [videos]);
+
   const retryMutation = useMutation({
     mutationFn: async (id: number) => {
       await api.post(`/media/videos/${id}/retry/`);
