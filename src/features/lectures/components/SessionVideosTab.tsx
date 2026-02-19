@@ -1,5 +1,5 @@
 // PATH: src/features/lectures/components/SessionVideosTab.tsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 

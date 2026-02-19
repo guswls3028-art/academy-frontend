@@ -73,7 +73,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const fileTitle = i === 0 ? title.trim() : `${title.trim()} (${i + 1})`;
+      const fileTitle = files.length === 1 ? title.trim() : `${title.trim()} ${i + 1}`;
 
       try {
         await uploadVideo({
