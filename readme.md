@@ -2,6 +2,10 @@
 
 학원 관리 시스템 프론트엔드 (React + TypeScript + Vite)
 
+> **⚠️ 패키지 매니저: pnpm 전용**  
+> 이 프로젝트는 **pnpm**을 사용합니다. `npm install` / `npm run build` 사용 금지.  
+> 설치: `pnpm install` · 빌드: `pnpm run build` · 개발: `pnpm dev`
+
 **문서 SSOT**: 이 README가 최상위 문서입니다. 배포·인프라는 백엔드 `academy/docs/README.md`, `academy/docs/배포.md` 참고.
 
 **Cursor 작업 시**: [docs_cursor/README.md](docs_cursor/README.md) — 문서만으로 필요한 정보를 얻을 수 있도록 정리된 SSOT.
