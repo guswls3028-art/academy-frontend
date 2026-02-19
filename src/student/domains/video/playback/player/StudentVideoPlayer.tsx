@@ -1143,9 +1143,17 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
             <div
               className="svpVideoStage"
               onDoubleClick={onStageDoubleClick}
+              onTouchStart={onStageTouchStart}
               onTouchEnd={onStageTouchEnd}
+              onTouchCancel={onStageTouchCancel}
               role="presentation"
             >
+              {/* GestureLayer: 터치 캡처 (touch-action:none으로 브라우저 제스처 차단) */}
+              <div
+                className="svpGestureLayer"
+                aria-hidden
+                onDoubleClick={(e) => e.stopPropagation()}
+              />
               <video
                 ref={videoEl}
                 className="svpVideo"
