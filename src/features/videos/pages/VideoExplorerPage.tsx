@@ -205,6 +205,10 @@ export default function VideoExplorerPage() {
               <div className={styles.placeholder}>불러오는 중…</div>
             ) : selectedFolderId === null ? (
               <div className={styles.placeholder}>좌측에서 폴더를 선택하세요</div>
+            ) : selectedFolderId === "public" && publicSessionError ? (
+              <div className={styles.placeholder} style={{ color: "var(--color-text-error, #b91c1c)" }}>
+                전체공개영상 영역을 불러오지 못했습니다. 같은 도메인(예: tchul.com)으로 로그인했는지, 관리자·스태프 권한이 있는지 확인하세요.
+              </div>
             ) : videosLoading ? (
               <div className={styles.placeholder}>영상 목록 불러오는 중…</div>
             ) : videos.length === 0 ? (
