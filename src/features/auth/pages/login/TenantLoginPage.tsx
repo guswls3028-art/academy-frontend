@@ -17,7 +17,10 @@ export default function TenantLoginPage({ tenantId }: Props) {
   const logoUrl = program?.ui_config?.logo_url ?? staticBranding.logoUrl;
   const loginTitle = program?.ui_config?.login_title ?? staticBranding.loginTitle;
   const loginSubtitle = program?.ui_config?.login_subtitle ?? staticBranding.loginSubtitle;
-  
+
+  const [logoError, setLogoError] = useState(false);
+  const showLogoImg = logoUrl && !logoError;
+
   // 브라우저 타이틀 설정
   useDocumentTitle();
 
