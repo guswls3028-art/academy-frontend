@@ -4,8 +4,8 @@
  */
 import { getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 
-// tchul 전용 로고 (auth SSOT와 동일 에셋)
-import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
+// tchul 전용 로고 (배경 제거 아이콘 버전)
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 export type StudentTenantBranding = {
   /** 로고 이미지 URL (없으면 상단바에서 텍스트 배지 사용) */
