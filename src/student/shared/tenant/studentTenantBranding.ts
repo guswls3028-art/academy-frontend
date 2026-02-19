@@ -33,7 +33,8 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
   const base = { title: branding.loginTitle || fallback.title };
 
   if (TCHUL_DESIGN_CODES.includes(normalized as (typeof TCHUL_DESIGN_CODES)[number])) {
-    return { ...base, logoUrl: TchulLogoIcon, title: "박철과학" };
+    // tchul 테넌트는 헤더에서 SVG 컴포넌트 직접 사용 (logoUrl은 null)
+    return { ...base, logoUrl: null, title: "박철과학" };
   }
 
   return { ...base, logoUrl: branding.logoUrl ?? null };
