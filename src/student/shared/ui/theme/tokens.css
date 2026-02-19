@@ -8,14 +8,24 @@
  */
 /* ========== 1. Color palette ========== */
 :root {
-  --stu-bg: #0b0f19;
-  --stu-surface: #121827;
-  --stu-surface-soft: #1a2235;
-  --stu-border: rgba(255, 255, 255, 0.1);
+  /* Light Mode (기본) - Premium SaaS Surface System */
+  --stu-bg: #f8fafc; /* surface-0: 페이지 배경 */
+  --stu-surface: #ffffff; /* surface-1: 섹션 배경 */
+  --stu-surface-soft: #f1f5f9; /* surface-2: 패널/중첩 배경 */
+  
+  /* Surface 레이어 명시적 정의 */
+  --stu-surface-0: #f8fafc;
+  --stu-surface-1: #ffffff;
+  --stu-surface-2: #f1f5f9;
+  
+  --stu-border: rgba(17, 17, 17, 0.08);
+  --stu-border-subtle: rgba(17, 17, 17, 0.06);
+  --stu-border-normal: rgba(17, 17, 17, 0.08);
+  --stu-border-strong: rgba(17, 17, 17, 0.12);
 
-  --stu-text: rgba(255, 255, 255, 0.95);
-  --stu-text-muted: rgba(255, 255, 255, 0.65);
-  --stu-text-subtle: rgba(255, 255, 255, 0.45);
+  --stu-text: #111111;
+  --stu-text-muted: rgba(17, 17, 17, 0.62);
+  --stu-text-subtle: rgba(17, 17, 17, 0.42);
 
   --stu-primary: #3b82f6;
   --stu-primary-hover: #2563eb;
