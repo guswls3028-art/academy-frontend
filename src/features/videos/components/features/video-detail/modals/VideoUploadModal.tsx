@@ -32,6 +32,7 @@ type Props = {
 
 
 export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) {
+  const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [title, setTitle] = useState("");
