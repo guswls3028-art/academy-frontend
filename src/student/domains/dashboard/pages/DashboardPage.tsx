@@ -55,14 +55,12 @@ export default function DashboardPage() {
 
       {/* 오늘 일정 */}
       <section style={{ marginBottom: "var(--stu-space-8)" }}>
-        <h2 className="stu-muted" style={{ fontSize: 12, fontWeight: 700, marginBottom: "var(--stu-space-3)", paddingLeft: 4 }}>
-          오늘 일정
-        </h2>
         {todaySessions.length === 0 ? (
-          <div className="stu-panel stu-panel--soft" style={{ padding: "var(--stu-space-6)" }}>
-            <div className="stu-muted" style={{ fontSize: 14 }}>오늘 예정된 수업이 없습니다.</div>
-            <Link to="/student/sessions" className="stu-cta-link" style={{ marginTop: 8 }}>
-                전체 일정 보기
+          <div className="stu-status-surface">
+            <div className="stu-status-eyebrow">TODAY</div>
+            <div className="stu-status-title">예정된 수업이 없습니다</div>
+            <Link to="/student/sessions" className="stu-cta-link" style={{ marginTop: 8, display: "inline-block" }}>
+              전체 일정 보기
             </Link>
           </div>
         ) : (

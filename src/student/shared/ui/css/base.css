@@ -290,6 +290,71 @@ a {
 }
 
 /* =========================
+   Status Surface (Dashboard Status Display)
+   ========================= */
+.stu-status-surface {
+  padding: var(--stu-space-5);
+  border-radius: 8px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.02),
+    transparent
+  );
+}
+
+.stu-status-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--stu-text-muted);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.stu-status-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--stu-text);
+}
+
+/* =========================
+   Action Tiles (Quick Action Buttons)
+   ========================= */
+.stu-action-tile {
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--stu-surface-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: transform var(--stu-motion-fast);
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid var(--stu-border-subtle);
+}
+
+.stu-action-tile:active {
+  transform: scale(0.96);
+}
+
+.stu-action-tile__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--stu-tint-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stu-action-tile__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--stu-text);
+}
+
+/* =========================
    항상 존재하는 Primary Accent Flow
    ========================= */
 .stu-panel--accent {
