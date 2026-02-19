@@ -64,9 +64,6 @@ import { MessageRoutes } from "@/features/messages/routes";
 import SettingsLayout from "@/features/settings/SettingsLayout";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
 
-/* ================= Course Contents (강의·차시 트리 통합) ================= */
-import CourseContentsPage from "@/features/course-contents/pages/CourseContentsPage";
-
 /* ================= Exams / Results / Videos (Admin Root) ================= */
 import ExamAdminPage from "@/features/exams/pages/ExamAdminPage";
 import ResultsAdminPage from "@/features/results/pages/ResultsAdminPage";
@@ -140,9 +137,6 @@ export default function AdminRouter() {
 
         {/* ================= Storage (저장소 통합) ================= */}
         <Route path="storage/*" element={<StorageRoutes />} />
-
-        {/* ================= 강의 콘텐츠 (영상·성적·시험·메시지 폴더 트리 통합) ================= */}
-        <Route path="contents" element={<CourseContentsPage />} />
 
         {/* ================= Clinic ================= */}
         <Route path="clinic/*" element={<ClinicRoutes />} />
