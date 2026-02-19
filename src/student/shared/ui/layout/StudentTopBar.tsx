@@ -49,6 +49,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
               width: "auto",
               maxWidth: 120,
               objectFit: "contain",
+              display: "block",
             }}
           />
         ) : (

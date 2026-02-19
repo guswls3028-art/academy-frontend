@@ -84,7 +84,7 @@
 [data-app="admin"] .app-header__brandMark img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 [data-app="admin"] .app-header__brandName {
