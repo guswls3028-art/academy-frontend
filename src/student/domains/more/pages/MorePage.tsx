@@ -80,13 +80,9 @@ export default function MorePage() {
       <section>
         <button
           type="button"
-          className="stu-btn stu-btn--ghost"
-          style={{ ...linkStyle, width: "100%", marginBottom: 0, justifyContent: "center", border: "1px solid var(--stu-danger)" }}
-          onClick={() => {
-            // 로그아웃: 공유 auth 로직 사용 (다른 영역 침범 최소화 — window.location 또는 auth context)
-            const base = window.location.origin;
-            window.location.href = `${base}/logout/` || `${base}/api/logout/`;
-          }}
+          className="stu-btn stu-btn--danger"
+          style={{ ...linkStyle, width: "100%", marginBottom: 0, justifyContent: "center", border: "none", color: "#fff" }}
+          onClick={() => logout()}
         >
           <IconLogout style={{ width: 22, height: 22 }} />
           로그아웃
