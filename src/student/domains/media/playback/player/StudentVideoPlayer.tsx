@@ -261,7 +261,15 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
           } catch {}
 
           if (data?.fatal) {
-            setToast({ text: "재생 오류가 발생했습니다. 다시 시도해주세요.", kind: "danger" });
+            const errorMsg = data?.details || data?.type || "알 수 없는 오류";
+            const is404 = errorMsg.includes("404") || errorMsg.includes("Not Found");
+            const message = is404 
+              ? `비디오 파일을 찾을 수 없습니다 (404). 서버에 비디오 파일이 있는지 확인해주세요.`
+              : `재생 오류가 발생했습니다: ${errorMsg}`;
+            setToast({ text: message, kind: "danger" });
+            if (is404) {
+              onFatal?.(`비디오 파일을 찾을 수 없습니다: ${url}`);
+            }
           }
         });
 
@@ -546,11 +554,27 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onError = () => {
+      const error = el.error as any;
+      const errorCode = error?.code || 0;
+      const errorMessage = error?.message || "";
+      
       queueEvent("PLAYER_ERROR", {
-        code: (el.error as any)?.code || 0,
-        message: (el.error as any)?.message || "",
+        code: errorCode,
+        message: errorMessage,
       });
-      setToast({ text: "재생 오류가 발생했습니다.", kind: "danger" });
+      
+      // MEDIA_ERR_SRC_NOT_SUPPORTED (4) 또는 네트워크 오류
+      let message = "재생 오류가 발생했습니다.";
+      if (errorCode === 4 || errorMessage.includes("404") || errorMessage.includes("Not Found")) {
+        message = "비디오 파일을 찾을 수 없습니다 (404). 서버에 비디오 파일이 있는지 확인해주세요.";
+        onFatal?.("비디오 파일을 찾을 수 없습니다.");
+      } else if (errorCode === 2) {
+        message = "네트워크 오류가 발생했습니다. 연결을 확인해주세요.";
+      } else if (errorCode === 3) {
+        message = "비디오 디코딩 오류가 발생했습니다.";
+      }
+      
+      setToast({ text: message, kind: "danger" });
     };
 
     el.addEventListener("loadedmetadata", onLoadedMeta);
