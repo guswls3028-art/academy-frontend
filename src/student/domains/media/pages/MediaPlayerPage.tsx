@@ -84,18 +84,23 @@ export default function MediaPlayerPage() {
       setLoading(true);
       setErr(null);
 
-      if (!videoId || !enrollmentId) {
+      if (!videoId) {
         setLoading(false);
-        setErr("video_id / enrollment_id 가 필요합니다.");
+        setErr("video_id가 필요합니다.");
         return;
       }
 
       try {
         const deviceId = getOrCreateDeviceId();
-        const [v, b] = await Promise.all([
-          fetchVideo(videoId),
-          startPlayback({ videoId, enrollmentId, deviceId }),
-        ]);
+        // 전체공개영상인지 확인 (enrollmentId 없이도 재생 가능)
+        const v = await fetchVideo(videoId);
+        const isPublicVideo = !enrollmentId; // 전체공개영상은 enrollmentId가 없을 수 있음
+        
+        const b = await startPlayback({ 
+          videoId, 
+          enrollmentId: enrollmentId || undefined, 
+          deviceId 
+        });
 
         if (!alive) return;
 

@@ -65,7 +65,7 @@ function SessionVideoList({
         {items.map((v) => (
           <Link
             key={v.id}
-            to={`/student/video/play?video=${v.id}&enrollment=${enrollmentId ?? ""}`}
+            to={`/student/video/play?video=${v.id}${enrollmentId ? `&enrollment=${enrollmentId}` : ""}`}
             className="stu-card stu-card--pressable"
             style={{
               display: "flex",
