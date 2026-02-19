@@ -98,20 +98,7 @@ export default function DashboardPage() {
             className="stu-action-tile"
           >
             <div className="stu-action-tile__icon">
-              {isTchulTheme ? (
-                <img
-                  src={TchulLogoIcon}
-                  alt=""
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    padding: "6px",
-                  }}
-                />
-              ) : (
-                <IconPlay style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
-              )}
+              <IconPlay style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
             </div>
             <div className="stu-action-tile__label">영상</div>
           </Link>
@@ -120,20 +107,7 @@ export default function DashboardPage() {
             className="stu-action-tile"
           >
             <div className="stu-action-tile__icon">
-              {isTchulTheme ? (
-                <img
-                  src={TchulLogoIcon}
-                  alt=""
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    padding: "6px",
-                  }}
-                />
-              ) : (
-                <IconExam style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
-              )}
+              <IconExam style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
             </div>
             <div className="stu-action-tile__label">시험</div>
           </Link>
@@ -142,20 +116,7 @@ export default function DashboardPage() {
             className="stu-action-tile"
           >
             <div className="stu-action-tile__icon">
-              {isTchulTheme ? (
-                <img
-                  src={TchulLogoIcon}
-                  alt=""
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    padding: "6px",
-                  }}
-                />
-              ) : (
-                <IconGrade style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
-              )}
+              <IconGrade style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
             </div>
             <div className="stu-action-tile__label">성적</div>
           </Link>
@@ -164,20 +125,7 @@ export default function DashboardPage() {
             className="stu-action-tile"
           >
             <div className="stu-action-tile__icon">
-              {isTchulTheme ? (
-                <img
-                  src={TchulLogoIcon}
-                  alt=""
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    padding: "6px",
-                  }}
-                />
-              ) : (
-                <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
-              )}
+              <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
             </div>
             <div className="stu-action-tile__label">일정</div>
           </Link>
