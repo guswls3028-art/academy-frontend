@@ -28,6 +28,14 @@
   object-fit: contain;
 }
 
+.auth-card__logo-text {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: var(--space-4);
+  color: var(--color-text-primary);
+  letter-spacing: -0.02em;
+}
+
 .auth-card__title {
   font-size: 1.125rem;
   font-weight: 700;
