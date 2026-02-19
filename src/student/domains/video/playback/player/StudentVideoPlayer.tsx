@@ -898,11 +898,13 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       const rect = stage?.getBoundingClientRect?.();
       if (!rect) return;
 
+      lastTapRef.current = { time: Date.now(), x: clientX, y: clientY };
       tapCountRef.current += 1;
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
       tapTimerRef.current = setTimeout(() => {
         tapTimerRef.current = null;
-        resolveTap(clientX, rect);
+        const r = stage?.getBoundingClientRect?.();
+        if (r) resolveTap(lastTapRef.current.x, r);
       }, 200);
     },
     [resolveTap]
