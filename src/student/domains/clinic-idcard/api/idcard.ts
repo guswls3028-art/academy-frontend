@@ -13,6 +13,7 @@ export type ClinicIdcardHistoryItem = {
 
 export type ClinicIdcardData = {
   student_name: string;
+  profile_photo_url: string | null;
   server_date: string;
   server_datetime: string;
   histories: ClinicIdcardHistoryItem[];
@@ -24,6 +25,7 @@ export async function fetchClinicIdcard(): Promise<ClinicIdcardData> {
   const data = res.data as ClinicIdcardData;
   return {
     student_name: data.student_name ?? "",
+    profile_photo_url: data.profile_photo_url ?? null,
     server_date: data.server_date ?? "",
     server_datetime: data.server_datetime ?? "",
     histories: Array.isArray(data.histories) ? data.histories : [],
