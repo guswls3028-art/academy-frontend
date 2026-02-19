@@ -11,7 +11,7 @@ import sharp from "sharp";
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INPUT = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogo.png");
-const OUTPUT_SVG = path.join(__dirname, "out/tchul-logo-traced.svg");
+const OUTPUT_SVG = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogoTraced.svg");
 const MAX_WIDTH = 400;
 
 const ImageTracer = require("../node_modules/imagetracerjs/imagetracer_v1.2.6.js");
