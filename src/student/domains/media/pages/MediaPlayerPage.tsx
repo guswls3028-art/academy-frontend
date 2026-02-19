@@ -33,14 +33,17 @@ async function fetchVideo(videoId: number): Promise<VideoMetaLite> {
 
 async function startPlayback(params: {
   videoId: number;
-  enrollmentId: number;
+  enrollmentId?: number | null;
   deviceId: string;
 }): Promise<PlaybackBootstrap> {
-  const res = await studentApi.post(`/api/v1/videos/playback/start/`, {
+  const body: any = {
     video_id: params.videoId,
-    enrollment_id: params.enrollmentId,
     device_id: params.deviceId,
-  });
+  };
+  if (params.enrollmentId) {
+    body.enrollment_id = params.enrollmentId;
+  }
+  const res = await studentApi.post(`/api/v1/videos/playback/start/`, body);
   const d = res?.data || {};
   const policy = d.policy || {};
   return {

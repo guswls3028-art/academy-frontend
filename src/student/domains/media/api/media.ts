@@ -97,8 +97,12 @@ export async function fetchStudentVideoPlayback(
   videoId: number,
   enrollmentId?: number | null
 ): Promise<StudentVideoPlayback> {
+  const params: Record<string, string> = {};
+  if (enrollmentId) {
+    params.enrollment = String(enrollmentId);
+  }
   const res = await api.get(`/student/video/videos/${videoId}/playback/`, {
-    params: enrollmentId ? { enrollment: enrollmentId } : undefined,
+    params: Object.keys(params).length > 0 ? params : undefined,
   });
   return res.data as StudentVideoPlayback;
 }
