@@ -226,5 +226,6 @@ function ClinicIdcardColorSettings() {
         </div>
       </div>
     </div>
+    </>
   );
 }
