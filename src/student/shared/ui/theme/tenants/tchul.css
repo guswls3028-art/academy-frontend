@@ -56,14 +56,16 @@
   border-radius: 10px;
 }
 
-/* tchul 전용: 하단 탭바 활성 탭 — 그라데이션 인디케이터 */
-[data-student-tenant="tchul"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
+/* tchul/9999: 하단 탭바 활성 탭 — 그라데이션 인디케이터 */
+[data-student-tenant="tchul"] .stu-tabbar .stu-tabbar__link[aria-current="page"],
+[data-student-tenant="9999"] .stu-tabbar .stu-tabbar__link[aria-current="page"] {
   color: #0d47a1;
   font-weight: 800;
   position: relative;
 }
 
-[data-student-tenant="tchul"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
+[data-student-tenant="tchul"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after,
+[data-student-tenant="9999"] .stu-tabbar .stu-tabbar__link[aria-current="page"]::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -75,12 +77,14 @@
   background: var(--stu-gradient);
 }
 
-/* tchul 전용: primary 버튼 그라데이션 (로그인 페이지와 동일) */
-[data-student-tenant="tchul"] .stu-btn--primary {
+/* tchul/9999: primary 버튼 그라데이션 (로그인 페이지와 동일) */
+[data-student-tenant="tchul"] .stu-btn--primary,
+[data-student-tenant="9999"] .stu-btn--primary {
   background: var(--stu-gradient);
 }
 
-[data-student-tenant="tchul"] .stu-btn--primary:hover {
+[data-student-tenant="tchul"] .stu-btn--primary:hover,
+[data-student-tenant="9999"] .stu-btn--primary:hover {
   filter: brightness(0.92);
   background: var(--stu-gradient);
 }
