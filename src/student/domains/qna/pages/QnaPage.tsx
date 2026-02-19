@@ -177,7 +177,7 @@ function QnaWriteForm({
   const createMut = useMutation({
     mutationFn: () =>
       createPost({
-        block_type: blockTypeId ?? blockTypes[0]?.id ?? 1,
+        block_type: effectiveBlockTypeId!,
         title: title.trim(),
         content: content.trim(),
         node_ids: [],
