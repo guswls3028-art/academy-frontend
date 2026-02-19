@@ -73,3 +73,13 @@
   border-radius: 2px;
   background: var(--stu-gradient);
 }
+
+/* tchul 전용: primary 버튼 그라데이션 (로그인 페이지와 동일) */
+[data-student-tenant="tchul"] .stu-btn--primary {
+  background: var(--stu-gradient);
+}
+
+[data-student-tenant="tchul"] .stu-btn--primary:hover {
+  filter: brightness(0.92);
+  background: var(--stu-gradient);
+}
