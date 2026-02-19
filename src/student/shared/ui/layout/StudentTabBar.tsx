@@ -28,7 +28,8 @@ export default function StudentTabBar() {
         background: "var(--stu-tabbar-bg)",
         backdropFilter: "blur(20px)",
         borderTop: "1px solid var(--stu-border)",
-        boxShadow: "var(--stu-shadow-3)",
+        /* 프리미엄: iOS 고급 앱 스타일 - shadow 제거 */
+        boxShadow: "0 -1px 0 var(--stu-border)",
       }}
     >
       <div
@@ -60,7 +61,7 @@ export default function StudentTabBar() {
               position: "relative",
             })}
           >
-            <span style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center" }} aria-hidden>
+            <span style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.85 }} aria-hidden>
               {t.icon}
             </span>
             <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>

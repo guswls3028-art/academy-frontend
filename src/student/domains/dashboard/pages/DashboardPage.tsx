@@ -33,7 +33,7 @@ export default function DashboardPage() {
       {/* 공지 */}
       <Link
         to="/student/qna"
-        className="stu-panel stu-panel--pressable"
+        className="stu-panel stu-panel--pressable stu-panel--accent"
         style={{
           display: "flex",
           alignItems: "center",
@@ -71,7 +71,7 @@ export default function DashboardPage() {
               <Link
                 key={s.id}
                 to={`/student/sessions/${s.id}`}
-                className="stu-panel stu-panel--pressable"
+                className="stu-panel stu-panel--pressable stu-panel--accent"
                 style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", color: "inherit" }}
               >
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--stu-primary)", opacity: 0.9, display: "grid", placeItems: "center" }}>

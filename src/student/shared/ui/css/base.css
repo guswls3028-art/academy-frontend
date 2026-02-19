@@ -61,6 +61,11 @@ svg {
   max-width: 100%;
 }
 
+/* 프리미엄: Icon Density 조정 */
+.stu-icon {
+  opacity: 0.85;
+}
+
 /* Forms */
 input,
 button,
