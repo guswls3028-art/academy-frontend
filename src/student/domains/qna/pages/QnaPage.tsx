@@ -212,12 +212,6 @@ function QnaWriteForm({
         style={{
           width: "100%",
           marginBottom: "var(--stu-space-4)",
-          padding: "var(--stu-space-4)",
-          borderRadius: "var(--stu-radius-md)",
-          border: "1px solid var(--stu-border)",
-          background: "var(--stu-surface)",
-          color: "var(--stu-text)",
-          fontSize: 14,
           resize: "vertical",
         }}
       />
