@@ -472,48 +472,14 @@ a {
 }
 
 /* ======================================================
-   11) Button – Production Interaction (LOCK v2)
+   11) Button – Premium SaaS Interaction
+   Shadow 제거, Border 기반
    ====================================================== */
 
-.stu-btn {
-  position: relative;
-  will-change: transform, box-shadow;
-}
-
-/* Primary 버튼 고급화 */
-.stu-btn--primary {
-  box-shadow: var(--stu-shadow-1);
-}
-
-.stu-btn--primary:hover {
-  box-shadow: var(--stu-shadow-2);
-}
-
-@media (prefers-color-scheme: dark) {
-  .stu-btn--primary {
-    box-shadow: var(--stu-shadow-1),
-      var(--stu-glow-primary, 0 0 0 transparent);
-  }
-
-  .stu-btn--primary:hover {
-    box-shadow: var(--stu-shadow-2),
-      var(--stu-glow-primary, 0 0 14px rgba(79, 124, 255, 0.45));
-  }
-}
-
-/* Ghost 버튼 – 네온 포커스 */
-.stu-btn--ghost:focus-visible {
-  box-shadow: 0 0 0 4px
-    color-mix(in srgb, var(--stu-primary) 28%, transparent);
-}
-
-/* Danger 버튼 – 색 안정화 */
-.stu-btn--danger {
-  box-shadow: var(--stu-shadow-1);
-}
-
-.stu-btn--danger:hover {
-  box-shadow: var(--stu-shadow-2);
+/* 버튼 포커스 (Border 기반) */
+.stu-btn:focus-visible {
+  outline: 2px solid var(--stu-primary);
+  outline-offset: 2px;
 }
 
 /* ======================================================
@@ -526,17 +492,18 @@ a {
 }
 
 /* ======================================================
-   13) Subtle Motion (전역)
+   13) Subtle Motion (Premium SaaS)
+   Shadow 관련 transition 제거
    ====================================================== */
 
 @media (prefers-reduced-motion: no-preference) {
+  .stu-section--pressable,
   .stu-card--pressable,
   .stu-btn {
     transition:
-      transform 120ms ease,
-      box-shadow 160ms ease,
       background-color 120ms ease,
-      border-color 120ms ease;
+      border-color 120ms ease,
+      color 120ms ease;
   }
 }
 
