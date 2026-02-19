@@ -42,6 +42,7 @@
     "imagetracerjs": "^1.2.6",
     "pngjs": "^7.0.0",
     "postcss": "8",
+    "sharp": "^0.34.5",
     "tailwindcss": "4.1.18",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.22.0",
