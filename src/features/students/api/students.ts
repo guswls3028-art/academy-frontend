@@ -203,46 +203,48 @@ export async function getStudentDetail(id: number) {
  * CREATE
  * =============================== */
 
+/** 전화번호를 백엔드 스펙(정규화: 숫자만 11자리)으로 정규화 */
+function normalizePhone(v: string): string {
+  return String(v ?? "").replace(/\D/g, "").slice(0, 11);
+}
+
 export async function createStudent(form: any) {
   const name = safeStr(form?.name).trim();
   const initialPassword = safeStr(form?.initialPassword).trim();
 
-  const studentPhoneInput = safeStr(form?.studentPhone).trim();
-  const parentPhoneInput = safeStr(form?.parentPhone).trim();
-  const noPhone = !studentPhoneInput;
+  const studentPhoneRaw = safeStr(form?.studentPhone).trim();
+  const parentPhoneRaw = safeStr(form?.parentPhone).trim();
+  const parentPhone = normalizePhone(parentPhoneRaw);
+  const noPhone = !studentPhoneRaw;
 
   const phone = noPhone
-    ? `010${parentPhoneInput.replace(/\D/g, "").slice(-8)}`
-    : studentPhoneInput;
+    ? (parentPhone.length >= 8 ? `010${parentPhone.slice(-8)}` : "")
+    : normalizePhone(studentPhoneRaw);
 
   const payload: Record<string, unknown> = {
     name,
-    phone,
-    omr_code: safeStr(phone).slice(-8),
     initial_password: initialPassword,
-
-    parent_phone: parentPhoneInput,
-
-    school_type: form?.schoolType,
-    high_school: form?.schoolType === "HIGH" ? form?.school || null : null,
-    middle_school: form?.schoolType === "MIDDLE" ? form?.school || null : null,
-
-    high_school_class: form?.schoolType === "HIGH" ? form?.schoolClass || null : null,
-
-    major: form?.schoolType === "HIGH" ? form?.major || null : null,
-
+    parent_phone: parentPhone,
+    school_type: form?.schoolType ?? "HIGH",
+    high_school: form?.schoolType === "HIGH" ? (form?.school?.trim() || null) : null,
+    middle_school: form?.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null,
+    high_school_class: form?.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null,
+    major: form?.schoolType === "HIGH" ? (form?.major?.trim() || null) : null,
     grade: form?.grade ? Number(form.grade) : null,
     gender: form?.gender || null,
-    memo: form?.memo || null,
-
+    memo: form?.memo?.trim() || null,
     is_managed: !!form?.active,
-
     send_welcome_message: !!form?.sendWelcomeMessage,
     no_phone: noPhone,
   };
-  // ps_number 미입력 시 백엔드에서 6자리 자동 부여
+
+  if (phone) {
+    (payload as any).phone = phone;
+    (payload as any).omr_code = phone.slice(-8);
+  }
+
   const psNumber = safeStr(form?.psNumber).trim();
-  if (psNumber) payload.ps_number = psNumber;
+  if (psNumber) (payload as any).ps_number = psNumber;
 
   const res = await api.post("/students/", payload);
   return mapStudent(res.data);
