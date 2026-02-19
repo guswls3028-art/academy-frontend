@@ -228,6 +228,8 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedRateRef = useRef(1);
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
+  const swipeHandledRef = useRef(false);
+  const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
 
   const tokenRef = useRef(bootstrap.token);
   useEffect(() => {
