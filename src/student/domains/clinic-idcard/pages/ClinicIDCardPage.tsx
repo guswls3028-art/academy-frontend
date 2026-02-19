@@ -1,196 +1,222 @@
-// PATH: src/student/domains/clinic-idcard/pages/ClinicIDCardPage.tsx
+/**
+ * 클리닉 인증 — 실제 API 연동
+ * - 차시별 합불: progress.ClinicLink(is_auto) 단일 진실
+ * - 서버 날짜·시각 크게 표시 (위조 방지, 이미지/띠 등 조작 불가)
+ * - 1~n차시 이력 + 중앙에 n차시 합불여부 (클리닉 대상 = 빨간색 / 합격 = 초록)
+ */
+import { useQuery } from "@tanstack/react-query";
+import { fetchClinicIdcard } from "../api/idcard";
 
-import { useEffect, useMemo, useState } from "react";
-
-type Result = "SUCCESS" | "FAIL";
-
-type History = {
-  index: number;
-  result: Result;
-};
+function formatDisplayDate(isoDate: string): string {
+  if (!isoDate) return "-";
+  try {
+    const d = new Date(isoDate + "Z");
+    return d.toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      weekday: "long",
+    });
+  } catch {
+    return isoDate;
+  }
+}
 
 export default function ClinicIDCardPage() {
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const studentName = "홍길동";
-
-  /** ✅ 히스토리: 클릭으로 상태 변경 */
-  const [histories, setHistories] = useState<History[]>([
-    { index: 1, result: "SUCCESS" },
-    { index: 2, result: "SUCCESS" },
-    { index: 3, result: "FAIL" },
-    { index: 4, result: "SUCCESS" },
-  ]);
-
-  /** ✅ 하나라도 FAIL이면 클리닉 대상자 */
-  const hasFail = useMemo(
-    () => histories.some((h) => h.result === "FAIL"),
-    [histories]
-  );
-
-  const dateText = now.toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["clinic-idcard"],
+    queryFn: fetchClinicIdcard,
   });
 
-  function toggleHistory(index: number) {
-    setHistories((prev) =>
-      prev.map((h) =>
-        h.index === index
-          ? {
-              ...h,
-              result: h.result === "SUCCESS" ? "FAIL" : "SUCCESS",
-            }
-          : h
-      )
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          minHeight: "100dvh",
+          background: "#0f1419",
+          color: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
+        <div style={{ fontSize: 18, color: "var(--stu-text-muted)" }}>불러오는 중…</div>
+      </div>
     );
   }
+
+  if (error || !data) {
+    return (
+      <div
+        style={{
+          minHeight: "100dvh",
+          background: "#0f1419",
+          color: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
+        <div style={{ fontSize: 16, color: "#f87171" }}>
+          {error instanceof Error ? error.message : "데이터를 불러올 수 없습니다."}
+        </div>
+      </div>
+    );
+  }
+
+  const isClinicTarget = data.current_result === "FAIL";
 
   return (
     <div
       style={{
-        minHeight: "100vh",
-        background: "#000",
+        minHeight: "100dvh",
+        background: "#0f1419",
         color: "#fff",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        paddingTop: 32,
+        padding: "var(--stu-space-6) var(--stu-space-4)",
+        paddingTop: "max(var(--stu-safe-top), 24px)",
       }}
     >
-      {/* 📅 날짜 */}
+      {/* 서버 기준 오늘 날짜 — 위조 방지용으로 크게 */}
       <div
         style={{
-          fontSize: 30,
-          fontWeight: 900,
-          letterSpacing: "-0.5px",
-          marginBottom: 25,
-          color: "#b2e5e9ff",
-          textShadow: "0 0 12px rgba(0,255,208,0.35)",
+          fontSize: "clamp(1.25rem, 5vw, 1.75rem)",
+          fontWeight: 800,
+          letterSpacing: "-0.02em",
+          marginBottom: 8,
+          color: "#94a3b8",
         }}
       >
-        {dateText}
+        조회 일시
       </div>
-
-      {/* ⏰ 시간 */}
       <div
         style={{
-          fontSize: 36,
+          fontSize: "clamp(1.5rem, 6vw, 2.25rem)",
           fontWeight: 900,
-          letterSpacing: 1,
+          letterSpacing: "-0.02em",
+          marginBottom: 24,
+          color: "#e2e8f0",
+        }}
+      >
+        {formatDisplayDate(data.server_date)}
+      </div>
+      <div
+        style={{
+          fontSize: "clamp(1rem, 4vw, 1.25rem)",
+          fontWeight: 700,
+          color: "#64748b",
+          marginBottom: 32,
+        }}
+      >
+        {data.server_datetime ? new Date(data.server_datetime).toLocaleTimeString("ko-KR") : ""}
+      </div>
+
+      {/* 학생 이름 */}
+      <div
+        style={{
+          fontSize: "clamp(1.25rem, 5vw, 1.5rem)",
+          fontWeight: 800,
           marginBottom: 28,
         }}
       >
-        {now.toLocaleTimeString()}
+        {data.student_name || "-"}
       </div>
 
-      {/* 👤 학생 이름 */}
+      {/* 중앙: n차시 합불여부 — 클리닉 대상(빨강) / 합격(초록) */}
       <div
         style={{
-          fontSize: 38,
-          fontWeight: 900,
-          marginBottom: 22,
-        }}
-      >
-        {studentName}
-      </div>
-
-      {/* ✅ 합 / ❌ 클리닉 */}
-      <div
-        key={hasFail ? "fail" : "success"} // 🔥 상태 바뀔 때 애니메이션 재실행
-        style={{
-          width: "90%",
+          width: "100%",
           maxWidth: 420,
-          padding: "30px 20px",
-          borderRadius: 22,
+          padding: "28px 20px",
+          borderRadius: 16,
           textAlign: "center",
-          fontSize: 42,
-          fontWeight: 900,
-          marginBottom: 30,
-          background: hasFail
-            ? "linear-gradient(135deg, #ff3b3b, #b40000)"
-            : "linear-gradient(135deg, #00ff9c, #00b36b)",
-          color: "#000",
-          animation: hasFail
-            ? "failPulse 0.9s ease-in-out"
-            : "successPop 0.6s ease-out",
+          marginBottom: 32,
+          background: isClinicTarget
+            ? "linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%)"
+            : "linear-gradient(135deg, #15803d 0%, #14532d 100%)",
+          color: "#fff",
+          boxShadow: isClinicTarget ? "0 8px 24px rgba(185,28,28,0.35)" : "0 8px 24px rgba(21,128,61,0.35)",
         }}
       >
-        {hasFail ? "❌ 클리닉 대상자" : "✅ 합격"}
+        <div style={{ fontSize: "clamp(1.5rem, 6vw, 2.25rem)", fontWeight: 900 }}>
+          {isClinicTarget ? "클리닉 대상" : "클리닉 대상 아님"}
+        </div>
+        <div style={{ fontSize: "clamp(0.9rem, 3.5vw, 1.1rem)", fontWeight: 700, marginTop: 8, opacity: 0.95 }}>
+          {isClinicTarget ? "해당 차시 이수·합격 후 해제됩니다." : "합격"}
+        </div>
       </div>
 
-      {/* 📊 차시 히스토리 (클릭 가능) */}
+      {/* 차시별 이력 (1~n) — 읽기 전용, 클릭 불가 */}
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#64748b",
+          marginBottom: 12,
+          alignSelf: "flex-start",
+          maxWidth: 420,
+          width: "100%",
+        }}
+      >
+        차시별 이력 (합격/클리닉 대상)
+      </div>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 12,
-          width: "90%",
+          gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
+          gap: 10,
+          width: "100%",
           maxWidth: 420,
         }}
       >
-        {histories.map((h) => (
-          <div
-            key={h.index}
-            onClick={() => toggleHistory(h.index)}
-            style={{
-              padding: "16px 0",
-              borderRadius: 14,
-              textAlign: "center",
-              fontWeight: 900,
-              fontSize: 16,
-              background:
-                h.result === "SUCCESS" ? "#0aff9d" : "#ff2e2e",
-              color: "#000",
-              cursor: "pointer",
-              userSelect: "none",
-              transition: "transform 120ms ease",
-            }}
-          >
-            {h.index}차시
-            <div style={{ marginTop: 6 }}>
-              {h.result === "SUCCESS" ? "합격" : "불합격"}
-            </div>
+        {data.histories.length === 0 ? (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", color: "#64748b", fontSize: 14 }}>
+            차시 이력이 없습니다.
           </div>
-        ))}
+        ) : (
+          data.histories.map((h) => (
+            <div
+              key={h.session_order}
+              style={{
+                padding: "14px 8px",
+                borderRadius: 12,
+                textAlign: "center",
+                fontWeight: 800,
+                fontSize: 14,
+                background: h.clinic_required ? "#7f1d1d" : "#14532d",
+                color: "#fff",
+                pointerEvents: "none",
+                userSelect: "none",
+              }}
+            >
+              {h.session_order}차시
+              <div style={{ marginTop: 6, fontSize: 12, opacity: 0.95 }}>
+                {h.clinic_required ? "클리닉 대상" : "합격"}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
-      {hasFail && (
+      {isClinicTarget && (
         <div
           style={{
             marginTop: 28,
-            color: "#ff5555",
-            fontSize: 18,
-            fontWeight: 900,
+            color: "#fca5a5",
+            fontSize: 15,
+            fontWeight: 700,
             textAlign: "center",
           }}
         >
-          ❗ 클리닉 대상자 — 즉시 조치 필요
+          클리닉 대상 — 선생님 안내에 따라 참여해 주세요.
         </div>
       )}
-
-      <style>
-        {`
-          @keyframes failPulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-          }
-
-          @keyframes successPop {
-            0% { transform: scale(0.96); }
-            70% { transform: scale(1.04); }
-            100% { transform: scale(1); }
-          }
-        `}
-      </style>
     </div>
   );
 }
