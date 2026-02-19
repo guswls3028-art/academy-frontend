@@ -30,7 +30,7 @@ export default function DashboardScheduleCard({
               key={`${it.type}-${it.id}`}
               style={{
                 padding: 12,
-                borderRadius: 12,
+                borderRadius: "var(--stu-radius-md)",
                 background: "var(--stu-card)",
                 display: "flex",
                 justifyContent: "space-between",
