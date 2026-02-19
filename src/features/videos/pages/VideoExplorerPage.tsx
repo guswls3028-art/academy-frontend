@@ -3,10 +3,10 @@
  * 전체공개영상(맨위) + 강의명 > 1~n차시 트리, 우측에 영상 그리드
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { FilePlus } from "lucide-react";
+import { FilePlus, FolderPlus, X } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
