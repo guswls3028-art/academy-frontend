@@ -49,6 +49,10 @@
   /* 헤더/탭바 (화이트톤 + 하단 보더) */
   --stu-header-bg: rgba(250, 251, 252, 0.92);
   --stu-tabbar-bg: rgba(250, 251, 252, 0.95);
+
+  /* Primary Tint (다크 모드 방지) */
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
 }
 
 /* tchul 테마: 포커스 링 (auth와 동일) */
