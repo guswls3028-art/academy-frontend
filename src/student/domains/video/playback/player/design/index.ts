@@ -1,4 +1,4 @@
-// PATH: src/student/domains/media/playback/player/design/index.ts
+// PATH: src/student/domains/video/playback/player/design/index.ts
 import "./ui.css";
 
 export * from "./ui";
