@@ -43,6 +43,22 @@ export default function CourseCard({
         display: "block",
         width: "100%",
         textAlign: "left",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        cursor: "pointer",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "translateY(-4px)";
+        e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.5)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "none";
+      }}
+      onMouseDown={(e) => {
+        e.currentTarget.style.transform = "translateY(-2px) scale(0.98)";
+      }}
+      onMouseUp={(e) => {
+        e.currentTarget.style.transform = "translateY(-4px)";
       }}
     >
       {/* 썸네일 영역 */}
