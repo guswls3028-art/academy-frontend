@@ -37,6 +37,8 @@ function normalizeExam(raw: any): Exam {
  */
 export async function fetchExams(params?: {
   exam_type?: ExamType;
+  session_id?: number;
+  lecture_id?: number;
 }): Promise<Exam[]> {
   const res = await api.get(`/exams/`, { params });
 
