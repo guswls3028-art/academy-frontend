@@ -323,24 +323,14 @@ export default function VideoExplorerPage() {
             ) : (
               <div className={styles.grid}>
                 {selectedFolderId === "public" && publicSession && (
-                  <>
-                    <div
-                      className={styles.item + " " + styles.itemAdd}
-                      onClick={() => setNewFolderOpen(true)}
-                      title="폴더 추가"
-                    >
-                      <FolderPlus size={32} />
-                      <span>폴더 추가</span>
-                    </div>
-                    <div
-                      className={styles.item + " " + styles.itemAdd}
-                      onClick={() => openUploadModal(publicSession.session_id)}
-                      title="영상 추가"
-                    >
-                      <FilePlus size={32} />
-                      <span>추가</span>
-                    </div>
-                  </>
+                  <div
+                    className={styles.item + " " + styles.itemAdd}
+                    onClick={() => setAddChoiceModalOpen(true)}
+                    title="추가"
+                  >
+                    <FilePlus size={32} />
+                    <span>추가</span>
+                  </div>
                 )}
                 {selectedSession && selectedFolderId !== "public" && (
                   <div
