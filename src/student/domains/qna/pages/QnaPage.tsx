@@ -39,11 +39,25 @@ export default function QnaPage() {
       qc.invalidateQueries({ queryKey: ["student-community-posts"] });
       setTitle("");
       setContent("");
+      setFiles([]);
     },
   });
 
   const canSubmit =
     title.trim().length > 0 && content.trim().length > 0 && effectiveBlockTypeId != null;
+
+  const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosen = Array.from(e.target.files || []);
+    const ok: File[] = [];
+    for (const f of chosen) {
+      if (f.size > MAX_SIZE_MB * 1024 * 1024) continue;
+      if (ok.length + files.length >= MAX_FILES) break;
+      ok.push(f);
+    }
+    setFiles((prev) => [...prev, ...ok].slice(0, MAX_FILES));
+    e.target.value = "";
+  };
+  const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
 
   return (
     <StudentPageShell
