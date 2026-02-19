@@ -486,7 +486,14 @@ export default function AsyncStatusBar() {
     fetchInProgressVideos()
       .then((videos) => {
         const existing = new Set(
-          asyncStatusStore.getState().filter((t) => t.meta?.jobType === "video_processing").map((t) => t.id)
+          asyncStatusStore
+            .getState()
+            .filter(
+              (t) =>
+                t.meta?.jobType === "video_processing" &&
+                (t.tenantScope ?? "") === tenant
+            )
+            .map((t) => t.id)
         );
         videos.forEach((v) => {
           const id = String(v.id);
