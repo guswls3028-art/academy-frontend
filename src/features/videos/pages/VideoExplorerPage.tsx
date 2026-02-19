@@ -215,23 +215,19 @@ export default function VideoExplorerPage() {
                   }
                   description={
                     selectedFolderId === "public"
-                      ? "강의 > 차시에서 영상을 업로드할 수 있습니다."
-                      : "강의 > 해당 차시에서 영상을 추가해 주세요."
+                      ? "아래 버튼으로 전체공개 영상을 업로드하세요. 프로그램에 등록된 모든 학생이 시청할 수 있습니다."
+                      : "아래 버튼으로 이 차시에 영상을 추가하세요."
                   }
                   actions={
-                    selectedSession && (
-                      <Button
-                        intent="primary"
-                        size="sm"
-                        onClick={() =>
-                          navigate(
-                            `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}`
-                          )
-                        }
-                      >
+                    (selectedFolderId === "public" && publicSession ? (
+                      <Button intent="primary" size="sm" onClick={() => openUploadModal(publicSession.session_id)}>
                         영상 추가
                       </Button>
-                    )
+                    ) : selectedSession ? (
+                      <Button intent="primary" size="sm" onClick={() => openUploadModal(selectedSession.session.id)}>
+                        영상 추가
+                      </Button>
+                    ) : null)
                   }
                 />
               </div>
