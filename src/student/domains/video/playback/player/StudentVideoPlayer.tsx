@@ -227,6 +227,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedRateRef = useRef(1);
+  const gestureLayerRef = useRef<HTMLDivElement | null>(null);
 
   const tokenRef = useRef(bootstrap.token);
   useEffect(() => {
