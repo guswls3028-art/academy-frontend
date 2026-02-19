@@ -261,18 +261,22 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     });
   }, [onLeaveProgress]);
 
-  useEffect(() => {
-    return () => { flushProgress(); };
-  }, [flushProgress]);
+  const flushProgressRef = useRef(flushProgress);
+  flushProgressRef.current = flushProgress;
 
-  // Page Visibility: 다른 탭 이동·사파리 창 내리기 시 한 번 저장 (모바일 웹)
+  // Unmount 시에만 저장. deps에 flushProgress 넣지 않음 → 부모 리렌더 시 cleanup 반복 실행 방지 (React #310)
+  useEffect(() => {
+    return () => { flushProgressRef.current?.(); };
+  }, []);
+
+  // Page Visibility: 다른 탭 이동·사파리 창 내리기 시 한 번 저장 (모바일 웹). ref 사용으로 effect 재실행 방지
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") flushProgress();
+      if (document.visibilityState === "hidden") flushProgressRef.current?.();
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [flushProgress]);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Fullscreen sync + body scroll lock (모바일 Player Mode)

@@ -1,5 +1,5 @@
 // PATH: src/student/domains/video/pages/VideoPlayerPage.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
@@ -202,6 +202,19 @@ export default function VideoPlayerPage() {
     },
   });
 
+  // 진행률 전달 콜백: 참조 안정화로 자식 useEffect 의존성 변경 시 cleanup→mutate→invalidate 무한 루프 방지 (React #310)
+  const onLeaveProgress = useCallback(
+    (data: { progress?: number; completed?: boolean; last_position?: number }) => {
+      if (!videoId) return;
+      progressMutation.mutate({
+        progress: data.progress,
+        last_position: data.last_position,
+        completed: data.completed,
+      });
+    },
+    [videoId, progressMutation]
+  );
+
   // 수강 완료 처리
   const handleComplete = () => {
     if (!videoId || !video) return;
@@ -281,14 +294,7 @@ export default function VideoPlayerPage() {
             bootstrap={boot}
             enrollmentId={enrollmentId ? Number(enrollmentId) : 0}
             onFatal={(reason) => setErr(reason)}
-            onLeaveProgress={(data) => {
-              if (!videoId) return;
-              progressMutation.mutate({
-                progress: data.progress,
-                last_position: data.last_position,
-                completed: data.completed,
-              });
-            }}
+            onLeaveProgress={onLeaveProgress}
           />
           
           {/* 하단: 행동 중심 UI (YouTube SaaS 스타일) */}
