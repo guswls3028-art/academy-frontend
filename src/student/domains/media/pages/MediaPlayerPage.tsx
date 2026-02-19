@@ -18,54 +18,6 @@ function useQuery() {
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
-async function fetchVideo(videoId: number, enrollmentId?: number | null): Promise<VideoMetaLite & { 
-  description?: string | null;
-  created_at?: string | null;
-  view_count?: number | null;
-  tags?: string[];
-}> {
-  // 학생 앱 전용 API 사용: /student/video/videos/{id}/playback/
-  const playbackData = await fetchStudentVideoPlayback(videoId, enrollmentId);
-  const v = playbackData.video;
-  return {
-    id: Number(v.id),
-    title: String(v.title ?? "영상"),
-    duration: v.duration == null ? null : Number(v.duration),
-    status: String(v.status ?? ""),
-    thumbnail_url: v.thumbnail_url ?? null,
-    hls_url: v.hls_url ?? null,
-    description: (v as any).description ?? null,
-    created_at: (v as any).created_at ?? null,
-    view_count: (v as any).view_count ?? null,
-    tags: Array.isArray((v as any).tags) ? (v as any).tags : [],
-  };
-}
-
-async function startPlayback(params: {
-  videoId: number;
-  enrollmentId?: number | null;
-  deviceId: string;
-}): Promise<PlaybackBootstrap> {
-  // 학생 앱 전용 API 사용: /student/video/videos/{id}/playback/
-  const playbackData = await fetchStudentVideoPlayback(params.videoId, params.enrollmentId);
-  
-  // play_url이 없으면 hls_url 또는 mp4_url 사용
-  const playUrl = playbackData.hls_url || playbackData.mp4_url || "";
-  
-  if (!playUrl) {
-    throw new Error("재생 URL을 가져올 수 없습니다.");
-  }
-  
-  return {
-    token: `student-${params.videoId}-${Date.now()}`, // 학생 앱용 임시 token
-    session_id: null,
-    expires_at: null,
-    access_mode: playbackData.policy?.access_mode || "FREE_REVIEW",
-    monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
-    policy: playbackData.policy || {},
-    play_url: playUrl,
-  };
-}
 
 export default function MediaPlayerPage() {
   const nav = useNavigate();
@@ -107,25 +59,44 @@ export default function MediaPlayerPage() {
 
       try {
         const deviceId = getOrCreateDeviceId();
-        // 전체공개영상인지 확인 (enrollmentId 없이도 재생 가능)
-        const v = await fetchVideo(videoId);
-        const isPublicVideo = !enrollmentId; // 전체공개영상은 enrollmentId가 없을 수 있음
         
-        const b = await startPlayback({ 
-          videoId, 
-          enrollmentId: enrollmentId || undefined, 
-          deviceId 
-        });
-
+        // 학생 앱 전용 API로 비디오 정보와 재생 정보를 한 번에 가져오기
+        const playbackData = await fetchStudentVideoPlayback(videoId, enrollmentId || undefined);
+        
         if (!alive) return;
 
-        if (!b.token || !b.play_url) {
-          setErr("재생 세션 생성 실패");
+        // 비디오 정보 추출
+        const v = {
+          id: Number(playbackData.video.id),
+          title: String(playbackData.video.title ?? "영상"),
+          duration: playbackData.video.duration == null ? null : Number(playbackData.video.duration),
+          status: String(playbackData.video.status ?? ""),
+          thumbnail_url: playbackData.video.thumbnail_url ?? null,
+          hls_url: playbackData.hls_url ?? null,
+          description: (playbackData.video as any).description ?? null,
+          created_at: (playbackData.video as any).created_at ?? null,
+          view_count: (playbackData.video as any).view_count ?? null,
+          tags: Array.isArray((playbackData.video as any).tags) ? (playbackData.video as any).tags : [],
+        };
+
+        // 재생 URL 확인
+        const playUrl = playbackData.hls_url || playbackData.mp4_url || "";
+        if (!playUrl) {
+          setErr("재생 URL을 가져올 수 없습니다.");
           setLoading(false);
           return;
         }
 
-        // For FREE_REVIEW mode, session_id and expires_at may be null (expected)
+        // Bootstrap 정보 생성
+        const b: PlaybackBootstrap = {
+          token: `student-${videoId}-${Date.now()}`, // 학생 앱용 임시 token
+          session_id: null,
+          expires_at: null,
+          access_mode: playbackData.policy?.access_mode || "FREE_REVIEW",
+          monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
+          policy: playbackData.policy || {},
+          play_url: playUrl,
+        };
 
         setVideo(v);
         setBoot(b);
