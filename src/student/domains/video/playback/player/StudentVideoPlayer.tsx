@@ -1290,7 +1290,6 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                 )}
               </div>
             </div>
-            </div>
           </div>
 
           <PlayerToast toast={toast} onClose={() => setToast(null)} />
