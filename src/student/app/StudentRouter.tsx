@@ -6,6 +6,8 @@ import StudentLayout from "@/student/shared/ui/layout/StudentLayout";
 
 import DashboardPage from "@/student/domains/dashboard/pages/DashboardPage";
 import VideoHomePage from "@/student/domains/media/pages/VideoHomePage";
+import CourseDetailPage from "@/student/domains/media/pages/CourseDetailPage";
+import MediaSessionDetailPage from "@/student/domains/media/pages/SessionDetailPage";
 import MediaPlayerPage from "@/student/domains/media/pages/MediaPlayerPage";
 
 import SessionListPage from "@/student/domains/sessions/pages/SessionListPage";
