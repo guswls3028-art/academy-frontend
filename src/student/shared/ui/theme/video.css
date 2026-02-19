@@ -163,6 +163,17 @@
   background-color: #000 !important;
 }
 
+/* 강의/차시 상세: Shell의 .stu-section 외곽 회색 박스 제거 — 콘텐츠가 검정에 맞닿게 */
+[data-app="student"][data-video-page="true"] main .stu-section.stu-section--video-page {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+[data-app="student"][data-video-page="true"] main .stu-section.stu-section--video-page::before {
+  display: none !important;
+}
+
 
 /* =========================
    영상 페이지 내부 컴포넌트

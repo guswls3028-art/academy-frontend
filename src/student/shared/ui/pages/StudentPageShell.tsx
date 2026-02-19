@@ -10,12 +10,15 @@ export default function StudentPageShell({
   actions,
   children,
   onBack,
+  /** 영상 강의/차시 상세처럼 배경을 검정으로 채울 때 사용. .stu-section 외곽 박스/패딩 제거 */
+  noSectionFrame,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
   onBack?: () => void;
+  noSectionFrame?: boolean;
 }) {
   const navigate = useNavigate();
 
@@ -66,7 +69,9 @@ export default function StudentPageShell({
         {actions && <div>{actions}</div>}
       </div>
 
-      <div className="stu-section">{children}</div>
+      <div className={noSectionFrame ? "stu-section stu-section--video-page" : "stu-section"}>
+        {children}
+      </div>
     </div>
   );
 }

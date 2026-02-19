@@ -266,7 +266,7 @@ export default function SessionDetailPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="">
+      <StudentPageShell title="" noSectionFrame>
         <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
           <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
           <div className="stu-skel" style={{ height: 100, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
@@ -277,7 +277,7 @@ export default function SessionDetailPage() {
 
   if (!sessionIdNum || videos.length === 0) {
     return (
-      <StudentPageShell title="">
+      <StudentPageShell title="" noSectionFrame>
         <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
           <EmptyState
             title="차시를 찾을 수 없습니다"
@@ -289,7 +289,7 @@ export default function SessionDetailPage() {
   }
 
   return (
-    <StudentPageShell title="">
+    <StudentPageShell title="" noSectionFrame>
       <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
         {/* 하단: 영상 목록 (큰 썸네일 배너 제거) */}
         <div>

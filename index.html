@@ -5,6 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/vite.svg" type="image/svg+xml" />
     <title>HakwonPlus</title>
+    <!-- Open Graph: 카카오톡/페이스북 등 링크 미리보기. 호스트별 값은 아래 스크립트로 보정 -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="HakwonPlus" />
+    <meta property="og:description" content="학원 관리·학생 학습 플랫폼" />
+    <meta property="og:url" content="" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="HakwonPlus" />
+    <meta name="twitter:description" content="학원 관리·학생 학습 플랫폼" />
+    <script>
+      (function () {
+        var host = (typeof location !== "undefined" && location.hostname) ? location.hostname.toLowerCase() : "";
+        var title = "HakwonPlus";
+        var desc = "학원 관리·학생 학습 플랫폼";
+        if (host === "tchul.com" || host === "www.tchul.com") {
+          title = "박철과학";
+          desc = "박철과학 학습 플랫폼 – 학생·선생님 로그인";
+        }
+        document.title = title;
+        var ogTitle = document.querySelector('meta[property="og:title"]');
+        if (ogTitle) ogTitle.setAttribute("content", title);
+        var ogDesc = document.querySelector('meta[property="og:description"]');
+        if (ogDesc) ogDesc.setAttribute("content", desc);
+        var twTitle = document.querySelector('meta[name="twitter:title"]');
+        if (twTitle) twTitle.setAttribute("content", title);
+        var twDesc = document.querySelector('meta[name="twitter:description"]');
+        if (twDesc) twDesc.setAttribute("content", desc);
+        var ogUrl = document.querySelector('meta[property="og:url"]');
+        if (ogUrl && typeof location !== "undefined" && location.href) ogUrl.setAttribute("content", location.href);
+      })();
+    </script>
   </head>
   <body>
     <script>

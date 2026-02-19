@@ -223,10 +223,12 @@ export default function CourseDetailPage() {
   const { lectureId } = useParams<{ lectureId?: string }>();
   const location = useLocation();
   const nav = useNavigate();
-  // 정적 라우트 video/courses/public 으로 왔을 때는 lectureId가 없으므로 pathname으로 판별
+  // 전체공개영상: 정적 라우트 video/courses/public 또는 pathname에 courses/public 포함 시
+  const pathname = location.pathname.replace(/\/$/, "");
   const isPublic =
     lectureId === "public" ||
-    location.pathname.replace(/\/$/, "").endsWith("video/courses/public");
+    pathname.endsWith("video/courses/public") ||
+    pathname.includes("/video/courses/public");
   const lectureIdNum = isPublic ? null : (lectureId ? parseInt(lectureId, 10) : null);
 
   const { data: videoMe, isLoading } = useQuery({
@@ -241,7 +243,7 @@ export default function CourseDetailPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="">
+      <StudentPageShell title="" noSectionFrame>
         <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
           <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
           <div className="stu-skel" style={{ height: 120, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
@@ -250,9 +252,10 @@ export default function CourseDetailPage() {
     );
   }
 
-  if (!lecture && !isPublic) {
+  // 전체공개영상이 아닐 때만 수업 없음 오류 표시
+  if (!isPublic && !lecture) {
     return (
-      <StudentPageShell title="">
+      <StudentPageShell title="" noSectionFrame>
         <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
           <EmptyState
             title="수업을 찾을 수 없습니다"
@@ -289,7 +292,7 @@ export default function CourseDetailPage() {
   }, [firstSessionVideos]);
 
   return (
-    <StudentPageShell title="">
+    <StudentPageShell title="" noSectionFrame>
       <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
         {/* 상단: 수업 정보 (썸네일 배너 제거) */}
         <div

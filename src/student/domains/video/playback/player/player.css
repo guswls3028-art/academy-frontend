@@ -228,6 +228,64 @@
   margin-bottom: 10px;
 }
 
+/* 모바일: 컨트롤 영역 축소, 선택 옵션 일부 숨김 */
+@media (max-width: 768px), (hover: none) {
+  .svpControls {
+    padding: 6px 8px 8px 8px;
+  }
+  .svpProgressRow {
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .svpControlRow {
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .svpLeftControls,
+  .svpRightControls {
+    gap: 4px;
+  }
+  .svpVolumeSlider {
+    display: none !important;
+  }
+  .svpVolume {
+    min-width: 0;
+  }
+  .svpPolicyHint,
+  .svpPolicyHintMuted {
+    display: none !important;
+  }
+  .svpTopBar {
+    padding: 8px 10px 6px 10px;
+  }
+  .svpTitle {
+    font-size: 13px;
+  }
+  .svpMeta {
+    display: none;
+  }
+  .svpPills {
+    display: none;
+  }
+  .svpTime {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+}
+
+/* 터치 디바이스: 버튼 터치 영역 확대 (44px 권장) */
+@media (hover: none) and (pointer: coarse) {
+  .svpControls .svpBtn {
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+  }
+  .svpControls .svpBtnIcon {
+    font-size: 14px;
+  }
+}
+
 .svpTime {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.86);
@@ -256,6 +314,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+@media (max-width: 768px), (hover: none) {
+  .svpRightControls > *:not(:last-child) {
+    display: none !important;
+  }
 }
 
 .svpVolume {

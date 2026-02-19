@@ -692,9 +692,9 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     }
   }, []);
 
-  const requestFullscreen = useCallback(async () => {
+  const requestFullscreen = useCallback(() => {
     const wrap = wrapEl.current;
-    if (!wrap) return;
+    const video = videoEl.current;
 
     const isFs =
       document.fullscreenElement ||
@@ -704,12 +704,28 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     try {
       if (!isFs) {
         queueEvent("FULLSCREEN_ENTER", {});
-        if (wrap.requestFullscreen) return await wrap.requestFullscreen();
-        if ((wrap as any).webkitRequestFullscreen) return await (wrap as any).webkitRequestFullscreen();
+        // 모바일(iOS 등)에서는 사용자 제스처 직후 동기 호출이 필요. await 쓰지 않음.
+        if (wrap?.requestFullscreen) {
+          wrap.requestFullscreen();
+          return;
+        }
+        if ((wrap as any)?.webkitRequestFullscreen) {
+          (wrap as any).webkitRequestFullscreen();
+          return;
+        }
+        // iOS Safari 등: div 대신 video 요소만 전체화면 지원하는 경우
+        if (video?.requestFullscreen) {
+          video.requestFullscreen();
+          return;
+        }
+        if ((video as any)?.webkitRequestFullscreen) {
+          (video as any).webkitRequestFullscreen();
+          return;
+        }
       } else {
         queueEvent("FULLSCREEN_EXIT", {});
-        if (document.exitFullscreen) return await document.exitFullscreen();
-        if ((document as any).webkitExitFullscreen) return await (document as any).webkitExitFullscreen();
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
       }
     } catch {}
   }, [queueEvent]);
@@ -1053,7 +1069,11 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                       label={theater ? "기본 보기" : "극장 모드"}
                       onClick={() => setTheater((v) => !v)}
                     />
-                    <IconButton icon="fullscreen" label="전체화면" onClick={requestFullscreen} />
+                    <IconButton
+                      icon="fullscreen"
+                      label="전체화면"
+                      onPointerDown={() => requestFullscreen()}
+                    />
                   </div>
                 </div>
 

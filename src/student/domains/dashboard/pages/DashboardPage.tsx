@@ -124,7 +124,7 @@ export default function DashboardPage() {
             <div className="stu-action-tile__label">QnA</div>
           </Link>
           <Link
-            to="/student/exams"
+            to="/student/submit"
             className="stu-action-tile"
           >
             <div className="stu-action-tile__icon">

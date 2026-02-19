@@ -22,6 +22,7 @@ export function IconButton({
   icon,
   label,
   onClick,
+  onPointerDown,
 }: {
   icon:
     | "play"
@@ -34,10 +35,25 @@ export function IconButton({
     | "theater"
     | "shrink";
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
+  /** 모바일에서 전체화면 등 사용자 제스처 직후 API 호출용. 전달 시 pointerdown에서 호출하고 preventDefault로 click 중복 방지 */
+  onPointerDown?: (e: React.PointerEvent) => void;
 }) {
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (onPointerDown) {
+      onPointerDown(e);
+      e.preventDefault();
+    }
+  };
   return (
-    <button type="button" className="svpBtn" onClick={onClick} aria-label={label} title={label}>
+    <button
+      type="button"
+      className="svpBtn"
+      onClick={onPointerDown ? undefined : onClick}
+      onPointerDown={onPointerDown ? handlePointerDown : undefined}
+      aria-label={label}
+      title={label}
+    >
       <span className="svpBtnIcon" aria-hidden="true">
         {icon === "play" ? "▶" : null}
         {icon === "pause" ? "❚❚" : null}

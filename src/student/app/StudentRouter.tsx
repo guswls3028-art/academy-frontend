@@ -17,6 +17,9 @@ import ExamListPage from "@/student/domains/exams/pages/ExamListPage";
 import ExamDetailPage from "@/student/domains/exams/pages/ExamDetailPage";
 import ExamSubmitPage from "@/student/domains/exams/pages/ExamSubmitPage";
 import ExamResultPage from "@/student/domains/exams/pages/ExamResultPage";
+import SubmitHubPage from "@/student/domains/submit/pages/SubmitHubPage";
+import SubmitScorePage from "@/student/domains/submit/pages/SubmitScorePage";
+import SubmitAssignmentPage from "@/student/domains/submit/pages/SubmitAssignmentPage";
 
 import GradesPage from "@/student/domains/grades/pages/GradesPage";
 import MorePage from "@/student/domains/more/pages/MorePage";
@@ -46,6 +49,9 @@ export default function StudentRouter() {
         <Route path="sessions" element={<SessionListPage />} />
         <Route path="sessions/:sessionId" element={<SessionDetailPage />} />
 
+        <Route path="submit" element={<SubmitHubPage />} />
+        <Route path="submit/score" element={<SubmitScorePage />} />
+        <Route path="submit/assignment" element={<SubmitAssignmentPage />} />
         <Route path="exams" element={<ExamListPage />} />
         <Route path="exams/:examId" element={<ExamDetailPage />} />
         <Route path="exams/:examId/submit" element={<ExamSubmitPage />} />

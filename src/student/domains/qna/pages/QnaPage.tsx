@@ -374,8 +374,9 @@ function QuestionFormPage({
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hadFilesOnSubmitRef = useRef(false);
 
-  const { data: blockTypes = [] } = useQuery({
+  const { data: blockTypes = [], isLoading: blockTypesLoading } = useQuery({
     queryKey: ["community-block-types"],
     queryFn: () => fetchBlockTypes(),
   });
@@ -385,13 +386,18 @@ function QuestionFormPage({
   const effectiveBlockTypeId = qnaBlockType?.id ?? blockTypes[0]?.id;
 
   const createMut = useMutation({
-    mutationFn: () =>
-      createPost({
-        block_type: effectiveBlockTypeId!,
+    mutationFn: () => {
+      if (effectiveBlockTypeId == null) {
+        throw new Error("질문 유형을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      }
+      hadFilesOnSubmitRef.current = files.length > 0;
+      return createPost({
+        block_type: effectiveBlockTypeId,
         title: title.trim(),
         content: content.trim(),
         node_ids: [],
-      }),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
       qc.invalidateQueries({ queryKey: ["student-community-posts"] });
@@ -404,7 +410,10 @@ function QuestionFormPage({
   });
 
   const canSubmit =
-    title.trim().length > 0 && content.trim().length > 0 && effectiveBlockTypeId != null;
+    !blockTypesLoading &&
+    title.trim().length > 0 &&
+    content.trim().length > 0 &&
+    effectiveBlockTypeId != null;
 
   const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const chosen = Array.from(e.target.files || []);
@@ -418,6 +427,11 @@ function QuestionFormPage({
     if (e.target) e.target.value = "";
   };
   const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
+
+  const handleSubmit = () => {
+    if (!canSubmit || createMut.isPending) return;
+    createMut.mutate();
+  };
 
   return (
     <StudentPageShell
@@ -433,6 +447,27 @@ function QuestionFormPage({
           gap: "var(--stu-space-4)",
         }}
       >
+        {blockTypesLoading && (
+          <div className="stu-muted" style={{ padding: "var(--stu-space-2)", fontSize: 14 }}>
+            질문 유형을 불러오는 중…
+          </div>
+        )}
+        {createMut.isError && (
+          <div
+            role="alert"
+            style={{
+              padding: "var(--stu-space-3)",
+              background: "var(--stu-danger-bg)",
+              border: "1px solid var(--stu-danger-border)",
+              borderRadius: "var(--stu-radius)",
+              fontSize: 14,
+              color: "var(--stu-danger-text)",
+              fontWeight: 600,
+            }}
+          >
+            {createMut.error instanceof Error ? createMut.error.message : "전송에 실패했습니다."}
+          </div>
+        )}
         <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
             제목
@@ -523,19 +558,29 @@ function QuestionFormPage({
             }}
           >
             질문이 전달되었습니다. 선생님이 확인 후 답변해 주실 거예요.
-          </div>
-        )}
-        {createMut.isError && (
-          <div style={{ fontSize: 13, color: "var(--stu-danger)" }}>
-            {createMut.error instanceof Error ? createMut.error.message : "전송에 실패했습니다."}
+            {hadFilesOnSubmitRef.current && (
+              <div style={{ marginTop: "var(--stu-space-2)", fontSize: 12, opacity: 0.9 }}>
+                ※ 첨부파일은 현재 저장되지 않습니다. 제목과 내용만 전송되었습니다.
+              </div>
+            )}
           </div>
         )}
         <button
           type="button"
           className="stu-btn stu-btn--primary"
           disabled={!canSubmit || createMut.isPending}
-          onClick={() => createMut.mutate()}
-          style={{ alignSelf: "flex-end" }}
+          onClick={handleSubmit}
+          onPointerDown={(e) => {
+            if (e.pointerType === "touch" && canSubmit && !createMut.isPending) {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
+          style={{
+            alignSelf: "flex-end",
+            minHeight: 44,
+            minWidth: 140,
+          }}
         >
           {createMut.isPending ? "보내는 중…" : "질문 보내기"}
         </button>
