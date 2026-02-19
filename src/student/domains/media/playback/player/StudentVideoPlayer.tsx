@@ -114,33 +114,15 @@ function normalizePolicy(p: any): Policy {
 }
 
 async function postHeartbeat(token: string) {
-  // 학생 앱에서는 heartbeat가 필요 없을 수 있음 (token이 student- 접두사인 경우 스킵)
-  if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/api/v1/videos/playback/heartbeat/`, { token });
-  } catch (e) {
-    // 학생 앱에서는 실패해도 계속 진행
-  }
+  await studentApi.post(`/api/v1/videos/playback/heartbeat/`, { token });
 }
 
 async function postRefresh(token: string) {
-  // 학생 앱에서는 refresh가 필요 없을 수 있음
-  if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/api/v1/videos/playback/refresh/`, { token });
-  } catch (e) {
-    // 학생 앱에서는 실패해도 계속 진행
-  }
+  await studentApi.post(`/api/v1/videos/playback/refresh/`, { token });
 }
 
 async function postEnd(token: string) {
-  // 학생 앱에서는 end가 필요 없을 수 있음
-  if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/api/v1/videos/playback/end/`, { token });
-  } catch (e) {
-    // 학생 앱에서는 실패해도 계속 진행
-  }
+  await studentApi.post(`/api/v1/videos/playback/end/`, { token });
 }
 
 async function postEvents(
@@ -150,22 +132,16 @@ async function postEvents(
   enrollmentId: number
 ) {
   if (!events.length) return;
-  // 학생 앱에서는 events가 필요 없을 수 있음
-  if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/api/v1/videos/playback/events/`, {
-      token,
-      video_id: videoId,
-      enrollment_id: enrollmentId,
-      events: events.map((e) => ({
-        type: e.type,
-        occurred_at: e.occurred_at,
-        payload: e.payload || {},
-      })),
-    });
-  } catch (e) {
-    // 학생 앱에서는 실패해도 계속 진행
-  }
+  await studentApi.post(`/api/v1/videos/playback/events/`, {
+    token,
+    video_id: videoId,
+    enrollment_id: enrollmentId,
+    events: events.map((e) => ({
+      type: e.type,
+      occurred_at: e.occurred_at,
+      payload: e.payload || {},
+    })),
+  });
 }
 
 function useStableInterval(cb: () => void, ms: number, enabled: boolean) {
