@@ -285,6 +285,12 @@ function ColorSelectModal({
 
   const [customColor, setCustomColor] = useState(currentColor || "#ef4444");
 
+  useEffect(() => {
+    if (currentColor) {
+      setCustomColor(currentColor);
+    }
+  }, [currentColor]);
+
   return (
     <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.mediumModal}>
       <ModalHeader title="색상 선택" onClose={onClose} />
