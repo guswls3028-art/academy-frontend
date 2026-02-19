@@ -99,6 +99,7 @@ function SessionBox({
             width: "100%",
             aspectRatio: "16 / 9",
             background: "#111",
+            zIndex: 0,
           }}
         >
           {sessionData.thumbnailUrl ? (
