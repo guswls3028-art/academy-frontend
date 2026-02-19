@@ -78,7 +78,19 @@ export default function ExamExplorerPage() {
   }, [selectedSession]);
 
   const handleBreadcrumbSelect = (id: string | null) => {
-    setSelectedSessionId(id ? Number(id) : null);
+    if (!id) {
+      setSelectedSessionId(null);
+      return;
+    }
+    const num = Number(id);
+    const asSession = lecturesWithSessions.some((l) => l.sessions.some((s) => s.id === num));
+    if (asSession) {
+      setSelectedSessionId(num);
+    } else {
+      const lec = lecturesWithSessions.find((l) => l.id === num);
+      const firstSession = lec?.sessions?.[0];
+      setSelectedSessionId(firstSession ? firstSession.id : null);
+    }
   };
 
   return (
