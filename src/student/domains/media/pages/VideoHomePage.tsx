@@ -2,24 +2,11 @@
  * 영상 홈 — 프리미엄 SaaS 인강 느낌의 코스 카드 UI
  * 전체공개영상(맨위) + 강의별 코스 카드
  */
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import { fetchVideoMe, fetchStudentSessionVideos } from "../api/media";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import CourseCard from "../components/CourseCard";
-
-function formatDuration(sec: number | null | undefined): string {
-  if (sec == null || sec <= 0) return "0:00";
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
-function formatSessionTitle(s: { title: string; order: number; date?: string | null }): string {
-  const dateStr = s.date ? new Date(s.date).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" }) : "";
-  return dateStr ? `${s.order}차시 ${dateStr}` : `${s.order}차시`;
-}
 
 // 전체공개영상 세션용 코스 카드 데이터 계산
 function usePublicCourseCard(publicSession: { session_id: number } | null) {
