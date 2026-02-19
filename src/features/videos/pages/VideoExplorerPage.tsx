@@ -86,7 +86,7 @@ export default function VideoExplorerPage() {
   });
 
   const { data: publicVideos = [], isLoading: publicVideosLoading } = useQuery({
-    queryKey: ["session-videos", "public", publicSession?.session_id],
+    queryKey: ["session-videos", publicSession?.session_id],
     queryFn: () => fetchSessionVideos(publicSession!.session_id),
     enabled: selectedFolderId === "public" && !!publicSession?.session_id,
   });
