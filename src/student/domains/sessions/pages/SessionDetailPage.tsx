@@ -54,7 +54,7 @@ export default function SessionDetailPage() {
         {/* ===== Actions ===== */}
         <ActionCard title="영상 보기" desc="미디어 도메인으로 이동합니다.">
           {/* media 이식 전이면 링크만 자리 확보 */}
-          <Link to={`/student/video?session=${data.id}`} style={btnStyle}>
+          <Link to={`/student/video?session=${data.id}`} className="stu-cta-link">
             영상으로 이동
           </Link>
         </ActionCard>
@@ -64,13 +64,13 @@ export default function SessionDetailPage() {
           {Array.isArray(data.exam_ids) && data.exam_ids.length > 0 ? (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {data.exam_ids.map((eid) => (
-                <Link key={eid} to={`/student/exams/${eid}`} style={btnStyle}>
+                <Link key={eid} to={`/student/exams/${eid}`} className="stu-cta-link">
                   시험 #{eid}
                 </Link>
               ))}
             </div>
           ) : (
-            <Link to="/student/exams" style={btnStyle}>
+            <Link to="/student/exams" className="stu-cta-link">
               시험 목록 보기
             </Link>
           )}

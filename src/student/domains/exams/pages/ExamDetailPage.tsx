@@ -105,21 +105,6 @@ export default function ExamDetailPage() {
   );
 }
 
-const card: React.CSSProperties = {
-  border: "1px solid #eee",
-  borderRadius: 12,
-  padding: 14,
-  background: "#fff",
-};
-
-const linkBtn: React.CSSProperties = {
-  display: "inline-block",
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: "1px solid #ddd",
-  textDecoration: "none",
-  background: "#fafafa",
-  color: "#111",
-  fontWeight: 800,
-};
+// 다운로드 기능 제거됨 (의도적으로 미제공)
+// Surface 기반 스타일은 base.css의 .stu-section 사용
 
