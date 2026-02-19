@@ -102,32 +102,6 @@ function VideoListItem({
           </div>
         )}
 
-        {/* 재생 아이콘 오버레이 */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(0,0,0,0.1)",
-            opacity: 0,
-            transition: "opacity var(--stu-motion-fast)",
-          }}
-          className="hover:opacity-100"
-        >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.9)",
-              display: "grid",
-              placeItems: "center",
-            }}
-          >
-            <IconPlay style={{ width: 20, height: 20, color: "#000", marginLeft: 2 }} />
-          </div>
-        </div>
       </div>
 
       {/* 정보 */}
