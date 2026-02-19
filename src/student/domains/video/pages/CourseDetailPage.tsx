@@ -241,6 +241,31 @@ export default function CourseDetailPage() {
     return videoMe.lectures.find((lec) => lec.id === lectureIdNum);
   }, [videoMe, lectureIdNum]);
 
+  // React #310 방지: 훅은 early return 이전에 항상 호출되어야 함
+  const sessionsForQuery = useMemo(() => {
+    if (isLoading) return [];
+    if (!isPublic && !lecture) return [];
+    return isPublic
+      ? (videoMe?.public?.session_id
+          ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }]
+          : [{ id: 0, title: "전체공개영상", order: 1, date: null }])
+      : (lecture?.sessions ?? []);
+  }, [isLoading, isPublic, lecture, videoMe]);
+  const firstSessionIdForQuery = sessionsForQuery[0]?.id ?? 0;
+  const enrollmentIdForQuery = isPublic ? null : (lecture ? (videoMe?.lectures?.find((l) => l.id === lecture.id)?.enrollment_id ?? null) : null);
+
+  const { data: firstSessionVideos } = useQuery({
+    queryKey: ["student-session-videos", firstSessionIdForQuery, enrollmentIdForQuery],
+    queryFn: () => fetchStudentSessionVideos(firstSessionIdForQuery, enrollmentIdForQuery ?? undefined),
+    enabled: !isLoading && !!firstSessionIdForQuery && firstSessionIdForQuery > 0,
+  });
+
+  const totalVideos = useMemo(() => firstSessionVideos?.items?.length ?? 0, [firstSessionVideos]);
+  const totalDuration = useMemo(
+    () => firstSessionVideos?.items?.reduce((sum, v) => sum + (v.duration ?? 0), 0) ?? 0,
+    [firstSessionVideos]
+  );
+
   if (isLoading) {
     return (
       <StudentPageShell title="" noSectionFrame>
@@ -266,30 +291,7 @@ export default function CourseDetailPage() {
     );
   }
 
-  // 전체공개영상: 테넌트 내 학생이면 세션만 있으면 표시 (enrollment 불필요)
-  const sessions = isPublic
-    ? (videoMe?.public?.session_id
-        ? [{ id: videoMe.public.session_id, title: "전체공개영상", order: 1, date: null }]
-        : [{ id: 0, title: "전체공개영상", order: 1, date: null }])
-    : (lecture?.sessions ?? []);
-
-  const firstSessionId = sessions[0]?.id ?? 0;
-  const enrollmentIdForLecture = isPublic ? null : (lecture ? (videoMe?.lectures?.find((l) => l.id === lecture.id)?.enrollment_id ?? null) : null);
-  const { data: firstSessionVideos } = useQuery({
-    queryKey: ["student-session-videos", firstSessionId, enrollmentIdForLecture],
-    queryFn: () => fetchStudentSessionVideos(firstSessionId, enrollmentIdForLecture ?? undefined),
-    enabled: !!firstSessionId && firstSessionId > 0,
-  });
-
-  const totalVideos = useMemo(() => {
-    // TODO: 모든 세션의 영상 개수 합산 (현재는 첫 번째 세션만)
-    return firstSessionVideos?.items?.length ?? 0;
-  }, [firstSessionVideos]);
-
-  const totalDuration = useMemo(() => {
-    // TODO: 모든 세션의 총 시간 합산
-    return firstSessionVideos?.items?.reduce((sum, v) => sum + (v.duration ?? 0), 0) ?? 0;
-  }, [firstSessionVideos]);
+  const sessions = sessionsForQuery;
 
   return (
     <StudentPageShell title="" noSectionFrame>
@@ -385,7 +387,7 @@ export default function CourseDetailPage() {
                     key={session.id}
                     sessionId={session.id}
                     sessionTitle={session.title}
-                    enrollmentId={enrollmentIdForLecture}
+                    enrollmentId={enrollmentIdForQuery}
                     order={session.order}
                   />
                 );
