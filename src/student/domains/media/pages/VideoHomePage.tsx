@@ -37,13 +37,13 @@ function usePublicCourseCard(publicSession: { session_id: number } | null) {
   }, [videosData]);
 }
 
-// 강의별 코스 카드 데이터 계산
-function useLectureCourseCard(lecture: { id: number; title: string; sessions: Array<{ id: number }> }) {
+// 강의별 코스 카드 컴포넌트 (hook을 컴포넌트 내부에서 호출)
+function LectureCourseCard({ lecture }: { lecture: { id: number; title: string; sessions: Array<{ id: number }> } }) {
   const sessionIds = lecture.sessions.map((s) => s.id);
   const sessionQueries = useQuery({
     queryKey: ["student-lecture-videos", lecture.id],
     queryFn: async () => {
-      const allVideos: Array<{ duration?: number; thumbnail_url?: string | null }> = [];
+      const allVideos: Array<{ duration?: number; thumbnail_url?: string | null; id: number }> = [];
       for (const sessionId of sessionIds) {
         const res = await fetchStudentSessionVideos(sessionId, null);
         allVideos.push(...res.items);
@@ -53,7 +53,7 @@ function useLectureCourseCard(lecture: { id: number; title: string; sessions: Ar
     enabled: sessionIds.length > 0,
   });
 
-  return useMemo(() => {
+  const cardData = useMemo(() => {
     if (!sessionQueries.data || sessionQueries.data.length === 0) return null;
     
     const videos = sessionQueries.data;
@@ -72,6 +72,22 @@ function useLectureCourseCard(lecture: { id: number; title: string; sessions: Ar
       to: `/student/video/play?video=${firstVideo.id}`,
     };
   }, [lecture, sessionQueries.data]);
+
+  if (!cardData) return null;
+
+  return (
+    <CourseCard
+      title={cardData.title}
+      thumbnailUrl={cardData.thumbnailUrl}
+      videoCount={cardData.videoCount}
+      totalDuration={cardData.totalDuration}
+      progress={cardData.progress}
+      isNew={cardData.isNew}
+      isContinue={cardData.isContinue}
+      isCompleted={cardData.isCompleted}
+      to={cardData.to}
+    />
+  );
 }
 
 export default function VideoHomePage() {
