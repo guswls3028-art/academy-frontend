@@ -16,7 +16,7 @@ import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { resolveTenantCode } from "@/shared/tenant";
 import { getTenantIdFromCode } from "@/shared/tenant";
-import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 function IconMenu() {
   return (
@@ -222,7 +222,7 @@ export default function Header() {
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
   const isTchul = tenantResult.ok && (tenantResult.code === "tchul" || tenantResult.code === "9999" || tenantId === 2);
   
-  const logoUrl = program?.ui_config?.logo_url || (isTchul ? TchulLogoTransparent : null);
+  const logoUrl = program?.ui_config?.logo_url || (isTchul ? TchulLogoIcon : null);
 
   const userMenu = {
     items: [
