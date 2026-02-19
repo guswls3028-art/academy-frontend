@@ -94,15 +94,44 @@ export default function VideoExplorerPage() {
     enabled: typeof selectedFolderId === "number",
   });
 
+  // 전체공개영상 폴더 목록
+  const { data: publicFolders = [], isLoading: publicFoldersLoading } = useQuery({
+    queryKey: ["video-folders", publicSession?.session_id],
+    queryFn: () => fetchVideoFolders(publicSession!.session_id),
+    enabled: !!publicSession?.session_id,
+  });
+
+  // 선택된 폴더 ID (음수는 폴더, 양수는 세션)
+  const selectedPublicFolderId = useMemo(() => {
+    if (selectedFolderId === "public") return null;
+    if (typeof selectedFolderId === "number" && selectedFolderId < 0) {
+      return -selectedFolderId; // 음수를 양수로 변환
+    }
+    return null;
+  }, [selectedFolderId]);
+
   const { data: publicVideos = [], isLoading: publicVideosLoading } = useQuery({
-    queryKey: ["session-videos", publicSession?.session_id],
-    queryFn: () => fetchSessionVideos(publicSession!.session_id),
+    queryKey: ["session-videos", publicSession?.session_id, selectedPublicFolderId],
+    queryFn: () => {
+      if (selectedPublicFolderId) {
+        // 폴더별 영상 조회
+        return fetchSessionVideos(publicSession!.session_id).then((videos) =>
+          videos.filter((v) => (v as any).folder === selectedPublicFolderId)
+        );
+      }
+      // 루트 폴더 영상 (folder가 null인 것만)
+      return fetchSessionVideos(publicSession!.session_id).then((videos) =>
+        videos.filter((v) => !(v as any).folder)
+      );
+    },
     enabled: selectedFolderId === "public" && !!publicSession?.session_id,
   });
 
   const videos = selectedFolderId === "public" ? publicVideos : sessionVideos;
   const videosLoading =
-    selectedFolderId === "public" ? publicSessionLoading || publicVideosLoading : sessionVideosLoading;
+    selectedFolderId === "public"
+      ? publicSessionLoading || publicVideosLoading || publicFoldersLoading
+      : sessionVideosLoading;
 
   const sessionsLoading = sessionQueries.some((q) => q.isLoading);
   const isLoading = lecturesLoading || sessionsLoading;
