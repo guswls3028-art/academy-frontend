@@ -509,3 +509,34 @@ a {
       border-color 120ms ease;
   }
 }
+
+/* ======================================================
+   14) [data-app="student"] 스코프 — 전역 DS/Tailwind에 덮이지 않도록
+   관리자(data-app=admin) / 로그인(data-app=auth) / 학생(data-app=student) 분리
+   ====================================================== */
+[data-app="student"] .stu-btn--primary {
+  background: var(--stu-primary);
+  color: var(--stu-primary-contrast);
+  border: none;
+}
+[data-app="student"] .stu-btn--primary:hover:not(:disabled) {
+  background: var(--stu-primary-hover);
+}
+[data-app="student"] .stu-btn--danger {
+  background: var(--stu-danger);
+  color: #fff;
+  border: none;
+}
+[data-app="student"] .stu-btn--danger:hover:not(:disabled) {
+  background: var(--stu-danger-hover);
+}
+[data-app="student"] .stu-btn--secondary {
+  background: var(--stu-surface);
+  border: 1px solid var(--stu-border);
+  color: var(--stu-text);
+}
+[data-app="student"] .stu-btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--stu-text);
+}
