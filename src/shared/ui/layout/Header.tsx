@@ -217,7 +217,12 @@ export default function Header() {
 
   
   
-  const logoUrl = program?.ui_config?.logo_url;
+  // 로고 URL: Program의 ui_config.logo_url 우선, 없으면 테넌트별 기본 로고 사용
+  const tenantResult = resolveTenantCode();
+  const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
+  const isTchul = tenantResult.ok && (tenantResult.code === "tchul" || tenantResult.code === "9999" || tenantId === 2);
+  
+  const logoUrl = program?.ui_config?.logo_url || (isTchul ? TchulLogoTransparent : null);
 
   const userMenu = {
     items: [
