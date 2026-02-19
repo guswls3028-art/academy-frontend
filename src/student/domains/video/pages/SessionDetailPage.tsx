@@ -256,13 +256,15 @@ export default function SessionDetailPage() {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  const { data: videosData, isLoading } = useQuery({
+  const { data: videosData, isLoading, isError, error } = useQuery({
     queryKey: ["student-session-videos", sessionIdNum, enrollmentId],
     queryFn: () => fetchStudentSessionVideos(sessionIdNum!, enrollmentId),
     enabled: !!sessionIdNum,
+    retry: false,
   });
 
   const videos = videosData?.items ?? [];
+  const is403 = isError && (error as any)?.response?.status === 403;
 
   if (isLoading) {
     return (
