@@ -279,14 +279,14 @@ a {
 }
 
 .stu-btn--secondary {
-  background: var(--stu-surface);
-  border-color: var(--stu-border);
+  background: var(--stu-surface-1);
+  border-color: var(--stu-border-normal);
   color: var(--stu-text);
 }
 
 .stu-btn--secondary:hover {
-  background: var(--stu-surface-soft);
-  border-color: color-mix(in srgb, var(--stu-border) 70%, var(--stu-text-subtle));
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-strong);
 }
 
 .stu-btn--ghost {
@@ -296,8 +296,8 @@ a {
 }
 
 .stu-btn--ghost:hover {
-  background: var(--stu-surface-soft);
-  border-color: color-mix(in srgb, var(--stu-border) 55%, transparent);
+  background: var(--stu-tint-primary);
+  border-color: transparent;
 }
 
 .stu-btn--danger {
