@@ -67,18 +67,16 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     if (files.length === 0) return;
     setIsUploading(true);
 
-    // 모달은 바로 닫고, 업로드는 백그라운드에서 실행
-    onClose();
+    const initResults: { init: Awaited<ReturnType<typeof initVideoUpload>>; file: File }[] = [];
+    const initErrors: string[] = [];
 
-    let successCount = 0;
-    const errors: string[] = [];
-
+    // 1) 각 파일 init 먼저 (DB에 영상 row 생성)
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const fileTitle = files.length === 1 ? title.trim() : `${title.trim()} ${i + 1}`;
 
       try {
-        await uploadVideo({
+        const init = await initVideoUpload({
           sessionId,
           file,
           title: fileTitle,
@@ -87,28 +85,50 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
           allowSkip,
           maxSpeed,
         });
-        successCount += 1;
+        initResults.push({ init, file });
       } catch (error) {
         const msg =
           (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
             ?.detail ||
           (error as Error)?.message ||
           "업로드에 실패했습니다.";
-        errors.push(`${file.name}: ${msg}`);
+        initErrors.push(`${file.name}: ${msg}`);
       }
     }
 
+    // 2) 목록 갱신 후 모달 닫기 → 화면에 바로 표시
+    if (initResults.length > 0) {
+      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+    }
+    onClose();
     setIsUploading(false);
+
+    if (initErrors.length > 0) {
+      feedback.error(initErrors.join(" / "));
+    }
+
+    // 3) R2 업로드 + complete는 백그라운드에서 진행
+    const results = await Promise.allSettled(
+      initResults.map(({ init, file }) => uploadFileToR2AndComplete(init, file))
+    );
+
+    const successCount = results.filter((r) => r.status === "fulfilled").length;
+    const r2Errors: string[] = [];
+    results.forEach((r, idx) => {
+      if (r.status === "rejected") {
+        r2Errors.push(`${initResults[idx].file.name}: ${(r.reason as Error)?.message || "업로드 실패"}`);
+      }
+    });
 
     if (successCount > 0) {
       feedback.success(
-        errors.length > 0
-          ? `${successCount}개 업로드 완료. ${errors.length}개 실패. 인코딩은 우하단 작업 박스에서 확인하세요.`
+        r2Errors.length > 0
+          ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 인코딩은 우하단 작업 박스에서 확인하세요.`
           : `${successCount}개 업로드 완료. 인코딩은 우하단 작업 박스에서 이어서 진행됩니다.`
       );
     }
-    if (errors.length > 0) {
-      feedback.error(errors.join(" / "));
+    if (r2Errors.length > 0) {
+      feedback.error(r2Errors.join(" / "));
     }
   };
 
