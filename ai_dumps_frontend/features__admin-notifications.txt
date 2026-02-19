@@ -1,0 +1,132 @@
+====================================================================================================
+# FRONTEND FOLDER: features__admin-notifications
+# ROOT PATH: C:\academyfront\src\features\admin-notifications
+====================================================================================================
+
+
+==========================================================================================
+# FILE: api.ts
+==========================================================================================
+/**
+ * 선생앱(관리자) 알림 — 학생 앱에서 발생한 이벤트 요약
+ * - QnA 답변 대기 건수 (학생 질문 등록)
+ * - 클리닉 예약 신청 건수 (학생 예약 신청, status=pending)
+ */
+import { fetchBlockTypes, fetchAdminPosts } from "@/features/community/api/community.api";
+import { fetchClinicParticipants } from "@/features/clinic/api/clinicParticipants.api";
+
+export type AdminNotificationCounts = {
+  qnaPending: number;
+  clinicPending: number;
+  total: number;
+};
+
+export type AdminNotificationItem = {
+  type: "qna" | "clinic";
+  label: string;
+  count: number;
+  to: string;
+};
+
+export async function fetchAdminNotificationCounts(): Promise<AdminNotificationCounts> {
+  try {
+    const [participantsRes, typesAndPosts] = await Promise.all([
+      fetchClinicParticipants({ status: "pending" }).then((r) => r).catch(() => []),
+      (async () => {
+        const types = await fetchBlockTypes();
+        const qnaType = types.find((t) => (t.code || "").toLowerCase() === "qna");
+        const posts = qnaType
+          ? (await fetchAdminPosts({ blockTypeId: qnaType.id, pageSize: 500 })).results
+          : [];
+        return posts.filter((p) => (p.replies_count ?? 0) === 0).length;
+      })().catch(() => 0),
+    ]);
+
+    const qnaPending = typeof typesAndPosts === "number" ? typesAndPosts : 0;
+    const clinicPending = Array.isArray(participantsRes) ? participantsRes.length : 0;
+
+    return {
+      qnaPending,
+      clinicPending,
+      total: qnaPending + clinicPending,
+    };
+  } catch (e) {
+    console.error("fetchAdminNotificationCounts:", e);
+    return { qnaPending: 0, clinicPending: 0, total: 0 };
+  }
+}
+
+export function buildAdminNotificationItems(
+  counts: AdminNotificationCounts
+): AdminNotificationItem[] {
+  const items: AdminNotificationItem[] = [];
+  if (counts.qnaPending > 0) {
+    items.push({
+      type: "qna",
+      label: "답변 대기 질문",
+      count: counts.qnaPending,
+      to: "/admin/community/qna",
+    });
+  }
+  if (counts.clinicPending > 0) {
+    items.push({
+      type: "clinic",
+      label: "클리닉 예약 신청",
+      count: counts.clinicPending,
+      to: "/admin/clinic/bookings",
+    });
+  }
+  return items;
+}
+
+
+==========================================================================================
+# FILE: index.ts
+==========================================================================================
+export {
+  fetchAdminNotificationCounts,
+  buildAdminNotificationItems,
+  type AdminNotificationCounts,
+  type AdminNotificationItem,
+} from "./api";
+export { useAdminNotificationCounts } from "./useAdminNotificationCounts";
+
+
+==========================================================================================
+# FILE: useAdminNotificationCounts.ts
+==========================================================================================
+/**
+ * 선생앱 헤더 알림용 — QnA 답변 대기, 클리닉 예약 신청 건수
+ */
+import { useQuery } from "@tanstack/react-query";
+import {
+  fetchAdminNotificationCounts,
+  buildAdminNotificationItems,
+  type AdminNotificationCounts,
+  type AdminNotificationItem,
+} from "./api";
+
+export function useAdminNotificationCounts() {
+  const q = useQuery({
+    queryKey: ["admin", "notification-counts"],
+    queryFn: fetchAdminNotificationCounts,
+    staleTime: 60 * 1000, // 1분
+    refetchInterval: 2 * 60 * 1000, // 2분마다
+  });
+
+  const counts: AdminNotificationCounts = q.data ?? {
+    qnaPending: 0,
+    clinicPending: 0,
+    total: 0,
+  };
+
+  const items: AdminNotificationItem[] = buildAdminNotificationItems(counts);
+
+  return {
+    counts,
+    items,
+    isLoading: q.isLoading,
+    isError: q.isError,
+    refetch: q.refetch,
+  };
+}

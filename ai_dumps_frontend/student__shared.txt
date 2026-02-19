@@ -32,8 +32,7 @@ export default api;
  */
 import { getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 
-// tchul 전용 로고 (auth SSOT와 동일 에셋)
-import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
+// tchul 전용: 헤더에서 TchulLogoIcon.png 사용 (StudentTopBar에서 직접 참조)
 
 export type StudentTenantBranding = {
   /** 로고 이미지 URL (없으면 상단바에서 텍스트 배지 사용) */
@@ -62,7 +61,8 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
   const base = { title: branding.loginTitle || fallback.title };
 
   if (TCHUL_DESIGN_CODES.includes(normalized as (typeof TCHUL_DESIGN_CODES)[number])) {
-    return { ...base, logoUrl: TchulLogoTransparent, title: "박철과학" };
+    // tchul 테넌트는 헤더에서 TchulLogoIcon.png 직접 사용 (logoUrl은 null)
+    return { ...base, logoUrl: null, title: "박철과학" };
   }
 
   return { ...base, logoUrl: branding.logoUrl ?? null };
@@ -74,6 +74,584 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
  */
 export function getStudentTenantBranding(tenantCode: string | null): StudentTenantBranding {
   return getStudentBrandingByCode(tenantCode);
+}
+
+
+==========================================================================================
+# FILE: ui/components/ClinicCalendar.tsx
+==========================================================================================
+/**
+ * 클리닉 예약 달력 컴포넌트
+ * - 날짜 선택 가능
+ * - 예약 상태별 색상 표시 (노란색: pending, 초록색: 승인)
+ * - 여러 날짜 예약 가능
+ */
+import { useState, useMemo } from "react";
+import { formatYmd } from "@/student/shared/utils/date";
+import type { ClinicBookingRequest } from "@/student/domains/clinic/api/clinicBooking.api";
+
+type Props = {
+  selectedDate: string | null; // YYYY-MM-DD
+  onDateSelect: (date: string) => void;
+  bookings: ClinicBookingRequest[];
+  availableDates: string[]; // YYYY-MM-DD 형식의 예약 가능한 날짜 목록
+  minDate?: string; // YYYY-MM-DD
+  maxDate?: string; // YYYY-MM-DD
+};
+
+export default function ClinicCalendar({
+  selectedDate,
+  onDateSelect,
+  bookings,
+  availableDates,
+  minDate,
+  maxDate,
+}: Props) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const date = selectedDate ? new Date(selectedDate) : new Date();
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  });
+
+  // 날짜별 예약 상태 매핑
+  const bookingByDate = useMemo(() => {
+    const map = new Map<string, ClinicBookingRequest>();
+    bookings.forEach((b) => {
+      const date = b.session_date;
+      // 같은 날짜에 여러 예약이 있으면 가장 최근 것만 표시
+      if (!map.has(date) || new Date(b.created_at) > new Date(map.get(date)!.created_at)) {
+        map.set(date, b);
+      }
+    });
+    return map;
+  }, [bookings]);
+
+  // 달력 그리드 생성
+  const calendarDays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay()); // 일요일부터 시작
+
+    const days: Array<{
+      date: Date;
+      isCurrentMonth: boolean;
+      isToday: boolean;
+      isSelectable: boolean;
+      booking?: ClinicBookingRequest;
+    }> = [];
+
+    const endDate = new Date(lastDay);
+    endDate.setDate(endDate.getDate() + (6 - lastDay.getDay())); // 토요일까지
+
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      const dateStr = current.toISOString().slice(0, 10); // YYYY-MM-DD
+      const isCurrentMonth = current.getMonth() === month;
+      const isToday = dateStr === today;
+      const booking = bookingByDate.get(dateStr);
+      const isAvailable = availableDates.includes(dateStr);
+      const isPast = dateStr < today;
+      // 현재 월이고 과거가 아닌 날짜는 모두 선택 가능 (예약 가능 여부와 관계없이)
+      const isSelectable = isCurrentMonth && !isPast;
+
+      days.push({
+        date: new Date(current),
+        isCurrentMonth,
+        isToday,
+        isSelectable,
+        booking,
+      });
+
+      current.setDate(current.getDate() + 1);
+    }
+
+    return days;
+  }, [currentMonth, bookingByDate, availableDates, today]);
+
+  const monthLabel = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  const getDateStatusColor = (booking?: ClinicBookingRequest) => {
+    if (!booking) return null;
+    if (booking.status === "booked" || booking.status === "approved") {
+      return "#22c55e"; // 초록색 (승인됨)
+    }
+    if (booking.status === "pending") {
+      return "#fbbf24"; // 노란색 (대기 중)
+    }
+    return null;
+  };
+
+  const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
+
+  return (
+    <div
+      className="stu-section stu-section--nested"
+      style={{
+        background: "var(--stu-surface)",
+        borderRadius: "var(--stu-radius-md)",
+        padding: "var(--stu-space-4)",
+      }}
+    >
+      {/* 달력 헤더 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "var(--stu-space-4)",
+        }}
+      >
+        <button
+          type="button"
+          className="stu-btn stu-btn--ghost stu-btn--sm"
+          onClick={goToPreviousMonth}
+          style={{ padding: "var(--stu-space-2)" }}
+        >
+          ←
+        </button>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>{monthLabel}</div>
+        <button
+          type="button"
+          className="stu-btn stu-btn--ghost stu-btn--sm"
+          onClick={goToNextMonth}
+          style={{ padding: "var(--stu-space-2)" }}
+        >
+          →
+        </button>
+      </div>
+
+      {/* 요일 헤더 */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 4,
+          marginBottom: "var(--stu-space-2)",
+        }}
+      >
+        {weekDays.map((day) => (
+          <div
+            key={day}
+            style={{
+              textAlign: "center",
+              fontSize: 12,
+              fontWeight: 600,
+              color: day === "일" ? "var(--stu-danger)" : day === "토" ? "var(--stu-primary)" : "var(--stu-text-muted)",
+              padding: "var(--stu-space-1)",
+            }}
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* 달력 그리드 */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 4,
+        }}
+      >
+      {calendarDays.map((day, idx) => {
+        const dateStr = day.date.toISOString().slice(0, 10); // YYYY-MM-DD
+        const isSelected = selectedDate === dateStr;
+          const statusColor = getDateStatusColor(day.booking);
+          const isClickable = day.isSelectable;
+
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isClickable) {
+                  onDateSelect(dateStr);
+                }
+              }}
+              disabled={!isClickable}
+              style={{
+                aspectRatio: "1",
+                minHeight: 44,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "var(--stu-radius)",
+                border: isSelected
+                  ? "2px solid var(--stu-primary)"
+                  : day.isToday
+                  ? "1px solid var(--stu-primary)"
+                  : "1px solid transparent",
+                background: statusColor
+                  ? statusColor
+                  : isSelected
+                  ? "var(--stu-primary-bg)"
+                  : day.isCurrentMonth
+                  ? "var(--stu-surface-soft)"
+                  : "transparent",
+                color: statusColor
+                  ? "#ffffff"
+                  : !day.isCurrentMonth
+                  ? "var(--stu-text-muted)"
+                  : isSelected
+                  ? "var(--stu-primary)"
+                  : "var(--stu-text)",
+                fontWeight: day.isToday ? 700 : isSelected ? 600 : 400,
+                fontSize: 14,
+                cursor: isClickable ? "pointer" : "not-allowed",
+                opacity: !day.isCurrentMonth ? 0.3 : day.isSelectable ? 1 : 0.5,
+                transition: "all 150ms cubic-bezier(0.4, 0, 0.2, 1)",
+                position: "relative",
+                zIndex: 10,
+                pointerEvents: isClickable ? "auto" : "none",
+                touchAction: "manipulation",
+              }}
+              onMouseEnter={(e) => {
+                if (isClickable && !statusColor) {
+                  e.currentTarget.style.background = "var(--stu-surface-hover)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isClickable && !statusColor) {
+                  e.currentTarget.style.background = day.isCurrentMonth ? "var(--stu-surface-soft)" : "transparent";
+                }
+              }}
+            >
+              <span>{day.date.getDate()}</span>
+              {day.booking && (
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: 2,
+                    width: 4,
+                    height: 4,
+                    borderRadius: "50%",
+                    background: statusColor === "#22c55e" ? "#ffffff" : statusColor === "#fbbf24" ? "#ffffff" : "var(--stu-primary)",
+                    opacity: 0.8,
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 범례 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "var(--stu-space-4)",
+          marginTop: "var(--stu-space-4)",
+          paddingTop: "var(--stu-space-4)",
+          borderTop: "1px solid var(--stu-border)",
+          fontSize: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 16, height: 16, borderRadius: 4, background: "#fbbf24" }} />
+          <span className="stu-muted">승인 대기</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ width: 16, height: 16, borderRadius: 4, background: "#22c55e" }} />
+          <span className="stu-muted">승인됨</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+==========================================================================================
+# FILE: ui/components/NotificationBadge.tsx
+==========================================================================================
+/**
+ * 알림 배지 컴포넌트 — 카톡 스타일 빨간 원형 배지
+ * 
+ * 최적화:
+ * - React.memo로 불필요한 리렌더링 방지
+ * - 숫자 포맷팅 최적화
+ */
+import { memo } from "react";
+
+type Props = {
+  count: number;
+  max?: number;
+};
+
+function NotificationBadge({ count, max = 99 }: Props) {
+  if (count <= 0) return null;
+
+  const displayCount = count > max ? `${max}+` : String(count);
+
+  return (
+    <span
+      style={{
+        position: "absolute",
+        top: -2,
+        right: -2,
+        minWidth: 18,
+        height: 18,
+        padding: "0 6px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#ef4444",
+        color: "#ffffff",
+        borderRadius: 9,
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: 1,
+        border: "2px solid var(--stu-tabbar-bg, var(--stu-bg))",
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+        zIndex: 10,
+      }}
+      aria-label={`${count}개의 알림`}
+    >
+      {displayCount}
+    </span>
+  );
+}
+
+export default memo(NotificationBadge);
+
+
+==========================================================================================
+# FILE: ui/components/ScheduleCalendar.tsx
+==========================================================================================
+/**
+ * 일정 페이지용 달력 — 클리닉 달력(ClinicCalendar)과 동일한 UI
+ * 날짜 클릭 시 아래에 그날 상세 일정 표시 (부모에서 처리)
+ */
+import { useState, useMemo } from "react";
+
+type Props = {
+  selectedDate: string | null;
+  onDateSelect: (date: string) => void;
+  /** 일정이 있는 날짜 (YYYY-MM-DD). 있으면 셀에 점 표시 */
+  datesWithSessions: string[];
+};
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+export default function ScheduleCalendar({
+  selectedDate,
+  onDateSelect,
+  datesWithSessions,
+}: Props) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const base = selectedDate ? new Date(selectedDate) : new Date();
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+
+  const calendarDays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const first = new Date(year, month, 1);
+    const last = new Date(year, month + 1, 0);
+    const start = new Date(first);
+    start.setDate(start.getDate() - first.getDay());
+    const end = new Date(last);
+    end.setDate(end.getDate() + (6 - last.getDay()));
+
+    const days: Array<{
+      date: Date;
+      isCurrentMonth: boolean;
+      isToday: boolean;
+      isSelectable: boolean;
+      dateStr: string;
+      hasSession: boolean;
+    }> = [];
+    const cur = new Date(start);
+    while (cur <= end) {
+      const dateStr = cur.toISOString().slice(0, 10);
+      const isPast = dateStr < today;
+      days.push({
+        date: new Date(cur),
+        isCurrentMonth: cur.getMonth() === month,
+        isToday: dateStr === today,
+        isSelectable: cur.getMonth() === month && !isPast,
+        dateStr,
+        hasSession: datesWithSessions.includes(dateStr),
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+    return days;
+  }, [currentMonth, datesWithSessions, today]);
+
+  const monthLabel = `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+  };
+
+  return (
+    <div
+      className="stu-section stu-section--nested"
+      style={{
+        background: "var(--stu-surface)",
+        borderRadius: "var(--stu-radius-md)",
+        padding: "var(--stu-space-4)",
+      }}
+    >
+      {/* 달력 헤더 — 클리닉과 동일 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "var(--stu-space-4)",
+        }}
+      >
+        <button
+          type="button"
+          className="stu-btn stu-btn--ghost stu-btn--sm"
+          onClick={goToPreviousMonth}
+          style={{ padding: "var(--stu-space-2)" }}
+        >
+          ←
+        </button>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>{monthLabel}</div>
+        <button
+          type="button"
+          className="stu-btn stu-btn--ghost stu-btn--sm"
+          onClick={goToNextMonth}
+          style={{ padding: "var(--stu-space-2)" }}
+        >
+          →
+        </button>
+      </div>
+
+      {/* 요일 헤더 — 클리닉과 동일 */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 4,
+          marginBottom: "var(--stu-space-2)",
+        }}
+      >
+        {WEEKDAYS.map((day) => (
+          <div
+            key={day}
+            style={{
+              textAlign: "center",
+              fontSize: 12,
+              fontWeight: 600,
+              color: day === "일" ? "var(--stu-danger)" : day === "토" ? "var(--stu-primary)" : "var(--stu-text-muted)",
+              padding: "var(--stu-space-1)",
+            }}
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* 달력 그리드 — 클리닉과 동일 스타일 */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 4,
+        }}
+      >
+        {calendarDays.map((day, idx) => {
+          const isSelected = selectedDate === day.dateStr;
+          const isClickable = day.isSelectable;
+
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isClickable) onDateSelect(day.dateStr);
+              }}
+              disabled={!isClickable}
+              style={{
+                aspectRatio: "1",
+                minHeight: 44,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "var(--stu-radius)",
+                border: isSelected
+                  ? "2px solid var(--stu-primary)"
+                  : day.isToday
+                    ? "1px solid var(--stu-primary)"
+                    : "1px solid transparent",
+                background: isSelected
+                  ? "var(--stu-primary-bg)"
+                  : day.isCurrentMonth
+                    ? "var(--stu-surface-soft)"
+                    : "transparent",
+                color: !day.isCurrentMonth
+                  ? "var(--stu-text-muted)"
+                  : isSelected
+                    ? "var(--stu-primary)"
+                    : "var(--stu-text)",
+                fontWeight: day.isToday ? 700 : isSelected ? 600 : 400,
+                fontSize: 14,
+                cursor: isClickable ? "pointer" : "not-allowed",
+                opacity: !day.isCurrentMonth ? 0.3 : day.isSelectable ? 1 : 0.5,
+                transition: "all 150ms cubic-bezier(0.4, 0, 0.2, 1)",
+                position: "relative",
+                zIndex: 10,
+                pointerEvents: isClickable ? "auto" : "none",
+                touchAction: "manipulation",
+              }}
+              onMouseEnter={(e) => {
+                if (isClickable) {
+                  e.currentTarget.style.background = "var(--stu-surface-hover)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isClickable) {
+                  e.currentTarget.style.background = day.isCurrentMonth ? "var(--stu-surface-soft)" : "transparent";
+                }
+              }}
+            >
+              <span>{day.date.getDate()}</span>
+              {day.hasSession && (
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: 2,
+                    width: 4,
+                    height: 4,
+                    borderRadius: "50%",
+                    background: isSelected ? "var(--stu-primary)" : "var(--stu-text-muted)",
+                    opacity: 0.8,
+                  }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 
@@ -103,6 +681,7 @@ export function getStudentTenantBranding(tenantCode: string | null): StudentTena
 html,
 body {
   height: 100%;
+  overflow: hidden; /* 기본적으로 body 스크롤 차단 */
 }
 
 html {
@@ -113,7 +692,7 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background: var(--stu-bg);
+  background-color: var(--stu-bg);
   color: var(--stu-text);
   font-family: var(--stu-font-sans);
   font-size: var(--stu-font-size-14);
@@ -141,6 +720,11 @@ canvas,
 svg {
   display: block;
   max-width: 100%;
+}
+
+/* 프리미엄: Icon Density 조정 */
+.stu-icon {
+  opacity: 0.85;
 }
 
 /* Forms */
@@ -243,17 +827,20 @@ a {
 }
 
 /* =========================
-   2) Panel (OTT형 UI - 카드 대체)
-   프리미엄: Tint Layer, 밀도 변화, 재질감
+   2) Panel (Action Console Mode)
+   Action Slot Container - 사용자 상태 기반 UI
    ========================= */
 .stu-panel {
   background: var(--stu-surface-1);
-  border: 1px solid var(--stu-border-subtle);
-  border-radius: 6px; /* OTT 스타일: 더 작은 radius */
+  border: 2px solid var(--stu-border-subtle);
+  border-radius: 12px;
   padding: var(--stu-space-5);
   position: relative;
   overflow: hidden;
-  /* 프리미엄: Tint Layer (Shadow 대신) */
+  /* 프리미엄: 질감과 위계를 위한 그림자 */
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .stu-panel::after {
@@ -262,8 +849,9 @@ a {
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.02),
-    rgba(0, 0, 0, 0.02)
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
   );
   pointer-events: none;
   z-index: 0;
@@ -274,20 +862,241 @@ a {
   z-index: 1;
 }
 
+/* =========================
+   Action Slot Variants
+   ========================= */
+.stu-panel--nav {
+  /* 단순 이동용 */
+}
+
+.stu-panel--action {
+  /* 지금 해야함 - Primary 강조 */
+  border-color: var(--stu-primary);
+  background: var(--stu-tint-primary);
+}
+
+.stu-panel--danger {
+  /* 미제출 / 마감 임박 */
+  border-color: var(--stu-danger-border);
+  background: var(--stu-danger-bg);
+}
+
+/* =========================
+   Temporal Emphasis (시간 압박 시각화)
+   ========================= */
+@keyframes stu-pulse-soft {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.15);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.stu-panel--danger[data-urgency="high"] {
+  animation: stu-pulse-soft 1.8s infinite;
+}
+
+.stu-panel--complete {
+  /* 완료됨 */
+  opacity: 0.65;
+}
+
+.stu-panel--locked {
+  /* 접근불가 */
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .stu-panel--soft {
   background: var(--stu-surface-2);
 }
 
+.stu-panel--media {
+  /* 영상 도메인 전용 (별도 스타일) */
+}
+
+/* =========================
+   Media Tile System (Video Domain Only)
+   Panel System에서 분리된 Media Library Navigation
+   ========================= */
+.media-tile {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: transform var(--stu-motion-fast);
+  text-decoration: none;
+  color: inherit;
+}
+
+.media-tile:active {
+  transform: scale(0.98);
+}
+
+.media-tile__thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #111;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.media-tile__title {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =========================
+   Status Surface (Dashboard Status Display)
+   ========================= */
+.stu-status-surface {
+  padding: var(--stu-space-5);
+  border-radius: 8px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.02),
+    transparent
+  );
+}
+
+.stu-status-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--stu-text-muted);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.stu-status-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--stu-text);
+}
+
+/* =========================
+   Action Tiles (Quick Action Buttons)
+   ========================= */
+.stu-action-tile {
+  border-radius: 12px;
+  padding: 12px;
+  /* background 단축형 대신 background-color 사용 (테넌트별 그라데이션 오버라이드 가능) */
+  background-color: var(--stu-surface-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: transform var(--stu-motion-fast), box-shadow var(--stu-motion-fast), border-color var(--stu-motion-fast);
+  text-decoration: none;
+  color: inherit;
+  border: 2px solid var(--stu-border-subtle);
+  position: relative;
+  overflow: hidden;
+  /* 프리미엄: 질감과 위계 */
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.stu-action-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-action-tile > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stu-action-tile:active {
+  transform: scale(0.96);
+  box-shadow: 
+    0 1px 4px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.stu-action-tile__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  /* background 단축형 대신 background-color 사용 (테넌트별 그라데이션 오버라이드 가능) */
+  background-color: var(--stu-tint-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stu-action-tile__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--stu-text);
+}
+
+/* =========================
+   항상 존재하는 Primary Accent Flow
+   ========================= */
+.stu-panel--accent {
+  padding-left: calc(var(--stu-space-5) + 4px);
+}
+
+.stu-panel--accent::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--stu-gradient, var(--stu-primary));
+  opacity: 0.9;
+  z-index: 1;
+}
+
+/* Video Domain 예외 처리 - accent 제거 */
+.stu-panel--media.stu-panel--accent::before {
+  display: none;
+}
+
+/* =========================
+   Panel Interaction (Material Density)
+   ========================= */
 .stu-panel--pressable {
   cursor: pointer;
   transition: 
     background var(--stu-motion-base),
     border-color var(--stu-motion-base),
     transform var(--stu-motion-fast),
-    filter var(--stu-motion-fast);
+    filter var(--stu-motion-fast),
+    box-shadow var(--stu-motion-fast);
 }
 
+/* 프리미엄: hover 제거 - 상태 기반 강조만 사용 */
 .stu-panel--pressable:hover {
+  /* 상태 variant가 있으면 hover 효과 제거 */
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-color: var(--stu-border-normal);
+}
+
+.stu-panel--nav.stu-panel--pressable:hover {
   background: var(--stu-tint-hover);
   border-color: var(--stu-border-normal);
 }
@@ -296,14 +1105,9 @@ a {
   /* 프리미엄: 밀도 변화 (색이 아닌 재질) */
   transform: scale(0.985);
   filter: brightness(0.97);
-}
-
-.stu-panel--danger {
-  border-color: var(--stu-danger-border);
-}
-
-.stu-panel--media {
-  /* 영상 도메인 전용 (별도 스타일) */
+  box-shadow: 
+    0 1px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* =========================
@@ -311,28 +1115,43 @@ a {
    ========================= */
 .stu-section {
   background: var(--stu-surface-1);
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* 프리미엄: 미묘한 그림자로 깊이감 추가 */
+  /* 프리미엄: 질감과 위계를 위한 그림자 */
   box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.02),
-    0 2px 4px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.01);
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   position: relative;
-  /* 미묘한 질감을 위한 오버레이 */
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
-  background-size: 20px 20px;
+  overflow: hidden;
+}
+
+.stu-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-section > * {
+  position: relative;
+  z-index: 1;
 }
 
 .stu-section--nested {
   background: var(--stu-surface-2);
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
   /* 중첩된 섹션은 더 미묘한 그림자 */
   box-shadow: 
-    0 1px 1px rgba(0, 0, 0, 0.015),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    0 2px 6px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .stu-section--pressable {
@@ -378,27 +1197,43 @@ a {
 /* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
 .stu-card {
   background: var(--stu-surface-1);
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
   border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
-  /* 프리미엄: 미묘한 그림자와 질감 */
+  /* 프리미엄: 질감과 위계를 위한 그림자 */
   box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.02),
-    0 2px 4px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.01);
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   position: relative;
-  background-image: 
-    radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.015) 1px, transparent 0);
-  background-size: 20px 20px;
+  overflow: hidden;
+}
+
+.stu-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.02) 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .stu-card--soft {
   background: var(--stu-surface-2);
-  border: 1px solid var(--stu-border-subtle);
+  border: 2px solid var(--stu-border-subtle);
   /* 부드러운 카드는 더 미묘한 그림자 */
   box-shadow: 
-    0 1px 1px rgba(0, 0, 0, 0.015),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    0 2px 6px rgba(0, 0, 0, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .stu-card--pressable {
@@ -415,10 +1250,9 @@ a {
   border-color: var(--stu-border-normal);
   /* 호버 시 그림자 강화와 미묘한 상승 효과 */
   box-shadow: 
-    0 2px 4px rgba(0, 0, 0, 0.04),
-    0 4px 8px rgba(0, 0, 0, 0.05),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
-  transform: translateY(-1px);
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
 }
 
 .stu-card--pressable:active {
@@ -427,8 +1261,8 @@ a {
   transform: scale(0.985);
   filter: brightness(0.97);
   box-shadow: 
-    0 1px 2px rgba(0, 0, 0, 0.03),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+    0 1px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 /* Back-compat for existing class used in StudentPageShell */
@@ -1011,31 +1845,167 @@ export function IconVideoThumb({ className }: { className?: string }) {
   );
 }
 
+export function IconClinic(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconCalendarPlus(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth={stroke} />
+      <path d="M8 3v4M16 3v4M3 9h18M12 15v-3M10.5 13.5h3" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconBell(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconPlus(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconRefresh(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 8v-5M21 8h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M3 16v5M3 16h5" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconArrowRight(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconPencil(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" {...mergeIconProps(props)}>
+      <path d="M12 19l7-7-3-3-7 7 3 3zM5 19l-1.5-1.5 7-7 3 3L5 19z" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 
 ==========================================================================================
 # FILE: ui/layout/EmptyState.tsx
 ==========================================================================================
 // PATH: src/student/shared/ui/layout/EmptyState.tsx
 /**
- * ✅ EmptyState (LOCK v2)
- * - base.css 디자인 시스템 흡수
- * - inline style 제거
- * - 테마 변경 시 자동 반응
+ * ✅ EmptyState (LOCK v3)
+ * - 학생 앱 전역 빈 상태 컴포넌트
+ * - 간결하고 예쁜 디자인
+ * - 다크 모드 지원 (CSS 기반)
+ * - 아이콘 옵션 지원
  */
+type EmptyStateProps = {
+  title: string;
+  description?: string;
+  icon?: React.ReactNode;
+  compact?: boolean; // 작은 크기 (카드 내부용)
+};
 
 export default function EmptyState({
   title,
   description,
-}: {
-  title: string;
-  description?: string;
-}) {
+  icon,
+  compact = false,
+}: EmptyStateProps) {
+
+  // 기본 아이콘 (없으면 간단한 원형 아이콘)
+  const defaultIcon = icon || (
+    <div
+      className="stu-emptystate__icon"
+      style={{
+        width: compact ? 48 : 64,
+        height: compact ? 48 : 64,
+        borderRadius: "50%",
+        background: "var(--stu-surface-soft)",
+        border: "1px solid var(--stu-border-subtle)",
+        display: "grid",
+        placeItems: "center",
+        margin: "0 auto",
+        opacity: 0.6,
+      }}
+    >
+      <svg
+        className="stu-emptystate__icon-svg"
+        width={compact ? 24 : 32}
+        height={compact ? 24 : 32}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--stu-text-muted)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M9 12h6M9 16h6M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" />
+      </svg>
+    </div>
+  );
+
   return (
-    <div className="stu-section stu-section--nested">
-      <div className="stu-stack" style={{ gap: "var(--stu-space-4)" }}>
-        <div className="stu-h3">{title}</div>
-        {description && <div className="stu-muted">{description}</div>}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: compact ? "var(--stu-space-5)" : "var(--stu-space-8)",
+        textAlign: "center",
+        minHeight: compact ? "auto" : 200,
+      }}
+    >
+      {/* 아이콘 */}
+      <div style={{ marginBottom: compact ? "var(--stu-space-3)" : "var(--stu-space-4)" }}>
+        {defaultIcon}
       </div>
+
+      {/* 제목 */}
+      <h3
+        className="stu-emptystate__title"
+        style={{
+          fontSize: compact ? 15 : 17,
+          fontWeight: 600,
+          color: "var(--stu-text)",
+          marginBottom: description ? (compact ? "var(--stu-space-2)" : "var(--stu-space-3)") : 0,
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {title}
+      </h3>
+
+      {/* 설명 */}
+      {description && (
+        <p
+          className="stu-emptystate__description"
+          style={{
+            fontSize: compact ? 13 : 14,
+            color: "var(--stu-text-muted)",
+            lineHeight: 1.5,
+            maxWidth: compact ? "100%" : 400,
+            margin: 0,
+          }}
+        >
+          {description}
+        </p>
+      )}
     </div>
   );
 }
@@ -1076,35 +2046,46 @@ export default function SectionHeader({
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
  * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
  */
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import "../theme/tokens.css";
 import "../theme/tenants/index.css";
+import "../theme/video.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
 import { useFavicon } from "@/shared/hooks/useFavicon";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 
 /** 2번(tchul) 테넌트. 9999는 로컬 개발용으로 2번과 동일한 테마 사용 (별도 카피 없음) */
 const TCHUL_THEME_TENANTS = ["tchul", "9999"];
 
 export default function StudentLayout() {
+  const location = useLocation();
   const tenantCode = getTenantCodeForApiRequest();
   useFavicon();
+  useDocumentTitle(); // 브라우저 타이틀 설정
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
+  
+  // 영상 페이지 전체인지 확인 (영상 홈, 코스 상세, 세션 상세, 플레이어 모두 포함)
+  const isVideoPage = location.pathname.startsWith("/student/video");
 
   return (
     <div
       data-app="student"
       data-student-tenant={tenantCode || undefined}
       data-student-theme={useTchulTheme ? "tchul" : undefined}
+      data-video-page={isVideoPage ? "true" : undefined}
       style={{
         minHeight: "100dvh",
-        background: "var(--stu-bg)",
-        color: "var(--stu-text)",
+        height: "100dvh", // 높이 고정으로 스크롤 방지
+        overflow: isVideoPage ? "hidden" : "visible", // 영상 페이지는 스크롤 완전 차단
+        backgroundColor: isVideoPage ? "#000" : "var(--stu-bg)",
+        color: isVideoPage ? "#fff" : "var(--stu-text)",
         display: "flex",
         flexDirection: "column",
         paddingTop: "var(--stu-safe-top)",
+        // 배경 그라데이션은 CSS에서 적용 (tchul.css)
       }}
     >
       {useTchulTheme && (
@@ -1135,14 +2116,20 @@ export default function StudentLayout() {
       </header>
 
       <main
+        className={isVideoPage ? "video-page-main" : ""}
         style={{
           flex: 1,
-          overflow: "auto",
-          WebkitOverflowScrolling: "touch",
+          overflow: isVideoPage ? "hidden" : "auto", // 영상 페이지는 스크롤 완전 차단, 다른 페이지는 main에서 스크롤
           paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
         }}
       >
-        <div style={{ maxWidth: "var(--stu-page-max-w)", margin: "0 auto", padding: "var(--stu-space-4)" }}>
+        <div style={{ 
+          maxWidth: isVideoPage ? "100%" : "var(--stu-page-max-w)", 
+          margin: "0 auto", 
+          padding: isVideoPage ? 0 : "var(--stu-space-4)",
+          overflow: isVideoPage ? "hidden" : "visible", // 영상 페이지는 스크롤 차단
+          height: isVideoPage ? "100%" : "auto", // 영상 페이지는 높이 제한
+        }}>
           <Outlet />
         </div>
       </main>
@@ -1157,21 +2144,25 @@ export default function StudentLayout() {
 # FILE: ui/layout/StudentTabBar.tsx
 ==========================================================================================
 /**
- * 하단 탭바 — 5개: 홈 | 영상 | 일정 | 성적 | 더보기
+ * 하단 탭바 — 5개: 홈 | 영상 | 일정 | 알림 | 더보기
  * 유튜브 모바일형, 아이콘 + 라벨
  */
 import { NavLink } from "react-router-dom";
-import { IconHome, IconPlay, IconCalendar, IconGrade, IconMore } from "../icons/Icons";
+import { IconHome, IconPlay, IconCalendar, IconBell, IconMore } from "../icons/Icons";
+import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
+import NotificationBadge from "../components/NotificationBadge";
 
-const tabs: { to: string; label: string; icon: React.ReactNode }[] = [
+const tabs: { to: string; label: string; icon: React.ReactNode; badgeKey?: keyof ReturnType<typeof useNotificationCounts>["data"] }[] = [
   { to: "/student/dashboard", label: "홈", icon: <IconHome /> },
   { to: "/student/video", label: "영상", icon: <IconPlay /> },
   { to: "/student/sessions", label: "일정", icon: <IconCalendar /> },
-  { to: "/student/grades", label: "성적", icon: <IconGrade /> },
+  { to: "/student/notifications", label: "알림", icon: <IconBell />, badgeKey: "total" },
   { to: "/student/more", label: "더보기", icon: <IconMore /> },
 ];
 
 export default function StudentTabBar() {
+  const { data: counts, isLoading } = useNotificationCounts();
+
   return (
     <nav
       aria-label="하단 메뉴"
@@ -1186,7 +2177,8 @@ export default function StudentTabBar() {
         background: "var(--stu-tabbar-bg)",
         backdropFilter: "blur(20px)",
         borderTop: "1px solid var(--stu-border)",
-        boxShadow: "var(--stu-shadow-3)",
+        /* 프리미엄: iOS 고급 앱 스타일 - shadow 제거 */
+        boxShadow: "0 -1px 0 var(--stu-border)",
       }}
     >
       <div
@@ -1200,30 +2192,36 @@ export default function StudentTabBar() {
           padding: "0 var(--stu-space-4)",
         }}
       >
-        {tabs.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            className="stu-tabbar__link"
-            style={({ isActive }) => ({
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 2,
-              height: "100%",
-              color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
-              transition: "color 180ms cubic-bezier(0.4, 0, 0.2, 1), transform 180ms cubic-bezier(0.4, 0, 0.2, 1)",
-              borderRadius: "var(--stu-radius-sm)",
-              position: "relative",
-            })}
-          >
-            <span style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center" }} aria-hidden>
-              {t.icon}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>
-          </NavLink>
-        ))}
+        {tabs.map((t) => {
+          // 로딩 중이거나 데이터가 없으면 배지 표시 안 함
+          const badgeCount = !isLoading && t.badgeKey && counts ? counts[t.badgeKey] : 0;
+          return (
+            <NavLink
+              key={t.to}
+              to={t.to}
+              className="stu-tabbar__link"
+              style={({ isActive }) => ({
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 2,
+                height: "100%",
+                color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
+                background: isActive ? undefined : "transparent",
+                transition: "color 180ms cubic-bezier(0.4, 0, 0.2, 1), transform 180ms cubic-bezier(0.4, 0, 0.2, 1), background 180ms cubic-bezier(0.4, 0, 0.2, 1)",
+                borderRadius: "var(--stu-radius-sm)",
+                position: "relative",
+              })}
+            >
+              <span style={{ width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.85, position: "relative" }} aria-hidden>
+                {t.icon}
+                {badgeCount > 0 && <NotificationBadge count={badgeCount} />}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 700 }}>{t.label}</span>
+            </NavLink>
+          );
+        })}
       </div>
     </nav>
   );
@@ -1234,16 +2232,16 @@ export default function StudentTabBar() {
 # FILE: ui/layout/StudentTopBar.tsx
 ==========================================================================================
 /**
- * 상단 바 — 좌: 로고·타이틀 고정(박철과학 등) / 우: 학생 아바타 + 이름
+ * 상단 바 — 좌: 로고·타이틀 고정(박철과학 등) / 우: 학생 이름
  */
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 type Props = { tenantCode: string | null };
-
-const AVATAR_SIZE = 28;
 
 export default function StudentTopBar({ tenantCode }: Props) {
   const branding = getStudentTenantBranding(tenantCode);
@@ -1251,6 +2249,9 @@ export default function StudentTopBar({ tenantCode }: Props) {
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
   });
+  
+  const currentTenantCode = getTenantCodeForApiRequest();
+  const isTchulTheme = currentTenantCode != null && ["tchul", "9999"].includes(String(currentTenantCode));
 
   return (
     <div
@@ -1266,6 +2267,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
     >
       <Link
         to="/student/dashboard"
+        className="stu-topbar__home-link"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -1275,7 +2277,20 @@ export default function StudentTopBar({ tenantCode }: Props) {
         }}
         aria-label="홈"
       >
-        {branding.logoUrl ? (
+        {isTchulTheme ? (
+          <img
+            src={TchulLogoIcon}
+            alt=""
+            className="stu-topbar__logo"
+            style={{
+              height: 32,
+              width: 32,
+              objectFit: "contain",
+              display: "block",
+              flexShrink: 0,
+            }}
+          />
+        ) : branding.logoUrl ? (
           <img
             src={branding.logoUrl}
             alt=""
@@ -1318,47 +2333,20 @@ export default function StudentTopBar({ tenantCode }: Props) {
         }}
       >
         {profile && (
-          <>
-            <div
-              style={{
-                width: AVATAR_SIZE,
-                height: AVATAR_SIZE,
-                borderRadius: "50%",
-                overflow: "hidden",
-                flexShrink: 0,
-                background: "var(--stu-surface-soft)",
-                border: "1px solid var(--stu-border)",
-                display: "grid",
-                placeItems: "center",
-                fontSize: 12,
-                fontWeight: 800,
-                color: "var(--stu-primary)",
-              }}
-            >
-              {profile.profile_photo_url ? (
-                <img
-                  src={profile.profile_photo_url}
-                  alt=""
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                (profile.name || "?")[0]
-              )}
-            </div>
-            <span
-              style={{
-                fontWeight: 700,
-                fontSize: 14,
-                color: "var(--stu-text)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: 100,
-              }}
-            >
-              {profile.name || "학생"}
-            </span>
-          </>
+          <span
+            className="stu-topbar__name"
+            style={{
+              fontWeight: 700,
+              fontSize: 14,
+              color: "var(--stu-text)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: 100,
+            }}
+          >
+            {profile.name || "학생"}
+          </span>
         )}
       </div>
     </div>
@@ -1372,18 +2360,35 @@ export default function StudentTopBar({ tenantCode }: Props) {
 // PATH: src/student/shared/components/StudentPageShell.tsx
 
 import { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { IconChevronRight } from "../icons/Icons";
 
 export default function StudentPageShell({
   title,
   description,
   actions,
   children,
+  onBack,
+  /** 영상 강의/차시 상세처럼 배경을 검정으로 채울 때 사용. .stu-section 외곽 박스/패딩 제거 */
+  noSectionFrame,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
+  onBack?: () => void;
+  noSectionFrame?: boolean;
 }) {
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
     <div>
       <div
@@ -1395,7 +2400,24 @@ export default function StudentPageShell({
           marginBottom: 12,
         }}
       >
-        <div>
+        <div style={{ flex: 1 }}>
+          {onBack && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="stu-btn stu-btn--ghost stu-btn--sm"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                marginBottom: 8,
+                padding: "4px 8px",
+              }}
+            >
+              <IconChevronRight style={{ width: 16, height: 16, transform: "rotate(180deg)" }} />
+              <span style={{ fontSize: 14 }}>뒤로</span>
+            </button>
+          )}
           <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
           {description && (
             <div className="student-muted" style={{ marginTop: 4 }}>
@@ -1406,10 +2428,79 @@ export default function StudentPageShell({
         {actions && <div>{actions}</div>}
       </div>
 
-      <div className="stu-section">{children}</div>
+      <div className={noSectionFrame ? "stu-section stu-section--video-page" : "stu-section"}>
+        {children}
+      </div>
     </div>
   );
 }
+
+
+==========================================================================================
+# FILE: ui/theme/README.md
+==========================================================================================
+# 학생앱 디자인 시스템 (Student App Design System)
+
+## 구조 개요
+
+학생앱(`src/student`) 전용 디자인 시스템으로, 선생앱 및 로그인 페이지와 완전히 분리되어 있습니다.
+
+### 디자인 시스템 구분
+
+- **학생앱**: `src/student/shared/ui` (이 디렉토리)
+- **선생앱**: `src/styles/design-system` (별도 관리)
+- **로그인**: `src/features/auth/themes` (별도 관리)
+
+### CSS 파일 구조 및 로드 순서
+
+```
+StudentLayout.tsx에서 import 순서:
+1. tokens.css          → CSS 변수 정의 (typography, shadow, base.css import)
+2. tenants/index.css   → 테넌트별 오버라이드 (tchul.css 등)
+3. video.css           → 영상 페이지 전용 다크 모드
+
+tokens.css 내부 import 순서:
+1. typography.css      → 타이포그래피 토큰
+2. shadow.css          → 그림자 토큰
+3. base.css            → 기본 컴포넌트 스타일 (.stu-panel, .stu-action-tile 등)
+```
+
+### 스코프 분리
+
+모든 학생앱 CSS는 `[data-app="student"]` 스코프를 사용하여 전역 스타일과 충돌을 방지합니다.
+
+- 학생앱: `[data-app="student"]`
+- 선생앱: `[data-app="admin"]` (추정)
+- 로그인: `[data-app="auth"]` (추정)
+
+### 테넌트별 테마
+
+- `tenants/tchul.css`: 2번(tchul), 9999번 테넌트용
+- `tenants/index.css`: 테넌트 CSS 통합 파일
+
+### 영상 페이지 전용 스타일
+
+- `video.css`: 영상 도메인 전용 다크 모드
+- `data-video-page="true"` 속성으로 활성화
+- 영상 홈, 코스 상세, 세션 상세, 플레이어 모두 포함
+
+## 주요 원칙
+
+1. **스코프 분리**: `[data-app="student"]`로 학생앱 전용 스타일 보장
+2. **테넌트 오버라이드**: `[data-student-theme="tchul"]`로 테넌트별 커스터마이징
+3. **도메인별 스타일**: `[data-video-page="true"]`로 영상 페이지 전용 스타일
+4. **CSS 변수 우선**: 모든 색상/간격은 CSS 변수(`--stu-*`) 사용
+5. **단축형 속성 주의**: `background` 단축형은 개별 속성(`background-color`, `background-image`)과 충돌 가능
+
+## 문제 해결 가이드
+
+### 그라데이션이 적용되지 않는 경우
+- `background` 단축형 대신 `background-color` + `background-image` 분리 사용
+- `!important` 사용 시 단축형이 개별 속성을 리셋하지 않도록 주의
+
+### 스크롤바가 숨겨지지 않는 경우
+- 인라인 스타일 `overflow` 제거하고 CSS로만 제어
+- `video.css`에서 `overflow-y: auto !important`로 스크롤 기능 유지, 스크롤바만 숨김
 
 
 ==========================================================================================
@@ -1603,7 +2694,8 @@ export default function StudentPageShell({
   --stu-danger-text: #ef4444;
 
   /* 헤더/탭바 (테넌트별 오버라이드용) */
-  --stu-header-bg: rgba(248, 250, 252, 0.95);
+  /* 프리미엄: 진짜 Glass Header (blur가 보이도록 opacity 낮춤) */
+  --stu-header-bg: rgba(248, 250, 252, 0.78);
   --stu-tabbar-bg: rgba(255, 255, 255, 0.98);
 
   /* 테넌트별 오버라이드용 (그라데이션·포커스) — 기본은 단색 */
@@ -1781,6 +2873,279 @@ export default function StudentPageShell({
 
 
 ==========================================================================================
+# FILE: ui/theme/video.css
+==========================================================================================
+/* PATH: src/student/shared/ui/theme/video.css
+ * 영상 탭 전역 디자인 시스템
+ * data-video-page="true" 속성을 가진 컨테이너에 적용
+ * 영상 도메인 전용 다크 모드 테마
+ */
+
+/* =========================
+   영상 탭 전역 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+/* 영상 페이지 컨텐츠 영역 - 인라인 스타일 오버라이드 */
+[data-app="student"][data-video-page="true"] .video-page-content {
+  background-color: #000 !important;
+  color: #fff !important;
+  min-height: 100vh;
+}
+
+/* 영상 페이지 제목 */
+[data-app="student"][data-video-page="true"] .video-page-title {
+  color: #fff !important;
+}
+
+/* =========================
+   헤더 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] header {
+  background: rgba(0, 0, 0, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 헤더 내부 텍스트 및 링크 */
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link,
+[data-app="student"][data-video-page="true"] header .stu-topbar__name,
+[data-app="student"][data-video-page="true"] header a,
+[data-app="student"][data-video-page="true"] header span:not([class*="stu-icon"]) {
+  color: #fff !important;
+}
+
+/* 헤더 로고 아이콘 - 회색 잔배경 완전 제거 (더 강력한 방법) */
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link {
+  background: transparent !important;
+  background-color: transparent !important;
+  isolation: isolate;
+  position: relative;
+  overflow: visible;
+}
+
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link::before,
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link::after {
+  display: none !important;
+  content: none !important;
+}
+
+[data-app="student"][data-video-page="true"] header .stu-topbar__logo,
+[data-app="student"][data-video-page="true"] header .stu-topbar__home-link img {
+  display: block;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 로고 보정용 가짜 레이어 제거 (필터/렌더링이 일그러짐 유발하므로 제거) */
+[data-app="student"][data-video-page="true"] header .stu-topbar__logo::before,
+[data-app="student"][data-video-page="true"] header .stu-topbar__logo::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
+/* 헤더 아바타 */
+[data-app="student"][data-video-page="true"] header .stu-topbar__avatar {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+}
+
+/* 헤더 내부 모든 요소 강제 적용 */
+[data-app="student"][data-video-page="true"] header > div > div {
+  color: #fff !important;
+}
+
+/* =========================
+   하단 탭바 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar {
+  background: rgba(0, 0, 0, 0.9) !important;
+  backdrop-filter: blur(20px) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 탭바 링크 색상 - 더 밝게 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent !important;
+}
+
+/* 탭바 active 상태 - 다크모드에 맞게 (base.css의 흰색 배경 오버라이드) */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link[aria-current="page"],
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link.active {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  transform: scale(1) !important; /* base.css의 scale 제거 */
+}
+
+/* 탭바 아이콘 - 더 밝게 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link span {
+  opacity: 1 !important;
+}
+
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link[aria-current="page"] span {
+  opacity: 1 !important;
+}
+
+/* =========================
+   메인 콘텐츠 영역
+   ========================= */
+[data-app="student"][data-video-page="true"] main {
+  background-color: #000 !important;
+}
+
+/* 강의/차시 상세: Shell의 .stu-section 외곽 회색 박스 제거 — 콘텐츠가 검정에 맞닿게 */
+[data-app="student"][data-video-page="true"] main .stu-section.stu-section--video-page {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+[data-app="student"][data-video-page="true"] main .stu-section.stu-section--video-page::before {
+  display: none !important;
+}
+
+
+/* =========================
+   영상 페이지 내부 컴포넌트
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-panel,
+[data-app="student"][data-video-page="true"] .stu-section,
+[data-app="student"][data-video-page="true"] .stu-card {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-muted,
+[data-app="student"][data-video-page="true"] .stu-caption {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* =========================
+   액션 타일 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-action-tile {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-action-tile__label {
+  color: #fff !important;
+}
+
+/* =========================
+   EmptyState 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-section--nested {
+  background: #1a1a1a !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__icon {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__icon-svg {
+  stroke: rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__title {
+  color: #fff !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-emptystate__description {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* =========================
+   아이콘 다크 모드 - 더 밝게
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-icon {
+  opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* 탭바 SVG 아이콘 - 그라데이션 적용 (테두리 포함 전체 채움) */
+[data-app="student"][data-video-page="true"][data-student-theme="tchul"] nav.stu-tabbar svg,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-icon {
+  opacity: 1 !important;
+  stroke: url(#stu-gradient-tchul) !important;
+  fill: url(#stu-gradient-tchul) !important;
+}
+
+/* 탭바 아이콘 내부 모든 요소에 그라데이션 적용 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg path,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg circle,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg rect,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg polygon,
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg * {
+  fill: url(#stu-gradient-tchul) !important;
+  stroke: url(#stu-gradient-tchul) !important;
+}
+
+/* IconPlay의 polygon 그라데이션 적용 (재생 아이콘) - fill로 채움 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg polygon {
+  fill: url(#stu-gradient-tchul) !important;
+  stroke: url(#stu-gradient-tchul) !important;
+  stroke-width: 0 !important; /* fill로 채우므로 stroke 제거 */
+}
+
+/* IconMore의 circle 그라데이션 적용 (더보기 아이콘) - fill로 채움 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg circle {
+  fill: url(#stu-gradient-tchul) !important;
+  stroke: url(#stu-gradient-tchul) !important;
+  stroke-width: 0 !important; /* fill로 채우므로 stroke 제거 */
+}
+
+/* IconHome, IconCalendar, IconGrade 등의 path 그라데이션 적용 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar svg path {
+  fill: url(#stu-gradient-tchul) !important;
+  stroke: url(#stu-gradient-tchul) !important;
+  stroke-width: 2 !important; /* 테두리도 그라데이션으로 */
+}
+
+/* 비활성 탭 아이콘은 약간 투명하게 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link:not([aria-current="page"]) svg {
+  opacity: 0.7 !important;
+}
+
+/* 활성 탭 아이콘은 완전 불투명 */
+[data-app="student"][data-video-page="true"] nav.stu-tabbar .stu-tabbar__link[aria-current="page"] svg {
+  opacity: 1 !important;
+}
+
+/* 일반 SVG (탭바 외부) */
+[data-app="student"][data-video-page="true"] svg:not(nav.stu-tabbar svg) {
+  opacity: 1 !important;
+  stroke: rgba(255, 255, 255, 0.9) !important;
+  fill: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* =========================
+   링크 및 버튼 다크 모드
+   ========================= */
+[data-app="student"][data-video-page="true"] .stu-cta-link {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-app="student"][data-video-page="true"] .stu-cta-link:hover {
+  color: #fff !important;
+}
+
+
+==========================================================================================
 # FILE: ui/theme/tenants/README.md
 ==========================================================================================
 # 학생앱 테넌트별 테마
@@ -1952,10 +3317,115 @@ export default function StudentPageShell({
   fill: url(#stu-gradient-tchul);
 }
 
-/* tchul 테마: 프리미엄 배경 질감 적용 */
+/* tchul 테마: 배경에 약한 그라데이션 적용 */
 [data-student-theme="tchul"] [data-app="student"] {
-  background-image: var(--stu-bg-pattern);
-  background-size: var(--stu-bg-pattern-size);
+  /* 배경에 약한 그라데이션 + 기존 패턴 */
+  background-image: 
+    /* 약한 브랜드 그라데이션 */
+    linear-gradient(135deg, rgba(13, 71, 161, 0.04) 0%, rgba(0, 105, 92, 0.03) 50%, rgba(0, 77, 64, 0.03) 100%) !important,
+    /* 기존 패턴 */
+    var(--stu-bg-pattern) !important;
+  background-size: 
+    100% 100%,
+    var(--stu-bg-pattern-size) !important;
+  background-color: var(--stu-bg) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+/* tchul 테마: 헤더에 약한 그라데이션 적용 */
+[data-student-theme="tchul"] [data-app="student"] header {
+  background-image: linear-gradient(135deg, rgba(13, 71, 161, 0.08) 0%, rgba(0, 105, 92, 0.06) 50%, rgba(0, 77, 64, 0.06) 100%) !important;
+  background-size: 100% 100%;
+}
+
+/* tchul 테마: 탭바에 약한 그라데이션 적용 */
+[data-student-theme="tchul"] [data-app="student"] .stu-tabbar {
+  background-image: linear-gradient(135deg, rgba(13, 71, 161, 0.08) 0%, rgba(0, 105, 92, 0.06) 50%, rgba(0, 77, 64, 0.06) 100%) !important;
+  background-size: 100% 100%;
+}
+
+/* tchul 테마: 패널에 약한 그라데이션 배경 적용 */
+[data-student-theme="tchul"] [data-app="student"] .stu-panel {
+  background-image: 
+    linear-gradient(135deg, rgba(13, 71, 161, 0.06) 0%, rgba(0, 105, 92, 0.04) 50%, rgba(0, 77, 64, 0.04) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.02));
+  background-color: var(--stu-surface-1);
+}
+
+/* tchul 테마: 섹션/카드에도 약한 그라데이션 적용 */
+[data-student-theme="tchul"] [data-app="student"] .stu-section,
+[data-student-theme="tchul"] [data-app="student"] .stu-card {
+  background-image: 
+    linear-gradient(135deg, rgba(13, 71, 161, 0.05) 0%, rgba(0, 105, 92, 0.03) 50%, rgba(0, 77, 64, 0.03) 100%);
+  background-color: var(--stu-surface-1);
+}
+
+/* tchul 테마: 대시보드 Action Tile에 약한 그라데이션 적용 - 강제 오버라이드 */
+[data-app="student"][data-student-theme="tchul"] .stu-action-tile {
+  /* base.css의 background-color를 완전히 오버라이드 */
+  background-color: var(--stu-surface-1) !important;
+  background-image: 
+    linear-gradient(135deg, rgba(13, 71, 161, 0.15) 0%, rgba(0, 105, 92, 0.10) 50%, rgba(0, 77, 64, 0.10) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.03)) !important;
+  background-size: 100% 100%, 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+  background-attachment: local !important;
+}
+
+/* base.css의 ::before 오버라이드 - 그라데이션과 함께 사용 */
+[data-app="student"][data-student-theme="tchul"] .stu-action-tile::before {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.05) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.03) 100%
+  ) !important;
+  z-index: 0 !important;
+  opacity: 1 !important;
+}
+
+/* tchul 테마: 대시보드 Action Tile 아이콘 영역에도 그라데이션 적용 */
+[data-app="student"][data-student-theme="tchul"] .stu-action-tile__icon {
+  background-color: var(--stu-tint-primary) !important;
+  background-image: linear-gradient(135deg, rgba(13, 71, 161, 0.20) 0%, rgba(0, 105, 92, 0.15) 50%, rgba(0, 77, 64, 0.15) 100%) !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+}
+
+/* -------------------------------------------------------------------------
+ * 2번(tchul) 테넌트 전용: QnA 페이지
+ * data-page="qna" 로 QnA 영역만 타깃
+ * ------------------------------------------------------------------------- */
+[data-student-theme="tchul"] [data-page="qna"] .stu-emptystate__icon {
+  background: linear-gradient(135deg, rgba(13, 71, 161, 0.12) 0%, rgba(0, 105, 92, 0.10) 50%, rgba(0, 77, 64, 0.10) 100%) !important;
+  border-color: rgba(13, 71, 161, 0.2) !important;
+}
+[data-student-theme="tchul"] [data-page="qna"] .stu-emptystate__icon-svg {
+  stroke: #0d47a1;
+}
+[data-student-theme="tchul"] [data-page="qna"] .stu-btn--primary {
+  background: var(--stu-gradient);
+  box-shadow: 0 2px 8px rgba(13, 71, 161, 0.2);
+}
+[data-student-theme="tchul"] [data-page="qna"] .stu-btn--primary:hover {
+  filter: brightness(0.95);
+  box-shadow: 0 4px 12px rgba(13, 71, 161, 0.28);
+}
+[data-student-theme="tchul"] [data-page="qna"] .stu-panel.stu-panel--pressable {
+  background-image:
+    linear-gradient(135deg, rgba(13, 71, 161, 0.06) 0%, rgba(0, 105, 92, 0.04) 50%, rgba(0, 77, 64, 0.04) 100%),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.02));
+  border: 1px solid rgba(13, 71, 161, 0.12);
+}
+[data-student-theme="tchul"] [data-page="qna"] .stu-panel.stu-panel--pressable:hover {
+  border-color: rgba(13, 71, 161, 0.22);
+}
+[data-student-theme="tchul"] [data-page="qna"] .stu-section--nested > div:first-child {
+  color: #0d47a1;
+  letter-spacing: -0.02em;
 }
 
 

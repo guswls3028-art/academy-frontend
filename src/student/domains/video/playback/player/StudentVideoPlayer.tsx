@@ -247,6 +247,9 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     tokenRef.current = bootstrap.token;
   }, [bootstrap.token]);
 
+  /** unmount 후 setState 방지 (React #310, cleanup 중/이후 이벤트·비동기 콜백) */
+  const isUnmountedRef = useRef(false);
+
   // 나갈 때 저장: 언마운트 + 탭 전환/창 내리기(모바일 웹 Safari 등) — DB는 이 시점에만 1회 쓰기
   const flushProgress = useCallback(() => {
     if (!onLeaveProgress) return;
@@ -289,6 +292,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (!wrap) return;
 
     const onFullscreenChange = () => {
+      if (isUnmountedRef.current) return;
       const el =
         document.fullscreenElement ||
         (document as any).webkitFullscreenElement ||
@@ -329,6 +333,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (playing && !buffering && showControls) {
       hideControlsTimerRef.current = window.setTimeout(() => {
         hideControlsTimerRef.current = null;
+        if (isUnmountedRef.current) return;
         setShowControls(false);
       }, 3000);
     }
@@ -432,6 +437,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
           } catch {}
 
           if (data?.fatal) {
+            if (isUnmountedRef.current) return;
             const errorMsg = data?.details || data?.type || "알 수 없는 오류";
             const errorCode = data?.response?.code || data?.code;
             const is404 = errorCode === 404 || errorMsg.includes("404") || errorMsg.includes("Not Found");
@@ -517,6 +523,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     try {
       await postEvents(token, batch, video.id, enrollmentId);
     } catch (e: any) {
+      if (isUnmountedRef.current) return;
       // session revoked / inactive -> stop
       const msg = e?.response?.data?.detail || e?.message || "";
       if (String(msg).includes("session_inactive") || e?.response?.status === 409) {
@@ -531,6 +538,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   // Events: only when monitoring_enabled (FREE_REVIEW sends nothing)
   useStableInterval(
     () => {
+      if (isUnmountedRef.current) return;
       flushEvents();
     },
     2200,
@@ -540,10 +548,12 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   // Heartbeat: only for PROCTORED_CLASS
   useStableInterval(
     () => {
+      if (isUnmountedRef.current) return;
       const token = tokenRef.current;
       if (!token) return;
 
       postHeartbeat(token).catch((e: any) => {
+        if (isUnmountedRef.current) return;
         const msg = e?.response?.data?.detail || e?.message || "";
         if (String(msg).includes("policy_changed")) {
           setToast({ text: "정책이 변경되어 재생이 종료되었습니다.", kind: "danger" });
@@ -568,7 +578,10 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     attachSource();
 
     return () => {
-      // cleanup hls
+      // unmount 직후 플래그 설정 (아래 destroy/비동기 후 콜백에서 setState 방지)
+      isUnmountedRef.current = true;
+
+      // cleanup hls (Video event binding effect의 cleanup이 먼저 실행되어 리스너 제거됨 → 그 다음 이 cleanup)
       const el = videoEl.current as any;
       const hls = el?.__hls;
       if (hls && typeof hls.destroy === "function") {
@@ -587,7 +600,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
           postEnd(token).catch(() => {});
         }
 
-        // flush last events
+        // flush last events (완료 후 setToast는 flushEvents 내부에서 isUnmountedRef로 스킵됨)
         try {
           flushEvents();
         } catch {}
@@ -633,6 +646,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (!el) return;
 
     const onLoadedMeta = () => {
+      if (isUnmountedRef.current) return;
       const d = Number(el.duration || 0);
       if (d && Number.isFinite(d)) setDuration(d);
       setReady(true);
@@ -640,6 +654,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onTime = () => {
+      if (isUnmountedRef.current) return;
       const t = Number(el.currentTime || 0);
       setCurrent(t);
 
@@ -656,14 +671,25 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onPlay = () => {
+      if (isUnmountedRef.current) return;
       setPlaying(true);
       setBuffering(false);
     };
-    const onPause = () => setPlaying(false);
-    const onWaiting = () => setBuffering(true);
-    const onPlaying = () => setBuffering(false);
+    const onPause = () => {
+      if (isUnmountedRef.current) return;
+      setPlaying(false);
+    };
+    const onWaiting = () => {
+      if (isUnmountedRef.current) return;
+      setBuffering(true);
+    };
+    const onPlaying = () => {
+      if (isUnmountedRef.current) return;
+      setBuffering(false);
+    };
 
     const onRateChange = () => {
+      if (isUnmountedRef.current) return;
       const r = Number(el.playbackRate || 1);
       setRate(r);
 
@@ -689,6 +715,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onSeeking = () => {
+      if (isUnmountedRef.current) return;
       if (allowSeek && !boundedForward) return;
 
       const now = Date.now();
@@ -744,6 +771,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onError = () => {
+      if (isUnmountedRef.current) return;
       const error = el.error as any;
       const errorCode = error?.code || 0;
       const errorMessage = error?.message || "";
@@ -952,6 +980,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
       tapTimerRef.current = setTimeout(() => {
         tapTimerRef.current = null;
+        if (isUnmountedRef.current) return;
         const r = gestureLayerRef.current?.getBoundingClientRect?.();
         if (r) resolveTap(lastTapRef.current.x, r);
       }, 200);
@@ -1026,6 +1055,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = setTimeout(() => {
         longPressTimerRef.current = null;
+        if (isUnmountedRef.current) return;
         setPlaybackRate(2);
         setToast({ text: "2배속", kind: "info" });
       }, 500);
@@ -1115,6 +1145,14 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       el.muted = muted;
     } catch {}
   }, [muted, volume]);
+
+  // unmount 시 가장 먼저 플래그 설정 (cleanup 역순이라 마지막 effect의 cleanup이 먼저 실행됨)
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    return () => {
+      isUnmountedRef.current = true;
+    };
+  }, []);
 
   const policyPills = useMemo(() => {
     const pills: Array<{ text: string; tone?: "neutral" | "warn" | "danger" }> = [];

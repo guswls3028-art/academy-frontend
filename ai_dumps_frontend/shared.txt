@@ -26,9 +26,6 @@ type RefreshResponse = { access: string };
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
 
-// 디버그용 (원본 유지)
-console.log("VITE_API_BASE_URL =", import.meta.env.VITE_API_BASE_URL);
-
 function getAccessToken(): string | null {
   try {
     const t = localStorage.getItem("access");
@@ -884,7 +881,7 @@ export function useDocumentTitle(title?: string) {
 import { useEffect } from "react";
 import { resolveTenantCode } from "@/shared/tenant";
 import { getTenantIdFromCode } from "@/shared/tenant";
-import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 /**
  * 테넌트에 따라 favicon을 동적으로 설정합니다.
@@ -910,8 +907,8 @@ export function useFavicon() {
         document.head.appendChild(faviconLink);
       }
       
-      // Tchul 로고를 favicon으로 설정
-      faviconLink.href = TchulLogoTransparent;
+      // Tchul 로고를 favicon으로 설정 (배경 제거 아이콘 버전)
+      faviconLink.href = TchulLogoIcon;
       faviconLink.type = "image/png";
     }
   }, []);
@@ -1219,11 +1216,23 @@ export function getTenantCodeForApiRequest(): string | null {
       } catch {}
       return fromHost;
     }
+    // 서브도메인(예: student.hakwonplus.com) → 부모 도메인 테넌트 코드 사용 (학생앱 403 방지)
+    const parts = hostname.split(".");
+    if (parts.length >= 2) {
+      const parentDomain = parts.slice(-2).join(".");
+      const fromParent = HOSTNAME_TO_TENANT_CODE[parentDomain];
+      if (fromParent) {
+        try {
+          sessionStorage.setItem("tenantCode", fromParent);
+        } catch {}
+        return fromParent;
+      }
+    }
     const pathname = window.location.pathname || "";
-    const parts = pathname.split("/").filter(Boolean);
-    const loginIdx = parts.indexOf("login");
+    const pathParts = pathname.split("/").filter(Boolean);
+    const loginIdx = pathParts.indexOf("login");
     const fromPath =
-      loginIdx >= 0 && parts[loginIdx + 1] ? parts[loginIdx + 1] : null;
+      loginIdx >= 0 && pathParts[loginIdx + 1] ? pathParts[loginIdx + 1] : null;
     if (fromPath) {
       try {
         sessionStorage.setItem("tenantCode", fromPath);
@@ -5278,6 +5287,7 @@ import { Dropdown, Input, Badge } from "antd";
 import ThemeOverlay from "@/features/settings/overlays/ThemeOverlay";
 import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
 import { useNotices } from "@/features/notice/context/NoticeContext";
+import { useAdminNotificationCounts } from "@/features/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
 import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
@@ -5288,7 +5298,7 @@ import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { resolveTenantCode } from "@/shared/tenant";
 import { getTenantIdFromCode } from "@/shared/tenant";
-import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 function IconMenu() {
   return (
@@ -5456,7 +5466,9 @@ export default function Header() {
   }, [isOnDashboard, searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
-  const { unreadCount, notices } = useNotices();
+  const { notices } = useNotices();
+  const { counts: adminCounts, items: adminNotificationItems } = useAdminNotificationCounts();
+  const unreadCount = adminCounts.total;
 
   const openNoticeAndCloseAlarm = () => {
     setAlarmDropdownOpen(false);
@@ -5494,7 +5506,7 @@ export default function Header() {
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
   const isTchul = tenantResult.ok && (tenantResult.code === "tchul" || tenantResult.code === "9999" || tenantId === 2);
   
-  const logoUrl = program?.ui_config?.logo_url || (isTchul ? TchulLogoTransparent : null);
+  const logoUrl = program?.ui_config?.logo_url || (isTchul ? TchulLogoIcon : null);
 
   const userMenu = {
     items: [
@@ -5639,31 +5651,33 @@ export default function Header() {
                   </button>
                 </div>
                 <div className="app-header__alarmDropdownList">
-                  {notices.length === 0 ? (
+                  {adminNotificationItems.length === 0 ? (
                     <div className="app-header__alarmDropdownEmpty">알림이 없습니다</div>
                   ) : (
-                    notices.slice(0, 5).map((n) => (
+                    adminNotificationItems.map((item) => (
                       <div
-                        key={n.id}
+                        key={item.type}
                         className="app-header__alarmDropdownItem"
-                        data-level={n.level}
-                        onClick={openNoticeAndCloseAlarm}
+                        data-level="info"
+                        onClick={() => {
+                          setAlarmDropdownOpen(false);
+                          nav(item.to);
+                        }}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            openNoticeAndCloseAlarm();
+                            setAlarmDropdownOpen(false);
+                            nav(item.to);
                           }
                         }}
                       >
                         <div className="app-header__alarmDropdownItemInner">
                           <span className="app-header__alarmDropdownItemAccent" aria-hidden />
                           <div className="app-header__alarmDropdownItemContent">
-                            <strong>{n.title}</strong>
-                            {n.body != null && n.body !== "" && (
-                              <span className="app-header__alarmDropdownItemBody">{n.body}</span>
-                            )}
+                            <strong>{item.label}</strong>
+                            <span className="app-header__alarmDropdownItemBody">{item.count}건</span>
                           </div>
                         </div>
                       </div>
