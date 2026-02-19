@@ -138,7 +138,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         noPhone: !String(form.studentPhone || "").trim(),
         sendWelcomeMessage,
       });
-      const loginId = student?.psNumber ?? form.psNumber?.trim() || "(자동 부여됨)";
+      const loginId = (student?.psNumber ?? form.psNumber?.trim()) || "(자동 부여됨)";
       feedback.success(`등록 완료. 로그인 아이디: ${loginId} (초기 비밀번호로 로그인하세요)`);
       onSuccess();
       onClose();
