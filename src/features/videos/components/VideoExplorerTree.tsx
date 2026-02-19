@@ -23,11 +23,60 @@ function formatSessionTitle(s: Session): string {
   return date ? `${order}차시 ${date}` : `${order}차시`;
 }
 
+function FolderTreeNode({
+  folder,
+  allFolders,
+  currentFolderId,
+  onSelectFolder,
+  level = 0,
+}: {
+  folder: VideoFolder;
+  allFolders: VideoFolder[];
+  currentFolderId: VideoFolderId;
+  onSelectFolder: (folderId: VideoFolderId) => void;
+  level?: number;
+}) {
+  const children = allFolders.filter((f) => f.parent_id === folder.id);
+  const folderId = -folder.id; // 음수로 폴더 ID 구분
+  const isActive = currentFolderId === folderId;
+
+  return (
+    <div className={styles.node}>
+      <button
+        type="button"
+        className={styles.item + (isActive ? " " + styles.itemActive : "")}
+        onClick={() => onSelectFolder(folderId)}
+        style={{ marginLeft: `${level * var(--space-4, 16)}px` }}
+      >
+        <FolderOpen size={16} aria-hidden />
+        <span>{folder.name}</span>
+      </button>
+      {children.length > 0 && (
+        <div className={styles.children}>
+          {children.map((child) => (
+            <FolderTreeNode
+              key={child.id}
+              folder={child}
+              allFolders={allFolders}
+              currentFolderId={currentFolderId}
+              onSelectFolder={onSelectFolder}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function VideoExplorerTree({
   lectures,
+  publicFolders = [],
   currentFolderId,
   onSelectFolder,
 }: Props) {
+  const rootFolders = publicFolders.filter((f) => !f.parent_id);
+
   return (
     <div className={styles.root}>
       <button
@@ -38,6 +87,19 @@ export default function VideoExplorerTree({
         <FolderOpen size={16} aria-hidden />
         <span>전체공개영상</span>
       </button>
+      {currentFolderId === "public" && rootFolders.length > 0 && (
+        <div className={styles.children}>
+          {rootFolders.map((folder) => (
+            <FolderTreeNode
+              key={folder.id}
+              folder={folder}
+              allFolders={publicFolders}
+              currentFolderId={currentFolderId}
+              onSelectFolder={onSelectFolder}
+            />
+          ))}
+        </div>
+      )}
       {lectures.map((lec) => {
         const sessions = lec.sessions ?? [];
         return (
