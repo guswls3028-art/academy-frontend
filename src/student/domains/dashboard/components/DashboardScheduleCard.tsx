@@ -14,14 +14,7 @@ export default function DashboardScheduleCard({
   items: DashboardScheduleItem[];
 }) {
   return (
-    <div
-      style={{
-        borderRadius: 16,
-        padding: 16,
-        background: "var(--stu-surface)",
-        boxShadow: "var(--stu-shadow-2)",
-      }}
-    >
+    <div className="stu-section">
       <div style={{ fontWeight: 900, marginBottom: 12 }}>
         클리닉 · 상담 일정
       </div>
