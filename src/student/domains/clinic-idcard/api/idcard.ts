@@ -24,9 +24,15 @@ export type ClinicIdcardData = {
 export async function fetchClinicIdcard(): Promise<ClinicIdcardData> {
   const res = await api.get("/clinic/idcard/");
   const data = res.data as ClinicIdcardData;
+  const defaultColors: [string, string, string] = ["#ef4444", "#3b82f6", "#22c55e"];
+  const bgColors = Array.isArray(data.background_colors) && data.background_colors.length >= 3
+    ? [data.background_colors[0], data.background_colors[1], data.background_colors[2]] as [string, string, string]
+    : defaultColors;
+  
   return {
     student_name: data.student_name ?? "",
     profile_photo_url: data.profile_photo_url ?? null,
+    background_colors: bgColors,
     server_date: data.server_date ?? "",
     server_datetime: data.server_datetime ?? "",
     histories: Array.isArray(data.histories) ? data.histories : [],
