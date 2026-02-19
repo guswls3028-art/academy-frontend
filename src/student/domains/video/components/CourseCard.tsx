@@ -187,19 +187,8 @@ export default function CourseCard({
 
       {/* 정보 영역 */}
       <div style={{ marginTop: 6 }}>
-        <div className="media-tile__title" style={{ fontWeight: 600, color: "var(--stu-text)", marginBottom: 4 }}>
+        <div className="media-tile__title" style={{ fontWeight: 600, color: "var(--stu-text)" }}>
           {title}
-        </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--stu-text-muted)",
-            lineHeight: 1.4,
-          }}
-        >
-          {videoCount > 0 && <span>{videoCount}강</span>}
-          {videoCount > 0 && totalDuration && <span> · </span>}
-          {totalDuration && <span>{formatDuration(totalDuration)}</span>}
         </div>
       </div>
     </Component>
