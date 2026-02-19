@@ -215,7 +215,7 @@ export default function CourseCard({
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
-            color: "var(--stu-text-primary)",
+            color: "var(--stu-text)",
           }}
         >
           {title}
