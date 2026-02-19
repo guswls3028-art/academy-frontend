@@ -50,7 +50,8 @@
   --stu-danger-text: #ef4444;
 
   /* 헤더/탭바 (테넌트별 오버라이드용) */
-  --stu-header-bg: rgba(248, 250, 252, 0.95);
+  /* 프리미엄: 진짜 Glass Header (blur가 보이도록 opacity 낮춤) */
+  --stu-header-bg: rgba(248, 250, 252, 0.78);
   --stu-tabbar-bg: rgba(255, 255, 255, 0.98);
 
   /* 테넌트별 오버라이드용 (그라데이션·포커스) — 기본은 단색 */

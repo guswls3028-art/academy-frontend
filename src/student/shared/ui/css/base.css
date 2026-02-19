@@ -161,13 +161,13 @@ a {
 }
 
 /* =========================
-   2) Panel (OTT형 UI - 카드 대체)
-   프리미엄: Tint Layer, 밀도 변화, 재질감
+   2) Panel (Action Console Mode)
+   Action Slot Container - 사용자 상태 기반 UI
    ========================= */
 .stu-panel {
   background: var(--stu-surface-1);
   border: 1px solid var(--stu-border-subtle);
-  border-radius: 6px; /* OTT 스타일: 더 작은 radius */
+  border-radius: 6px;
   padding: var(--stu-space-5);
   position: relative;
   overflow: hidden;
@@ -192,10 +192,72 @@ a {
   z-index: 1;
 }
 
+/* =========================
+   Action Slot Variants
+   ========================= */
+.stu-panel--nav {
+  /* 단순 이동용 */
+}
+
+.stu-panel--action {
+  /* 지금 해야함 - Primary 강조 */
+  border-color: var(--stu-primary);
+  background: var(--stu-tint-primary);
+}
+
+.stu-panel--danger {
+  /* 미제출 / 마감 임박 */
+  border-color: var(--stu-danger-border);
+  background: var(--stu-danger-bg);
+}
+
+.stu-panel--complete {
+  /* 완료됨 */
+  opacity: 0.65;
+}
+
+.stu-panel--locked {
+  /* 접근불가 */
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .stu-panel--soft {
   background: var(--stu-surface-2);
 }
 
+.stu-panel--media {
+  /* 영상 도메인 전용 (별도 스타일) */
+}
+
+/* =========================
+   항상 존재하는 Primary Accent Flow
+   ========================= */
+.stu-panel--accent {
+  padding-left: calc(var(--stu-space-5) + 4px);
+}
+
+.stu-panel--accent::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--stu-gradient, var(--stu-primary));
+  opacity: 0.9;
+  z-index: 1;
+}
+
+/* Video Domain 예외 처리 - accent 제거 */
+.stu-panel--media.stu-panel--accent::before {
+  display: none;
+}
+
+/* =========================
+   Panel Interaction (Material Density)
+   ========================= */
 .stu-panel--pressable {
   cursor: pointer;
   transition: 
@@ -214,14 +276,6 @@ a {
   /* 프리미엄: 밀도 변화 (색이 아닌 재질) */
   transform: scale(0.985);
   filter: brightness(0.97);
-}
-
-.stu-panel--danger {
-  border-color: var(--stu-danger-border);
-}
-
-.stu-panel--media {
-  /* 영상 도메인 전용 (별도 스타일) */
 }
 
 /* =========================
