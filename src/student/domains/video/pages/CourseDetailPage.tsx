@@ -58,11 +58,26 @@ function SessionBox({
         style={{
           borderRadius: 12,
           overflow: "hidden",
-          background: "var(--stu-surface-1)",
-          border: "1px solid var(--stu-border-subtle)",
-          transition: "transform var(--stu-motion-fast), filter var(--stu-motion-fast)",
+          background: "#1a1a1a",
+          border: "1px solid rgba(255,255,255,0.1)",
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+          cursor: "pointer",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
         }}
-        className="stu-panel--pressable"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "translateY(-4px)";
+          e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.5)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
+        }}
+        onMouseDown={(e) => {
+          e.currentTarget.style.transform = "translateY(-2px) scale(0.98)";
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.transform = "translateY(-4px)";
+        }}
       >
         {/* 썸네일 영역 */}
         <div
@@ -149,7 +164,7 @@ function SessionBox({
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "var(--stu-text)",
+              color: "#fff",
               marginBottom: 4,
             }}
           >
@@ -158,7 +173,7 @@ function SessionBox({
           <div
             style={{
               fontSize: 12,
-              color: "var(--stu-text-muted)",
+              color: "rgba(255,255,255,0.7)",
             }}
           >
             {sessionData.videoCount}개 영상 · {formatDuration(sessionData.totalDuration)}

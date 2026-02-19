@@ -177,8 +177,8 @@ export default function SessionDetailPage() {
   }
 
   return (
-    <StudentPageShell title={firstVideo?.title ?? "차시 정보"}>
-      <div style={{ padding: "var(--stu-space-4)" }}>
+    <StudentPageShell title="">
+      <div style={{ padding: "var(--stu-space-4)", background: "#000", minHeight: "100vh", color: "#fff" }}>
         {/* 상단: 첫 번째 영상 썸네일 배너 */}
         {firstVideo && (
           <div
