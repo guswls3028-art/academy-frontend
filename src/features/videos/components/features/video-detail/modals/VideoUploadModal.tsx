@@ -159,7 +159,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                 <span className="video-upload-modal__filename">
                   {files.length === 1
                     ? files[0].name
-                    : `${files.length}개 파일 선택됨: ${files.map((f) => f.name).join(", ")}`}
+                    : `${files.length}개 파일 선택됨${files.length <= 3 ? ` (${files.map((f) => f.name).join(", ")})` : ""}`}
                 </span>
               ) : (
                 <span className="video-upload-modal__prompt">파일: 클릭 또는 드래그하여 업로드 (mp4 등, 다중 선택 가능)</span>
