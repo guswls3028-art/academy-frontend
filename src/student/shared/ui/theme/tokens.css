@@ -138,4 +138,9 @@
   --stu-safe-bottom: env(safe-area-inset-bottom, 0px);
   --stu-safe-top: env(safe-area-inset-top, 0px);
   --stu-touch: 44px;
+  
+  /* 프리미엄: Motion Token (속도 계층화) */
+  --stu-motion-fast: 90ms cubic-bezier(0.4, 0, 0.2, 1);
+  --stu-motion-base: 140ms cubic-bezier(0.4, 0, 0.2, 1);
+  --stu-motion-slow: 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
