@@ -84,8 +84,8 @@ export default function DashboardPage() {
               </Link>
             ))}
             {todaySessions.length > 3 && (
-              <Link to="/student/sessions" className="stu-muted" style={{ fontSize: 13, paddingLeft: 4 }}>
-                + 더보기
+              <Link to="/student/sessions" className="stu-cta-link" style={{ fontSize: 13, paddingLeft: 4 }}>
+                더보기
               </Link>
             )}
           </div>
