@@ -9,12 +9,14 @@ import "../theme/tenants/index.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
+import { useFavicon } from "@/shared/hooks/useFavicon";
 
 /** 2번(tchul) 테넌트. 9999는 디버깅용으로 이 테마를 "사용" (별도 카피 없음) */
 const TCHUL_THEME_TENANTS = ["tchul", "9999"];
 
 export default function StudentLayout() {
   const tenantCode = getTenantCodeForApiRequest();
+  useFavicon();
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
 
   return (
