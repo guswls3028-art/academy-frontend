@@ -133,9 +133,26 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
     setBusy(true);
     try {
-      await createStudent({ ...form, noPhone: !String(form.studentPhone || "").trim(), sendWelcomeMessage });
+      const student = await createStudent({
+        ...form,
+        noPhone: !String(form.studentPhone || "").trim(),
+        sendWelcomeMessage,
+      });
+      const loginId = student?.psNumber ?? form.psNumber?.trim() || "(자동 부여됨)";
+      feedback.success(`등록 완료. 로그인 아이디: ${loginId} (초기 비밀번호로 로그인하세요)`);
       onSuccess();
       onClose();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: unknown } }; message?: string };
+      const msg =
+        typeof err?.response?.data?.detail === "string"
+          ? err.response.data.detail
+          : err?.response?.data?.detail
+            ? JSON.stringify(err.response.data.detail)
+            : err instanceof Error
+              ? err.message
+              : "등록 요청 중 오류가 발생했습니다.";
+      feedback.error(msg);
     } finally {
       setBusy(false);
     }
