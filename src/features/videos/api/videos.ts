@@ -127,13 +127,12 @@ export async function fetchSessionVideos(
   return [];
 }
 
-/** 전체 영상 (세션 필터 없이 — 전체공개영상 폴더용) */
-export async function fetchAllVideos(): Promise<Video[]> {
-  const res = await api.get("/media/videos/", { params: {} });
-  const d = res?.data;
-  if (Array.isArray(d)) return d.map(normalizeVideo);
-  if (Array.isArray(d?.results)) return d.results.map(normalizeVideo);
-  return [];
+/** 전체공개영상 전용 세션 조회/생성 — 업로드·목록에 사용 (테넌트당 1개) */
+export async function fetchPublicSession(): Promise<{ session_id: number; lecture_id: number }> {
+  const res = await api.get<{ session_id: number; lecture_id: number }>(
+    "/media/videos/public-session/"
+  );
+  return res.data;
 }
 
 /** 진행 중인 영상(PROCESSING, UPLOADED) 목록 — 새로고침 후 작업 박스 복원용 */
