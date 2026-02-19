@@ -82,7 +82,7 @@ export default function SessionDetailPage() {
           </Link>
         </ActionCard>
 
-        <div style={{ fontSize: 12, color: "#777" }}>
+        <div className="stu-muted" style={{ fontSize: 12 }}>
           ※ 이 페이지는 “행동 허브”입니다. 정책/상태 판단은 백엔드가 책임집니다.
         </div>
       </div>
