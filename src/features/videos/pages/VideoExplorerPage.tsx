@@ -170,7 +170,7 @@ export default function VideoExplorerPage() {
   return (
     <DomainLayout
       title="영상"
-      description="강의·차시 단위 영상을 관리합니다. 전체공개영상은 모든 영상을 한곳에서 조회합니다."
+      description="강의·차시 단위 영상을 관리합니다. 전체공개영상은 프로그램에 등록된 모든 학생이 시청할 수 있는 영상입니다."
     >
       <div className={styles.root}>
         <div className={styles.toolbar}>
