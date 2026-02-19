@@ -20,7 +20,7 @@
  *   and helps transitional tooling / diagnostics.
  */
 
-import { HOSTNAME_TO_TENANT_CODE } from "./config";
+import { HOSTNAME_TO_TENANT_CODE } from "./tenants";
 
 export const TENANT_STORAGE_KEY = "tenant_code";
 
@@ -196,4 +196,11 @@ export function getTenantCodeForApiRequest(): string | null {
 }
 
 export type { TenantId } from "./config";
-export { getTenantIdFromCode, getTenantBranding, HOSTNAME_TO_TENANT_CODE } from "./config";
+export {
+  getTenantIdFromCode,
+  getTenantBranding,
+  HOSTNAME_TO_TENANT_CODE,
+  getLoginPathForTenantId,
+  getTenantIdsWithDedicatedLogin,
+  TENANTS,
+} from "./config";
