@@ -34,6 +34,8 @@ export default function StudentLayout() {
       data-video-page={isVideoPage ? "true" : undefined}
       style={{
         minHeight: "100dvh",
+        height: "100dvh", // 높이 고정으로 스크롤 방지
+        overflow: isVideoPage ? "hidden" : "visible", // 영상 페이지는 스크롤 완전 차단
         backgroundColor: isVideoPage ? "#000" : "var(--stu-bg)",
         color: isVideoPage ? "#fff" : "var(--stu-text)",
         display: "flex",
@@ -73,15 +75,16 @@ export default function StudentLayout() {
         className={isVideoPage ? "video-page-main" : ""}
         style={{
           flex: 1,
-          overflow: isVideoPage ? undefined : "auto", // 영상 페이지는 CSS로 제어
-          WebkitOverflowScrolling: "touch",
+          overflow: isVideoPage ? "hidden" : "auto", // 영상 페이지는 스크롤 완전 차단, 다른 페이지는 main에서 스크롤
           paddingBottom: "calc(var(--stu-tabbar-h) + var(--stu-safe-bottom) + var(--stu-space-4))",
         }}
       >
         <div style={{ 
           maxWidth: isVideoPage ? "100%" : "var(--stu-page-max-w)", 
           margin: "0 auto", 
-          padding: isVideoPage ? 0 : "var(--stu-space-4)" 
+          padding: isVideoPage ? 0 : "var(--stu-space-4)",
+          overflow: isVideoPage ? "hidden" : "visible", // 영상 페이지는 스크롤 차단
+          height: isVideoPage ? "100%" : "auto", // 영상 페이지는 높이 제한
         }}>
           <Outlet />
         </div>

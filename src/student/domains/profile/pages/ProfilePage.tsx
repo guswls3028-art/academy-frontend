@@ -1,34 +1,68 @@
 // PATH: src/student/domains/profile/pages/ProfilePage.tsx
-// 학생이 본인 프로필 사진만 업로드 (관리자 편집 불가)
+// 학생 프로필 정보 표시 및 아이디/비밀번호 변경
 
-import { useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
-import { fetchMyProfile, updateMyProfilePhoto } from "../api/profile";
+import { fetchMyProfile } from "../api/profile";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
+import api from "@/student/shared/api/studentApi";
 
 export default function ProfilePage() {
-  const inputRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const { data: profile, isLoading, isError } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) => updateMyProfilePhoto(file),
+  const updateUsernameMutation = useMutation({
+    mutationFn: async (newUsername: string) => {
+      const res = await api.patch("/student/me/", { username: newUsername });
+      return res.data;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", "me"] });
+      setUsername("");
     },
   });
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith("image/")) {
-      uploadMutation.mutate(file);
+  const updatePasswordMutation = useMutation({
+    mutationFn: async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
+      const res = await api.patch("/student/me/", {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      setPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+  });
+
+  const handleUsernameSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim()) return;
+    updateUsernameMutation.mutate(username.trim());
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim() || !newPassword.trim()) return;
+    if (newPassword !== confirmPassword) {
+      alert("새 비밀번호가 일치하지 않습니다.");
+      return;
     }
-    e.target.value = "";
+    updatePasswordMutation.mutate({
+      currentPassword: password,
+      newPassword: newPassword,
+    });
   };
 
   if (isLoading) {
@@ -51,64 +85,95 @@ export default function ProfilePage() {
   }
 
   return (
-    <StudentPageShell title="내 정보" description="프로필 사진과 이름이 헤더에 표시됩니다.">
-      <div className="stu-section stu-section--nested">
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "var(--stu-space-6)",
-          }}
-        >
-          <div
-            style={{
-              width: 96,
-              height: 96,
-              borderRadius: 16,
-              overflow: "hidden",
-              background: "var(--stu-surface-soft)",
-              border: "2px solid var(--stu-border)",
-              display: "grid",
-              placeItems: "center",
-              fontSize: 36,
-              fontWeight: 800,
-              color: "var(--stu-primary)",
-            }}
-          >
-            {profile.profile_photo_url ? (
-              <img
-                src={profile.profile_photo_url}
-                alt="프로필"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              (profile.name || "?")[0]
-            )}
+    <StudentPageShell title="내 정보">
+      {/* 기본 정보 */}
+      <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+          <div>
+            <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>이름</div>
+            <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.name || "-"}</div>
           </div>
-          <div style={{ fontWeight: 800, fontSize: 18 }}>{profile.name}</div>
+          <div>
+            <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학생 ID</div>
+            <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.id}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 아이디 변경 */}
+      <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>아이디 변경</div>
+        <form onSubmit={handleUsernameSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
           <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFile}
-            style={{ display: "none" }}
-            aria-label="프로필 사진 선택"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="새 아이디"
+            className="stu-input"
           />
           <button
-            type="button"
+            type="submit"
             className="stu-btn stu-btn--primary stu-btn--sm"
-            disabled={uploadMutation.isPending}
-            onClick={() => inputRef.current?.click()}
+            disabled={updateUsernameMutation.isPending || !username.trim()}
           >
-            {uploadMutation.isPending ? "업로드 중…" : "사진 변경"}
+            {updateUsernameMutation.isPending ? "변경 중…" : "아이디 변경"}
           </button>
-          {uploadMutation.isError && (
-            <div className="stu-muted" style={{ fontSize: 13 }}>
-              업로드에 실패했습니다. 이미지 파일만 선택해 주세요.
+          {updateUsernameMutation.isError && (
+            <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
+              아이디 변경에 실패했습니다.
             </div>
           )}
-        </div>
+          {updateUsernameMutation.isSuccess && (
+            <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-success)" }}>
+              아이디가 변경되었습니다.
+            </div>
+          )}
+        </form>
+      </div>
+
+      {/* 비밀번호 변경 */}
+      <div className="stu-section stu-section--nested">
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>비밀번호 변경</div>
+        <form onSubmit={handlePasswordSubmit} style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="현재 비밀번호"
+            className="stu-input"
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="새 비밀번호"
+            className="stu-input"
+          />
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="새 비밀번호 확인"
+            className="stu-input"
+          />
+          <button
+            type="submit"
+            className="stu-btn stu-btn--primary stu-btn--sm"
+            disabled={updatePasswordMutation.isPending || !password.trim() || !newPassword.trim() || !confirmPassword.trim()}
+          >
+            {updatePasswordMutation.isPending ? "변경 중…" : "비밀번호 변경"}
+          </button>
+          {updatePasswordMutation.isError && (
+            <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-danger)" }}>
+              비밀번호 변경에 실패했습니다. 현재 비밀번호를 확인해주세요.
+            </div>
+          )}
+          {updatePasswordMutation.isSuccess && (
+            <div className="stu-muted" style={{ fontSize: 13, color: "var(--stu-success)" }}>
+              비밀번호가 변경되었습니다.
+            </div>
+          )}
+        </form>
       </div>
     </StudentPageShell>
   );

@@ -5,12 +5,15 @@ import { Link } from "react-router-dom";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
-import { IconPlay, IconCalendar, IconGrade, IconExam, IconNotice } from "@/student/shared/ui/icons/Icons";
+import { IconPlay, IconCalendar, IconGrade, IconExam, IconNotice, IconClipboard, IconClinic, IconCalendarPlus } from "@/student/shared/ui/icons/Icons";
 import { formatYmd } from "@/student/shared/utils/date";
+import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
+import NotificationBadge from "@/student/shared/ui/components/NotificationBadge";
 
 export default function DashboardPage() {
   const { data: dashboard, isLoading: dashLoading } = useStudentDashboard();
   const { data: sessions, isLoading: sessionsLoading } = useMySessions();
+  const { data: notificationCounts, isLoading: countsLoading } = useNotificationCounts();
 
   const today = new Date().toISOString().slice(0, 10);
   const todaySessions = (sessions ?? []).filter((s) => (s.date ?? "").slice(0, 10) === today);
@@ -28,7 +31,7 @@ export default function DashboardPage() {
     <div style={{ padding: "var(--stu-space-2) 0" }}>
       {/* 공지 */}
       <Link
-        to="/student/qna"
+        to="/student/notices"
         className="stu-panel stu-panel--pressable stu-panel--accent"
         style={{
           display: "flex",
@@ -43,8 +46,8 @@ export default function DashboardPage() {
           <IconNotice style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>공지·Q&A</div>
-          <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>소통 게시판에서 확인하세요</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>공지사항</div>
+          <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>중요한 공지를 확인하세요</div>
         </div>
         <span className="stu-cta-link" style={{ fontSize: 13 }}>보기</span>
       </Link>
@@ -92,9 +95,13 @@ export default function DashboardPage() {
           <Link
             to="/student/video"
             className="stu-action-tile"
+            style={{ position: "relative" }}
           >
-            <div className="stu-action-tile__icon">
+            <div className="stu-action-tile__icon" style={{ position: "relative" }}>
               <IconPlay style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+              {!countsLoading && notificationCounts && notificationCounts.video > 0 && (
+                <NotificationBadge count={notificationCounts.video} />
+              )}
             </div>
             <div className="stu-action-tile__label">영상</div>
           </Link>
@@ -108,11 +115,33 @@ export default function DashboardPage() {
             <div className="stu-action-tile__label">시험</div>
           </Link>
           <Link
-            to="/student/grades"
+            to="/student/qna"
             className="stu-action-tile"
           >
             <div className="stu-action-tile__icon">
+              <IconNotice style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+            </div>
+            <div className="stu-action-tile__label">QnA</div>
+          </Link>
+          <Link
+            to="/student/exams"
+            className="stu-action-tile"
+          >
+            <div className="stu-action-tile__icon">
+              <IconClipboard style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+            </div>
+            <div className="stu-action-tile__label">제출</div>
+          </Link>
+          <Link
+            to="/student/grades"
+            className="stu-action-tile"
+            style={{ position: "relative" }}
+          >
+            <div className="stu-action-tile__icon" style={{ position: "relative" }}>
               <IconGrade style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+              {!countsLoading && notificationCounts && notificationCounts.grade > 0 && (
+                <NotificationBadge count={notificationCounts.grade} />
+              )}
             </div>
             <div className="stu-action-tile__label">성적</div>
           </Link>
@@ -124,6 +153,19 @@ export default function DashboardPage() {
               <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
             </div>
             <div className="stu-action-tile__label">일정</div>
+          </Link>
+          <Link
+            to="/student/clinic"
+            className="stu-action-tile"
+            style={{ position: "relative" }}
+          >
+            <div className="stu-action-tile__icon" style={{ position: "relative" }}>
+              <IconClinic style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+              {!countsLoading && notificationCounts && notificationCounts.clinic > 0 && (
+                <NotificationBadge count={notificationCounts.clinic} />
+              )}
+            </div>
+            <div className="stu-action-tile__label">클리닉</div>
           </Link>
         </div>
       </section>

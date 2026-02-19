@@ -2,10 +2,12 @@
 import api from "@/shared/api/axios";
 
 export type ClinicParticipantStatus =
+  | "pending"
   | "booked"
   | "attended"
   | "no_show"
-  | "cancelled";
+  | "cancelled"
+  | "rejected";
 
 export type ClinicParticipant = {
   id: number;

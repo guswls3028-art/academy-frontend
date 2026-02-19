@@ -21,6 +21,7 @@
 html,
 body {
   height: 100%;
+  overflow: hidden; /* 기본적으로 body 스크롤 차단 */
 }
 
 html {
@@ -50,7 +51,6 @@ body {
   background-size: 24px 24px, 100% 100%;
   background-position: 0 0, 0 0;
 }
-
 
 /* Media elements */
 img,

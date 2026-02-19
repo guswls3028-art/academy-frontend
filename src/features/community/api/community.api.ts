@@ -50,6 +50,8 @@ export interface PostEntity {
   content: string;
   created_by: number | null;
   created_at: string;
+  updated_at?: string;
+  replies_count?: number;
   mappings: PostMappingItem[];
 }
 
@@ -353,9 +355,23 @@ export interface Answer {
   created_at: string;
 }
 
-/** 답변 API 미제공 — 스텁 */
-export async function fetchQuestionAnswer(_questionId: number): Promise<Answer | null> {
-  return null;
+/**
+ * 게시물의 답변 목록 조회
+ */
+export async function fetchPostReplies(postId: number): Promise<Answer[]> {
+  try {
+    const res = await api.get(`${PREFIX}/posts/${postId}/replies/`);
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (error) {
+    console.error("답변 목록 조회 실패:", error);
+    return [];
+  }
+}
+
+/** 답변 API 미제공 — 스텁 (하위 호환) */
+export async function fetchQuestionAnswer(questionId: number): Promise<Answer | null> {
+  const replies = await fetchPostReplies(questionId);
+  return replies.length > 0 ? replies[0] : null;
 }
 
 /** 답변 API 미제공 — 스텁 */

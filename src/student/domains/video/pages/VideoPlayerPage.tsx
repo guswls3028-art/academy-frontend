@@ -132,7 +132,7 @@ export default function VideoPlayerPage() {
   }, [videoId, enrollmentId]);
 
   return (
-    <div style={{ background: "#000", minHeight: "100vh", padding: "var(--stu-space-4)" }}>
+    <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
         <div style={{ marginBottom: "var(--stu-space-4)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button

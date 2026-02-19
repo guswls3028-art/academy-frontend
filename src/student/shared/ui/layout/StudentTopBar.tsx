@@ -1,5 +1,5 @@
 /**
- * 상단 바 — 좌: 로고·타이틀 고정(박철과학 등) / 우: 학생 아바타 + 이름
+ * 상단 바 — 좌: 로고·타이틀 고정(박철과학 등) / 우: 학생 이름
  */
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -9,8 +9,6 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
 
 type Props = { tenantCode: string | null };
-
-const AVATAR_SIZE = 28;
 
 export default function StudentTopBar({ tenantCode }: Props) {
   const branding = getStudentTenantBranding(tenantCode);
@@ -111,49 +109,20 @@ export default function StudentTopBar({ tenantCode }: Props) {
         }}
       >
         {profile && (
-          <>
-            <div
-              className="stu-topbar__avatar"
-              style={{
-                width: AVATAR_SIZE,
-                height: AVATAR_SIZE,
-                borderRadius: "50%",
-                overflow: "hidden",
-                flexShrink: 0,
-                background: "var(--stu-surface-soft)",
-                border: "1px solid var(--stu-border)",
-                display: "grid",
-                placeItems: "center",
-                fontSize: 12,
-                fontWeight: 800,
-                color: "var(--stu-primary)",
-              }}
-            >
-              {profile.profile_photo_url ? (
-                <img
-                  src={profile.profile_photo_url}
-                  alt=""
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                (profile.name || "?")[0]
-              )}
-            </div>
-            <span
-              className="stu-topbar__name"
-              style={{
-                fontWeight: 700,
-                fontSize: 14,
-                color: "var(--stu-text)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: 100,
-              }}
-            >
-              {profile.name || "학생"}
-            </span>
-          </>
+          <span
+            className="stu-topbar__name"
+            style={{
+              fontWeight: 700,
+              fontSize: 14,
+              color: "var(--stu-text)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: 100,
+            }}
+          >
+            {profile.name || "학생"}
+          </span>
         )}
       </div>
     </div>

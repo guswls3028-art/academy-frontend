@@ -218,7 +218,7 @@ export default function CourseDetailPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="">
-        <div style={{ padding: "var(--stu-space-4)", background: "#000", minHeight: "100vh", color: "#fff" }}>
+        <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
           <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
           <div className="stu-skel" style={{ height: 120, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
         </div>
@@ -229,7 +229,7 @@ export default function CourseDetailPage() {
   if (!lecture && !isPublic) {
     return (
       <StudentPageShell title="">
-        <div style={{ padding: "var(--stu-space-4)", background: "#000", minHeight: "100vh", color: "#fff" }}>
+        <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
           <EmptyState
             title="수업을 찾을 수 없습니다"
             description="수업이 존재하지 않거나 접근 권한이 없습니다."
@@ -264,7 +264,7 @@ export default function CourseDetailPage() {
 
   return (
     <StudentPageShell title="">
-      <div style={{ padding: "var(--stu-space-4)", background: "#000", minHeight: "100vh", color: "#fff" }}>
+      <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
         {/* 상단: 수업 정보 */}
         <div
           style={{

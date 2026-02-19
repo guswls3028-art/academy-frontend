@@ -3,7 +3,7 @@
  * - 깡블랙 배경 + 눈에 띄는 색/애니메이션
  * - 실시간 시계(초 단위 갱신)로 위조·스크린샷 즉시 판별
  */
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchClinicIdcard } from "../api/idcard";
 import "../styles/idcard.css";
@@ -32,13 +32,6 @@ function getTimeColor(seconds: number): string {
   return seconds % 2 === 0 ? "#22c55e" : "#60efff";
 }
 
-/** 이름 이니셜 (프로필 사진 없을 때) */
-function getInitials(name: string): string {
-  if (!name || name.length === 0) return "?";
-  const trimmed = name.trim();
-  if (trimmed.length <= 2) return trimmed;
-  return trimmed.slice(0, 2);
-}
 
 function formatLiveDate(d: Date): string {
   const y = d.getFullYear();
@@ -51,19 +44,11 @@ function formatLiveDate(d: Date): string {
 
 export default function ClinicIDCardPage() {
   const liveNow = useLiveClock();
-  const [profilePhotoError, setProfilePhotoError] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["clinic-idcard"],
     queryFn: fetchClinicIdcard,
     refetchInterval: 2000, // 2초마다 자동 갱신 (선생님이 색상 변경 시 즉시 반영)
   });
-
-  // 데이터가 변경되면 프로필 사진 에러 상태 리셋
-  useEffect(() => {
-    if (data) {
-      setProfilePhotoError(false);
-    }
-  }, [data]);
 
   if (isLoading) {
     return (
@@ -108,34 +93,6 @@ export default function ClinicIDCardPage() {
         <span>LIVE</span>
       </div>
 
-      {/* 학생 프로필 사진 (신원 확인용) — 좌측 상단 */}
-      {data.profile_photo_url && !profilePhotoError ? (
-        <div className="idcard-page__profile-photo">
-          <img
-            src={data.profile_photo_url}
-            alt={data.student_name || ""}
-            onError={(e) => {
-              // 이미지 로딩 실패 시 이니셜 표시로 전환
-              console.error("프로필 사진 로딩 실패:", data.profile_photo_url);
-              setProfilePhotoError(true);
-              // 이미지 요소 숨기기
-              const img = e.target as HTMLImageElement;
-              if (img) {
-                img.style.display = "none";
-              }
-            }}
-            onLoad={() => {
-              // 이미지 로딩 성공 시 에러 상태 리셋
-              setProfilePhotoError(false);
-            }}
-            crossOrigin="anonymous"
-          />
-        </div>
-      ) : (
-        <div className="idcard-page__profile-initials">
-          {getInitials(data.student_name || "")}
-        </div>
-      )}
 
       <div className="idcard-page__label">조회 일시</div>
       <div className="idcard-page__date">{formatLiveDate(liveNow)}</div>

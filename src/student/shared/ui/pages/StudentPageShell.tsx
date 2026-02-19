@@ -1,18 +1,32 @@
 // PATH: src/student/shared/components/StudentPageShell.tsx
 
 import { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { IconChevronRight } from "../icons/Icons";
 
 export default function StudentPageShell({
   title,
   description,
   actions,
   children,
+  onBack,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
+  onBack?: () => void;
 }) {
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
     <div>
       <div
@@ -24,7 +38,24 @@ export default function StudentPageShell({
           marginBottom: 12,
         }}
       >
-        <div>
+        <div style={{ flex: 1 }}>
+          {onBack && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="stu-btn stu-btn--ghost stu-btn--sm"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                marginBottom: 8,
+                padding: "4px 8px",
+              }}
+            >
+              <IconChevronRight style={{ width: 16, height: 16, transform: "rotate(180deg)" }} />
+              <span style={{ fontSize: 14 }}>뒤로</span>
+            </button>
+          )}
           <div style={{ fontSize: 20, fontWeight: 800 }}>{title}</div>
           {description && (
             <div className="student-muted" style={{ marginTop: 4 }}>

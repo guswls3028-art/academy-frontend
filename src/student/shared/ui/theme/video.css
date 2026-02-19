@@ -12,6 +12,18 @@
   color: #fff !important;
 }
 
+/* 영상 페이지 컨텐츠 영역 - 인라인 스타일 오버라이드 */
+[data-app="student"][data-video-page="true"] .video-page-content {
+  background-color: #000 !important;
+  color: #fff !important;
+  min-height: 100vh;
+}
+
+/* 영상 페이지 제목 */
+[data-app="student"][data-video-page="true"] .video-page-title {
+  color: #fff !important;
+}
+
 /* =========================
    헤더 다크 모드
    ========================= */
@@ -151,49 +163,6 @@
   background-color: #000 !important;
 }
 
-/* 영상 탭 스크롤바 숨기기 - 최종 강제 적용 */
-[data-app="student"][data-video-page="true"] main,
-[data-app="student"][data-video-page="true"] main.video-page-main {
-  overflow-y: auto !important; /* 스크롤 기능은 유지 */
-  overflow-x: hidden !important;
-  scrollbar-width: none !important; /* Firefox */
-  -ms-overflow-style: none !important; /* IE and Edge */
-}
-
-[data-app="student"][data-video-page="true"] main::-webkit-scrollbar,
-[data-app="student"][data-video-page="true"] main.video-page-main::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
-  display: none !important; /* Chrome, Safari, Opera */
-  background: transparent !important;
-}
-
-[data-app="student"][data-video-page="true"] main::-webkit-scrollbar-track,
-[data-app="student"][data-video-page="true"] main.video-page-main::-webkit-scrollbar-track {
-  display: none !important;
-  background: transparent !important;
-}
-
-[data-app="student"][data-video-page="true"] main::-webkit-scrollbar-thumb,
-[data-app="student"][data-video-page="true"] main.video-page-main::-webkit-scrollbar-thumb {
-  display: none !important;
-  background: transparent !important;
-}
-
-/* 모든 하위 요소에도 적용 */
-[data-app="student"][data-video-page="true"] main *,
-[data-app="student"][data-video-page="true"] main.video-page-main * {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-
-[data-app="student"][data-video-page="true"] main *::-webkit-scrollbar,
-[data-app="student"][data-video-page="true"] main.video-page-main *::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
-  display: none !important;
-  background: transparent !important;
-}
 
 /* =========================
    영상 페이지 내부 컴포넌트
