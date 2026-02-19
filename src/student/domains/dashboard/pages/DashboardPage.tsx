@@ -70,11 +70,11 @@ export default function DashboardPage() {
             <div>
               <div className="stu-status-eyebrow">TODAY</div>
               <div className="stu-status-title">예정된 수업이 없습니다</div>
-              <span className="stu-cta-link" style={{ marginTop: 8, display: "inline-block" }}>
-                전체 일정 보기
-              </span>
             </div>
-            <IconCalendar style={{ width: 24, height: 24, color: "var(--stu-primary)", flexShrink: 0 }} />
+            <div style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-2)", flexShrink: 0 }}>
+              <IconCalendar style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />
+              <span className="stu-cta-link" style={{ fontSize: 13 }}>전체 일정 보기</span>
+            </div>
           </Link>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
@@ -100,17 +100,15 @@ export default function DashboardPage() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
-                gap: "var(--stu-space-4)",
+                justifyContent: "flex-end",
+                gap: "var(--stu-space-2)",
                 textDecoration: "none",
                 color: "inherit",
                 padding: "var(--stu-space-3)",
               }}
             >
-              <span className="stu-cta-link" style={{ fontSize: 13 }}>
-                전체 일정 보기
-              </span>
               <IconCalendar style={{ width: 20, height: 20, color: "var(--stu-primary)", flexShrink: 0 }} />
+              <span className="stu-cta-link" style={{ fontSize: 13 }}>전체 일정 보기</span>
             </Link>
           </div>
         )}
