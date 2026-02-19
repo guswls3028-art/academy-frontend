@@ -16,7 +16,7 @@ export async function updateMyProfilePhoto(file: File): Promise<MyProfile> {
   const form = new FormData();
   form.append("profile_photo", file);
   const res = await api.patch<MyProfile>("/student/me/", form, {
-    headers: { "Content-Type": "multipart/form-data" },
+    headers: { "Content-Type": undefined } as Record<string, unknown>,
   });
   return res.data;
 }
