@@ -1,17 +1,22 @@
 /**
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
- * 상단바 + 스크롤 영역 + 하단 탭바
+ * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
  */
 import { Outlet } from "react-router-dom";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import "../theme/tokens.css";
+import "../theme/tenants/tchul.css";
 
 import StudentTopBar from "./StudentTopBar";
 import StudentTabBar from "./StudentTabBar";
 
 export default function StudentLayout() {
+  const tenantCode = getTenantCodeForApiRequest();
+
   return (
     <div
+      data-student-tenant={tenantCode || undefined}
       style={{
         minHeight: "100dvh",
         background: "var(--stu-bg)",
@@ -27,12 +32,12 @@ export default function StudentLayout() {
           position: "sticky",
           top: 0,
           zIndex: "var(--stu-z-header)",
-          background: "rgba(11, 15, 25, 0.85)",
+          background: "var(--stu-header-bg)",
           backdropFilter: "blur(12px)",
           borderBottom: "1px solid var(--stu-border)",
         }}
       >
-        <StudentTopBar />
+        <StudentTopBar tenantCode={tenantCode} />
       </header>
 
       <main

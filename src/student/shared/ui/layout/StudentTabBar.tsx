@@ -25,7 +25,7 @@ export default function StudentTabBar() {
         bottom: 0,
         zIndex: "var(--stu-z-tabbar)",
         paddingBottom: "var(--stu-safe-bottom)",
-        background: "rgba(18, 24, 39, 0.92)",
+        background: "var(--stu-tabbar-bg)",
         backdropFilter: "blur(20px)",
         borderTop: "1px solid var(--stu-border)",
         boxShadow: "var(--stu-shadow-3)",
