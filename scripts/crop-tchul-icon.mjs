@@ -30,28 +30,32 @@ async function main() {
   const buf = new Uint8ClampedArray(data);
 
   // 텍스트 영역 감지: 하단에서 위로 스캔하면서 텍스트가 시작하는 위치 찾기
-  // 텍스트는 보통 가로로 긴 형태이므로, 한 줄에 많은 픽셀이 있는 영역을 찾음
+  // 텍스트는 보통 가로로 긴 형태이므로, 연속된 여러 줄에 많은 픽셀이 있는 영역을 찾음
   let textStartY = height;
   
-  // 하단 60% 영역에서 텍스트 시작점 찾기
-  for (let y = height - 1; y >= Math.floor(height * 0.4); y--) {
+  // 하단 70% 영역에서 텍스트 시작점 찾기 (더 정확하게)
+  for (let y = height - 1; y >= Math.floor(height * 0.3); y--) {
     let nonTransparentCount = 0;
-    for (let x = 0; x < width; x++) {
+    // 중앙 영역만 체크 (텍스트는 보통 중앙에 있음)
+    const checkStartX = Math.floor(width * 0.2);
+    const checkEndX = Math.floor(width * 0.8);
+    
+    for (let x = checkStartX; x < checkEndX; x++) {
       const idx = (y * width + x) * channels;
       const alpha = buf[idx + 3];
       if (alpha > 10) {
         nonTransparentCount++;
       }
     }
-    // 한 줄에 충분히 많은 픽셀이 있으면 텍스트 영역으로 간주 (임계값 낮춤)
-    if (nonTransparentCount > width * 0.15) {
+    // 중앙 영역의 30% 이상이 채워져 있으면 텍스트 영역으로 간주
+    if (nonTransparentCount > (checkEndX - checkStartX) * 0.3) {
       textStartY = y;
       break;
     }
   }
 
-  // 아이콘 영역: 텍스트 시작점 위쪽만 사용 (여유있게 100px 더 위로)
-  const iconMaxY = Math.max(0, textStartY - 100);
+  // 아이콘 영역: 텍스트 시작점 위쪽만 사용 (여유있게 150px 더 위로)
+  const iconMaxY = Math.max(0, textStartY - 150);
   
   console.log(`Text starts at y=${textStartY}, icon max y=${iconMaxY}`);
   
