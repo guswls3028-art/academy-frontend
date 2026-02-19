@@ -16,11 +16,25 @@ export function useDocumentTitle(title?: string) {
       return;
     }
 
+    // Program의 ui_config.window_title 또는 display_name 우선 사용 (학생/선생 앱 공통)
+    const windowTitle = program?.ui_config?.window_title;
+    const displayName = program?.display_name;
+    
+    if (windowTitle) {
+      document.title = windowTitle;
+      return;
+    }
+    
+    if (displayName) {
+      document.title = displayName;
+      return;
+    }
+
     // 학생 앱인지 확인 (data-app="student" 체크)
     const isStudentApp = document.querySelector('[data-app="student"]') !== null;
     
     if (isStudentApp) {
-      // 학생 앱: 테넌트별 타이틀 설정
+      // 학생 앱: Program 설정이 없으면 테넌트별 브랜딩 사용
       const tenantResult = resolveTenantCode();
       if (tenantResult.ok) {
         const branding = getStudentTenantBranding(tenantResult.code);
@@ -32,16 +46,7 @@ export function useDocumentTitle(title?: string) {
       return;
     }
 
-    // 선생/관리자 앱: Program의 ui_config.window_title 또는 display_name 사용
-    const windowTitle = program?.ui_config?.window_title;
-    const displayName = program?.display_name;
-    
-    if (windowTitle) {
-      document.title = windowTitle;
-    } else if (displayName) {
-      document.title = displayName;
-    } else {
-      document.title = "HakwonPlus";
-    }
+    // 선생/관리자 앱: 기본값
+    document.title = "HakwonPlus";
   }, [title, program]);
 }
