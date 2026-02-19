@@ -135,32 +135,32 @@ export default function MediaPlayerPage() {
   }, [videoId, enrollmentId]);
 
   return (
-    <StudentPageShell
-      title={video?.title || "미디어"}
-      description={
-        loading
-          ? "불러오는 중..."
-          : err
-            ? "재생 세션 생성 실패"
-            : "편하게 시청하세요."
-      }
-      actions={
-        <button
-          type="button"
-          onClick={() => nav(-1)}
-          style={{
-            padding: "9px 12px",
-            borderRadius: 10,
-            border: "1px solid #e5e5e5",
-            background: "#fff",
-            fontWeight: 800,
-            cursor: "pointer",
-          }}
-        >
-          ← 뒤로
-        </button>
-      }
-    >
+    <div style={{ background: "#000", minHeight: "100vh", padding: "var(--stu-space-4)" }}>
+      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ marginBottom: "var(--stu-space-4)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button
+            type="button"
+            onClick={() => nav(-1)}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.2)",
+              background: "rgba(255,255,255,0.1)",
+              color: "#fff",
+              fontWeight: 600,
+              cursor: "pointer",
+              fontSize: 14,
+            }}
+          >
+            ← 뒤로
+          </button>
+          {video && (
+            <h1 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>
+              {video.title}
+            </h1>
+          )}
+          <div style={{ width: 80 }} />
+        </div>
       {loading ? (
         <div style={{ padding: 8 }}>
           <div
@@ -196,6 +196,7 @@ export default function MediaPlayerPage() {
       ) : (
         <EmptyState title="데이터가 없습니다" description="다시 시도해주세요." />
       )}
-    </StudentPageShell>
+      </div>
+    </div>
   );
 }
