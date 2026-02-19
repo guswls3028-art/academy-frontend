@@ -14,7 +14,8 @@ export type StudentTenantBranding = {
   title: string;
 };
 
-const TENANT_CODE = "tchul" as const;
+/** tchul 디자인 적용 테넌트 (2번 + 9999 로컬) — 동일 로고·타이틀 */
+const TCHUL_DESIGN_CODES = ["tchul", "9999"] as const;
 
 /**
  * 학생앱에서 사용할 테넌트별 브랜딩.
@@ -32,8 +33,8 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
   const branding = getTenantBranding(tenantId);
   const base = { title: branding.loginTitle || fallback.title };
 
-  if (normalized === TENANT_CODE) {
-    return { ...base, logoUrl: TchulLogoTransparent };
+  if (TCHUL_DESIGN_CODES.includes(normalized as (typeof TCHUL_DESIGN_CODES)[number])) {
+    return { ...base, logoUrl: TchulLogoTransparent, title: "박철과학" };
   }
 
   return { ...base, logoUrl: branding.logoUrl ?? null };
