@@ -187,8 +187,8 @@ export function getTenantCodeForApiRequest(): string | null {
       }
     }
     const pathname = window.location.pathname || "";
-    const parts = pathname.split("/").filter(Boolean);
-    const loginIdx = parts.indexOf("login");
+    const pathParts = pathname.split("/").filter(Boolean);
+    const loginIdx = pathParts.indexOf("login");
     const fromPath =
       loginIdx >= 0 && parts[loginIdx + 1] ? parts[loginIdx + 1] : null;
     if (fromPath) {
