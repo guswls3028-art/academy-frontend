@@ -109,7 +109,7 @@ export default function VideoPlayerPage() {
         
         if (!playUrl) {
           const videoStatus = playbackData?.video?.status;
-          const detail = playbackData.detail || "";
+          const detail = (playbackData as { detail?: string })?.detail ?? "";
           
           // 백엔드에서 제공한 상세 에러 메시지가 있으면 사용
           if (detail) {

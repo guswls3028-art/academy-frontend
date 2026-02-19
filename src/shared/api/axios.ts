@@ -17,9 +17,6 @@ type RefreshResponse = { access: string };
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
 
-// 디버그용 (원본 유지)
-console.log("VITE_API_BASE_URL =", import.meta.env.VITE_API_BASE_URL);
-
 function getAccessToken(): string | null {
   try {
     const t = localStorage.getItem("access");
