@@ -31,10 +31,11 @@ export default function VideoPlayerPage() {
     safeParseInt(q.get("video")) ??
     safeParseInt(q.get("video_id"));
 
-  const enrollmentId =
+  const rawEnrollmentId =
     safeParseInt(q.get("enrollment")) ??
     safeParseInt(q.get("enrollment_id")) ??
     safeParseInt(params.enrollmentId);
+  const enrollmentId = rawEnrollmentId != null && Number.isFinite(rawEnrollmentId) ? rawEnrollmentId : null;
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -172,9 +173,10 @@ export default function VideoPlayerPage() {
   // 다음 강의 찾기 (같은 세션 내에서). sessionId는 video에서 파생해 effect 제거(무한 리렌더 방지)
   const sessionId = video?.session_id ?? null;
 
+  const sessionVideosQueryKey = ["student-session-videos", sessionId, enrollmentId] as const;
   const { data: sessionVideosData } = useQuery({
-    queryKey: ["student-session-videos", sessionId, enrollmentId],
-    queryFn: () => fetchStudentSessionVideos(sessionId!, enrollmentId || undefined),
+    queryKey: sessionVideosQueryKey,
+    queryFn: () => fetchStudentSessionVideos(sessionId!, enrollmentId ?? undefined),
     enabled: !!sessionId && !!videoId,
   });
 
@@ -188,16 +190,18 @@ export default function VideoPlayerPage() {
     return null;
   }, [sessionVideosData, videoId]);
 
-  // 진행률 업데이트 mutation
+  // 진행률 업데이트 mutation — onSuccess에서 invalidate를 다음 틱으로 미룸 (setData→리렌더 연쇄로 #310 방지)
   const progressMutation = useMutation({
     mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
       if (!videoId) throw new Error("videoId가 필요합니다.");
       return updateVideoProgress(videoId, data);
     },
     onSuccess: () => {
-      if (sessionId) {
-        queryClient.invalidateQueries({ queryKey: ["student-session-videos", sessionId, enrollmentId] });
-      }
+      const sid = sessionId;
+      const eid = enrollmentId;
+      if (sid == null) return;
+      const key = ["student-session-videos", sid, eid] as const;
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
     },
   });
 
