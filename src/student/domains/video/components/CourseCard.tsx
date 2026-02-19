@@ -1,4 +1,4 @@
-// PATH: src/student/domains/media/components/CourseCard.tsx
+// PATH: src/student/domains/video/components/CourseCard.tsx
 // 프리미엄 SaaS 인강 느낌의 코스 카드 컴포넌트
 
 import { Link } from "react-router-dom";
