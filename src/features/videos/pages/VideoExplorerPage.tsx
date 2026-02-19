@@ -138,19 +138,35 @@ export default function VideoExplorerPage() {
   };
 
   const openVideoDetail = (video: ApiVideo) => {
+    if (selectedFolderId === "public" && publicSession && video.session_id === publicSession.session_id) {
+      navigate(
+        `/admin/lectures/${publicSession.lecture_id}/sessions/${publicSession.session_id}/videos/${video.id}`
+      );
+      return;
+    }
     if (video.session_id && selectedSession) {
       navigate(
         `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/videos/${video.id}`
       );
-    } else {
-      const lecWithSession = lecturesWithSessions.find((l) =>
-        l.sessions.some((s) => s.id === video.session_id)
-      );
-      const sess = lecWithSession?.sessions.find((s) => s.id === video.session_id);
-      if (lecWithSession && sess) {
-        navigate(`/admin/lectures/${lecWithSession.id}/sessions/${sess.id}/videos/${video.id}`);
-      }
+      return;
     }
+    const lecWithSession = lecturesWithSessions.find((l) =>
+      l.sessions.some((s) => s.id === video.session_id)
+    );
+    const sess = lecWithSession?.sessions.find((s) => s.id === video.session_id);
+    if (lecWithSession && sess) {
+      navigate(`/admin/lectures/${lecWithSession.id}/sessions/${sess.id}/videos/${video.id}`);
+    }
+  };
+
+  const openUploadModal = (sessionId: number) => {
+    setUploadTargetSessionId(sessionId);
+    setUploadModalOpen(true);
+  };
+
+  const closeUploadModal = () => {
+    setUploadModalOpen(false);
+    setUploadTargetSessionId(null);
   };
 
   return (
