@@ -45,6 +45,15 @@
   /* 테넌트별 오버라이드용 (그라데이션·포커스) — 기본은 단색 */
   --stu-gradient: var(--stu-primary);
   --stu-focus: rgba(59, 130, 246, 0.25);
+  
+  /* Primary Tint (멀티테넌트 브랜딩용) */
+  --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
+  --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
+  
+  /* Border 강화 (Shadow 대신 사용) */
+  --stu-border-subtle: rgba(17, 17, 17, 0.06);
+  --stu-border-normal: rgba(17, 17, 17, 0.08);
+  --stu-border-strong: rgba(17, 17, 17, 0.12);
 }
 
 /* ========== 2. Typography ========== */
@@ -84,10 +93,11 @@
   --stu-space-10: 20px;
   --stu-space-12: 24px;
   --stu-space-16: 32px;
-  --stu-radius-sm: 8px;
-  --stu-radius-md: 12px;
-  --stu-radius-lg: 16px;
-  --stu-radius-xl: 20px;
+  /* Premium SaaS: 작은 radius (6-8px) */
+  --stu-radius-sm: 6px;
+  --stu-radius-md: 8px;
+  --stu-radius-lg: 8px; /* 영상 플레이어 제외 일반 UI는 8px */
+  --stu-radius-xl: 12px; /* 특수 케이스용 */
   --stu-z-header: 200;
   --stu-z-tabbar: 220;
   --stu-z-modal: 500;

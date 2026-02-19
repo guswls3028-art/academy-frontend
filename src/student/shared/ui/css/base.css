@@ -154,50 +154,84 @@ a {
 }
 
 /* =========================
-   2) Surface / Card
+   2) Surface / Section (Premium SaaS Style)
+   Shadow 제거, Border 기반 레이어 시스템
    ========================= */
-.stu-card {
-  background: var(--stu-surface);
-  border: 1px solid var(--stu-border);
-  border-radius: var(--stu-radius-lg);
-  box-shadow: var(--stu-shadow-1);
+.stu-section {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
+  /* Shadow 제거 - Border만 사용 */
+}
+
+.stu-section--nested {
+  background: var(--stu-surface-2);
+  border: 1px solid var(--stu-border-subtle);
+}
+
+.stu-section--pressable {
+  transition: background 120ms ease, border-color 120ms ease;
+  cursor: pointer;
+}
+
+.stu-section--pressable:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-normal);
+}
+
+.stu-section--pressable:active {
+  background: var(--stu-tint-primary);
+}
+
+/* Section Header (Primary Tint로 브랜딩) */
+.stu-section-header {
+  border-left: 3px solid var(--stu-primary);
+  padding-left: var(--stu-space-6);
+  margin-bottom: var(--stu-space-6);
+}
+
+/* Back-compat: 기존 카드 클래스 → Section으로 매핑 */
+.stu-card {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: var(--stu-radius-md);
+  padding: var(--stu-space-8);
+  /* Shadow 제거 */
 }
 
 .stu-card--soft {
-  background: var(--stu-surface-soft);
-  border: 1px solid var(--stu-border);
-  box-shadow: none;
+  background: var(--stu-surface-2);
+  border: 1px solid var(--stu-border-subtle);
 }
 
 .stu-card--pressable {
-  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease;
   cursor: pointer;
 }
 
 .stu-card--pressable:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--stu-shadow-2);
-  border-color: color-mix(in srgb, var(--stu-border) 60%, var(--stu-text-subtle));
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-normal);
+  /* transform, shadow 제거 */
 }
 
 .stu-card--pressable:active {
-  transform: translateY(0px);
-  box-shadow: var(--stu-shadow-1);
+  background: var(--stu-tint-primary);
 }
 
 /* Back-compat for existing class used in StudentPageShell */
 .student-card {
-  background: var(--stu-surface);
-  border: 1px solid var(--stu-border);
-  border-radius: var(--stu-radius-lg);
-  box-shadow: var(--stu-shadow-1);
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: var(--stu-radius-md);
   padding: var(--stu-space-8);
+  /* Shadow 제거 */
 }
 
 /* =========================
-   3) Buttons (class-based)
-   - TSX Button primitive가 없더라도 즉시 쓸 수 있게
+   3) Buttons & Text CTA (Premium SaaS Style)
+   - Shadow 제거, Text CTA 추가
    ========================= */
 .stu-btn {
   display: inline-flex;
@@ -208,7 +242,7 @@ a {
   min-height: 44px; /* touch target */
   padding: 10px 14px;
   border-radius: var(--stu-radius-md);
-  font-weight: 800;
+  font-weight: 600; /* 800 → 600 (더 부드러운 느낌) */
   letter-spacing: -0.1px;
 
   border: 1px solid transparent;
@@ -219,7 +253,34 @@ a {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 
-  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease;
+  /* transform, box-shadow 제거 */
+}
+
+/* Text CTA (Premium SaaS 스타일) */
+.stu-cta-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--stu-primary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.stu-cta-link:hover {
+  color: var(--stu-primary-hover);
+}
+
+.stu-cta-link::after {
+  content: "→";
+  font-size: 0.9em;
+  transition: transform 120ms ease;
+}
+
+.stu-cta-link:hover::after {
+  transform: translateX(2px);
 }
 
 .stu-btn:disabled {
