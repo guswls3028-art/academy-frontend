@@ -27,6 +27,19 @@ function formatLiveTime(d: Date): string {
   return `${ampm} ${h12}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+/** 초 단위 색 변화 (짝수/홀수 초) — 녹화 영상 방지 */
+function getTimeColor(seconds: number): string {
+  return seconds % 2 === 0 ? "#22c55e" : "#60efff";
+}
+
+/** 이름 이니셜 (프로필 사진 없을 때) */
+function getInitials(name: string): string {
+  if (!name || name.length === 0) return "?";
+  const trimmed = name.trim();
+  if (trimmed.length <= 2) return trimmed;
+  return trimmed.slice(0, 2);
+}
+
 function formatLiveDate(d: Date): string {
   const y = d.getFullYear();
   const m = d.getMonth() + 1;
@@ -63,6 +76,9 @@ export default function ClinicIDCardPage() {
 
   const isClinicTarget = data.current_result === "FAIL";
 
+  const seconds = liveNow.getSeconds();
+  const timeColor = getTimeColor(seconds);
+
   return (
     <div className="idcard-page idcard-page--black">
       {/* LIVE 뱃지 + 실시간 시계 (초 단위) — 위조 판별용 */}
@@ -71,9 +87,24 @@ export default function ClinicIDCardPage() {
         <span>LIVE</span>
       </div>
 
+      {/* 학생 프로필 사진 (신원 확인용) — 좌측 상단 */}
+      {data.profile_photo_url ? (
+        <div className="idcard-page__profile-photo">
+          <img src={data.profile_photo_url} alt={data.student_name || ""} />
+        </div>
+      ) : (
+        <div className="idcard-page__profile-initials">
+          {getInitials(data.student_name || "")}
+        </div>
+      )}
+
       <div className="idcard-page__label">조회 일시</div>
       <div className="idcard-page__date">{formatLiveDate(liveNow)}</div>
-      <div className="idcard-page__time" aria-live="polite">
+      <div
+        className="idcard-page__time"
+        aria-live="polite"
+        style={{ color: timeColor }}
+      >
         {formatLiveTime(liveNow)}
       </div>
 
