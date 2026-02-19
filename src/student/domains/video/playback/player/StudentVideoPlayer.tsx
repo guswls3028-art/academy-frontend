@@ -234,6 +234,62 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   }, [bootstrap.token]);
 
   // ---------------------------------------------------------------------------
+  // Fullscreen sync + body scroll lock (모바일 Player Mode)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const wrap = wrapEl.current;
+    if (!wrap) return;
+
+    const onFullscreenChange = () => {
+      const el =
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement;
+      const active = el === wrap || (el && wrap.contains(el));
+      setIsFullscreen(!!active);
+      if (active) {
+        document.body.style.overflow = "hidden";
+        document.body.style.touchAction = "none";
+        setShowControls(true);
+      } else {
+        document.body.style.overflow = "";
+        document.body.style.touchAction = "";
+      }
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    (document as any).addEventListener?.("webkitfullscreenchange", onFullscreenChange);
+    (document as any).addEventListener?.("mozfullscreenchange", onFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      (document as any).removeEventListener?.("webkitfullscreenchange", onFullscreenChange);
+      (document as any).removeEventListener?.("mozfullscreenchange", onFullscreenChange);
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Auto-hide controls: PLAYING 시 3초 후 숨김, SEEKING/GESTURE/PAUSED 시 유지
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (hideControlsTimerRef.current) {
+      clearTimeout(hideControlsTimerRef.current);
+      hideControlsTimerRef.current = null;
+    }
+    if (playing && !buffering && showControls) {
+      hideControlsTimerRef.current = window.setTimeout(() => {
+        hideControlsTimerRef.current = null;
+        setShowControls(false);
+      }, 3000);
+    }
+    return () => {
+      if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
+    };
+  }, [playing, buffering, showControls]);
+
+  // ---------------------------------------------------------------------------
   // HLS attach
   // ---------------------------------------------------------------------------
   const attachSource = useCallback(async () => {
