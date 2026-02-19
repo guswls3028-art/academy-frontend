@@ -328,24 +328,51 @@ a {
   background: var(--stu-primary);
   color: var(--stu-primary-contrast);
   border: 1px solid var(--stu-primary);
-  /* Shadow 제거 */
+  /* 프리미엄: 미묘한 그림자로 깊이감 */
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .stu-btn--primary:hover {
   background: var(--stu-primary-hover);
   border-color: var(--stu-primary-hover);
-  /* Shadow 제거 */
+  /* 호버 시 그림자 강화 */
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.12),
+    0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.stu-btn--primary:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .stu-btn--secondary {
   background: var(--stu-surface-1);
   border-color: var(--stu-border-normal);
   color: var(--stu-text);
+  /* 미묘한 그림자 */
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
 }
 
 .stu-btn--secondary:hover {
   background: var(--stu-tint-hover);
   border-color: var(--stu-border-strong);
+  box-shadow: 
+    0 2px 2px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+.stu-btn--secondary:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 1px 1px rgba(0, 0, 0, 0.04);
 }
 
 .stu-btn--ghost {
