@@ -14,7 +14,7 @@
 
 .card {
   width: 100%;
-  max-width: 24rem;
+  max-width: 28rem;
   padding: var(--space-8, 40px);
   border-radius: 20px;
   background: #fff;
@@ -26,13 +26,19 @@
   text-align: center;
 }
 
+/* 로고 원본 비율·크기로 카드 안에 크게 노출 */
 .logo {
   display: block;
   width: 100%;
-  max-width: 200px;
+  max-width: 100%;
   height: auto;
   object-fit: contain;
   margin: 0 auto var(--space-5, 20px);
+}
+
+.ctaButton {
+  width: 100%;
+  margin-top: var(--space-2);
 }
 
 /* 인라인 로고 블록 (SVG+텍스트, 배경 없음) */
