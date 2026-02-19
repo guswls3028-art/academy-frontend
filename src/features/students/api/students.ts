@@ -397,7 +397,7 @@ export async function fixDeletedStudentDuplicates() {
   return res.data as { removed: number };
 }
 
-/** 충돌 해결 후 재등록 (삭제된 학생과 번호 충돌 시 복원 또는 영구 삭제 후 재등록) */
+/** 충돌 해결 후 재등록 (삭제된 학생과 번호 충돌 시 복원 또는 즉시 삭제 후 재등록) */
 export async function bulkResolveConflicts(
   password: string,
   resolutions: Array<{

@@ -326,7 +326,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 disabled={busy}
                 style={{ width: "100%" }}
               >
-                삭제 후 재등록
+                즉시삭제 후 재등록
               </Button>
               <Button
                 onClick={() => setDeletedStudentConflict(null)}
