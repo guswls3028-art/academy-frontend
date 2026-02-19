@@ -336,13 +336,22 @@ export async function updateStudent(id: number, form: any) {
     payload.ps_number = safeStr(form?.psNumber).trim();
   }
 
+  if (form?.parentPhone !== undefined) {
+    payload.parent_phone = normalizePhone(String(form.parentPhone));
+  }
+  if (form?.studentPhone !== undefined) {
+    const p = normalizePhone(String(form.studentPhone));
+    payload.phone = p || null;
+    if (p) payload.omr_code = p.slice(-8);
+  }
+
   if (form?.schoolType) {
     payload.school_type = form.schoolType;
-    payload.high_school = form.schoolType === "HIGH" ? form?.school || null : null;
-    payload.middle_school = form.schoolType === "MIDDLE" ? form?.school || null : null;
+    payload.high_school = form.schoolType === "HIGH" ? (form?.school?.trim() || null) : null;
+    payload.middle_school = form.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null;
     payload.high_school_class =
-      form.schoolType === "HIGH" ? form?.schoolClass || null : null;
-    payload.major = form.schoolType === "HIGH" ? form?.major || null : null;
+      form.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null;
+    payload.major = form.schoolType === "HIGH" ? (form?.major?.trim() || null) : null;
   }
 
   const res = await api.patch(`/students/${id}/`, payload);
