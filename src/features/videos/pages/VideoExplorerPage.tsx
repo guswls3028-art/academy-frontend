@@ -6,7 +6,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
-import { FilePlus, FolderPlus, X, Video, Folder } from "lucide-react";
+import { FilePlus, Video, Folder } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
