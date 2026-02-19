@@ -1146,6 +1146,17 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                 preload="metadata"
                 poster={video.thumbnail_url || undefined}
               />
+              {/* GestureLayer: 모든 터치/클릭 캡처 (touch-action:none), 브라우저 줌/스크롤 차단 */}
+              <div
+                ref={gestureLayerRef}
+                className="svpGestureLayer"
+                aria-hidden
+                onClick={(e) => { e.preventDefault(); onStageTap(e.clientX, e.clientY); }}
+                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); onStageTap(e.clientX, e.clientY); }}
+                onTouchStart={onStageTouchStart}
+                onTouchEnd={onStageTouchEnd}
+                onTouchCancel={onStageTouchCancel}
+              />
 
               {!ready && (
                 <div className="svpOverlayCenter">
