@@ -2,7 +2,7 @@
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
  * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
  */
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import "../theme/tokens.css";
 import "../theme/tenants/index.css";
@@ -16,20 +16,25 @@ import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 const TCHUL_THEME_TENANTS = ["tchul", "9999"];
 
 export default function StudentLayout() {
+  const location = useLocation();
   const tenantCode = getTenantCodeForApiRequest();
   useFavicon();
   useDocumentTitle(); // 브라우저 타이틀 설정
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
+  
+  // 영상 플레이어 페이지인지 확인
+  const isVideoPlayerPage = location.pathname.includes("/student/video/play");
 
   return (
     <div
       data-app="student"
       data-student-tenant={tenantCode || undefined}
       data-student-theme={useTchulTheme ? "tchul" : undefined}
+      data-video-player={isVideoPlayerPage ? "true" : undefined}
       style={{
         minHeight: "100dvh",
-        backgroundColor: "var(--stu-bg)",
-        color: "var(--stu-text)",
+        backgroundColor: isVideoPlayerPage ? "#000" : "var(--stu-bg)",
+        color: isVideoPlayerPage ? "#fff" : "var(--stu-text)",
         display: "flex",
         flexDirection: "column",
         paddingTop: "var(--stu-safe-top)",
