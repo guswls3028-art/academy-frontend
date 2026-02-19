@@ -4,8 +4,7 @@
  */
 import { getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 
-// tchul 전용 로고 아이콘 (SVG 컴포넌트)
-import TchulLogoIconComponent from "@/features/auth/pages/logos/TchulLogoIcon";
+// tchul 전용 로고 (배경 제거 아이콘 버전 - SVG 컴포넌트 사용)
 
 export type StudentTenantBranding = {
   /** 로고 이미지 URL (없으면 상단바에서 텍스트 배지 사용) */
