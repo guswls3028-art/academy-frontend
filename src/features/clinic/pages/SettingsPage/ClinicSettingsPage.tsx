@@ -126,26 +126,34 @@ function ClinicIdcardColorSettings() {
   };
 
   return (
-    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-      <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-        <div className="text-sm font-semibold">패스카드 배경 색상 (위조 방지)</div>
-        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-          수업 종료 후 "오늘은 빨 파 초로 해"라고 하면 배경이 해당 색상으로 변경됩니다.
+    <>
+      <style>{`
+        @keyframes idcard-background-flow {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
+      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+          <div className="text-sm font-semibold">패스카드 배경 색상 (위조 방지)</div>
+          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+            수업 종료 후 "오늘은 빨 파 초로 해"라고 하면 배경이 해당 색상으로 변경됩니다.
+          </div>
         </div>
-      </div>
 
-      <div className="p-5 space-y-4">
-        {/* 현재 선택된 색상 미리보기 */}
-        <div className="space-y-2">
-          <div className="text-xs font-semibold text-[var(--text-muted)]">현재 색상</div>
-          <div
-            className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
-            style={{
-              background: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
-              backgroundSize: "200% 200%",
-              animation: "idcard-background-flow 8s ease infinite",
-            }}
-          />
+        <div className="p-5 space-y-4">
+          {/* 현재 선택된 색상 미리보기 */}
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-[var(--text-muted)]">현재 색상</div>
+            <div
+              className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
+              style={{
+                background: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
+                backgroundSize: "200% 200%",
+                animation: "idcard-background-flow 8s ease infinite",
+              }}
+            />
         </div>
 
         {/* 색상 3개 선택 */}
