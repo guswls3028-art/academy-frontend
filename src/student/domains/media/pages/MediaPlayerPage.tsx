@@ -5,7 +5,6 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import studentApi from "@/student/shared/api/studentApi";
-import { fetchStudentVideoPlayback } from "../api/media";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -16,6 +15,55 @@ import { safeParseInt, getOrCreateDeviceId } from "../playback/player/design/uti
 function useQuery() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
+}
+
+async function fetchVideo(videoId: number): Promise<VideoMetaLite & { 
+  description?: string | null;
+  created_at?: string | null;
+  view_count?: number | null;
+  tags?: string[];
+}> {
+  // ✅ backend: apps/support/video/urls.py router videos -> /api/v1/videos/videos/{id}/
+  const res = await studentApi.get(`/api/v1/videos/videos/${videoId}/`);
+  const v = res?.data || {};
+  return {
+    id: Number(v.id),
+    title: String(v.title ?? "영상"),
+    duration: v.duration == null ? null : Number(v.duration),
+    status: String(v.status ?? ""),
+    thumbnail_url: v.thumbnail_url ?? null,
+    hls_url: v.hls_url ?? null,
+    description: v.description ?? null,
+    created_at: v.created_at ?? null,
+    view_count: v.view_count ?? null,
+    tags: Array.isArray(v.tags) ? v.tags : [],
+  };
+}
+
+async function startPlayback(params: {
+  videoId: number;
+  enrollmentId?: number | null;
+  deviceId: string;
+}): Promise<PlaybackBootstrap> {
+  const body: any = {
+    video_id: params.videoId,
+    device_id: params.deviceId,
+  };
+  if (params.enrollmentId) {
+    body.enrollment_id = params.enrollmentId;
+  }
+  const res = await studentApi.post(`/api/v1/videos/playback/start/`, body);
+  const d = res?.data || {};
+  const policy = d.policy || {};
+  return {
+    token: String(d.token || ""),
+    session_id: d.session_id != null ? String(d.session_id) : null,
+    expires_at: d.expires_at != null ? Number(d.expires_at) : null,
+    access_mode: (d.access_mode ?? policy.access_mode) || "FREE_REVIEW",
+    monitoring_enabled: d.monitoring_enabled ?? policy.monitoring_enabled ?? false,
+    policy,
+    play_url: String(d.play_url || ""),
+  };
 }
 
 
@@ -59,44 +107,25 @@ export default function MediaPlayerPage() {
 
       try {
         const deviceId = getOrCreateDeviceId();
+        // 전체공개영상인지 확인 (enrollmentId 없이도 재생 가능)
+        const v = await fetchVideo(videoId);
+        const isPublicVideo = !enrollmentId; // 전체공개영상은 enrollmentId가 없을 수 있음
         
-        // 학생 앱 전용 API로 비디오 정보와 재생 정보를 한 번에 가져오기
-        const playbackData = await fetchStudentVideoPlayback(videoId, enrollmentId || undefined);
-        
+        const b = await startPlayback({ 
+          videoId, 
+          enrollmentId: enrollmentId || undefined, 
+          deviceId 
+        });
+
         if (!alive) return;
 
-        // 비디오 정보 추출
-        const v = {
-          id: Number(playbackData.video.id),
-          title: String(playbackData.video.title ?? "영상"),
-          duration: playbackData.video.duration == null ? null : Number(playbackData.video.duration),
-          status: String(playbackData.video.status ?? ""),
-          thumbnail_url: playbackData.video.thumbnail_url ?? null,
-          hls_url: playbackData.hls_url ?? null,
-          description: (playbackData.video as any).description ?? null,
-          created_at: (playbackData.video as any).created_at ?? null,
-          view_count: (playbackData.video as any).view_count ?? null,
-          tags: Array.isArray((playbackData.video as any).tags) ? (playbackData.video as any).tags : [],
-        };
-
-        // 재생 URL 확인
-        const playUrl = playbackData.hls_url || playbackData.mp4_url || "";
-        if (!playUrl) {
-          setErr("재생 URL을 가져올 수 없습니다.");
+        if (!b.token || !b.play_url) {
+          setErr("재생 세션 생성 실패");
           setLoading(false);
           return;
         }
 
-        // Bootstrap 정보 생성
-        const b: PlaybackBootstrap = {
-          token: `student-${videoId}-${Date.now()}`, // 학생 앱용 임시 token
-          session_id: null,
-          expires_at: null,
-          access_mode: playbackData.policy?.access_mode || "FREE_REVIEW",
-          monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
-          policy: playbackData.policy || {},
-          play_url: playUrl,
-        };
+        // For FREE_REVIEW mode, session_id and expires_at may be null (expected)
 
         setVideo(v);
         setBoot(b);
