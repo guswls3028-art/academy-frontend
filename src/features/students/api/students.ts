@@ -224,7 +224,7 @@ export async function createStudent(form: any) {
   const payload: Record<string, unknown> = {
     name,
     initial_password: initialPassword,
-    parent_phone: parentPhone || undefined,
+    parent_phone: parentPhone,
     school_type: form?.schoolType ?? "HIGH",
     high_school: form?.schoolType === "HIGH" ? (form?.school?.trim() || null) : null,
     middle_school: form?.schoolType === "MIDDLE" ? (form?.school?.trim() || null) : null,
