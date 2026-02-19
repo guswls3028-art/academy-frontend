@@ -31,13 +31,7 @@ export default function StudentLayout() {
         display: "flex",
         flexDirection: "column",
         paddingTop: "var(--stu-safe-top)",
-        // 9999번 테넌트 그라데이션 직접 적용
-        ...(useTchulTheme ? {
-          backgroundImage: "linear-gradient(135deg, rgba(13, 71, 161, 0.08) 0%, rgba(0, 105, 92, 0.05) 50%, rgba(0, 77, 64, 0.05) 100%)",
-          backgroundSize: "100% 100%",
-          backgroundRepeat: "no-repeat",
-          backgroundAttachment: "fixed",
-        } : {}),
+        // 배경은 흰색 유지 (그라데이션 제거)
       }}
     >
       {useTchulTheme && (
