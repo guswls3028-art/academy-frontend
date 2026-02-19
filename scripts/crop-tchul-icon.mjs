@@ -21,7 +21,7 @@ async function main() {
   console.log(`Input image: ${width}x${height}`);
 
   // 이미지의 상단 부분에서 아이콘 영역 찾기
-  // 텍스트는 보통 하단에 있으므로, 상단 60% 정도에서 아이콘 영역 감지
+  // 텍스트는 보통 하단에 있으므로, 상단 50% 정도에서 아이콘 영역 감지
   const { data, info } = await image
     .ensureAlpha()
     .raw()
@@ -36,11 +36,16 @@ async function main() {
   let minY = height;
   let maxY = 0;
 
-  // 상단 60% 영역만 스캔 (텍스트 영역 제외)
-  const scanHeight = Math.floor(height * 0.6);
+  // 상단 50% 영역만 스캔 (텍스트 영역 제외)
+  const scanHeight = Math.floor(height * 0.5);
+  
+  // 중앙 영역에 집중 (좌우 20% 제외)
+  const marginX = Math.floor(width * 0.2);
+  const scanStartX = marginX;
+  const scanEndX = width - marginX;
 
   for (let y = 0; y < scanHeight; y++) {
-    for (let x = 0; x < width; x++) {
+    for (let x = scanStartX; x < scanEndX; x++) {
       const idx = (y * width + x) * channels;
       const alpha = buf[idx + 3];
 
