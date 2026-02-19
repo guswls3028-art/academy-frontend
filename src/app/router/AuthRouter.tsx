@@ -5,6 +5,7 @@ import LoginEntry from "@/features/auth/pages/login/LoginEntry";
 import HakwonPlusLoginPage from "@/features/auth/pages/login/HakwonPlusLoginPage";
 import CustomLoginPage from "@/features/auth/pages/login/CustomLoginPage";
 import TenantLoginPage from "@/features/auth/pages/login/TenantLoginPage";
+import TchulLoginPage from "@/features/auth/pages/login/TchulLoginPage";
 import { getTenantCodeFromHostname, getTenantIdFromCode } from "@/shared/tenant";
 
 /** 테넌트 도메인에서 /login/코드 로 들어오면 /login 으로 리다이렉트 (URL은 항상 도메인/login 만 노출) */
