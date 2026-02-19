@@ -124,14 +124,51 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         ) : videos.length === 0 ? (
           <EmptyState mode="embedded" scope="panel" title="등록된 영상이 없습니다." />
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "var(--space-4)",
-            }}
-          >
-            {videos.map((video: MediaVideo) => {
+          <div className="session-videos-tab__list" style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+            {/* 묶음 단위 (제목 1, 제목 2, ... 패턴) — 폴더처럼 표시 */}
+            {Array.from(groupedVideos.groups.entries()).map(([baseTitle, groupVideos]) => (
+              <div key={baseTitle} className="session-videos-tab__group">
+                <div
+                  className="session-videos-tab__group-header"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--space-2)",
+                    marginBottom: "var(--space-3)",
+                    paddingLeft: "var(--space-2)",
+                    borderLeft: "3px solid var(--color-brand-primary)",
+                  }}
+                >
+                  <span style={{ fontWeight: 700, fontSize: 15, color: "var(--color-text-primary)" }}>{baseTitle}</span>
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", fontWeight: 600 }}>
+                    {groupVideos.length}개
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: "var(--space-4)",
+                  }}
+                >
+                  {groupVideos.map((video: MediaVideo) => renderVideoCard(video))}
+                </div>
+              </div>
+            ))}
+            {/* 묶음 아닌 단일 영상 */}
+            {groupedVideos.ungrouped.length > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                  gap: "var(--space-4)",
+                }}
+              >
+                {groupedVideos.ungrouped.map((video: MediaVideo) => renderVideoCard(video))}
+              </div>
+            )}
+          </div>
+        )}
               const fileSize =
                 video.file_size && video.file_size > 0 ? `${(video.file_size / 1024 / 1024).toFixed(2)}MB` : "-";
 
