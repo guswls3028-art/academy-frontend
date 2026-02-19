@@ -54,16 +54,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
               width: 32,
               objectFit: "contain",
               display: "block",
-              background: "transparent",
-              backgroundColor: "transparent",
-              backgroundImage: "none",
-              mixBlendMode: "normal",
-              isolation: "isolate",
-              // 이미지의 알파 채널 강제 및 배경 제거
-              imageRendering: "crisp-edges",
-              WebkitImageRendering: "crisp-edges",
-              // 이미지 자체의 회색 배경 제거를 위한 필터
-              filter: "brightness(1.1) contrast(1.1)",
+              flexShrink: 0,
             }}
           />
         ) : branding.logoUrl ? (

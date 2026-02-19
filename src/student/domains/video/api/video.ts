@@ -14,6 +14,7 @@ export type StudentVideoMeLecture = {
   id: number;
   title: string;
   sessions: StudentVideoMeSession[];
+  enrollment_id?: number | null;
 };
 
 export type StudentVideoMePublic = {

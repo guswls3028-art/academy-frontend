@@ -275,9 +275,10 @@ export default function CourseDetailPage() {
 
   // 첫 번째 세션의 영상 정보 가져오기 (총 영상 개수 및 시간 계산용)
   const firstSessionId = sessions[0]?.id;
+  const enrollmentIdForLecture = isPublic ? null : (lecture ? (videoMe?.lectures?.find((l) => l.id === lecture.id)?.enrollment_id ?? null) : null);
   const { data: firstSessionVideos } = useQuery({
-    queryKey: ["student-session-videos", firstSessionId, null],
-    queryFn: () => fetchStudentSessionVideos(firstSessionId!, null),
+    queryKey: ["student-session-videos", firstSessionId, enrollmentIdForLecture],
+    queryFn: () => fetchStudentSessionVideos(firstSessionId!, enrollmentIdForLecture ?? undefined),
     enabled: !!firstSessionId,
   });
 
@@ -385,6 +386,7 @@ export default function CourseDetailPage() {
                     key={session.id}
                     sessionId={session.id}
                     sessionTitle={session.title}
+                    enrollmentId={enrollmentIdForLecture}
                     order={session.order}
                   />
                 );

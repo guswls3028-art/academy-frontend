@@ -87,7 +87,12 @@ export function resolveNodeIdFromScope(
 // ----------------------------------------
 export async function fetchBlockTypes(): Promise<BlockType[]> {
   const res = await api.get(`${PREFIX}/block-types/`);
-  return Array.isArray(res.data) ? res.data : [];
+  const data = res?.data;
+  // DRF PageNumberPagination: { results: [...], count, next, previous }
+  if (data != null && Array.isArray((data as { results?: BlockType[] }).results)) {
+    return (data as { results: BlockType[] }).results;
+  }
+  return Array.isArray(data) ? data : [];
 }
 
 export async function createBlockType(data: {

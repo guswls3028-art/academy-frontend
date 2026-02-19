@@ -4,7 +4,7 @@
  */
 import { getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 
-// tchul 전용 로고 (배경 제거 아이콘 버전 - SVG 컴포넌트 사용)
+// tchul 전용: 헤더에서 TchulLogoIcon.png 사용 (StudentTopBar에서 직접 참조)
 
 export type StudentTenantBranding = {
   /** 로고 이미지 URL (없으면 상단바에서 텍스트 배지 사용) */
@@ -33,7 +33,7 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
   const base = { title: branding.loginTitle || fallback.title };
 
   if (TCHUL_DESIGN_CODES.includes(normalized as (typeof TCHUL_DESIGN_CODES)[number])) {
-    // tchul 테넌트는 헤더에서 SVG 컴포넌트 직접 사용 (logoUrl은 null)
+    // tchul 테넌트는 헤더에서 TchulLogoIcon.png 직접 사용 (logoUrl은 null)
     return { ...base, logoUrl: null, title: "박철과학" };
   }
 

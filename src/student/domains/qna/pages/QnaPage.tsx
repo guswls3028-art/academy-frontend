@@ -452,6 +452,21 @@ function QuestionFormPage({
             질문 유형을 불러오는 중…
           </div>
         )}
+        {!blockTypesLoading && blockTypes.length === 0 && (
+          <div
+            role="alert"
+            style={{
+              padding: "var(--stu-space-3)",
+              background: "var(--stu-warning-bg, #fff8e6)",
+              border: "1px solid var(--stu-warning-border, #f0d675)",
+              borderRadius: "var(--stu-radius)",
+              fontSize: 14,
+              color: "var(--stu-text, #333)",
+            }}
+          >
+            질문 유형을 불러올 수 없습니다. 새로고침하거나 관리자에게 문의해 주세요.
+          </div>
+        )}
         {createMut.isError && (
           <div
             role="alert"
@@ -569,6 +584,15 @@ function QuestionFormPage({
           type="button"
           className="stu-btn stu-btn--primary"
           disabled={!canSubmit || createMut.isPending}
+          title={
+            createMut.isPending
+              ? "보내는 중…"
+              : !effectiveBlockTypeId
+                ? "질문 유형을 불러올 수 없습니다."
+                : !title.trim() || !content.trim()
+                  ? "제목과 내용을 입력해 주세요."
+                  : undefined
+          }
           onClick={handleSubmit}
           onPointerDown={(e) => {
             if (e.pointerType === "touch" && canSubmit && !createMut.isPending) {

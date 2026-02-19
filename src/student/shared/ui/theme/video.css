@@ -59,55 +59,19 @@
 
 [data-app="student"][data-video-page="true"] header .stu-topbar__logo,
 [data-app="student"][data-video-page="true"] header .stu-topbar__home-link img {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  mix-blend-mode: normal !important;
-  /* 이미지 자체의 회색 배경을 제거하기 위한 필터 */
-  filter: brightness(1.1) contrast(1.1) drop-shadow(0 0 0 transparent) !important;
-  /* PNG 투명 배경 강제 */
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  /* 부모 배경 격리 */
-  isolation: isolate;
-  /* 배경 완전 제거 */
-  -webkit-background-clip: padding-box;
-  background-clip: padding-box;
-  /* 이미지 주변 여백 제거 */
+  display: block;
   padding: 0 !important;
   margin: 0 !important;
   border: none !important;
   box-shadow: none !important;
-  /* 이미지 자체의 배경 제거 */
-  display: block;
-  /* 이미지의 알파 채널 강제 */
-  opacity: 1 !important;
 }
 
-/* 이미지 주변 여백 및 배경 제거 */
+/* 로고 보정용 가짜 레이어 제거 (필터/렌더링이 일그러짐 유발하므로 제거) */
 [data-app="student"][data-video-page="true"] header .stu-topbar__logo::before,
 [data-app="student"][data-video-page="true"] header .stu-topbar__logo::after {
   display: none !important;
   content: none !important;
   background: none !important;
-}
-
-/* 이미지가 투명 배경을 가진 PNG인 경우 처리 - 최종 강제 */
-[data-app="student"][data-video-page="true"] header .stu-topbar__logo {
-  /* 이미지 자체의 회색 배경을 제거하기 위한 필터 */
-  filter: brightness(1.1) contrast(1.1) drop-shadow(0 0 0 transparent) !important;
-  /* 이미지 렌더링 최적화 */
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  /* 배경 완전 제거 */
-  background: none !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  /* 이미지의 알파 채널 강제 */
-  opacity: 1 !important;
-  /* 이미지 자체의 배경색 제거 */
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
 }
 
 /* 헤더 아바타 */
