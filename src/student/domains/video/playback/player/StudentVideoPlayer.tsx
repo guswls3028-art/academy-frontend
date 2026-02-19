@@ -1191,6 +1191,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                 onClick={(e) => { e.preventDefault(); onStageTap(e.clientX, e.clientY); }}
                 onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); onStageTap(e.clientX, e.clientY); }}
                 onTouchStart={onStageTouchStart}
+                onTouchMove={onStageTouchMove}
                 onTouchEnd={onStageTouchEnd}
                 onTouchCancel={onStageTouchCancel}
               />
