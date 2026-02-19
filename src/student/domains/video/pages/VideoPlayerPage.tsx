@@ -208,6 +208,8 @@ export default function VideoPlayerPage() {
   const progressMutationRef = useRef(progressMutation);
   progressMutationRef.current = progressMutation;
 
+  const onFatal = useCallback((reason: string) => setErr(reason), []);
+
   // 진행률 전달 콜백: videoId만 deps로 고정 → progressMutation 참조 변경 시에도 콜백 안정 (React #310 방지)
   const onLeaveProgress = useCallback(
     (data: { progress?: number; completed?: boolean; last_position?: number }) => {
@@ -299,7 +301,7 @@ export default function VideoPlayerPage() {
             video={video}
             bootstrap={boot}
             enrollmentId={enrollmentId ? Number(enrollmentId) : 0}
-            onFatal={(reason) => setErr(reason)}
+            onFatal={onFatal}
             onLeaveProgress={onLeaveProgress}
           />
           

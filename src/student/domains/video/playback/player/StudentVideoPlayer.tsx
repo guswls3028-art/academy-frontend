@@ -188,6 +188,9 @@ function useStableInterval(cb: () => void, ms: number, enabled: boolean) {
 }
 
 export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onFatal, onLeaveProgress }: Props) {
+  const onFatalRef = useRef(onFatal);
+  onFatalRef.current = onFatal;
+
   const policy = useMemo(() => normalizePolicy(bootstrap.policy), [bootstrap.policy]);
 
   const allowSeek = !!policy.allow_seek && policy.seek?.mode !== "blocked";
@@ -362,7 +365,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
         bootstrap: bootstrap,
         video: video,
       });
-      onFatal?.("재생 URL이 제공되지 않았습니다. (play_url 또는 hls_url 필요)");
+      onFatalRef.current?.("재생 URL이 제공되지 않았습니다. (play_url 또는 hls_url 필요)");
       return;
     }
     
@@ -390,7 +393,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       new URL(url);
     } catch (e) {
       console.error("[StudentVideoPlayer] Invalid URL format:", url, e);
-      onFatal?.(`잘못된 재생 URL 형식입니다: ${url}`);
+      onFatalRef.current?.(`잘못된 재생 URL 형식입니다: ${url}`);
       return;
     }
 
@@ -452,7 +455,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
             
             setToast({ text: message, kind: "danger" });
             if (is404 || isNetworkError) {
-              onFatal?.(message);
+              onFatalRef.current?.(message);
             }
           }
         });
@@ -468,7 +471,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       // fallback
       el.src = url;
     }
-  }, [bootstrap.play_url, video.hls_url, onFatal]);
+  }, [bootstrap.play_url, video.hls_url]);
 
   // ---------------------------------------------------------------------------
   // Events batching (anti-spam)
@@ -518,10 +521,10 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       const msg = e?.response?.data?.detail || e?.message || "";
       if (String(msg).includes("session_inactive") || e?.response?.status === 409) {
         setToast({ text: "재생 세션이 종료되었습니다.", kind: "danger" });
-        onFatal?.("session_inactive");
+        onFatalRef.current?.("session_inactive");
       }
     }
-  }, [onFatal, video.id, enrollmentId]);
+  }, [video.id, enrollmentId]);
 
   const monitoringEnabled = policy.monitoring_enabled ?? false;
 
@@ -544,12 +547,12 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
         const msg = e?.response?.data?.detail || e?.message || "";
         if (String(msg).includes("policy_changed")) {
           setToast({ text: "정책이 변경되어 재생이 종료되었습니다.", kind: "danger" });
-          onFatal?.("policy_changed");
+          onFatalRef.current?.("policy_changed");
           return;
         }
         if (String(msg).includes("session_inactive") || e?.response?.status === 409) {
           setToast({ text: "재생 세션이 종료되었습니다.", kind: "danger" });
-          onFatal?.("session_inactive");
+          onFatalRef.current?.("session_inactive");
           return;
         }
       });
@@ -754,7 +757,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       let message = "재생 오류가 발생했습니다.";
       if (errorCode === 4 || errorMessage.includes("404") || errorMessage.includes("Not Found")) {
         message = "비디오 파일을 찾을 수 없습니다 (404). 서버에 비디오 파일이 있는지 확인해주세요.";
-        onFatal?.("비디오 파일을 찾을 수 없습니다.");
+        onFatalRef.current?.("비디오 파일을 찾을 수 없습니다.");
       } else if (errorCode === 2) {
         message = "네트워크 오류가 발생했습니다. 연결을 확인해주세요.";
       } else if (errorCode === 3) {
