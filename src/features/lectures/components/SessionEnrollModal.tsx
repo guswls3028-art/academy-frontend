@@ -348,6 +348,9 @@ export default function SessionEnrollModal({
 
   const isAllSelected = totalCount > 0 && selectedItems.length === totalCount;
 
+  /** 전체 선택 시 DB 요청 최소화: 백엔드 max_page_size(100)로 페이지당 100명씩만 요청 */
+  const SELECT_ALL_PAGE_SIZE = 100;
+
   const toggleSelectAllFull = async () => {
     if (isAllSelected) {
       setSelectedItems([]);
@@ -356,12 +359,13 @@ export default function SessionEnrollModal({
     setSelectingAll(true);
     try {
       const all: ClientStudent[] = [];
+      const selectAllFilters = { ...apiFilters, page_size: SELECT_ALL_PAGE_SIZE };
       let p = 1;
       while (true) {
-        const { data } = await fetchStudents(search, apiFilters, sort, p);
+        const { data } = await fetchStudents(search, selectAllFilters, sort, p);
         if (!data?.length) break;
         all.push(...data);
-        if (data.length < PAGE_SIZE) break;
+        if (data.length < SELECT_ALL_PAGE_SIZE) break;
         p += 1;
       }
       setSelectedItems(
