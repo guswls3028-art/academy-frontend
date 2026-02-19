@@ -106,10 +106,10 @@ export default function CourseCard({
               height: "100%",
               display: "grid",
               placeItems: "center",
-              background: "linear-gradient(135deg, var(--stu-surface-soft) 0%, var(--stu-surface) 100%)",
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
             }}
           >
-            <IconPlay style={{ width: 48, height: 48, color: "var(--stu-text-muted)", opacity: 0.5 }} />
+            <IconPlay style={{ width: 48, height: 48, color: "rgba(255,255,255,0.9)", opacity: 0.8 }} />
           </div>
         )}
         
