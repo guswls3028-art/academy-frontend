@@ -73,3 +73,150 @@ export default function ClinicSettingsPage() {
     </div>
   );
 }
+
+/** 패스카드 배경 색상 설정 컴포넌트 */
+function ClinicIdcardColorSettings() {
+  const qc = useQueryClient();
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ["clinic-settings"],
+    queryFn: fetchClinicSettings,
+  });
+
+  const [localColors, setLocalColors] = useState<[string, string, string]>(
+    settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"]
+  );
+
+  const updateMutation = useMutation({
+    mutationFn: (colors: [string, string, string]) => updateClinicSettings(colors),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-settings"] });
+      feedback.success("패스카드 배경 색상이 변경되었습니다.");
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail || "색상 저장에 실패했습니다.");
+    },
+  });
+
+  // 설정 로드 시 로컬 상태 동기화
+  if (settings && JSON.stringify(settings.colors) !== JSON.stringify(localColors)) {
+    setLocalColors(settings.colors);
+  }
+
+  const presetPalettes: Array<{ name: string; colors: [string, string, string] }> = [
+    { name: "빨강-파랑-초록", colors: ["#ef4444", "#3b82f6", "#22c55e"] },
+    { name: "주황-보라-핑크", colors: ["#f97316", "#a855f7", "#ec4899"] },
+    { name: "청록-노랑-주황", colors: ["#06b6d4", "#eab308", "#f97316"] },
+    { name: "보라-핑크-빨강", colors: ["#9333ea", "#ec4899", "#ef4444"] },
+    { name: "초록-청록-파랑", colors: ["#22c55e", "#06b6d4", "#3b82f6"] },
+    { name: "노랑-주황-빨강", colors: ["#eab308", "#f97316", "#ef4444"] },
+  ];
+
+  const handleColorChange = (index: number, color: string) => {
+    const newColors: [string, string, string] = [...localColors] as [string, string, string];
+    newColors[index] = color;
+    setLocalColors(newColors);
+  };
+
+  const handlePresetSelect = (colors: [string, string, string]) => {
+    setLocalColors(colors);
+  };
+
+  const handleSave = () => {
+    updateMutation.mutate(localColors);
+  };
+
+  return (
+    <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
+      <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
+        <div className="text-sm font-semibold">패스카드 배경 색상 (위조 방지)</div>
+        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+          수업 종료 후 "오늘은 빨 파 초로 해"라고 하면 배경이 해당 색상으로 변경됩니다.
+        </div>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {/* 현재 선택된 색상 미리보기 */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-[var(--text-muted)]">현재 색상</div>
+          <div
+            className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
+            style={{
+              background: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
+              backgroundSize: "200% 200%",
+              animation: "idcard-background-flow 8s ease infinite",
+            }}
+          />
+        </div>
+
+        {/* 색상 3개 선택 */}
+        <div className="space-y-3">
+          <div className="text-xs font-semibold text-[var(--text-muted)]">색상 선택 (3개)</div>
+          <div className="grid grid-cols-3 gap-3">
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="space-y-1.5">
+                <label className="text-[11px] text-[var(--text-muted)]">
+                  색상 {index + 1}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={localColors[index]}
+                    onChange={(e) => handleColorChange(index, e.target.value)}
+                    className="w-full h-10 rounded-lg border border-[var(--border-divider)] cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={localColors[index]}
+                    onChange={(e) => {
+                      if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                        handleColorChange(index, e.target.value);
+                      }
+                    }}
+                    className="w-20 h-10 px-2 text-xs rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] font-mono"
+                    placeholder="#RRGGBB"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 프리셋 팔레트 */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-[var(--text-muted)]">빠른 선택</div>
+          <div className="grid grid-cols-3 gap-2">
+            {presetPalettes.map((preset, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handlePresetSelect(preset.colors)}
+                className="group relative h-16 rounded-lg border-2 border-[var(--border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors"
+                style={{
+                  background: `linear-gradient(135deg, ${preset.colors[0]} 0%, ${preset.colors[1]} 50%, ${preset.colors[2]} 100%)`,
+                }}
+                title={preset.name}
+              >
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                <div className="absolute bottom-1 left-1 right-1 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                  {preset.name}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 저장 버튼 */}
+        <div className="pt-2">
+          <Button
+            intent="primary"
+            onClick={handleSave}
+            disabled={updateMutation.isPending || isLoading}
+            className="w-full"
+          >
+            {updateMutation.isPending ? "저장 중…" : "색상 저장"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
