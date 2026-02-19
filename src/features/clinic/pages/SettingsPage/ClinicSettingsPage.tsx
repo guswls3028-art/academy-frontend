@@ -102,9 +102,11 @@ function ClinicIdcardColorSettings() {
   });
 
   // 설정 로드 시 로컬 상태 동기화
-  if (settings && JSON.stringify(settings.colors) !== JSON.stringify(localColors)) {
-    setLocalColors(settings.colors);
-  }
+  useState(() => {
+    if (settings && JSON.stringify(settings.colors) !== JSON.stringify(localColors)) {
+      setLocalColors(settings.colors);
+    }
+  });
 
   const presetPalettes: Array<{ name: string; colors: [string, string, string] }> = [
     { name: "빨강-파랑-초록", colors: ["#ef4444", "#3b82f6", "#22c55e"] },
@@ -202,41 +204,41 @@ function ClinicIdcardColorSettings() {
             </div>
           </div>
 
-        {/* 프리셋 팔레트 */}
-        <div className="space-y-2">
-          <div className="text-xs font-semibold text-[var(--text-muted)]">빠른 선택</div>
-          <div className="grid grid-cols-3 gap-2">
-            {presetPalettes.map((preset, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handlePresetSelect(preset.colors)}
-                className="group relative h-16 rounded-lg border-2 border-[var(--border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors"
-                style={{
-                  background: `linear-gradient(135deg, ${preset.colors[0]} 0%, ${preset.colors[1]} 50%, ${preset.colors[2]} 100%)`,
-                }}
-                title={preset.name}
-              >
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                <div className="absolute bottom-1 left-1 right-1 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                  {preset.name}
-                </div>
-              </button>
-            ))}
+          {/* 프리셋 팔레트 */}
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-[var(--text-muted)]">빠른 선택</div>
+            <div className="grid grid-cols-3 gap-2">
+              {presetPalettes.map((preset, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handlePresetSelect(preset.colors)}
+                  className="group relative h-16 rounded-lg border-2 border-[var(--border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors"
+                  style={{
+                    background: `linear-gradient(135deg, ${preset.colors[0]} 0%, ${preset.colors[1]} 50%, ${preset.colors[2]} 100%)`,
+                  }}
+                  title={preset.name}
+                >
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                  <div className="absolute bottom-1 left-1 right-1 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {preset.name}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* 저장 버튼 */}
-        <div className="pt-2">
-          <Button
-            intent="primary"
-            onClick={handleSave}
-            disabled={updateMutation.isPending || isLoading}
-            className="w-full"
-          >
-            {updateMutation.isPending ? "저장 중…" : "색상 저장"}
-          </Button>
-        </div>
+          {/* 저장 버튼 */}
+          <div className="pt-2">
+            <Button
+              intent="primary"
+              onClick={handleSave}
+              disabled={updateMutation.isPending || isLoading}
+              className="w-full"
+            >
+              {updateMutation.isPending ? "저장 중…" : "색상 저장"}
+            </Button>
+          </div>
       </div>
 
       {/* 색상 선택 모달 */}
