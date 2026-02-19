@@ -18,8 +18,8 @@ export default function DashboardPage() {
   if (dashLoading && sessionsLoading) {
     return (
       <div style={{ padding: "var(--stu-space-4) 0" }}>
-        <div className="stu-skel" style={{ height: 100, borderRadius: "var(--stu-radius-lg)" }} />
-        <div className="stu-skel" style={{ height: 120, marginTop: 12, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel" style={{ height: 100, borderRadius: "var(--stu-radius-md)" }} />
+        <div className="stu-skel" style={{ height: 120, marginTop: 12, borderRadius: "var(--stu-radius-md)" }} />
       </div>
     );
   }

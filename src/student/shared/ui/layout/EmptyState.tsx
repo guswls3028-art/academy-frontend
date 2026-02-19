@@ -14,7 +14,7 @@ export default function EmptyState({
   description?: string;
 }) {
   return (
-    <div className="stu-card stu-card--soft">
+    <div className="stu-section stu-section--nested">
       <div className="stu-stack" style={{ gap: "var(--stu-space-4)" }}>
         <div className="stu-h3">{title}</div>
         {description && <div className="stu-muted">{description}</div>}

@@ -23,9 +23,9 @@
   --stu-border-normal: rgba(17, 17, 17, 0.08);
   --stu-border-strong: rgba(17, 17, 17, 0.12);
 
-  --stu-text: #111111;
-  --stu-text-muted: rgba(17, 17, 17, 0.62);
-  --stu-text-subtle: rgba(17, 17, 17, 0.42);
+  --stu-text: rgba(255, 255, 255, 0.95);
+  --stu-text-muted: rgba(255, 255, 255, 0.65);
+  --stu-text-subtle: rgba(255, 255, 255, 0.45);
 
   --stu-primary: #3b82f6;
   --stu-primary-hover: #2563eb;
@@ -49,21 +49,43 @@
   --stu-danger-text: #ef4444;
 
   /* 헤더/탭바 (테넌트별 오버라이드용) */
-  --stu-header-bg: rgba(11, 15, 25, 0.85);
-  --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
+  --stu-header-bg: rgba(248, 250, 252, 0.95);
+  --stu-tabbar-bg: rgba(255, 255, 255, 0.98);
 
   /* 테넌트별 오버라이드용 (그라데이션·포커스) — 기본은 단색 */
   --stu-gradient: var(--stu-primary);
-  --stu-focus: rgba(59, 130, 246, 0.25);
+  --stu-focus: rgba(59, 130, 246, 0.15);
   
   /* Primary Tint (멀티테넌트 브랜딩용) */
   --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 6%, var(--stu-surface-1));
   --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 10%, var(--stu-surface-1));
-  
-  /* Border 강화 (Shadow 대신 사용) */
-  --stu-border-subtle: rgba(17, 17, 17, 0.06);
-  --stu-border-normal: rgba(17, 17, 17, 0.08);
-  --stu-border-strong: rgba(17, 17, 17, 0.12);
+}
+
+/* Dark Mode (선택적) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --stu-bg: #0b0f19;
+    --stu-surface: #121827;
+    --stu-surface-soft: #1a2235;
+    --stu-surface-0: #0b0f19;
+    --stu-surface-1: #121827;
+    --stu-surface-2: #1a2235;
+    
+    --stu-border: rgba(255, 255, 255, 0.1);
+    --stu-border-subtle: rgba(255, 255, 255, 0.08);
+    --stu-border-normal: rgba(255, 255, 255, 0.12);
+    --stu-border-strong: rgba(255, 255, 255, 0.16);
+    
+    --stu-text: rgba(255, 255, 255, 0.95);
+    --stu-text-muted: rgba(255, 255, 255, 0.65);
+    --stu-text-subtle: rgba(255, 255, 255, 0.45);
+    
+    --stu-header-bg: rgba(11, 15, 25, 0.85);
+    --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
+    
+    --stu-tint-primary: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface-1));
+    --stu-tint-hover: color-mix(in srgb, var(--stu-primary) 12%, var(--stu-surface-1));
+  }
 }
 
 /* ========== 2. Typography ========== */
