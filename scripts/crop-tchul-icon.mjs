@@ -33,14 +33,19 @@ async function main() {
   const iconAreaHeight = Math.floor(height * 0.4);
   
   // 아이콘의 실제 경계 찾기 (좌우 패딩 없이)
+  // 중앙 영역에 집중 (좌우 25% 제외하여 여백 제거)
+  const marginX = Math.floor(width * 0.25);
+  const scanStartX = marginX;
+  const scanEndX = width - marginX;
+  
   let minX = width;
   let maxX = 0;
   let minY = height;
   let maxY = 0;
 
-  // 상단 아이콘 영역만 스캔
+  // 상단 아이콘 영역의 중앙 부분만 스캔
   for (let y = 0; y < iconAreaHeight; y++) {
-    for (let x = 0; x < width; x++) {
+    for (let x = scanStartX; x < scanEndX; x++) {
       const idx = (y * width + x) * channels;
       const alpha = buf[idx + 3];
 
