@@ -47,9 +47,8 @@
   --stu-tabbar-bg: rgba(250, 251, 252, 0.95);
 }
 
-/* tchul/9999: 포커스 링 (auth와 동일) */
-[data-student-tenant="tchul"] :focus-visible,
-[data-student-tenant="9999"] :focus-visible {
+/* tchul 테마: 포커스 링 (auth와 동일) */
+[data-student-theme="tchul"] :focus-visible {
   outline: 3px solid var(--stu-focus);
   outline-offset: 2px;
   border-radius: 10px;
