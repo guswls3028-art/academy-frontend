@@ -51,10 +51,18 @@ function formatLiveDate(d: Date): string {
 
 export default function ClinicIDCardPage() {
   const liveNow = useLiveClock();
+  const [profilePhotoError, setProfilePhotoError] = useState(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["clinic-idcard"],
     queryFn: fetchClinicIdcard,
   });
+
+  // 데이터가 변경되면 프로필 사진 에러 상태 리셋
+  useEffect(() => {
+    if (data) {
+      setProfilePhotoError(false);
+    }
+  }, [data]);
 
   if (isLoading) {
     return (
