@@ -212,12 +212,21 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
 
   const [toast, setToast] = useState<{ text: string; kind?: "info" | "warn" | "danger" } | null>(null);
 
+  /** 모바일 OTT: 컨트롤 표시 여부(싱글탭 토글) + 상태머신 */
+  const [showControls, setShowControls] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
   const maxWatchedRef = useRef<number>(0); // seconds
   const lastTimeRef = useRef<number>(0);
   const seekGuardRef = useRef<{ blocking: boolean; lastWarnAt: number }>({ blocking: false, lastWarnAt: 0 });
 
   const eventQueueRef = useRef<Array<{ type: EventType; occurred_at: number; payload?: any }>>([]);
   const lastTapRef = useRef<{ time: number; x: number; y: number }>({ time: 0, x: 0, y: 0 });
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedRateRef = useRef(1);
 
   const tokenRef = useRef(bootstrap.token);
   useEffect(() => {
