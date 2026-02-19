@@ -214,7 +214,10 @@ export default function VideoExplorerPage() {
             ) : videosLoading ? (
               <div className={styles.placeholder}>영상 목록 불러오는 중…</div>
             ) : videos.length === 0 ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
+              <div
+                className={selectedFolderId === "public" ? styles.emptyStateWrapper : ""}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}
+              >
                 <EmptyState
                   scope="panel"
                   tone="empty"

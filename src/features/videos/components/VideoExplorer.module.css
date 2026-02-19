@@ -78,6 +78,10 @@
   margin-top: calc(var(--space-2) + 24px);
 }
 
+.emptyStateWrapper {
+  margin-top: calc(var(--space-2) + 24px);
+}
+
 .placeholder {
   display: flex;
   align-items: center;
