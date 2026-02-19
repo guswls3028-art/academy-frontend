@@ -38,9 +38,7 @@ export default function TchulLoginPage() {
   return (
     <div data-app="auth" className={styles.root}>
       <form onSubmit={onSubmit} className={styles.card} aria-label="박철과학 관리자 로그인">
-        <img src={TchulLogo} alt="박철과학" className={styles.logo} />
-        <p className={styles.phrase}>과학은 철두철미하게</p>
-        <h1 className={styles.title}>박철과학</h1>
+        <TchulLogoInline />
         <p className={styles.subtitle}>관리자 로그인</p>
         <div className={styles.form}>
           <input
