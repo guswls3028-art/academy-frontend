@@ -104,6 +104,38 @@
   background: #000;
 }
 
+/* GestureLayer: 터치/클릭 전용 레이어, 브라우저 줌·스크롤 차단 */
+.svpGestureLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  touch-action: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* 컨트롤 자동 숨김 (재생 중 3초 후), 싱글탭으로 토글 */
+.svpPlayerWrap--controlsHidden .svpTopBar,
+.svpPlayerWrap--controlsHidden .svpControls {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.svpPlayerWrap .svpTopBar,
+.svpPlayerWrap .svpControls {
+  transition: opacity 0.2s ease;
+}
+
+/* 전체화면 시 safe-area (노치·홈 인디케이터) */
+.svpPlayerWrap--fullscreen .svpControls {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.svpPlayerWrap--fullscreen .svpTopBar {
+  padding-top: max(14px, env(safe-area-inset-top));
+}
+
 .svpVideo {
   display: block;
   width: 100%;
