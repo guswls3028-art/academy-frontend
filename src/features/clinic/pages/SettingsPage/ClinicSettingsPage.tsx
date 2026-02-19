@@ -239,6 +239,7 @@ function ClinicIdcardColorSettings() {
               {updateMutation.isPending ? "저장 중…" : "색상 저장"}
             </Button>
           </div>
+        </div>
       </div>
 
       {/* 색상 선택 모달 */}
