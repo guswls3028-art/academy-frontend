@@ -112,7 +112,11 @@ export async function fetchStudentVideoPlayback(
   const res = await api.get(`/student/video/videos/${videoId}/playback/`, {
     params: Object.keys(params).length > 0 ? params : undefined,
   });
-  return res.data as StudentVideoPlayback;
+  const data = res?.data;
+  if (data == null || typeof data !== "object") {
+    throw new Error("재생 정보를 받지 못했습니다.");
+  }
+  return data as StudentVideoPlayback;
 }
 
 /**
@@ -136,5 +140,17 @@ export async function updateVideoProgress(
   last_position: number;
 }> {
   const res = await api.post(`/student/video/videos/${videoId}/progress/`, data);
-  return res.data;
+  const out = res?.data;
+  if (out == null || typeof out !== "object") {
+    throw new Error("진행률 저장 응답이 없습니다.");
+  }
+  return out as {
+    id: number;
+    video_id: number;
+    enrollment_id: number;
+    progress: number;
+    progress_percent: number;
+    completed: boolean;
+    last_position: number;
+  };
 }
