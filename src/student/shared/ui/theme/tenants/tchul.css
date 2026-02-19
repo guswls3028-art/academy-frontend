@@ -101,3 +101,17 @@
   background: var(--stu-danger-hover);
   filter: brightness(0.95);
 }
+
+/* tchul/9999: 모든 아이콘 그라데이션 톤 (SVG .stu-icon) */
+[data-student-tenant="tchul"] .stu-icon,
+[data-student-tenant="9999"] .stu-icon {
+  stroke: url(#stu-gradient-tchul);
+}
+[data-student-tenant="tchul"] .stu-icon path[fill="currentColor"],
+[data-student-tenant="tchul"] .stu-icon circle[fill="currentColor"],
+[data-student-tenant="tchul"] .stu-icon polygon[fill="currentColor"],
+[data-student-tenant="9999"] .stu-icon path[fill="currentColor"],
+[data-student-tenant="9999"] .stu-icon circle[fill="currentColor"],
+[data-student-tenant="9999"] .stu-icon polygon[fill="currentColor"] {
+  fill: url(#stu-gradient-tchul);
+}
