@@ -40,6 +40,25 @@ export default function ExamListPage() {
     return "stu-panel--nav";
   };
 
+  // 시간 압박도 결정 (6시간 이내)
+  const getUrgency = (exam: StudentExam): string | undefined => {
+    const now = new Date();
+    const closeAt = exam.close_at ? new Date(exam.close_at) : null;
+    
+    if (!closeAt) {
+      return undefined;
+    }
+
+    const hoursUntilClose = (closeAt.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    // 6시간 이내 → high urgency
+    if (hoursUntilClose > 0 && hoursUntilClose <= 6) {
+      return "high";
+    }
+    
+    return undefined;
+  };
+
   return (
     <StudentPageShell title="시험">
       {isLoading && <div>불러오는 중…</div>}
@@ -50,19 +69,24 @@ export default function ExamListPage() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-        {items.map((e) => (
-          <Link
-            key={e.id}
-            to={`/student/exams/${e.id}`}
-            className={`stu-panel stu-panel--pressable stu-panel--accent ${getExamPanelVariant(e)}`}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--stu-space-4)",
-              textDecoration: "none",
-              color: "inherit",
-            }}
-          >
+        {items.map((e) => {
+          const variant = getExamPanelVariant(e);
+          const urgency = getUrgency(e);
+          
+          return (
+            <Link
+              key={e.id}
+              to={`/student/exams/${e.id}`}
+              className={`stu-panel stu-panel--pressable stu-panel--accent ${variant}`}
+              data-urgency={urgency}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--stu-space-4)",
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--stu-surface-soft)", display: "grid", placeItems: "center" }}>
               <IconExam style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
             </div>
@@ -73,8 +97,9 @@ export default function ExamListPage() {
               </div>
             </div>
             <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)" }} />
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </StudentPageShell>
   );
