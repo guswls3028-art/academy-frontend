@@ -238,7 +238,116 @@ function ClinicIdcardColorSettings() {
           </Button>
         </div>
       </div>
-    </div>
+
+      {/* 색상 선택 모달 */}
+      <ColorSelectModal
+        open={colorSelectModalOpen}
+        onClose={() => {
+          setColorSelectModalOpen(false);
+          setSelectingColorIndex(null);
+        }}
+        onSelect={handleColorSelect}
+        currentColor={selectingColorIndex !== null ? localColors[selectingColorIndex] : null}
+      />
     </>
+  );
+}
+
+/** 색상 선택 모달 컴포넌트 */
+function ColorSelectModal({
+  open,
+  onClose,
+  onSelect,
+  currentColor,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSelect: (color: string) => void;
+  currentColor: string | null;
+}) {
+  // 기본 색상 팔레트
+  const colorPalette: Array<{ name: string; color: string }> = [
+    { name: "빨강", color: "#ef4444" },
+    { name: "파랑", color: "#3b82f6" },
+    { name: "초록", color: "#22c55e" },
+    { name: "주황", color: "#f97316" },
+    { name: "보라", color: "#a855f7" },
+    { name: "핑크", color: "#ec4899" },
+    { name: "노랑", color: "#eab308" },
+    { name: "청록", color: "#06b6d4" },
+    { name: "검정", color: "#000000" },
+    { name: "흰색", color: "#ffffff" },
+    { name: "회색", color: "#6b7280" },
+    { name: "갈색", color: "#92400e" },
+  ];
+
+  const [customColor, setCustomColor] = useState(currentColor || "#ef4444");
+
+  return (
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.mediumModal}>
+      <ModalHeader title="색상 선택" onClose={onClose} />
+      <ModalBody>
+        <div className="p-5 space-y-4">
+          {/* 기본 색상 팔레트 */}
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">기본 색상</div>
+            <div className="grid grid-cols-6 gap-2">
+              {colorPalette.map((item) => (
+                <button
+                  key={item.color}
+                  type="button"
+                  onClick={() => onSelect(item.color)}
+                  className={`h-12 rounded-lg border-2 transition-all hover:scale-105 ${
+                    currentColor === item.color
+                      ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)] ring-offset-2"
+                      : "border-[var(--border-divider)] hover:border-[var(--color-primary)]"
+                  }`}
+                  style={{ background: item.color }}
+                  title={item.name}
+                >
+                  <span className="sr-only">{item.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 커스텀 색상 선택 */}
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">커스텀 색상</div>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={customColor}
+                onChange={(e) => setCustomColor(e.target.value)}
+                className="h-12 w-12 rounded-lg border-2 border-[var(--border-divider)] cursor-pointer"
+              />
+              <input
+                type="text"
+                value={customColor}
+                onChange={(e) => {
+                  if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                    setCustomColor(e.target.value);
+                  }
+                }}
+                className="flex-1 h-12 px-3 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] font-mono text-sm"
+                placeholder="#RRGGBB"
+              />
+              <Button
+                intent="primary"
+                onClick={() => onSelect(customColor)}
+                className="h-12 px-4"
+              >
+                선택
+              </Button>
+            </div>
+          </div>
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <Button intent="secondary" onClick={onClose}>
+          취소
+        </Button>
+      </ModalFooter>
+    </AdminModal>
   );
 }
