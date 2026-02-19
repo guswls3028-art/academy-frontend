@@ -65,7 +65,7 @@ import SettingsLayout from "@/features/settings/SettingsLayout";
 import SettingsPage from "@/features/settings/pages/SettingsPage";
 
 /* ================= Exams / Results / Videos (Admin Root) ================= */
-import ExamAdminPage from "@/features/exams/pages/ExamAdminPage";
+import ExamExplorerPage from "@/features/exams/pages/ExamExplorerPage";
 import ResultsAdminPage from "@/features/results/pages/ResultsAdminPage";
 import VideoAdminPage from "@/features/videos/pages/VideoAdminPage";
 
@@ -142,7 +142,7 @@ export default function AdminRouter() {
         <Route path="clinic/*" element={<ClinicRoutes />} />
 
         {/* ================= Exams ================= */}
-        <Route path="exams" element={<ExamAdminPage />} />
+        <Route path="exams" element={<ExamExplorerPage />} />
 
         {/* ================= Results ================= */}
         <Route path="results" element={<ResultsAdminPage />} />
