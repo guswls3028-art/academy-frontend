@@ -1,12 +1,12 @@
 // PATH: src/features/auth/pages/login/TchulLoginPage.tsx
-// tchul.com 테넌트 전용 브랜드 로그인 — 단일 카드 (로고 원본 이미지 사용, 재구성 없음)
+// tchul.com 테넌트 전용 브랜드 로그인 — 단일 카드 (로고: TchulLogo.png bitmap tracing SVG)
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { Button } from "@/shared/ui/ds";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
-import TchulLogo from "../logos/TchulLogo.png";
+import TchulLogoTraced from "../logos/TchulLogoTraced";
 import styles from "./TchulLoginPage.module.css";
 
 export default function TchulLoginPage() {
@@ -38,7 +38,7 @@ export default function TchulLoginPage() {
   return (
     <div data-app="auth" className={styles.root}>
       <form onSubmit={onSubmit} className={styles.card} aria-label="박철과학 관리자 로그인">
-        <img src={TchulLogo} alt="박철과학" className={styles.logo} />
+        <TchulLogoTraced />
         <p className={styles.subtitle}>관리자 로그인</p>
         <div className={styles.form}>
           <input
