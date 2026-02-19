@@ -3,6 +3,8 @@
 
 import { useEffect } from "react";
 import { useProgram } from "@/shared/program";
+import { resolveTenantCode } from "@/shared/tenant";
+import { getTenantIdFromCode } from "@/shared/tenant";
 
 export function useDocumentTitle(title?: string) {
   const { program } = useProgram();
@@ -14,7 +16,27 @@ export function useDocumentTitle(title?: string) {
       return;
     }
 
-    // Program의 ui_config.window_title 또는 display_name 사용
+    // 학생 앱인지 확인 (data-app="student" 체크)
+    const isStudentApp = document.querySelector('[data-app="student"]') !== null;
+    
+    if (isStudentApp) {
+      // 학생 앱: 테넌트별 타이틀 설정
+      const tenantResult = resolveTenantCode();
+      if (tenantResult.ok) {
+        const tenantId = getTenantIdFromCode(tenantResult.code);
+        const isTchul = tenantResult.code === "tchul" || tenantResult.code === "9999" || tenantId === 2;
+        
+        if (isTchul) {
+          document.title = "박철과학";
+          return;
+        }
+      }
+      // 기본 학생 앱 타이틀
+      document.title = "학원플러스";
+      return;
+    }
+
+    // 선생/관리자 앱: Program의 ui_config.window_title 또는 display_name 사용
     const windowTitle = program?.ui_config?.window_title;
     const displayName = program?.display_name;
     
