@@ -1005,6 +1005,11 @@ export default function SessionEnrollModal({
         open={studentCreateOpen}
         onClose={() => setStudentCreateOpen(false)}
         onSuccess={() => {
+          // 학생 추가 후 목록 새로고침: 검색어 초기화 + 첫 페이지로 이동하여 새 학생이 목록에 나타나도록 함
+          setKeyword("");
+          setSearch("");
+          setPage(1);
+          setFilters({});
           qc.invalidateQueries({ queryKey: ["session-enroll-modal-students"] });
           setStudentCreateOpen(false);
         }}
