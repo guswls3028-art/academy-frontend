@@ -808,7 +808,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   }, [duration]);
 
   const onScrub = useCallback((v: number) => {
-    // UX: slider is always moveable, but policy guards actual seeking
+    setShowControls(true);
     setTime(v);
   }, [setTime]);
 
