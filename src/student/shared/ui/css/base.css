@@ -413,9 +413,9 @@ a {
   border-radius: var(--stu-radius-md);
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--stu-surface-soft) 85%, #fff),
-    color-mix(in srgb, var(--stu-surface) 85%, #fff),
-    color-mix(in srgb, var(--stu-surface-soft) 85%, #fff)
+    color-mix(in srgb, var(--stu-surface-2) 85%, #fff),
+    color-mix(in srgb, var(--stu-surface-1) 85%, #fff),
+    color-mix(in srgb, var(--stu-surface-2) 85%, #fff)
   );
   background-size: 200% 100%;
   animation: stuShimmer 1.05s ease-in-out infinite;
@@ -487,8 +487,7 @@ a {
    ====================================================== */
 
 .stu-tabbar a[aria-current="page"] {
-  box-shadow: inset 0 -2px 0
-    color-mix(in srgb, var(--stu-primary) 65%, transparent);
+  border-bottom: 2px solid var(--stu-primary);
 }
 
 /* ======================================================
