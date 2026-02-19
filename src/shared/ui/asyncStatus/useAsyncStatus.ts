@@ -12,7 +12,11 @@ export function useAsyncStatus(): AsyncTask[] {
   }, []);
 
   const currentTenant = getTenantCodeForApiRequest() ?? "";
-  return state.filter((t) => (t.tenantScope ?? "") === currentTenant);
+  // 테넌트별 완전 격리: 현재 테넌트와 tenantScope가 일치하는 작업만 표시
+  return state.filter((t) => {
+    const scope = t.tenantScope ?? "";
+    return scope === currentTenant;
+  });
 }
 
 export { asyncStatusStore };
