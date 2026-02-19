@@ -277,6 +277,19 @@ export default function SessionDetailPage() {
     );
   }
 
+  if (is403) {
+    return (
+      <StudentPageShell title="" noSectionFrame>
+        <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
+          <EmptyState
+            title="영상을 볼 수 없습니다"
+            description="이 차시의 영상을 볼 수 있는 권한이 없습니다. 수강 중인 강의인지 확인하거나, 선생님에게 문의해 주세요."
+          />
+        </div>
+      </StudentPageShell>
+    );
+  }
+
   if (!sessionIdNum || videos.length === 0) {
     return (
       <StudentPageShell title="" noSectionFrame>
