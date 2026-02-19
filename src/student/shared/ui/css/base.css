@@ -514,26 +514,31 @@ a {
 [data-app="student"] .stu-btn--primary {
   background: var(--stu-primary);
   color: var(--stu-primary-contrast);
-  border: none;
+  border: 1px solid var(--stu-primary);
 }
 [data-app="student"] .stu-btn--primary:hover:not(:disabled) {
   background: var(--stu-primary-hover);
+  border-color: var(--stu-primary-hover);
 }
 [data-app="student"] .stu-btn--danger {
   background: var(--stu-danger);
   color: #fff;
-  border: none;
+  border: 1px solid var(--stu-danger);
 }
 [data-app="student"] .stu-btn--danger:hover:not(:disabled) {
   background: var(--stu-danger-hover);
+  border-color: var(--stu-danger-hover);
 }
 [data-app="student"] .stu-btn--secondary {
-  background: var(--stu-surface);
-  border: 1px solid var(--stu-border);
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-normal);
   color: var(--stu-text);
 }
 [data-app="student"] .stu-btn--ghost {
   background: transparent;
   border: 1px solid transparent;
   color: var(--stu-text);
+}
+[data-app="student"] .stu-btn--ghost:hover:not(:disabled) {
+  background: var(--stu-tint-primary);
 }
