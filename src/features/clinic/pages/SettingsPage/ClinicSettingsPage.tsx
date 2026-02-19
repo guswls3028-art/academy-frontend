@@ -115,105 +115,30 @@ function ClinicIdcardColorSettings() {
     { name: "노랑-주황-빨강", colors: ["#eab308", "#f97316", "#ef4444"] },
   ];
 
-  // 색상 이름 → 색상 코드 매핑
-  const colorNameMap: Record<string, string> = {
-    빨강: "#ef4444",
-    빨: "#ef4444",
-    빨간색: "#ef4444",
-    red: "#ef4444",
-    파랑: "#3b82f6",
-    파: "#3b82f6",
-    파란색: "#3b82f6",
-    blue: "#3b82f6",
-    초록: "#22c55e",
-    초: "#22c55e",
-    초록색: "#22c55e",
-    green: "#22c55e",
-    주황: "#f97316",
-    주: "#f97316",
-    주황색: "#f97316",
-    orange: "#f97316",
-    보라: "#a855f7",
-    보: "#a855f7",
-    보라색: "#a855f7",
-    purple: "#a855f7",
-    핑크: "#ec4899",
-    핑: "#ec4899",
-    분홍: "#ec4899",
-    pink: "#ec4899",
-    노랑: "#eab308",
-    노: "#eab308",
-    노란색: "#eab308",
-    yellow: "#eab308",
-    청록: "#06b6d4",
-    청: "#06b6d4",
-    청록색: "#06b6d4",
-    cyan: "#06b6d4",
-    검정: "#000000",
-    검: "#000000",
-    검은색: "#000000",
-    black: "#000000",
-    흰색: "#ffffff",
-    흰: "#ffffff",
-    white: "#ffffff",
-  };
-
-  // 텍스트 입력 파싱 (예: "빨파빨" → ["#ef4444", "#3b82f6", "#ef4444"])
-  const parseColorText = (text: string): [string, string, string] | null => {
-    const cleaned = text.trim().replace(/\s+/g, "");
-    if (cleaned.length < 2) return null;
-
-    const colors: string[] = [];
-    let i = 0;
-    while (i < cleaned.length && colors.length < 3) {
-      // 2글자 매칭 시도 (빨강, 파랑 등)
-      if (i + 2 <= cleaned.length) {
-        const twoChar = cleaned.slice(i, i + 2);
-        if (colorNameMap[twoChar]) {
-          colors.push(colorNameMap[twoChar]);
-          i += 2;
-          continue;
-        }
-      }
-      // 1글자 매칭 시도 (빨, 파, 초 등)
-      const oneChar = cleaned[i];
-      if (colorNameMap[oneChar]) {
-        colors.push(colorNameMap[oneChar]);
-        i += 1;
-      } else {
-        // 매칭 실패 시 다음 문자로
-        i += 1;
-      }
-    }
-
-    if (colors.length === 0) return null;
-    // 3개 미만이면 마지막 색상으로 채움
-    while (colors.length < 3) {
-      colors.push(colors[colors.length - 1] || "#ef4444");
-    }
-    return [colors[0], colors[1], colors[2]] as [string, string, string];
-  };
-
-  const [colorTextInput, setColorTextInput] = useState("");
+  const [colorSelectModalOpen, setColorSelectModalOpen] = useState(false);
+  const [selectingColorIndex, setSelectingColorIndex] = useState<number | null>(null);
 
   const handleColorChange = (index: number, color: string) => {
     const newColors: [string, string, string] = [...localColors] as [string, string, string];
     newColors[index] = color;
     setLocalColors(newColors);
-    setColorTextInput(""); // 수동 변경 시 텍스트 입력 초기화
   };
 
   const handlePresetSelect = (colors: [string, string, string]) => {
     setLocalColors(colors);
-    setColorTextInput(""); // 프리셋 선택 시 텍스트 입력 초기화
   };
 
-  const handleColorTextInput = (text: string) => {
-    setColorTextInput(text);
-    const parsed = parseColorText(text);
-    if (parsed) {
-      setLocalColors(parsed);
+  const handleOpenColorModal = (index: number) => {
+    setSelectingColorIndex(index);
+    setColorSelectModalOpen(true);
+  };
+
+  const handleColorSelect = (color: string) => {
+    if (selectingColorIndex !== null) {
+      handleColorChange(selectingColorIndex, color);
     }
+    setColorSelectModalOpen(false);
+    setSelectingColorIndex(null);
   };
 
   const handleSave = () => {
