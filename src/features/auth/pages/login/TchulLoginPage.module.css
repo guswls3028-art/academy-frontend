@@ -38,7 +38,7 @@
   margin: 0 auto 1.5rem;
 }
 
-/* 로그인 전용 버튼 — 전역 .ds-button 영향 없음, 축소 */
+/* 로그인 전용 버튼 — 로고 컬러패턴(블루→청록→그린) 반영 */
 .btnPrimary {
   display: inline-block;
   min-width: 8rem;
@@ -47,15 +47,15 @@
   font-weight: 600;
   line-height: 1.25;
   color: #fff;
-  background: var(--tchul-login-primary);
+  background: var(--tchul-btn-gradient);
   border: none;
   border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.05s ease;
+  transition: filter 0.2s ease, transform 0.05s ease;
 }
 
 .btnPrimary:hover:not(:disabled) {
-  background: var(--tchul-login-primary-hover);
+  filter: brightness(0.92);
 }
 
 .btnPrimary:active:not(:disabled) {
