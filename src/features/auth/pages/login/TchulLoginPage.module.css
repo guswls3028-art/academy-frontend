@@ -1,118 +1,69 @@
 /* PATH: src/features/auth/pages/login/TchulLoginPage.module.css
- * tchul.com 전용 브랜드 로그인 랜딩 — 프리미엄 SaaS 2컬럼 반응형
- * 테넌트 화이트라벨 템플릿 기준 구조
+ * tchul.com 전용 브랜드 로그인 — 단일 페이지 (로고·브랜드·폼 한 카드)
  */
 
 .root {
-  --tchul-brand-bg: linear-gradient(160deg, #0d47a1 0%, #00695c 45%, #004d40 100%);
+  --tchul-bg: linear-gradient(160deg, #0d47a1 0%, #00695c 45%, #004d40 100%);
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr;
-}
-
-@media (max-width: 768px) {
-  .root {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-}
-
-/* 좌측: 브랜드 영역 */
-.brand {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: var(--space-6, 24px);
+  background: var(--tchul-bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 24rem;
   padding: var(--space-8, 40px);
-  background: var(--tchul-brand-bg);
-  color: #fff;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 12px 24px rgba(0, 0, 0, 0.08),
+    0 32px 64px rgba(0, 0, 0, 0.12);
+  color: var(--color-text-primary);
   text-align: center;
 }
 
-@media (max-width: 768px) {
-  .brand {
-    padding: var(--space-6, 24px) var(--space-4);
-    min-height: 38vh;
-  }
-}
-
-.brandLogo {
+.logo {
   display: block;
   width: 100%;
   max-width: 200px;
   height: auto;
   object-fit: contain;
-  margin-bottom: var(--space-6, 24px);
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.12));
+  margin: 0 auto var(--space-5, 20px);
 }
 
-@media (min-width: 769px) {
-  .brandLogo {
-    max-width: 280px;
-    margin-bottom: var(--space-8, 32px);
-  }
-}
-
-.brandPhrase {
+.phrase {
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.04em;
-  margin-bottom: var(--space-2);
-  opacity: 0.95;
-}
-
-@media (min-width: 769px) {
-  .brandPhrase {
-    font-size: 1.25rem;
-    margin-bottom: var(--space-3);
-  }
-}
-
-.brandTitle {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  color: #0d47a1;
   margin-bottom: var(--space-1);
 }
 
-@media (min-width: 769px) {
-  .brandTitle {
-    font-size: 1.875rem;
-  }
+.title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
 }
 
-.brandSubtitle {
+.subtitle {
   font-size: 0.875rem;
-  opacity: 0.9;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-6, 24px);
 }
 
-/* 우측: 로그인 폼 패널 — auth-shell과 동일 톤 */
-.formPanel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-8, 40px);
-  background: var(--color-bg-canvas, #0f1419);
-  color: var(--color-text-primary);
-  background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120, 119, 198, 0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(99, 102, 241, 0.06), transparent);
+.form {
+  margin-top: var(--space-5, 20px);
+  padding-top: var(--space-5, 20px);
+  border-top: 1px solid var(--color-border-divider, #e5e7eb);
 }
 
-.formCard {
-  width: 100%;
-  max-width: 26rem;
-  padding: var(--space-8, 40px);
-  border-radius: 16px;
-  background: var(--color-bg-surface, #fff);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 8px 16px rgba(0, 0, 0, 0.06),
-    0 24px 48px rgba(0, 0, 0, 0.08);
-  color: var(--color-text-primary);
-}
-
-.formCard input {
+.card input {
   width: 100%;
   padding: 12px 16px;
   margin-bottom: var(--space-3, 12px);
@@ -124,24 +75,23 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.formCard input::placeholder {
+.card input::placeholder {
   color: var(--color-text-muted);
 }
 
-.formCard input:hover {
+.card input:hover {
   border-color: var(--color-border-divider, #d1d5db);
 }
 
-.formCard input:focus {
+.card input:focus {
   outline: none;
   border-color: var(--color-border-focus, #6366f1);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-.formCard__error {
+.error {
   margin-top: var(--space-3, 12px);
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--color-text-error, var(--color-danger, #dc2626));
-  text-align: center;
 }
