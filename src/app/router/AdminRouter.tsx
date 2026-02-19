@@ -66,7 +66,7 @@ import SettingsPage from "@/features/settings/pages/SettingsPage";
 
 /* ================= Exams / Results / Videos (Admin Root) ================= */
 import ExamExplorerPage from "@/features/exams/pages/ExamExplorerPage";
-import ResultsAdminPage from "@/features/results/pages/ResultsAdminPage";
+import ResultsExplorerPage from "@/features/results/pages/ResultsExplorerPage";
 import VideoAdminPage from "@/features/videos/pages/VideoAdminPage";
 
 /* ================= Placeholder (DomainLayout 적용) ================= */
@@ -145,7 +145,7 @@ export default function AdminRouter() {
         <Route path="exams" element={<ExamExplorerPage />} />
 
         {/* ================= Results ================= */}
-        <Route path="results" element={<ResultsAdminPage />} />
+        <Route path="results" element={<ResultsExplorerPage />} />
 
         {/* ================= Videos (Admin Root) ================= */}
         <Route path="videos" element={<VideoAdminPage />} />

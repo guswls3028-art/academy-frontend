@@ -6,7 +6,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { BarChart2, FilePlus } from "lucide-react";
+import { BarChart2 } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
@@ -123,7 +123,7 @@ export default function ResultsExplorerPage() {
             ) : (
               <div className={styles.grid}>
                 <div
-                  className={styles.item + " " + styles.itemAdd}
+                  className={styles.item}
                   onClick={() =>
                     navigate(
                       `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/scores`
@@ -136,19 +136,6 @@ export default function ResultsExplorerPage() {
                   <span className={styles.itemMeta}>
                     {selectedSession.lecture.title || selectedSession.lecture.name} · {selectedSession.session.order}차시
                   </span>
-                </div>
-                <div
-                  className={styles.item}
-                  onClick={() =>
-                    navigate(
-                      `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/scores`
-                    )
-                  }
-                  title="시험·과제 성적"
-                >
-                  <BarChart2 size={32} style={{ color: "var(--color-primary)" }} aria-hidden />
-                  <span className={styles.itemLabel}>시험·과제</span>
-                  <span className={styles.itemMeta}>성적 입력·조회</span>
                 </div>
               </div>
             )}
