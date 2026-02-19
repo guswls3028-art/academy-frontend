@@ -1,4 +1,4 @@
-// PATH: src/student/domains/media/playback/player/StudentVideoPlayer.tsx
+// PATH: src/student/domains/video/playback/player/StudentVideoPlayer.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import studentApi from "@/student/shared/api/studentApi";
 
