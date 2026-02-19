@@ -225,3 +225,41 @@ export async function uploadComplete(
 ): Promise<void> {
   await api.post(`/media/videos/${videoId}/upload/complete/`);
 }
+
+// ========================================================
+// Video Folders (전체공개영상 폴더 구조)
+// ========================================================
+
+export type VideoFolder = {
+  id: number;
+  name: string;
+  session_id: number;
+  parent_id: number | null;
+  order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function fetchVideoFolders(sessionId: number): Promise<VideoFolder[]> {
+  const res = await api.get<VideoFolder[]>("/media/videos/folders/", {
+    params: { session_id: sessionId },
+  });
+  return res.data;
+}
+
+export async function createVideoFolder(
+  sessionId: number,
+  name: string,
+  parentId?: number | null
+): Promise<VideoFolder> {
+  const res = await api.post<VideoFolder>("/media/videos/folders/", {
+    session_id: sessionId,
+    name,
+    parent_id: parentId ?? null,
+  });
+  return res.data;
+}
+
+export async function deleteVideoFolder(folderId: number): Promise<void> {
+  await api.delete(`/media/videos/folders/${folderId}/`);
+}
