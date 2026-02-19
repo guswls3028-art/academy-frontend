@@ -75,12 +75,14 @@ export default function ClinicIDCardPage() {
   }
 
   const isClinicTarget = data.current_result === "FAIL";
+  const bgColors = data.background_colors || ["#ef4444", "#3b82f6", "#22c55e"];
+  const bgGradient = `linear-gradient(135deg, ${bgColors[0]} 0%, ${bgColors[1]} 50%, ${bgColors[2]} 100%)`;
 
   const seconds = liveNow.getSeconds();
   const timeColor = getTimeColor(seconds);
 
   return (
-    <div className="idcard-page idcard-page--black">
+    <div className="idcard-page idcard-page--black" style={{ background: bgGradient }}>
       {/* LIVE 뱃지 + 실시간 시계 (초 단위) — 위조 판별용 */}
       <div className="idcard-page__live-badge">
         <span className="idcard-page__live-dot" aria-hidden />
