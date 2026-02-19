@@ -7,7 +7,7 @@ import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { fetchStudentVideoPlayback, fetchStudentSessionVideos, updateVideoProgress } from "../api/video";
 import { IconCheck, IconRefresh, IconArrowRight, IconPlay } from "@/student/shared/ui/icons/Icons";
 import { Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -170,37 +170,44 @@ export default function VideoPlayerPage() {
     };
   }, []);
 
-  // 다음 강의 찾기 (같은 세션 내에서). sessionId는 video에서 파생해 effect 제거(무한 리렌더 방지)
+  // 다음 강의 찾기: useQuery 제거 → 1회 fetch만 (setData 연쇄 리렌더로 #310 발생 방지)
   const sessionId = video?.session_id ?? null;
+  const [sessionVideosData, setSessionVideosData] = useState<{ items: { id: number; title?: string; [k: string]: unknown }[] } | null>(null);
 
-  const sessionVideosQueryKey = ["student-session-videos", sessionId, enrollmentId] as const;
-  const { data: sessionVideosData } = useQuery({
-    queryKey: sessionVideosQueryKey,
-    queryFn: () => fetchStudentSessionVideos(sessionId!, enrollmentId ?? undefined),
-    enabled: !!sessionId && !!videoId,
-  });
+  useEffect(() => {
+    if (!sessionId || !videoId) {
+      setSessionVideosData(null);
+      return;
+    }
+    let cancelled = false;
+    fetchStudentSessionVideos(sessionId, enrollmentId ?? undefined)
+      .then((res) => {
+        if (!cancelled) setSessionVideosData(res);
+      })
+      .catch(() => {
+        if (!cancelled) setSessionVideosData(null);
+      });
+    return () => { cancelled = true; };
+  }, [sessionId, enrollmentId, videoId]);
 
   const nextVideo = useMemo(() => {
-    if (!sessionVideosData?.items || !videoId) return null;
+    if (!sessionVideosData?.items?.length || !videoId) return null;
     const videos = sessionVideosData.items;
-    const currentIndex = videos.findIndex((v) => v.id === videoId);
+    const currentIndex = videos.findIndex((v: { id: number }) => v.id === videoId);
     if (currentIndex >= 0 && currentIndex < videos.length - 1) {
       return videos[currentIndex + 1];
     }
     return null;
   }, [sessionVideosData, videoId]);
 
-  // 진행률 업데이트 mutation — onSuccess에서 invalidate를 다음 틱으로 미룸 (setData→리렌더 연쇄로 #310 방지)
   const progressMutation = useMutation({
     mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
       if (!videoId) throw new Error("videoId가 필요합니다.");
       return updateVideoProgress(videoId, data);
     },
     onSuccess: () => {
-      const sid = sessionId;
-      const eid = enrollmentId;
-      if (sid == null) return;
-      const key = ["student-session-videos", sid, eid] as const;
+      if (sessionId == null) return;
+      const key = ["student-session-videos", sessionId, enrollmentId] as const;
       setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
     },
   });
