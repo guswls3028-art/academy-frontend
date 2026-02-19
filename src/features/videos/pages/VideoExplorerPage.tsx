@@ -373,6 +373,72 @@ export default function VideoExplorerPage() {
           onClose={closeUploadModal}
         />
       )}
+
+      {newFolderOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => {
+            setNewFolderOpen(false);
+            setNewFolderName("");
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--color-bg-surface)",
+              padding: "var(--space-4)",
+              borderRadius: "var(--radius-lg)",
+              minWidth: 300,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ marginBottom: "var(--space-3)" }}>
+              <h3 style={{ margin: 0, marginBottom: "var(--space-2)" }}>새 폴더</h3>
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFolder();
+                  if (e.key === "Escape") {
+                    setNewFolderOpen(false);
+                    setNewFolderName("");
+                  }
+                }}
+                placeholder="폴더 이름"
+                autoFocus
+                style={{
+                  width: "100%",
+                  padding: "var(--space-2)",
+                  border: "1px solid var(--color-border-divider)",
+                  borderRadius: "var(--radius-sm)",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "flex-end" }}>
+              <Button intent="secondary" size="sm" onClick={() => {
+                setNewFolderOpen(false);
+                setNewFolderName("");
+              }}>
+                취소
+              </Button>
+              <Button intent="primary" size="sm" onClick={handleCreateFolder}>
+                생성
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </DomainLayout>
   );
 }
