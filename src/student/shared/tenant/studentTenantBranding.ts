@@ -14,7 +14,7 @@ export type StudentTenantBranding = {
   title: string;
 };
 
-/** tchul 디자인 적용 테넌트 (2번 + 9999 로컬) — 동일 로고·타이틀 */
+/** 2번(tchul) 테넌트 디자인. 9999는 로컬 개발용으로 2번과 동일한 로고·타이틀 사용 */
 const TCHUL_DESIGN_CODES = ["tchul", "9999"] as const;
 
 /**
