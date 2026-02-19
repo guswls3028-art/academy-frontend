@@ -35,7 +35,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const [showWatermark, setShowWatermark] = useState(true);
@@ -46,7 +46,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     if (!isOpen) return;
     setTitle("");
     setDescription("");
-    setFile(null);
+    setFiles([]);
     setShowWatermark(true);
     setAllowSkip(false);
     setMaxSpeed(1);
@@ -54,8 +54,8 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   }, [isOpen]);
 
   const canSubmit = useMemo(() => {
-    return Number.isFinite(sessionId) && sessionId > 0 && !!file && title.trim().length > 0;
-  }, [sessionId, file, title]);
+    return Number.isFinite(sessionId) && sessionId > 0 && files.length > 0 && title.trim().length > 0;
+  }, [sessionId, files.length, title]);
 
   if (!isOpen) return null;
 
