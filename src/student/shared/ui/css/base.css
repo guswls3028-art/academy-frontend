@@ -303,10 +303,13 @@ a {
 .stu-btn--danger {
   background: var(--stu-danger);
   color: #fff;
+  border: 1px solid var(--stu-danger);
+  /* Shadow 제거 */
 }
 
 .stu-btn--danger:hover {
   background: var(--stu-danger-hover);
+  border-color: var(--stu-danger-hover);
 }
 
 .stu-btn--sm {
@@ -345,8 +348,9 @@ a {
 
 .stu-input:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--stu-primary) 70%, var(--stu-border));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--stu-primary) 18%, transparent);
+  border-color: var(--stu-primary);
+  /* box-shadow 제거, border만 사용 */
+  border-width: 2px;
 }
 
 .stu-textarea {
