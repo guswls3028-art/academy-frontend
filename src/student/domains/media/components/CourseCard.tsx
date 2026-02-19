@@ -84,16 +84,15 @@ export default function CourseCard({
           </div>
         )}
         
-        {/* 재생 오버레이 - hover 효과 제거 (Media Tile System) */}
+        {/* 재생 오버레이 - Media Tile System (hover 제거) */}
         <div
           style={{
             position: "absolute",
             inset: 0,
             display: "grid",
             placeItems: "center",
-            background: "rgba(0,0,0,0.2)",
-            opacity: 0.7,
-            transition: "opacity var(--stu-motion-fast)",
+            background: "rgba(0,0,0,0.15)",
+            opacity: 0.6,
           }}
         >
           <div
@@ -194,37 +193,20 @@ export default function CourseCard({
       </div>
 
       {/* 정보 영역 */}
-      <div className="media-tile__title" style={{ marginTop: 6 }}>
-        <h3
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            margin: 0,
-            marginBottom: "var(--stu-space-2)",
-            lineHeight: 1.3,
-            color: "var(--stu-text)",
-          }}
-        >
+      <div style={{ marginTop: 6 }}>
+        <div className="media-tile__title" style={{ marginBottom: 4 }}>
           {title}
-        </h3>
+        </div>
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--stu-space-2)",
-            fontSize: 13,
+            fontSize: 12,
             color: "var(--stu-text-muted)",
+            lineHeight: 1.4,
           }}
         >
-          {videoCount > 0 && <span>총 {videoCount}강</span>}
-          {videoCount > 0 && totalDuration && <span>·</span>}
+          {videoCount > 0 && <span>{videoCount}강</span>}
+          {videoCount > 0 && totalDuration && <span> · </span>}
           {totalDuration && <span>{formatDuration(totalDuration)}</span>}
-          {progress > 0 && (
-            <>
-              <span>·</span>
-              <span>진행률 {Math.round(progress)}%</span>
-            </>
-          )}
         </div>
       </div>
     </Component>
