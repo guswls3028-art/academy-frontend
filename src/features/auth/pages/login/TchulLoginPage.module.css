@@ -99,8 +99,8 @@
 }
 
 .input:focus {
-  border-color: var(--tchul-login-primary);
-  box-shadow: 0 0 0 3px var(--tchul-login-focus);
+  border-color: var(--tchul-blue);
+  box-shadow: 0 0 0 3px var(--tchul-focus);
 }
 
 .form .btnPrimary {
