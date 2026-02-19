@@ -39,7 +39,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     items: [
-      { to: `${ADMIN_NAV_BASE}/contents`, label: "콘텐츠", iconPath: "M4 6h16M4 12h16M4 18h7" },
       { to: `${ADMIN_NAV_BASE}/exams`, label: "시험", iconPath: "M7 3h10v18H7zM9 7h6M9 11h6M9 15h4" },
       { to: `${ADMIN_NAV_BASE}/results`, label: "성적", iconPath: "M4 18h16M6 15V9M12 15V5M18 15v-7" },
       { to: `${ADMIN_NAV_BASE}/clinic`, label: "클리닉", iconPath: "M12 21s7-4 7-10a7 7 0 0 0-14 0c0 6 7 10 7 10Z" },
