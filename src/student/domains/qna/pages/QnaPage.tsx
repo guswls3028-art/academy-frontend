@@ -42,13 +42,15 @@ export default function QnaPage() {
       title="Q&A 게시판"
       description="질문을 남기고 답변을 확인하세요."
       actions={
-        <button
-          type="button"
-          className="stu-btn stu-btn--primary stu-btn--sm"
-          onClick={() => setShowWrite(true)}
-        >
-          질문하기
-        </button>
+        (qnaBlockType ?? blockTypes[0]) && (
+          <button
+            type="button"
+            className="stu-btn stu-btn--primary stu-btn--sm"
+            onClick={() => setShowWrite(true)}
+          >
+            질문하기
+          </button>
+        )
       }
     >
       {isLoading ? (
@@ -188,7 +190,8 @@ function QnaWriteForm({
     },
   });
 
-  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && blockTypeId != null;
+  const effectiveBlockTypeId = blockTypeId ?? blockTypes[0]?.id;
+  const canSubmit = title.trim().length > 0 && content.trim().length > 0 && effectiveBlockTypeId != null;
 
   return (
     <div className="stu-card stu-card--soft" style={{ padding: "var(--stu-space-6)" }}>
