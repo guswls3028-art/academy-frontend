@@ -1,7 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchClinicMe } from "../../api/clinicMe.api";
+import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
+import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function ClinicSettingsPage() {
+  const qc = useQueryClient();
   const meQ = useQuery({
     queryKey: ["clinic-me"],
     queryFn: fetchClinicMe,
