@@ -67,6 +67,15 @@
   background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
   border-radius: var(--radius-sm);
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  z-index: 1;
+}
+
+.gridWrapPublic .grid {
+  margin-top: calc(var(--space-2) + 24px); /* 라벨 높이만큼 여백 */
+}
+
+.gridWrapPublic .placeholder {
+  margin-top: calc(var(--space-2) + 24px);
 }
 
 .placeholder {
