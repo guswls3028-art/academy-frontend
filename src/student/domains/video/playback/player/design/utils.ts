@@ -1,4 +1,4 @@
-// PATH: src/student/domains/media/playback/player/design/utils.ts
+// PATH: src/student/domains/video/playback/player/design/utils.ts
 export function clamp(v: number, min: number, max: number) {
   const n = Number(v);
   if (!Number.isFinite(n)) return min;

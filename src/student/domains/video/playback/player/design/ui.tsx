@@ -1,4 +1,4 @@
-// PATH: src/student/domains/media/playback/player/design/ui.tsx
+// PATH: src/student/domains/video/playback/player/design/ui.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clamp } from "./utils";
 
