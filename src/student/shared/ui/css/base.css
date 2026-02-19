@@ -272,7 +272,12 @@ a {
     filter var(--stu-motion-fast);
 }
 
+/* 프리미엄: hover 제거 - 상태 기반 강조만 사용 */
 .stu-panel--pressable:hover {
+  /* 상태 variant가 있으면 hover 효과 제거 */
+}
+
+.stu-panel--nav.stu-panel--pressable:hover {
   background: var(--stu-tint-hover);
   border-color: var(--stu-border-normal);
 }
