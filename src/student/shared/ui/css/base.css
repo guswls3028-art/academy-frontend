@@ -334,12 +334,12 @@ a {
   min-height: 44px;
   padding: 10px 12px;
   border-radius: var(--stu-radius-md);
-  border: 1px solid var(--stu-border);
-  background: var(--stu-surface);
+  border: 1px solid var(--stu-border-normal);
+  background: var(--stu-surface-1);
   color: var(--stu-text);
   box-shadow: none;
 
-  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .stu-input::placeholder {
