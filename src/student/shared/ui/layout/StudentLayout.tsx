@@ -15,6 +15,7 @@ export default function StudentLayout() {
 
   return (
     <div
+      data-app="student"
       data-student-tenant={tenantCode || undefined}
       style={{
         minHeight: "100dvh",
