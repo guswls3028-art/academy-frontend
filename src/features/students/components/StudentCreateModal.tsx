@@ -263,8 +263,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     }
   }
 
+  const handleClose = () => {
+    setDeletedStudentConflict(null);
+    onClose();
+  };
+
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
+    <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md}>
       <ModalHeader
         type="action"
         title="학생 등록"
@@ -285,7 +290,53 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       </div>
 
       <ModalBody key={activeTab}>
-        {activeTab === "single" ? (
+        {deletedStudentConflict ? (
+          <div className="modal-scroll-body modal-scroll-body--compact" style={{ padding: "var(--space-4)" }}>
+            <div style={{ marginBottom: "var(--space-4)", fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
+              삭제된 학생이 있습니다. 복원하시겠습니까?
+            </div>
+            <div style={{ marginBottom: "var(--space-4)", padding: "var(--space-3)", background: "var(--color-surface-secondary)", borderRadius: 8, fontSize: 14 }}>
+              <div style={{ marginBottom: "var(--space-2)" }}>
+                <strong>이름:</strong> {deletedStudentConflict.student.name || "-"}
+              </div>
+              <div style={{ marginBottom: "var(--space-2)" }}>
+                <strong>PS 번호:</strong> {deletedStudentConflict.student.psNumber || "-"}
+              </div>
+              <div style={{ marginBottom: "var(--space-2)" }}>
+                <strong>학부모 전화:</strong> {deletedStudentConflict.student.parentPhone || "-"}
+              </div>
+              {deletedStudentConflict.student.phone && (
+                <div>
+                  <strong>학생 전화:</strong> {deletedStudentConflict.student.phone}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+              <Button
+                type="primary"
+                onClick={handleRestoreDeletedStudent}
+                disabled={busy}
+                style={{ width: "100%" }}
+              >
+                복원
+              </Button>
+              <Button
+                onClick={handlePermanentDeleteAndReregister}
+                disabled={busy}
+                style={{ width: "100%" }}
+              >
+                삭제 후 재등록
+              </Button>
+              <Button
+                onClick={() => setDeletedStudentConflict(null)}
+                disabled={busy}
+                style={{ width: "100%" }}
+              >
+                취소
+              </Button>
+            </div>
+          </div>
+        ) : activeTab === "single" ? (
         <div className="modal-scroll-body modal-scroll-body--compact">
           {/* 필수 입력 — 세션 모달과 동일 구조·입체감 */}
           <div className="modal-form-group">
