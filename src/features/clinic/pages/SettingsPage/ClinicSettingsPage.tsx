@@ -163,24 +163,6 @@ function ClinicIdcardColorSettings() {
         </div>
 
         <div className="p-5 space-y-4">
-          {/* 빠른 텍스트 입력 (예: "빨파빨", "빨강파랑초록") */}
-          <div className="space-y-2">
-            <div className="text-xs font-semibold text-[var(--text-muted)]">빠른 색상 입력</div>
-            <div className="text-[11px] text-[var(--text-muted)] mb-1">
-              예: "빨파빨", "빨강파랑초록", "빨 파 초" (띄어쓰기 무관)
-            </div>
-            <input
-              type="text"
-              value={colorTextInput}
-              onChange={(e) => handleColorTextInput(e.target.value)}
-              placeholder="빨파빨"
-              className="w-full h-10 px-3 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] text-sm"
-            />
-            <div className="text-[10px] text-[var(--text-muted)]">
-              지원 색상: 빨강(빨), 파랑(파), 초록(초), 주황(주), 보라(보), 핑크(핑), 노랑(노), 청록(청), 검정(검), 흰색(흰)
-            </div>
-          </div>
-
           {/* 현재 선택된 색상 미리보기 */}
           <div className="space-y-2">
             <div className="text-xs font-semibold text-[var(--text-muted)]">현재 색상 미리보기</div>
@@ -194,38 +176,31 @@ function ClinicIdcardColorSettings() {
             />
           </div>
 
-        {/* 색상 3개 선택 */}
-        <div className="space-y-3">
-          <div className="text-xs font-semibold text-[var(--text-muted)]">색상 선택 (3개)</div>
-          <div className="grid grid-cols-3 gap-3">
-            {[0, 1, 2].map((index) => (
-              <div key={index} className="space-y-1.5">
-                <label className="text-[11px] text-[var(--text-muted)]">
-                  색상 {index + 1}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={localColors[index]}
-                    onChange={(e) => handleColorChange(index, e.target.value)}
-                    className="w-full h-10 rounded-lg border border-[var(--border-divider)] cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    value={localColors[index]}
-                    onChange={(e) => {
-                      if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
-                        handleColorChange(index, e.target.value);
-                      }
-                    }}
-                    className="w-20 h-10 px-2 text-xs rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] font-mono"
-                    placeholder="#RRGGBB"
-                  />
-                </div>
-              </div>
-            ))}
+          {/* 색상 3개 선택 버튼 */}
+          <div className="space-y-3">
+            <div className="text-xs font-semibold text-[var(--text-muted)]">색상 선택 (3개)</div>
+            <div className="grid grid-cols-3 gap-3">
+              {[0, 1, 2].map((index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleOpenColorModal(index)}
+                  className="group relative h-20 rounded-lg border-2 border-[var(--border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors flex flex-col items-center justify-center gap-1"
+                  style={{
+                    background: localColors[index],
+                  }}
+                >
+                  <div className="text-xs font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    색상 {index + 1}
+                  </div>
+                  <div className="text-[10px] font-mono text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {localColors[index]}
+                  </div>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
         {/* 프리셋 팔레트 */}
         <div className="space-y-2">
