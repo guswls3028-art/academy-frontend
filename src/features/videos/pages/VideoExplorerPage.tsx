@@ -370,70 +370,115 @@ export default function VideoExplorerPage() {
         />
       )}
 
+      {/* 추가 선택 모달 (전체공개영상 내에서만) */}
+      {addChoiceModalOpen && publicSession && (
+        <AdminModal
+          open={addChoiceModalOpen}
+          onClose={() => setAddChoiceModalOpen(false)}
+          width={MODAL_WIDTH.smallModal}
+        >
+          <ModalHeader title="추가하기" onClose={() => setAddChoiceModalOpen(false)} />
+          <ModalBody>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddChoiceModalOpen(false);
+                  openUploadModal(publicSession.session_id);
+                }}
+                className="w-full flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)] transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-primary)]/10 flex items-center justify-center">
+                  <Video size={20} className="text-[var(--color-brand-primary)]" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">영상 업로드</div>
+                  <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    새로운 영상을 업로드합니다
+                  </div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddChoiceModalOpen(false);
+                  setNewFolderOpen(true);
+                }}
+                className="w-full flex items-center gap-3 p-4 rounded-lg border border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)] transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-primary)]/10 flex items-center justify-center">
+                  <Folder size={20} className="text-[var(--color-brand-primary)]" />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-[var(--color-text-primary)]">폴더 생성</div>
+                  <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
+                    새로운 폴더를 생성합니다
+                  </div>
+                </div>
+              </button>
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button intent="secondary" onClick={() => setAddChoiceModalOpen(false)}>
+              취소
+            </Button>
+          </ModalFooter>
+        </AdminModal>
+      )}
+
+      {/* 폴더 생성 모달 */}
       {newFolderOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => {
+        <AdminModal
+          open={newFolderOpen}
+          onClose={() => {
             setNewFolderOpen(false);
             setNewFolderName("");
           }}
+          width={MODAL_WIDTH.smallModal}
         >
-          <div
-            style={{
-              backgroundColor: "var(--color-bg-surface)",
-              padding: "var(--space-4)",
-              borderRadius: "var(--radius-lg)",
-              minWidth: 300,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ marginBottom: "var(--space-3)" }}>
-              <h3 style={{ margin: 0, marginBottom: "var(--space-2)" }}>새 폴더</h3>
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleCreateFolder();
-                  if (e.key === "Escape") {
-                    setNewFolderOpen(false);
-                    setNewFolderName("");
-                  }
-                }}
-                placeholder="폴더 이름"
-                autoFocus
-                style={{
-                  width: "100%",
-                  padding: "var(--space-2)",
-                  border: "1px solid var(--color-border-divider)",
-                  borderRadius: "var(--radius-sm)",
-                }}
-              />
+          <ModalHeader title="새 폴더" onClose={() => {
+            setNewFolderOpen(false);
+            setNewFolderName("");
+          }} />
+          <ModalBody>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-semibold text-[var(--color-text-primary)] mb-2 block">
+                  폴더 이름
+                </label>
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreateFolder();
+                    if (e.key === "Escape") {
+                      setNewFolderOpen(false);
+                      setNewFolderName("");
+                    }
+                  }}
+                  placeholder="폴더 이름을 입력하세요"
+                  autoFocus
+                  className="w-full px-3 py-2 border border-[var(--color-border-divider)] rounded-lg text-sm focus:outline-none focus:border-[var(--color-brand-primary)]"
+                />
+              </div>
             </div>
-            <div style={{ display: "flex", gap: "var(--space-2)", justifyContent: "flex-end" }}>
-              <Button intent="secondary" size="sm" onClick={() => {
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              intent="secondary"
+              onClick={() => {
                 setNewFolderOpen(false);
                 setNewFolderName("");
-              }}>
-                취소
-              </Button>
-              <Button intent="primary" size="sm" onClick={handleCreateFolder}>
-                생성
-              </Button>
-            </div>
-          </div>
-        </div>
+              }}
+            >
+              취소
+            </Button>
+            <Button intent="primary" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
+              생성
+            </Button>
+          </ModalFooter>
+        </AdminModal>
       )}
     </DomainLayout>
   );
