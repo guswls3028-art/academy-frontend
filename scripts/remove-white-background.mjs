@@ -12,7 +12,7 @@ import sharp from "sharp";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INPUT = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogo.png");
-const OUTPUT = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogo.png");
+const OUTPUT = path.join(__dirname, "../src/features/auth/pages/logos/TchulLogoTransparent.png");
 
 async function main() {
   const { data, info } = await sharp(INPUT)
