@@ -35,11 +35,17 @@ function SessionBox({
     const firstVideo = videos[0];
     const totalDuration = videos.reduce((sum, v) => sum + (v.duration ?? 0), 0);
     
+    // 진행률 계산: 완료된 영상 수 / 전체 영상 수 (임시, 백엔드에서 progress 제공 시 교체)
+    // TODO: 백엔드 API에서 세션별 진행률을 가져와야 함
+    const completedVideos = videos.filter((v: any) => v.progress === 100 || v.completed).length;
+    const progress = videos.length > 0 ? Math.round((completedVideos / videos.length) * 100) : 0;
+    
     return {
       thumbnailUrl: firstVideo.thumbnail_url,
       videoCount: videos.length,
       totalDuration,
       firstVideoId: firstVideo.id,
+      progress, // 0-100
     };
   }, [videosData]);
 
@@ -154,26 +160,29 @@ function SessionBox({
           </div>
         </div>
 
-        {/* 영상 개수 배지 */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 6,
-            right: 6,
-            padding: "2px 6px",
-            borderRadius: 4,
-            background: "rgba(0,0,0,0.8)",
-            color: "#fff",
-            fontSize: 11,
-            fontWeight: 600,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          <IconPlay style={{ width: 10, height: 10 }} />
-          <span>{sessionData.videoCount}</span>
-        </div>
+        {/* 진행률 바 (YouTube 스타일) */}
+        {sessionData.progress > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              background: "rgba(0,0,0,0.3)",
+              zIndex: 2,
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${sessionData.progress}%`,
+                background: "var(--stu-primary)",
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* 우측: 설명 */}
@@ -203,14 +212,6 @@ function SessionBox({
           }}
         >
           {order}차시 · {sessionTitle}
-        </div>
-        <div
-          style={{
-            fontSize: 13,
-            color: "rgba(255,255,255,0.7)",
-          }}
-        >
-          {sessionData.videoCount}개 영상 · {formatDuration(sessionData.totalDuration)}
         </div>
       </div>
     </Link>

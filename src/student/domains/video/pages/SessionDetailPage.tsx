@@ -13,7 +13,9 @@ import { formatDuration, formatDurationDetailed } from "../utils/format";
 // 영상 목록 아이템 컴포넌트
 function VideoListItem({ 
   video, 
-  enrollmentId 
+  enrollmentId,
+  isCurrent = false,
+  progress = 0, // 0-100
 }: { 
   video: {
     id: number;
@@ -22,6 +24,8 @@ function VideoListItem({
     duration?: number | null;
   };
   enrollmentId?: number | null;
+  isCurrent?: boolean;
+  progress?: number; // 0-100
 }) {
   return (
     <Link
@@ -31,8 +35,11 @@ function VideoListItem({
         gap: 12,
         padding: "var(--stu-space-3)",
         borderRadius: 10,
-        background: "#1a1a1a",
-        border: "2px solid rgba(255,255,255,0.15)",
+        background: isCurrent ? "rgba(255,255,255,0.04)" : "#1a1a1a",
+        border: isCurrent 
+          ? "2px solid rgba(255,255,255,0.2)" 
+          : "2px solid rgba(255,255,255,0.15)",
+        borderLeft: isCurrent ? "3px solid var(--stu-primary)" : "2px solid rgba(255,255,255,0.15)",
         textDecoration: "none",
         color: "inherit",
         transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
@@ -107,12 +114,64 @@ function VideoListItem({
           </div>
         )}
 
+        {/* 현재 재생 중 오버레이 */}
+        {isCurrent && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              background: "rgba(0,0,0,0.3)",
+              zIndex: 1,
+            }}
+          >
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.95)",
+                display: "grid",
+                placeItems: "center",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+              }}
+            >
+              <IconPlay style={{ width: 24, height: 24, color: "#000", marginLeft: 2 }} />
+            </div>
+          </div>
+        )}
+
+        {/* 진행률 바 (YouTube 스타일) */}
+        {progress > 0 && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              background: "rgba(0,0,0,0.3)",
+              zIndex: 2,
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${progress}%`,
+                background: "var(--stu-primary)",
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+        )}
+
         {/* 영상 시간 오버레이 */}
         {video.duration && (
           <div
             style={{
               position: "absolute",
-              bottom: 6,
+              bottom: progress > 0 ? 9 : 6,
               right: 6,
               padding: "2px 6px",
               borderRadius: 4,
@@ -120,6 +179,7 @@ function VideoListItem({
               color: "#fff",
               fontSize: 11,
               fontWeight: 600,
+              zIndex: 3,
             }}
           >
             {formatDurationDetailed(video.duration)}
@@ -142,7 +202,7 @@ function VideoListItem({
         <div
           style={{
             fontSize: 15,
-            fontWeight: 600,
+            fontWeight: isCurrent ? 700 : 600,
             color: "#fff",
             marginBottom: 4,
             display: "-webkit-box",
@@ -155,16 +215,6 @@ function VideoListItem({
         >
           {video.title}
         </div>
-        {video.duration && (
-          <div
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.7)",
-            }}
-          >
-            {formatDurationDetailed(video.duration)}
-          </div>
-        )}
       </div>
     </Link>
   );
@@ -177,6 +227,11 @@ export default function SessionDetailPage() {
   
   const sessionIdNum = sessionId ? parseInt(sessionId, 10) : null;
   const enrollmentId = searchParams.get("enrollment") ? parseInt(searchParams.get("enrollment")!, 10) : null;
+  
+  // 현재 재생 중인 영상 ID (URL에서 가져오기)
+  const currentVideoId = searchParams.get("currentVideo") 
+    ? parseInt(searchParams.get("currentVideo")!, 10) 
+    : null;
 
   const { data: videosData, isLoading } = useQuery({
     queryKey: ["student-session-videos", sessionIdNum, enrollmentId],
@@ -233,13 +288,22 @@ export default function SessionDetailPage() {
               gap: "var(--stu-space-3)",
             }}
           >
-            {videos.map((video) => (
-              <VideoListItem
-                key={video.id}
-                video={video}
-                enrollmentId={enrollmentId}
-              />
-            ))}
+            {videos.map((video) => {
+              // 진행률 계산 (임시, 백엔드에서 progress 제공 시 교체)
+              // TODO: 백엔드 API에서 각 영상의 progress를 가져와야 함
+              const progress = (video as any).progress || 0; // 0-100
+              const isCurrent = currentVideoId === video.id;
+              
+              return (
+                <VideoListItem
+                  key={video.id}
+                  video={video}
+                  enrollmentId={enrollmentId}
+                  isCurrent={isCurrent}
+                  progress={progress}
+                />
+              );
+            })}
           </div>
         </div>
       </div>

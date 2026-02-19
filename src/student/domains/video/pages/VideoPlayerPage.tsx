@@ -5,6 +5,8 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { fetchStudentVideoPlayback } from "../api/video";
+import { IconCheck, IconRefresh, IconArrowRight } from "@/student/shared/ui/icons/Icons";
+import { Link } from "react-router-dom";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -207,96 +209,172 @@ export default function VideoPlayerPage() {
             onFatal={(reason) => setErr(reason)}
           />
           
-          {/* 하단: 영상 요약 정보 */}
+          {/* 하단: 행동 중심 UI (YouTube SaaS 스타일) */}
           <div
             style={{
               marginTop: "var(--stu-space-6)",
-              padding: "var(--stu-space-5)",
-              borderRadius: 12,
-              background: "#1a1a1a",
-              border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
-            <h2
-              style={{
-                fontSize: 18,
-                fontWeight: 700,
-                color: "#fff",
-                marginBottom: "var(--stu-space-4)",
-              }}
-            >
-              영상 정보
-            </h2>
-            
-            {/* 메타 정보 */}
+            {/* 제목 및 행동 버튼 */}
             <div
               style={{
                 display: "flex",
-                flexWrap: "wrap",
-                gap: "var(--stu-space-4)",
+                alignItems: "center",
+                justifyContent: "space-between",
                 marginBottom: "var(--stu-space-4)",
-                fontSize: 14,
-                color: "rgba(255,255,255,0.7)",
+                flexWrap: "wrap",
+                gap: "var(--stu-space-3)",
               }}
             >
-              {video.view_count != null && (
-                <div>
-                  <span style={{ fontWeight: 600 }}>조회수:</span> {video.view_count.toLocaleString()}회
-                </div>
-              )}
-              {video.created_at && (
-                <div>
-                  <span style={{ fontWeight: 600 }}>업로드:</span> {new Date(video.created_at).toLocaleDateString("ko-KR")}
-                </div>
-              )}
-              {video.duration && (
-                <div>
-                  <span style={{ fontWeight: 600 }}>재생시간:</span> {Math.floor(video.duration / 60)}분 {Math.floor(video.duration % 60)}초
-                </div>
-              )}
-            </div>
-
-            {/* 태그 */}
-            {video.tags && video.tags.length > 0 && (
+              <h2
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: "#fff",
+                  margin: 0,
+                }}
+              >
+                {video.title}
+              </h2>
+              
+              {/* 행동 버튼 그룹 */}
               <div
                 style={{
                   display: "flex",
+                  gap: "var(--stu-space-2)",
                   flexWrap: "wrap",
-                  gap: 6,
-                  marginBottom: "var(--stu-space-4)",
                 }}
               >
-                {video.tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      padding: "4px 10px",
-                      borderRadius: 6,
-                      background: "var(--stu-tint-primary)",
-                      color: "var(--stu-text)",
-                      fontSize: 12,
-                      fontWeight: 500,
-                    }}
-                  >
-                    {tag}
-                  </span>
-                ))}
+                {/* 수강 완료 버튼 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    // TODO: 수강 완료 처리
+                    console.log("수강 완료");
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: "rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                  }}
+                >
+                  <IconCheck style={{ width: 18, height: 18 }} />
+                  <span>수강 완료</span>
+                </button>
+                
+                {/* 다시보기 버튼 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    // TODO: 다시보기 처리 (재생 위치 초기화)
+                    console.log("다시보기");
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: "rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                  }}
+                >
+                  <IconRefresh style={{ width: 18, height: 18 }} />
+                  <span>다시보기</span>
+                </button>
+                
+                {/* 다음 강의 버튼 */}
+                <Link
+                  to="#" // TODO: 다음 강의 링크
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // TODO: 다음 강의로 이동
+                    console.log("다음 강의");
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: "var(--stu-primary)",
+                    border: "none",
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    textDecoration: "none",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = "0.9";
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.opacity = "1";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <span>다음 강의</span>
+                  <IconArrowRight style={{ width: 18, height: 18 }} />
+                </Link>
               </div>
-            )}
-
-            {/* 설명 */}
-            {video.description && (
-              <div
-                style={{
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  color: "rgba(255,255,255,0.9)",
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {video.description}
-              </div>
-            )}
+            </div>
+            
+            {/* 구분선 */}
+            <div
+              style={{
+                height: 1,
+                background: "rgba(255,255,255,0.1)",
+                marginBottom: "var(--stu-space-4)",
+              }}
+            />
+            
+            {/* 자동 재생 안내 (선택사항) */}
+            <div
+              style={{
+                padding: "var(--stu-space-3)",
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.05)",
+                fontSize: 14,
+                color: "rgba(255,255,255,0.7)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <IconPlay style={{ width: 16, height: 16, opacity: 0.6 }} />
+              <span>다음 강의 자동재생 ON</span>
+              <span style={{ opacity: 0.5 }}>·</span>
+              <span style={{ opacity: 0.5 }}>5초 후 재생</span>
+            </div>
           </div>
         </>
       ) : (
