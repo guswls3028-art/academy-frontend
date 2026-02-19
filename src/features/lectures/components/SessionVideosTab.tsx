@@ -91,12 +91,141 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     },
     onSuccess: (_data, videoId) => {
       qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
-      // 작업 박스에 재처리 태스크 추가 → 우하단에서 진행률 표시
       const video = videos.find((v: MediaVideo) => v.id === videoId);
       const label = video?.title ? `${video.title} 재처리` : `영상 ${videoId} 재처리`;
       asyncStatusStore.addWorkerJob(label, String(videoId), "video_processing");
     },
   });
+
+  const renderVideoCard = (video: MediaVideo) => {
+    const fileSize =
+      video.file_size && video.file_size > 0 ? `${(video.file_size / 1024 / 1024).toFixed(2)}MB` : "-";
+    const uploadDate = video.created_at
+      ? new Date(video.created_at).toLocaleString("ko-KR", {
+          year: "2-digit",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        })
+      : "-";
+
+    return (
+      <div
+        key={video.id}
+        style={{
+          borderRadius: 14,
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-app)",
+          padding: 12,
+          transition: "background 120ms ease",
+        }}
+      >
+        <Link to={`${video.id}`} style={{ textDecoration: "none" }}>
+          <VideoThumbnail
+            title={video.title}
+            status={video.status ?? "PENDING"}
+            thumbnail_url={video.thumbnail_url}
+          />
+        </Link>
+
+        <div style={{ marginTop: 10, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 950,
+                color: "var(--color-text-primary)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {video.title}
+            </div>
+
+            {fileSize !== "-" && (
+              <div style={{ marginTop: 2, fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+                {fileSize} · {uploadDate}
+              </div>
+            )}
+          </div>
+
+          <div style={{ flex: "0 0 auto" }}>
+            <VideoStatusBadge status={video.status} />
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 8,
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 11,
+            fontWeight: 850,
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          <span>
+            워터마크:{" "}
+            <span style={{ fontWeight: 950, color: video.show_watermark ? "var(--color-primary)" : "var(--color-text-muted)" }}>
+              {video.show_watermark ? "표시" : "숨김"}
+            </span>
+          </span>
+          <span style={{ color: "var(--color-text-muted)" }}>·</span>
+          <span>
+            건너뛰기:{" "}
+            <span style={{ fontWeight: 950, color: video.allow_skip ? "var(--color-text-muted)" : "var(--color-primary)" }}>
+              {video.allow_skip ? "허용" : "금지"}
+            </span>
+          </span>
+          <span style={{ color: "var(--color-text-muted)" }}>·</span>
+          <span>
+            배속:{" "}
+            <span style={{ fontWeight: 950, color: video.max_speed > 1.0 ? "var(--color-text-muted)" : "var(--color-primary)" }}>
+              {video.max_speed.toFixed(2)}x
+            </span>
+          </span>
+        </div>
+
+        <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          {(video.status === "FAILED" || video.status === "PROCESSING") && (
+            <Button
+              intent="primary"
+              size="sm"
+              disabled={retryMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.confirm(video.status === "PROCESSING" ? "인코딩이 멈춘 것 같습니다. 다시 시도할까요?" : "영상 처리를 다시 시도할까요?")) {
+                  retryMutation.mutate(video.id);
+                }
+              }}
+            >
+              {video.status === "PROCESSING" ? "다시 시도" : "재처리"}
+            </Button>
+          )}
+          <Button
+            intent="ghost"
+            size="sm"
+            disabled={deleteMutation.isPending}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (window.confirm("정말 삭제하시겠습니까?")) {
+                deleteMutation.mutate(video.id);
+              }
+            }}
+          >
+            삭제
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -167,142 +296,6 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                 {groupedVideos.ungrouped.map((video: MediaVideo) => renderVideoCard(video))}
               </div>
             )}
-          </div>
-        )}
-              const fileSize =
-                video.file_size && video.file_size > 0 ? `${(video.file_size / 1024 / 1024).toFixed(2)}MB` : "-";
-
-              const uploadDate = video.created_at
-                ? new Date(video.created_at).toLocaleString("ko-KR", {
-                    year: "2-digit",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  })
-                : "-";
-
-              return (
-                <div
-                  key={video.id}
-                  style={{
-                    borderRadius: 14,
-                    border: "1px solid var(--color-border-divider)",
-                    background: "var(--color-bg-app)",
-                    padding: 12,
-                    transition: "background 120ms ease",
-                  }}
-                >
-                  <Link to={`${video.id}`} style={{ textDecoration: "none" }}>
-                    <VideoThumbnail
-                      title={video.title}
-                      status={video.status ?? "PENDING"}
-                      thumbnail_url={video.thumbnail_url}
-                    />
-                  </Link>
-
-                  <div style={{ marginTop: 10, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 950,
-                          color: "var(--color-text-primary)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {video.title}
-                      </div>
-
-                      {fileSize !== "-" && (
-                        <div style={{ marginTop: 2, fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
-                          {fileSize} · {uploadDate}
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ flex: "0 0 auto" }}>
-                      <VideoStatusBadge status={video.status} />
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 8,
-                      display: "flex",
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                      gap: 8,
-                      fontSize: 11,
-                      fontWeight: 850,
-                      color: "var(--color-text-secondary)",
-                    }}
-                  >
-                    <span>
-                      워터마크:{" "}
-                      <span style={{ fontWeight: 950, color: video.show_watermark ? "var(--color-primary)" : "var(--color-text-muted)" }}>
-                        {video.show_watermark ? "표시" : "숨김"}
-                      </span>
-                    </span>
-
-                    <span style={{ color: "var(--color-text-muted)" }}>·</span>
-
-                    <span>
-                      건너뛰기:{" "}
-                      <span style={{ fontWeight: 950, color: video.allow_skip ? "var(--color-text-muted)" : "var(--color-primary)" }}>
-                        {video.allow_skip ? "허용" : "금지"}
-                      </span>
-                    </span>
-
-                    <span style={{ color: "var(--color-text-muted)" }}>·</span>
-
-                    <span>
-                      배속:{" "}
-                      <span style={{ fontWeight: 950, color: video.max_speed > 1.0 ? "var(--color-text-muted)" : "var(--color-primary)" }}>
-                        {video.max_speed.toFixed(2)}x
-                      </span>
-                    </span>
-                  </div>
-
-                  <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                    {(video.status === "FAILED" || video.status === "PROCESSING") && (
-                      <Button
-                        intent="primary"
-                        size="sm"
-                        disabled={retryMutation.isPending}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (window.confirm(video.status === "PROCESSING" ? "인코딩이 멈춘 것 같습니다. 다시 시도할까요?" : "영상 처리를 다시 시도할까요?")) {
-                            retryMutation.mutate(video.id);
-                          }
-                        }}
-                      >
-                        {video.status === "PROCESSING" ? "다시 시도" : "재처리"}
-                      </Button>
-                    )}
-
-                    <Button
-                      intent="ghost"
-                      size="sm"
-                      disabled={deleteMutation.isPending}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (window.confirm("정말 삭제하시겠습니까?")) {
-                          deleteMutation.mutate(video.id);
-                        }
-                      }}
-                    >
-                      삭제
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         )}
       </div>
