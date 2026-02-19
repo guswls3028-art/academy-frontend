@@ -861,50 +861,113 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     setTime(t);
   }, [setTime]);
 
-  // 더블탭(더블클릭): 오른쪽 → 앞으로 10초, 왼쪽 → 뒤로 10초
-  const handleDoubleTapSeek = useCallback(
-    (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, clientX: number) => {
-      if (!allowSeek) return;
-      const el = e.currentTarget;
-      const rect = el.getBoundingClientRect();
-      const mid = rect.left + rect.width / 2;
-      const delta = clientX > mid ? 10 : -10;
-      skip(delta);
-      setToast({ text: delta > 0 ? "앞으로 10초" : "뒤로 10초", kind: "info" });
+  // 탭 구역: 좌 30% = 0, 중앙 40% = 1, 우 30% = 2
+  const getTapZone = useCallback((rect: DOMRect, clientX: number) => {
+    const w = rect.width;
+    if (clientX < rect.left + w * 0.3) return 0;
+    if (clientX > rect.right - w * 0.3) return 2;
+    return 1;
+  }, []);
+
+  // 유튜브식 탭 우선순위: 싱글 = 컨트롤 토글(+ 중앙이면 재생 토글), 더블 = 구역별 시크, 트리플 = ±20초
+  const resolveTap = useCallback(
+    (clientX: number, rect: DOMRect) => {
+      const count = tapCountRef.current;
+      tapCountRef.current = 0;
+      if (count === 1) {
+        setShowControls((v) => !v);
+        const zone = getTapZone(rect, clientX);
+        if (zone === 1) togglePlay();
+      } else if (count >= 2 && allowSeek) {
+        const zone = getTapZone(rect, clientX);
+        const delta = count >= 3 ? (zone === 0 ? -20 : zone === 2 ? 20 : 0) : zone === 0 ? -10 : zone === 2 ? 10 : 0;
+        if (delta !== 0) {
+          skip(delta);
+          setToast({ text: delta > 0 ? `앞으로 ${Math.abs(delta)}초` : `뒤로 ${Math.abs(delta)}초`, kind: "info" });
+        }
+      }
     },
-    [allowSeek, skip]
+    [allowSeek, getTapZone, skip, togglePlay]
+  );
+
+  const onStageTap = useCallback(
+    (clientX: number, clientY: number) => {
+      const wrap = wrapEl.current;
+      if (!wrap) return;
+      const stage = wrap.querySelector(".svpVideoStage") as HTMLElement;
+      const rect = stage?.getBoundingClientRect?.();
+      if (!rect) return;
+
+      tapCountRef.current += 1;
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = setTimeout(() => {
+        tapTimerRef.current = null;
+        resolveTap(clientX, rect);
+      }, 200);
+    },
+    [resolveTap]
   );
 
   const onStageDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       e.preventDefault();
-      handleDoubleTapSeek(e, e.clientX);
+      onStageTap(e.clientX, e.clientY);
     },
-    [handleDoubleTapSeek]
+    [onStageTap]
   );
 
   const onStageTouchEnd = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
       const t = e.changedTouches?.[0];
       if (!t) return;
-      const x = t.clientX;
-      const y = t.clientY;
-      const now = Date.now();
-      const last = lastTapRef.current;
-      const isDoubleTap =
-        now - last.time < 400 &&
-        Math.abs(x - last.x) < 40 &&
-        Math.abs(y - last.y) < 40;
-      if (isDoubleTap) {
-        e.preventDefault();
-        lastTapRef.current = { time: 0, x: 0, y: 0 };
-        handleDoubleTapSeek(e, x);
-      } else {
-        lastTapRef.current = { time: now, x, y };
-      }
+      e.preventDefault();
+      onStageTap(t.clientX, t.clientY);
     },
-    [handleDoubleTapSeek]
+    [onStageTap]
   );
+
+  // 롱프레스 500ms → 2배속 (모바일)
+  const onStageTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      if (speedLocked) return;
+      const wrap = wrapEl.current;
+      if (!wrap) return;
+      const stage = wrap.querySelector(".svpVideoStage") as HTMLElement;
+      const rect = stage?.getBoundingClientRect?.();
+      if (!rect) return;
+      const t = e.touches?.[0];
+      if (!t) return;
+      const x = t.clientX;
+      const rightHalf = x > rect.left + rect.width / 2;
+      if (!rightHalf) return;
+      savedRateRef.current = rate;
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTimerRef.current = null;
+        setPlaybackRate(2);
+        setToast({ text: "2배속", kind: "info" });
+      }, 500);
+    },
+    [rate, setPlaybackRate, speedLocked]
+  );
+
+  const onStageTouchEndLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    const el = videoEl.current;
+    if (el && savedRateRef.current !== undefined) {
+      try {
+        el.playbackRate = savedRateRef.current;
+      } catch {}
+      setRate(savedRateRef.current);
+    }
+  }, []);
+
+  const onStageTouchCancel = useCallback(() => {
+    onStageTouchEndLongPress();
+  }, [onStageTouchEndLongPress]);
 
   // Hotkeys (YouTube-like)
   useEffect(() => {
