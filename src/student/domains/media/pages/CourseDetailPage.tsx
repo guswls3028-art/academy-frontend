@@ -179,7 +179,8 @@ function SessionBox({
 export default function CourseDetailPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const nav = useNavigate();
-  const lectureIdNum = lectureId ? parseInt(lectureId, 10) : null;
+  const isPublic = lectureId === "public";
+  const lectureIdNum = isPublic ? null : (lectureId ? parseInt(lectureId, 10) : null);
 
   const { data: videoMe, isLoading } = useQuery({
     queryKey: ["student-video-me"],
@@ -190,9 +191,6 @@ export default function CourseDetailPage() {
     if (!videoMe?.lectures || !lectureIdNum) return null;
     return videoMe.lectures.find((lec) => lec.id === lectureIdNum);
   }, [videoMe, lectureIdNum]);
-
-  // 전체공개영상인지 확인
-  const isPublic = videoMe?.public?.lecture_id === lectureIdNum;
 
   if (isLoading) {
     return (
