@@ -17,6 +17,7 @@ import {
   fetchSessionVideos,
   fetchAllVideos,
   type Video as ApiVideo,
+  type VideoStatus,
 } from "../api/videos";
 import {
   fetchLectures,
