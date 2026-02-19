@@ -29,11 +29,13 @@ async function main() {
   const channels = 4; // RGBA
   const buf = new Uint8ClampedArray(data);
 
-  // 좌우 경계 찾기 (위아래는 이미 잘랐다고 가정)
+  // 좌우 상하 모든 경계 찾기
   let minX = width;
   let maxX = 0;
+  let minY = height;
+  let maxY = 0;
 
-  // 전체 높이에서 스캔
+  // 전체 이미지에서 스캔하여 아이콘의 실제 경계 찾기
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * channels;
@@ -42,14 +44,16 @@ async function main() {
       if (alpha > 10) { // 투명하지 않은 픽셀
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
       }
     }
   }
 
   const iconWidth = maxX - minX + 1;
-  const iconHeight = height;
+  const iconHeight = maxY - minY + 1;
 
-  console.log(`Icon bounds: x=${minX}-${maxX}`);
+  console.log(`Icon bounds: x=${minX}-${maxX}, y=${minY}-${maxY}`);
   console.log(`Icon size: ${iconWidth}x${iconHeight}`);
 
   // 1:1 비율로 만들기 위해 더 긴 쪽 기준
@@ -57,19 +61,23 @@ async function main() {
 
   // 중앙 정렬을 위한 오프셋 계산
   const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  
   const cropX = Math.max(0, Math.floor(centerX - size / 2));
+  const cropY = Math.max(0, Math.floor(centerY - size / 2));
   
   // 크롭 영역이 이미지 범위를 벗어나지 않도록 조정
   const finalCropX = Math.max(0, Math.min(cropX, width - size));
-  const finalSize = Math.min(size, width - finalCropX);
+  const finalCropY = Math.max(0, Math.min(cropY, height - size));
+  const finalSize = Math.min(size, width - finalCropX, height - finalCropY);
 
-  console.log(`Cropping: x=${finalCropX}, y=0, size=${finalSize}x${finalSize}`);
+  console.log(`Cropping: x=${finalCropX}, y=${finalCropY}, size=${finalSize}x${finalSize}`);
 
   // 임시 파일에 저장 후 원본 파일로 교체
   await image
     .extract({
       left: finalCropX,
-      top: 0,
+      top: finalCropY,
       width: finalSize,
       height: finalSize,
     })
