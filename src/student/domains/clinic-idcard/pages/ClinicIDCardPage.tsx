@@ -98,22 +98,14 @@ export default function ClinicIDCardPage() {
       </div>
 
       {/* 학생 프로필 사진 (신원 확인용) — 좌측 상단 */}
-      {data.profile_photo_url ? (
+      {data.profile_photo_url && !profilePhotoError ? (
         <div className="idcard-page__profile-photo">
           <img
             src={data.profile_photo_url}
             alt={data.student_name || ""}
-            onError={(e) => {
-              // 이미지 로딩 실패 시 이니셜 표시
-              const target = e.target as HTMLImageElement;
-              target.style.display = "none";
-              const parent = target.parentElement;
-              if (parent) {
-                const initialsDiv = document.createElement("div");
-                initialsDiv.className = "idcard-page__profile-initials";
-                initialsDiv.textContent = getInitials(data.student_name || "");
-                parent.appendChild(initialsDiv);
-              }
+            onError={() => {
+              // 이미지 로딩 실패 시 이니셜 표시로 전환
+              setProfilePhotoError(true);
             }}
           />
         </div>
