@@ -8,14 +8,7 @@ import { fetchVideoMe, fetchStudentSessionVideos } from "../api/video";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { IconPlay } from "@/student/shared/ui/icons/Icons";
-
-function formatDuration(sec: number | null | undefined): string {
-  if (sec == null || sec <= 0) return "0분";
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (h > 0) return `${h}시간 ${m}분`;
-  return `${m}분`;
-}
+import { formatDuration } from "../utils/format";
 
 // 차시별 박스 컴포넌트
 function SessionBox({ 

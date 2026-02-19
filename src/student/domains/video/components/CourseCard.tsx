@@ -3,6 +3,7 @@
 
 import { Link } from "react-router-dom";
 import { IconPlay, IconChevronRight } from "@/student/shared/ui/icons/Icons";
+import { formatDuration } from "../utils/format";
 
 type CourseCardProps = {
   title: string;
@@ -16,14 +17,6 @@ type CourseCardProps = {
   to: string;
   onClick?: () => void;
 };
-
-function formatDuration(sec: number | null | undefined): string {
-  if (sec == null || sec <= 0) return "0분";
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (h > 0) return `${h}시간 ${m}분`;
-  return `${m}분`;
-}
 
 export default function CourseCard({
   title,
