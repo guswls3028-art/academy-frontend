@@ -959,12 +959,18 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   // 롱프레스 500ms → 2배속 (모바일)
   const onStageTouchStart = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
-      if (speedLocked) return;
       const layer = gestureLayerRef.current;
       const rect = layer?.getBoundingClientRect?.();
-      if (!rect) return;
       const t = e.touches?.[0];
-      if (!t) return;
+      if (t && rect) {
+        touchStartRef.current = {
+          y: t.clientY,
+          volume: volume,
+          rightHalf: t.clientX > rect.left + rect.width / 2,
+        };
+      }
+      if (speedLocked) return;
+      if (!rect || !t) return;
       const x = t.clientX;
       const rightHalf = x > rect.left + rect.width / 2;
       if (!rightHalf) return;
@@ -976,7 +982,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
         setToast({ text: "2배속", kind: "info" });
       }, 500);
     },
-    [rate, setPlaybackRate, speedLocked]
+    [rate, setPlaybackRate, speedLocked, volume]
   );
 
   const onStageTouchEndLongPress = useCallback(() => {
