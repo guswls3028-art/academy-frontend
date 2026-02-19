@@ -32,30 +32,44 @@ function VideoListItem({
         padding: "var(--stu-space-3)",
         borderRadius: 10,
         background: "#1a1a1a",
-        border: "1px solid rgba(255,255,255,0.1)",
+        border: "2px solid rgba(255,255,255,0.15)",
         textDecoration: "none",
         color: "inherit",
-        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
         cursor: "pointer",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+        position: "relative",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.5)";
+        e.currentTarget.style.transform = "translateY(-4px)";
+        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)";
         e.currentTarget.style.background = "#222";
+        e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.3)";
+        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)";
         e.currentTarget.style.background = "#1a1a1a";
+        e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
       }}
       onMouseDown={(e) => {
-        e.currentTarget.style.transform = "translateY(0) scale(0.98)";
+        e.currentTarget.style.transform = "translateY(-2px) scale(0.98)";
       }}
       onMouseUp={(e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.transform = "translateY(-4px)";
       }}
     >
+      {/* 질감 오버레이 */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 50%, rgba(0,0,0,0.2) 100%)",
+          pointerEvents: "none",
+          zIndex: 1,
+          borderRadius: 10,
+        }}
+      />
       {/* 썸네일 */}
       <div
         style={{
