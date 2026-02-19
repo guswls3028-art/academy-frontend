@@ -1,0 +1,32 @@
+/* PATH: src/features/auth/themes/tchul.css
+ * tchul 테넌트 색상 SSOT — 화이트톤 + 로고 컬러 + 그라데이션
+ * TchulLoginPage 등 tchul 전용 UI는 이 변수만 참조
+ */
+
+[data-app="auth"][data-tenant="tchul"] {
+  /* 화이트톤 */
+  --tchul-bg: #fafbfc;
+  --tchul-surface: #ffffff;
+  --tchul-border: #e5e7eb;
+  --tchul-border-hover: #d1d5db;
+
+  /* 텍스트 */
+  --tchul-text: #1a1d21;
+  --tchul-text-muted: #6b7280;
+
+  /* 로고 컬러 — 단색 */
+  --tchul-blue: #0d47a1;
+  --tchul-blue-hover: #0a3d8a;
+  --tchul-teal: #00695c;
+  --tchul-teal-hover: #005a4a;
+  --tchul-green: #004d40;
+  --tchul-green-hover: #003d2e;
+
+  /* 포커스 / 에러 */
+  --tchul-focus: rgba(13, 71, 161, 0.2);
+  --tchul-error: #b91c1c;
+
+  /* 그라데이션 모드 — 로고 컬러패턴 */
+  --tchul-gradient: linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%);
+  --tchul-gradient-hover: linear-gradient(135deg, #0a3d8a 0%, #005a4a 50%, #003d2e 100%);
+}
