@@ -140,8 +140,14 @@
   fill: url(#stu-gradient-tchul);
 }
 
-/* tchul 테마: 프리미엄 배경 질감 적용 */
+/* tchul 테마: 프리미엄 배경 질감 + 약한 그라데이션 적용 */
 [data-student-theme="tchul"] [data-app="student"] {
-  background-image: var(--stu-bg-pattern);
-  background-size: var(--stu-bg-pattern-size);
+  background-image: 
+    /* 약한 그라데이션 오버레이 */
+    linear-gradient(135deg, rgba(13, 71, 161, 0.03) 0%, rgba(0, 105, 92, 0.02) 50%, rgba(0, 77, 64, 0.02) 100%),
+    /* 기존 패턴 */
+    var(--stu-bg-pattern);
+  background-size: 
+    100% 100%,
+    var(--stu-bg-pattern-size);
 }
