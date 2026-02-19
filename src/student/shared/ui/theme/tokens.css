@@ -37,6 +37,10 @@
   --stu-danger-bg: rgba(239, 68, 68, 0.15);
   --stu-danger-border: rgba(239, 68, 68, 0.4);
   --stu-danger-text: #ef4444;
+
+  /* 헤더/탭바 (테넌트별 오버라이드용) */
+  --stu-header-bg: rgba(11, 15, 25, 0.85);
+  --stu-tabbar-bg: rgba(18, 24, 39, 0.92);
 }
 
 /* ========== 2. Typography ========== */
