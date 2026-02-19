@@ -264,9 +264,14 @@ export default function SessionDetailPage() {
   });
 
   const videos = videosData?.items ?? [];
-  const res = (error as any)?.response;
+  const res = (error as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
   const is403 = isError && res?.status === 403;
-  const serverMessage = typeof res?.data?.detail === "string" ? res.data.detail : null;
+  const serverMessage =
+    typeof res?.data?.detail === "string"
+      ? res.data.detail
+      : Array.isArray(res?.data?.detail)
+        ? String(res.data.detail[0] ?? "")
+        : null;
 
   if (isLoading) {
     return (
