@@ -43,19 +43,35 @@ export default function SessionListPage() {
         일정
       </h1>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
-        {data.map((s) => (
-          <Link
-            key={s.id}
-            to={`/student/sessions/${s.id}`}
-            className="stu-card stu-card--pressable"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "var(--stu-space-4)",
-              textDecoration: "none",
-              color: "inherit",
-            }}
-          >
+        {data.map((s) => {
+          // 상태 기반 Panel variant 결정
+          const getPanelVariant = () => {
+            const status = s.status?.toLowerCase() || "";
+            if (status.includes("완료") || status.includes("종료")) {
+              return "stu-panel--complete";
+            }
+            if (status.includes("임박") || status.includes("마감")) {
+              return "stu-panel--danger";
+            }
+            if (status.includes("예정") || status.includes("진행")) {
+              return "stu-panel--action";
+            }
+            return "stu-panel--nav";
+          };
+
+          return (
+            <Link
+              key={s.id}
+              to={`/student/sessions/${s.id}`}
+              className={`stu-panel stu-panel--pressable stu-panel--accent ${getPanelVariant()}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--stu-space-4)",
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--stu-surface-soft)", display: "grid", placeItems: "center" }}>
               <IconCalendar style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
             </div>
@@ -67,8 +83,9 @@ export default function SessionListPage() {
               </div>
             </div>
             <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)" }} />
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
