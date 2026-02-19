@@ -124,7 +124,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
           <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
             <input
               className="ds-input"
-              placeholder="제목 (예: 수학의 정석 — 다중 업로드 시 수학의 정석 1, 2, 3... 자동 부여)"
+              placeholder="제목 (예: 수학의 정석 — 여러 파일 시 제목 1, 2, 3... 자동)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
