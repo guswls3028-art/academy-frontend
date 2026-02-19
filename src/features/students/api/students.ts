@@ -63,7 +63,7 @@ function safeStr(v: any): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-function mapStudent(item: any): ClientStudent {
+export function mapStudent(item: any): ClientStudent {
   const phone = item?.phone ?? null;
   const omrCode = item?.omr_code ?? "";
 
