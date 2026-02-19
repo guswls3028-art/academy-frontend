@@ -12,7 +12,20 @@ export const login = async (username: string, password: string) => {
   const body: Record<string, string> = { username, password };
   if (tenantCode) body.tenant_code = tenantCode;
 
-  const res = await api.post<LoginResponse>("/token/", body);
+  let res;
+  try {
+    res = await api.post<LoginResponse>("/token/", body);
+  } catch (err: unknown) {
+    const ax = err as { response?: { data?: { detail?: string | Record<string, unknown> } } };
+    const detail = ax?.response?.data?.detail;
+    const msg =
+      typeof detail === "string"
+        ? detail
+        : detail && typeof detail === "object"
+          ? (detail as { detail?: string }).detail ?? JSON.stringify(detail)
+          : "로그인에 실패했습니다.";
+    throw new Error(msg);
+  }
 
   const access = String(res.data?.access || "").trim();
   const refresh = String(res.data?.refresh || "").trim();
