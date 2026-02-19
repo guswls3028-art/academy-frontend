@@ -118,7 +118,7 @@ body {
   font-family: var(--stu-font-sans);
   font-size: var(--stu-font-size-14);
   line-height: var(--stu-line-20);
-  letter-spacing: -0.1px;
+  letter-spacing: -0.01em; /* 프리미엄: 음수 letter-spacing */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
@@ -243,8 +243,71 @@ a {
 }
 
 /* =========================
-   2) Surface / Section (Premium SaaS Style)
-   미묘한 그림자, 질감, 깊이감 추가
+   2) Panel (OTT형 UI - 카드 대체)
+   프리미엄: Tint Layer, 밀도 변화, 재질감
+   ========================= */
+.stu-panel {
+  background: var(--stu-surface-1);
+  border: 1px solid var(--stu-border-subtle);
+  border-radius: 6px; /* OTT 스타일: 더 작은 radius */
+  padding: var(--stu-space-5);
+  position: relative;
+  overflow: hidden;
+  /* 프리미엄: Tint Layer (Shadow 대신) */
+}
+
+.stu-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.02),
+    rgba(0, 0, 0, 0.02)
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stu-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.stu-panel--soft {
+  background: var(--stu-surface-2);
+}
+
+.stu-panel--pressable {
+  cursor: pointer;
+  transition: 
+    background var(--stu-motion-base),
+    border-color var(--stu-motion-base),
+    transform var(--stu-motion-fast),
+    filter var(--stu-motion-fast);
+}
+
+.stu-panel--pressable:hover {
+  background: var(--stu-tint-hover);
+  border-color: var(--stu-border-normal);
+}
+
+.stu-panel--pressable:active {
+  /* 프리미엄: 밀도 변화 (색이 아닌 재질) */
+  transform: scale(0.985);
+  filter: brightness(0.97);
+}
+
+.stu-panel--danger {
+  border-color: var(--stu-danger-border);
+}
+
+.stu-panel--media {
+  /* 영상 도메인 전용 (별도 스타일) */
+}
+
+/* =========================
+   3) Section (기존 호환성 유지)
    ========================= */
 .stu-section {
   background: var(--stu-surface-1);
@@ -305,6 +368,11 @@ a {
   border-left: 3px solid var(--stu-primary);
   padding-left: var(--stu-space-6);
   margin-bottom: var(--stu-space-6);
+  /* 프리미엄: 섹션 헤더에 미묘한 배경 */
+  background: linear-gradient(to right, var(--stu-tint-primary), transparent);
+  padding-top: var(--stu-space-2);
+  padding-bottom: var(--stu-space-2);
+  border-radius: var(--stu-radius-sm) 0 0 var(--stu-radius-sm);
 }
 
 /* Back-compat: 기존 카드 클래스 → Section으로 매핑 (프리미엄 스타일 적용) */
@@ -355,7 +423,9 @@ a {
 
 .stu-card--pressable:active {
   background: var(--stu-tint-primary);
-  transform: translateY(0);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.985);
+  filter: brightness(0.97);
   box-shadow: 
     0 1px 2px rgba(0, 0, 0, 0.03),
     0 0 0 1px rgba(0, 0, 0, 0.02);
@@ -391,7 +461,7 @@ a {
   padding: 10px 14px;
   border-radius: var(--stu-radius-md);
   font-weight: 600; /* Premium SaaS: 더 부드러운 느낌 */
-  letter-spacing: -0.1px;
+  letter-spacing: -0.01em; /* 프리미엄: 음수 letter-spacing */
 
   border: 1px solid transparent;
   background: transparent;
@@ -401,11 +471,13 @@ a {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 
+  /* 프리미엄: Motion Token 사용 */
   transition: 
-    background 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1),
-    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    background var(--stu-motion-base),
+    border-color var(--stu-motion-base),
+    box-shadow var(--stu-motion-base),
+    transform var(--stu-motion-fast),
+    filter var(--stu-motion-fast);
 }
 
 .stu-btn:disabled {
@@ -438,7 +510,9 @@ a {
 }
 
 .stu-btn--primary:active {
-  transform: translateY(0);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.95);
   box-shadow: 
     0 1px 2px rgba(0, 0, 0, 0.1);
 }
@@ -463,7 +537,9 @@ a {
 }
 
 .stu-btn--secondary:active {
-  transform: translateY(0);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.97);
   box-shadow: 
     0 1px 1px rgba(0, 0, 0, 0.04);
 }
@@ -499,7 +575,9 @@ a {
 }
 
 .stu-btn--danger:active {
-  transform: translateY(0);
+  /* 프리미엄: 밀도 변화 */
+  transform: scale(0.98);
+  filter: brightness(0.95);
   box-shadow: 
     0 1px 2px rgba(185, 28, 28, 0.2);
 }
@@ -600,12 +678,54 @@ a {
 }
 
 /* =========================
-   6) Divider
+   6) CTA Link (프리미엄 스타일)
+   ========================= */
+.stu-cta-link {
+  color: var(--stu-primary);
+  font-weight: 700;
+  font-size: var(--stu-font-size-13);
+  text-decoration: none;
+  transition: 
+    color 180ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.stu-cta-link::after {
+  content: "→";
+  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-block;
+}
+
+.stu-cta-link:hover {
+  color: var(--stu-primary-hover);
+  transform: translateX(2px);
+}
+
+.stu-cta-link:hover::after {
+  transform: translateX(2px);
+}
+
+.stu-cta-link:active {
+  transform: translateX(0);
+}
+
+/* =========================
+   7) Divider (프리미엄: Gradient)
    ========================= */
 .stu-divider {
   height: 1px;
   width: 100%;
-  background: var(--stu-border-subtle);
+  /* 프리미엄: 라인이 아니라 빛의 경계처럼 */
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--stu-border-subtle),
+    transparent
+  );
 }
 
 /* =========================
@@ -685,11 +805,21 @@ a {
 }
 
 /* ======================================================
-   12) TabBar Active Accent (보조)
+   12) TabBar Active Accent (프리미엄 스타일)
    ====================================================== */
 
-.stu-tabbar a[aria-current="page"] {
-  border-bottom: 2px solid var(--stu-primary);
+.stu-tabbar .stu-tabbar__link[aria-current="page"] {
+  /* 활성 탭에 미묘한 배경 */
+  background: var(--stu-tint-primary);
+  transform: scale(1.05);
+}
+
+.stu-tabbar .stu-tabbar__link:active {
+  transform: scale(0.98);
+}
+
+.stu-tabbar .stu-tabbar__link[aria-current="page"]:active {
+  transform: scale(1.02);
 }
 
 /* ======================================================
@@ -997,6 +1127,8 @@ export default function StudentLayout() {
           background: "var(--stu-header-bg)",
           backdropFilter: "blur(12px)",
           borderBottom: "1px solid var(--stu-border)",
+          /* 프리미엄: 헤더에 미묘한 그림자 */
+          boxShadow: "0 1px 2px rgba(0, 0, 0, 0.02), 0 2px 4px rgba(0, 0, 0, 0.03)",
         }}
       >
         <StudentTopBar tenantCode={tenantCode} />
@@ -1081,7 +1213,9 @@ export default function StudentTabBar() {
               gap: 2,
               height: "100%",
               color: isActive ? "var(--stu-primary)" : "var(--stu-text-muted)",
-              transition: "color 0.15s ease",
+              transition: "color 180ms cubic-bezier(0.4, 0, 0.2, 1), transform 180ms cubic-bezier(0.4, 0, 0.2, 1)",
+              borderRadius: "var(--stu-radius-sm)",
+              position: "relative",
             })}
           >
             <span style={{ width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center" }} aria-hidden>
@@ -1557,6 +1691,11 @@ export default function StudentPageShell({
   --stu-safe-bottom: env(safe-area-inset-bottom, 0px);
   --stu-safe-top: env(safe-area-inset-top, 0px);
   --stu-touch: 44px;
+  
+  /* 프리미엄: Motion Token (속도 계층화) */
+  --stu-motion-fast: 90ms cubic-bezier(0.4, 0, 0.2, 1);
+  --stu-motion-base: 140ms cubic-bezier(0.4, 0, 0.2, 1);
+  --stu-motion-slow: 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 
@@ -1686,6 +1825,12 @@ export default function StudentPageShell({
   --stu-surface-2: #f3f4f6;
   --stu-border: #e5e7eb;
   --stu-border-hover: #d1d5db;
+  
+  /* 프리미엄: 배경 질감 (테넌트별 커스터마이징 가능) */
+  --stu-bg-pattern: 
+    radial-gradient(circle at 1px 1px, rgba(13, 71, 161, 0.01) 1px, transparent 0),
+    linear-gradient(to bottom, transparent, rgba(0, 105, 92, 0.005));
+  --stu-bg-pattern-size: 24px 24px, 100% 100%;
 
   /* 텍스트 */
   --stu-text: #1a1d21;
@@ -1805,6 +1950,12 @@ export default function StudentPageShell({
 [data-student-theme="tchul"] .stu-icon circle[fill="currentColor"],
 [data-student-theme="tchul"] .stu-icon polygon[fill="currentColor"] {
   fill: url(#stu-gradient-tchul);
+}
+
+/* tchul 테마: 프리미엄 배경 질감 적용 */
+[data-student-theme="tchul"] [data-app="student"] {
+  background-image: var(--stu-bg-pattern);
+  background-size: var(--stu-bg-pattern-size);
 }
 
 
