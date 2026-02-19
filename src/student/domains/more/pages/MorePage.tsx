@@ -2,6 +2,7 @@
  * 더보기 — 프로필, 게시판, 출결, 클리닉 인증 등
  */
 import { Link } from "react-router-dom";
+import { logout } from "@/features/auth/api/auth";
 import {
   IconUser,
   IconBoard,
