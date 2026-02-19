@@ -217,6 +217,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   const seekGuardRef = useRef<{ blocking: boolean; lastWarnAt: number }>({ blocking: false, lastWarnAt: 0 });
 
   const eventQueueRef = useRef<Array<{ type: EventType; occurred_at: number; payload?: any }>>([]);
+  const lastTapRef = useRef<{ time: number; x: number; y: number }>({ time: 0, x: 0, y: 0 });
 
   const tokenRef = useRef(bootstrap.token);
   useEffect(() => {
@@ -795,6 +796,51 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     setTime(t);
   }, [setTime]);
 
+  // 더블탭(더블클릭): 오른쪽 → 앞으로 10초, 왼쪽 → 뒤로 10초
+  const handleDoubleTapSeek = useCallback(
+    (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>, clientX: number) => {
+      if (!allowSeek) return;
+      const el = e.currentTarget;
+      const rect = el.getBoundingClientRect();
+      const mid = rect.left + rect.width / 2;
+      const delta = clientX > mid ? 10 : -10;
+      skip(delta);
+      setToast({ text: delta > 0 ? "앞으로 10초" : "뒤로 10초", kind: "info" });
+    },
+    [allowSeek, skip]
+  );
+
+  const onStageDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      handleDoubleTapSeek(e, e.clientX);
+    },
+    [handleDoubleTapSeek]
+  );
+
+  const onStageTouchEnd = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      const t = e.changedTouches?.[0];
+      if (!t) return;
+      const x = t.clientX;
+      const y = t.clientY;
+      const now = Date.now();
+      const last = lastTapRef.current;
+      const isDoubleTap =
+        now - last.time < 400 &&
+        Math.abs(x - last.x) < 40 &&
+        Math.abs(y - last.y) < 40;
+      if (isDoubleTap) {
+        e.preventDefault();
+        lastTapRef.current = { time: 0, x: 0, y: 0 };
+        handleDoubleTapSeek(e, x);
+      } else {
+        lastTapRef.current = { time: now, x, y };
+      }
+    },
+    [handleDoubleTapSeek]
+  );
+
   // Hotkeys (YouTube-like)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -963,7 +1009,12 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
               </div>
             </div>
 
-            <div className="svpVideoStage">
+            <div
+              className="svpVideoStage"
+              onDoubleClick={onStageDoubleClick}
+              onTouchEnd={onStageTouchEnd}
+              role="presentation"
+            >
               <video
                 ref={videoEl}
                 className="svpVideo"
@@ -981,7 +1032,12 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
               )}
 
               {ready && !playing && (
-                <button className="svpBigPlay" type="button" onClick={togglePlay}>
+                <button
+                  className="svpBigPlay"
+                  type="button"
+                  onClick={togglePlay}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                >
                   <span className="svpBigPlayIcon">▶</span>
                   <span className="svpBigPlayText">재생</span>
                 </button>
