@@ -1,11 +1,15 @@
 /**
- * 상단 바 — 미니멀 (로고 + 제목만), 유튜브 모바일형
+ * 상단 바 — 테넌트별 로고·타이틀 (studentTenantBranding SSOT)
  */
 import { Link, useLocation } from "react-router-dom";
+import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 
-export default function StudentTopBar() {
+type Props = { tenantCode: string | null };
+
+export default function StudentTopBar({ tenantCode }: Props) {
   const loc = useLocation();
   const isHome = loc.pathname === "/student" || loc.pathname.startsWith("/student/dashboard");
+  const branding = getStudentTenantBranding(tenantCode);
 
   return (
     <div
@@ -30,23 +34,36 @@ export default function StudentTopBar() {
         }}
         aria-label="홈"
       >
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 10,
-            background: "var(--stu-primary)",
-            color: "var(--stu-primary-contrast)",
-            display: "grid",
-            placeItems: "center",
-            fontWeight: 800,
-            fontSize: 14,
-          }}
-        >
-          H
-        </div>
+        {branding.logoUrl ? (
+          <img
+            src={branding.logoUrl}
+            alt=""
+            style={{
+              height: 32,
+              width: "auto",
+              maxWidth: 120,
+              objectFit: "contain",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 10,
+              background: "var(--stu-primary)",
+              color: "var(--stu-primary-contrast)",
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 800,
+              fontSize: 14,
+            }}
+          >
+            H
+          </div>
+        )}
         <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>
-          {isHome ? "학원플러스" : "학생"}
+          {isHome ? branding.title : "학생"}
         </span>
       </Link>
     </div>
