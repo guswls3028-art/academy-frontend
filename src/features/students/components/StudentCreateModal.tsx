@@ -147,8 +147,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     } catch (e: unknown) {
       const err = e as { response?: { data?: { code?: string; deleted_student?: ClientStudent; detail?: unknown }; status?: number }; message?: string };
       if (err?.response?.status === 409 && err.response.data?.code === "deleted_student_exists" && err.response.data?.deleted_student) {
+        const { mapStudent } = await import("../api/students");
         setDeletedStudentConflict({
-          student: err.response.data.deleted_student as ClientStudent,
+          student: mapStudent(err.response.data.deleted_student),
           formData: { ...form },
         });
         setBusy(false);
