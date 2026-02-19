@@ -26,14 +26,14 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)" }}>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: "var(--stu-space-6)", paddingLeft: "var(--stu-space-2)", letterSpacing: "-0.01em" }}>
         홈
       </h1>
 
       {/* 공지 */}
       <Link
         to="/student/qna"
-        className="stu-card stu-card--pressable"
+        className="stu-panel stu-panel--pressable"
         style={{
           display: "flex",
           alignItems: "center",
@@ -47,7 +47,7 @@ export default function DashboardPage() {
           <IconNotice style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>공지·Q&A</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>공지·Q&A</div>
           <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>소통 게시판에서 확인하세요</div>
         </div>
         <span className="stu-cta-link" style={{ fontSize: 13 }}>보기</span>
