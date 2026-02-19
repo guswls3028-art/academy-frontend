@@ -87,11 +87,14 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         });
         initResults.push({ init, file });
       } catch (error) {
-        const msg =
-          (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
-            ?.detail ||
-          (error as Error)?.message ||
+        const err = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+        let msg =
+          err?.response?.data?.detail ||
+          err?.message ||
           "업로드에 실패했습니다.";
+        if (err?.response?.status === 403 && !err?.response?.data?.detail) {
+          msg = "권한이 없습니다. 관리자 또는 스태프 계정으로 로그인했는지 확인하세요.";
+        }
         initErrors.push(`${file.name}: ${msg}`);
       }
     }
