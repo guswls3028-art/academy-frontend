@@ -32,7 +32,7 @@ function usePublicCourseCard(publicSession: { session_id: number } | null) {
       isNew: false,
       isContinue: false,
       isCompleted: false,
-      to: `/student/video/play?video=${firstVideo.id}`,
+      to: `/student/video/courses/public`,
     };
   }, [videosData]);
 }
@@ -69,7 +69,7 @@ function LectureCourseCard({ lecture }: { lecture: { id: number; title: string; 
       isNew: false,
       isContinue: false,
       isCompleted: false,
-      to: `/student/video/play?video=${firstVideo.id}`,
+      to: `/student/video/courses/${lecture.id}`,
     };
   }, [lecture, sessionQueries.data]);
 
