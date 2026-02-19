@@ -17,7 +17,6 @@ import {
   fetchSessionVideos,
   fetchAllVideos,
   type Video as ApiVideo,
-  type VideoStatus,
 } from "../api/videos";
 import {
   fetchLectures,
@@ -228,16 +227,14 @@ export default function VideoExplorerPage() {
                   <div key={v.id} className={styles.item} onClick={() => openVideoDetail(v)}>
                     <VideoThumbnail
                       title={v.title}
-                      status={(v as ApiVideo & { status?: string }).status ?? "PENDING"}
-                      thumbnail_url={(v as ApiVideo & { thumbnail_url?: string }).thumbnail_url}
+                      status={v.status ?? "PENDING"}
+                      thumbnail_url={v.thumbnail_url}
                     />
                     <span className={styles.itemLabel} title={v.title}>
                       {v.title || "—"}
                     </span>
                     <span className={styles.itemMeta}>{formatDate(v.created_at)}</span>
-                    <VideoStatusBadge
-                      status={(v as ApiVideo & { status?: string }).status ?? "PENDING"}
-                    />
+                    <VideoStatusBadge status={v.status ?? "PENDING"} />
                   </div>
                 ))}
               </div>

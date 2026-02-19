@@ -67,7 +67,7 @@ import SettingsPage from "@/features/settings/pages/SettingsPage";
 /* ================= Exams / Results / Videos (Admin Root) ================= */
 import ExamExplorerPage from "@/features/exams/pages/ExamExplorerPage";
 import ResultsExplorerPage from "@/features/results/pages/ResultsExplorerPage";
-import VideoAdminPage from "@/features/videos/pages/VideoAdminPage";
+import VideoExplorerPage from "@/features/videos/pages/VideoExplorerPage";
 
 /* ================= Placeholder (DomainLayout 적용) ================= */
 const CounselPage = () => (
@@ -148,7 +148,7 @@ export default function AdminRouter() {
         <Route path="results" element={<ResultsExplorerPage />} />
 
         {/* ================= Videos (Admin Root) ================= */}
-        <Route path="videos" element={<VideoAdminPage />} />
+        <Route path="videos" element={<VideoExplorerPage />} />
 
         <Route path="counsel" element={<CounselPage />} />
         <Route path="notice" element={<NoticePage />} />
