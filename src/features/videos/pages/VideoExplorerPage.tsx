@@ -264,6 +264,7 @@ export default function VideoExplorerPage() {
           <aside className={styles.tree}>
             <VideoExplorerTree
               lectures={lecturesWithSessions}
+              publicFolders={publicFolders}
               currentFolderId={selectedFolderId}
               onSelectFolder={setSelectedFolderId}
             />
@@ -315,20 +316,36 @@ export default function VideoExplorerPage() {
               </div>
             ) : (
               <div className={styles.grid}>
-                {(selectedFolderId === "public" && publicSession) || selectedSession ? (
+                {selectedFolderId === "public" && publicSession && (
+                  <>
+                    <div
+                      className={styles.item + " " + styles.itemAdd}
+                      onClick={() => setNewFolderOpen(true)}
+                      title="폴더 추가"
+                    >
+                      <FolderPlus size={32} />
+                      <span>폴더 추가</span>
+                    </div>
+                    <div
+                      className={styles.item + " " + styles.itemAdd}
+                      onClick={() => openUploadModal(publicSession.session_id)}
+                      title="영상 추가"
+                    >
+                      <FilePlus size={32} />
+                      <span>추가</span>
+                    </div>
+                  </>
+                )}
+                {selectedSession && selectedFolderId !== "public" && (
                   <div
                     className={styles.item + " " + styles.itemAdd}
-                    onClick={() =>
-                      selectedFolderId === "public" && publicSession
-                        ? openUploadModal(publicSession.session_id)
-                        : selectedSession && openUploadModal(selectedSession.session.id)
-                    }
+                    onClick={() => openUploadModal(selectedSession.session.id)}
                     title="영상 추가"
                   >
                     <FilePlus size={32} />
                     <span>추가</span>
                   </div>
-                ) : null}
+                )}
                 {videos.map((v) => (
                   <div key={v.id} className={styles.item} onClick={() => openVideoDetail(v)}>
                     <VideoThumbnail
