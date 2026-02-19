@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import studentApi from "@/student/shared/api/studentApi";
+import { fetchStudentVideoPlayback } from "../api/media";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -17,15 +18,15 @@ function useQuery() {
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
-async function fetchVideo(videoId: number): Promise<VideoMetaLite & { 
+async function fetchVideo(videoId: number, enrollmentId?: number | null): Promise<VideoMetaLite & { 
   description?: string | null;
   created_at?: string | null;
   view_count?: number | null;
   tags?: string[];
 }> {
-  // ✅ backend: apps/support/video/urls.py router videos -> /api/v1/videos/videos/{id}/
-  const res = await studentApi.get(`/api/v1/videos/videos/${videoId}/`);
-  const v = res?.data || {};
+  // 학생 앱 전용 API 사용: /student/video/videos/{id}/playback/
+  const playbackData = await fetchStudentVideoPlayback(videoId, enrollmentId);
+  const v = playbackData.video;
   return {
     id: Number(v.id),
     title: String(v.title ?? "영상"),
@@ -33,10 +34,10 @@ async function fetchVideo(videoId: number): Promise<VideoMetaLite & {
     status: String(v.status ?? ""),
     thumbnail_url: v.thumbnail_url ?? null,
     hls_url: v.hls_url ?? null,
-    description: v.description ?? null,
-    created_at: v.created_at ?? null,
-    view_count: v.view_count ?? null,
-    tags: Array.isArray(v.tags) ? v.tags : [],
+    description: (v as any).description ?? null,
+    created_at: (v as any).created_at ?? null,
+    view_count: (v as any).view_count ?? null,
+    tags: Array.isArray((v as any).tags) ? (v as any).tags : [],
   };
 }
 
@@ -45,24 +46,21 @@ async function startPlayback(params: {
   enrollmentId?: number | null;
   deviceId: string;
 }): Promise<PlaybackBootstrap> {
-  const body: any = {
-    video_id: params.videoId,
-    device_id: params.deviceId,
-  };
-  if (params.enrollmentId) {
-    body.enrollment_id = params.enrollmentId;
-  }
-  const res = await studentApi.post(`/api/v1/videos/playback/start/`, body);
-  const d = res?.data || {};
-  const policy = d.policy || {};
+  // 학생 앱 전용 API 사용: /student/video/videos/{id}/playback/
+  // 이 엔드포인트는 GET 요청이지만, 백엔드에서 재생 세션을 시작하고 play_url을 반환합니다
+  const playbackData = await fetchStudentVideoPlayback(params.videoId, params.enrollmentId);
+  
+  // play_url이 없으면 hls_url 사용
+  const playUrl = playbackData.hls_url || playbackData.mp4_url || "";
+  
   return {
-    token: String(d.token || ""),
-    session_id: d.session_id != null ? String(d.session_id) : null,
-    expires_at: d.expires_at != null ? Number(d.expires_at) : null,
-    access_mode: (d.access_mode ?? policy.access_mode) || "FREE_REVIEW",
-    monitoring_enabled: d.monitoring_enabled ?? policy.monitoring_enabled ?? false,
-    policy,
-    play_url: String(d.play_url || ""),
+    token: "", // 학생 앱에서는 token이 필요 없을 수 있음
+    session_id: null,
+    expires_at: null,
+    access_mode: playbackData.policy?.access_mode || "FREE_REVIEW",
+    monitoring_enabled: playbackData.policy?.monitoring_enabled ?? false,
+    policy: playbackData.policy || {},
+    play_url: playUrl,
   };
 }
 
