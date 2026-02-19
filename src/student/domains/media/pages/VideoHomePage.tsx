@@ -129,7 +129,7 @@ export default function VideoHomePage() {
           fontSize: 24,
           fontWeight: 800,
           marginBottom: "var(--stu-space-6)",
-          color: "var(--stu-text-primary)",
+          color: "var(--stu-text)",
         }}
       >
         수강 가능한 강의

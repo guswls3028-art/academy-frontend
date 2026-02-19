@@ -139,7 +139,7 @@ export default function CourseCard({
               style={{
                 height: "100%",
                 width: `${progress}%`,
-                background: "var(--stu-color-primary, #3b82f6)",
+                background: "var(--stu-primary)",
                 transition: "width 0.3s ease",
               }}
             />
@@ -177,7 +177,7 @@ export default function CourseCard({
                 style={{
                   padding: "4px 8px",
                   borderRadius: 4,
-                  background: "var(--stu-color-primary, #3b82f6)",
+                  background: "var(--stu-primary)",
                   color: "#fff",
                   fontSize: 10,
                   fontWeight: 700,
