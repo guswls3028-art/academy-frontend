@@ -297,6 +297,19 @@ export default function SessionDetailPage() {
     );
   }
 
+  if (isError && !is403) {
+    return (
+      <StudentPageShell title="" noSectionFrame>
+        <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
+          <EmptyState
+            title="불러오기 실패"
+            description={serverMessage || "영상 목록을 불러오는 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."}
+          />
+        </div>
+      </StudentPageShell>
+    );
+  }
+
   if (!sessionIdNum || videos.length === 0) {
     return (
       <StudentPageShell title="" noSectionFrame>
