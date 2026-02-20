@@ -301,7 +301,10 @@ export class StudentHlsController {
     const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     const onVis = () => {
       if (this.disposed) return;
-      if (document.hidden) this.queueEvent("VISIBILITY_HIDDEN", { hidden: true });
+      if (document.hidden) {
+        this.flushProgress();
+        this.queueEvent("VISIBILITY_HIDDEN", { hidden: true });
+      } else {
       else {
         this.queueEvent("VISIBILITY_VISIBLE", { hidden: false });
         if (monitoringEnabled) {
