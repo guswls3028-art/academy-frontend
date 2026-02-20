@@ -133,11 +133,6 @@ export default function StudentVideoPlayer({
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast } = ctrlState;
 
-  useEffect(() => {
-    return () => {
-      onLeaveProgress?.({ progress: 0, last_position: 0, completed: false });
-    };
-  }, []);
 
   useEffect(() => {
     const el = videoElRef.current;
