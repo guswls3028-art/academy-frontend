@@ -132,7 +132,7 @@ export class StudentHlsController {
   private intervals: ReturnType<typeof setInterval>[] = [];
   private timeouts: ReturnType<typeof setTimeout>[] = [];
   private videoListeners: Array<{ ev: string; fn: EventListener }> = [];
-  private docListeners: Array<{ ev: string; fn: EventListener }> = [];
+  private docCleanups: Array<() => void> = [];
   private tokenRef: string;
 
   constructor(opts: ControllerOptions) {
