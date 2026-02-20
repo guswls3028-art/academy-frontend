@@ -48,6 +48,48 @@ export default function VideoPlayerPage() {
   }) | null>(null);
   const [boot, setBoot] = useState<PlaybackBootstrap | null>(null);
   const [playbackData, setPlaybackData] = useState<any>(null);
+  const [sessionVideosData, setSessionVideosData] = useState<{ items: { id: number; title?: string; [key: string]: unknown }[] } | null>(null);
+
+  const sessionId = video?.session_id ?? null;
+
+  const progressMutation = useMutation({
+    mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
+      if (!videoId) throw new Error("videoId가 필요합니다.");
+      return updateVideoProgress(videoId, data);
+    },
+    onSuccess: () => {
+      if (sessionId == null) return;
+      const key = ["student-session-videos", sessionId, enrollmentId] as const;
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
+    },
+  });
+
+  const progressMutationRef = useRef(progressMutation);
+  progressMutationRef.current = progressMutation;
+
+  const nextVideo = useMemo(() => {
+    if (!sessionVideosData?.items?.length || !videoId) return null;
+    const videos = sessionVideosData.items;
+    const currentIndex = videos.findIndex((v: { id: number }) => v.id === videoId);
+    if (currentIndex >= 0 && currentIndex < videos.length - 1) {
+      return videos[currentIndex + 1];
+    }
+    return null;
+  }, [sessionVideosData, videoId]);
+
+  const onFatal = useCallback((reason: string) => setLoadError(reason), []);
+
+  const onLeaveProgress = useCallback(
+    (data: { progress?: number; completed?: boolean; last_position?: number }) => {
+      if (!videoId) return;
+      progressMutationRef.current.mutate({
+        progress: data.progress,
+        last_position: data.last_position,
+        completed: data.completed,
+      });
+    },
+    [videoId]
+  );
 
   useEffect(() => {
     let alive = true;
