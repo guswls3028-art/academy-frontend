@@ -1401,7 +1401,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                     <IconButton
                       icon={theater ? "shrink" : "theater"}
                       label={theater ? "기본 보기" : "극장 모드"}
-                      onClick={() => setTheater((v) => !v)}
+                      onClick={() => { if (!mountedRef.current) return; setTheater((v) => !v); }}
                     />
                     <IconButton
                       icon="fullscreen"
@@ -1500,6 +1500,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
               type="button"
               className="svpSideButton"
               onClick={() => {
+                if (!mountedRef.current) return;
                 setToast({
                   text: `현재 ${formatClock(current)} / ${formatClock(duration)} (약 ${Math.round(
                     (current / Math.max(1, duration)) * 100
