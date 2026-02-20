@@ -71,7 +71,10 @@ export default function VideoPlayerPage() {
 
       try {
         // 학생 앱 전용 API: 비디오 정보와 재생 정보를 한 번에 가져오기
-        const playbackData = await fetchStudentVideoPlayback(videoId, enrollmentId || undefined);
+        const playbackData = await fetchStudentVideoPlayback(
+          videoId,
+          enrollmentId != null ? enrollmentId : undefined
+        );
         
         if (!alive) return;
 
