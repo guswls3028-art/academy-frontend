@@ -1,10 +1,11 @@
 // PATH: src/shared/ui/asyncStatus/AsyncStatusBar.tsx
 // 우하단 Windows 스타일 비동기 상태 바 — 워커 작업 프로그래스바만 표시
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { RefreshCw } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchInProgressVideos } from "@/features/videos/api/videos";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
@@ -456,15 +457,11 @@ export default function AsyncStatusBar() {
     return () => clearInterval(id);
   }, [pendingCount]);
 
-  // 새로고침 후에도 진행 중인 영상 인코딩을 작업 박스에 복원 (태넌트별)
-  // 9999(로컬 개발)에서는 복원 생략 — 올리지 않은 작업이 뜨는 현상 방지
-  useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
+  const doHydrate = useCallback(() => {
     const tenant = getTenantCodeForApiRequest() ?? "";
-    if (tenant === "9999") return;
+    if (tenant === "9999") return Promise.resolve();
 
-    fetchInProgressVideos()
+    return fetchInProgressVideos()
       .then((videos) => {
         const existing = new Set(
           asyncStatusStore
@@ -484,6 +481,22 @@ export default function AsyncStatusBar() {
       })
       .catch(() => {});
   }, []);
+
+  // 새로고침 후에도 진행 중인 영상 인코딩을 작업 박스에 복원 (태넌트별)
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    doHydrate();
+  }, [doHydrate]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    if (refreshing) return;
+    setRefreshing(true);
+    doHydrate()
+      .then(() => feedback.success("작업 목록을 새로고침했습니다."))
+      .finally(() => setRefreshing(false));
+  }, [doHydrate, refreshing]);
 
   // 새 작업이 추가되면 작업 박스 자동 펼치기 — 사용자가 백그라운드 진행을 바로 확인할 수 있게
   useEffect(() => {
@@ -543,6 +556,16 @@ export default function AsyncStatusBar() {
         <div className="async-status-bar__header">
           <span>작업</span>
           <div className="async-status-bar__header-actions">
+            <button
+              type="button"
+              className="async-status-bar__header-btn"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="새로고침"
+              aria-label="새로고침"
+            >
+              <RefreshCw size={18} className={refreshing ? "async-status-bar__refresh-spin" : ""} />
+            </button>
             <button
               type="button"
               className="async-status-bar__header-btn"
