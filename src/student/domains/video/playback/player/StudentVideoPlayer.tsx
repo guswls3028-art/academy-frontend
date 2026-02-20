@@ -772,9 +772,9 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
 
     const onError = () => {
       if (isUnmountedRef.current) return;
-      const error = el.error as any;
-      const errorCode = error?.code || 0;
-      const errorMessage = error?.message || "";
+      const elErr = el.error as any;
+      const errorCode = elErr?.code || 0;
+      const errorMessage = elErr?.message || "";
       
       queueEvent("PLAYER_ERROR", {
         code: errorCode,
