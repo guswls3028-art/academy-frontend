@@ -691,7 +691,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onRateChange = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       const r = Number(el.playbackRate || 1);
       setRate(r);
 
@@ -717,7 +717,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onSeeking = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       if (allowSeek && !boundedForward) return;
 
       const now = Date.now();
@@ -773,7 +773,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onError = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       const elErr = el.error as any;
       const errorCode = elErr?.code || 0;
       const errorMessage = elErr?.message || "";
