@@ -38,7 +38,7 @@ export default function VideoPlayerPage() {
   const enrollmentId = rawEnrollmentId != null && Number.isFinite(rawEnrollmentId) ? rawEnrollmentId : null;
 
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [video, setVideo] = useState<(VideoMetaLite & { 
     description?: string | null;
     created_at?: string | null;
