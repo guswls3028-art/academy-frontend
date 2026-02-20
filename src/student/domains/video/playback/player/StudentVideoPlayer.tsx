@@ -1119,6 +1119,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       }
 
       if (e.key === "t" || e.key === "T") {
+        if (!mountedRef.current) return;
         setTheater((v) => !v);
         return;
       }
