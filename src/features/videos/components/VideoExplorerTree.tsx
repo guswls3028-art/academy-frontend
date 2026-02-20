@@ -89,7 +89,7 @@ export default function VideoExplorerTree({
         }
         onClick={() => onSelectFolder("public")}
       >
-        <FolderOpen size={18} aria-hidden />
+        <FolderOpen size={20} aria-hidden />
         <span>전체공개영상</span>
       </button>
       {currentFolderId === "public" && rootFolders.length > 0 && (
