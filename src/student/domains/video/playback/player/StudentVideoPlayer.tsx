@@ -1219,7 +1219,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                 <div className="svpMeta">
                   <span className="svpMetaItem">video#{video.id}</span>
                   <span className="svpDot">•</span>
-                  <span className="svpMetaItem">enrollment#{enrollmentId}</span>
+                  <span className="svpMetaItem">enrollment#{enrollmentId ?? "-"}</span>
                 </div>
               </div>
 
