@@ -1260,8 +1260,10 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                         if (!token) return;
                         try {
                           await postRefresh(token);
+                          if (!mountedRef.current) return;
                           setToast({ text: "세션 확인 완료", kind: "info" });
                         } catch {
+                          if (!mountedRef.current) return;
                           setToast({ text: "세션 확인 실패", kind: "warn" });
                         }
                       },
@@ -1269,6 +1271,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                     {
                       label: "이 영상 정보",
                       onClick: () => {
+                        if (!mountedRef.current) return;
                         setToast({ text: shareText, kind: "info" });
                       },
                     },
