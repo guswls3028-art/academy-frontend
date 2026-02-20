@@ -54,11 +54,11 @@ export default function VideoPlayerPage() {
 
     async function run() {
       setLoading(true);
-      setErr(null);
+      setLoadError(null);
 
       if (!videoId) {
         setLoading(false);
-        setErr("video_id가 필요합니다.");
+        setLoadError("video_id가 필요합니다.");
         return;
       }
 
@@ -78,7 +78,7 @@ export default function VideoPlayerPage() {
         // 비디오 정보 추출
         const vd = playbackData?.video;
         if (!vd || typeof vd.id === "undefined") {
-          setErr("재생 정보 형식이 올바르지 않습니다.");
+          setLoadError("재생 정보 형식이 올바르지 않습니다.");
           setLoading(false);
           return;
         }
@@ -114,11 +114,11 @@ export default function VideoPlayerPage() {
           
           // 백엔드에서 제공한 상세 에러 메시지가 있으면 사용
           if (detail) {
-            setErr(detail);
+            setLoadError(detail);
           } else if (videoStatus && videoStatus !== "READY") {
-            setErr(`비디오가 아직 준비되지 않았습니다. (상태: ${videoStatus})`);
+            setLoadError(`비디오가 아직 준비되지 않았습니다. (상태: ${videoStatus})`);
           } else {
-            setErr("재생 URL을 가져올 수 없습니다. 비디오 파일이 처리 중이거나 업로드되지 않았을 수 있습니다.");
+            setLoadError("재생 URL을 가져올 수 없습니다. 비디오 파일이 처리 중이거나 업로드되지 않았을 수 있습니다.");
           }
           setLoading(false);
           return;
@@ -146,7 +146,7 @@ export default function VideoPlayerPage() {
           e?.response?.data?.message ||
           e?.message ||
           "재생 페이지 로드에 실패했습니다.";
-        setErr(String(msg));
+        setLoadError(String(msg));
         setLoading(false);
       }
     }
@@ -215,7 +215,7 @@ export default function VideoPlayerPage() {
   const progressMutationRef = useRef(progressMutation);
   progressMutationRef.current = progressMutation;
 
-  const onFatal = useCallback((reason: string) => setErr(reason), []);
+  const onFatal = useCallback((reason: string) => setLoadError(reason), []);
 
   // 진행률 전달 콜백: videoId만 deps로 고정 → progressMutation 참조 변경 시에도 콜백 안정 (React #310 방지)
   const onLeaveProgress = useCallback(
