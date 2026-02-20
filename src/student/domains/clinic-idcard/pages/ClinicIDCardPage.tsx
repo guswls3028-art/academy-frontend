@@ -58,11 +58,11 @@ export default function ClinicIDCardPage() {
     );
   }
 
-  if (error || !data) {
+  if (queryError || !data) {
     return (
       <div className="idcard-page idcard-page--black">
         <div className="idcard-page__error">
-          {error instanceof Error ? error.message : "데이터를 불러올 수 없습니다."}
+          {queryError instanceof Error ? queryError.message : "데이터를 불러올 수 없습니다."}
         </div>
       </div>
     );
