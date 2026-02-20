@@ -686,7 +686,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       setBuffering(true);
     };
     const onPlaying = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       setBuffering(false);
     };
 
@@ -888,6 +888,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   }, [duration]);
 
   const onScrub = useCallback((v: number) => {
+    if (!mountedRef.current) return;
     setShowControls(true);
     setTime(v);
   }, [setTime]);
