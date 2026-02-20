@@ -1,36 +1,38 @@
 /**
  * 학생 앱 라우터 — 모바일 전용, 5탭(홈|영상|일정|QnA|더보기)
+ * TDZ 방지: lazy loading으로 청크 분리 (error→queryError 충돌 회피)
  */
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import StudentLayout from "@/student/shared/ui/layout/StudentLayout";
 
-import DashboardPage from "@/student/domains/dashboard/pages/DashboardPage";
-import VideoHomePage from "@/student/domains/video/pages/VideoHomePage";
-import CourseDetailPage from "@/student/domains/video/pages/CourseDetailPage";
-import VideoSessionDetailPage from "@/student/domains/video/pages/SessionDetailPage";
-import VideoPlayerPage from "@/student/domains/video/pages/VideoPlayerPage";
+const DashboardPage = lazy(() => import("@/student/domains/dashboard/pages/DashboardPage"));
+const VideoHomePage = lazy(() => import("@/student/domains/video/pages/VideoHomePage"));
+const CourseDetailPage = lazy(() => import("@/student/domains/video/pages/CourseDetailPage"));
+const VideoSessionDetailPage = lazy(() => import("@/student/domains/video/pages/SessionDetailPage"));
+const VideoPlayerPage = lazy(() => import("@/student/domains/video/pages/VideoPlayerPage"));
 
-import SessionListPage from "@/student/domains/sessions/pages/SessionListPage";
-import SessionDetailPage from "@/student/domains/sessions/pages/SessionDetailPage";
+const SessionListPage = lazy(() => import("@/student/domains/sessions/pages/SessionListPage"));
+const SessionDetailPage = lazy(() => import("@/student/domains/sessions/pages/SessionDetailPage"));
 
-import ExamListPage from "@/student/domains/exams/pages/ExamListPage";
-import ExamDetailPage from "@/student/domains/exams/pages/ExamDetailPage";
-import ExamSubmitPage from "@/student/domains/exams/pages/ExamSubmitPage";
-import ExamResultPage from "@/student/domains/exams/pages/ExamResultPage";
-import SubmitHubPage from "@/student/domains/submit/pages/SubmitHubPage";
-import SubmitScorePage from "@/student/domains/submit/pages/SubmitScorePage";
-import SubmitAssignmentPage from "@/student/domains/submit/pages/SubmitAssignmentPage";
+const ExamListPage = lazy(() => import("@/student/domains/exams/pages/ExamListPage"));
+const ExamDetailPage = lazy(() => import("@/student/domains/exams/pages/ExamDetailPage"));
+const ExamSubmitPage = lazy(() => import("@/student/domains/exams/pages/ExamSubmitPage"));
+const ExamResultPage = lazy(() => import("@/student/domains/exams/pages/ExamResultPage"));
+const SubmitHubPage = lazy(() => import("@/student/domains/submit/pages/SubmitHubPage"));
+const SubmitScorePage = lazy(() => import("@/student/domains/submit/pages/SubmitScorePage"));
+const SubmitAssignmentPage = lazy(() => import("@/student/domains/submit/pages/SubmitAssignmentPage"));
 
-import GradesPage from "@/student/domains/grades/pages/GradesPage";
-import MorePage from "@/student/domains/more/pages/MorePage";
-import ProfilePage from "@/student/domains/profile/pages/ProfilePage";
-import QnaPage from "@/student/domains/qna/pages/QnaPage";
-import NoticesPage from "@/student/domains/notices/pages/NoticesPage";
-import NoticeDetailPage from "@/student/domains/notices/pages/NoticeDetailPage";
-import NotificationsPage from "@/student/domains/notifications/pages/NotificationsPage";
-import ClinicIDCardPage from "@/student/domains/clinic-idcard/pages/ClinicIDCardPage";
-import ClinicPage from "@/student/domains/clinic/pages/ClinicPage";
-import AttendancePage from "@/student/domains/attendance/pages/AttendancePage";
+const GradesPage = lazy(() => import("@/student/domains/grades/pages/GradesPage"));
+const MorePage = lazy(() => import("@/student/domains/more/pages/MorePage"));
+const ProfilePage = lazy(() => import("@/student/domains/profile/pages/ProfilePage"));
+const QnaPage = lazy(() => import("@/student/domains/qna/pages/QnaPage"));
+const NoticesPage = lazy(() => import("@/student/domains/notices/pages/NoticesPage"));
+const NoticeDetailPage = lazy(() => import("@/student/domains/notices/pages/NoticeDetailPage"));
+const NotificationsPage = lazy(() => import("@/student/domains/notifications/pages/NotificationsPage"));
+const ClinicIDCardPage = lazy(() => import("@/student/domains/clinic-idcard/pages/ClinicIDCardPage"));
+const ClinicPage = lazy(() => import("@/student/domains/clinic/pages/ClinicPage"));
+const AttendancePage = lazy(() => import("@/student/domains/attendance/pages/AttendancePage"));
 
 export default function StudentRouter() {
   return (
