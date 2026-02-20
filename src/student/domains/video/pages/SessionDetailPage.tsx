@@ -256,7 +256,7 @@ export default function SessionDetailPage() {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  const { data: videosData, isLoading, isError, error } = useQuery({
+  const { data: videosData, isLoading, isError, error: queryError } = useQuery({
     queryKey: ["student-session-videos", sessionIdNum, enrollmentId],
     queryFn: () => fetchStudentSessionVideos(sessionIdNum!, enrollmentId),
     enabled: !!sessionIdNum,
@@ -264,7 +264,7 @@ export default function SessionDetailPage() {
   });
 
   const videos = videosData?.items ?? [];
-  const res = (error as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
+  const res = (queryError as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
   const is403 = isError && res?.status === 403;
   const serverMessage =
     typeof res?.data?.detail === "string"
