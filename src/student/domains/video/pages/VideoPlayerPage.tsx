@@ -1,5 +1,5 @@
 // PATH: src/student/domains/video/pages/VideoPlayerPage.tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
@@ -180,8 +180,10 @@ export default function VideoPlayerPage() {
           play_url: playUrl,
         };
 
-        setVideo(v);
-        setBoot(b);
+        startTransition(() => {
+          setVideo(v);
+          setBoot(b);
+        });
         setLoading(false);
       } catch (e: any) {
         if (!alive) return;
