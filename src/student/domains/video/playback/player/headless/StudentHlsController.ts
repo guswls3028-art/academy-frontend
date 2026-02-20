@@ -305,7 +305,6 @@ export class StudentHlsController {
         this.flushProgress();
         this.queueEvent("VISIBILITY_HIDDEN", { hidden: true });
       } else {
-      else {
         this.queueEvent("VISIBILITY_VISIBLE", { hidden: false });
         if (monitoringEnabled) {
           const token = this.tokenRef;
