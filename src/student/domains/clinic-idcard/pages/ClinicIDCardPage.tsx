@@ -44,7 +44,7 @@ function formatLiveDate(d: Date): string {
 
 export default function ClinicIDCardPage() {
   const liveNow = useLiveClock();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error: queryError } = useQuery({
     queryKey: ["clinic-idcard"],
     queryFn: fetchClinicIdcard,
     refetchInterval: 2000, // 2초마다 자동 갱신 (선생님이 색상 변경 시 즉시 반영)
