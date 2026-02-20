@@ -56,7 +56,7 @@ export type LeaveProgressPayload = {
 type Props = {
   video: VideoMetaLite;
   bootstrap: PlaybackBootstrap;
-  enrollmentId: number;
+  enrollmentId: number | null;
   onFatal?: (reason: string) => void;
   /** 나갈 때(언마운트) 현재 시청 위치로 자동 저장용 */
   onLeaveProgress?: (data: LeaveProgressPayload) => void;

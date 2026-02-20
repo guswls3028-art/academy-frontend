@@ -307,7 +307,7 @@ export default function VideoPlayerPage() {
           <StudentVideoPlayer
             video={video}
             bootstrap={boot}
-            enrollmentId={enrollmentId ? Number(enrollmentId) : 0}
+            enrollmentId={enrollmentId != null ? Number(enrollmentId) : null}
             onFatal={onFatal}
             onLeaveProgress={onLeaveProgress}
           />
