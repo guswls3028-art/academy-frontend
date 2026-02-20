@@ -156,7 +156,7 @@ async function postEvents(
   token: string,
   events: Array<{ type: EventType; occurred_at: number; payload?: any }>,
   videoId: number,
-  enrollmentId: number
+  enrollmentId: number | null
 ) {
   if (!events.length) return;
   if (token.startsWith("student-")) return; // 학생 앱용 임시 token은 스킵
@@ -164,7 +164,7 @@ async function postEvents(
     await studentApi.post(`/api/v1/videos/playback/events/`, {
       token,
       video_id: videoId,
-      enrollment_id: enrollmentId,
+      enrollment_id: enrollmentId ?? 0,
       events: events.map((e) => ({
         type: e.type,
         occurred_at: e.occurred_at,
