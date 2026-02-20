@@ -957,6 +957,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   // 유튜브식 탭 우선순위: 싱글 = 컨트롤 토글(+ 중앙이면 재생 토글), 더블 = 구역별 시크, 트리플 = ±20초
   const resolveTap = useCallback(
     (clientX: number, rect: DOMRect) => {
+      if (!mountedRef.current) return;
       const count = tapCountRef.current;
       tapCountRef.current = 0;
       if (count === 1) {
@@ -986,7 +987,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
       tapTimerRef.current = setTimeout(() => {
         tapTimerRef.current = null;
-        if (isUnmountedRef.current) return;
+        if (!mountedRef.current) return;
         const r = gestureLayerRef.current?.getBoundingClientRect?.();
         if (r) resolveTap(lastTapRef.current.x, r);
       }, 200);
@@ -1017,6 +1018,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
 
   const onStageTouchMove = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
+      if (!mountedRef.current) return;
       const start = touchStartRef.current;
       const t = e.touches?.[0];
       if (!start || !t) return;
