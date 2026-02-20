@@ -215,10 +215,6 @@ export default function VideoPlayerPage() {
     };
   }, []);
 
-  // 다음 강의 찾기: useQuery 제거 → 1회 fetch만 (setData 연쇄 리렌더로 #310 발생 방지)
-  const sessionId = video?.session_id ?? null;
-  const [sessionVideosData, setSessionVideosData] = useState<{ items: { id: number; title?: string; [k: string]: unknown }[] } | null>(null);
-
   useEffect(() => {
     if (!sessionId || !videoId) {
       setSessionVideosData(null);
@@ -235,7 +231,6 @@ export default function VideoPlayerPage() {
     return () => { cancelled = true; };
   }, [sessionId, enrollmentId, videoId]);
 
-  const handleComplete = () => {
   const handleComplete = () => {
     if (!videoId || !video) return;
     progressMutation.mutate({
