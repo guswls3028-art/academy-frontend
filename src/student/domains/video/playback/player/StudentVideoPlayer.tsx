@@ -648,7 +648,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (!el) return;
 
     const onLoadedMeta = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       const d = Number(el.duration || 0);
       if (d && Number.isFinite(d)) setDuration(d);
       setReady(true);
@@ -656,7 +656,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onTime = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       const t = Number(el.currentTime || 0);
       setCurrent(t);
 
@@ -673,16 +673,16 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
 
     const onPlay = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       setPlaying(true);
       setBuffering(false);
     };
     const onPause = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       setPlaying(false);
     };
     const onWaiting = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       setBuffering(true);
     };
     const onPlaying = () => {
