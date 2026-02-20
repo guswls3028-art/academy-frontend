@@ -34,8 +34,18 @@ const ClinicIDCardPage = lazy(() => import("@/student/domains/clinic-idcard/page
 const ClinicPage = lazy(() => import("@/student/domains/clinic/pages/ClinicPage"));
 const AttendancePage = lazy(() => import("@/student/domains/attendance/pages/AttendancePage"));
 
+/** Suspense fallback: 로딩 중 표시 */
+function StudentRouteFallback() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "var(--stu-muted)" }}>
+      불러오는 중…
+    </div>
+  );
+}
+
 export default function StudentRouter() {
   return (
+    <Suspense fallback={<StudentRouteFallback />}>
     <Routes>
       <Route element={<StudentLayout />}>
         <Route index element={<Navigate to="/student/dashboard" replace />} />
@@ -72,5 +82,6 @@ export default function StudentRouter() {
 
       <Route path="*" element={<Navigate to="/student" replace />} />
     </Routes>
+    </Suspense>
   );
 }
