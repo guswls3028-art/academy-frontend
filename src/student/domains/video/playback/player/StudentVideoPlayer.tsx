@@ -250,6 +250,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
 
   /** unmount 후 setState 방지 (React #310, cleanup 중/이후 이벤트·비동기 콜백) */
   const isUnmountedRef = useRef(false);
+  const mountedRef = useRef(false);
 
   // 나갈 때 저장: 언마운트 + 탭 전환/창 내리기(모바일 웹 Safari 등) — DB는 이 시점에만 1회 쓰기
   const flushProgress = useCallback(() => {
