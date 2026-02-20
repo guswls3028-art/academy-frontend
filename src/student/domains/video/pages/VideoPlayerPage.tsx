@@ -59,7 +59,7 @@ export default function VideoPlayerPage() {
     },
     onSuccess: () => {
       if (sessionId == null) return;
-      const key = ["student-session-videos", sessionId, enrollmentId] as const;
+      const key = ["student-session-videos", sessionId, enrollmentId ?? "public"] as const;
       setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
     },
   });
