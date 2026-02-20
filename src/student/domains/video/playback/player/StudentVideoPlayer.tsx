@@ -181,9 +181,10 @@ function useStableInterval(cb: () => void, ms: number, enabled: boolean) {
   ref.current = cb;
 
   useEffect(() => {
-    if (!enabled) return;
-    const id = window.setInterval(() => ref.current(), ms);
-    return () => window.clearInterval(id);
+    const id = enabled ? window.setInterval(() => ref.current(), ms) : null;
+    return () => {
+      if (id != null) window.clearInterval(id);
+    };
   }, [ms, enabled]);
 }
 
