@@ -235,47 +235,7 @@ export default function VideoPlayerPage() {
     return () => { cancelled = true; };
   }, [sessionId, enrollmentId, videoId]);
 
-  const nextVideo = useMemo(() => {
-    if (!sessionVideosData?.items?.length || !videoId) return null;
-    const videos = sessionVideosData.items;
-    const currentIndex = videos.findIndex((v: { id: number }) => v.id === videoId);
-    if (currentIndex >= 0 && currentIndex < videos.length - 1) {
-      return videos[currentIndex + 1];
-    }
-    return null;
-  }, [sessionVideosData, videoId]);
-
-  const progressMutation = useMutation({
-    mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId) throw new Error("videoId가 필요합니다.");
-      return updateVideoProgress(videoId, data);
-    },
-    onSuccess: () => {
-      if (sessionId == null) return;
-      const key = ["student-session-videos", sessionId, enrollmentId] as const;
-      setTimeout(() => queryClient.invalidateQueries({ queryKey: key }), 0);
-    },
-  });
-
-  const progressMutationRef = useRef(progressMutation);
-  progressMutationRef.current = progressMutation;
-
-  const onFatal = useCallback((reason: string) => setLoadError(reason), []);
-
-  // 진행률 전달 콜백: videoId만 deps로 고정 → progressMutation 참조 변경 시에도 콜백 안정 (React #310 방지)
-  const onLeaveProgress = useCallback(
-    (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId) return;
-      progressMutationRef.current.mutate({
-        progress: data.progress,
-        last_position: data.last_position,
-        completed: data.completed,
-      });
-    },
-    [videoId]
-  );
-
-  // 수강 완료 처리
+  const handleComplete = () => {
   const handleComplete = () => {
     if (!videoId || !video) return;
     progressMutation.mutate({
