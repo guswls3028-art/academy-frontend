@@ -1156,6 +1156,13 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     };
   }, []);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const policyPills = useMemo(() => {
     const pills: Array<{ text: string; tone?: "neutral" | "warn" | "danger" }> = [];
     const accessMode = policy.access_mode;
