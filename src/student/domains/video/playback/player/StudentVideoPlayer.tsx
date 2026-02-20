@@ -540,7 +540,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   // Events: only when monitoring_enabled (FREE_REVIEW sends nothing)
   useStableInterval(
     () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       flushEvents();
     },
     2200,
@@ -550,12 +550,12 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   // Heartbeat: only for PROCTORED_CLASS
   useStableInterval(
     () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       const token = tokenRef.current;
       if (!token) return;
 
       postHeartbeat(token).catch((e: any) => {
-        if (isUnmountedRef.current) return;
+        if (!mountedRef.current) return;
         const msg = e?.response?.data?.detail || e?.message || "";
         if (String(msg).includes("policy_changed")) {
           setToast({ text: "정책이 변경되어 재생이 종료되었습니다.", kind: "danger" });
