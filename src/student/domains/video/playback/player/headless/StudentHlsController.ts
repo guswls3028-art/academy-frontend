@@ -315,10 +315,10 @@ export class StudentHlsController {
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
-    this.docListeners.push(
-      { ev: "visibilitychange", fn: onVis as EventListener },
-      { ev: "blur", fn: onBlur as EventListener },
-      { ev: "focus", fn: onFocus as EventListener }
+    this.docCleanups.push(
+      () => document.removeEventListener("visibilitychange", onVis),
+      () => window.removeEventListener("blur", onBlur),
+      () => window.removeEventListener("focus", onFocus)
     );
   }
 
@@ -583,11 +583,8 @@ export class StudentHlsController {
 
     this.removeAllVideoListeners();
 
-    this.docListeners.forEach(({ ev, fn }) => {
-      if (ev === "visibilitychange") document.removeEventListener(ev, fn);
-      else window.removeEventListener(ev, fn);
-    });
-    this.docListeners = [];
+    this.docCleanups.forEach((fn) => fn());
+    this.docCleanups = [];
 
     if (this.hls && typeof this.hls.destroy === "function") {
       try {
