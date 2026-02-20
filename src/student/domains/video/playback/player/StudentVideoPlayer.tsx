@@ -410,7 +410,7 @@ export default function StudentVideoPlayer({
     (e: React.TouchEvent<HTMLDivElement>) => {
       onStageTouchEndLongPress();
       const t = e.changedTouches?.[0];
-      if (t) onStageTap(t.clientX, t.clientY);
+      if (t && !swipeHandledRef.current) onStageTap(t.clientX, t.clientY);
       swipeHandledRef.current = false;
       touchStartRef.current = null;
     },
