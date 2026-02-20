@@ -894,6 +894,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   }, [setTime]);
 
   const onVolume = useCallback((v: number) => {
+    if (!mountedRef.current) return;
     const el = videoEl.current;
     if (!el) return;
     const vv = clamp(v, 0, 1);
@@ -906,6 +907,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   }, []);
 
   const toggleMute = useCallback(() => {
+    if (!mountedRef.current) return;
     const el = videoEl.current;
     if (!el) return;
     const m = !muted;
@@ -916,6 +918,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   }, [muted]);
 
   const setPlaybackRate = useCallback((r: number) => {
+    if (!mountedRef.current) return;
     const el = videoEl.current;
     if (!el) return;
 
