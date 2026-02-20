@@ -10,7 +10,7 @@ const DashboardPage = lazy(() => import("@/student/domains/dashboard/pages/Dashb
 const VideoHomePage = lazy(() => import("@/student/domains/video/pages/VideoHomePage"));
 const CourseDetailPage = lazy(() => import("@/student/domains/video/pages/CourseDetailPage"));
 const VideoSessionDetailPage = lazy(() => import("@/student/domains/video/pages/SessionDetailPage"));
-const VideoPlayerPage = lazy(() => import("@/student/domains/video/pages/VideoPlayerPage"));
+import VideoPlayerPage from "@/student/domains/video/pages/VideoPlayerPage";
 
 const SessionListPage = lazy(() => import("@/student/domains/sessions/pages/SessionListPage"));
 const SessionDetailPage = lazy(() => import("@/student/domains/sessions/pages/SessionDetailPage"));
