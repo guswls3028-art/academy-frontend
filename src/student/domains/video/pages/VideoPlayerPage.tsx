@@ -296,10 +296,10 @@ export default function VideoPlayerPage() {
             }
           `}</style>
         </div>
-      ) : err ? (
+      ) : loadError ? (
         <EmptyState
           title="재생을 시작할 수 없습니다"
-          description={err}
+          description={loadError}
         />
       ) : video && boot ? (
         <>
