@@ -1520,8 +1520,8 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                   const token = tokenRef.current;
                   if (!token) return;
                   postRefresh(token)
-                    .then(() => setToast({ text: "세션 확인 완료", kind: "info" }))
-                    .catch(() => setToast({ text: "세션 확인 실패", kind: "warn" }));
+                    .then(() => { if (!mountedRef.current) return; setToast({ text: "세션 확인 완료", kind: "info" }); })
+                    .catch(() => { if (!mountedRef.current) return; setToast({ text: "세션 확인 실패", kind: "warn" }); });
                 }}
               >
                 세션 점검
