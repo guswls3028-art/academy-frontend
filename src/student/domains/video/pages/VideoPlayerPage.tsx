@@ -231,7 +231,7 @@ export default function VideoPlayerPage() {
         if (!cancelled) setSessionVideosData(null);
       });
     return () => { cancelled = true; };
-  }, [sessionId, enrollmentId, videoId]);
+  }, [sessionId, enrollmentId ?? "public", videoId]);
 
   const handleComplete = () => {
     if (!videoId || !video) return;
