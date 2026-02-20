@@ -1072,6 +1072,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
   );
 
   const onStageTouchEndLongPress = useCallback(() => {
+    if (!mountedRef.current) return;
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
