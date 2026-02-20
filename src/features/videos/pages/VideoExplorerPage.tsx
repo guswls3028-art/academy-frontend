@@ -5,7 +5,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FilePlus, Video, Folder } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
@@ -21,6 +21,7 @@ import {
   fetchVideoFolders,
   createVideoFolder,
   deleteVideoFolder,
+  deleteVideo,
   type Video as ApiVideo,
   type VideoFolder,
 } from "../api/videos";
@@ -249,6 +250,31 @@ export default function VideoExplorerPage() {
     [publicSession, selectedFolderId, queryClient]
   );
 
+  const deleteVideoMutation = useMutation({
+    mutationFn: deleteVideo,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["session-videos", publicSession?.session_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["video-folders", publicSession?.session_id],
+      });
+    },
+    onError: (e) => {
+      alert((e as Error).message || "영상 삭제에 실패했습니다.");
+    },
+  });
+
+  const handleDeleteVideo = useCallback(
+    (e: React.MouseEvent, videoId: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!confirm("정말 삭제하시겠습니까?")) return;
+      deleteVideoMutation.mutate(videoId);
+    },
+    [deleteVideoMutation]
+  );
+
   return (
     <DomainLayout
       title="영상"
@@ -354,7 +380,20 @@ export default function VideoExplorerPage() {
                       {v.title || "—"}
                     </span>
                     <span className={styles.itemMeta}>{formatDate(v.created_at)}</span>
-                    <VideoStatusBadge status={v.status ?? "PENDING"} />
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", justifyContent: "center", flexWrap: "wrap" }}>
+                      <VideoStatusBadge status={v.status ?? "PENDING"} />
+                      {selectedFolderId === "public" && (
+                        <Button
+                          intent="ghost"
+                          size="sm"
+                          disabled={deleteVideoMutation.isPending}
+                          onClick={(e) => handleDeleteVideo(e, v.id)}
+                          title="삭제"
+                        >
+                          삭제
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

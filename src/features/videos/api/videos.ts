@@ -264,3 +264,7 @@ export async function createVideoFolder(
 export async function deleteVideoFolder(folderId: number): Promise<void> {
   await api.delete(`/media/videos/folders/${folderId}/`);
 }
+
+export async function deleteVideo(videoId: number): Promise<void> {
+  await api.delete(`/media/videos/${videoId}/`);
+}

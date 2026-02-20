@@ -1,25 +1,55 @@
 // PATH: src/features/videos/components/features/video-detail/components/VideoProcessingPreview.tsx
 
+import { Button } from "@/shared/ui/ds";
+
 interface Props {
   percent?: number | null;
   status: string;
+  onRetry?: () => void;
+  isRetrying?: boolean;
 }
 
-export default function VideoProcessingPreview({ percent, status }: Props) {
+export default function VideoProcessingPreview({
+  percent,
+  status,
+  onRetry,
+  isRetrying,
+}: Props) {
   const safePercent =
     typeof percent === "number"
       ? Math.min(100, Math.max(0, Math.round(percent)))
       : null;
 
+  const statusLabel =
+    status === "FAILED"
+      ? "인코딩 실패"
+      : status === "UPLOADED"
+        ? "업로드 완료"
+        : "영상 처리 중";
+
   return (
     <div className="flex flex-col items-center justify-center h-[320px] rounded-lg bg-[var(--bg-surface)] border border-[var(--border-divider)]">
       <div className="text-sm font-semibold text-[var(--text-primary)]">
-        {status === "UPLOADED" ? "업로드 완료" : "영상 처리 중"}
+        {statusLabel}
       </div>
 
       <div className="mt-2 text-xs text-[var(--text-muted)]">
-        썸네일 생성 및 인코딩 진행 중
+        {status === "FAILED"
+          ? "인코딩에 실패했습니다. 아래 버튼으로 다시 시도하세요."
+          : "썸네일 생성 및 인코딩 진행 중"}
       </div>
+
+      {onRetry && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          onClick={onRetry}
+          disabled={isRetrying}
+        >
+          {isRetrying ? "재시도 요청 중…" : "인코딩 다시 시도"}
+        </Button>
+      )}
 
       {/* Progress Bar */}
       <div className="mt-6 w-[260px]">

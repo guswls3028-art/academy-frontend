@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 
 import VideoDetailLayout from "./VideoDetailLayout";
 import { styles } from "./VideoDetail.styles";
@@ -31,6 +33,29 @@ export default function VideoDetailPage() {
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [memo, setMemo] = useState("");
+  const qc = useQueryClient();
+
+  const retryMutation = useMutation({
+    mutationFn: async () => {
+      await api.post(`/media/videos/${videoId}/retry/`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      asyncStatusStore.addWorkerJob(
+        video?.title ? `${video.title} 재처리` : `영상 ${videoId} 재처리`,
+        String(videoId),
+        "video_processing"
+      );
+      feedback.success("재처리 요청을 보냈습니다.");
+    },
+    onError: (e: unknown) => {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (e as Error)?.message ||
+        "재처리에 실패했습니다.";
+      feedback.error(msg);
+    },
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["video-stats", videoId],
@@ -94,6 +119,12 @@ export default function VideoDetailPage() {
                   hlsSrc={video.hls_url}
                   status={video.status}
                   progressPercent={null}
+                  onRetry={
+                    ["FAILED", "PROCESSING", "UPLOADED"].includes(video.status)
+                      ? () => retryMutation.mutate()
+                      : undefined
+                  }
+                  isRetrying={retryMutation.isPending}
                 />
               </div>
             </section>

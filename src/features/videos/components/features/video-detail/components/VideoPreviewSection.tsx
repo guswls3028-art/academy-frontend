@@ -9,6 +9,8 @@ interface Props {
   hlsSrc: string | null;
   status: string;
   progressPercent?: number | null;
+  onRetry?: () => void;
+  isRetrying?: boolean;
 }
 
 export default function VideoPreviewSection({
@@ -17,6 +19,8 @@ export default function VideoPreviewSection({
   hlsSrc,
   status,
   progressPercent,
+  onRetry,
+  isRetrying,
 }: Props) {
   const isReady = status === "READY";
 
@@ -55,6 +59,8 @@ export default function VideoPreviewSection({
           <VideoProcessingPreview
             status={status}
             percent={progressPercent}
+            onRetry={onRetry}
+            isRetrying={isRetrying}
           />
         )}
       </div>

@@ -241,6 +241,11 @@
 }
 
 .async-status-bar__item-btn--retry {
+  width: auto;
+  min-width: 28px;
+  padding: 0 8px;
+  gap: 4px;
+  font-size: 12px;
   color: var(--color-primary, #2563eb);
 }
 

@@ -336,51 +336,32 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               )}
             </>
           )}
-          {/* ✅ 완료/실패 작업: 재시도 버튼만 표시 */}
+          {/* ✅ 완료/실패 작업: 재시도 버튼 직접 노출 (한 번 클릭으로 재시도) */}
           {canRetry && (
             <>
               <button
                 type="button"
-                className="async-status-bar__item-btn async-status-bar__item-btn--stop"
+                className="async-status-bar__item-btn async-status-bar__item-btn--retry"
+                onClick={handleRetry}
+                disabled={retrying}
+                title="인코딩 다시 시도"
+                aria-label="인코딩 다시 시도"
+              >
+                <RetryIcon size={14} />
+                <span>{retrying ? "요청 중…" : "재시도"}</span>
+              </button>
+              <button
+                type="button"
+                className="async-status-bar__item-btn async-status-bar__item-btn--delete"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowActions(!showActions);
+                  asyncStatusStore.removeTask(task.id);
                 }}
-                title="중지"
-                aria-label="중지"
+                title="삭제"
+                aria-label="삭제"
               >
-                <StopIcon size={14} />
+                <TrashIcon size={14} />
               </button>
-              {/* ✅ 중지 클릭 시 나타나는 메뉴 */}
-              {showActions && (
-                <div className="async-status-bar__actions-menu">
-                  <button
-                    type="button"
-                    className="async-status-bar__actions-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowActions(false);
-                      handleRetry(e);
-                    }}
-                    disabled={retrying}
-                  >
-                    <RetryIcon size={14} />
-                    <span>재시도</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="async-status-bar__actions-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowActions(false);
-                      asyncStatusStore.removeTask(task.id);
-                    }}
-                  >
-                    <TrashIcon size={14} />
-                    <span>삭제</span>
-                  </button>
-                </div>
-              )}
             </>
           )}
           {/* ✅ 완료된 작업: 삭제 버튼만 표시 */}
