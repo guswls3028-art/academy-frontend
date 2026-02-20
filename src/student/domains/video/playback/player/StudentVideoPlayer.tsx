@@ -1392,7 +1392,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
                         disabled={speedLocked}
                         items={rateMenu.map((r) => ({
                           label: `${r}x${Math.abs(r - rate) < 0.001 ? " ✓" : ""}`,
-                          onClick: () => setPlaybackRate(r),
+                          onClick: () => { if (!mountedRef.current) return; setPlaybackRate(r); },
                         }))}
                         buttonClassName={speedLocked ? "svpRateDisabled" : ""}
                       />
@@ -1433,7 +1433,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
             </div>
           </div>
 
-          <PlayerToast toast={toast} onClose={() => setToast(null)} />
+          <PlayerToast toast={toast} onClose={() => { if (!mountedRef.current) return; setToast(null); }} />
         </div>
 
         <aside className="svpSide">
