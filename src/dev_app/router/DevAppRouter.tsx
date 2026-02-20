@@ -1,0 +1,33 @@
+// PATH: src/dev_app/router/DevAppRouter.tsx
+// Developer-only app: tenant branding, logos, images.
+// 모바일: 리스트 → 상세 메뉴 → 작업 화면(브랜딩/도메인/Owner/고급) 단계형.
+
+import { Routes, Route, Navigate } from "react-router-dom";
+import DevAppLayout from "@/dev_app/layout/DevAppLayout";
+import DevAppHomePage from "@/dev_app/pages/DevAppHomePage";
+import TenantBrandingPage from "@/dev_app/pages/TenantBrandingPage";
+import TenantListPage from "@/dev_app/pages/TenantListPage";
+import TenantDetailMenuPage from "@/dev_app/pages/TenantDetailMenuPage";
+import TenantBrandingFormPage from "@/dev_app/pages/TenantBrandingFormPage";
+import TenantDomainsPage from "@/dev_app/pages/TenantDomainsPage";
+import TenantAdvancedPage from "@/dev_app/pages/TenantAdvancedPage";
+
+export default function DevAppRouter() {
+  return (
+    <Routes>
+      <Route element={<DevAppLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<DevAppHomePage />} />
+        {/* 모바일 흐름: 리스트 → 상세 메뉴 → 각 설정 화면 */}
+        <Route path="branding" element={<TenantListPage />} />
+        <Route path="branding/:tenantId" element={<TenantDetailMenuPage />} />
+        <Route path="branding/:tenantId/branding" element={<TenantBrandingFormPage />} />
+        <Route path="branding/:tenantId/domains" element={<TenantDomainsPage />} />
+        <Route path="branding/:tenantId/advanced" element={<TenantAdvancedPage />} />
+        {/* 레거시: 단일 페이지(데스크톱용) — 필요 시 별도 path로 유지 */}
+        <Route path="branding-legacy" element={<TenantBrandingPage />} />
+        <Route path="*" element={<Navigate to="home" replace />} />
+      </Route>
+    </Routes>
+  );
+}

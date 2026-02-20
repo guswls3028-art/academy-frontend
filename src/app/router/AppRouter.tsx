@@ -6,7 +6,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import AdminRouter from "./AdminRouter";
 import StudentRouter from "@/student/app/StudentRouter";
 import AuthRouter from "./AuthRouter";
-import AdminAppRouter from "@/admin_app/router/AdminAppRouter";
+import DevAppRouter from "@/dev_app/router/DevAppRouter";
 
 import TenantRequiredPage from "@/features/auth/pages/TenantRequiredPage";
 import useAuth from "@/features/auth/hooks/useAuth";
@@ -36,7 +36,7 @@ function RootRedirect() {
 
     const role = user.tenantRole;
 
-    // 테넌트 1번(hakwonplus) 및 9999번(로컬 개발) owner는 admin_app으로 리다이렉트
+    // 테넌트 1번(hakwonplus) 및 9999번(로컬 개발) owner는 dev_app(개발자 앱)으로 리다이렉트
     if ((program.tenantCode === "hakwonplus" || program.tenantCode === "9999") && role === "owner") {
       navigate("/dev/home", { replace: true });
       return;
@@ -93,7 +93,7 @@ export default function AppRouter() {
           <ProtectedRoute allow={["owner"]} />
         }
       >
-        <Route path="/dev/*" element={<AdminAppRouter />} />
+        <Route path="/dev/*" element={<DevAppRouter />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

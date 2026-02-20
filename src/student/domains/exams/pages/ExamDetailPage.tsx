@@ -87,7 +87,7 @@ export default function ExamDetailPage() {
             {/* ✅ can_retake만 신뢰 */}
             {canRetake ? (
               <Link to={`/student/exams/${exam.id}/submit`} className="stu-cta-link">
-                제출하기
+                입력하기
               </Link>
             ) : (
               <div className="stu-muted" style={{ fontSize: 13 }}>

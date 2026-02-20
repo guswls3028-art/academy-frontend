@@ -13,7 +13,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 
 import api from "@/shared/api/axios";
 
@@ -34,9 +34,11 @@ import SessionAssessmentSidePanel
 
 /* ================= 기존 페이지 재사용 ================= */
 import SessionAttendancePage from "@/features/lectures/pages/attendance/SessionAttendancePage";
-import SessionExamsPage from "@/features/lectures/pages/exams/SessionExamsPage";
 import SessionScoresEntryPage from "@/features/lectures/pages/scores/SessionScoresEntryPage";
-import SessionAssignmentsEntryPage from "@/features/lectures/pages/assignments/SessionAssignmentsEntryPage";
+import SessionAssessmentWorkspace from "@/features/sessions/components/SessionAssessmentWorkspace";
+import SessionExamOpsBoard from "@/features/sessions/components/SessionExamOpsBoard";
+import SessionHomeworkOpsBoard from "@/features/sessions/components/SessionHomeworkOpsBoard";
+import AdminExamDetail from "@/features/exams/components/AdminExamDetail";
 
 type SessionTab =
   | "attendance"
@@ -54,10 +56,21 @@ async function fetchSession(id: number) {
 export default function SessionDetailPage() {
   const { lectureId, sessionId } = useLectureParams();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const qc = useQueryClient();
 
   const lecId = Number(lectureId);
   const sId = Number(sessionId);
+
+  const examId = useMemo(() => {
+    const v = Number(searchParams.get("examId"));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  }, [searchParams]);
+
+  const homeworkId = useMemo(() => {
+    const v = Number(searchParams.get("homeworkId"));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  }, [searchParams]);
 
   if (!Number.isFinite(lecId) || !Number.isFinite(sId)) {
     return <div className="p-4 text-sm text-[var(--color-error)]">잘못된 접근입니다.</div>;
@@ -78,6 +91,7 @@ export default function SessionDetailPage() {
 
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [openCreateExam, setOpenCreateExam] = useState(false);
 
   const { data: session } = useQuery({
     queryKey: ["session", sId],
@@ -158,7 +172,13 @@ export default function SessionDetailPage() {
 
       <div className="flex gap-4">
         {showAssessmentPanel && (
-          <SessionAssessmentSidePanel lectureId={lecId} sessionId={sId} />
+          <SessionAssessmentSidePanel
+            lectureId={lecId}
+            sessionId={sId}
+            openCreateExam={openCreateExam}
+            onCloseCreateExam={() => setOpenCreateExam(false)}
+            onOpenCreateExam={() => setOpenCreateExam(true)}
+          />
         )}
         <div className="flex-1 min-w-0">
           {activeTab === "attendance" && (
@@ -169,9 +189,16 @@ export default function SessionDetailPage() {
             />
           )}
 
-          {activeTab === "exams" && (
-            <SessionExamsPage sessionId={sId} />
-          )}
+          {activeTab === "exams" &&
+            (examId ? (
+              <AdminExamDetail examId={examId} mode="operate" />
+            ) : (
+              <SessionExamOpsBoard
+                lectureId={lecId}
+                sessionId={sId}
+                onAddExam={() => setOpenCreateExam(true)}
+              />
+            ))}
 
           {activeTab === "scores" && (
             <SessionScoresEntryPage
@@ -180,12 +207,12 @@ export default function SessionDetailPage() {
             />
           )}
 
-          {activeTab === "assignments" && (
-            <SessionAssignmentsEntryPage
-              lectureId={lecId}
-              sessionId={sId}
-            />
-          )}
+          {activeTab === "assignments" &&
+            (homeworkId ? (
+              <SessionAssessmentWorkspace mode="homework" />
+            ) : (
+              <SessionHomeworkOpsBoard lectureId={lecId} sessionId={sId} />
+            ))}
 
           {activeTab === "videos" && (
             <SessionVideosTab sessionId={sId} />

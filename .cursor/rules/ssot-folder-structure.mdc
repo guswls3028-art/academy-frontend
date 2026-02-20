@@ -1,13 +1,13 @@
 ---
-description: SSOT 날짜 폴더 구조 — SSOT_0218부터 적용. cursor_only(AI전용) / admin97(사람용) 분리.
+description: SSOT 날짜 폴더 구조 (백엔드 academy 한정). 프론트(academyfront)는 docs/REFERENCE.md 단일 참조.
 alwaysApply: true
 ---
 
-# SSOT 날짜 폴더 규칙 (SSOT_0218 이후)
+# SSOT 날짜 폴더 규칙 (백엔드 academy)
 
-## 적용 시점
-- **SSOT_0217**: 기존 구조 유지 (루트에 01~06, README).
-- **SSOT_0218 이후**: 아래 구조 **필수**.
+**academyfront**: 문서는 루트 README + **docs/REFERENCE.md** 단일 참조. 날짜 폴더 없음.
+
+**academy**: 과거 스냅샷은 docs/archive. 아래는 레거시 규칙 참고용.
 
 ## 폴더 구조
 ```

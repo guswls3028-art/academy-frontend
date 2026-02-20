@@ -1,6 +1,6 @@
 // PATH: src/shared/program/index.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 export type Program = {
   tenantCode: string;
@@ -32,7 +32,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
 
   const load = async () => {
     try {
-      const res = await api.get<Program>("/core/program/");
+      const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
       setProgram(res.data ?? null);
     } catch {
       setProgram(null);

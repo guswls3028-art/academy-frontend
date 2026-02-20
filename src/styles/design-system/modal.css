@@ -561,6 +561,36 @@
   cursor: not-allowed;
 }
 
+/* ========== 시험 선택형 OMR — 세로로 긴 버블 (한국 OMR 스타일) ========== */
+.exam-omr-bubble {
+  width: 22px;
+  height: 28px;
+  min-width: 22px;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid var(--color-border-divider);
+  border-radius: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-surface, var(--scale-Neutral0, #fff));
+  color: var(--color-text-primary);
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.exam-omr-bubble:hover:not(:disabled) {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--scale-Neutral0, #fff));
+}
+
+.exam-omr-bubble--selected {
+  background: color-mix(in srgb, var(--color-brand-primary) 22%, var(--scale-Neutral0, #fff));
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
 /* ========== 성별 버튼 — 고등/중등/학년과 동일 디자인, 색상만 남 파랑/여 분홍 하드코딩 ========== */
 .student-gender-btn {
   height: 36px;

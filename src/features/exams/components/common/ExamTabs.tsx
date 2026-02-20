@@ -6,26 +6,36 @@ type Props = {
   onChange: (k: ExamTabKey) => void;
   hasSession: boolean;
   assetsReady: boolean;
+  /** operate 모드: 운영/제출/채점·결과만 노출, 자산 숨김 */
+  mode?: "design" | "operate";
 };
 
-const TABS: { key: ExamTabKey; label: string }[] = [
+const TABS_DESIGN: { key: ExamTabKey; label: string }[] = [
   { key: "setup", label: "기본 설정" },
   { key: "assets", label: "자산" },
   { key: "submissions", label: "제출" },
   { key: "results", label: "결과" },
 ];
 
-export default function ExamTabs({ activeTab, onChange }: Props) {
+const TABS_OPERATE: { key: ExamTabKey; label: string }[] = [
+  { key: "setup", label: "운영" },
+  { key: "submissions", label: "제출" },
+  { key: "results", label: "채점·결과" },
+];
+
+export default function ExamTabs({ activeTab, onChange, mode = "design" }: Props) {
+  const tabs = mode === "operate" ? TABS_OPERATE : TABS_DESIGN;
+  const effectiveTab = mode === "operate" && activeTab === "assets" ? "setup" : activeTab;
   return (
     <div className="ds-tabs ds-tabs--flat border-b border-[var(--color-border-divider)]" role="tablist">
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <button
           key={t.key}
           type="button"
           role="tab"
-          aria-selected={activeTab === t.key}
+          aria-selected={effectiveTab === t.key}
           onClick={() => onChange(t.key)}
-          className={`ds-tab ${activeTab === t.key ? "is-active" : ""}`}
+          className={`ds-tab ${effectiveTab === t.key ? "is-active" : ""}`}
         >
           {t.label}
         </button>

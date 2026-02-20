@@ -101,6 +101,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // 다른 탭/창에서 로그아웃·401로 clearAuth() 시 이 탭도 로그인 상태 해제 → ProtectedRoute가 로그인으로 보냄
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "access" || e.key === "refresh") {
+        if (e.newValue == null) setUser(null);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // 탭 포커스 시 인증 재검사 — 만료된 탭/다른 기기에서 열어둔 화면은 로그인으로 보냄
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const access = getAccessToken();
+      if (!access) {
+        setUser(null);
+        return;
+      }
+      api.get<User>("/core/me/").then(
+        (res) => setUser(res.data ?? null),
+        (err: any) => {
+          const status = err?.response?.status;
+          if (status === 401 || status === 403 || status === 404) {
+            clearAuth();
+          }
+        }
+      );
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   const value = useMemo<AuthState>(
     () => ({
       user,

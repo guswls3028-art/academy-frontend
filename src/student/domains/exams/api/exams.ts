@@ -30,3 +30,29 @@ export async function fetchStudentExam(examId: number): Promise<StudentExam> {
   const res = await api.get(`/student/exams/${examId}/`);
   return res.data as StudentExam;
 }
+
+export type StudentExamQuestion = {
+  id: number;
+  number: number;
+  score: number;
+};
+
+export async function fetchStudentExamQuestions(
+  examId: number
+): Promise<StudentExamQuestion[]> {
+  const res = await api.get(`/student/exams/${examId}/questions/`);
+  const data = res.data;
+  return Array.isArray(data) ? data : [];
+}
+
+export type SubmitAnswersPayload = {
+  answers: Array<{ exam_question_id: number; answer: string }>;
+};
+
+export async function submitStudentExamAnswers(
+  examId: number,
+  payload: SubmitAnswersPayload
+): Promise<{ submission_id: number; status: string }> {
+  const res = await api.post(`/student/exams/${examId}/submit/`, payload);
+  return res.data as { submission_id: number; status: string };
+}

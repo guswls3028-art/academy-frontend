@@ -7,6 +7,7 @@ import api from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
 import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
 
+import { feedback } from "@/shared/ui/feedback/feedback";
 import CreateRegularExamModal from "@/features/exams/components/create/CreateRegularExamModal";
 import CreateHomeworkModal from "@/features/homework/components/CreateHomeworkModal";
 
@@ -16,6 +17,10 @@ import { deleteSessionHomework } from "@/features/sessions/api/deleteSessionHome
 type Props = {
   lectureId: number;
   sessionId: number;
+  /** 시험 추가 모달 열림(상위 제어). 없으면 내부 state 사용 */
+  openCreateExam?: boolean;
+  onCloseCreateExam?: () => void;
+  onOpenCreateExam?: () => void;
 };
 
 type HomeworkItem = {
@@ -27,10 +32,17 @@ type HomeworkItem = {
 export default function SessionAssessmentSidePanel({
   lectureId,
   sessionId,
+  openCreateExam: openCreateExamProp,
+  onCloseCreateExam,
+  onOpenCreateExam,
 }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [openCreateExamLocal, setOpenCreateExamLocal] = useState(false);
+  const openCreateExam = openCreateExamProp ?? openCreateExamLocal;
+  const setOpenCreateExam = onOpenCreateExam ?? (() => setOpenCreateExamLocal(true));
+  const handleCloseCreateExam = onCloseCreateExam ?? (() => setOpenCreateExamLocal(false));
 
   const examId = useMemo(() => {
     const v = Number(searchParams.get("examId"));
@@ -78,7 +90,6 @@ export default function SessionAssessmentSidePanel({
     enabled: !!sessionId,
   });
 
-  const [openCreateExam, setOpenCreateExam] = useState(false);
   const [openCreateHomework, setOpenCreateHomework] = useState(false);
 
   const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
@@ -130,7 +141,7 @@ export default function SessionAssessmentSidePanel({
     >
       <PanelSection
         title="시험"
-        onAdd={() => setOpenCreateExam(true)}
+        onAdd={setOpenCreateExam}
       >
         {examsLoading && <Empty>불러오는 중…</Empty>}
         {!examsLoading && exams.length === 0 && <Empty>시험 없음</Empty>}
@@ -178,10 +189,12 @@ export default function SessionAssessmentSidePanel({
 
       <CreateRegularExamModal
         open={openCreateExam}
-        onClose={() => setOpenCreateExam(false)}
+        onClose={handleCloseCreateExam}
         sessionId={sessionId}
+        lectureId={lectureId}
         onCreated={(id) => {
           invalidateExams();
+          feedback.success("시험이 생성되었습니다.");
           onSelectExam(id);
         }}
       />

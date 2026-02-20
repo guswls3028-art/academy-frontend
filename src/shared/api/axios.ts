@@ -13,6 +13,9 @@ type RetryConfig = AxiosRequestConfig & {
   _asyncId?: string;
 };
 
+/** AllowAny 엔드포인트(예: /core/program/) 호출 시 만료 토큰 401 방지 */
+export type ApiRequestConfig = AxiosRequestConfig & { skipAuth?: boolean };
+
 type RefreshResponse = { access: string };
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
@@ -70,8 +73,9 @@ function flushRefreshQueue(token: string | null) {
   q.forEach((cb) => cb(token));
 }
 
-function shouldSkipAuth(url?: string) {
+function shouldSkipAuth(url?: string, config?: AxiosRequestConfig) {
   const u = String(url || "");
+  if ((config as any)?.skipAuth === true) return true;
   return u.includes("/token/") || u.includes("/token/refresh/");
 }
 
@@ -101,7 +105,8 @@ api.interceptors.request.use((config) => {
   const cfg = config;
 
   // Attach Authorization if access exists (JWT)
-  if (!shouldSkipAuth(cfg.url)) {
+  // skipAuth: true → 로그인 전 /core/program/ 등 AllowAny 엔드포인트용 (만료 토큰 시 401 방지)
+  if (!shouldSkipAuth(cfg.url, cfg)) {
     const access = getAccessToken();
     if (access) {
       cfg.headers = cfg.headers ?? {};
@@ -189,7 +194,7 @@ api.interceptors.response.use(
       throw err;
     }
 
-    if (status === 401 && !original._retry && !shouldSkipAuth(original.url)) {
+    if (status === 401 && !original._retry && !shouldSkipAuth(original.url, original)) {
       original._retry = true;
 
       if (isRefreshing) {
