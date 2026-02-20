@@ -217,6 +217,7 @@
   border: 0;
   cursor: pointer;
   color: #fff;
+  z-index: 20;
 }
 
 .svpBigPlay:hover .svpBigPlayIcon {
