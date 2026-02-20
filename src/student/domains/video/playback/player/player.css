@@ -250,6 +250,7 @@
   bottom: 0;
   padding: 10px 12px 12px 12px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.62) 50%, rgba(0, 0, 0, 0.85));
+  z-index: 20;
 }
 
 .svpProgressRow {
