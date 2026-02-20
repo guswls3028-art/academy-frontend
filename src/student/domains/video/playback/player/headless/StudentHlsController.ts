@@ -236,6 +236,16 @@ export class StudentHlsController {
     } catch {}
   }
 
+  showToast(text: string, kind?: "info" | "warn" | "danger") {
+    if (this.disposed) return;
+    this.setState({ toast: { text, kind } });
+  }
+
+  clearToast() {
+    if (this.disposed) return;
+    this.setState({ toast: null });
+  }
+
   setToken(token: string) {
     this.tokenRef = token;
   }
