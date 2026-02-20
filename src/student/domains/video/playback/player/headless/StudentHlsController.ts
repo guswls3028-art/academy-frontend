@@ -246,6 +246,18 @@ export class StudentHlsController {
     this.setState({ toast: null });
   }
 
+  async refreshSession() {
+    if (this.disposed) return;
+    const token = this.tokenRef;
+    if (!token) return;
+    try {
+      await postRefresh(token);
+      this.showToast("세션 확인 완료", "info");
+    } catch {
+      this.showToast("세션 확인 실패", "warn");
+    }
+  }
+
   setToken(token: string) {
     this.tokenRef = token;
   }
