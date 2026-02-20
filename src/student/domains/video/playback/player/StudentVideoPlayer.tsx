@@ -294,7 +294,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (!wrap) return;
 
     const onFullscreenChange = () => {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       const el =
         document.fullscreenElement ||
         (document as any).webkitFullscreenElement ||
@@ -335,7 +335,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     if (playing && !buffering && showControls) {
       hideControlsTimerRef.current = window.setTimeout(() => {
         hideControlsTimerRef.current = null;
-        if (isUnmountedRef.current) return;
+        if (!mountedRef.current) return;
         setShowControls(false);
       }, 3000);
     }
@@ -439,7 +439,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
           } catch {}
 
           if (data?.fatal) {
-            if (isUnmountedRef.current) return;
+            if (!mountedRef.current) return;
             const errorMsg = data?.details || data?.type || "알 수 없는 오류";
             const errorCode = data?.response?.code || data?.code;
             const is404 = errorCode === 404 || errorMsg.includes("404") || errorMsg.includes("Not Found");
@@ -525,7 +525,7 @@ export default function StudentVideoPlayer({ video, bootstrap, enrollmentId, onF
     try {
       await postEvents(token, batch, video.id, enrollmentId);
     } catch (e: any) {
-      if (isUnmountedRef.current) return;
+      if (!mountedRef.current) return;
       // session revoked / inactive -> stop
       const msg = e?.response?.data?.detail || e?.message || "";
       if (String(msg).includes("session_inactive") || e?.response?.status === 409) {
