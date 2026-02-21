@@ -1,9 +1,10 @@
 // PATH: src/features/videos/pages/VideoDetailPage.tsx
 
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { deleteVideo } from "../api/videos";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 
@@ -34,6 +35,23 @@ export default function VideoDetailPage() {
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [memo, setMemo] = useState("");
   const qc = useQueryClient();
+  const navigate = useNavigate();
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteVideo(videoId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["session-videos"] });
+      qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/videos`);
+    },
+    onError: (e: unknown) => {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (e as Error)?.message ||
+        "영상 삭제에 실패했습니다.";
+      feedback.error(msg);
+    },
+  });
 
   const retryMutation = useMutation({
     mutationFn: async () => {
@@ -98,7 +116,24 @@ export default function VideoDetailPage() {
                 이 영상에 대한 시청 정책, 학생 성과, 로그 데이터를 관리합니다.
               </p>
             </div>
-            <div className={styles.header.actions}>
+            <div className={styles.header.actions} style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("정말 삭제하시겠습니까?")) {
+                    deleteMutation.mutate();
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className={styles.header.primaryDropdown}
+                style={{
+                  color: "var(--color-danger)",
+                  borderColor: "var(--color-danger)",
+                  background: "transparent",
+                }}
+              >
+                {deleteMutation.isPending ? "삭제 중…" : "삭제"}
+              </button>
               <Link
                 to={`/admin/lectures/${lectureId}/sessions/${sessionId}`}
                 className={styles.header.primaryDropdown}

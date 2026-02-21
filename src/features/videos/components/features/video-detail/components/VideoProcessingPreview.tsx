@@ -22,10 +22,10 @@ export default function VideoProcessingPreview({
 
   const statusLabel =
     status === "FAILED"
-      ? "인코딩 실패"
+      ? "처리 실패"
       : status === "UPLOADED"
         ? "업로드 완료"
-        : "영상 처리 중";
+        : "처리 중";
 
   return (
     <div className="flex flex-col items-center justify-center h-[320px] rounded-lg bg-[var(--bg-surface)] border border-[var(--border-divider)]">
@@ -35,8 +35,8 @@ export default function VideoProcessingPreview({
 
       <div className="mt-2 text-xs text-[var(--text-muted)]">
         {status === "FAILED"
-          ? "인코딩에 실패했습니다. 아래 버튼으로 다시 시도하세요."
-          : "썸네일 생성 및 인코딩 진행 중"}
+          ? "처리에 실패했습니다. 아래 버튼으로 재처리 요청을 보내세요."
+          : "썸네일 생성 및 변환 진행 중"}
       </div>
 
       {onRetry && (
@@ -47,7 +47,7 @@ export default function VideoProcessingPreview({
           onClick={onRetry}
           disabled={isRetrying}
         >
-          {isRetrying ? "재시도 요청 중…" : "인코딩 다시 시도"}
+          {isRetrying ? "요청 중…" : "재처리 요청"}
         </Button>
       )}
 

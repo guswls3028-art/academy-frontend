@@ -126,8 +126,8 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     if (successCount > 0) {
       feedback.success(
         r2Errors.length > 0
-          ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 인코딩은 우하단 작업 박스에서 확인하세요.`
-          : `${successCount}개 업로드 완료. 인코딩은 우하단 작업 박스에서 이어서 진행됩니다.`
+          ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 처리는 우하단 진행 상황에서 확인하세요.`
+          : `${successCount}개 업로드 완료. 처리는 우하단 진행 상황에서 이어서 진행됩니다.`
       );
     }
     if (r2Errors.length > 0) {
@@ -289,7 +289,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
       <ModalFooter
         left={
           <span className="modal-hint" style={{ marginBottom: 0 }}>
-            업로드 버튼을 누르면 우하단 작업 박스에서 업로드·인코딩 진행 상황을 확인할 수 있습니다.
+            업로드 버튼을 누르면 우하단 진행 상황에서 업로드·처리 진행을 확인할 수 있습니다.
           </span>
         }
         right={

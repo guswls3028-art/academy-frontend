@@ -127,25 +127,19 @@ function RetryIcon({ className, size = 16 }: { className?: string; size?: number
   );
 }
 
-function CancelIcon({ className, size = 16 }: { className?: string; size?: number }) {
+/** 금지(prohibition) 아이콘 — 원에 슬래시 */
+function BanIcon({ className, size = 16 }: { className?: string; size?: number }) {
   return (
     <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="10" />
-      <path d="M15 9l-6 6M9 9l6 6" />
-    </svg>
-  );
-}
-
-function StopIcon({ className, size = 16 }: { className?: string; size?: number }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <rect x="6" y="6" width="12" height="12" rx="2" />
+      <path d="M4.93 4.93l14.14 14.14" />
     </svg>
   );
 }
 
 function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
   const remainingLabel = getRemainingLabel(task, now);
   const canRetry =
@@ -154,7 +148,6 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     (task.status === "error" || task.status === "success");
   const canCancel = task.status === "pending" && task.meta?.jobId;
   const [retrying, setRetrying] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const progressNum = task.progress != null ? Math.round(task.progress) : null;
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -214,42 +207,6 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     }
   };
 
-  const handleCancel = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // 클릭 이벤트 전파 방지
-    if (!task.meta?.jobId || cancelling) return;
-    
-    const confirmed = window.confirm("작업을 취소하시겠습니까?");
-    if (!confirmed) return;
-    
-    setCancelling(true);
-    try {
-      const jobType = task.meta.jobType;
-      if (jobType === "video_processing") {
-        // 비디오 작업 취소 (삭제)
-        await api.delete(`/media/videos/${task.meta.jobId}/`);
-        asyncStatusStore.removeTask(task.id);
-        feedback.success("작업이 취소되었습니다.");
-      } else if (jobType === "excel_parsing") {
-        // 엑셀 작업 취소 (API 확인 필요)
-        // 일단 작업만 제거
-        asyncStatusStore.removeTask(task.id);
-        feedback.success("작업이 취소되었습니다.");
-      } else {
-        // 기타 작업은 작업만 제거
-        asyncStatusStore.removeTask(task.id);
-        feedback.success("작업이 취소되었습니다.");
-      }
-    } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        (e as Error)?.message ||
-        "작업 취소에 실패했습니다.";
-      feedback.error(msg);
-    } finally {
-      setCancelling(false);
-    }
-  };
-
   return (
     <div 
       className="async-status-bar__item"
@@ -290,7 +247,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
           ref={actionsRef}
           style={{ position: "relative" }}
         >
-          {/* ✅ 진행 중인 작업: 중지 버튼만 표시 */}
+          {/* ✅ 진행 중인 작업: 금지 아이콘 클릭 시 삭제 메뉴 */}
           {canCancel && (
             <>
               <button
@@ -300,27 +257,13 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                   e.stopPropagation();
                   setShowActions(!showActions);
                 }}
-                title="중지"
-                aria-label="중지"
+                title="삭제"
+                aria-label="삭제"
               >
-                <StopIcon size={14} />
+                <BanIcon size={14} />
               </button>
-              {/* ✅ 중지 클릭 시 나타나는 메뉴 */}
               {showActions && (
                 <div className="async-status-bar__actions-menu">
-                  <button
-                    type="button"
-                    className="async-status-bar__actions-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowActions(false);
-                      handleCancel(e);
-                    }}
-                    disabled={cancelling}
-                  >
-                    <CancelIcon size={14} />
-                    <span>취소</span>
-                  </button>
                   <button
                     type="button"
                     className="async-status-bar__actions-menu-item"
@@ -345,8 +288,8 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 className="async-status-bar__item-btn async-status-bar__item-btn--retry"
                 onClick={handleRetry}
                 disabled={retrying}
-                title="인코딩 다시 시도"
-                aria-label="인코딩 다시 시도"
+                title="재처리 요청"
+                aria-label="재처리 요청"
               >
                 <RetryIcon size={14} />
                 <span>{retrying ? "요청 중…" : "재시도"}</span>
@@ -482,7 +425,7 @@ export default function AsyncStatusBar() {
       .catch(() => {});
   }, []);
 
-  // 새로고침 후에도 진행 중인 영상 인코딩을 작업 박스에 복원 (태넌트별)
+  // 새로고침 후에도 진행 중인 영상 처리를 진행 상황 패널에 복원 (태넌트별)
   useEffect(() => {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
@@ -494,11 +437,11 @@ export default function AsyncStatusBar() {
     if (refreshing) return;
     setRefreshing(true);
     doHydrate()
-      .then(() => feedback.success("작업 목록을 새로고침했습니다."))
+      .then(() => feedback.success("진행 상황 목록을 새로고침했습니다."))
       .finally(() => setRefreshing(false));
   }, [doHydrate, refreshing]);
 
-  // 새 작업이 추가되면 작업 박스 자동 펼치기 — 사용자가 백그라운드 진행을 바로 확인할 수 있게
+  // 새 작업이 추가되면 진행 상황 패널 자동 펼치기
   useEffect(() => {
     if (pendingCount > prevPendingCountRef.current && pendingCount > 0) {
       setExpanded(true);
@@ -524,19 +467,19 @@ export default function AsyncStatusBar() {
 
   const triggerLabel =
     displayTasks.length === 0
-      ? "작업"
+      ? "진행 상황"
       : pendingCount > 0
         ? `진행 중 ${displayTasks.length}건`
         : errorCount > 0
           ? `실패 ${errorCount}건`
           : `${displayTasks.length}건 완료`;
 
-  // 항상 우하단에 작업 박스 표시 (작업 없을 때도 접힌 상태로 유지)
+  // 항상 우하단에 진행 상황 표시 (작업 없을 때도 접힌 상태로 유지)
   return (
     <div
       className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"} ${errorCount > 0 ? "async-status-bar--has-error" : ""}`}
       role="region"
-      aria-label="비동기 작업 상태"
+      aria-label="진행 중인 작업"
     >
       {/* 접었을 때: Windows 알림처럼 작은 창 */}
       <button
@@ -554,7 +497,7 @@ export default function AsyncStatusBar() {
       {/* 펼쳤을 때: 목록 패널 */}
       <div className="async-status-bar__panel">
         <div className="async-status-bar__header">
-          <span>작업</span>
+          <span>진행 상황</span>
           <div className="async-status-bar__header-actions">
             <button
               type="button"
@@ -590,7 +533,7 @@ export default function AsyncStatusBar() {
         </div>
         <div className="async-status-bar__list">
           {displayTasks.length === 0 ? (
-            <div className="async-status-bar__empty">진행 중인 작업이 없습니다.</div>
+            <div className="async-status-bar__empty">진행 중인 항목이 없습니다.</div>
           ) : (
             displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} />)
           )}

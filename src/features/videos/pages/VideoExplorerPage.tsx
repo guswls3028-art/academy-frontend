@@ -22,6 +22,7 @@ import {
   createVideoFolder,
   deleteVideoFolder,
   deleteVideo,
+  retryVideo,
   type Video as ApiVideo,
   type VideoFolder,
 } from "../api/videos";
@@ -32,6 +33,8 @@ import {
   type Lecture,
   type Session,
 } from "@/features/lectures/api/sessions";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import styles from "../components/VideoExplorer.module.css";
 
 type LectureWithSessions = Lecture & { sessions: Session[] };
@@ -250,15 +253,29 @@ export default function VideoExplorerPage() {
     [publicSession, selectedFolderId, queryClient]
   );
 
+  const retryVideoMutation = useMutation({
+    mutationFn: (payload: { videoId: number; title?: string }) =>
+      retryVideo(payload.videoId).then(() => payload),
+    onSuccess: (payload) => {
+      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+      queryClient.invalidateQueries({ queryKey: ["video-folders"] });
+      asyncStatusStore.addWorkerJob(
+        payload.title ? `${payload.title} 재처리` : `영상 ${payload.videoId} 재처리`,
+        String(payload.videoId),
+        "video_processing"
+      );
+      feedback.success("재처리 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
+    },
+    onError: (e: unknown) => {
+      feedback.error((e as Error)?.message ?? "재처리 요청에 실패했습니다.");
+    },
+  });
+
   const deleteVideoMutation = useMutation({
     mutationFn: deleteVideo,
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["session-videos", publicSession?.session_id],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["video-folders", publicSession?.session_id],
-      });
+      queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+      queryClient.invalidateQueries({ queryKey: ["video-folders"] });
     },
     onError: (e) => {
       alert((e as Error).message || "영상 삭제에 실패했습니다.");
@@ -382,17 +399,33 @@ export default function VideoExplorerPage() {
                     <span className={styles.itemMeta}>{formatDate(v.created_at)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", justifyContent: "center", flexWrap: "wrap" }}>
                       <VideoStatusBadge status={v.status ?? "PENDING"} />
-                      {selectedFolderId === "public" && (
+                      {(v.status === "FAILED" || v.status === "PROCESSING" || v.status === "UPLOADED") && (
                         <Button
-                          intent="ghost"
+                          intent="primary"
                           size="sm"
-                          disabled={deleteVideoMutation.isPending}
-                          onClick={(e) => handleDeleteVideo(e, v.id)}
-                          title="삭제"
+                          disabled={retryVideoMutation.isPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const msg =
+                              "재처리할까요? 진행 중인 작업이 있으면 취소 후 큐에 올라갑니다.";
+                            if (window.confirm(msg)) {
+                              retryVideoMutation.mutate({ videoId: v.id, title: v.title });
+                            }
+                          }}
+                          title="재처리 요청"
                         >
-                          삭제
+                          재처리 요청
                         </Button>
                       )}
+                      <Button
+                        intent="ghost"
+                        size="sm"
+                        disabled={deleteVideoMutation.isPending}
+                        onClick={(e) => handleDeleteVideo(e, v.id)}
+                        title="삭제"
+                      >
+                        삭제
+                      </Button>
                     </div>
                   </div>
                 ))}

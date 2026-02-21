@@ -96,7 +96,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       const video = videos.find((v: MediaVideo) => v.id === videoId);
       const label = video?.title ? `${video.title} 재처리` : `영상 ${videoId} 재처리`;
       asyncStatusStore.addWorkerJob(label, String(videoId), "video_processing");
-      feedback.success("재처리 요청을 보냈습니다. 기존 작업이 있으면 취소 후 새로 큐에 올라갑니다.");
+      feedback.success("재처리 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
     },
     onError: (e: unknown) => {
       const msg =
@@ -211,17 +211,13 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                 e.preventDefault();
                 e.stopPropagation();
                 const msg =
-                  video.status === "PROCESSING"
-                    ? "진행 중인 인코딩을 취소하고 다시 시도할까요?"
-                    : video.status === "UPLOADED"
-                      ? "업로드 완료 상태입니다. 인코딩을 큐에 넣을까요?"
-                      : "영상 처리를 다시 시도할까요?";
+                  "재처리할까요? 진행 중인 작업이 있으면 취소 후 큐에 올라갑니다.";
                 if (window.confirm(msg)) {
                   retryMutation.mutate(video.id);
                 }
               }}
             >
-              {video.status === "PROCESSING" ? "다시 시도" : video.status === "UPLOADED" ? "인코딩 요청" : "재처리"}
+              재처리 요청
             </Button>
           )}
           <Button
