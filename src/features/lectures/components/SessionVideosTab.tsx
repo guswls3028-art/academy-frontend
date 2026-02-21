@@ -56,8 +56,9 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     mutationFn: async (id: number) => {
       await api.delete(`/media/videos/${id}/`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, videoId) => {
       qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+      asyncStatusStore.removeTask(String(videoId));
     },
   });
 

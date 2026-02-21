@@ -273,9 +273,10 @@ export default function VideoExplorerPage() {
 
   const deleteVideoMutation = useMutation({
     mutationFn: deleteVideo,
-    onSuccess: () => {
+    onSuccess: (_data, videoId) => {
       queryClient.invalidateQueries({ queryKey: ["session-videos"] });
       queryClient.invalidateQueries({ queryKey: ["video-folders"] });
+      asyncStatusStore.removeTask(String(videoId));
     },
     onError: (e) => {
       alert((e as Error).message || "영상 삭제에 실패했습니다.");

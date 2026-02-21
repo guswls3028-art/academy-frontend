@@ -148,6 +148,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     (task.status === "error" || task.status === "success");
   const canCancel = task.status === "pending" && task.meta?.jobId;
   const [retrying, setRetrying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const progressNum = task.progress != null ? Math.round(task.progress) : null;
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -185,6 +186,32 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     } else {
       // 기타 작업은 대시보드로 이동
       navigate("/admin/dashboard");
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!task.meta?.jobId || deleting) return;
+    const jobType = task.meta.jobType;
+    setDeleting(true);
+    setShowActions(false);
+    try {
+      if (jobType === "video_processing") {
+        await api.delete(`/media/videos/${task.meta.jobId}/`);
+        queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+        queryClient.invalidateQueries({ queryKey: ["video-folders"] });
+        queryClient.invalidateQueries({ queryKey: ["video-stats"] });
+        feedback.success("영상이 삭제되었습니다.");
+      }
+      asyncStatusStore.removeTask(task.id);
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (e as Error)?.message ||
+        "삭제에 실패했습니다.";
+      feedback.error(msg);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -267,14 +294,11 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                   <button
                     type="button"
                     className="async-status-bar__actions-menu-item"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowActions(false);
-                      asyncStatusStore.removeTask(task.id);
-                    }}
+                    onClick={handleDelete}
+                    disabled={deleting}
                   >
                     <TrashIcon size={14} />
-                    <span>삭제</span>
+                    <span>{deleting ? "삭제 중…" : "삭제"}</span>
                   </button>
                 </div>
               )}

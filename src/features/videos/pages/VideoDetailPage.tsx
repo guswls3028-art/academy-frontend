@@ -42,6 +42,7 @@ export default function VideoDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["session-videos"] });
       qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
+      asyncStatusStore.removeTask(String(videoId));
       navigate(`/admin/lectures/${lectureId}/sessions/${sessionId}/videos`);
     },
     onError: (e: unknown) => {
