@@ -48,7 +48,9 @@ export async function initVideoUpload(params: VideoUploadParams): Promise<InitVi
   const tempId = `video-upload-${sessionId}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   asyncStatusStore.addTask("영상 추가", tempId);
 
-  const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload);
+  const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload, {
+    timeout: 60_000,
+  });
 
   const uploadUrl = initRes.data?.upload_url;
   const videoId = initRes.data?.video?.id;
@@ -100,9 +102,11 @@ export async function uploadFileToR2AndComplete(
       xhr.send(file);
     });
 
-    await api.post<{ id: number }>(`/media/videos/${videoId}/upload/complete/`, {
-      ok: true,
-    });
+    await api.post<{ id: number }>(
+      `/media/videos/${videoId}/upload/complete/`,
+      { ok: true },
+      { timeout: 60_000 }
+    );
 
     asyncStatusStore.attachWorkerMeta(tempId, String(videoId), "video_processing");
     return videoId;
