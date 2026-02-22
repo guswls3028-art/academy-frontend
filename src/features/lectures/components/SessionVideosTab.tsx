@@ -60,6 +60,13 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
       qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
       asyncStatusStore.removeTask(String(videoId));
     },
+    onError: (e: unknown) => {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        (e as Error)?.message ||
+        "영상 삭제에 실패했습니다.";
+      feedback.error(msg);
+    },
   });
 
   /** 영상 제목 패턴(예: "수학의 정석 1", "수학의 정석 2")에서 묶음 base 추출. DB 변경 없이 표시용 그룹핑만. */
