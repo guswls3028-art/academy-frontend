@@ -204,12 +204,21 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
         feedback.success("영상이 삭제되었습니다.");
       }
       asyncStatusStore.removeTask(task.id);
-    } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        (e as Error)?.message ||
-        "삭제에 실패했습니다.";
-      feedback.error(msg);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        // 이미 삭제됨 (영상탭 등에서 먼저 삭제)
+        queryClient.invalidateQueries({ queryKey: ["session-videos"] });
+        queryClient.invalidateQueries({ queryKey: ["video-folders"] });
+        queryClient.invalidateQueries({ queryKey: ["video-stats"] });
+        asyncStatusStore.removeTask(task.id);
+      } else {
+        const msg =
+          (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+          (err as Error)?.message ||
+          "삭제에 실패했습니다.";
+        feedback.error(msg);
+      }
     } finally {
       setDeleting(false);
     }

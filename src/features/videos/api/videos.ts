@@ -266,5 +266,12 @@ export async function deleteVideoFolder(folderId: number): Promise<void> {
 }
 
 export async function deleteVideo(videoId: number): Promise<void> {
-  await api.delete(`/media/videos/${videoId}/`);
+  try {
+    await api.delete(`/media/videos/${videoId}/`);
+  } catch (e: unknown) {
+    // 404 = 이미 삭제됨 (작업박스에서 삭제 후 영상탭에서 중복 삭제 등)
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    if (status === 404) return;
+    throw e;
+  }
 }
