@@ -128,12 +128,23 @@ export async function fetchSessionVideos(
   return [];
 }
 
-/** 전체공개영상 전용 세션 조회/생성 — 업로드·목록에 사용 (테넌트당 1개) */
-export async function fetchPublicSession(): Promise<{ session_id: number; lecture_id: number }> {
-  const res = await api.get<{ session_id: number; lecture_id: number }>(
-    "/media/videos/public-session/"
-  );
-  return res.data;
+/** 전체공개영상 전용 세션 조회/생성 — 업로드·목록에 사용 (테넌트당 1개). 테넌트 미확인 시 null 반환(전역 에러 없음). */
+export async function fetchPublicSession(): Promise<{
+  session_id: number;
+  lecture_id: number;
+} | null> {
+  try {
+    const res = await api.get<{ session_id: number; lecture_id: number }>(
+      "/media/videos/public-session/"
+    );
+    return res.data;
+  } catch (e: unknown) {
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    if (status === 400 || status === 403) {
+      return null;
+    }
+    throw e;
+  }
 }
 
 /** 진행 중인 영상(PROCESSING, UPLOADED) 목록 — 새로고침 후 작업 박스 복원용 */
