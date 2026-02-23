@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { deleteVideo } from "../api/videos";
+import { deleteVideo, getRetryErrorMessage } from "../api/videos";
+import { isRetryAllowedByStatus } from "../constants/videoProcessing";
+import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 
@@ -56,22 +58,21 @@ export default function VideoDetailPage() {
 
   const retryMutation = useMutation({
     mutationFn: async () => {
+      logRetryAttempt(videoId);
       await api.post(`/media/videos/${videoId}/retry/`);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["video-stats", videoId] });
       asyncStatusStore.addWorkerJob(
-        video?.title ? `${video.title} 재처리` : `영상 ${videoId} 재처리`,
+        video?.title ? `${video.title} 재시도` : `영상 ${videoId} 재시도`,
         String(videoId),
         "video_processing"
       );
-      feedback.success("재처리 요청을 보냈습니다.");
+      feedback.success("재시도 요청을 보냈습니다.");
     },
     onError: (e: unknown) => {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        (e as Error)?.message ||
-        "재처리에 실패했습니다.";
+      const msg = getRetryErrorMessage(e);
+      logRetryError(videoId, msg);
       feedback.error(msg);
     },
   });
@@ -156,7 +157,7 @@ export default function VideoDetailPage() {
                   status={video.status}
                   progressPercent={null}
                   onRetry={
-                    ["FAILED", "PROCESSING", "UPLOADED"].includes(video.status)
+                    isRetryAllowedByStatus(video.status)
                       ? () => retryMutation.mutate()
                       : undefined
                   }

@@ -1,6 +1,29 @@
 // PATH: src/features/videos/api/videos.ts
 
 import api from "@/shared/api/axios";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
+import { VIDEO_STATUS_IN_PROGRESS } from "../constants/videoProcessing";
+
+/** 재시도 API 실패 시 백엔드 메시지 추출 (400 detail/배열 포함). */
+export function getRetryErrorMessage(e: unknown): string {
+  const raw = getApiErrorMessage(e, "재시도 요청에 실패했습니다.");
+  return mapRetryErrorForUser(raw);
+}
+
+/** 알려진 백엔드 메시지를 사용자 친화 문구로 매핑. 백엔드 메시지가 우선. */
+function mapRetryErrorForUser(backendMessage: string): string {
+  const s = backendMessage.trim().toLowerCase();
+  if (s.includes("already in backlog") || s.includes("job queued") || s.includes("retry wait")) {
+    return "이미 처리 중이거나 대기 중입니다. 잠시 후 다시 시도해 주세요.";
+  }
+  if (s.includes("cannot retry") || s.includes("status must be")) {
+    return "현재 상태에서는 재시도할 수 없습니다.";
+  }
+  if (s.includes("not found") || s.includes("찾을 수 없습니다")) {
+    return "영상을 찾을 수 없습니다.";
+  }
+  return backendMessage;
+}
 
 /**
  * Backend Video.status enum (확정)
@@ -147,9 +170,9 @@ export async function fetchPublicSession(): Promise<{
   }
 }
 
-/** 진행 중인 영상(PROCESSING, UPLOADED) 목록 — 새로고침 후 작업 박스 복원용 */
+/** 진행 중인 영상 목록 — 새로고침 후 작업 박스 복원용 (Batch 전용). */
 export async function fetchInProgressVideos(): Promise<Video[]> {
-  const statuses: VideoStatus[] = ["PROCESSING", "UPLOADED"];
+  const statuses = VIDEO_STATUS_IN_PROGRESS;
   const all: Video[] = [];
   for (const s of statuses) {
     const res = await api.get("/media/videos/", { params: { status: s } });

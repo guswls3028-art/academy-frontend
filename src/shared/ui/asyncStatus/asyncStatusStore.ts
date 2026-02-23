@@ -1,10 +1,6 @@
 // PATH: src/shared/ui/asyncStatus/asyncStatusStore.ts
-// 전역 비동기 상태 SSOT — 워커 작업 프로그래스바만 우하단에 표시
-//
-// 워커 작업(엑셀 수강등록, 비디오 인코딩 등): 업로드 후 모달 닫고 우하단에서 진행률 표시
-//   const taskId = asyncStatusStore.addWorkerJob('엑셀 수강등록', jobId, 'excel_parsing');
-//   // 전역 폴링이 progress/status 갱신 후 completeTask 호출
-// 작업 목록은 태넌트(도메인)별로 격리 — 현재 테넌트 작업만 표시
+// Workbox: tenant-scoped async tasks. Backend is source of truth for progress.
+// All tasks MUST have tenantScope. Display MUST filter by current tenant only.
 
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
@@ -86,6 +82,7 @@ export const asyncStatusStore = {
    */
   addTask(label: string, id?: string): string {
     const taskId = id ?? generateId();
+    const scope = this._getTenantScope() ?? "";
     tasks = [
       ...tasks.filter((t) => t.id !== taskId),
       {
@@ -93,7 +90,7 @@ export const asyncStatusStore = {
         label,
         status: "pending" as const,
         createdAt: Date.now(),
-        tenantScope: this._getTenantScope(),
+        tenantScope: scope,
       },
     ];
     emit();
@@ -105,6 +102,7 @@ export const asyncStatusStore = {
    * jobId를 id로 사용하여 폴링 시 status/progress 갱신.
    */
   addWorkerJob(label: string, jobId: string, jobType: string): string {
+    const scope = this._getTenantScope() ?? "";
     tasks = [
       ...tasks.filter((t) => t.id !== jobId),
       {
@@ -113,7 +111,7 @@ export const asyncStatusStore = {
         status: "pending" as const,
         createdAt: Date.now(),
         meta: { jobId, jobType },
-        tenantScope: this._getTenantScope(),
+        tenantScope: scope,
       },
     ];
     emit();

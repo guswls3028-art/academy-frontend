@@ -4,6 +4,9 @@ import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
+import { getRetryErrorMessage } from "@/features/videos/api/videos";
+import { isRetryAllowedByStatus } from "@/features/videos/constants/videoProcessing";
+import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import VideoUploadModal from "@/features/videos/components/features/video-detail/modals/VideoUploadModal";
 import VideoThumbnail from "@/features/videos/ui/VideoThumbnail";
 import VideoStatusBadge from "@/features/videos/ui/VideoStatusBadge";
@@ -96,21 +99,20 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
 
   const retryMutation = useMutation({
     mutationFn: async (id: number) => {
+      logRetryAttempt(id);
       const res = await api.post(`/media/videos/${id}/retry/`);
       return res.data;
     },
     onSuccess: (_data, videoId) => {
       qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
       const video = videos.find((v: MediaVideo) => v.id === videoId);
-      const label = video?.title ? `${video.title} 재처리` : `영상 ${videoId} 재처리`;
+      const label = video?.title ? `${video.title} 재시도` : `영상 ${videoId} 재시도`;
       asyncStatusStore.addWorkerJob(label, String(videoId), "video_processing");
-      feedback.success("재처리 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
+      feedback.success("재시도 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
     },
-    onError: (e: unknown) => {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        (e as Error)?.message ||
-        "재처리 요청에 실패했습니다.";
+    onError: (e: unknown, videoId) => {
+      const msg = getRetryErrorMessage(e);
+      logRetryError(videoId, msg);
       feedback.error(msg);
     },
   });
@@ -210,7 +212,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         </div>
 
         <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          {(video.status === "FAILED" || video.status === "PROCESSING" || video.status === "UPLOADED") && (
+          {isRetryAllowedByStatus(video.status) && (
             <Button
               intent="primary"
               size="sm"
@@ -218,14 +220,13 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const msg =
-                  "재처리할까요? 진행 중인 작업이 있으면 취소 후 큐에 올라갑니다.";
+                const msg = "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.";
                 if (window.confirm(msg)) {
                   retryMutation.mutate(video.id);
                 }
               }}
             >
-              재처리 요청
+              {retryMutation.isPending ? "요청 중…" : "재시도"}
             </Button>
           )}
           <Button

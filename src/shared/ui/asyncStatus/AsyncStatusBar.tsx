@@ -7,11 +7,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { RefreshCw } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { fetchInProgressVideos } from "@/features/videos/api/videos";
+import { fetchInProgressVideos, getRetryErrorMessage } from "@/features/videos/api/videos";
+import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
+import { workboxTenantMismatch } from "./workboxTelemetry";
 import "@/styles/design-system/components/AsyncStatusBar.css";
 import "@/styles/design-system/ds/status.css";
 
@@ -225,18 +227,18 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   };
 
   const handleRetry = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // 클릭 이벤트 전파 방지
+    e.stopPropagation();
     if (task.meta?.jobType !== "video_processing" || !task.meta?.jobId || retrying) return;
     setRetrying(true);
+    const videoId = Number(task.meta.jobId);
     try {
+      logRetryAttempt(videoId);
       await api.post(`/media/videos/${task.meta.jobId}/retry/`);
       asyncStatusStore.retryTask(task.id);
-      feedback.success("재처리 요청을 보냈습니다.");
+      feedback.success("재시도 요청을 보냈습니다.");
     } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        (e as Error)?.message ||
-        "재처리에 실패했습니다.";
+      const msg = getRetryErrorMessage(e);
+      logRetryError(videoId, msg);
       feedback.error(msg);
     } finally {
       setRetrying(false);
@@ -419,11 +421,28 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
 export default function AsyncStatusBar() {
   const queryClient = useQueryClient();
   const tasks = useAsyncStatus();
+  const currentTenantKey = getTenantCodeForApiRequest() ?? "";
   const [expanded, setExpanded] = useState(false);
   const prevPendingCountRef = useRef(0);
   const hydratedRef = useRef(false);
 
-  const displayTasks = tasks;
+  // Tenant isolation: only show tasks for current tenant. Purge others and log.
+  const displayTasks = tasks.filter(
+    (t) => (t.tenantScope ?? "") === currentTenantKey
+  );
+
+  useEffect(() => {
+    const wrong = tasks.filter((t) => (t.tenantScope ?? "") !== currentTenantKey);
+    wrong.forEach((t) => {
+      workboxTenantMismatch({
+        taskId: t.id,
+        taskTenantScope: t.tenantScope ?? null,
+        currentTenantKey,
+      });
+      asyncStatusStore.removeTask(t.id);
+    });
+  }, [currentTenantKey, tasks]);
+
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
 
   const [now, setNow] = useState(() => Date.now());

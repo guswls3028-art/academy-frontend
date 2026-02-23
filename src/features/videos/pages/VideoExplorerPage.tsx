@@ -23,9 +23,12 @@ import {
   deleteVideoFolder,
   deleteVideo,
   retryVideo,
+  getRetryErrorMessage,
   type Video as ApiVideo,
   type VideoFolder,
 } from "../api/videos";
+import { isRetryAllowedByStatus } from "../constants/videoProcessing";
+import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import {
   fetchLectures,
   fetchSessions,
@@ -254,20 +257,25 @@ export default function VideoExplorerPage() {
   );
 
   const retryVideoMutation = useMutation({
-    mutationFn: (payload: { videoId: number; title?: string }) =>
-      retryVideo(payload.videoId).then(() => payload),
+    mutationFn: async (payload: { videoId: number; title?: string }) => {
+      logRetryAttempt(payload.videoId);
+      await retryVideo(payload.videoId);
+      return payload;
+    },
     onSuccess: (payload) => {
       queryClient.invalidateQueries({ queryKey: ["session-videos"] });
       queryClient.invalidateQueries({ queryKey: ["video-folders"] });
       asyncStatusStore.addWorkerJob(
-        payload.title ? `${payload.title} 재처리` : `영상 ${payload.videoId} 재처리`,
+        payload.title ? `${payload.title} 재시도` : `영상 ${payload.videoId} 재시도`,
         String(payload.videoId),
         "video_processing"
       );
-      feedback.success("재처리 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
+      feedback.success("재시도 요청을 보냈습니다. 우하단 진행 상황에서 확인할 수 있습니다.");
     },
-    onError: (e: unknown) => {
-      feedback.error((e as Error)?.message ?? "재처리 요청에 실패했습니다.");
+    onError: (e: unknown, payload) => {
+      const msg = getRetryErrorMessage(e);
+      if (payload?.videoId != null) logRetryError(payload.videoId, msg);
+      feedback.error(msg);
     },
   });
 
@@ -400,22 +408,21 @@ export default function VideoExplorerPage() {
                     <span className={styles.itemMeta}>{formatDate(v.created_at)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", justifyContent: "center", flexWrap: "wrap" }}>
                       <VideoStatusBadge status={v.status ?? "PENDING"} />
-                      {(v.status === "FAILED" || v.status === "PROCESSING" || v.status === "UPLOADED") && (
+                      {isRetryAllowedByStatus(v.status) && (
                         <Button
                           intent="primary"
                           size="sm"
                           disabled={retryVideoMutation.isPending}
                           onClick={(e) => {
                             e.stopPropagation();
-                            const msg =
-                              "재처리할까요? 진행 중인 작업이 있으면 취소 후 큐에 올라갑니다.";
+                            const msg = "재시도할까요? 진행 중인 작업이 있으면 취소 후 다시 제출됩니다.";
                             if (window.confirm(msg)) {
                               retryVideoMutation.mutate({ videoId: v.id, title: v.title });
                             }
                           }}
-                          title="재처리 요청"
+                          title="재시도"
                         >
-                          재처리 요청
+                          {retryVideoMutation.isPending ? "요청 중…" : "재시도"}
                         </Button>
                       )}
                       <Button

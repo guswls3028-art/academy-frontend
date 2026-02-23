@@ -1,16 +1,16 @@
 // PATH: src/shared/ui/asyncStatus/useWorkerJobPoller.ts
-// 워커 작업(엑셀·영상 등) 상태/진행률 폴링 — 우하단 프로그래스바 갱신 및 완료 처리
-// ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
-// 엑셀: GET /jobs/<id>/progress/. 영상: GET /media/videos/<id>/progress/.
-// 현재 테넌트 작업만 폴링 (태넌트 격리).
+// Workbox polling: tenant-scoped, tab-aware, backoff. No infinite loops.
 
 import { useEffect, useRef } from "react";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { asyncStatusStore } from "./asyncStatusStore";
-// ✅ getJobStatus는 더 이상 사용하지 않음 (progress 엔드포인트로 전환)
 import api from "@/shared/api/axios";
 
-const POLL_INTERVAL_MS = 1000;
+const POLL_INTERVAL_INITIAL_MS = 5000;   // 5s for first 1 min
+const POLL_INTERVAL_MID_MS = 15000;      // 15s up to 10 min
+const POLL_INTERVAL_SLOW_MS = 30000;     // 30s after 10 min
+const BACKOFF_AFTER_MS = 60 * 1000;      // 1 min
+const BACKOFF_MID_AFTER_MS = 10 * 60 * 1000; // 10 min
 
 function pollExcelJob(
   taskId: string,
@@ -178,23 +178,37 @@ export function useWorkerJobPoller(
   const pending = tasks.filter(
     (t) => t.status === "pending" && t.meta?.jobId
   );
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onExcelSuccessRef = useRef(options?.onExcelSuccess);
   const onVideoSuccessRef = useRef(options?.onVideoSuccess);
   onExcelSuccessRef.current = options?.onExcelSuccess;
   onVideoSuccessRef.current = options?.onVideoSuccess;
 
   const currentTenant = getTenantCodeForApiRequest() ?? "";
+  const pollStartedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (pending.length === 0) {
+      pollStartedAtRef.current = null;
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        clearTimeout(intervalRef.current);
         intervalRef.current = null;
       }
       return;
     }
+
+    const getIntervalMs = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return 0;
+      const started = pollStartedAtRef.current ?? Date.now();
+      pollStartedAtRef.current = started;
+      const elapsed = Date.now() - started;
+      if (elapsed < BACKOFF_AFTER_MS) return POLL_INTERVAL_INITIAL_MS;
+      if (elapsed < BACKOFF_MID_AFTER_MS) return POLL_INTERVAL_MID_MS;
+      return POLL_INTERVAL_SLOW_MS;
+    };
+
     const tick = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       const all = asyncStatusStore.getState();
       const forCurrentTenant = all.filter(
         (t) =>
@@ -202,27 +216,54 @@ export function useWorkerJobPoller(
           t.meta?.jobId &&
           (t.tenantScope ?? "") === currentTenant
       );
+      if (forCurrentTenant.length === 0) return;
       const excelCb = onExcelSuccessRef.current;
       const videoCb = onVideoSuccessRef.current;
       forCurrentTenant.forEach((t) => {
         if (t.meta!.jobType === "excel_parsing") {
-          // ✅ taskId는 async status store의 task ID (t.id), jobId는 API 호출용
           pollExcelJob(t.id, excelCb);
         } else if (t.meta!.jobType === "video_processing") {
-          // ✅ taskId는 async status store의 task ID (t.id), videoId는 비디오 ID (t.meta!.jobId)
           pollVideoJob(t.id, t.meta!.jobId, videoCb);
         } else {
-          // ✅ SSOT: 모든 워커 작업은 동일한 방식으로 처리
-          // messaging, omr, omr_scan 등도 /jobs/{id}/progress/ 엔드포인트 사용
-          pollExcelJob(t.id); // 동일한 엔드포인트 사용 (job_id 기반)
+          pollExcelJob(t.id);
         }
       });
     };
+
+    let intervalMs = getIntervalMs();
+    if (intervalMs <= 0) return;
+
+    const schedule = () => {
+      intervalMs = getIntervalMs();
+      if (intervalMs <= 0) return;
+      intervalRef.current = window.setTimeout(() => {
+        tick();
+        schedule();
+      }, intervalMs);
+    };
     tick();
-    intervalRef.current = setInterval(tick, POLL_INTERVAL_MS);
+    schedule();
+
+    const onVisibility = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState === "hidden" && intervalRef.current) {
+        clearTimeout(intervalRef.current);
+        intervalRef.current = null;
+      } else if (document.visibilityState === "visible" && pending.length > 0) {
+        tick();
+        schedule();
+      }
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibility);
+    }
+
     return () => {
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        clearTimeout(intervalRef.current);
         intervalRef.current = null;
       }
     };

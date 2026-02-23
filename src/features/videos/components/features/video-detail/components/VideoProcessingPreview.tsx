@@ -1,6 +1,9 @@
 // PATH: src/features/videos/components/features/video-detail/components/VideoProcessingPreview.tsx
+// Batch-only. Backend status is source of truth.
 
 import { Button } from "@/shared/ui/ds";
+import { VIDEO_STATUS_LABEL } from "@/features/videos/utils/videoStatus";
+import type { VideoStatus } from "@/features/videos/api/videos";
 
 interface Props {
   percent?: number | null;
@@ -21,11 +24,7 @@ export default function VideoProcessingPreview({
       : null;
 
   const statusLabel =
-    status === "FAILED"
-      ? "처리 실패"
-      : status === "UPLOADED"
-        ? "업로드 완료"
-        : "처리 중";
+    VIDEO_STATUS_LABEL[status as VideoStatus] ?? "처리 중";
 
   return (
     <div className="flex flex-col items-center justify-center h-[320px] rounded-lg bg-[var(--bg-surface)] border border-[var(--border-divider)]">
@@ -35,7 +34,7 @@ export default function VideoProcessingPreview({
 
       <div className="mt-2 text-xs text-[var(--text-muted)]">
         {status === "FAILED"
-          ? "처리에 실패했습니다. 아래 버튼으로 재처리 요청을 보내세요."
+          ? "처리에 실패했습니다. 아래 버튼으로 재시도할 수 있습니다."
           : "썸네일 생성 및 변환 진행 중"}
       </div>
 
@@ -47,7 +46,7 @@ export default function VideoProcessingPreview({
           onClick={onRetry}
           disabled={isRetrying}
         >
-          {isRetrying ? "요청 중…" : "재처리 요청"}
+          {isRetrying ? "요청 중…" : "재시도"}
         </Button>
       )}
 
