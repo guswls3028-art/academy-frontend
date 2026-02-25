@@ -34,7 +34,8 @@ export interface UseDoubleTapSeekOptions {
   onSingleTap: (zone: TapZone) => void;
   onSeek: (deltaSeconds: number) => void;
   shouldIgnorePointer: (target: EventTarget | null) => boolean;
-  isDrag: (down: { x: number; y: number }, up: { x: number; y: number }) => boolean;
+  /** When true, this pointer up is treated as drag (e.g. volume swipe) and not as tap */
+  getIsDrag?: () => boolean;
 }
 
 export function useDoubleTapSeek({
@@ -43,7 +44,6 @@ export function useDoubleTapSeek({
   onSingleTap,
   onSeek,
   shouldIgnorePointer,
-  isDrag,
 }: UseDoubleTapSeekOptions) {
   const [overlay, setOverlayState] = useState<SeekOverlayState>(null);
 
@@ -129,7 +129,7 @@ export function useDoubleTapSeek({
       const zone = getZone(e.clientX, rect);
       const now = Date.now();
       const moved = Math.abs(e.clientX - rec.x) + Math.abs(e.clientY - rec.y) > DRAG_THRESHOLD_PX;
-      if (moved) return;
+      if (moved || getIsDrag?.()) return;
 
       const state = stateRef.current;
 
@@ -207,6 +207,7 @@ export function useDoubleTapSeek({
     [
       allowSeek,
       getRect,
+      getIsDrag,
       onSingleTap,
       onSeek,
       shouldIgnorePointer,

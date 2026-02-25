@@ -530,3 +530,97 @@
 .svpSideButtonGhost:hover {
   background: rgba(0, 0, 0, 0.45);
 }
+
+/* --- YouTube-style double-tap seek overlay --- */
+.svpSeekOverlay {
+  --svp-seek-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.svpSeekOverlay__ripple {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  animation: svpSeekRipple 0.5s var(--svp-seek-ease) forwards;
+  pointer-events: none;
+}
+
+.svpSeekOverlay__ripple[data-side="left"] {
+  left: 50%;
+  top: 50%;
+  margin-left: -140px;
+  margin-top: -60px;
+}
+
+.svpSeekOverlay__ripple[data-side="right"] {
+  left: 50%;
+  top: 50%;
+  margin-left: 20px;
+  margin-top: -60px;
+}
+
+.svpSeekOverlay__content {
+  position: relative;
+  z-index: 1;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transform: scale(0.8);
+  opacity: 0;
+  animation: svpSeekContentIn 0.25s var(--svp-seek-ease) forwards;
+}
+
+.svpSeekOverlay[data-phase="out"] .svpSeekOverlay__content {
+  animation: svpSeekContentOut 0.4s var(--svp-seek-ease) forwards;
+}
+
+.svpSeekOverlay__content[data-side="left"] {
+  margin-right: 40px;
+}
+
+.svpSeekOverlay__content[data-side="right"] {
+  margin-left: 40px;
+}
+
+.svpSeekOverlay__label {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+@keyframes svpSeekRipple {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes svpSeekContentIn {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes svpSeekContentOut {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
