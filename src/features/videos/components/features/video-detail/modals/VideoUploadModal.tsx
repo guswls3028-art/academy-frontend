@@ -129,6 +129,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
           ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 처리는 우하단 진행 상황에서 확인하세요.`
           : `${successCount}개 업로드 완료. 처리는 우하단 진행 상황에서 이어서 진행됩니다.`
       );
+      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
     }
     if (r2Errors.length > 0) {
       feedback.error(r2Errors.join(" / "));
