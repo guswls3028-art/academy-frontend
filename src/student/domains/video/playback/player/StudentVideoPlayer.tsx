@@ -130,28 +130,6 @@ export default function StudentVideoPlayer({
   const swipeHandledRef = useRef(false);
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
 
-  const getRect = useCallback(() => gestureLayerRef.current?.getBoundingClientRect() ?? null, []);
-  const onSingleTap = useCallback(
-    (zone: 0 | 1 | 2) => {
-      setShowControls((v) => !v);
-      if (zone === 1) togglePlay();
-    },
-    [togglePlay]
-  );
-  const shouldIgnorePointer = useCallback((target: EventTarget | null) => {
-    const el = target as HTMLElement | null;
-    return !!(el?.closest?.(".svpControls") || el?.closest?.(".svpBigPlay") || el?.closest?.(".svpProgressRow") || el?.closest?.(".svpRange"));
-  }, []);
-
-  const { overlay, onPointerDown: gesturePointerDown, onPointerUp: gesturePointerUp, onPointerMove: gesturePointerMove, onPointerCancel: gesturePointerCancel } = useDoubleTapSeek({
-    getRect,
-    allowSeek,
-    onSingleTap,
-    onSeek: skip,
-    shouldIgnorePointer,
-    getIsDrag: () => swipeHandledRef.current,
-  });
-
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast } = ctrlState;
 
 
@@ -283,6 +261,27 @@ export default function StudentVideoPlayer({
     ctrl.seek(t);
   }, []);
 
+  const getRect = useCallback(() => gestureLayerRef.current?.getBoundingClientRect() ?? null, []);
+  const onSingleTap = useCallback(
+    (zone: 0 | 1 | 2) => {
+      setShowControls((v) => !v);
+      if (zone === 1) togglePlay();
+    },
+    [togglePlay]
+  );
+  const shouldIgnorePointer = useCallback((target: EventTarget | null) => {
+    const el = target as HTMLElement | null;
+    return !!(el?.closest?.(".svpControls") || el?.closest?.(".svpBigPlay") || el?.closest?.(".svpProgressRow") || el?.closest?.(".svpRange"));
+  }, []);
+
+  const { overlay, onPointerDown: gesturePointerDown, onPointerUp: gesturePointerUp, onPointerMove: gesturePointerMove, onPointerCancel: gesturePointerCancel } = useDoubleTapSeek({
+    getRect,
+    allowSeek,
+    onSingleTap,
+    onSeek: skip,
+    shouldIgnorePointer,
+    getIsDrag: () => swipeHandledRef.current,
+  });
   const requestFullscreen = useCallback(() => {
     const wrap = wrapElRef.current;
     const vid = videoElRef.current;
@@ -318,52 +317,6 @@ export default function StudentVideoPlayer({
       }
     } catch {}
   }, []);
-
-  const getTapZone = useCallback((rect: DOMRect, clientX: number) => {
-    if (clientX < rect.left + rect.width * 0.3) return 0;
-    if (clientX > rect.right - rect.width * 0.3) return 2;
-    return 1;
-  }, []);
-
-  const resolveTap = useCallback(
-    (clientX: number, rect: DOMRect) => {
-      const count = tapCountRef.current;
-      tapCountRef.current = 0;
-      const ctrl = controllerRef.current;
-      if (!ctrl) return;
-
-      if (count === 1) {
-        setShowControls((v) => !v);
-        const zone = getTapZone(rect, clientX);
-        if (zone === 1) togglePlay();
-      } else if (count >= 2 && allowSeek) {
-        const zone = getTapZone(rect, clientX);
-        const delta = count >= 3
-          ? (zone === 0 ? -20 : zone === 2 ? 20 : 0)
-          : (zone === 0 ? -10 : zone === 2 ? 10 : 0);
-        if (delta !== 0) {
-          skip(delta);
-          ctrl.showToast(delta > 0 ? `앞으로 ${Math.abs(delta)}초` : `뒤로 ${Math.abs(delta)}초`, "info");
-        }
-      }
-    },
-    [allowSeek, getTapZone, skip, togglePlay]
-  );
-
-  const onStageTap = useCallback((clientX: number, clientY: number) => {
-    const layer = gestureLayerRef.current;
-    const rect = layer?.getBoundingClientRect?.();
-    if (!rect) return;
-
-    lastTapRef.current = { time: Date.now(), x: clientX, y: clientY };
-    tapCountRef.current += 1;
-    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-    tapTimerRef.current = setTimeout(() => {
-      tapTimerRef.current = null;
-      const r = gestureLayerRef.current?.getBoundingClientRect?.();
-      if (r) resolveTap(lastTapRef.current.x, r);
-    }, 200);
-  }, [resolveTap]);
 
   const onStageTouchEndLongPress = useCallback(() => {
     if (longPressTimerRef.current) {

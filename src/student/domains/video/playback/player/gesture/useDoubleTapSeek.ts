@@ -44,6 +44,7 @@ export function useDoubleTapSeek({
   onSingleTap,
   onSeek,
   shouldIgnorePointer,
+  getIsDrag,
 }: UseDoubleTapSeekOptions) {
   const [overlay, setOverlayState] = useState<SeekOverlayState>(null);
 
