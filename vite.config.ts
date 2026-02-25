@@ -18,6 +18,25 @@ export default defineConfig({
     ],
   },
 
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react-dom") || id.includes("react/") || id.includes("react/jsx")) return "vendor-react";
+            if (id.includes("react-router")) return "vendor-router";
+            if (id.includes("@tanstack/react-query")) return "vendor-query";
+          }
+          if (id.includes("/student/") && (id.includes("VideoPlayerPage") || id.includes("playback/player/"))) {
+            return "student-video-player";
+          }
+          return undefined;
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
+
   resolve: {
     alias: {
       "@": path.resolve(process.cwd(), "src"),

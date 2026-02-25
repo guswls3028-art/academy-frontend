@@ -10,6 +10,7 @@ export function useMySessions() {
   return useQuery({
     queryKey: ["student-sessions"],
     queryFn: fetchMySessions,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -19,5 +20,6 @@ export function useSessionDetail(sessionId?: number) {
     queryKey: ["student-session", safeId],
     queryFn: () => fetchSessionDetail(safeId),
     enabled: Number.isFinite(safeId),
+    staleTime: 60 * 1000,
   });
 }

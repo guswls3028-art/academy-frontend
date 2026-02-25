@@ -14,6 +14,7 @@ function usePublicCourseCard(publicSession: { session_id: number } | null) {
     queryKey: ["student-session-videos", publicSession?.session_id, null],
     queryFn: () => fetchStudentSessionVideos(publicSession!.session_id, null),
     enabled: !!publicSession?.session_id,
+    staleTime: 60 * 1000,
   });
 
   return useMemo(() => {
@@ -43,14 +44,17 @@ function LectureCourseCard({ lecture }: { lecture: { id: number; title: string; 
   const sessionQueries = useQuery({
     queryKey: ["student-lecture-videos", lecture.id],
     queryFn: async () => {
+      const results = await Promise.all(
+        sessionIds.map((sessionId) => fetchStudentSessionVideos(sessionId, null))
+      );
       const allVideos: Array<{ duration?: number; thumbnail_url?: string | null; id: number }> = [];
-      for (const sessionId of sessionIds) {
-        const res = await fetchStudentSessionVideos(sessionId, null);
+      for (const res of results) {
         allVideos.push(...res.items);
       }
       return allVideos;
     },
     enabled: sessionIds.length > 0,
+    staleTime: 60 * 1000,
   });
 
   const cardData = useMemo(() => {
@@ -94,6 +98,7 @@ export default function VideoHomePage() {
   const { data: videoMe, isLoading, isError } = useQuery({
     queryKey: ["student-video-me"],
     queryFn: fetchVideoMe,
+    staleTime: 60 * 1000,
   });
 
   // 전체공개영상: 내용물이 있던 없던 항상 카드 표시
