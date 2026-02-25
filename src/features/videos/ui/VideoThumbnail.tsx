@@ -97,6 +97,8 @@ export default function VideoThumbnail({
   const isEncoding = status === "PROCESSING" || status === "UPLOADED";
   const showProgressOverlay = isEncoding;
   const progressNum = progress != null ? Math.round(progress) : null;
+  const isQueuedOrWaiting =
+    status === "UPLOADED" && progressNum == null && !encodingStep && (remainingSeconds == null || !Number.isFinite(remainingSeconds));
   const remainingLabel =
     remainingSeconds != null && Number.isFinite(remainingSeconds) && remainingSeconds >= 0
       ? remainingSeconds < 60
@@ -135,7 +137,7 @@ export default function VideoThumbnail({
           }}
         >
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
-            인코딩 중
+            {isQueuedOrWaiting ? "대기 중" : "인코딩 중"}
           </span>
           {encodingStep ? (
             <>
@@ -181,7 +183,9 @@ export default function VideoThumbnail({
                 <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{remainingLabel}</span>
               )}
               {progressNum == null && !remainingLabel && (
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>진행률 계산 중…</span>
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
+                  {isQueuedOrWaiting ? "인코딩 대기 중…" : "진행률 계산 중…"}
+                </span>
               )}
             </>
           )}

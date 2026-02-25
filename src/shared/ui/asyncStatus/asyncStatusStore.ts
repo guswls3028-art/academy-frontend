@@ -166,7 +166,9 @@ export const asyncStatusStore = {
     const next = {
       ...t,
       id: jobId,
-      progress: t.progress ?? 0,
+      progress: undefined,
+      remainingSeconds: undefined,
+      encodingStep: undefined,
       meta: { jobId, jobType },
       tenantScope: t.tenantScope ?? this._getTenantScope(),
     };
