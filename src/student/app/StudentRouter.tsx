@@ -36,10 +36,21 @@ const ClinicIDCardPage = lazy(() => import("@/student/domains/clinic-idcard/page
 const ClinicPage = lazy(() => import("@/student/domains/clinic/pages/ClinicPage"));
 const AttendancePage = lazy(() => import("@/student/domains/attendance/pages/AttendancePage"));
 
-/** Suspense fallback: 로딩 중 표시 */
+/** Suspense fallback: 로딩 중 표시 (가벼운 UI로 첫 페인트 빠르게) */
 function StudentRouteFallback() {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "var(--stu-muted)" }}>
+    <div
+      role="status"
+      aria-label="불러오는 중"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 200,
+        color: "var(--stu-muted)",
+        fontSize: 14,
+      }}
+    >
       불러오는 중…
     </div>
   );

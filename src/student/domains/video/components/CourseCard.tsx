@@ -1,6 +1,7 @@
 // PATH: src/student/domains/video/components/CourseCard.tsx
 // 프리미엄 SaaS 인강 느낌의 코스 카드 컴포넌트
 
+import { memo } from "react";
 import { Link } from "react-router-dom";
 import { IconPlay, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 import { formatDuration } from "../utils/format";
@@ -19,7 +20,7 @@ type CourseCardProps = {
   onClick?: () => void;
 };
 
-export default function CourseCard({
+function CourseCard({
   title,
   thumbnailUrl,
   videoCount = 0,
@@ -234,3 +235,5 @@ export default function CourseCard({
     </Component>
   );
 }
+
+export default memo(CourseCard);

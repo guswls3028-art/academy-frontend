@@ -2,6 +2,7 @@
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
  * 테넌트별 테마: data-student-tenant 에 따라 theme/tenants/{code}.css 적용
  */
+import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import "../theme/tokens.css";
@@ -22,6 +23,16 @@ export default function StudentLayout() {
   useFavicon();
   useDocumentTitle(); // 브라우저 타이틀 설정
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
+
+  // 모바일 체감 속도: 첫 화면 로드 후 자주 가는 탭 청크 미리 로드 (영상·일정·시험)
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      import("@/student/domains/video/pages/VideoHomePage").catch(() => {});
+      import("@/student/domains/sessions/pages/SessionListPage").catch(() => {});
+      import("@/student/domains/exams/pages/ExamListPage").catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
   
   // 영상 페이지 전체인지 확인 (영상 홈, 코스 상세, 세션 상세, 플레이어 모두 포함)
   const isVideoPage = location.pathname.startsWith("/student/video");
