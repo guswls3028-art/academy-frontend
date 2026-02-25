@@ -23,8 +23,15 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("react-dom") || id.includes("react/") || id.includes("react/jsx")) return "vendor-react";
-            if (id.includes("react-router")) return "vendor-router";
+            // React + react-router는 반드시 같은 청크에 (createContext 등 의존)
+            if (
+              id.includes("react-dom") ||
+              id.includes("react/") ||
+              id.includes("react/jsx") ||
+              id.includes("react-router")
+            ) {
+              return "vendor-core";
+            }
             if (id.includes("@tanstack/react-query")) return "vendor-query";
           }
           if (id.includes("/student/") && (id.includes("VideoPlayerPage") || id.includes("playback/player/"))) {
