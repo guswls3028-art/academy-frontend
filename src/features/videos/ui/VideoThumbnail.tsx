@@ -2,13 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/ds";
+import "@/styles/design-system/components/AsyncStatusBar.css";
 
 type VideoStatus = "READY" | "PROCESSING" | "FAILED" | "PENDING" | "UPLOADED";
+
+/** 우하단 진행 상황 패널과 동일한 스타일의 인코딩 단계 정보 */
+export interface EncodingStepInfo {
+  index: number;
+  total: number;
+  name: string;
+  percent: number;
+}
 
 interface Props {
   title?: string;
   status?: VideoStatus;
   thumbnail_url?: string | null;
+  /** 인코딩 중일 때 진행률 0~100 (asyncStatusStore에서 연동) */
+  progress?: number | null;
+  /** 예상 남은 시간(초). 있으면 "약 N분 남음" 표시 */
+  remainingSeconds?: number | null;
+  /** 단계별 진행 [2/7] 단계명 45% */
+  encodingStep?: EncodingStepInfo | null;
 }
 
 /**
@@ -16,9 +31,17 @@ interface Props {
  * - thumbnail_url이 절대 URL이면 그대로 사용
  * - 상대 경로면 CDN BASE + default tenant 보정
  * - 실패 시 placeholder fallback
+ * - 인코딩 중(PROCESSING/UPLOADED)이면 썸네일 영역에 진행률 오버레이 (우하단 진행 상황 패널과 동일 톤)
  * - 🔁 수동 재처리(캐시 무효화) 버튼
  */
-export default function VideoThumbnail({ title, status, thumbnail_url }: Props) {
+export default function VideoThumbnail({
+  title,
+  status,
+  thumbnail_url,
+  progress,
+  remainingSeconds,
+  encodingStep,
+}: Props) {
   const CDN_BASE = import.meta.env.VITE_MEDIA_CDN_BASE || "";
 
   const resolveThumbnailSrc = () => {
@@ -71,6 +94,16 @@ export default function VideoThumbnail({ title, status, thumbnail_url }: Props) 
     setSrc(next);
   };
 
+  const isEncoding = status === "PROCESSING" || status === "UPLOADED";
+  const showProgressOverlay = isEncoding;
+  const progressNum = progress != null ? Math.round(progress) : null;
+  const remainingLabel =
+    remainingSeconds != null && Number.isFinite(remainingSeconds) && remainingSeconds >= 0
+      ? remainingSeconds < 60
+        ? `약 ${Math.max(1, Math.round(remainingSeconds))}초 남음`
+        : `약 ${Math.round(remainingSeconds / 60)}분 남음`
+      : null;
+
   return (
     <div className="aspect-video w-full overflow-hidden rounded-md bg-gray-100 shadow-sm relative">
       <img
@@ -84,7 +117,78 @@ export default function VideoThumbnail({ title, status, thumbnail_url }: Props) 
         }}
       />
 
-      {resolved && (
+      {/* 인코딩 중: 썸네일 영역에 진행률 오버레이 (우하단 진행 상황 패널과 동일 디자인 톤) */}
+      {showProgressOverlay && (
+        <div
+          className="video-thumbnail-progress"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.65)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            padding: 12,
+            borderRadius: "inherit",
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+            인코딩 중
+          </span>
+          {encodingStep ? (
+            <>
+              <div style={{ fontSize: 11, color: "var(--color-text-muted)", width: "100%", textAlign: "center" }}>
+                <span style={{ fontWeight: 600 }}>[{encodingStep.index}/{encodingStep.total}]</span>{" "}
+                {encodingStep.name}
+              </div>
+              <div className="async-status-bar__progress-row" style={{ width: "100%", maxWidth: 240 }}>
+                <div className="async-status-bar__progress">
+                  <div
+                    className="async-status-bar__progress-fill"
+                    style={{ width: `${encodingStep.percent}%` }}
+                  />
+                </div>
+                <span className="async-status-bar__progress-pct">{encodingStep.percent}%</span>
+              </div>
+              {progressNum != null && progressNum > 0 && (
+                <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
+                  전체 진행률: {progressNum}%
+                </span>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="async-status-bar__progress-row" style={{ width: "100%", maxWidth: 240 }}>
+                <div className="async-status-bar__progress">
+                  <div
+                    className={
+                      progressNum != null
+                        ? "async-status-bar__progress-fill"
+                        : "async-status-bar__progress-fill async-status-bar__progress-fill--indeterminate"
+                    }
+                    style={progressNum != null ? { width: `${progressNum}%` } : undefined}
+                  />
+                </div>
+                {progressNum != null && (
+                  <span className="async-status-bar__progress-pct" style={{ color: "rgba(255,255,255,0.95)" }}>
+                    {progressNum}%
+                  </span>
+                )}
+              </div>
+              {remainingLabel && (
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{remainingLabel}</span>
+              )}
+              {progressNum == null && !remainingLabel && (
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>진행률 계산 중…</span>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {resolved && !showProgressOverlay && (
         <Button
           type="button"
           intent="secondary"

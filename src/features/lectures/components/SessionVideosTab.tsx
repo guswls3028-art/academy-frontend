@@ -10,7 +10,7 @@ import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import VideoUploadModal from "@/features/videos/components/features/video-detail/modals/VideoUploadModal";
 import VideoThumbnail from "@/features/videos/ui/VideoThumbnail";
 import VideoStatusBadge from "@/features/videos/ui/VideoStatusBadge";
-import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import { useAsyncStatus, asyncStatusStore } from "@/shared/ui/asyncStatus";
 
 import { useSessionVideos } from "../hooks/useSessionVideos";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -52,6 +52,7 @@ interface SessionVideosTabProps {
 export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const asyncTasks = useAsyncStatus();
 
   const { data: videos = [], isLoading } = useSessionVideos(sessionId);
 
@@ -118,6 +119,9 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   });
 
   const renderVideoCard = (video: MediaVideo) => {
+    const videoTask = asyncTasks.find(
+      (t) => t.meta?.jobType === "video_processing" && t.meta?.jobId === String(video.id)
+    );
     const fileSize =
       video.file_size && video.file_size > 0 ? `${(video.file_size / 1024 / 1024).toFixed(2)}MB` : "-";
     const uploadDate = video.created_at
@@ -147,6 +151,9 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             title={video.title}
             status={video.status ?? "PENDING"}
             thumbnail_url={video.thumbnail_url}
+            progress={videoTask?.progress}
+            remainingSeconds={videoTask?.remainingSeconds}
+            encodingStep={videoTask?.encodingStep ?? undefined}
           />
         </Link>
 
