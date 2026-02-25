@@ -21,6 +21,8 @@ import {
   StudentHlsController,
   type ControllerState,
 } from "./headless/StudentHlsController";
+import { useDoubleTapSeek } from "./gesture/useDoubleTapSeek";
+import SeekOverlay from "./gesture/SeekOverlay";
 
 import type { AccessMode } from "@/features/videos/types/access-mode";
 
@@ -122,14 +124,33 @@ export default function StudentVideoPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
-  const lastTapRef = useRef({ time: 0, x: 0, y: 0 });
-  const tapCountRef = useRef(0);
-  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedRateRef = useRef(1);
   const swipeHandledRef = useRef(false);
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
+
+  const getRect = useCallback(() => gestureLayerRef.current?.getBoundingClientRect() ?? null, []);
+  const onSingleTap = useCallback(
+    (zone: 0 | 1 | 2) => {
+      setShowControls((v) => !v);
+      if (zone === 1) togglePlay();
+    },
+    [togglePlay]
+  );
+  const shouldIgnorePointer = useCallback((target: EventTarget | null) => {
+    const el = target as HTMLElement | null;
+    return !!(el?.closest?.(".svpControls") || el?.closest?.(".svpBigPlay") || el?.closest?.(".svpProgressRow") || el?.closest?.(".svpRange"));
+  }, []);
+
+  const { overlay, onPointerDown: gesturePointerDown, onPointerUp: gesturePointerUp, onPointerMove: gesturePointerMove, onPointerCancel: gesturePointerCancel } = useDoubleTapSeek({
+    getRect,
+    allowSeek,
+    onSingleTap,
+    onSeek: skip,
+    shouldIgnorePointer,
+    getIsDrag: () => swipeHandledRef.current,
+  });
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast } = ctrlState;
 
