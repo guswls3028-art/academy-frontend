@@ -332,63 +332,78 @@ export default function StudentVideoPlayer({
     }
   }, []);
 
-  const onStageTouchStart = useCallback(
-    (e: React.TouchEvent<HTMLDivElement>) => {
+  const onStagePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
       const layer = gestureLayerRef.current;
       const rect = layer?.getBoundingClientRect?.();
-      const t = e.touches?.[0];
-      if (t && rect) {
+      if (rect && e.clientX >= rect.left && e.clientX <= rect.right) {
         touchStartRef.current = {
-          y: t.clientY,
+          y: e.clientY,
           volume,
-          rightHalf: t.clientX > rect.left + rect.width / 2,
+          rightHalf: e.clientX > rect.left + rect.width / 2,
         };
       }
-      if (speedLocked || !rect || !t) return;
-      const rightHalf = t.clientX > rect.left + rect.width / 2;
-      if (!rightHalf) return;
-      savedRateRef.current = rate;
-      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = setTimeout(() => {
-        longPressTimerRef.current = null;
-        setPlaybackRate(2);
-        controllerRef.current?.showToast("2배속", "info");
-      }, 500);
+      if (rect && !speedLocked && e.clientX > rect.left + rect.width / 2) {
+        savedRateRef.current = rate;
+        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = setTimeout(() => {
+          longPressTimerRef.current = null;
+          setPlaybackRate(2);
+          controllerRef.current?.showToast("2배속", "info");
+        }, 500);
+      }
+      gesturePointerDown(e);
     },
-    [rate, setPlaybackRate, speedLocked, volume]
+    [volume, rate, speedLocked, setPlaybackRate, gesturePointerDown]
   );
 
-  const onStageTouchMove = useCallback(
-    (e: React.TouchEvent<HTMLDivElement>) => {
+  const onStagePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
       const start = touchStartRef.current;
-      const t = e.touches?.[0];
-      if (!start || !t) return;
+      if (!start) {
+        gesturePointerMove(e);
+        return;
+      }
       const layer = gestureLayerRef.current;
       const rect = layer?.getBoundingClientRect?.();
-      if (!rect) return;
-      const dy = start.y - t.clientY;
-      if (Math.abs(dy) < 15) return;
-      swipeHandledRef.current = true;
-      if (start.rightHalf) {
-        const delta = dy * 0.008;
-        const v = clamp((start.volume ?? volume) + delta, 0, 1);
-        controllerRef.current?.setVolume(v);
-        const el = controllerRef.current?.getVideoEl();
-        if (el) try { el.volume = v; } catch {}
+      if (!rect) {
+        gesturePointerMove(e);
+        return;
       }
+      const dy = start.y - e.clientY;
+      if (Math.abs(dy) >= 15) {
+        swipeHandledRef.current = true;
+        if (start.rightHalf) {
+          const delta = dy * 0.008;
+          const v = clamp((start.volume ?? volume) + delta, 0, 1);
+          controllerRef.current?.setVolume(v);
+          const el = controllerRef.current?.getVideoEl();
+          if (el) try { el.volume = v; } catch {}
+        }
+      }
+      gesturePointerMove(e);
     },
-    [volume]
+    [volume, gesturePointerMove]
   );
 
-  const onStageTouchEnd = useCallback(
-    (e: React.TouchEvent<HTMLDivElement>) => {
+  const onStagePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
       onStageTouchEndLongPress();
-      const t = e.changedTouches?.[0];
-      if (t && !swipeHandledRef.current) onStageTap(t.clientX, t.clientY);
+      gesturePointerUp(e);
       swipeHandledRef.current = false;
       touchStartRef.current = null;
     },
-    [onStageTap, onStageTouchEndLongPress]
+    [onStageTouchEndLongPress, gesturePointerUp]
+  );
+
+  const onStagePointerCancel = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      onStageTouchEndLongPress();
+      gesturePointerCancel(e);
+      swipeHandledRef.current = false;
+      touchStartRef.current = null;
+    },
+    [onStageTouchEndLongPress, gesturePointerCancel]
   );
 
   useEffect(() => {
@@ -504,13 +519,13 @@ export default function StudentVideoPlayer({
                 ref={gestureLayerRef}
                 className="svpGestureLayer"
                 aria-hidden
-                onClick={(e) => { e.preventDefault(); onStageTap(e.clientX, e.clientY); }}
-                onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); onStageTap(e.clientX, e.clientY); }}
-                onTouchStart={onStageTouchStart}
-                onTouchMove={onStageTouchMove}
-                onTouchEnd={onStageTouchEnd}
-                onTouchCancel={onStageTouchEndLongPress}
+                onPointerDown={onStagePointerDown}
+                onPointerMove={onStagePointerMove}
+                onPointerUp={onStagePointerUp}
+                onPointerCancel={onStagePointerCancel}
               />
+
+              <SeekOverlay overlay={overlay} />
 
               {!ready && (
                 <div className="svpOverlayCenter">
