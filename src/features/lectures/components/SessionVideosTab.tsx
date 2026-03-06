@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
 import { getRetryErrorMessage } from "@/features/videos/api/videos";
-import { isRetryAllowedByStatus } from "@/features/videos/constants/videoProcessing";
+import { canShowRetryButton } from "@/features/videos/constants/videoProcessing";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import VideoUploadModal from "@/features/videos/components/features/video-detail/modals/VideoUploadModal";
 import VideoThumbnail from "@/features/videos/ui/VideoThumbnail";
@@ -219,7 +219,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         </div>
 
         <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          {isRetryAllowedByStatus(video.status) && (
+          {canShowRetryButton(video) && (
             <Button
               intent="primary"
               size="sm"

@@ -32,3 +32,22 @@ export function isVideoInProgress(status: string | undefined): boolean {
 export function isRetryAllowedByStatus(status: string | undefined): boolean {
   return status != null && VIDEO_STATUS_RETRY_ALLOWED.includes(status as VideoStatus);
 }
+
+/**
+ * Retry button visibility: backend can act only when
+ * - PENDING + file_key (re-run upload-complete)
+ * - FAILED, PROCESSING, UPLOADED (re-submit job)
+ * PENDING without file_key → backend returns 400 "업로드가 완료되지 않았습니다" → hide button.
+ */
+export function canShowRetryButton(video: {
+  status?: string | null;
+  file_key?: string | null;
+}): boolean {
+  if (!video.status || !VIDEO_STATUS_RETRY_ALLOWED.includes(video.status as VideoStatus)) {
+    return false;
+  }
+  if (video.status === "PENDING") {
+    return !!(video.file_key && video.file_key.trim());
+  }
+  return true;
+}
