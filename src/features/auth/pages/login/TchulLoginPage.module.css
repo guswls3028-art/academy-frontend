@@ -19,12 +19,13 @@
   text-align: center;
 }
 
-/* 로고 원본 크기 수준으로 확대 (이미지 2816×1504 비율 유지) */
+/* 로고: 상용화 서비스 느낌 — 적정 크기 (로그인 화면) */
 .logo {
   display: block;
-  width: 100%;
-  max-width: 100%;
+  width: auto;
+  max-width: 12rem;
   height: auto;
+  max-height: 3.5rem;
   object-fit: contain;
   margin: 0 auto 1.5rem;
 }
