@@ -35,12 +35,15 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
 
   const branding = getTenantBranding(tenantId);
   const base = { title: branding.loginTitle || fallback.title };
+  if (normalized === "common") {
+    return { ...base, logoUrl: null, useCommonLogo: true };
+  }
 
-  if (TCHUL_DESIGN_CODES.includes(normalized as (typeof TCHUL_DESIGN_CODES)[number])) {
+  if (TCHUL_DESIGN_CODES.includes(effectiveCode as (typeof TCHUL_DESIGN_CODES)[number])) {
     return { ...base, logoUrl: null, title: "박철과학" };
   }
 
-  if (COMMON_LOGO_CODES.includes(normalized as (typeof COMMON_LOGO_CODES)[number])) {
+  if (COMMON_LOGO_CODES.includes(effectiveCode as (typeof COMMON_LOGO_CODES)[number])) {
     return { ...base, logoUrl: null, useCommonLogo: true };
   }
 
