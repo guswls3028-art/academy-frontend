@@ -1,7 +1,7 @@
 // PATH: src/features/auth/pages/login/EnhancedCommonLoginPage.tsx
 // 테넌트 1, 3, 4, 9999 전용 — 로고 크기, 타이포그래피, 클릭 시 입력폼 (2번 제외)
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginEntry from "@/features/auth/pages/login/LoginEntry";
-import CommonLoginPage from "@/features/auth/pages/login/CommonLoginPage";
+import EnhancedCommonLoginPage from "@/features/auth/pages/login/EnhancedCommonLoginPage";
 import CustomLoginPage from "@/features/auth/pages/login/CustomLoginPage";
 import TenantLoginPage from "@/features/auth/pages/login/TenantLoginPage";
 import { DEDICATED_LOGIN_COMPONENTS } from "@/features/auth/pages/login/dedicatedLoginComponents";
@@ -35,7 +35,7 @@ export default function AuthRouter() {
   return (
     <Routes>
       <Route index element={<LoginEntry />} />
-      <Route path="hakwonplus" element={<CommonLoginPage />} />
+      <Route path="hakwonplus" element={<EnhancedCommonLoginPage />} />
       {LOGIN_ROUTE_TENANTS.map((t) => {
         const Dedicated = DEDICATED_LOGIN_COMPONENTS[t.id];
         return (
@@ -50,8 +50,8 @@ export default function AuthRouter() {
           />
         );
       })}
-      <Route path="common" element={<CommonLoginPage />} />
-      <Route path="9999" element={<CommonLoginPage />} />
+      <Route path="common" element={<EnhancedCommonLoginPage />} />
+      <Route path="9999" element={<EnhancedCommonLoginPage />} />
       <Route path="custom" element={<CustomLoginPage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
