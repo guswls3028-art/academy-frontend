@@ -7,6 +7,7 @@ import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantB
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
+import CommonLogo from "@/features/auth/pages/logos/commonlogo.png";
 
 type Props = { tenantCode: string | null };
 
@@ -16,9 +17,10 @@ export default function StudentTopBar({ tenantCode }: Props) {
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
   });
-  
+
   const currentTenantCode = getTenantCodeForApiRequest();
-  const isTchulTheme = currentTenantCode != null && ["tchul", "9999"].includes(String(currentTenantCode));
+  const isTchulTheme = currentTenantCode != null && currentTenantCode === "tchul";
+  const isCommonTheme = currentTenantCode != null && ["hakwonplus", "limglish", "ymath", "9999", "common"].includes(String(currentTenantCode));
 
   return (
     <div
@@ -52,6 +54,20 @@ export default function StudentTopBar({ tenantCode }: Props) {
             style={{
               height: 32,
               width: 32,
+              objectFit: "contain",
+              display: "block",
+              flexShrink: 0,
+            }}
+          />
+        ) : branding.useCommonLogo ? (
+          <img
+            src={CommonLogo}
+            alt=""
+            className="stu-topbar__logo"
+            style={{
+              height: 32,
+              width: "auto",
+              maxWidth: 120,
               objectFit: "contain",
               display: "block",
               flexShrink: 0,

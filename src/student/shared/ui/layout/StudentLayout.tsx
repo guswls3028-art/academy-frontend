@@ -14,8 +14,10 @@ import StudentTabBar from "./StudentTabBar";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 
-/** 2번(tchul) 테넌트. 9999는 로컬 개발용으로 2번과 동일한 테마 사용 (별도 카피 없음) */
-const TCHUL_THEME_TENANTS = ["tchul", "9999"];
+/** 2번(박철과학) 전용 테마 */
+const TCHUL_THEME_TENANTS = ["tchul"];
+/** 1,3,4,9999번 공통 — commonlogo + 2번 색상 (common=9999 로컬 경로) */
+const COMMON_THEME_TENANTS = ["hakwonplus", "limglish", "ymath", "9999", "common"];
 
 export default function StudentLayout() {
   const location = useLocation();
@@ -23,6 +25,7 @@ export default function StudentLayout() {
   useFavicon();
   useDocumentTitle(); // 브라우저 타이틀 설정
   const useTchulTheme = tenantCode != null && TCHUL_THEME_TENANTS.includes(String(tenantCode));
+  const useCommonTheme = tenantCode != null && COMMON_THEME_TENANTS.includes(String(tenantCode));
 
   // 모바일 체감 속도: 첫 화면 로드 후 자주 가는 탭 청크 미리 로드 (영상·일정·시험)
   useEffect(() => {
@@ -41,7 +44,7 @@ export default function StudentLayout() {
     <div
       data-app="student"
       data-student-tenant={tenantCode || undefined}
-      data-student-theme={useTchulTheme ? "tchul" : undefined}
+      data-student-theme={useTchulTheme ? "tchul" : useCommonTheme ? "common" : undefined}
       data-video-page={isVideoPage ? "true" : undefined}
       style={{
         minHeight: "100dvh",
@@ -55,10 +58,15 @@ export default function StudentLayout() {
         // 배경 그라데이션은 CSS에서 적용 (tchul.css)
       }}
     >
-      {useTchulTheme && (
+      {(useTchulTheme || useCommonTheme) && (
         <svg aria-hidden width={0} height={0} style={{ position: "absolute" }}>
           <defs>
             <linearGradient id="stu-gradient-tchul" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0d47a1" />
+              <stop offset="50%" stopColor="#00695c" />
+              <stop offset="100%" stopColor="#004d40" />
+            </linearGradient>
+            <linearGradient id="stu-gradient-common" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#0d47a1" />
               <stop offset="50%" stopColor="#00695c" />
               <stop offset="100%" stopColor="#004d40" />

@@ -2,6 +2,7 @@
  * 테넌트별 학생앱 테마 SSOT — 여기서만 import 추가. 셀렉터는 [data-student-tenant="{code}"]
  */
 @import "./tchul.css";
+@import "./common.css";
 @import "./hakwonplus.css";
 @import "./limglish.css";
 @import "./ymath.css";

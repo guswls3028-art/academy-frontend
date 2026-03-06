@@ -4,17 +4,19 @@
  */
 import { getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
 
-// tchul 전용: 헤더에서 TchulLogoIcon.png 사용 (StudentTopBar에서 직접 참조)
-
 export type StudentTenantBranding = {
   /** 로고 이미지 URL (없으면 상단바에서 텍스트 배지 사용) */
   logoUrl: string | null;
   /** 상단바·앱 타이틀 (예: 학원플러스, 박철과학) */
   title: string;
+  /** commonlogo 사용 여부 (StudentTopBar에서 CommonLogo 직접 참조) */
+  useCommonLogo?: boolean;
 };
 
-/** 2번(tchul) 테넌트 디자인. 9999는 로컬 개발용으로 2번과 동일한 로고·타이틀 사용 */
-const TCHUL_DESIGN_CODES = ["tchul", "9999"] as const;
+/** 2번(박철과학) 전용 — TchulLogoIcon 사용 */
+const TCHUL_DESIGN_CODES = ["tchul"] as const;
+/** 1,3,4,9999 공통 — commonlogo 사용 (common=9999 로컬 경로) */
+const COMMON_LOGO_CODES = ["hakwonplus", "limglish", "ymath", "9999", "common"] as const;
 
 /**
  * 학생앱에서 사용할 테넌트별 브랜딩.
@@ -25,7 +27,9 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
     return { logoUrl: null, title: "학원플러스" };
   }
   const normalized = code.trim().toLowerCase();
-  const tenantId = getTenantIdFromCode(normalized);
+  // /login/common 경로 → 9999와 동일 브랜딩
+  const effectiveCode = normalized === "common" ? "9999" : normalized;
+  const tenantId = getTenantIdFromCode(effectiveCode);
   const fallback: StudentTenantBranding = { logoUrl: null, title: "학원플러스" };
   if (!tenantId) return fallback;
 
@@ -33,8 +37,11 @@ function getStudentBrandingByCode(code: string | null): StudentTenantBranding {
   const base = { title: branding.loginTitle || fallback.title };
 
   if (TCHUL_DESIGN_CODES.includes(normalized as (typeof TCHUL_DESIGN_CODES)[number])) {
-    // tchul 테넌트는 헤더에서 TchulLogoIcon.png 직접 사용 (logoUrl은 null)
     return { ...base, logoUrl: null, title: "박철과학" };
+  }
+
+  if (COMMON_LOGO_CODES.includes(normalized as (typeof COMMON_LOGO_CODES)[number])) {
+    return { ...base, logoUrl: null, useCommonLogo: true };
   }
 
   return { ...base, logoUrl: branding.logoUrl ?? null };
