@@ -5,7 +5,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { deleteVideo, getRetryErrorMessage } from "../api/videos";
-import { isRetryAllowedByStatus } from "../constants/videoProcessing";
+import { canShowRetryButton } from "../constants/videoProcessing";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
@@ -157,7 +157,7 @@ export default function VideoDetailPage() {
                   status={video.status}
                   progressPercent={null}
                   onRetry={
-                    isRetryAllowedByStatus(video.status)
+                    canShowRetryButton(video)
                       ? () => retryMutation.mutate()
                       : undefined
                   }

@@ -27,7 +27,7 @@ import {
   type Video as ApiVideo,
   type VideoFolder,
 } from "../api/videos";
-import { isRetryAllowedByStatus } from "../constants/videoProcessing";
+import { canShowRetryButton } from "../constants/videoProcessing";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import {
   fetchLectures,
@@ -408,7 +408,7 @@ export default function VideoExplorerPage() {
                     <span className={styles.itemMeta}>{formatDate(v.created_at)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", justifyContent: "center", flexWrap: "wrap" }}>
                       <VideoStatusBadge status={v.status ?? "PENDING"} />
-                      {isRetryAllowedByStatus(v.status) && (
+                      {canShowRetryButton(v) && (
                         <Button
                           intent="primary"
                           size="sm"
