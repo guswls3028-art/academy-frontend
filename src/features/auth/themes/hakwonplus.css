@@ -1,0 +1,27 @@
+/* PATH: src/features/auth/themes/hakwonplus.css
+ * hakwonplus 테넌트 색상 SSOT — 화이트톤 + 파란색 그라데이션
+ */
+
+[data-app="auth"][data-tenant="hakwonplus"] {
+  /* 화이트톤 */
+  --hakwonplus-bg: #f8fafc;
+  --hakwonplus-surface: #ffffff;
+  --hakwonplus-border: #e2e8f0;
+  --hakwonplus-border-hover: #cbd5e1;
+
+  /* 텍스트 */
+  --hakwonplus-text: #0f172a;
+  --hakwonplus-text-muted: #64748b;
+
+  /* 로고 컬러 — 단색 */
+  --hakwonplus-blue: #2563eb;
+  --hakwonplus-blue-hover: #1d4ed8;
+
+  /* 포커스 / 에러 */
+  --hakwonplus-focus: rgba(37, 99, 235, 0.2);
+  --hakwonplus-error: #dc2626;
+
+  /* 그라데이션 모드 — 로고 컬러패턴 (Blue to Light Blue) */
+  --hakwonplus-gradient: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #60a5fa 100%);
+  --hakwonplus-gradient-hover: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #3b82f6 100%);
+}
