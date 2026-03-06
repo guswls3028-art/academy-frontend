@@ -13,5 +13,5 @@ export const limglish: TenantDef = {
     loginSubtitle: undefined,
     logoUrl: undefined,
   },
-  dedicatedLoginPage: false,
+  dedicatedLoginPage: true,
 };

@@ -13,5 +13,5 @@ export const hakwonplus: TenantDef = {
     loginSubtitle: undefined,
     logoUrl: undefined,
   },
-  dedicatedLoginPage: false,
+  dedicatedLoginPage: true,
 };

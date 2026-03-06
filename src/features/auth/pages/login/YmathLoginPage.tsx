@@ -1,15 +1,15 @@
-// PATH: src/features/auth/pages/login/LimglishLoginPage.tsx
-// 테넌트 3 (limglish.kr) 전용 — 로고 중심, 카드 없음, 전역 DS 독립
+// PATH: src/features/auth/pages/login/YmathLoginPage.tsx
+// 테넌트 4 (ymath.co.kr) 전용 — 로고 중심, 카드 없음, 전역 DS 독립
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
-import "@/features/auth/themes/limglish.css";
-import styles from "./LimglishLoginPage.module.css";
+import "@/features/auth/themes/ymath.css";
+import styles from "./YmathLoginPage.module.css";
 
-export default function LimglishLoginPage() {
+export default function YmathLoginPage() {
   useDocumentTitle();
   const { program } = useProgram();
 
@@ -37,10 +37,10 @@ export default function LimglishLoginPage() {
     }
   }
 
-  const loginTitle = program?.ui_config?.login_title || "limglish 로그인";
+  const loginTitle = program?.ui_config?.login_title || "ymath 로그인";
 
   return (
-    <div data-app="auth" data-tenant="limglish" className={styles.root}>
+    <div data-app="auth" data-tenant="ymath" className={styles.root}>
       <div className={styles.center}>
         {program?.ui_config?.logo_url ? (
           <img src={program.ui_config.logo_url} alt={loginTitle} className={styles.logo} />

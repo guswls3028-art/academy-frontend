@@ -4,8 +4,14 @@
 import type { ComponentType } from "react";
 import type { TenantId } from "@/shared/tenant";
 import TchulLoginPage from "./TchulLoginPage";
+import HakwonPlusLoginPage from "./HakwonPlusLoginPage";
+import LimglishLoginPage from "./LimglishLoginPage";
+import YmathLoginPage from "./YmathLoginPage";
 
 export const DEDICATED_LOGIN_COMPONENTS: Partial<Record<TenantId, ComponentType>> = {
+  1: HakwonPlusLoginPage,
   2: TchulLoginPage,
+  3: LimglishLoginPage,
+  4: YmathLoginPage,
   9999: TchulLoginPage,
 };
