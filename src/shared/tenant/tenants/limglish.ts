@@ -9,8 +9,8 @@ export const limglish: TenantDef = {
   hostnames: ["limglish.kr", "www.limglish.kr"],
   loginPath: "/login/limglish",
   branding: {
-    loginTitle: "limglish 로그인",
-    loginSubtitle: undefined,
+    loginTitle: "림글리쉬",
+    loginSubtitle: "limglish.kr",
     logoUrl: undefined,
   },
   dedicatedLoginPage: true,

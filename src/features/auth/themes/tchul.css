@@ -29,4 +29,16 @@
   /* 그라데이션 모드 — 로고 컬러패턴 */
   --tchul-gradient: linear-gradient(135deg, #0d47a1 0%, #00695c 50%, #004d40 100%);
   --tchul-gradient-hover: linear-gradient(135deg, #0a3d8a 0%, #005a4a 50%, #003d2e 100%);
+
+  /* EnhancedCommonLoginPage 공통 별칭 */
+  --auth-bg: var(--tchul-bg);
+  --auth-surface: var(--tchul-surface);
+  --auth-border: var(--tchul-border);
+  --auth-border-hover: var(--tchul-border-hover);
+  --auth-text: var(--tchul-text);
+  --auth-text-muted: var(--tchul-text-muted);
+  --auth-focus: var(--tchul-focus);
+  --auth-error: var(--tchul-error);
+  --auth-gradient: var(--tchul-gradient);
+  --auth-gradient-hover: var(--tchul-gradient-hover);
 }

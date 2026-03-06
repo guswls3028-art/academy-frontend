@@ -9,8 +9,8 @@ export const hakwonplus: TenantDef = {
   hostnames: ["hakwonplus.com", "www.hakwonplus.com"],
   loginPath: "/login/hakwonplus",
   branding: {
-    loginTitle: "HakwonPlus 관리자 로그인",
-    loginSubtitle: undefined,
+    loginTitle: "학원플러스",
+    loginSubtitle: "hakwonplus.com",
     logoUrl: undefined,
   },
   dedicatedLoginPage: true,

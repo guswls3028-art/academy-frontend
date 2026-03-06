@@ -9,8 +9,8 @@ export const local: TenantDef = {
   hostnames: ["localhost", "127.0.0.1"],
   loginPath: "/login/common",
   branding: {
-    loginTitle: "로컬 개발 (9999)",
-    loginSubtitle: undefined,
+    loginTitle: "학원플러스",
+    loginSubtitle: "로컬 개발",
     logoUrl: undefined,
   },
   dedicatedLoginPage: false,

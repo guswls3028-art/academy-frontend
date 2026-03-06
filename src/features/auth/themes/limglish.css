@@ -24,4 +24,16 @@
     /* 그라데이션 모드 — 로고 컬러패턴 (Indigo to Cyan) */
     --limglish-gradient: linear-gradient(135deg, #312e81 0%, #4f46e5 50%, #06b6d4 100%);
     --limglish-gradient-hover: linear-gradient(135deg, #312e81 0%, #4338ca 50%, #0891b2 100%);
+
+    /* EnhancedCommonLoginPage 공통 별칭 */
+    --auth-bg: var(--limglish-bg);
+    --auth-surface: var(--limglish-surface);
+    --auth-border: var(--limglish-border);
+    --auth-border-hover: var(--limglish-border-hover);
+    --auth-text: var(--limglish-text);
+    --auth-text-muted: var(--limglish-text-muted);
+    --auth-focus: var(--limglish-focus);
+    --auth-error: var(--limglish-error);
+    --auth-gradient: var(--limglish-gradient);
+    --auth-gradient-hover: var(--limglish-gradient-hover);
 }

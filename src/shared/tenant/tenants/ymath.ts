@@ -9,8 +9,8 @@ export const ymath: TenantDef = {
   hostnames: ["ymath.co.kr", "www.ymath.co.kr"],
   loginPath: "/login/ymath",
   branding: {
-    loginTitle: "ymath 로그인",
-    loginSubtitle: undefined,
+    loginTitle: "ymath",
+    loginSubtitle: "ymath.co.kr",
     logoUrl: undefined,
   },
   dedicatedLoginPage: true,
