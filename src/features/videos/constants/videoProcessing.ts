@@ -16,8 +16,10 @@ export const VIDEO_STATUS_IN_PROGRESS: VideoStatus[] = [
 /**
  * Backend statuses for which the retry button may be shown.
  * Retry always calls API; backend returns 400 if retry is not allowed.
+ * PENDING: upload-complete may have failed; retry re-runs upload-complete (requires file_key).
  */
 export const VIDEO_STATUS_RETRY_ALLOWED: VideoStatus[] = [
+  "PENDING",
   "FAILED",
   "PROCESSING",
   "UPLOADED",
