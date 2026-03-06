@@ -31,6 +31,7 @@
   --tchul-gradient-hover: linear-gradient(135deg, #0a3d8a 0%, #005a4a 50%, #003d2e 100%);
 
   /* EnhancedCommonLoginPage 공통 별칭 */
+  --auth-accent: var(--tchul-blue);
   --auth-bg: var(--tchul-bg);
   --auth-surface: var(--tchul-surface);
   --auth-border: var(--tchul-border);

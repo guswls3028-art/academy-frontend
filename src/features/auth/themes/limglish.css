@@ -26,6 +26,7 @@
     --limglish-gradient-hover: linear-gradient(135deg, #312e81 0%, #4338ca 50%, #0891b2 100%);
 
     /* EnhancedCommonLoginPage 공통 별칭 */
+    --auth-accent: var(--limglish-blue);
     --auth-bg: var(--limglish-bg);
     --auth-surface: var(--limglish-surface);
     --auth-border: var(--limglish-border);
