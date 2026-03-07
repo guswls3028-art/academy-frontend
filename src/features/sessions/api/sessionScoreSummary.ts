@@ -20,12 +20,13 @@ export type SessionScoreSummary = {
  * ✅ 세션 성적 통계 요약
  * - 온라인/오프라인 분리
  * - 모든 계산은 backend 기준
+ * - SSOT: GET /api/v1/results/admin/sessions/<session_id>/score-summary/
  */
 export async function fetchSessionScoreSummary(
   sessionId: number
 ): Promise<SessionScoreSummary> {
   const res = await api.get(
-    `/sessions/${sessionId}/score-summary/`
+    `/results/admin/sessions/${sessionId}/score-summary/`
   );
   return res.data;
 }

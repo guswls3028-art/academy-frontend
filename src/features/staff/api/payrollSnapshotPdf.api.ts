@@ -1,4 +1,4 @@
-﻿// PATH: src/features/staff/api/payrollSnapshotPDF.api.ts
+// PATH: src/features/staff/api/payrollSnapshotPDF.api.ts
 import api from "@/shared/api/axios";
 
 export async function exportPayrollSnapshotPDF(params: {
@@ -7,7 +7,7 @@ export async function exportPayrollSnapshotPDF(params: {
   month: number;
 }) {
   const res = await api.get(
-    "/staffs/payroll-snapshots/export-pdf/",
+    "/staffs/export-pdf/",
     {
       params,
       responseType: "blob",

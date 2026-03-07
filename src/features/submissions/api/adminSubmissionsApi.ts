@@ -11,7 +11,8 @@ export type SubmissionRow = {
 };
 
 export async function fetchExamSubmissions(examId: number) {
-  const res = await api.get(`/submissions/exams/${examId}/`);
+  // SSOT: GET /api/v1/submissions/submissions/exams/<exam_id>/
+  const res = await api.get(`/submissions/submissions/exams/${examId}/`);
 
   const data = res.data;
   if (Array.isArray(data)) return data as SubmissionRow[];
