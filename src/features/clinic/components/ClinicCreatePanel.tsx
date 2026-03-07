@@ -196,29 +196,35 @@ export default function ClinicCreatePanel({
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
         <div className="modal-scroll-body modal-scroll-body--compact grid gap-4 flex-1 min-h-0 w-full max-w-full box-border">
-          {/* 날짜 — 차시 모달과 똑같은 DatePicker (같은 컴포넌트·같은 props), 직접선택 행 없음 */}
+          {/* 날짜 — 차시 모달과 디자인 동일: 같은 래퍼 구조(modal-section-label + flex flex-col gap-2), 직접선택 행 없음 */}
           {!hideDatePicker && (
             <div className="min-w-0">
               <label className="modal-section-label">날짜</label>
-              <DatePicker
-                value={selectedDate.format("YYYY-MM-DD")}
-                onChange={(s) => setSelectedDate(dayjs(s))}
-                placeholder="날짜 선택"
-              />
+              <div className="flex flex-col gap-2">
+                <DatePicker
+                  value={selectedDate.format("YYYY-MM-DD")}
+                  onChange={(s) => setSelectedDate(dayjs(s))}
+                  placeholder="날짜 선택"
+                />
+              </div>
             </div>
           )}
 
-          {/* 시간 — 차시 모달과 똑같은 TimeRangeInput (같은 컴포넌트·같은 props), 직접선택 행 없음 */}
+          {/* 시간 — 차시 모달과 디자인 동일: 같은 래퍼 구조 + role="group" 래퍼, 직접선택 행 없음 */}
           <div className="min-w-0">
             <div className="modal-section-label">시간</div>
-            <TimeRangeInput
-              value={timeRange}
-              onChange={setTimeRange}
-              startLabel="시작"
-              endLabel="종료"
-              startPlaceholder="시작"
-              endPlaceholder="종료"
-            />
+            <div className="flex flex-col gap-2">
+              <div role="group" aria-label="시간 선택">
+                <TimeRangeInput
+                  value={timeRange}
+                  onChange={setTimeRange}
+                  startLabel="시작"
+                  endLabel="종료"
+                  startPlaceholder="시작"
+                  endPlaceholder="종료"
+                />
+              </div>
+            </div>
           </div>
 
           {/* 2행: 장소 · 정원 · 메모 */}
