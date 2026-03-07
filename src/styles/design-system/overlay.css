@@ -137,6 +137,14 @@
   object-fit: cover;
 }
 
+/* 직원 상세: 아바타가 아이콘(StaffRoleAvatar)일 때 — 동일 원 안에서 아이콘 중앙 정렬 */
+.ds-overlay-header__avatar--icon {
+  font-size: 0;
+}
+.ds-overlay-header__avatar--icon svg {
+  flex-shrink: 0;
+}
+
 .ds-overlay-header__title-block {
   min-width: 0;
   display: flex;
@@ -250,6 +258,11 @@
 /* 학생 상세: 헤더 버튼 아래 여백 최소화 */
 .ds-overlay-panel--student-detail .ds-overlay-body {
   padding-top: var(--space-3);
+}
+
+/* 직원 상세: 탭 많아서 패널 너비 확대 */
+.ds-overlay-panel--staff-detail {
+  max-width: 1200px;
 }
 
 .ds-overlay-body__grid {
