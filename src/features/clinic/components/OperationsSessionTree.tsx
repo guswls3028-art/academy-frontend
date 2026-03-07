@@ -57,13 +57,13 @@ export default function OperationsSessionTree({
         <h2 className="clinic-panel__title">날짜</h2>
         <button
           type="button"
-          className="clinic-control rounded-md px-3 py-1.5 text-xs border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-primary)]"
+          className="clinic-btn-reset"
           onClick={onClear}
         >
           초기화
         </button>
       </div>
-      <div className="clinic-panel__body p-3 space-y-2 max-h-[680px] overflow-auto">
+      <div className="clinic-panel__body p-4 space-y-2 max-h-[680px] overflow-auto">
         <details open>
           <summary className="clinic-tree__summary">{monthLabel}</summary>
           <div className="mt-2 pl-1 space-y-2">
