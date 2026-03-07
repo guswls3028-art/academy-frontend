@@ -19,7 +19,7 @@ export async function fetchMyQnaQuestions(): Promise<PostEntity[]> {
     const [profile, qnaBlockTypeId, allPosts] = await Promise.all([
       fetchMyProfile(),
       getQnaBlockTypeId(),
-      fetchPosts({ nodeId: null }),
+      fetchPosts({ nodeId: null, pageSize: 200 }),
     ]);
     const studentId = profile.id;
     const qnaQuestions = allPosts.filter((post) => {

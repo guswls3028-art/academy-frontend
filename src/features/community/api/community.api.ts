@@ -163,11 +163,13 @@ export async function deletePostTemplate(id: number): Promise<void> {
 // ----------------------------------------
 // Posts (공지/질의 등)
 // ----------------------------------------
-/** node_id 있으면 해당 노드(및 상속) 게시물, 없으면 tenant 전체. DRF 페이지네이션(results) 지원 */
-export async function fetchPosts(params: { nodeId?: number | null }): Promise<PostEntity[]> {
-  const url = params.nodeId != null
-    ? `${PREFIX}/posts/?node_id=${params.nodeId}`
-    : `${PREFIX}/posts/`;
+/** node_id 있으면 해당 노드(및 상속) 게시물, 없으면 tenant 전체. DRF 페이지네이션(results) 지원. 학생 "내 질문" 시 pageSize 권장. */
+export async function fetchPosts(params: { nodeId?: number | null; pageSize?: number }): Promise<PostEntity[]> {
+  const search = new URLSearchParams();
+  if (params.nodeId != null) search.set("node_id", String(params.nodeId));
+  if (params.pageSize != null) search.set("page_size", String(params.pageSize));
+  const qs = search.toString();
+  const url = qs ? `${PREFIX}/posts/?${qs}` : `${PREFIX}/posts/`;
   const res = await api.get(url);
   const data = res.data as PostEntity[] | { results?: PostEntity[] };
   if (data != null && Array.isArray((data as { results?: PostEntity[] }).results)) {
