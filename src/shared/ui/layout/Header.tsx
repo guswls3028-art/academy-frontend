@@ -10,6 +10,10 @@ import { useAdminNotificationCounts } from "@/features/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
 import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
+import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
+import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
 import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
 import { fetchMe, displayUsername, meToStaffRole } from "@/features/profile/api/profile.api";
@@ -164,6 +168,26 @@ function IconCredit() {
   );
 }
 
+/** 작업박스(진행 상황) 아이콘 */
+function IconWorkbox() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+      <rect x="9" y="3" width="6" height="4" rx="2" />
+      <path d="M9 12h6M9 16h6" />
+    </svg>
+  );
+}
+
+/** 완료(체크) 아이콘 — 작업 모두 완료 시 */
+function IconCheck() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
 export default function Header() {
   const loc = useLocation();
   const nav = useNavigate();
@@ -185,10 +209,26 @@ export default function Header() {
   }, [isOnDashboard, searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
-  const { notices } = useNotices();
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const workbox = useWorkbox();
+  const tasks = useAsyncStatus();
+  const currentTenantKey = getTenantCodeForApiRequest() ?? "";
+  const displayTasks = tasks.filter((t) => (t.tenantScope ?? "") === currentTenantKey);
+  const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
+  const hasCompletedOnly = pendingCount === 0 && displayTasks.length > 0;
+
+  const handleWorkboxClick = () => {
+    if (hasCompletedOnly) {
+      asyncStatusStore.clearCompleted();
+      workbox?.setWorkboxOpen(true);
+    } else {
+      workbox?.toggleWorkbox();
+    }
+  };
   const { counts: adminCounts, items: adminNotificationItems } = useAdminNotificationCounts();
   const unreadCount = adminCounts.total;
 
+  const { notices } = useNotices();
   const openNoticeAndCloseAlarm = () => {
     setAlarmDropdownOpen(false);
     setOpenNotice(true);
@@ -235,11 +275,39 @@ export default function Header() {
       { key: "logout", label: "로그아웃" },
     ],
     onClick: ({ key }: { key: string }) => {
+      setProfileDropdownOpen(false);
       if (key === "settings") nav("/admin/settings");
       if (key === "theme") setOpenTheme(true);
       if (key === "logout") nav("/login");
     },
   };
+
+  const profileDropdownContent = (
+    <div className="app-header__profileDropdown">
+      {teacherView && (
+        <>
+          <div className="app-header__profileDropdownRow app-header__profileDropdownRow--view">
+            <span className="app-header__profileDropdownLabel">뷰 전환</span>
+            <button
+              type="button"
+              className="app-header__profileDropdownViewBtn"
+              onClick={() => {
+                teacherView.setForceView(isMobile ? "desktop" : "mobile");
+                setProfileDropdownOpen(false);
+              }}
+            >
+              {isMobile ? "PC뷰로 보기" : "모바일뷰로 보기"}
+            </button>
+          </div>
+          <div className="app-header__profileDropdownDivider" />
+        </>
+      )}
+      <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "settings" })}>설정</button>
+      <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "theme" })}>테마</button>
+      <div className="app-header__profileDropdownDivider" />
+      <button type="button" className="app-header__profileDropdownItem app-header__profileDropdownItem--danger" onClick={() => userMenu.onClick({ key: "logout" })}>로그아웃</button>
+    </div>
+  );
 
   const quickMenu = {
     items: [
@@ -339,16 +407,26 @@ export default function Header() {
           </Dropdown>
           )}
 
-          {teacherView && (
+          {workbox && (
             <Button
               intent="secondary"
               size="lg"
               iconOnly
-              className="app-header__iconBtn"
-              onClick={() => teacherView.setForceView(isMobile ? "desktop" : "mobile")}
-              aria-label={isMobile ? "PC 버전으로 보기" : "모바일 버전으로 보기"}
-              title={isMobile ? "PC 버전으로 보기" : "모바일 버전으로 보기"}
-              leftIcon={isMobile ? <IconMonitor /> : <IconSmartphone />}
+              className={`app-header__iconBtn app-header__workboxBtn ${hasCompletedOnly ? "app-header__workboxBtn--done" : ""}`}
+              onClick={handleWorkboxClick}
+              aria-label={workbox.workboxOpen ? "작업박스 닫기" : "작업박스 열기"}
+              title={workbox.workboxOpen ? "작업박스 닫기" : "진행 상황"}
+              leftIcon={
+                hasCompletedOnly ? (
+                  <IconCheck />
+                ) : pendingCount > 0 ? (
+                  <Badge count={pendingCount} size="small" offset={[-2, 2]}>
+                    <IconWorkbox />
+                  </Badge>
+                ) : (
+                  <IconWorkbox />
+                )
+              }
             />
           )}
 
@@ -422,7 +500,13 @@ export default function Header() {
             </span>
           </Dropdown>
 
-          <Dropdown menu={userMenu} trigger={["click"]} placement="bottomRight">
+          <Dropdown
+            open={profileDropdownOpen}
+            onOpenChange={setProfileDropdownOpen}
+            trigger={["click"]}
+            placement="bottomRight"
+            dropdownRender={() => profileDropdownContent}
+          >
             <span>
               <Button
                 intent="secondary"
