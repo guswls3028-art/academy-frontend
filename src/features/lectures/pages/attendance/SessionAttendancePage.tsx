@@ -56,6 +56,19 @@ export default function SessionAttendancePage({
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
   const statusPopoverRef = useRef<HTMLDivElement>(null);
   const [statusPopoverAnchor, setStatusPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
+  /** 상태 뱃지 클릭 시 우측 슬라이딩 패널에 표시할 출결 행 id (null이면 패널 닫힘) */
+  const [openStatusPanelAttId, setOpenStatusPanelAttId] = useState<number | null>(null);
+  const statusPanelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (openStatusPanelAttId == null) return;
+    const el = statusPanelRef.current;
+    if (!el) return;
+    const raf = requestAnimationFrame(() => {
+      el.style.transform = "translateX(0)";
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [openStatusPanelAttId]);
 
   useLayoutEffect(() => {
     if (!statusPopoverOpen) {
@@ -236,7 +249,7 @@ export default function SessionAttendancePage({
   );
 
   const col = STUDENTS_TABLE_COL;
-  const tableMinWidth = col.checkbox + col.name + col.statusBadge + col.parentPhone + col.studentPhone + col.attendanceChange + col.memo;
+  const tableMinWidth = col.checkbox + col.name + col.statusBadge + col.parentPhone + col.studentPhone + col.memo;
 
   const primaryAction =
     onOpenEnrollModal ? (
@@ -262,7 +275,7 @@ export default function SessionAttendancePage({
               <AttendanceStatusBadge status={statusFilter as AttendanceStatus} variant="2ch" />
             </span>
           ) : (
-            "상태"
+            "상태필터"
           )}
         </Button>
       </span>
@@ -338,7 +351,71 @@ export default function SessionAttendancePage({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 relative">
+      {/* 우측 슬라이딩 패널: 상태 뱃지 클릭 시 출결 상태 선택 */}
+      {openStatusPanelAttId != null && (() => {
+        const att = sorted.find((a: any) => a.id === openStatusPanelAttId);
+        return createPortal(
+          <>
+            <div
+              role="presentation"
+              className="fixed inset-0 z-[999] transition-opacity duration-200"
+              style={{ background: "rgba(0,0,0,0.2)" }}
+              onClick={() => setOpenStatusPanelAttId(null)}
+            />
+            <div
+              ref={statusPanelRef}
+              className="fixed top-0 right-0 bottom-0 z-[1000] flex flex-col bg-[var(--color-bg-surface)] shadow-[ -4px_0_24px_rgba(0,0,0,0.12)]"
+              style={{
+                width: 320,
+                transform: "translateX(100%)",
+                transition: "transform 0.25s ease-out",
+              }}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-divider)]">
+                <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">출결 상태 변경</h3>
+                <button
+                  type="button"
+                  onClick={() => setOpenStatusPanelAttId(null)}
+                  className="p-1 rounded text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]"
+                  aria-label="닫기"
+                >
+                  ✕
+                </button>
+              </div>
+              {att && (
+                <div className="p-4 flex flex-col gap-4 overflow-auto">
+                  <p className="text-[14px] text-[var(--color-text-secondary)]">
+                    <span className="font-medium text-[var(--color-text-primary)]">{att.name ?? "이름 없음"}</span>
+                    <span className="ml-1">— 상태 선택</span>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {STATUS_LIST.map((code) => {
+                      const active = att.status === code;
+                      return (
+                        <button
+                          key={code}
+                          type="button"
+                          onClick={() => {
+                            if (active) return;
+                            updateStatus.mutate({ id: att.id, status: code });
+                            setOpenStatusPanelAttId(null);
+                          }}
+                          className="cursor-pointer rounded border-0 p-1 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1 disabled:cursor-default"
+                          style={{ opacity: active ? 1 : 0.7 }}
+                        >
+                          <AttendanceStatusBadge status={code} variant="2ch" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>,
+          document.body
+        );
+      })()}
       <DomainListToolbar
         totalLabel={`총 ${sorted.length}명`}
         searchSlot={
@@ -386,7 +463,6 @@ export default function SessionAttendancePage({
                 <col style={{ width: col.statusBadge }} />
                 <col style={{ width: col.parentPhone }} />
                 <col style={{ width: col.studentPhone }} />
-                <col style={{ width: col.attendanceChange }} />
                 <col style={{ width: col.memo }} />
               </colgroup>
               <thead>
@@ -404,7 +480,6 @@ export default function SessionAttendancePage({
                   {sortHeader("status", "상태")}
                   {sortHeader("parent_phone", "학부모 전화번호")}
                   {sortHeader("phone", "학생 전화번호")}
-                  <th scope="col">출결 변경</th>
                   <th scope="col">메모</th>
                 </tr>
               </thead>
@@ -437,35 +512,20 @@ export default function SessionAttendancePage({
                       />
                     </td>
                     <td className="text-center align-middle">
-                      <AttendanceStatusBadge status={att.status} variant="2ch" />
+                      <button
+                        type="button"
+                        onClick={() => setOpenStatusPanelAttId(att.id)}
+                        className="cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                        aria-label={`${att.name ?? ""} 출결 상태 변경`}
+                      >
+                        <AttendanceStatusBadge status={att.status} variant="2ch" />
+                      </button>
                     </td>
                     <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
                       {formatPhone(att.parent_phone)}
                     </td>
                     <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
                       {formatPhone(att.phone ?? att.student_phone)}
-                    </td>
-                    <td className="align-middle">
-                      <div className="flex flex-nowrap gap-1" style={{ width: "fit-content" }}>
-                        {STATUS_LIST.map((code) => {
-                          const active = att.status === code;
-                          return (
-                            <button
-                              key={code}
-                              type="button"
-                              aria-pressed={active}
-                              onClick={() => {
-                                if (active) return;
-                                updateStatus.mutate({ id: att.id, status: code });
-                              }}
-                              className="cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 disabled:cursor-default"
-                              style={{ opacity: active ? 1 : 0.4, filter: active ? "none" : "grayscale(1)" }}
-                            >
-                              <AttendanceStatusBadge status={code} variant="2ch" />
-                            </button>
-                          );
-                        })}
-                      </div>
                     </td>
                     <td className="align-middle">
                       <input

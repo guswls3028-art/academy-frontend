@@ -243,7 +243,7 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 4%, transparent);
 }
 .ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody tr.ds-scores-table-row--checked:hover > td {
-  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface)) !important;
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface)) !important;
 }
 
 /* 학생 테이블 — 내용물 좌측정렬, 체크박스만 중앙 + 체크박스 칸 타이트 + 세로 간격 줄임 */
@@ -321,10 +321,10 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-warning, #e6b800) 38%, var(--color-bg-surface)) !important;
 }
 .ds-table tbody tr.ds-scores-table-row--checked .ds-table-cell-name--clinic-no-reservation {
-  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface)) !important;
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface)) !important;
 }
 .ds-table tbody tr.ds-scores-table-row--checked:hover .ds-table-cell-name--clinic-no-reservation {
-  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface)) !important;
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface)) !important;
 }
 
 /* ========== 컬럼 표시 드롭다운 (TableColumnPicker) — 전역 DS 토큰 ========== */
@@ -356,24 +356,44 @@ table.ds-table {
   accent-color: var(--color-brand-primary);
 }
 
-/* ========== 성적 테이블 행 교차 배경 (엑셀 가시성, 테마 토큰만 사용) ========== */
-.ds-scores-table tbody tr.ds-scores-table-row--alt {
-  background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface));
+/* ========== 성적 테이블: 시/과 헤더 뱃지 — 전역 DS 강제 적용 (다른 스타일에 덮이지 않도록) ========== */
+.ds-scores-table thead .ds-status-badge.ds-status-badge--1ch[data-tone="primary"] {
+  background: var(--color-brand-primary) !important;
+  color: #fff !important;
+  min-width: 1.25rem;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: var(--radius-sm, 4px);
 }
-.ds-scores-table tbody tr.ds-scores-table-row--alt:hover {
-  background: var(--color-bg-surface-hover);
-}
-.ds-scores-table tbody tr.ds-scores-table-row--alt.ds-row-selected {
-  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
-}
-.ds-scores-table tbody tr.ds-scores-table-row--alt.ds-row-selected:hover {
-  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface));
+.ds-scores-table thead .ds-status-badge.ds-status-badge--1ch[data-tone="neutral"] {
+  background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface))) !important;
+  color: var(--status-badge-neutral-text, var(--color-text-secondary)) !important;
+  min-width: 1.25rem;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: var(--radius-sm, 4px);
 }
 
-/* 체크된 행(선택 체크박스) — 시험/과제 셀 포함 전체 배경 */
+/* ========== 성적 테이블 행 교차 배경 (엑셀 가시성, flat과 동일 토큰 --color-primary) ========== */
+.ds-scores-table tbody tr.ds-scores-table-row--alt {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+}
+.ds-scores-table tbody tr.ds-scores-table-row--alt:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+}
+.ds-scores-table tbody tr.ds-scores-table-row--alt.ds-row-selected {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
+}
+.ds-scores-table tbody tr.ds-scores-table-row--alt.ds-row-selected:hover {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface));
+}
+
+/* 체크된 행(선택 체크박스) — 시험/과제 셀 포함 전체 배경 (flat ds-row-selected와 동일 토큰) */
 .ds-scores-table tbody tr.ds-scores-table-row--checked > td {
-  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface)) !important;
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface)) !important;
 }
 .ds-scores-table tbody tr.ds-scores-table-row--checked:hover > td {
-  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface)) !important;
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface)) !important;
 }

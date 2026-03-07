@@ -31,10 +31,10 @@ const COL_PASS = 64;
 const COL_CLINIC_TARGET = 80;
 const COL_REASON = 180;
 
-/** 시험 블록 배경 — 9️⃣ 3% */
-const BG_EXAM = "color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface))";
-/** 과제 블록 배경 — 9️⃣ 3% */
-const BG_HOMEWORK = "color-mix(in srgb, var(--color-text-secondary) 3%, var(--color-bg-surface))";
+/** 시험 블록 배경 — flat 테이블과 동일 토큰(--color-primary), 5% */
+const BG_EXAM = "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))";
+/** 과제 블록 배경 — flat 테이블과 동일 토큰, 4% */
+const BG_HOMEWORK = "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))";
 
 /** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
 function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
