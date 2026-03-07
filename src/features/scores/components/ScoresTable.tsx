@@ -310,7 +310,7 @@ export default function ScoresTable({
               title={hw.title}
             >
               <span className="inline-flex items-center gap-1.5">
-                <span className="ds-status-badge ds-status-badge--1ch" data-tone="neutral" aria-label="과제">
+                <span className="ds-status-badge ds-status-badge--1ch" data-tone="complement" aria-label="과제">
                   과
                 </span>
                 <span className="truncate">{hw.title}</span>

@@ -125,12 +125,12 @@ const HomeworkQuickInput = React.forwardRef<HTMLInputElement, Props>(
       <input
         ref={ref}
         className={[
-          "min-w-[4.5rem] min-h-9 w-24 rounded-lg border px-3 py-2 text-sm text-right tabular-nums",
-          "border-[var(--color-border-divider)]",
-          "focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)]/40 focus:border-[var(--color-brand-primary)]",
+          "min-w-0 w-full max-w-[5rem] rounded border px-1.5 py-0.5 text-sm text-right tabular-nums",
+          "border-transparent bg-transparent",
+          "focus:outline-none focus:border-[var(--color-border-divider)] focus:bg-[var(--color-bg-surface)]",
           disabled
-            ? "bg-[var(--color-bg-surface-hover)] text-[var(--color-text-muted)] cursor-not-allowed"
-            : "bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)]",
+            ? "text-[var(--color-text-muted)] cursor-not-allowed"
+            : "text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)]",
         ].join(" ")}
         placeholder="점수"
         value={value}

@@ -93,6 +93,12 @@ button.ds-status-badge:disabled {
   color: var(--status-badge-neutral-text, var(--color-text-secondary));
 }
 
+/** 보색(complement) — 과제 등 보조 구분용 상태 뱃지 */
+.ds-status-badge[data-tone="complement"] {
+  background: var(--color-brand-complement);
+  color: #fff;
+}
+
 /* 톤 미지정 시 기본(neutral) */
 .ds-status-badge:not([data-status]):not([data-tone]) {
   background: var(--status-badge-neutral-bg, color-mix(in srgb, var(--color-border-divider) 22%, var(--color-bg-surface)));

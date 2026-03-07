@@ -1,5 +1,5 @@
 // PATH: src/features/scores/panels/SessionScoresPanel.tsx
-// 성적 테이블 + 사이드패널 — 엑셀형 키보드 이동 (Tab/화살표)
+// 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 입력은 테이블 셀에서만
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -12,7 +12,6 @@ import {
 import { fetchAttendance } from "@/features/lectures/api/attendance";
 
 import ScoresTable from "../components/ScoresTable";
-import ScoreSidePanel from "./ScoreSidePanel";
 import { EmptyState } from "@/shared/ui/ds";
 
 type Props = {
@@ -310,11 +309,11 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   }
 
   return (
-    <div className="flex gap-6">
+    <div className="flex flex-col gap-4">
       <div
         ref={tableWrapperRef}
         tabIndex={0}
-        className="flex-1 min-w-0 overflow-x-auto outline-none"
+        className="min-w-0 overflow-x-auto outline-none"
         onKeyDown={handleGridKeyDown}
       >
         <ScoresTable
@@ -355,28 +354,6 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
           onSelectionChange={onSelectionChange}
         />
       </div>
-
-      {selected && currentExamId != null && currentHomeworkId != null && meta && (
-        <div className="w-[420px] shrink-0">
-          <ScoreSidePanel
-            sessionId={sessionId}
-            examId={currentExamId}
-            homeworkId={currentHomeworkId}
-            row={selected}
-            meta={meta}
-            onClose={() => {}}
-            activeColumn={activeColumn}
-            onSelectExam={(id) => {
-              setActiveColumn("exam");
-              setCurrentExamId(id);
-            }}
-            onSelectHomework={(id) => {
-              setActiveColumn("homework");
-              setCurrentHomeworkId(id);
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 }
