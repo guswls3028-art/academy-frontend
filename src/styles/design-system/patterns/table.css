@@ -297,3 +297,46 @@ table.ds-table {
 .ds-table tbody tr:hover .ds-table-cell-name--clinic-target {
   background: color-mix(in srgb, var(--color-brand-complement) 18%, var(--color-bg-surface)) !important;
 }
+
+/* ========== 컬럼 표시 드롭다운 (TableColumnPicker) — 전역 DS 토큰 ========== */
+.ds-table-column-picker-dropdown {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  box-shadow: var(--elevation-2);
+}
+.ds-table-column-picker-dropdown__header {
+  color: var(--color-text-muted);
+  border-color: var(--color-border-divider);
+}
+.ds-table-column-picker-dropdown__item {
+  color: var(--color-text-primary);
+}
+.ds-table-column-picker-dropdown__item:hover {
+  background: var(--color-bg-surface-hover);
+}
+.ds-table-column-picker-dropdown__footer {
+  border-color: var(--color-border-divider);
+}
+.ds-table-column-picker-dropdown__checkbox:focus {
+  outline: none;
+}
+.ds-table-column-picker-dropdown__checkbox:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}
+.ds-table-column-picker-dropdown__checkbox {
+  accent-color: var(--color-brand-primary);
+}
+
+/* ========== 성적 테이블 행 교차 배경 (엑셀 가시성, 테마 토큰만 사용) ========== */
+.ds-scores-table tbody tr.ds-scores-table-row--alt {
+  background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface));
+}
+.ds-scores-table tbody tr.ds-scores-table-row--alt:hover {
+  background: var(--color-bg-surface-hover);
+}
+.ds-scores-table tbody tr.ds-scores-table-row--alt.ds-row-selected {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+}
+.ds-scores-table tbody tr.ds-scores-table-row--alt.ds-row-selected:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface));
+}

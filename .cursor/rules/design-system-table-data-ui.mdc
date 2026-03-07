@@ -1,0 +1,44 @@
+---
+description: 테이블·데이터 UI 전역 디자인 — 컬럼 표시, 필터, 드롭다운 등 DS 토큰 필수
+globs: src/**/*.{tsx,jsx,css,module.css}
+alwaysApply: true
+---
+
+# 테이블·데이터 UI 전역 디자인 준수
+
+테이블과 함께 쓰이는 **컬럼 표시(TableColumnPicker)**, **고급 필터**, **드롭다운**, **팝오버** 등은 반드시 **전역 디자인 시스템**을 따릅니다. 배경/테두리/텍스트가 테마(라이트·다크)에 맞게 표시되어야 합니다.
+
+## 앱별 SSOT (design-system-global.mdc와 동일)
+
+- **선생(관리자) 앱**: Admin 디자인 시스템 — `src/styles/design-system/` 역할 토큰만 사용
+- **학생 앱**: 학생 디자인 시스템 — `src/student/` 도메인 SSOT
+
+## 필수 준수
+
+1. **컬럼 표시(TableColumnPicker)**
+   - 드롭다운 패널: `--color-bg-surface`, `--color-border-divider`, `--elevation-2`
+   - 헤더/푸터 구분선·제목: `--color-text-muted`, `--color-border-divider`
+   - 리스트 항목: `--color-text-primary`, hover 시 `--color-bg-surface-hover`
+   - 체크박스: `--color-border-divider`, `--color-bg-surface`, 체크 시 `--color-brand-primary`, focus 링 `--color-border-focus`
+   - 스타일 SSOT: `src/styles/design-system/patterns/table.css` — `.ds-table-column-picker-dropdown*`
+
+2. **테이블 관련 팝오버/드롭다운 전반**
+   - 배경: `var(--color-bg-surface)` (흰색/라이트 하드코딩 금지)
+   - 테두리: `var(--color-border-divider)`
+   - 텍스트: `var(--color-text-primary)` / `var(--color-text-muted)` / `var(--color-text-secondary)`
+   - hover/선택: `var(--color-bg-surface-hover)` 등 역할 토큰
+
+3. **데이터 리스트·테이블**
+   - DomainTable, ResizableTh, useTableColumnPrefs 사용 시 동일 DS 토큰 적용 (frontend-tables-resize.mdc, design-ssot.mdc 참고).
+   - **성적 테이블(ScoresTable)**: 모든 컬럼(선택, 이름, 출석, 시험 점수/합불, 과제 점수/합불, 클리닉 대상, 대상 사유)에 ResizableTh 적용 → 컬럼 너비 조절 가능 필수.
+   - **행 가시성**: 엑셀처럼 연한 교차 배경 권장. 테마 토큰만 사용 (예: 짝수 행 `color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface))`). SSOT: `patterns/table.css` — `.ds-scores-table-row--alt`.
+
+## 금지
+
+- `#fff`, `#ffffff`, `white`, `rgb(255,255,255)` 등 배경 하드코딩
+- `--color-surface`, `--color-border` 등 DS에 정의되지 않은 토큰 사용 (사용 시 `--color-bg-surface`, `--color-border-divider` 등 역할 토큰으로 통일)
+
+## 참고
+
+- 전역 색상·버튼·뱃지: `.cursor/rules/design-system-global.mdc`
+- 테이블 컬럼 리사이즈: `.cursor/rules/frontend-tables-resize.mdc`

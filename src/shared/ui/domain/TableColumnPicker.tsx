@@ -2,6 +2,7 @@
  * 테이블 컬럼 표시 선택기 (엑셀처럼 표시할 컬럼 선택)
  * - Popover로 전체 컬럼 목록 + 체크박스
  * - 기본값 복원 버튼
+ * - 전역 디자인 시스템 준수: 선생 앱 Admin DS (--color-bg-surface, --color-border-divider 등)
  */
 
 import { useState } from "react";
@@ -50,17 +51,17 @@ export default function TableColumnPicker({
             onClick={() => setOpen(false)}
           />
           <div
-            className="absolute right-0 top-full z-[91] mt-1 min-w-[220px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-2"
+            className="ds-table-column-picker-dropdown absolute right-0 top-full z-[91] mt-1 min-w-[220px] rounded-lg border py-2 shadow-lg"
             role="dialog"
             aria-label="표시할 컬럼 선택"
           >
-            <div className="px-3 py-1.5 text-xs font-semibold text-[var(--color-text-muted)] border-b border-[var(--color-border-divider)] mb-2">
+            <div className="border-b px-3 py-1.5 text-xs font-semibold mb-2 ds-table-column-picker-dropdown__header">
               표시할 컬럼
             </div>
-            <ul className="max-h-[280px] overflow-y-auto px-2 space-y-0.5">
+            <ul className="max-h-[280px] overflow-y-auto px-2 space-y-0.5 ds-table-column-picker-dropdown__list">
               {allColumns.map((col) => (
                 <li key={col.key}>
-                  <label className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[var(--color-bg-surface-soft)] cursor-pointer text-sm">
+                  <label className="ds-table-column-picker-dropdown__item flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm">
                     <input
                       type="checkbox"
                       checked={visibleKeys.includes(col.key)}
@@ -69,14 +70,14 @@ export default function TableColumnPicker({
                         if (!next && visibleKeys.length <= 1) return;
                         onToggle(col.key, next);
                       }}
-                      className="rounded border-[var(--color-border)]"
+                      className="ds-table-column-picker-dropdown__checkbox rounded border-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] cursor-pointer"
                     />
                     <span className="truncate">{col.label}</span>
                   </label>
                 </li>
               ))}
             </ul>
-            <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2 px-2">
+            <div className="border-t mt-2 pt-2 px-2 ds-table-column-picker-dropdown__footer">
               <Button
                 type="button"
                 intent="ghost"

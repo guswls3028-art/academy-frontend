@@ -219,7 +219,7 @@ export default function ScoresTable({
 
   return (
     <DomainTable
-      tableClassName="ds-table--flat ds-table--center"
+      tableClassName="ds-table--flat ds-table--center ds-scores-table"
       tableStyle={{ tableLayout: "fixed", width: tableWidth }}
     >
       <colgroup>
@@ -261,12 +261,28 @@ export default function ScoresTable({
               <span className="w-4 inline-block" />
             )}
           </ResizableTh>
-          <th scope="col" rowSpan={2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
+          <ResizableTh
+            columnKey="name"
+            width={columnWidths.name ?? COL_NAME}
+            minWidth={100}
+            maxWidth={400}
+            onWidthChange={setColumnWidth}
+            rowSpan={2}
+            className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]"
+          >
             이름
-          </th>
-          <th scope="col" rowSpan={2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
+          </ResizableTh>
+          <ResizableTh
+            columnKey="attendance"
+            width={columnWidths.attendance ?? COL_ATTENDANCE}
+            minWidth={60}
+            maxWidth={120}
+            onWidthChange={setColumnWidth}
+            rowSpan={2}
+            className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
+          >
             출석
-          </th>
+          </ResizableTh>
           {examOptions.map((ex) => (
             <th
               key={`head-exam-${ex.exam_id}`}
@@ -277,7 +293,7 @@ export default function ScoresTable({
               title={ex.title}
             >
               <span className="inline-flex items-center gap-1.5">
-                <span className="ds-status-badge px-1.5 py-0.5 rounded text-[10px] font-semibold text-[var(--color-text-secondary)] bg-[var(--color-bg-surface-hover)]">
+                <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">
                   시험
                 </span>
                 <span className="truncate">{ex.title}</span>
@@ -294,19 +310,35 @@ export default function ScoresTable({
               title={hw.title}
             >
               <span className="inline-flex items-center gap-1.5">
-                <span className="ds-status-badge px-1.5 py-0.5 rounded text-[10px] font-semibold text-[var(--color-text-secondary)] bg-[var(--color-bg-surface-hover)]">
+                <span className="ds-status-badge ds-status-badge--1ch" data-tone="neutral" aria-label="과제">
                   과제
                 </span>
                 <span className="truncate">{hw.title}</span>
               </span>
             </th>
           ))}
-          <th scope="col" rowSpan={2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
+          <ResizableTh
+            columnKey="clinic_target"
+            width={columnWidths.clinic_target ?? COL_CLINIC_TARGET}
+            minWidth={60}
+            maxWidth={140}
+            onWidthChange={setColumnWidth}
+            rowSpan={2}
+            className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
+          >
             총괄 클리닉 대상
-          </th>
-          <th scope="col" rowSpan={2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0">
+          </ResizableTh>
+          <ResizableTh
+            columnKey="clinic_reason"
+            width={columnWidths.clinic_reason ?? COL_REASON}
+            minWidth={140}
+            maxWidth={400}
+            onWidthChange={setColumnWidth}
+            rowSpan={2}
+            className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0"
+          >
             대상 사유
-          </th>
+          </ResizableTh>
         </tr>
         {/* Row2: 점수 | 합불 (시험별) | 점수 | 합불 (과제별) */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
@@ -366,7 +398,7 @@ export default function ScoresTable({
       </thead>
 
       <tbody>
-        {rows.map((row) => {
+        {rows.map((row, rowIndex) => {
           const selected = selectedEnrollmentId === row.enrollment_id;
           const { target: clinicTarget, reason: clinicReason } = getClinicReason(row);
           const showExpand =
@@ -374,6 +406,7 @@ export default function ScoresTable({
             selectedExamId != null &&
             selectedHomeworkId == null &&
             row.enrollment_id === selectedEnrollmentId;
+          const isEvenRow = rowIndex % 2 === 1;
 
           return (
             <Fragment key={row.enrollment_id}>
@@ -381,7 +414,7 @@ export default function ScoresTable({
                 onClick={() => onSelectRow(row)}
                 tabIndex={0}
                 role="button"
-                className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] ${selected ? "ds-row-selected" : ""} hover:bg-[var(--color-bg-surface-hover)]`}
+                className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] ${selected ? "ds-row-selected" : ""} hover:bg-[var(--color-bg-surface-hover)] ${isEvenRow ? "ds-scores-table-row--alt" : ""}`}
               >
                 <td
                   className="ds-checkbox-cell align-middle py-2.5 px-3 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
