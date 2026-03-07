@@ -1,7 +1,7 @@
 /**
- * Dashboard — 학원 운영 현황 · 대치동 스타강사용 프리미엄 SaaS
- * Design SSOT: students 도메인 (DomainLayout, 플랫 패널, ds 변수)
- * - 헤더 검색창에서 Enter 시 ?search= 로 이동하면 여기서 통합 검색 결과 표시
+ * Dashboard — 학원 운영 현황 · 위젯형 레이아웃
+ * - 위젯: 미처리 일감, 알림톡, 요약 지표, 바로가기(클리닉 리모컨 포함)
+ * - 검색 시 검색 결과 섹션 표시
  */
 
 import { useState } from "react";
@@ -14,7 +14,11 @@ import { fetchLectures } from "@/features/lectures/api/sessions";
 import { fetchExams } from "@/features/exams/api/exams";
 import { fetchStudents } from "@/features/students/api/students";
 import { DomainLayout } from "@/shared/ui/layout";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
+import DashboardWidget from "../components/DashboardWidget";
+import DashboardShortcutWidget from "../components/DashboardShortcutWidget";
+import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
+import ClinicPasscardModal from "@/features/clinic/components/ClinicPasscardModal";
 
 const sectionTitleStyle: React.CSSProperties = {
   fontSize: "var(--text-sm)",
@@ -28,6 +32,7 @@ export default function DashboardPage() {
   const [searchParams] = useSearchParams();
   const searchQuery = (searchParams.get("search") ?? "").trim();
   const [chargeModalOpen, setChargeModalOpen] = useState(false);
+  const [clinicPasscardModalOpen, setClinicPasscardModalOpen] = useState(false);
 
   const { data: messagingInfo } = useMessagingInfo();
   const { data: questions = [] } = useQuery({
@@ -67,18 +72,16 @@ export default function DashboardPage() {
       title="대시보드"
       description="학원 운영 현황을 한눈에 확인하세요."
     >
-      <div className="flex flex-col gap-8" style={{ padding: 0 }}>
+      <div className="flex flex-col gap-6" style={{ padding: 0 }}>
         {hasSearch && (
-          <section>
-            <div style={sectionTitleStyle}>검색 결과 — &quot;{searchQuery}&quot;</div>
+          <DashboardWidget
+            title={`검색 결과 — "${searchQuery}"`}
+            description="학생·강의 통합 검색"
+          >
             <div
               className="grid gap-4"
               style={{
                 gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-                padding: "var(--space-4)",
-                background: "var(--color-bg-surface)",
-                border: "1px solid var(--color-border-divider)",
-                borderRadius: "var(--radius-xl)",
               }}
             >
               <SearchResultBlock
@@ -120,12 +123,66 @@ export default function DashboardPage() {
                 onNavigate={(to) => navigate(to)}
               />
             </div>
-          </section>
+          </DashboardWidget>
         )}
 
+        {/* 바로가기 위젯 — 클리닉 리모컨 + 메뉴 */}
+        <DashboardWidget
+          title="바로가기"
+          description="자주 쓰는 메뉴와 클리닉 패스카드 설정"
+        >
+          <div
+            className="grid gap-4"
+            style={{
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+            }}
+          >
+            <DashboardShortcutWidget
+              icon={<ClinicRemoconIcon />}
+              label="클리닉 리모컨"
+              subLabel="패스카드 배경색 설정"
+              onClick={() => setClinicPasscardModalOpen(true)}
+              data-testid="dashboard-shortcut-clinic-remocon"
+            />
+            <DashboardShortcutWidget
+              icon={<NavIcon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />}
+              label="학생 관리"
+              onClick={() => navigate("/admin/students/home")}
+            />
+            <DashboardShortcutWidget
+              icon={<NavIcon d="M4 4h16v12H4zM8 20h8" />}
+              label="강의 목록"
+              onClick={() => navigate("/admin/lectures")}
+            />
+            <DashboardShortcutWidget
+              icon={<NavIcon d="M7 3h10v18H7zM9 7h6M9 11h6M9 15h4" />}
+              label="시험"
+              onClick={() => navigate("/admin/exams")}
+            />
+            <DashboardShortcutWidget
+              icon={<NavIcon d="M4 18h16M6 15V9M12 15V5M18 15v-7" />}
+              label="성적"
+              onClick={() => navigate("/admin/results")}
+            />
+            <DashboardShortcutWidget
+              icon={<NavIcon d="M3 6h14v12H3zM17 10l4-2v8l-4-2z" />}
+              label="영상"
+              onClick={() => navigate("/admin/videos")}
+            />
+            <DashboardShortcutWidget
+              icon={<NavIcon d="M4 4h16v12H7l-3 3z" />}
+              label="게시 관리"
+              subLabel="공지·게시판"
+              onClick={() => navigate("/admin/community/admin")}
+            />
+          </div>
+        </DashboardWidget>
+
         {/* 미처리 일감 */}
-        <section>
-          <div style={sectionTitleStyle}>미처리 일감</div>
+        <DashboardWidget
+          title="미처리 일감"
+          description="빠르게 처리할 항목"
+        >
           <div
             className="grid gap-4"
             style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}
@@ -152,27 +209,15 @@ export default function DashboardPage() {
               value="보기"
               onClick={() => navigate("/admin/videos")}
             />
-            <TodoCard
-              label="게시 관리"
-              value="공지·게시판"
-              onClick={() => navigate("/admin/community/admin")}
-            />
           </div>
-        </section>
+        </DashboardWidget>
 
         {/* 알림톡 */}
-        <section>
-          <div style={sectionTitleStyle}>알림톡</div>
-          <div
-            className="flex flex-wrap items-center gap-4"
-            style={{
-              padding: "var(--space-4)",
-              background: "var(--color-bg-surface)",
-              border: "1px solid var(--color-border-divider)",
-              borderRadius: "var(--radius-xl)",
-              maxWidth: 320,
-            }}
-          >
+        <DashboardWidget
+          title="알림톡"
+          description="잔액 및 충전"
+        >
+          <div className="flex flex-wrap items-center gap-4">
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)" }}>
                 현재 잔액
@@ -187,11 +232,13 @@ export default function DashboardPage() {
               충전하기
             </Button>
           </div>
-        </section>
+        </DashboardWidget>
 
         {/* 요약 지표 */}
-        <section>
-          <div style={sectionTitleStyle}>요약 지표</div>
+        <DashboardWidget
+          title="요약 지표"
+          description="운영 현황"
+        >
           <div
             className="grid gap-4"
             style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
@@ -200,36 +247,33 @@ export default function DashboardPage() {
             <KpiCard label="운영 중 시험" value={`${activeExams.length}건`} />
             <KpiCard label="미답변 질의" value={`${pendingQnaCount}건`} />
           </div>
-        </section>
-
-        {/* 빠른 이동 */}
-        <section>
-          <div style={sectionTitleStyle}>바로가기</div>
-          <div className="flex flex-wrap gap-2">
-            <Button intent="secondary" size="sm" onClick={() => navigate("/admin/students/home")}>
-              학생 관리
-            </Button>
-            <Button intent="secondary" size="sm" onClick={() => navigate("/admin/lectures")}>
-              강의 목록
-            </Button>
-            <Button intent="secondary" size="sm" onClick={() => navigate("/admin/exams")}>
-              시험
-            </Button>
-            <Button intent="secondary" size="sm" onClick={() => navigate("/admin/results")}>
-              성적
-            </Button>
-            <Button intent="secondary" size="sm" onClick={() => navigate("/admin/videos")}>
-              영상
-            </Button>
-          </div>
-        </section>
+        </DashboardWidget>
       </div>
 
       <ChargeCreditsModal
         open={chargeModalOpen}
         onClose={() => setChargeModalOpen(false)}
       />
+
+      <ClinicPasscardModal
+        open={clinicPasscardModalOpen}
+        onClose={() => setClinicPasscardModalOpen(false)}
+      />
     </DomainLayout>
+  );
+}
+
+function NavIcon({ d }: { d: string }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      <path
+        d={d}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -317,13 +361,7 @@ function TodoCard({
     <button
       type="button"
       onClick={onClick}
-      className="ds-kpi text-left cursor-pointer transition-colors hover:bg-[var(--color-bg-surface-hover)] hover:border-[var(--color-border-strong)]"
-      style={{
-        border: "1px solid var(--color-border-divider)",
-        borderRadius: "var(--radius-xl)",
-        padding: "var(--space-4)",
-        background: "var(--color-bg-surface)",
-      }}
+      className="ds-kpi text-left cursor-pointer transition-colors hover:bg-[var(--color-bg-surface-hover)] hover:border-[var(--color-border-strong)] rounded-xl border border-[var(--color-border-divider)] p-4 bg-[var(--color-bg-surface)]"
     >
       <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)" }}>{label}</div>
       <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)" }}>
