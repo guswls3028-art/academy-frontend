@@ -422,6 +422,145 @@ export async function bulkResolveConflicts(
 }
 
 /* ===============================
+ * 가입 신청 (학생 셀프 등록 → 선생 승인)
+ * =============================== */
+
+export interface ClientRegistrationRequest {
+  id: number;
+  status: "pending" | "approved" | "rejected";
+  name: string;
+  parentPhone: string;
+  phone: string | null;
+  schoolType: string;
+  highSchool: string | null;
+  middleSchool: string | null;
+  highSchoolClass: string | null;
+  major: string | null;
+  grade: number | null;
+  gender: string | null;
+  memo: string | null;
+  createdAt: string;
+  studentId?: number | null;
+}
+
+function mapRegistrationRequest(item: any): ClientRegistrationRequest {
+  return {
+    id: Number(item?.id),
+    status: item?.status ?? "pending",
+    name: safeStr(item?.name),
+    parentPhone: safeStr(item?.parent_phone),
+    phone: item?.phone ?? null,
+    schoolType: item?.school_type ?? "HIGH",
+    highSchool: item?.high_school ?? null,
+    middleSchool: item?.middle_school ?? null,
+    highSchoolClass: item?.high_school_class ?? null,
+    major: item?.major ?? null,
+    grade: item?.grade ?? null,
+    gender: item?.gender ?? null,
+    memo: item?.memo ?? null,
+    createdAt: item?.created_at ?? "",
+    studentId: item?.student ?? null,
+  };
+}
+
+/** 스태프: 가입 신청 목록 (페이지네이션) */
+export async function fetchRegistrationRequests(params?: {
+  status?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<{ data: ClientRegistrationRequest[]; count: number; pageSize: number }> {
+  const res = await api.get("/students/registration_requests/", {
+    params: {
+      status: params?.status,
+      page: params?.page ?? 1,
+      page_size: params?.page_size ?? 50,
+    },
+  });
+  const items = Array.isArray(res.data?.results) ? res.data.results : [];
+  const count = typeof res.data?.count === "number" ? res.data.count : items.length;
+  const pageSize = typeof res.data?.page_size === "number" ? res.data.page_size : 50;
+  return {
+    data: items.map(mapRegistrationRequest),
+    count,
+    pageSize,
+  };
+}
+
+/** 스태프: 가입 신청 승인 */
+export async function approveRegistrationRequest(id: number): Promise<ClientStudent> {
+  const res = await api.post(`/students/registration_requests/${id}/approve/`);
+  return mapStudent(res.data);
+}
+
+/** 로그인 전: 학생 가입 신청 제출 (AllowAny, TenantResolved) */
+export async function submitRegistrationRequest(form: {
+  name: string;
+  initialPassword: string;
+  parentPhone: string;
+  phone?: string;
+  schoolType?: "HIGH" | "MIDDLE";
+  highSchool?: string;
+  middleSchool?: string;
+  highSchoolClass?: string;
+  major?: string;
+  grade?: number | null;
+  gender?: string;
+  memo?: string;
+}): Promise<ClientRegistrationRequest> {
+  const payload: Record<string, unknown> = {
+    name: String(form.name ?? "").trim(),
+    initial_password: String(form.initialPassword ?? "").trim(),
+    parent_phone: normalizePhone(String(form.parentPhone)),
+    school_type: form.schoolType ?? "HIGH",
+    high_school: form.highSchool?.trim() || null,
+    middle_school: form.middleSchool?.trim() || null,
+    high_school_class: form.highSchoolClass?.trim() || null,
+    major: form.major?.trim() || null,
+    grade: form.grade ?? null,
+    gender: form.gender?.trim() || null,
+    memo: form.memo?.trim() || null,
+  };
+  if (form.phone && normalizePhone(String(form.phone)).length === 11) {
+    (payload as any).phone = normalizePhone(String(form.phone));
+  }
+  const res = await api.post("/students/registration_requests/", payload);
+  return mapRegistrationRequest(res.data);
+}
+
+/* ===============================
+ * 비밀번호 찾기 (이름+전화번호 → SMS 인증 → 새 비밀번호)
+ * =============================== */
+
+/** 인증번호 요청 (이름 + 전화번호) */
+export async function requestPasswordFindCode(name: string, phone: string): Promise<void> {
+  const p = normalizePhone(phone);
+  if (p.length !== 11 || !p.startsWith("010")) {
+    throw new Error("전화번호는 010XXXXXXXX 11자리여야 합니다.");
+  }
+  await api.post("/students/password_find/request/", {
+    name: String(name ?? "").trim(),
+    phone: p,
+  });
+}
+
+/** 인증번호 확인 + 새 비밀번호 설정 */
+export async function verifyPasswordFindCode(
+  phone: string,
+  code: string,
+  newPassword: string
+): Promise<void> {
+  const p = normalizePhone(phone);
+  if (p.length !== 11 || code.length !== 6 || newPassword.length < 4) {
+    throw new Error("전화번호, 6자리 인증번호, 새 비밀번호(4자 이상)를 입력해 주세요.");
+  }
+  await api.post("/students/password_find/verify/", {
+    phone: p,
+    code: code.trim(),
+    new_password: newPassword,
+  });
+}
+
+/* ===============================
  * TAG
  * =============================== */
 
