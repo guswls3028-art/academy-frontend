@@ -63,7 +63,7 @@ export default function DatePicker({
     }
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const space = 8;
+    const space = openBelow ? 0 : 8;
     if (openBelow) {
       setDropdownStyle({ top: rect.bottom + space, left: rect.left });
     } else {
