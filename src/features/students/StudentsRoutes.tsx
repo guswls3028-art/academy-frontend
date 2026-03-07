@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import StudentsLayout from "./StudentsLayout";
 
 import StudentsHomePage from "./pages/StudentsHomePage";
+import StudentsRequestsPage from "./pages/StudentsRequestsPage";
 import StudentsHistoryPage from "./pages/StudentsHistoryPage";
 import StudentsScoresPage from "./pages/StudentsScoresPage";
 import StudentDetailOverlay from "./overlays/StudentDetailOverlay";
@@ -14,6 +15,7 @@ export default function StudentsRoutes() {
       <Route element={<StudentsLayout />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<StudentsHomePage />} />
+        <Route path="requests" element={<StudentsRequestsPage />} />
         <Route path="history" element={<StudentsHistoryPage />} />
         <Route path="scores" element={<StudentsScoresPage />} />
       </Route>

@@ -139,3 +139,88 @@
   font-weight: 600;
   color: var(--auth-error);
 }
+
+/* 회원가입 / 비밀번호 찾기 링크 */
+.links {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--auth-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.link:hover {
+  color: var(--auth-text);
+}
+
+/* 모달 오버레이 (학생앱 SSOT 디자인) */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.overlayCard {
+  width: 100%;
+  max-width: 28rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--auth-bg);
+  color: var(--auth-text);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.overlayTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  color: var(--auth-text);
+}
+
+.overlayActions {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.overlayActions .btnPrimary {
+  flex: 1;
+  min-width: 0;
+}
+
+.btnSecondary {
+  display: inline-block;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--auth-text-muted);
+  background: var(--auth-surface);
+  border: 1px solid var(--auth-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.btnSecondary:hover {
+  border-color: var(--auth-border-hover);
+  color: var(--auth-text);
+}

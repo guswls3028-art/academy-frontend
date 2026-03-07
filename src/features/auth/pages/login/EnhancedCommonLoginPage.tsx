@@ -11,6 +11,11 @@ import {
   getTenantIdFromCode,
   getTenantBranding,
 } from "@/shared/tenant";
+import {
+  submitRegistrationRequest,
+  requestPasswordFindCode,
+  verifyPasswordFindCode,
+} from "@/features/students/api/students";
 import CommonLogo from "../logos/commonlogo.png";
 import "@/features/auth/themes/tchul.css";
 import "@/features/auth/themes/limglish.css";
@@ -48,6 +53,35 @@ export default function EnhancedCommonLoginPage() {
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+
+  const [showSignupModal, setShowSignupModal] = useState(false);
+  const [showPwFindModal, setShowPwFindModal] = useState(false);
+  const [signupError, setSignupError] = useState("");
+  const [signupPending, setSignupPending] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
+  const [pwFindStep, setPwFindStep] = useState<1 | 2>(1);
+  const [pwFindName, setPwFindName] = useState("");
+  const [pwFindPhone, setPwFindPhone] = useState("");
+  const [pwFindCode, setPwFindCode] = useState("");
+  const [pwFindNewPassword, setPwFindNewPassword] = useState("");
+  const [pwFindError, setPwFindError] = useState("");
+  const [pwFindPending, setPwFindPending] = useState(false);
+  const [pwFindSuccess, setPwFindSuccess] = useState(false);
+
+  const [signupForm, setSignupForm] = useState({
+    name: "",
+    initialPassword: "",
+    parentPhone: "",
+    phone: "",
+    schoolType: "HIGH" as "HIGH" | "MIDDLE",
+    highSchool: "",
+    middleSchool: "",
+    highSchoolClass: "",
+    major: "",
+    grade: "",
+    gender: "",
+    memo: "",
+  });
 
   const navigate = useNavigate();
   const { refreshMe } = useAuth();
