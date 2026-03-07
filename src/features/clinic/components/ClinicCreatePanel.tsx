@@ -39,6 +39,16 @@ function durationMinutes(start: string, end: string): number {
   return eh * 60 + em - (sh * 60 + sm);
 }
 
+/** API용: "HH:mm" → "HH:mm:00" (백엔드 TimeField 호환) */
+function toHHmmss(s: string): string {
+  if (!s?.trim()) return "";
+  const parts = s.trim().split(":");
+  if (parts.length >= 3) return s.trim();
+  const h = parts[0] ?? "00";
+  const m = (parts[1] ?? "00").padStart(2, "0");
+  return `${h.padStart(2, "0")}:${m}:00`;
+}
+
 type Props = {
   date?: string;
   defaultMode?: "targets" | "students";
