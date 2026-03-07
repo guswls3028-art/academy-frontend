@@ -2,8 +2,9 @@
 // 클리닉 생성 — 차시 추가 모달과 똑같은 DatePicker·TimeRangeInput만 사용 (같은 컴포넌트·같은 props, 직접선택 행 없음)
 
 import { useEffect, useMemo, useState } from "react";
-import { Input, Checkbox, App, Dropdown } from "antd";
+import { Input, Checkbox, App, Dropdown, Popover } from "antd";
 import dayjs from "dayjs";
+import { Save, FolderOpen } from "lucide-react";
 
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
@@ -19,6 +20,43 @@ import api from "@/shared/api/axios";
 
 type TargetRow = { enrollment_id: number; student_name: string };
 type StudentRow = { id: number; name: string };
+
+const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
+
+function getSavedLocations(): string[] {
+  try {
+    const raw = localStorage.getItem(SAVED_LOCATIONS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocationToStorage(name: string): string[] {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return getSavedLocations();
+  const list = getSavedLocations();
+  if (list.includes(trimmed)) return list;
+  const next = [...list, trimmed];
+  try {
+    localStorage.setItem(SAVED_LOCATIONS_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+  return next;
+}
+
+function removeSavedLocation(name: string): string[] {
+  const list = getSavedLocations().filter((x) => x !== name);
+  try {
+    localStorage.setItem(SAVED_LOCATIONS_KEY, JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+  return list;
+}
 
 function todayISO() {
   return dayjs().format("YYYY-MM-DD");
@@ -102,6 +140,10 @@ export default function ClinicCreatePanel({
   const [room, setRoom] = useState("");
   const [memo, setMemo] = useState("");
   const [maxParticipants, setMaxParticipants] = useState<number>(10);
+
+  const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
+  const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
+  const [addLocationInput, setAddLocationInput] = useState("");
 
   const targetsQ = useClinicTargets();
   const studentsSearchQ = useClinicStudentSearch(keyword);
@@ -275,13 +317,148 @@ export default function ClinicCreatePanel({
           <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
             <label className="modal-section-label">장소 · 정원</label>
             <div className="modal-form-row modal-form-row--1-auto-auto gap-2 flex-wrap items-center">
-              <div className="flex flex-1 min-w-[120px] gap-2">
+              <div className="flex flex-1 min-w-[120px] gap-1">
                 <Input
                   placeholder="장소 / 룸"
                   value={room}
                   onChange={(e) => setRoom(e.target.value)}
                   className="clinic-input-filled flex-1 min-w-0"
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = room.trim();
+                    if (!v) {
+                      message.warning("장소를 입력한 뒤 저장해주세요.");
+                      return;
+                    }
+                    setSavedLocations(saveLocationToStorage(v));
+                    message.success("저장됨");
+                  }}
+                  className="clinic-location-icon-btn"
+                  title="장소 저장"
+                  aria-label="장소 저장"
+                >
+                  <Save size={16} />
+                </button>
+                <Popover
+                  open={loadPopoverOpen}
+                  onOpenChange={(open) => {
+                    setLoadPopoverOpen(open);
+                    if (open) setSavedLocations(getSavedLocations());
+                  }}
+                  trigger="click"
+                  placement="bottomLeft"
+                  content={
+                    <div className="clinic-location-popover">
+                      {savedLocations.length === 0 ? (
+                        <div className="clinic-location-popover-empty">
+                          <p className="text-xs text-[var(--color-text-muted)] mb-2">
+                            저장된 장소가 없습니다.
+                          </p>
+                          <div className="flex gap-2">
+                            <Input
+                              size="small"
+                              placeholder="장소 입력"
+                              value={addLocationInput}
+                              onChange={(e) => setAddLocationInput(e.target.value)}
+                              onPressEnter={() => {
+                                const v = addLocationInput.trim();
+                                if (v) {
+                                  setSavedLocations(saveLocationToStorage(v));
+                                  setRoom(v);
+                                  setAddLocationInput("");
+                                  setLoadPopoverOpen(false);
+                                  message.success("추가됨");
+                                }
+                              }}
+                              className="flex-1 min-w-0"
+                            />
+                            <Button
+                              size="small"
+                              intent="primary"
+                              onClick={() => {
+                                const v = addLocationInput.trim();
+                                if (v) {
+                                  setSavedLocations(saveLocationToStorage(v));
+                                  setRoom(v);
+                                  setAddLocationInput("");
+                                  setLoadPopoverOpen(false);
+                                  message.success("추가됨");
+                                }
+                              }}
+                            >
+                              추가
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="clinic-location-popover-list">
+                          {savedLocations.map((loc) => (
+                            <button
+                              key={loc}
+                              type="button"
+                              className="clinic-location-popover-item"
+                              onClick={() => {
+                                setRoom(loc);
+                                setLoadPopoverOpen(false);
+                              }}
+                            >
+                              {loc}
+                            </button>
+                          ))}
+                          <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
+                            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">장소 추가하기</p>
+                            <div className="flex gap-2">
+                              <Input
+                                size="small"
+                                placeholder="새 장소"
+                                value={addLocationInput}
+                                onChange={(e) => setAddLocationInput(e.target.value)}
+                                onPressEnter={() => {
+                                  const v = addLocationInput.trim();
+                                  if (v) {
+                                    setSavedLocations(saveLocationToStorage(v));
+                                    setRoom(v);
+                                    setAddLocationInput("");
+                                    setLoadPopoverOpen(false);
+                                    message.success("추가됨");
+                                  }
+                                }}
+                                className="flex-1 min-w-0"
+                              />
+                              <Button
+                                size="small"
+                                intent="secondary"
+                                onClick={() => {
+                                  const v = addLocationInput.trim();
+                                  if (v) {
+                                    setSavedLocations(saveLocationToStorage(v));
+                                    setRoom(v);
+                                    setAddLocationInput("");
+                                    setLoadPopoverOpen(false);
+                                    message.success("추가됨");
+                                  }
+                                }}
+                              >
+                                추가
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  }
+                >
+                  <button
+                    type="button"
+                    className="clinic-location-icon-btn"
+                    title="장소 불러오기"
+                    aria-label="장소 불러오기"
+                  >
+                    <FolderOpen size={16} />
+                  </button>
+                </Popover>
                 <Dropdown
                   trigger={["click"]}
                   onOpenChange={(open) => open && locationsQ.refetch()}
@@ -297,7 +474,7 @@ export default function ClinicCreatePanel({
                     type="button"
                     className="text-xs font-semibold px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-secondary)] whitespace-nowrap"
                   >
-                    {locationsQ.isFetching ? "불러오는 중…" : "장소 불러오기"}
+                    {locationsQ.isFetching ? "불러오는 중…" : "API"}
                   </button>
                 </Dropdown>
               </div>
@@ -403,10 +580,13 @@ export default function ClinicCreatePanel({
             loading={createSessionM.isPending}
             onClick={submit}
             className="w-full"
+            disabled={isPastDate}
           >
-            {selected.length > 0
-              ? `선택 ${selected.length}명 클리닉 생성`
-              : `클리닉만 생성 (정원 ${maxParticipants}명)`}
+            {isPastDate
+              ? "지난 날짜 — 생성 불가"
+              : selected.length > 0
+                ? `선택 ${selected.length}명 클리닉 생성`
+                : `클리닉만 생성 (정원 ${maxParticipants}명)`}
           </Button>
         </div>
       </div>

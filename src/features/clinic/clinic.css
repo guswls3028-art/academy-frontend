@@ -485,6 +485,56 @@
   max-height: none;
 }
 
+/* 장소 저장/불러오기 아이콘 버튼 */
+.clinic-location-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.clinic-location-icon-btn:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-brand-primary);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+}
+
+.clinic-location-popover {
+  min-width: 220px;
+  max-width: 280px;
+}
+.clinic-location-popover-empty {
+  padding: 4px 0;
+}
+.clinic-location-popover-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.clinic-location-popover-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.clinic-location-popover-item:hover {
+  background: var(--color-bg-surface-hover);
+}
+
 .clinic-panel__header {
   padding: var(--space-6) var(--space-7);
   padding-left: var(--space-7);
