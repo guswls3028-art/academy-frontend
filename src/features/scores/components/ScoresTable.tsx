@@ -229,15 +229,15 @@ export default function ScoresTable({
       </colgroup>
 
       <thead>
-        {/* Row1: 수정/선택 | 이름 | 출석 | 시험 그룹 | 과제 그룹 | 클리닉 (설계 3️⃣) */}
-        <tr className="bg-[var(--color-bg-surface-soft)] border-b-2 border-[var(--color-border-divider)]">
+        {/* Row1: 선택 | 이름 | 출석 | [시험 뱃지] 시험이름 (colSpan=2) 반복 | [과제 뱃지] 과제이름 (colSpan=2) 반복 | 클리닉 | 사유 */}
+        <tr className="bg-[var(--color-bg-surface-soft)] border-b border-[var(--color-border-divider)]">
           <ResizableTh
             columnKey="select"
             width={columnWidths.select ?? COL_EDIT}
             minWidth={40}
             maxWidth={120}
             onWidthChange={setColumnWidth}
-            rowSpan={3}
+            rowSpan={2}
             noWrap
             className="ds-checkbox-cell align-top py-2.5 px-2 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
           >
@@ -261,53 +261,54 @@ export default function ScoresTable({
               <span className="w-4 inline-block" />
             )}
           </ResizableTh>
-          <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
+          <th scope="col" rowSpan={2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
             이름
           </th>
-          <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
+          <th scope="col" rowSpan={2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
             출석
           </th>
-          <th scope="col" colSpan={examOptions.length * 2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3" style={{ backgroundColor: BG_EXAM }}>
-            시험
-          </th>
-          <th scope="col" colSpan={homeworkOptions.length * 2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3" style={{ backgroundColor: BG_HOMEWORK }}>
-            과제
-          </th>
-          <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
-            총괄 클리닉 대상
-          </th>
-          <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0">
-            대상 사유
-          </th>
-        </tr>
-        {/* Row2: 시험명들(colSpan=2) | 과제명들(colSpan=2) — 실제 exam.title / homework.title */}
-        <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
           {examOptions.map((ex) => (
             <th
-              key={`name-exam-${ex.exam_id}`}
+              key={`head-exam-${ex.exam_id}`}
               scope="col"
               colSpan={2}
               className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
               style={{ backgroundColor: BG_EXAM }}
               title={ex.title}
             >
-              {ex.title}
+              <span className="inline-flex items-center gap-1.5">
+                <span className="ds-status-badge px-1.5 py-0.5 rounded text-[10px] font-semibold text-[var(--color-text-secondary)] bg-[var(--color-bg-surface-hover)]">
+                  시험
+                </span>
+                <span className="truncate">{ex.title}</span>
+              </span>
             </th>
           ))}
           {homeworkOptions.map((hw) => (
             <th
-              key={`name-hw-${hw.homework_id}`}
+              key={`head-hw-${hw.homework_id}`}
               scope="col"
               colSpan={2}
               className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
               style={{ backgroundColor: BG_HOMEWORK }}
               title={hw.title}
             >
-              {hw.title}
+              <span className="inline-flex items-center gap-1.5">
+                <span className="ds-status-badge px-1.5 py-0.5 rounded text-[10px] font-semibold text-[var(--color-text-secondary)] bg-[var(--color-bg-surface-hover)]">
+                  과제
+                </span>
+                <span className="truncate">{hw.title}</span>
+              </span>
             </th>
           ))}
+          <th scope="col" rowSpan={2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
+            총괄 클리닉 대상
+          </th>
+          <th scope="col" rowSpan={2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0">
+            대상 사유
+          </th>
         </tr>
-        {/* Row3: 점수 | 합불 반복 — ResizableTh per column */}
+        {/* Row2: 점수 | 합불 (시험별) | 점수 | 합불 (과제별) */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
           {examOptions.map((ex) => (
             <Fragment key={ex.exam_id}>
