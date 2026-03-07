@@ -492,9 +492,9 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             />
           </div>
 
-          {/* 담당 강사 · 과목 — 입력란 클릭 시 불러오기(저장 목록)만 열림, 직접 입력 불가 */}
-          <div className="modal-form-group" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "start" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {/* 담당 강사 · 과목 — 외부 블록 없이 가로 1열, 필수(담당강사)는 primary 블록·과목은 neutral 블록 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "stretch" }}>
+            <div className="modal-form-group">
               <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
                 담당 강사 (필수)
               </label>
@@ -511,7 +511,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                 <input
                   type="text"
                   readOnly
-                  className="ds-input flex-1 min-w-0 w-full"
+                  className="ds-input w-full min-w-0"
                   placeholder="클릭하여 선택"
                   value={name}
                   data-required="true"
@@ -522,7 +522,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                 />
               </Popover>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="modal-form-group modal-form-group--neutral">
               <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
                 과목
               </label>
@@ -539,7 +539,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                 <input
                   type="text"
                   readOnly
-                  className="ds-input flex-1 min-w-0 w-full"
+                  className="ds-input w-full min-w-0"
                   placeholder="클릭하여 선택"
                   value={subject}
                   disabled={isPending}
@@ -550,16 +550,23 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             </div>
           </div>
 
-          <textarea
-            className="ds-textarea"
-            rows={3}
-            placeholder="설명"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            disabled={isPending}
-            style={{ resize: "none" }}
-          />
+          {/* 설명 — 선택, neutral */}
+          <div className="modal-form-group modal-form-group--neutral">
+            <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+              설명
+            </label>
+            <textarea
+              className="ds-textarea w-full"
+              rows={3}
+              placeholder="설명"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={isPending}
+              style={{ resize: "none" }}
+            />
+          </div>
 
+          {/* 시작일(필수) · 종료일(선택) — 필수/선택 색상 구분 */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div className="modal-form-group" data-required="true" data-invalid={hasAttemptedSubmit && !startDate.trim() ? "true" : "false"}>
               <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
@@ -572,7 +579,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                 disabled={isPending}
               />
             </div>
-            <div className="modal-form-group">
+            <div className="modal-form-group modal-form-group--neutral">
               <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
                 종료일 (선택)
               </label>
@@ -585,7 +592,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             </div>
           </div>
 
-          <div style={{ minWidth: 320 }} data-required="true" data-invalid={hasAttemptedSubmit && !lectureTime.trim() ? "true" : "false"}>
+          {/* 강의 시간 — 필수 */}
+          <div className="modal-form-group" data-required="true" data-invalid={hasAttemptedSubmit && !lectureTime.trim() ? "true" : "false"}>
             <div className="modal-section-label" style={{ marginBottom: 6 }}>강의 시간 (필수)</div>
             <TimeRangeInput
               value={lectureTime}
