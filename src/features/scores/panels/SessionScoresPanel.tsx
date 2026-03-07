@@ -74,6 +74,12 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   const homeworkCols = meta?.homeworks ?? [];
   /** 선택(1) + 이름(1) + 출석(1) + 시험(2*E) + 과제(2*H) + 클리닉대상(1) + 사유(1) */
   const totalCols = 5 + examCols.length * 2 + homeworkCols.length * 2;
+  /** 과제 점수 입력란(편집 가능) 첫 컬럼 인덱스 */
+  const firstHomeworkScoreCol = 3 + examCols.length * 2;
+  /** 과제 점수 입력란 마지막 컬럼 인덱스 (과제가 없으면 first와 동일) */
+  const lastHomeworkScoreCol = homeworkCols.length > 0
+    ? 3 + examCols.length * 2 + (homeworkCols.length - 1) * 2
+    : firstHomeworkScoreCol;
 
   const rowIndex = useMemo(
     () => (selected ? rows.findIndex((r) => r.enrollment_id === selected.enrollment_id) : 0),
@@ -148,27 +154,47 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
     }
     if (isTab || e.key === "ArrowRight") {
       e.preventDefault();
-      if (colIndex + 1 >= totalCols) moveTo(rowIndex + 1, 0);
+      if (colIndex + 1 >= totalCols) moveTo(rowIndex + 1, firstHomeworkScoreCol);
       else moveTo(rowIndex, colIndex + 1);
       return;
     }
     if (isShiftTab || e.key === "ArrowLeft") {
       e.preventDefault();
-      if (colIndex - 1 < 0) moveTo(rowIndex - 1, totalCols - 1);
+      if (colIndex - 1 < 0) moveTo(rowIndex - 1, lastHomeworkScoreCol);
       else moveTo(rowIndex, colIndex - 1);
       return;
     }
   };
 
   const onRequestMoveNext = useCallback(() => {
-    if (colIndex + 1 >= totalCols) moveTo(rowIndex + 1, 0);
-    else moveTo(rowIndex, colIndex + 1);
-  }, [colIndex, rowIndex, totalCols, moveTo]);
+    const inHomeworkScoreCol =
+      colIndex >= firstHomeworkScoreCol &&
+      colIndex <= lastHomeworkScoreCol &&
+      (colIndex - firstHomeworkScoreCol) % 2 === 0;
+    if (inHomeworkScoreCol) {
+      const next = colIndex + 2;
+      if (next > lastHomeworkScoreCol) moveTo(rowIndex + 1, firstHomeworkScoreCol);
+      else moveTo(rowIndex, next);
+    } else {
+      if (colIndex + 1 >= totalCols) moveTo(rowIndex + 1, firstHomeworkScoreCol);
+      else moveTo(rowIndex, colIndex + 1);
+    }
+  }, [colIndex, rowIndex, totalCols, firstHomeworkScoreCol, lastHomeworkScoreCol, moveTo]);
 
   const onRequestMovePrev = useCallback(() => {
-    if (colIndex - 1 < 0) moveTo(rowIndex - 1, totalCols - 1);
-    else moveTo(rowIndex, colIndex - 1);
-  }, [colIndex, rowIndex, totalCols, moveTo]);
+    const inHomeworkScoreCol =
+      colIndex >= firstHomeworkScoreCol &&
+      colIndex <= lastHomeworkScoreCol &&
+      (colIndex - firstHomeworkScoreCol) % 2 === 0;
+    if (inHomeworkScoreCol) {
+      const prev = colIndex - 2;
+      if (prev < firstHomeworkScoreCol) moveTo(rowIndex - 1, lastHomeworkScoreCol);
+      else moveTo(rowIndex, prev);
+    } else {
+      if (colIndex - 1 < 0) moveTo(rowIndex - 1, lastHomeworkScoreCol);
+      else moveTo(rowIndex, colIndex - 1);
+    }
+  }, [colIndex, rowIndex, totalCols, firstHomeworkScoreCol, lastHomeworkScoreCol, moveTo]);
 
   const onRequestMoveDown = useCallback(() => {
     moveTo(rowIndex + 1, colIndex);

@@ -340,3 +340,11 @@ table.ds-table {
 .ds-scores-table tbody tr.ds-scores-table-row--alt.ds-row-selected:hover {
   background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface));
 }
+
+/* 체크된 행(선택 체크박스) — 시험/과제 셀 포함 전체 배경 */
+.ds-scores-table tbody tr.ds-scores-table-row--checked > td {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface)) !important;
+}
+.ds-scores-table tbody tr.ds-scores-table-row--checked:hover > td {
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface)) !important;
+}

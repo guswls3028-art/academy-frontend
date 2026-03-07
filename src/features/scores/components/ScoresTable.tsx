@@ -400,6 +400,7 @@ export default function ScoresTable({
       <tbody>
         {rows.map((row, rowIndex) => {
           const selected = selectedEnrollmentId === row.enrollment_id;
+          const rowChecked = selectedSet.has(row.enrollment_id);
           const { target: clinicTarget, reason: clinicReason } = getClinicReason(row);
           const showExpand =
             selected &&
@@ -414,7 +415,7 @@ export default function ScoresTable({
                 onClick={() => onSelectRow(row)}
                 tabIndex={0}
                 role="button"
-                className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] ${selected ? "ds-row-selected" : ""} hover:bg-[var(--color-bg-surface-hover)] ${isEvenRow ? "ds-scores-table-row--alt" : ""}`}
+                className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] ${selected ? "ds-row-selected" : ""} ${rowChecked ? "ds-scores-table-row--checked" : ""} hover:bg-[var(--color-bg-surface-hover)] ${isEvenRow ? "ds-scores-table-row--alt" : ""}`}
               >
                 <td
                   className="ds-checkbox-cell align-middle py-2.5 px-3 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
@@ -492,7 +493,7 @@ export default function ScoresTable({
                     <Fragment key={ex.exam_id}>
                       <td
                         className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                        style={{ backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM }}
+                        style={rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
@@ -502,7 +503,7 @@ export default function ScoresTable({
                       </td>
                       <td
                         className="min-w-0 text-left align-middle py-2.5 px-3"
-                        style={{ backgroundColor: BG_EXAM }}
+                        style={rowChecked ? undefined : { backgroundColor: BG_EXAM }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
@@ -528,7 +529,7 @@ export default function ScoresTable({
                     <Fragment key={hw.homework_id}>
                       <td
                         className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                        style={{ backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
+                        style={rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
@@ -587,7 +588,7 @@ export default function ScoresTable({
                       </td>
                       <td
                         className="min-w-0 text-left align-middle py-2.5 px-3"
-                        style={{ backgroundColor: BG_HOMEWORK }}
+                        style={rowChecked ? undefined : { backgroundColor: BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
