@@ -629,6 +629,66 @@
   background: color-mix(in srgb, var(--color-error, #dc2626) 12%, transparent);
 }
 
+/* ========== 리포트 — 월 네비 + 캘린더 한 묶음 ========== */
+.clinic-reports-calendar-block {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+  padding: var(--space-6);
+}
+.clinic-reports-calendar-block__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+.clinic-reports-calendar-block__nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.clinic-reports-calendar-block__nav-btn:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+.clinic-reports-calendar-block__month {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.clinic-reports-calendar-block__year {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.clinic-reports-calendar-block__month-label {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+.clinic-reports-calendar-block__grid {
+  border-top: 1px solid var(--color-border-divider);
+  padding-top: var(--space-4);
+}
+.clinic-reports-calendar-block__compact {
+  border-top: 1px solid var(--color-border-divider);
+  padding-top: var(--space-4);
+}
+
 .clinic-panel__header {
   padding: var(--space-6) var(--space-7);
   padding-left: var(--space-7);

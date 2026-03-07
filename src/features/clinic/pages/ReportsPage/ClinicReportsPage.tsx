@@ -3,6 +3,7 @@
 
 import { useMemo, useState } from "react";
 import dayjs from "dayjs";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import Section from "@/shared/ui/ds/Section";
@@ -125,8 +126,9 @@ export default function ClinicReportsPage() {
     const d = dayjs(
       `${ym.year}-${String(ym.month).padStart(2, "0")}-01`
     );
-    return `${d.format("YYYY")} ${d.format("MMM")}`;
+    return d.format("M월"); // "3월"
   }, [ym.year, ym.month]);
+  const yearLabel = useMemo(() => String(ym.year), [ym.year]);
 
   const compactDays = useMemo(() => {
     const keys = Object.keys(sessionsByDate).sort((a, b) => (a > b ? 1 : -1));
@@ -159,23 +161,6 @@ export default function ClinicReportsPage() {
         description="월 단위 클리닉 현황"
         right={
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="h-9 px-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)]"
-              onClick={() => moveMonth(-1)}
-            >
-              ← 이전
-            </button>
-            <button
-              type="button"
-              className="h-9 px-3 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-sm font-medium text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)]"
-              onClick={() => moveMonth(1)}
-            >
-              다음 →
-            </button>
-            <div className="px-3 py-1.5 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-sm font-semibold text-[var(--color-text-primary)]">
-              {monthLabel}
-            </div>
             <div className="flex gap-1">
               <button
                 type="button"
@@ -231,16 +216,41 @@ export default function ClinicReportsPage() {
         }
       />
 
-      {mode === "detail" ? (
-        <Section title="월별 캘린더">
-          <div className="grid grid-cols-7 border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-xs font-semibold text-[var(--color-text-primary)]">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-              <div key={d} className="px-3 py-2">
-                {d}
-              </div>
-            ))}
+      {/* 한 묶음: 큰 글씨 < 3월 > + 캘린더(또는 간략 목록) */}
+      <div className="clinic-reports-calendar-block">
+        <div className="clinic-reports-calendar-block__nav">
+          <button
+            type="button"
+            className="clinic-reports-calendar-block__nav-btn"
+            onClick={() => moveMonth(-1)}
+            aria-label="이전 달"
+          >
+            <ChevronLeft size={28} strokeWidth={2} />
+          </button>
+          <div className="clinic-reports-calendar-block__month">
+            <span className="clinic-reports-calendar-block__year">{yearLabel}</span>
+            <span className="clinic-reports-calendar-block__month-label">{monthLabel}</span>
           </div>
-          <div className="grid grid-cols-7 auto-rows-[132px]">
+          <button
+            type="button"
+            className="clinic-reports-calendar-block__nav-btn"
+            onClick={() => moveMonth(1)}
+            aria-label="다음 달"
+          >
+            <ChevronRight size={28} strokeWidth={2} />
+          </button>
+        </div>
+
+        {mode === "detail" ? (
+          <div className="clinic-reports-calendar-block__grid">
+            <div className="grid grid-cols-7 border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-xs font-semibold text-[var(--color-text-primary)]">
+              {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
+                <div key={d} className="px-3 py-2">
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 auto-rows-[132px]">
             {cells.map((c) => {
               const items = sessionsByDate[c.date] ?? [];
               const has = items.length > 0;
@@ -297,75 +307,73 @@ export default function ClinicReportsPage() {
               );
             })}
           </div>
-        </Section>
-      ) : (
-        <Section
-          title="월간 일정 (간략)"
-          description="일정 있는 날만 표시"
-        >
-          {!sessionsQ.isLoading && !hasAny && (
-            <p className="ds-section__empty">이번 달 클리닉 일정이 없습니다.</p>
-          )}
-          <div className="space-y-2">
-            {compactDays.map((d) => {
-              const collapsed = !!collapsedDays[d.date];
-              const count = d.items.length;
-              return (
-                <div
-                  key={d.date}
-                  className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden"
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleDay(d.date)}
-                    className="w-full px-4 py-3 flex items-center justify-between text-left bg-[var(--color-bg-surface-soft)] hover:bg-[var(--color-bg-surface-hover)] transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-[var(--color-brand-primary)]" />
-                      <span className="text-sm font-semibold text-[var(--color-text-primary)]">
-                        {d.date}{" "}
-                        <span className="text-[var(--color-text-muted)] font-medium">
-                          ({d.dow})
-                        </span>
-                      </span>
-                      <span className="text-xs text-[var(--color-text-muted)]">
-                        {count}개
-                      </span>
-                    </div>
-                    <span className="text-sm text-[var(--color-text-muted)]">
-                      {collapsed ? "▶" : "▼"}
-                    </span>
-                  </button>
-                  {!collapsed && (
-                    <div className="px-4 py-3 space-y-2 border-t border-[var(--color-border-divider)]">
-                      {d.items.map((s) => (
-                        <div
-                          key={s.id}
-                          className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3 flex items-center justify-between gap-3"
-                        >
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-[var(--color-text-primary)]">
-                              {startTimeHHMM(s.start_time)}
-                            </div>
-                            <div className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">
-                              {s.location || "장소 미지정"}
-                            </div>
-                          </div>
-                          <span className="shrink-0 text-xs font-semibold text-[var(--color-text-primary)]">
-                            {typeof s.participant_count === "number"
-                              ? `${s.participant_count}명`
-                              : ""}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
           </div>
-        </Section>
-      )}
+        ) : (
+          <div className="clinic-reports-calendar-block__compact">
+            {!sessionsQ.isLoading && !hasAny && (
+              <p className="ds-section__empty">이번 달 클리닉 일정이 없습니다.</p>
+            )}
+            <div className="space-y-2">
+              {compactDays.map((d) => {
+                const collapsed = !!collapsedDays[d.date];
+                const count = d.items.length;
+                return (
+                  <div
+                    key={d.date}
+                    className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleDay(d.date)}
+                      className="w-full px-4 py-3 flex items-center justify-between text-left bg-[var(--color-bg-surface-soft)] hover:bg-[var(--color-bg-surface-hover)] transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-[var(--color-brand-primary)]" />
+                        <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+                          {d.date}{" "}
+                          <span className="text-[var(--color-text-muted)] font-medium">
+                            ({d.dow})
+                          </span>
+                        </span>
+                        <span className="text-xs text-[var(--color-text-muted)]">
+                          {count}개
+                        </span>
+                      </div>
+                      <span className="text-sm text-[var(--color-text-muted)]">
+                        {collapsed ? "▶" : "▼"}
+                      </span>
+                    </button>
+                    {!collapsed && (
+                      <div className="px-4 py-3 space-y-2 border-t border-[var(--color-border-divider)]">
+                        {d.items.map((s) => (
+                          <div
+                            key={s.id}
+                            className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3 flex items-center justify-between gap-3"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-[var(--color-text-primary)]">
+                                {startTimeHHMM(s.start_time)}
+                              </div>
+                              <div className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">
+                                {s.location || "장소 미지정"}
+                              </div>
+                            </div>
+                            <span className="shrink-0 text-xs font-semibold text-[var(--color-text-primary)]">
+                              {typeof s.participant_count === "number"
+                                ? `${s.participant_count}명`
+                                : ""}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
