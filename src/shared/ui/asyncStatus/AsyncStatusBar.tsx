@@ -534,13 +534,15 @@ export default function AsyncStatusBar() {
           : `${displayTasks.length}건 완료`;
 
   // 항상 우하단에 진행 상황 표시 (작업 없을 때도 접힌 상태로 유지)
+  // 앵커 모드: 헤더 버튼으로 열리면 우상단에 패널만 표시
   return (
     <div
-      className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"} ${errorCount > 0 ? "async-status-bar--has-error" : ""}`}
+      className={`async-status-bar ${expanded ? "async-status-bar--expanded" : "async-status-bar--collapsed"} ${errorCount > 0 ? "async-status-bar--has-error" : ""} ${isAnchorMode ? "async-status-bar--anchor" : ""}`}
       role="region"
       aria-label="진행 중인 작업"
     >
-      {/* 접었을 때: Windows 알림처럼 작은 창 */}
+      {/* 접었을 때: 작은 알림 창 (앵커 모드에서는 헤더 버튼이 트리거이므로 숨김) */}
+      {!isAnchorMode && (
       <button
         type="button"
         className="async-status-bar__trigger"
@@ -552,8 +554,9 @@ export default function AsyncStatusBar() {
         </svg>
         <span className="async-status-bar__trigger-count">{triggerLabel}</span>
       </button>
+      )}
 
-      {/* 펼쳤을 때: 목록 패널 */}
+      {/* 펼쳤을 때: 목록 패널 (앵커 모드면 우상단 고정) */}
       <div className="async-status-bar__panel">
         <div className="async-status-bar__header">
           <span>진행 상황</span>

@@ -15,6 +15,22 @@
   --async-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
+/* 헤더 앵커 모드: 우상단에 패널만 표시 (트리거는 헤더의 작업박스 버튼) */
+.async-status-bar--anchor {
+  bottom: auto;
+  left: auto;
+  top: calc(var(--panel-header, 56px) + 8px);
+  right: 16px;
+}
+
+.async-status-bar--anchor.async-status-bar--collapsed .async-status-bar__panel {
+  display: none;
+}
+
+.async-status-bar--anchor.async-status-bar--expanded .async-status-bar__panel {
+  display: flex;
+}
+
 .async-status-bar--collapsed .async-status-bar__panel {
   display: none;
 }
