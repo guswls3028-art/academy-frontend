@@ -84,12 +84,12 @@ export default function ClinicHomePage() {
   });
 
   return (
-    <div className="clinic-page">
+    <div className="clinic-page clinic-home">
       <div className="clinic-toolbar">
         <DatePicker value={date} onChange={setDate} placeholder="날짜" />
       </div>
 
-      {/* 1. 오늘 클리닉 일정 — 리스트 */}
+      {/* 1. 오늘 클리닉 일정 — 섹션 */}
       <ClinicTodaySummary
         date={date}
         rows={todayQ.listQ.data ?? []}
@@ -98,13 +98,14 @@ export default function ClinicHomePage() {
         onGoBookings={() => nav("/admin/clinic/bookings")}
       />
 
-      {/* 2. 예약대상자 리스트 + 예약신청자 리스트 */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="ds-section clinic-panel">
-          <div className="clinic-panel__header flex items-center justify-between gap-4">
+      {/* 2. 예약대상자 · 예약신청 — 섹션형 2열 */}
+      <div className="clinic-home__row border-b border-[var(--color-border-divider)] pb-8">
+        <div className="grid grid-cols-1 gap-0 lg:grid-cols-2">
+          <div className="clinic-home__section lg:border-r lg:border-b-0 lg:pr-8 lg:pr-[var(--space-8)]">
+          <div className="clinic-home__header flex items-center justify-between gap-4">
             <div>
-              <h2 className="clinic-panel__title">예약 대상자</h2>
-              <p className="clinic-panel__meta">
+              <h2 className="clinic-home__title">예약 대상자</h2>
+              <p className="clinic-home__meta">
                 이번 주 미예약 {requiredCount}명
               </p>
             </div>
@@ -117,12 +118,12 @@ export default function ClinicHomePage() {
               관리
             </Button>
           </div>
-          <div className="clinic-panel__body">
+          <div className="clinic-home__body">
             {targetsQ.isLoading && (
               <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
             )}
             {!targetsQ.isLoading && targetsList.length === 0 && (
-              <p className="text-sm text-[var(--color-text-muted)]">대상자가 없습니다.</p>
+              <p className="ds-section__empty">대상자가 없습니다.</p>
             )}
             {!targetsQ.isLoading && targetsList.length > 0 && (
               <ul className="space-y-2 max-h-[240px] overflow-auto">
@@ -144,13 +145,13 @@ export default function ClinicHomePage() {
               </ul>
             )}
           </div>
-        </section>
+        </div>
 
-        <section className="ds-section clinic-panel">
-          <div className="clinic-panel__header flex items-center justify-between gap-4 flex-wrap">
+        <div className="clinic-home__section lg:pl-8 lg:pl-[var(--space-8)]">
+          <div className="clinic-home__header flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <h2 className="clinic-panel__title">예약 신청</h2>
-              <p className="clinic-panel__meta">승인 대기 {pendingList.length}건</p>
+              <h2 className="clinic-home__title">예약 신청</h2>
+              <p className="clinic-home__meta">승인 대기 {pendingList.length}건</p>
             </div>
             <label className="flex items-center gap-2 cursor-pointer shrink-0">
               <input
@@ -165,12 +166,12 @@ export default function ClinicHomePage() {
               </span>
             </label>
           </div>
-          <div className="clinic-panel__body">
+          <div className="clinic-home__body">
             {pendingQ.listQ.isLoading && (
               <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
             )}
             {!pendingQ.listQ.isLoading && pendingList.length === 0 && (
-              <p className="text-sm text-[var(--color-text-muted)]">대기 중인 신청이 없습니다.</p>
+              <p className="ds-section__empty">대기 중인 신청이 없습니다.</p>
             )}
             {!pendingQ.listQ.isLoading && pendingList.length > 0 && (
               <ul className="space-y-2 max-h-[240px] overflow-auto">
@@ -210,7 +211,8 @@ export default function ClinicHomePage() {
               </ul>
             )}
           </div>
-        </section>
+        </div>
+      </div>
       </div>
     </div>
   );

@@ -463,6 +463,11 @@
   border-bottom: none;
   padding-bottom: 0;
 }
+/* 2열 그리드 안의 섹션은 하단 선 제거(행 단위로만 구분선) */
+.clinic-home__row .clinic-home__section {
+  border-bottom: none;
+  padding-bottom: 0;
+}
 .clinic-home__section .clinic-home__header {
   display: flex;
   align-items: center;

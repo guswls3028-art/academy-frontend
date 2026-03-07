@@ -1,5 +1,5 @@
 // PATH: src/features/clinic/components/home/ClinicTodaySummary.tsx
-// 오늘 클리닉 요약 — 섹션형 SSOT, 숫자·시각 위계
+// 오늘 클리닉 요약 — 섹션형(카드 아님), 숫자·시각 위계
 
 import { Button, KPI } from "@/shared/ui/ds";
 import { ClinicParticipant } from "../../api/clinicParticipants.api";
@@ -41,11 +41,11 @@ export default function ClinicTodaySummary({
   const noShow = rows.filter((r) => r.status === "no_show").length;
 
   return (
-    <section className="ds-section clinic-panel">
-      <div className="clinic-panel__header flex items-center justify-between gap-4">
+    <section className="clinic-home__section">
+      <div className="clinic-home__header flex items-center justify-between gap-4">
         <div>
-          <h2 className="clinic-panel__title">오늘 클리닉</h2>
-          <p className="clinic-panel__meta">{date}</p>
+          <h2 className="clinic-home__title">오늘 클리닉</h2>
+          <p className="clinic-home__meta">{date}</p>
         </div>
         <div className="flex gap-2 shrink-0">
           <Button size="sm" intent="secondary" onClick={onGoBookings}>
@@ -56,7 +56,7 @@ export default function ClinicTodaySummary({
           </Button>
         </div>
       </div>
-      <div className="clinic-panel__body">
+      <div className="clinic-home__body">
         <div className="ds-section__kpi-list flex flex-wrap gap-4 mb-4">
           <KPI label="총 인원" value={rows.length} />
           <KPI label="예약" value={booked} />
