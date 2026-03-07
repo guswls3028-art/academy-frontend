@@ -34,8 +34,18 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
       setProgram(res.data ?? null);
-    } catch {
+    } catch (e: unknown) {
       setProgram(null);
+      if (import.meta.env.DEV) {
+        const err = e as { code?: string; message?: string };
+        if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
+          console.warn(
+            "[로컬 개발] 백엔드에 연결할 수 없습니다. Django 서버를 실행해 주세요.\n" +
+              "  예: academy 폴더에서 'Academy Local Dev.bat' 실행 또는\n" +
+              "  python manage.py runserver 0.0.0.0:8000"
+          );
+        }
+      }
     }
   };
 
