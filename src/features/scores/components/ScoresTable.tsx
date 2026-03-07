@@ -91,6 +91,10 @@ type Props = {
   selectedHomeworkId: number | null;
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number) => void;
   onSelectRow: (row: SessionScoreRow) => void;
+
+  /** 키보드로 과제 셀에 포커스 이동 시 해당 입력란에 포커스 */
+  focusHomeworkCell?: { enrollmentId: number; homeworkId: number } | null;
+  onFocusHomeworkDone?: () => void;
 };
 
 export default function ScoresTable({
@@ -103,9 +107,23 @@ export default function ScoresTable({
   selectedHomeworkId,
   onSelectCell,
   onSelectRow,
+  focusHomeworkCell,
+  onFocusHomeworkDone,
 }: Props) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    if (!focusHomeworkCell || !onFocusHomeworkDone) return;
+    const key = `${focusHomeworkCell.enrollmentId}-${focusHomeworkCell.homeworkId}`;
+    const el = homeworkInputRefs.current[key];
+    if (el) {
+      el.focus();
+      onFocusHomeworkDone();
+    } else {
+      onFocusHomeworkDone();
+    }
+  }, [focusHomeworkCell, onFocusHomeworkDone]);
 
   const examOptions = meta?.exams ?? [];
   const homeworkOptions = meta?.homeworks ?? [];

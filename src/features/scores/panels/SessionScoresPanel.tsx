@@ -1,7 +1,7 @@
 // PATH: src/features/scores/panels/SessionScoresPanel.tsx
-// 성적 테이블 + 사이드패널 — students 도메인 SSOT (Panel 제거, 테이블 위주)
+// 성적 테이블 + 사이드패널 — 엑셀형 키보드 이동 (Tab/화살표)
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -21,6 +21,12 @@ type Props = {
 };
 
 export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+  const [focusHomeworkCell, setFocusHomeworkCell] = useState<{
+    enrollmentId: number;
+    homeworkId: number;
+  } | null>(null);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["session-scores", sessionId],
     queryFn: () => fetchSessionScores(sessionId),
@@ -58,6 +64,87 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
   const [currentExamId, setCurrentExamId] = useState<number | null>(null);
   const [currentHomeworkId, setCurrentHomeworkId] = useState<number | null>(null);
   const [activeColumn, setActiveColumn] = useState<"exam" | "homework">("exam");
+
+  const examCols = meta?.exams ?? [];
+  const homeworkCols = meta?.homeworks ?? [];
+  const totalCols = 2 + examCols.length + homeworkCols.length;
+
+  const rowIndex = useMemo(
+    () => (selected ? rows.findIndex((r) => r.enrollment_id === selected.enrollment_id) : 0),
+    [rows, selected]
+  );
+  const colIndex = useMemo(() => {
+    if (activeColumn === "exam" && currentExamId != null) {
+      const i = examCols.findIndex((e) => e.exam_id === currentExamId);
+      return i >= 0 ? 2 + i : 2;
+    }
+    if (activeColumn === "homework" && currentHomeworkId != null) {
+      const i = homeworkCols.findIndex((h) => h.homework_id === currentHomeworkId);
+      return i >= 0 ? 2 + examCols.length + i : 2 + examCols.length;
+    }
+    return 1;
+  }, [activeColumn, currentExamId, currentHomeworkId, examCols, homeworkCols]);
+
+  const moveTo = useMemo(
+    () =>
+      (nextRow: number, nextCol: number) => {
+        const r = Math.max(0, Math.min(nextRow, rows.length - 1));
+        const c = Math.max(0, Math.min(nextCol, totalCols - 1));
+        const row = rows[r];
+        if (!row) return;
+        setSelected(row);
+        setFocusHomeworkCell(null);
+        if (c <= 1) {
+          setActiveColumn(examCols.length > 0 ? "exam" : "homework");
+          setCurrentExamId(examCols[0]?.exam_id ?? null);
+          setCurrentHomeworkId(homeworkCols[0]?.homework_id ?? null);
+          return;
+        }
+        if (c < 2 + examCols.length) {
+          const exam = examCols[c - 2];
+          setActiveColumn("exam");
+          setCurrentExamId(exam?.exam_id ?? null);
+          setCurrentHomeworkId(homeworkCols[0]?.homework_id ?? null);
+          return;
+        }
+        const hw = homeworkCols[c - 2 - examCols.length];
+        setActiveColumn("homework");
+        setCurrentHomeworkId(hw?.homework_id ?? null);
+        setCurrentExamId(examCols[0]?.exam_id ?? null);
+        if (hw && row) {
+          setFocusHomeworkCell({ enrollmentId: row.enrollment_id, homeworkId: hw.homework_id });
+        }
+      },
+    [rows, examCols, homeworkCols, totalCols]
+  );
+
+  const handleGridKeyDown = (e: React.KeyboardEvent) => {
+    if (rows.length === 0 || totalCols <= 0) return;
+    const isTab = e.key === "Tab";
+    const isShiftTab = e.key === "Tab" && e.shiftKey;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moveTo(rowIndex + 1, colIndex);
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moveTo(rowIndex - 1, colIndex);
+      return;
+    }
+    if (isTab || e.key === "ArrowRight") {
+      e.preventDefault();
+      if (colIndex + 1 >= totalCols) moveTo(rowIndex + 1, 0);
+      else moveTo(rowIndex, colIndex + 1);
+      return;
+    }
+    if (isShiftTab || e.key === "ArrowLeft") {
+      e.preventDefault();
+      if (colIndex - 1 < 0) moveTo(rowIndex - 1, totalCols - 1);
+      else moveTo(rowIndex, colIndex - 1);
+      return;
+    }
+  };
 
   useEffect(() => {
     if (!rows.length) {
@@ -115,7 +202,12 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
 
   return (
     <div className="flex gap-6">
-      <div className="flex-1 min-w-0 overflow-x-auto">
+      <div
+        ref={tableWrapperRef}
+        tabIndex={0}
+        className="flex-1 min-w-0 overflow-x-auto outline-none"
+        onKeyDown={handleGridKeyDown}
+      >
         <ScoresTable
           rows={rows}
           meta={meta}
@@ -124,8 +216,11 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
           selectedEnrollmentId={selected?.enrollment_id ?? null}
           selectedExamId={currentExamId}
           selectedHomeworkId={currentHomeworkId}
+          focusHomeworkCell={focusHomeworkCell}
+          onFocusHomeworkDone={() => setFocusHomeworkCell(null)}
           onSelectCell={(row, type, id) => {
             setSelected(row);
+            setFocusHomeworkCell(null);
             if (type === "exam") {
               setActiveColumn("exam");
               setCurrentExamId(id);
