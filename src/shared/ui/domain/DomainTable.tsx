@@ -17,10 +17,16 @@ export default function DomainTable({
   tableStyle,
 }: DomainTableProps) {
   return (
-    <div className="ds-table-wrap" style={{ overflow: "hidden" }}>
+    <div className="ds-table-wrap" style={{ overflowX: "auto", overflowY: "visible" }}>
       <table
         className={`ds-table w-full ${tableClassName ?? ""}`.trim()}
-        style={tableStyle}
+        style={{
+          ...tableStyle,
+          /* tableLayout: fixed 시 컬럼 리사이즈 후에도 너비가 유지되도록 minWidth 동기화 */
+          ...(tableStyle?.width != null && tableStyle?.minWidth == null
+            ? { minWidth: tableStyle.width }
+            : undefined),
+        }}
       >
         {children}
       </table>

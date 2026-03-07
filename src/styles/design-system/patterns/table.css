@@ -19,6 +19,12 @@ table.ds-table {
   font-size: 13px;
 }
 
+/* 컬럼 너비 리사이즈 시 변동이 셀 너비에 정확히 반영되도록 — width가 padding 포함 */
+.ds-table thead th,
+.ds-table tbody td {
+  box-sizing: border-box;
+}
+
 .ds-table thead th {
   padding: 6px 14px;
   font-size: 13px;
