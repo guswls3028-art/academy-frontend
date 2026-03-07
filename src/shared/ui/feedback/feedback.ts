@@ -1,19 +1,25 @@
 // PATH: src/shared/ui/feedback/feedback.ts
-import { message } from "antd";
+// antd App context 사용 — Static message 대신 App.useApp() 인스턴스 사용으로 [antd: message] 경고 제거
 
-message.config({
-  duration: 2,
-  maxCount: 3,
-});
+/** App 내부에서 주입되는 message API (FeedbackBridge가 설정) */
+const messageApiRef: { current: ReturnType<typeof import("antd")["App"]["useApp"]>["message"] | null } = {
+  current: null,
+};
+
+export function setMessageApi(
+  api: ReturnType<typeof import("antd")["App"]["useApp"]>["message"] | null
+) {
+  messageApiRef.current = api;
+}
 
 export const feedback = {
   success(text: string) {
-    message.success({ content: text });
+    messageApiRef.current?.success({ content: text });
   },
   error(text: string) {
-    message.error({ content: text });
+    messageApiRef.current?.error({ content: text });
   },
   info(text: string) {
-    message.info({ content: text });
+    messageApiRef.current?.info({ content: text });
   },
 };

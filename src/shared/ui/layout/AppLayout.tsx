@@ -8,6 +8,7 @@ import { AdminLayoutProvider } from "./AdminLayoutContext";
 import { TeacherViewProvider } from "./TeacherViewContext";
 import { WorkboxProvider } from "./WorkboxContext";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
+import { FeedbackBridge } from "@/shared/ui/feedback";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
 import { NoticeProvider } from "@/features/notice/context/NoticeContext";
@@ -163,6 +164,7 @@ export default function AppLayout() {
             }}
           >
             <App>
+            <FeedbackBridge />
             <SendMessageModalProvider>
               <AppLayoutContent />
             </SendMessageModalProvider>
