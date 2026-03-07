@@ -77,29 +77,31 @@ export default function ClinicOperationsPage() {
   });
 
   return (
-    <div className="clinic-page flex flex-col lg:flex-row gap-6">
-      <aside className="hidden lg:block">
-        <OperationsSessionTree
-          sessions={treeQ.data ?? []}
-          selectedDay={baseDate}
-          year={ym.year}
-          month={ym.month}
-          onSelectDay={(date) => {
-            setBaseDate(date);
-            setMode("day");
-            setSelectedSessionId(null);
-          }}
-          onClear={() => setSelectedSessionId(null)}
-        />
-      </aside>
-      <div className="w-full lg:w-[360px] shrink-0">
-        <ClinicDaySchedulePanel
-          date={baseDate}
-          rows={participants.listQ.data ?? []}
-        />
-      </div>
-      <div className="flex-1 min-w-0">
-        <ClinicCreatePanel date={baseDate} />
+    <div className="clinic-page">
+      <div className="clinic-three-panel">
+        <aside className="clinic-three-panel__cell clinic-three-panel__cell--fixed hidden lg:block w-[320px]">
+          <OperationsSessionTree
+            sessions={treeQ.data ?? []}
+            selectedDay={baseDate}
+            year={ym.year}
+            month={ym.month}
+            onSelectDay={(date) => {
+              setBaseDate(date);
+              setMode("day");
+              setSelectedSessionId(null);
+            }}
+            onClear={() => setSelectedSessionId(null)}
+          />
+        </aside>
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[360px]">
+          <ClinicDaySchedulePanel
+            date={baseDate}
+            rows={participants.listQ.data ?? []}
+          />
+        </div>
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fill">
+          <ClinicCreatePanel date={baseDate} />
+        </div>
       </div>
     </div>
   );

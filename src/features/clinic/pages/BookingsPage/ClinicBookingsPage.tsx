@@ -62,20 +62,22 @@ export default function ClinicBookingsPage() {
   }, [focus, requiredEnrollmentIds]);
 
   return (
-    <div className="clinic-page flex flex-col lg:flex-row gap-6">
-      <div className="w-full lg:w-[360px] shrink-0">
-        <ClinicTargetTable selected={selected} onChangeSelected={setSelected} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <WeeklyClinicBoard baseDate={today} selectedEnrollmentIds={selected} />
-      </div>
-      <div className="w-full lg:w-[420px] shrink-0">
-        <ClinicCreatePanel
-          defaultMode="targets"
-          selectedTargetEnrollmentIds={selected}
-          onChangeSelectedTargetEnrollmentIds={setSelected}
-          onCreated={() => setSelected([])}
-        />
+    <div className="clinic-page">
+      <div className="clinic-three-panel">
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[360px]">
+          <ClinicTargetTable selected={selected} onChangeSelected={setSelected} />
+        </div>
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fill">
+          <WeeklyClinicBoard baseDate={today} selectedEnrollmentIds={selected} />
+        </div>
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[420px]">
+          <ClinicCreatePanel
+            defaultMode="targets"
+            selectedTargetEnrollmentIds={selected}
+            onChangeSelectedTargetEnrollmentIds={setSelected}
+            onCreated={() => setSelected([])}
+          />
+        </div>
       </div>
     </div>
   );
