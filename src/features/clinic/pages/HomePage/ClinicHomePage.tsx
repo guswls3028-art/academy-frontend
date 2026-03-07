@@ -1,17 +1,20 @@
 // PATH: src/features/clinic/pages/HomePage/ClinicHomePage.tsx
-// 클리닉 홈 — 섹션형 SSOT, 시각 위계(숫자·CTA 우선)
+// 클리닉 홈 — 오늘 일정 리스트, 예약대상자 리스트, 예약신청자 리스트 + 자동 승인 설정
 
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { DatePicker } from "@/shared/ui/date";
-import { Button, KPI } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
+import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
+import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
 import ClinicTodaySummary from "../../components/home/ClinicTodaySummary";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return dayjs().format("YYYY-MM-DD");
 }
 
 function weekRangeISO(base: string) {
@@ -23,6 +26,7 @@ function weekRangeISO(base: string) {
 
 export default function ClinicHomePage() {
   const nav = useNavigate();
+  const qc = useQueryClient();
   const [date, setDate] = useState(todayISO());
   const wk = useMemo(() => weekRangeISO(date), [date]);
 
@@ -35,6 +39,15 @@ export default function ClinicHomePage() {
     session_date_to: wk.to,
   });
   const targetsQ = useClinicTargets();
+  const pendingQ = useClinicParticipants({
+    session_date_from: date,
+    session_date_to: dayjs(date).add(90, "day").format("YYYY-MM-DD"),
+    status: "pending",
+  });
+  const settingsQ = useQuery({
+    queryKey: ["clinic-settings"],
+    queryFn: fetchClinicSettings,
+  });
 
   const bookedEnrollmentIds = useMemo(() => {
     const set = new Set<number>();
@@ -50,27 +63,25 @@ export default function ClinicHomePage() {
     return targets.filter((t) => !bookedEnrollmentIds.has(t.enrollment_id)).length;
   }, [targetsQ.data, bookedEnrollmentIds]);
 
-  const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = dayjs(wk.from).add(i, "day");
-      return { date: d.format("YYYY-MM-DD"), dow: d.format("dd") };
-    });
-  }, [wk.from]);
+  const targetsList = (targetsQ.data ?? []) as { enrollment_id: number; student_name: string }[];
+  const pendingList = pendingQ.listQ.data ?? [];
+  const autoApproved = !!settingsQ.data?.auto_approve_booking;
 
-  const rowsByDay = useMemo(() => {
-    const map: Record<string, { total: number; byTime: Record<string, number> }> = {};
-    weekDays.forEach((d) => {
-      map[d.date] = { total: 0, byTime: {} };
-    });
-    (weekQ.listQ.data ?? []).forEach((r) => {
-      const key = r.session_date;
-      if (!map[key]) return;
-      const t = (r.session_start_time || "").slice(0, 5);
-      map[key].byTime[t] = (map[key].byTime[t] ?? 0) + 1;
-      map[key].total += 1;
-    });
-    return map;
-  }, [weekQ.listQ.data, weekDays]);
+  const updateAutoApprovedM = useMutation({
+    mutationFn: (on: boolean) =>
+      updateClinicSettings(undefined, undefined, on),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-settings"] });
+    },
+  });
+
+  const patchStatusM = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: "booked" | "rejected" }) =>
+      patchClinicParticipantStatus(id, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+    },
+  });
 
   return (
     <div className="clinic-page">
@@ -78,26 +89,25 @@ export default function ClinicHomePage() {
         <DatePicker value={date} onChange={setDate} placeholder="날짜" />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <ClinicTodaySummary
-          date={date}
-          rows={todayQ.listQ.data ?? []}
-          loading={todayQ.listQ.isLoading}
-          onGoOperations={() => nav("/admin/clinic/operations")}
-          onGoBookings={() => nav("/admin/clinic/bookings")}
-        />
+      {/* 1. 오늘 클리닉 일정 — 리스트 */}
+      <ClinicTodaySummary
+        date={date}
+        rows={todayQ.listQ.data ?? []}
+        loading={todayQ.listQ.isLoading}
+        onGoOperations={() => nav("/admin/clinic/operations")}
+        onGoBookings={() => nav("/admin/clinic/bookings")}
+      />
 
+      {/* 2. 예약대상자 리스트 + 예약신청자 리스트 */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="ds-section clinic-panel">
-          <div className="clinic-panel__header">
-            <h2 className="clinic-panel__title">예약 필수</h2>
-            <p className="clinic-panel__meta">이번 주 미예약</p>
-          </div>
-          <div className="clinic-panel__body flex items-end justify-between gap-4">
-            <KPI
-              label=""
-              value={requiredCount}
-              hint={requiredCount > 0 ? "확인 필요" : undefined}
-            />
+          <div className="clinic-panel__header flex items-center justify-between gap-4">
+            <div>
+              <h2 className="clinic-panel__title">예약 대상자</h2>
+              <p className="clinic-panel__meta">
+                이번 주 미예약 {requiredCount}명
+              </p>
+            </div>
             <Button
               type="button"
               intent="primary"
@@ -107,72 +117,101 @@ export default function ClinicHomePage() {
               관리
             </Button>
           </div>
+          <div className="clinic-panel__body">
+            {targetsQ.isLoading && (
+              <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
+            )}
+            {!targetsQ.isLoading && targetsList.length === 0 && (
+              <p className="text-sm text-[var(--color-text-muted)]">대상자가 없습니다.</p>
+            )}
+            {!targetsQ.isLoading && targetsList.length > 0 && (
+              <ul className="space-y-2 max-h-[240px] overflow-auto">
+                {targetsList.map((t) => (
+                  <li
+                    key={t.enrollment_id}
+                    className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)]"
+                  >
+                    <span className="font-medium text-[var(--color-text-primary)] truncate">
+                      {t.student_name}
+                    </span>
+                    {bookedEnrollmentIds.has(t.enrollment_id) ? (
+                      <span className="text-xs text-[var(--color-success)] shrink-0">예약됨</span>
+                    ) : (
+                      <span className="text-xs text-[var(--color-text-muted)] shrink-0">미예약</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </section>
 
         <section className="ds-section clinic-panel">
-          <div className="clinic-panel__header">
-            <h2 className="clinic-panel__title">예약 신청</h2>
+          <div className="clinic-panel__header flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="clinic-panel__title">예약 신청</h2>
+              <p className="clinic-panel__meta">승인 대기 {pendingList.length}건</p>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer shrink-0">
+              <input
+                type="checkbox"
+                checked={autoApproved}
+                onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
+                disabled={updateAutoApprovedM.isPending}
+                className="rounded border-[var(--color-border-divider)]"
+              />
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">
+                자동 승인
+              </span>
+            </label>
           </div>
           <div className="clinic-panel__body">
-            <p className="text-sm text-[var(--color-text-muted)]">현재 없음</p>
+            {pendingQ.listQ.isLoading && (
+              <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
+            )}
+            {!pendingQ.listQ.isLoading && pendingList.length === 0 && (
+              <p className="text-sm text-[var(--color-text-muted)]">대기 중인 신청이 없습니다.</p>
+            )}
+            {!pendingQ.listQ.isLoading && pendingList.length > 0 && (
+              <ul className="space-y-2 max-h-[240px] overflow-auto">
+                {pendingList.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)]"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-[var(--color-text-primary)] truncate">
+                        {p.student_name}
+                      </div>
+                      <div className="text-xs text-[var(--color-text-muted)]">
+                        {p.session_date} {p.session_start_time?.slice(0, 5)} · {p.session_location}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
+                        disabled={patchStatusM.isPending}
+                        className="text-xs font-semibold px-2 py-1 rounded bg-[var(--color-success)] text-white hover:opacity-90"
+                      >
+                        승인
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
+                        disabled={patchStatusM.isPending}
+                        className="text-xs font-semibold px-2 py-1 rounded bg-[var(--color-error)] text-white hover:opacity-90"
+                      >
+                        거절
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </section>
       </div>
-
-      <section className="ds-section clinic-panel">
-        <div className="clinic-panel__header">
-          <h2 className="clinic-panel__title">주간 일정</h2>
-          <p className="clinic-panel__meta">
-            {wk.from} ~ {wk.to}
-          </p>
-        </div>
-        <div className="clinic-panel__body">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-7">
-            {weekDays.map((d) => {
-              const info = rowsByDay[d.date];
-              const times = Object.keys(info.byTime).sort();
-              const isToday = d.date === date;
-              return (
-                <button
-                  key={d.date}
-                  type="button"
-                  onClick={() => {
-                    setDate(d.date);
-                    nav(`/admin/clinic/operations?date=${d.date}`);
-                  }}
-                  className={`clinic-day-cell block w-full text-left ${isToday ? "clinic-day-cell--today" : ""}`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span
-                      className={`text-lg font-semibold ${isToday ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-primary)]"}`}
-                    >
-                      {d.dow}
-                    </span>
-                    <span className="text-xs text-[var(--color-text-muted)]">
-                      {times.length}회 · {info.total}명
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {times.map((t) => (
-                      <div
-                        key={t}
-                        className="clinic-time-block text-sm font-medium"
-                      >
-                        {t} 시작 · {info.byTime[t]}명
-                      </div>
-                    ))}
-                    {times.length === 0 && (
-                      <p className="text-sm text-[var(--color-text-muted)]">
-                        일정 없음
-                      </p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
