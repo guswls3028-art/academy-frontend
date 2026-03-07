@@ -74,6 +74,16 @@
   background-position: 0 0, 0 0, 0 0;
 }
 
+/* 클리닉 등 openBelow: body 포털 안 씀, 트리거 바로 아래 인라인 — 섹션 추가 느낌 없음 */
+.shared-date-picker-dropdown--inline-below {
+  bottom: auto;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 336px;
+  width: max-content;
+}
+
 /* 포털 시(body에 렌더): 변수 상속 없어도 차시 생성 모달과 동일한 불투명 배경·테두리·그림자 강제.
    라이트 = 모달과 동일 흰색, 다크 = 테마 surface(scale-Neutral50) — 둘 다 불투명. */
 .shared-date-picker-dropdown--portaled {
