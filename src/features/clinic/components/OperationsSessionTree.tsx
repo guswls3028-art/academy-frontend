@@ -159,6 +159,9 @@ export default function OperationsSessionTree({
                   onClick={() => onSelectDay(date)}
                   className={cx(
                     "clinic-scheduler-panel__mini-cal-cell",
+                    count > 0 && status === "normal" && "clinic-scheduler-panel__mini-cal-cell--status-normal",
+                    count > 0 && status === "almost" && "clinic-scheduler-panel__mini-cal-cell--status-almost",
+                    count > 0 && status === "full" && "clinic-scheduler-panel__mini-cal-cell--status-full",
                     isSelected && "clinic-scheduler-panel__mini-cal-cell--selected",
                     isToday && "clinic-scheduler-panel__mini-cal-cell--today"
                   )}
@@ -171,16 +174,6 @@ export default function OperationsSessionTree({
                   }
                 >
                   {dayjs(date).format("D")}
-                  {count > 0 && (
-                    <span
-                      className={cx(
-                        "clinic-scheduler-panel__mini-cal-dot",
-                        status === "full" && "clinic-scheduler-panel__mini-cal-dot--full",
-                        status === "almost" && "clinic-scheduler-panel__mini-cal-dot--almost",
-                        status === "normal" && "clinic-scheduler-panel__mini-cal-dot--normal"
-                      )}
-                    />
-                  )}
                 </button>
               );
             })}
