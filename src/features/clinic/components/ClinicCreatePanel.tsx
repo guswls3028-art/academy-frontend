@@ -227,7 +227,7 @@ export default function ClinicCreatePanel({
         </span>
       </div>
 
-      <div className="clinic-panel__body space-y-5">
+      <div className="clinic-panel__body clinic-input-filled space-y-5">
         {!hideDatePicker && (
           <section className="clinic-section">
             <div className="clinic-section__header">
@@ -254,28 +254,28 @@ export default function ClinicCreatePanel({
                 setStartTime(v);
                 setEndTime(undefined);
               }}
-              className="flex-1 bg-[var(--bg-surface)]"
+              className="flex-1"
             />
             <Select
               placeholder="종료 시간"
               options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
               value={endTime}
               onChange={setEndTime}
-              className="flex-1 bg-[var(--bg-surface)]"
+              className="flex-1"
             />
           </div>
           <div className="flex gap-2 mt-2">
             <Button
               type="default"
               onClick={() => quickAdd(30)}
-              className="!rounded-lg !border-[var(--color-border-divider)] !bg-[var(--color-bg-surface-soft)] hover:!bg-[var(--color-bg-surface-hover)] !font-semibold"
+              className="clinic-quick-time-btn flex-1"
             >
               +30분
             </Button>
             <Button
               type="default"
               onClick={() => quickAdd(60)}
-              className="!rounded-lg !border-[var(--color-border-divider)] !bg-[var(--color-bg-surface-soft)] hover:!bg-[var(--color-bg-surface-hover)] !font-semibold"
+              className="clinic-quick-time-btn flex-1"
             >
               +1시간
             </Button>
@@ -290,7 +290,7 @@ export default function ClinicCreatePanel({
             placeholder="장소 / 룸"
             value={room}
             onChange={(e) => setRoom(e.target.value)}
-            className="bg-[var(--bg-surface)] mb-3"
+            className="mb-3"
           />
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">정원</span>
@@ -304,7 +304,7 @@ export default function ClinicCreatePanel({
                 if (!Number.isNaN(v) && v >= 1) setMaxParticipants(v);
               }}
               disabled={selected.length > 0}
-              className="bg-[var(--bg-surface)] w-24"
+              className="w-24"
             />
             <span className="text-xs text-[var(--color-text-muted)]">
               {selected.length > 0 ? "선택 인원으로 설정됨" : "명 (학생 없이 클리닉만 생성 시)"}
@@ -315,7 +315,7 @@ export default function ClinicCreatePanel({
             placeholder="메모 (선택)"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            className="bg-[var(--bg-surface)] mt-3"
+            className="mt-3"
           />
         </section>
 
@@ -344,7 +344,7 @@ export default function ClinicCreatePanel({
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             allowClear
-            className="bg-[var(--bg-surface)] mt-3"
+            className="mt-3"
           />
           <div
             className="clinic-action-row mt-3"
