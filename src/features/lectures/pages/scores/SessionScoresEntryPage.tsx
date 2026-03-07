@@ -1,21 +1,17 @@
 // PATH: src/features/lectures/pages/scores/SessionScoresEntryPage.tsx
 /**
  * SessionScoresEntryPage — 성적 탭 (엑셀형 작업 플레이스)
- *
- * - DomainListToolbar + 테이블 위주, Tab/화살표로 셀 이동
- * - 시험 추가(차시 시험 탭 이동) / 과제 추가(단순 생성 모달)
+ * - DomainListToolbar + 테이블, Tab/화살표 셀 이동, 편집 모드에서만 셀 편집
  */
 
 import { useState } from "react";
 import { useParams } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
 import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
-import { createHomework } from "@/features/homework/api/homeworks";
-import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
   onOpenEnrollModal?: () => void;
@@ -27,16 +23,10 @@ async function fetchSessionScores(sessionId: number) {
   return res.data as { meta: unknown; rows: { enrollment_id: number; student_name: string }[] };
 }
 
-export default function SessionScoresEntryPage({
-  onOpenEnrollModal,
-  onOpenStudentModal,
-}: Props) {
-  const { lectureId, sessionId: sessionIdParam } = useParams<{ lectureId: string; sessionId: string }>();
+export default function SessionScoresEntryPage(_props: Props) {
+  const { sessionId: sessionIdParam } = useParams<{ lectureId: string; sessionId: string }>();
   const numericSessionId = Number(sessionIdParam);
-  const qc = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
-  const [addHomeworkOpen, setAddHomeworkOpen] = useState(false);
-  const [addHomeworkTitle, setAddHomeworkTitle] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
 
@@ -44,20 +34,6 @@ export default function SessionScoresEntryPage({
     queryKey: ["session-scores", numericSessionId],
     queryFn: () => fetchSessionScores(numericSessionId),
     enabled: Number.isFinite(numericSessionId),
-  });
-
-  const createHomeworkMutation = useMutation({
-    mutationFn: (title: string) =>
-      createHomework({ session_id: numericSessionId, title: title.trim(), status: "OPEN" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["session-scores", numericSessionId] });
-      feedback.success("과제가 추가되었습니다.");
-      setAddHomeworkOpen(false);
-      setAddHomeworkTitle("");
-    },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "과제 추가에 실패했습니다.");
-    },
   });
 
   const totalCount = data?.rows?.length ?? 0;
@@ -132,59 +108,6 @@ export default function SessionScoresEntryPage({
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
         />
-      )}
-
-      {addHomeworkOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => !createHomeworkMutation.isPending && setAddHomeworkOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="add-homework-title"
-        >
-          <div
-            className="bg-[var(--color-bg-surface)] rounded-xl shadow-xl p-6 w-full max-w-md border border-[var(--color-border-divider)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="add-homework-title" className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">
-              과제 추가
-            </h2>
-            <p className="text-sm text-[var(--color-text-muted)] mb-3">
-              제목만 입력하면 됩니다. 커트라인·설정은 생성된 과제에서 설정할 수 있습니다.
-            </p>
-            <input
-              type="text"
-              className="ds-input w-full mb-4"
-              placeholder="예: 화학 중화반응"
-              value={addHomeworkTitle}
-              onChange={(e) => setAddHomeworkTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  if (addHomeworkTitle.trim()) createHomeworkMutation.mutate(addHomeworkTitle.trim());
-                }
-                if (e.key === "Escape") setAddHomeworkOpen(false);
-              }}
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                intent="secondary"
-                onClick={() => !createHomeworkMutation.isPending && setAddHomeworkOpen(false)}
-              >
-                취소
-              </Button>
-              <Button
-                type="button"
-                intent="primary"
-                disabled={!addHomeworkTitle.trim() || createHomeworkMutation.isPending}
-                onClick={() => createHomeworkMutation.mutate(addHomeworkTitle.trim())}
-              >
-                {createHomeworkMutation.isPending ? "추가 중…" : "추가"}
-              </Button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

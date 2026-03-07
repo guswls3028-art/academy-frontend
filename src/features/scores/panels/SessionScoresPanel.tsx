@@ -1,7 +1,7 @@
 // PATH: src/features/scores/panels/SessionScoresPanel.tsx
 // 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 입력은 테이블 셀에서만
 
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -25,7 +25,6 @@ type Props = {
 };
 
 export default function SessionScoresPanel({ sessionId, search = "", isEditMode = false, selectedEnrollmentIds = [], onSelectionChange }: Props) {
-  const tableWrapperRef = useRef<HTMLDivElement>(null);
   const [focusHomeworkCell, setFocusHomeworkCell] = useState<{
     enrollmentId: number;
     homeworkId: number;
@@ -311,7 +310,6 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   return (
     <div className="flex flex-col gap-4">
       <div
-        ref={tableWrapperRef}
         tabIndex={0}
         className="min-w-0 overflow-x-auto outline-none"
         onKeyDown={handleGridKeyDown}

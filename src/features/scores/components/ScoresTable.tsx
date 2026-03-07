@@ -13,7 +13,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import InlineExamItemsRow from "./InlineExamItemsRow";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
-import HomeworkQuickInput from "./HomeworkQuickInput";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
@@ -35,6 +34,17 @@ const COL_REASON = 180;
 const BG_EXAM = "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))";
 /** 과제 블록 배경 — flat 테이블과 동일 토큰, 4% */
 const BG_HOMEWORK = "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))";
+
+function parseScoreInput(input: string, maxScore?: number | null): number | null {
+  const v = input.trim();
+  const n = Number(v);
+  if (Number.isFinite(n)) return n;
+  if (maxScore != null && Number(maxScore) > 0 && v.endsWith("%")) {
+    const p = Number(v.slice(0, -1));
+    if (Number.isFinite(p)) return Math.round((p / 100) * Number(maxScore));
+  }
+  return null;
+}
 
 /** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
 function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
@@ -140,7 +150,22 @@ export default function ScoresTable({
   onSelectionChange,
 }: Props) {
   const qc = useQueryClient();
-  const homeworkInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+
+  /** 편집 모드 시 점수 셀 동기화: 포커스 아닐 때만 서버 값으로 contenteditable 텍스트 갱신 */
+  useEffect(() => {
+    if (!rows.length) return;
+    homeworkOptions.forEach((hw) => {
+      rows.forEach((row) => {
+        const key = `${row.enrollment_id}-${hw.homework_id}`;
+        const el = homeworkInputRefs.current[key];
+        if (!el || el === document.activeElement) return;
+        const entry = row.homeworks?.find((h) => h.homework_id === hw.homework_id);
+        const score = entry?.block?.score;
+        el.innerText = score != null ? String(score) : "";
+      });
+    });
+  }, [rows, homeworkOptions]);
 
   useEffect(() => {
     if (!focusHomeworkCell || !onFocusHomeworkDone) return;
@@ -212,10 +237,6 @@ export default function ScoresTable({
   const allSelected =
     rows.length > 0 &&
     rows.every((r) => selectedSet.has(r.enrollment_id));
-
-  const focusHomeworkInput = (enrollmentId: number, homeworkId: number) => {
-    homeworkInputRefs.current[`${enrollmentId}-${homeworkId}`]?.focus();
-  };
 
   return (
     <DomainTable
@@ -540,41 +561,92 @@ export default function ScoresTable({
                         <span className="inline-flex items-center gap-2 flex-wrap">
                           {entry ? (
                             canEditScore ? (
-                              <HomeworkQuickInput
+                              <span
                                 ref={(el) => {
-                                  homeworkInputRefs.current[
-                                    `${row.enrollment_id}-${hw.homework_id}`
-                                  ] = el;
+                                  const key = `${row.enrollment_id}-${hw.homework_id}`;
+                                  homeworkInputRefs.current[key] = el;
+                                  if (el) el.innerText = block?.score != null ? String(block.score) : "";
                                 }}
-                                defaultValue={block?.score ?? null}
-                                maxScore={block?.max_score ?? null}
-                                onSubmitScore={async (score) => {
-                                  await patchHomeworkQuick({
-                                    sessionId,
-                                    enrollmentId: row.enrollment_id,
-                                    homeworkId: hw.homework_id,
-                                    score,
-                                  });
-                                  qc.invalidateQueries({
-                                    queryKey: ["session-scores", sessionId],
-                                  });
+                                contentEditable
+                                suppressContentEditableWarning
+                                className="font-medium text-right tabular-nums text-sm text-[var(--color-text-primary)] outline-none min-w-[1.5ch] inline-block"
+                                onBlur={async () => {
+                                  const key = `${row.enrollment_id}-${hw.homework_id}`;
+                                  const el = homeworkInputRefs.current[key];
+                                  if (!el) return;
+                                  const raw = el.innerText.trim();
+                                  const parsed = parseScoreInput(raw, block?.max_score ?? null);
+                                  if (parsed != null) {
+                                    await patchHomeworkQuick({
+                                      sessionId,
+                                      enrollmentId: row.enrollment_id,
+                                      homeworkId: hw.homework_id,
+                                      score: parsed,
+                                    });
+                                    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                  }
                                 }}
-                                onMarkNotSubmitted={async () => {
-                                  await patchHomeworkQuick({
-                                    sessionId,
-                                    enrollmentId: row.enrollment_id,
-                                    homeworkId: hw.homework_id,
-                                    score: null,
-                                    metaStatus: "NOT_SUBMITTED",
-                                  });
-                                  qc.invalidateQueries({
-                                    queryKey: ["session-scores", sessionId],
-                                  });
+                                onKeyDown={async (e) => {
+                                  const key = `${row.enrollment_id}-${hw.homework_id}`;
+                                  const el = homeworkInputRefs.current[key];
+                                  const raw = el?.innerText?.trim() ?? "";
+
+                                  if (e.key === "Tab") {
+                                    e.preventDefault();
+                                    if (e.shiftKey) onRequestMovePrev?.();
+                                    else onRequestMoveNext?.();
+                                    return;
+                                  }
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    if (raw === "/") {
+                                      await patchHomeworkQuick({
+                                        sessionId,
+                                        enrollmentId: row.enrollment_id,
+                                        homeworkId: hw.homework_id,
+                                        score: null,
+                                        metaStatus: "NOT_SUBMITTED",
+                                      });
+                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      onRequestMoveDown?.();
+                                      return;
+                                    }
+                                    const parsed = parseScoreInput(raw, block?.max_score ?? null);
+                                    if (parsed != null) {
+                                      await patchHomeworkQuick({
+                                        sessionId,
+                                        enrollmentId: row.enrollment_id,
+                                        homeworkId: hw.homework_id,
+                                        score: parsed,
+                                      });
+                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    }
+                                    onRequestMoveDown?.();
+                                    return;
+                                  }
+                                  if (e.key === "ArrowUp") {
+                                    e.preventDefault();
+                                    onRequestMoveUp?.();
+                                    return;
+                                  }
+                                  if (e.key === "ArrowDown") {
+                                    e.preventDefault();
+                                    onRequestMoveDown?.();
+                                    return;
+                                  }
+                                  if (e.key === "ArrowLeft") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onRequestMovePrev?.();
+                                    return;
+                                  }
+                                  if (e.key === "ArrowRight") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    onRequestMoveNext?.();
+                                    return;
+                                  }
                                 }}
-                                onMoveUp={onRequestMoveUp}
-                                onMoveDown={onRequestMoveDown}
-                                onMoveNext={onRequestMoveNext}
-                                onMovePrev={onRequestMovePrev}
                               />
                             ) : (
                               <span className="font-medium text-[var(--color-text-primary)]">
