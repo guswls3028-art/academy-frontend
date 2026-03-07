@@ -435,7 +435,7 @@ export default function Header() {
             onOpenChange={setAlarmDropdownOpen}
             trigger={["click"]}
             placement="bottomRight"
-            dropdownRender={() => (
+            popupRender={() => (
               <div className="app-header__alarmDropdown">
                 <div className="app-header__alarmDropdownHeader">
                   <span>알림</span>
@@ -505,7 +505,7 @@ export default function Header() {
             onOpenChange={setProfileDropdownOpen}
             trigger={["click"]}
             placement="bottomRight"
-            dropdownRender={() => profileDropdownContent}
+            popupRender={() => profileDropdownContent}
           >
             <span>
               <Button

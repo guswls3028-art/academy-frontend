@@ -21,7 +21,7 @@ export default function AdminNavDrawer() {
       placement="left"
       open={open}
       onClose={onClose}
-      width={280}
+      size={280}
       styles={{ body: { padding: "8px 0" } }}
     >
       <div className="nav" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
