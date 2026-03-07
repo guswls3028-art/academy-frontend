@@ -33,6 +33,7 @@ import VideoDetailPage from "@/features/videos/pages/VideoDetailPage";
 /* ================= Community ================= */
 import CommunityPage from "@/features/community/pages/CommunityPage";
 import QnaBoardPage from "@/features/community/pages/QnaBoardPage";
+import QnaReadPage from "@/features/community/pages/QnaReadPage";
 import MaterialsBoardPage from "@/features/community/pages/MaterialsBoardPage";
 import CommunityAdminPage from "@/features/community/pages/CommunityAdminPage";
 import CommunitySettingsPage from "@/features/community/pages/CommunitySettingsPage";
@@ -159,6 +160,7 @@ export default function AdminRouter() {
           <Route index element={<Navigate to="admin" replace />} />
           <Route path="notice" element={<Navigate to="/admin/community/admin?tab=notice" replace />} />
           <Route path="qna" element={<QnaBoardPage />} />
+          <Route path="qna/read/:id" element={<QnaReadPage />} />
           <Route path="materials" element={<MaterialsBoardPage />} />
           <Route path="admin" element={<CommunityAdminPage />} />
           <Route path="settings" element={<CommunitySettingsPage />} />
