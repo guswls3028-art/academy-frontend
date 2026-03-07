@@ -370,6 +370,5 @@ export default function StudentsTable({
         ))}
       </tbody>
     </DomainTable>
-    </div>
   );
 }

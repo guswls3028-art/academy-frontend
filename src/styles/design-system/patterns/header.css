@@ -570,6 +570,80 @@
   background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
 }
 
+/* 프로필 드롭다운: Ant Design이 overlay를 body 포탈로 렌더하므로 [data-app] 밖에 있음. 동일 스타일을 overlay 클래스로 적용 */
+.app-header__profileDropdownOverlay .app-header__profileDropdown {
+  min-width: 200px;
+  padding: var(--space-2);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--elevation-dropdown, 0 8px 24px rgba(0, 0, 0, 0.12));
+  border: 1px solid var(--color-border-divider);
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownRow--view .app-header__profileDropdownLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownViewBtn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownViewBtn:hover {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownDivider {
+  height: 1px;
+  background: var(--color-border-divider);
+  margin: var(--space-2) 0;
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownItem {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownItem:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownItem--danger {
+  color: var(--color-status-error, #ef4444);
+}
+
+.app-header__profileDropdownOverlay .app-header__profileDropdownItem--danger:hover {
+  background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
+}
+
 /* 작업박스 버튼 — 모두 완료 시 초록 체크 */
 [data-app="admin"] .app-header__workboxBtn--done {
   color: var(--color-success, #22c55e);
