@@ -7,6 +7,34 @@
 @import "@/styles/design-system/patterns/kpi.css";
 
 /* ========== 레이아웃 ========== */
+/* 3단 패널: 운영 탭, 예약대상자 탭 — 좌·중·우 패널이 흐트러지지 않도록 컨테이너 */
+.clinic-three-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .clinic-three-panel {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .clinic-three-panel__cell {
+    min-width: 0;
+  }
+
+  .clinic-three-panel__cell--fixed {
+    flex-shrink: 0;
+  }
+
+  .clinic-three-panel__cell--fill {
+    flex: 1 1 0;
+  }
+}
+
 .clinic-page {
   display: flex;
   flex-direction: column;
