@@ -28,7 +28,12 @@ const COL_NARROW = 64;   // 합불 뱃지 — 가독성
 const COL_SCORE = 84;   // 점수 입력 셀 — 여유
 const COL_REASON = 180; // 대상 사유 — "총괄 클리닉 대상 사유" 가시성
 const COL_CLINIC_TARGET = 100; // 총괄 클리닉 대상
-const COL_EDIT_SELECT = 80; // 수정/선택 통합 컬럼 (아이콘+라벨 여유)
+const COL_EDIT_SELECT = 80; // 수정/선택 통합 컬럼
+
+/** 시험 컬럼 블록 배경 — 학생 도메인 베이스 + 연한 구분 */
+const BG_EXAM = "color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface))";
+/** 과제 컬럼 블록 배경 — 시험과 구분되는 연한 색 */
+const BG_HOMEWORK = "color-mix(in srgb, var(--color-text-secondary) 6%, var(--color-bg-surface))"; (아이콘+라벨 여유)
 
 /** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
 function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
@@ -307,6 +312,7 @@ export default function ScoresTable({
               minWidth={40}
               maxWidth={400}
               onWidthChange={setColumnWidth}
+              style={col.type === "exam" ? { backgroundColor: BG_EXAM } : col.type === "homework" ? { backgroundColor: BG_HOMEWORK } : undefined}
               className={`ds-checkbox-cell text-center py-1 ${idx === 0 ? "border-l-2 border-[var(--color-border-divider)]" : ""}`}
             >
               {col.editable ? (
@@ -325,7 +331,7 @@ export default function ScoresTable({
             </ResizableTh>
           ))}
         </tr>
-        {/* 2행: 시험/과제명 — 수정 컬럼과 경계 구분 */}
+        {/* 2행: 시험/과제명 — 수정 컬럼과 경계 구분, 시험/과제 블록 배경 */}
         <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
           <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
             이름
@@ -339,6 +345,7 @@ export default function ScoresTable({
               scope="col"
               colSpan={4}
               className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 truncate"
+              style={{ backgroundColor: BG_EXAM }}
               title={ex.title}
             >
               {ex.title}
@@ -350,6 +357,7 @@ export default function ScoresTable({
               scope="col"
               colSpan={2}
               className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 truncate"
+              style={{ backgroundColor: BG_HOMEWORK }}
               title={hw.title}
             >
               {hw.title}
@@ -362,44 +370,44 @@ export default function ScoresTable({
             대상 사유
           </th>
         </tr>
-        {/* 3행: 서브 헤더 — 주관식/객관식/합산/합불, 점수/합불 */}
+        {/* 3행: 서브 헤더 — 시험/과제 블록 배경 */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)]">
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
             이름
           </th>
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 bg-[var(--color-bg-surface)]">
             출석
           </th>
           {examOptions.map((ex) => (
             <Fragment key={ex.exam_id}>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${ex.title} 주관식`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_EXAM }} title={`${ex.title} 주관식`}>
                 주관식
               </th>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${ex.title} 객관식`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_EXAM }} title={`${ex.title} 객관식`}>
                 객관식
               </th>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${ex.title} 합산`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_EXAM }} title={`${ex.title} 합산`}>
                 합산
               </th>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${ex.title} 합불`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_EXAM }} title={`${ex.title} 합불`}>
                 합불
               </th>
             </Fragment>
           ))}
           {homeworkOptions.map((hw) => (
             <Fragment key={hw.homework_id}>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${hw.title} 점수`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_HOMEWORK }} title={`${hw.title} 점수`}>
                 점수
               </th>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${hw.title} 합불`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_HOMEWORK }} title={`${hw.title} 합불`}>
                 합불
               </th>
             </Fragment>
           ))}
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 bg-[var(--color-bg-surface)]">
             총괄 클리닉 대상
           </th>
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 bg-[var(--color-bg-surface)]">
             대상 사유
           </th>
         </tr>
@@ -501,6 +509,7 @@ export default function ScoresTable({
                     <Fragment key={ex.exam_id}>
                       <td
                         className="min-w-0 text-left align-middle py-2.5 px-3 text-[var(--color-text-muted)]"
+                        style={{ backgroundColor: BG_EXAM }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
@@ -510,6 +519,7 @@ export default function ScoresTable({
                       </td>
                       <td
                         className="min-w-0 text-left align-middle py-2.5 px-3 text-[var(--color-text-muted)]"
+                        style={{ backgroundColor: BG_EXAM }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
@@ -518,7 +528,8 @@ export default function ScoresTable({
                         -
                       </td>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md bg-[var(--color-bg-surface)]" : ""}`}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md" : ""}`}
+                        style={{ backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
@@ -528,6 +539,7 @@ export default function ScoresTable({
                       </td>
                       <td
                         className="min-w-0 text-left align-middle py-2.5 px-3"
+                        style={{ backgroundColor: BG_EXAM }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
@@ -539,7 +551,7 @@ export default function ScoresTable({
                   );
                 })}
 
-                {/* 과제: 점수 | 합불 — 가로 배치 */}
+                {/* 과제: 점수(점수만) | 합불 — 점수 칸에는 합불 미표시(합불 컬럼에만) */}
                 {homeworkOptions.map((hw) => {
                   const entry =
                     row.homeworks?.find(
@@ -552,7 +564,8 @@ export default function ScoresTable({
                   return (
                     <Fragment key={hw.homework_id}>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md bg-[var(--color-bg-surface)]" : ""} ${canEditScore ? "bg-[color-mix(in_srgb,var(--color-bg-surface-hover)_50%,transparent)]" : ""}`}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md" : ""}`}
+                        style={{ backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
@@ -561,50 +574,44 @@ export default function ScoresTable({
                         <span className="inline-flex items-center gap-2 flex-wrap">
                           {entry ? (
                             canEditScore ? (
-                              <>
-                                <HomeworkQuickInput
-                                  ref={(el) => {
-                                    homeworkInputRefs.current[
-                                      `${row.enrollment_id}-${hw.homework_id}`
-                                    ] = el;
-                                  }}
-                                  defaultValue={block?.score ?? null}
-                                  maxScore={block?.max_score ?? null}
-                                  onSubmitScore={async (score) => {
-                                    await patchHomeworkQuick({
-                                      sessionId,
-                                      enrollmentId: row.enrollment_id,
-                                      homeworkId: hw.homework_id,
-                                      score,
-                                    });
-                                    qc.invalidateQueries({
-                                      queryKey: ["session-scores", sessionId],
-                                    });
-                                  }}
-                                  onMarkNotSubmitted={async () => {
-                                    await patchHomeworkQuick({
-                                      sessionId,
-                                      enrollmentId: row.enrollment_id,
-                                      homeworkId: hw.homework_id,
-                                      score: null,
-                                      metaStatus: "NOT_SUBMITTED",
-                                    });
-                                    qc.invalidateQueries({
-                                      queryKey: ["session-scores", sessionId],
-                                    });
-                                  }}
-                                />
-                                <PassFailBadge passed={block?.passed} />
-                              </>
+                              <HomeworkQuickInput
+                                ref={(el) => {
+                                  homeworkInputRefs.current[
+                                    `${row.enrollment_id}-${hw.homework_id}`
+                                  ] = el;
+                                }}
+                                defaultValue={block?.score ?? null}
+                                maxScore={block?.max_score ?? null}
+                                onSubmitScore={async (score) => {
+                                  await patchHomeworkQuick({
+                                    sessionId,
+                                    enrollmentId: row.enrollment_id,
+                                    homeworkId: hw.homework_id,
+                                    score,
+                                  });
+                                  qc.invalidateQueries({
+                                    queryKey: ["session-scores", sessionId],
+                                  });
+                                }}
+                                onMarkNotSubmitted={async () => {
+                                  await patchHomeworkQuick({
+                                    sessionId,
+                                    enrollmentId: row.enrollment_id,
+                                    homeworkId: hw.homework_id,
+                                    score: null,
+                                    metaStatus: "NOT_SUBMITTED",
+                                  });
+                                  qc.invalidateQueries({
+                                    queryKey: ["session-scores", sessionId],
+                                  });
+                                }}
+                              />
                             ) : (
-                              <>
-                                <span className="font-medium text-[var(--color-text-primary)]">
-                                  {block?.score != null
-                                    ? String(block.score)
-                                    : "-"}
-                                </span>
-                                <PassFailBadge passed={block?.passed} />
-                              </>
+                              <span className="font-medium text-[var(--color-text-primary)]">
+                                {block?.score != null
+                                  ? String(block.score)
+                                  : "-"}
+                              </span>
                             )
                           ) : (
                             <span className="text-[var(--color-text-muted)]">-</span>
@@ -613,6 +620,7 @@ export default function ScoresTable({
                       </td>
                       <td
                         className="min-w-0 text-left align-middle py-2.5 px-3"
+                        style={{ backgroundColor: BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
