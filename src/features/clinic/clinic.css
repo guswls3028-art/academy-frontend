@@ -115,6 +115,11 @@
   background: var(--color-primary);
 }
 
+.clinic-panel__body {
+  padding: var(--space-6);
+  border-top: 1px solid var(--color-border-divider);
+}
+
 .clinic-panel__title {
   font-size: var(--text-sm);
   font-weight: 700;
