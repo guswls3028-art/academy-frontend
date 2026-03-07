@@ -2,7 +2,7 @@
 // 클리닉 생성 — 차시 추가 모달과 똑같은 DatePicker·TimeRangeInput만 사용 (같은 컴포넌트·같은 props, 직접선택 행 없음)
 
 import { useEffect, useMemo, useState } from "react";
-import { Input, Checkbox, message } from "antd";
+import { Input, Checkbox, App } from "antd";
 import dayjs from "dayjs";
 
 import { DatePicker } from "@/shared/ui/date";
@@ -66,6 +66,7 @@ export default function ClinicCreatePanel({
   onChangeSelectedTargetEnrollmentIds,
   onCreated,
 }: Props) {
+  const { message } = App.useApp();
   const qc = useQueryClient();
 
   const initialDate = date ?? todayISO();

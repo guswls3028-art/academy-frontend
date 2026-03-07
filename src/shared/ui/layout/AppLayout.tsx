@@ -1,6 +1,6 @@
 // PATH: src/shared/ui/layout/AppLayout.tsx
 import { Outlet } from "react-router-dom";
-import { ConfigProvider } from "antd";
+import { ConfigProvider, App } from "antd";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import AppLayoutMobile from "./AppLayoutMobile";
@@ -162,9 +162,11 @@ export default function AppLayout() {
               },
             }}
           >
+            <App>
             <SendMessageModalProvider>
               <AppLayoutContent />
             </SendMessageModalProvider>
+            </App>
           </ConfigProvider>
         </NoticeProvider>
       </ProgramProvider>
