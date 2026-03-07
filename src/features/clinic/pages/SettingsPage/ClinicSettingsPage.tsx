@@ -184,9 +184,41 @@ function ClinicIdcardColorSettings() {
         </div>
 
         <div className="p-5 space-y-4">
-          {/* 현재 선택된 색상 미리보기 */}
+          {/* 매일 자동 3색 사용 */}
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
+            <div>
+              <div className="text-sm font-semibold">매일 자동 색상</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                날짜마다 서로 다른 3가지 색상이 자동으로 적용됩니다.
+              </div>
+            </div>
+            <Switch
+              checked={useDailyRandom}
+              onChange={handleToggleDailyRandom}
+              disabled={updateMutation.isPending}
+            />
+          </div>
+
+          {/* 오늘의 색상 미리보기 (자동 모드 시 강조) */}
+          {useDailyRandom && (
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-[var(--text-muted)]">오늘의 색상 미리보기</div>
+              <div
+                className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
+                style={{
+                  background: `linear-gradient(135deg, ${(settings?.colors || localColors)[0]} 0%, ${(settings?.colors || localColors)[1]} 50%, ${(settings?.colors || localColors)[2]} 100%)`,
+                  backgroundSize: "200% 200%",
+                  animation: "idcard-background-flow 8s ease infinite",
+                }}
+              />
+            </div>
+          )}
+
+          {/* 현재 선택된 색상 미리보기 (수동 또는 저장값) */}
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-[var(--text-muted)]">현재 색상 미리보기</div>
+            <div className="text-xs font-semibold text-[var(--text-muted)]">
+              {useDailyRandom ? "수동 모드 시 사용할 색상" : "현재 색상 미리보기"}
+            </div>
             <div
               className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
               style={{
