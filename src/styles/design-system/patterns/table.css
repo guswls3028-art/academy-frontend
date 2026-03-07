@@ -439,3 +439,13 @@ table.ds-table {
 .ds-scores-table tbody tr.ds-scores-table-row--checked:hover > td {
   background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface)) !important;
 }
+
+/* 합불 뱃지 — 합(초록)·불(빨강) 동일 디자인: solid 배경 + 흰 글자 */
+.ds-scores-table .ds-scores-pass-fail-badge[data-tone="success"] {
+  background: var(--color-success, #22c55e) !important;
+  color: #fff !important;
+}
+.ds-scores-table .ds-scores-pass-fail-badge[data-tone="danger"] {
+  background: var(--color-danger, #dc2626) !important;
+  color: #fff !important;
+}

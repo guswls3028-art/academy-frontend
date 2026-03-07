@@ -56,13 +56,13 @@ function validateScore(value: number, maxScore?: number | null): boolean {
   return true;
 }
 
-/** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
+/** 합불 뱃지 — 시험/과제 컬럼용. 불(빨강)과 동일 디자인으로 합(초록) solid 배경 + 흰 글자 */
 function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
   if (passed == null) return <span className="text-[var(--color-text-muted)]">-</span>;
   const tone = passed ? "success" : "danger";
   return (
     <span
-      className="ds-status-badge inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-xs font-semibold"
+      className="ds-status-badge ds-scores-pass-fail-badge inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-xs font-semibold"
       data-tone={tone}
     >
       {passed ? "합" : "불"}
@@ -600,6 +600,12 @@ export default function ScoresTable({
                                   const key = `${row.enrollment_id}-${hw.homework_id}`;
                                   scoreValueOnFocusRef.current[key] = block?.score != null ? String(block.score) : "";
                                   requestAnimationFrame(() => selectAllScoreCell(el));
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  const el = e.currentTarget;
+                                  el.focus();
+                                  selectAllScoreCell(el);
                                 }}
                                 onBlur={async () => {
                                   const key = `${row.enrollment_id}-${hw.homework_id}`;
