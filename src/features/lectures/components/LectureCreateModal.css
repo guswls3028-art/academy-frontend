@@ -4,6 +4,35 @@
 .lecture-create-modal-form .shared-time-range-trigger,
 .lecture-create-modal-form .shared-time-range-label,
 .lecture-create-modal-form .shared-time-range-btn,
-.lecture-create-modal-form .shared-date-picker-trigger {
+.lecture-create-modal-form .shared-date-picker-trigger,
+.lecture-create-modal-form .lecture-create-instructor-trigger {
   font-weight: 600;
+}
+
+/* 담당 강사 선택 트리거 — ds-input과 동일한 높이/테두리 */
+.lecture-create-instructor-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  padding: 6px 12px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.lecture-create-instructor-trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+}
+.lecture-create-instructor-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+.lecture-create-instructor-trigger[data-invalid="true"] {
+  border-color: var(--color-danger);
 }

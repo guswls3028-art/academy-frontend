@@ -79,6 +79,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
 
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
+  const [selectedInstructor, setSelectedInstructor] = useState<{ name: string; type: "owner" | "teacher" } | null>(null);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -103,7 +104,11 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
 
   useEffect(() => {
     if (isOpen && instructorOptions.length > 0 && !name) {
-      setName(instructorOptions[0]?.name ?? "");
+      const first = instructorOptions[0];
+      if (first) {
+        setName(first.name);
+        setSelectedInstructor(first);
+      }
     }
   }, [isOpen, instructorOptions, name]);
 
@@ -121,6 +126,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     if (!isOpen) return;
     setTitle("");
     setName("");
+    setSelectedInstructor(null);
     setSubject("");
     setDescription("");
     setStartDate("");
@@ -323,14 +329,22 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             <div key={`${opt.type}-${opt.name}`} className="saved-list-field-popover-item-row">
               <button
                 type="button"
-                className="saved-list-field-popover-item flex-1 min-w-0 text-left inline-flex items-center gap-2"
+                className="saved-list-field-popover-item saved-list-field-popover-item--row flex-1 min-w-0 text-left"
                 onClick={() => {
                   setName(opt.name);
+                  setSelectedInstructor(opt);
                   setInstructorPopoverOpen(false);
                 }}
               >
+                <span
+                  className="ds-status-badge ds-status-badge--action shrink-0"
+                  data-tone="primary"
+                  aria-label={opt.type === "owner" ? "대표" : "강사"}
+                >
+                  {opt.type === "owner" ? "대표" : "강사"}
+                </span>
                 <StaffRoleAvatar role={opt.type === "owner" ? "owner" : "TEACHER"} size={18} className="shrink-0" />
-                <span>{opt.name}</span>
+                <span className="truncate">{opt.name}</span>
               </button>
             </div>
           ))}
@@ -434,18 +448,35 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                 placement="bottomLeft"
                 content={instructorPopoverContent}
               >
-                <input
-                  type="text"
-                  readOnly
-                  className="ds-input w-full min-w-0"
-                  placeholder="담당 강사 (필수)"
-                  value={name}
+                <button
+                  type="button"
+                  className="lecture-create-instructor-trigger ds-input w-full min-w-0"
                   data-required="true"
                   data-invalid={hasAttemptedSubmit && !name.trim() ? "true" : "false"}
                   disabled={isPending}
                   aria-label="담당 강사 (필수)"
-                  style={{ cursor: "pointer", caretColor: "transparent" }}
-                />
+                  style={{ caretColor: "transparent" }}
+                >
+                  {selectedInstructor ? (
+                    <>
+                      <span
+                        className="ds-status-badge ds-status-badge--action shrink-0"
+                        data-tone="primary"
+                        aria-hidden
+                      >
+                        {selectedInstructor.type === "owner" ? "대표" : "강사"}
+                      </span>
+                      <StaffRoleAvatar
+                        role={selectedInstructor.type === "owner" ? "owner" : "TEACHER"}
+                        size={20}
+                        className="shrink-0"
+                      />
+                      <span className="truncate font-semibold">{selectedInstructor.name}</span>
+                    </>
+                  ) : (
+                    <span className="text-[var(--color-text-muted)]">담당 강사 (필수)</span>
+                  )}
+                </button>
               </Popover>
             </div>
             <div className="modal-form-group">

@@ -60,6 +60,22 @@
   background: var(--color-bg-surface-hover);
 }
 
+/* 담당 강사 등: 뱃지+아바타+이름 가로 정렬 */
+.saved-list-field-popover-item--row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.saved-list-field-popover-item--row > * {
+  flex-shrink: 0;
+}
+.saved-list-field-popover-item--row .truncate {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 .saved-list-field-popover-delete {
   display: flex;
   align-items: center;
