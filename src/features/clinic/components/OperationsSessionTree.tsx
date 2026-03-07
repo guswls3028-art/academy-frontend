@@ -20,8 +20,9 @@ function groupDaysByWeek(days: string[]) {
   days.forEach((d) => {
     const monday = dayjs(d).startOf("week").add(1, "day");
     const key = monday.format("YYYY-MM-DD");
-    (map.get(key) ?? []).push(d);
-    map.set(key, map.get(key)!);
+    const arr = map.get(key) ?? [];
+    arr.push(d);
+    map.set(key, arr);
   });
   return Array.from(map.entries()).sort((a, b) => (a[0] > b[0] ? 1 : -1));
 }

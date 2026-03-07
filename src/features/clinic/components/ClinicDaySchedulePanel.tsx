@@ -1,4 +1,6 @@
 // PATH: src/features/clinic/components/ClinicDaySchedulePanel.tsx
+// 당일 클리닉 일정 — 섹션형 SSOT
+
 import { ClinicParticipant } from "../api/clinicParticipants.api";
 
 export default function ClinicDaySchedulePanel({
@@ -10,10 +12,13 @@ export default function ClinicDaySchedulePanel({
 }) {
   if (!rows.length) {
     return (
-      <div className="rounded-2xl border bg-[var(--bg-surface)] p-5">
-        <div className="text-sm font-semibold">클리닉 일정</div>
-        <div className="mt-2 text-xs text-[var(--text-muted)]">
-          {date}에 잡힌 클리닉 일정이 없습니다.
+      <div className="clinic-panel">
+        <div className="clinic-panel__header">
+          <h2 className="clinic-panel__title">클리닉 일정</h2>
+          <p className="clinic-panel__meta">{date}</p>
+        </div>
+        <div className="clinic-panel__body">
+          <p className="ds-section__empty">해당 날짜에 일정이 없습니다.</p>
         </div>
       </div>
     );
@@ -25,31 +30,30 @@ export default function ClinicDaySchedulePanel({
     acc[t].push(r);
     return acc;
   }, {});
-
   const times = Object.keys(byTime).sort((a, b) => (a > b ? 1 : -1));
 
   return (
-    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
-      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)]">
-        <div className="text-sm font-semibold">클리닉 일정</div>
+    <div className="clinic-panel overflow-hidden">
+      <div className="clinic-panel__header">
+        <h2 className="clinic-panel__title">클리닉 일정</h2>
+        <p className="clinic-panel__meta">{date}</p>
       </div>
-
-      <div className="p-5 space-y-4">
+      <div className="clinic-panel__body space-y-4">
         {times.map((time) => {
           const items = byTime[time] ?? [];
           return (
             <div key={time}>
-              <div className="text-xs font-semibold mb-1">{time}</div>
+              <p className="ds-section__kpi-label mb-1">{time}</p>
               <ul className="space-y-1">
                 {items.map((r) => (
                   <li
                     key={r.id}
-                    className="rounded-lg border bg-[var(--bg-surface-soft)] px-3 py-2"
+                    className="ds-section__item rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-2 cursor-default"
                   >
-                    <div className="text-sm font-semibold">{r.student_name}</div>
-                    <div className="text-[11px] text-[var(--text-muted)]">
-                      {r.session_location}
-                    </div>
+                    <div className="ds-section__item-label">{r.student_name}</div>
+                    {r.session_location && (
+                      <div className="ds-section__item-meta">{r.session_location}</div>
+                    )}
                   </li>
                 ))}
               </ul>

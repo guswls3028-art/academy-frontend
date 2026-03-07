@@ -1,17 +1,13 @@
 // PATH: src/features/clinic/pages/OperationsPage/ClinicOperationsPage.tsx
+// 운영 — 섹션형 SSOT, 3열(날짜 트리 | 일정 | 생성)
+
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { useQuery } from "@tanstack/react-query";
-
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicParticipantStatus } from "../../api/clinicParticipants.api";
-
-import {
-  fetchClinicSessionTree,
-  type ClinicSessionTreeNode,
-} from "../../api/clinicSessions.api";
-
+import { fetchClinicSessionTree } from "../../api/clinicSessions.api";
 import OperationsSessionTree from "../../components/OperationsSessionTree";
 import ClinicDaySchedulePanel from "../../components/ClinicDaySchedulePanel";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
@@ -24,19 +20,17 @@ function normalizeClinicStatusParam(
   v: string | null
 ): ClinicParticipantStatus | undefined {
   if (!v) return undefined;
-  if (v === "NO_SHOW") return "no_show";
-  if (v === "DONE") return "attended";
-  if (v === "CANCELED") return "cancelled";
-  if (v === "BOOKED") return "booked";
-  if (
-    v === "no_show" ||
-    v === "attended" ||
-    v === "cancelled" ||
-    v === "booked"
-  ) {
-    return v;
-  }
-  return undefined;
+  const map: Record<string, ClinicParticipantStatus> = {
+    NO_SHOW: "no_show",
+    DONE: "attended",
+    CANCELED: "cancelled",
+    BOOKED: "booked",
+    no_show: "no_show",
+    attended: "attended",
+    cancelled: "cancelled",
+    booked: "booked",
+  };
+  return map[v];
 }
 
 function rangeFromMode(baseISO: string, mode: "day" | "week" | "month") {
@@ -59,13 +53,11 @@ function rangeFromMode(baseISO: string, mode: "day" | "week" | "month") {
 export default function ClinicOperationsPage() {
   const [sp] = useSearchParams();
   const clinicStatus = normalizeClinicStatusParam(sp.get("status"));
-
   const [baseDate, setBaseDate] = useState(() => todayISO());
   const [mode, setMode] = useState<"day" | "week" | "month">("day");
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   const range = useMemo(() => rangeFromMode(baseDate, mode), [baseDate, mode]);
-
   const participants = useClinicParticipants({
     session: selectedSessionId ?? undefined,
     session_date_from: range.from,
@@ -85,9 +77,8 @@ export default function ClinicOperationsPage() {
   });
 
   return (
-    <div className="flex gap-4">
-      {/* 좌측: 날짜 트리 */}
-      <div className="hidden lg:block">
+    <div className="clinic-page flex flex-col lg:flex-row gap-6">
+      <aside className="hidden lg:block">
         <OperationsSessionTree
           sessions={treeQ.data ?? []}
           selectedDay={baseDate}
@@ -100,15 +91,14 @@ export default function ClinicOperationsPage() {
           }}
           onClear={() => setSelectedSessionId(null)}
         />
+      </aside>
+      <div className="w-full lg:w-[360px] shrink-0">
+        <ClinicDaySchedulePanel
+          date={baseDate}
+          rows={participants.listQ.data ?? []}
+        />
       </div>
-
-      {/* 중간: 일정(참가자 기준) */}
-      <div className="w-[360px] shrink-0">
-        <ClinicDaySchedulePanel date={baseDate} rows={participants.listQ.data ?? []} />
-      </div>
-
-      {/* 우측: 생성 패널 */}
-      <div className="flex-1 space-y-4">
+      <div className="flex-1 min-w-0">
         <ClinicCreatePanel date={baseDate} />
       </div>
     </div>
