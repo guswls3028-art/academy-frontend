@@ -34,6 +34,7 @@ export interface ClientStudent {
   school: string | null;
   schoolClass: string | null;
   major: string | null;
+  originMiddleSchool?: string | null;
 
   grade: number | null;
   gender: string | null;
@@ -90,6 +91,7 @@ export function mapStudent(item: any): ClientStudent {
     school: item?.high_school ?? item?.middle_school ?? null,
     schoolClass: item?.high_school_class ?? null,
     major: item?.major ?? null,
+    originMiddleSchool: item?.origin_middle_school ?? null,
 
     grade: item?.grade ?? null,
     gender: item?.gender ?? null,
@@ -236,6 +238,7 @@ export async function createStudent(form: any) {
     gender: form?.gender || null,
     memo: form?.memo?.trim() || null,
     address: form?.address?.trim() || null,
+    origin_middle_school: form?.schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null,
     is_managed: !!form?.active,
     send_welcome_message: !!form?.sendWelcomeMessage,
     no_phone: noPhone,
@@ -345,6 +348,8 @@ export async function updateStudent(id: number, form: any) {
     payload.high_school_class =
       form.schoolType === "HIGH" ? (form?.schoolClass?.trim() || null) : null;
     payload.major = form.schoolType === "HIGH" ? (form?.major?.trim() || null) : null;
+    payload.origin_middle_school =
+      form.schoolType === "HIGH" ? (form?.originMiddleSchool?.trim() || null) : null;
   }
 
   const res = await api.patch(`/students/${id}/`, payload);
@@ -444,6 +449,7 @@ export interface ClientRegistrationRequest {
   gender: string | null;
   memo: string | null;
   address: string | null;
+  originMiddleSchool?: string | null;
   createdAt: string;
   studentId?: number | null;
 }
@@ -464,6 +470,7 @@ function mapRegistrationRequest(item: any): ClientRegistrationRequest {
     gender: item?.gender ?? null,
     memo: item?.memo ?? null,
     address: item?.address ?? null,
+    originMiddleSchool: item?.origin_middle_school ?? null,
     createdAt: item?.created_at ?? "",
     studentId: item?.student ?? null,
   };
@@ -513,6 +520,7 @@ export async function submitRegistrationRequest(form: {
   gender?: string;
   memo?: string;
   address?: string;
+  originMiddleSchool?: string;
 }): Promise<ClientRegistrationRequest> {
   const payload: Record<string, unknown> = {
     name: String(form.name ?? "").trim(),
@@ -527,6 +535,7 @@ export async function submitRegistrationRequest(form: {
     gender: form.gender?.trim() || null,
     memo: form.memo?.trim() || null,
     address: form.address?.trim() || null,
+    origin_middle_school: form.originMiddleSchool?.trim() || null,
   };
   if (form.phone && normalizePhone(String(form.phone)).length === 11) {
     (payload as any).phone = normalizePhone(String(form.phone));

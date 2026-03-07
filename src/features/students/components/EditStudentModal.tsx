@@ -51,6 +51,7 @@ export default function EditStudentModal({
     grade: initialValue.grade ? String(initialValue.grade) : "",
     schoolClass: initialValue.schoolClass || "",
     major: initialValue.major || "",
+    originMiddleSchool: initialValue.originMiddleSchool || "",
     address: initialValue.address || "",
     memo: initialValue.memo || "",
     active: !!initialValue.active,
@@ -90,6 +91,7 @@ export default function EditStudentModal({
       grade: initialValue.grade ? String(initialValue.grade) : "",
       schoolClass: initialValue.schoolClass || "",
       major: initialValue.major || "",
+      originMiddleSchool: initialValue.originMiddleSchool || "",
       address: initialValue.address || "",
       memo: initialValue.memo || "",
       active: !!initialValue.active,
@@ -361,6 +363,16 @@ export default function EditStudentModal({
                 disabled={busy}
               />
             </div>
+            {form.schoolType === "HIGH" && (
+              <input
+                name="originMiddleSchool"
+                placeholder="출신중학교 (선택)"
+                value={form.originMiddleSchool ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+            )}
             <input
               name="address"
               placeholder="주소 (선택)"

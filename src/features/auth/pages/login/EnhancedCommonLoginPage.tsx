@@ -81,6 +81,7 @@ export default function EnhancedCommonLoginPage() {
     grade: "",
     gender: "",
     address: "",
+    originMiddleSchool: "",
     memo: "",
   });
 
@@ -134,6 +135,7 @@ export default function EnhancedCommonLoginPage() {
         grade: signupForm.grade ? Number(signupForm.grade) : undefined,
         gender: signupForm.gender.trim() || undefined,
         address: signupForm.address.trim() || undefined,
+        originMiddleSchool: signupForm.originMiddleSchool.trim() || undefined,
         memo: signupForm.memo.trim() || undefined,
       });
       setSignupSuccess(true);
@@ -153,6 +155,7 @@ export default function EnhancedCommonLoginPage() {
           grade: "",
           gender: "",
           address: "",
+          originMiddleSchool: "",
           memo: "",
         });
       }, 1500);

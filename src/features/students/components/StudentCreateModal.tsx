@@ -48,6 +48,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     grade: "",
     schoolClass: "",
     major: "",
+    originMiddleSchool: "",
     address: "",
     memo: "",
     active: true,
@@ -86,6 +87,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       grade: "",
       schoolClass: "",
       major: "",
+      originMiddleSchool: "",
       address: "",
       memo: "",
       active: true,
@@ -461,6 +463,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 ))}
               </div>
             </div>
+            {form.schoolType === "HIGH" && (
+              <input
+                name="originMiddleSchool"
+                placeholder="출신중학교 (선택)"
+                value={form.originMiddleSchool ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                disabled={busy}
+              />
+            )}
             <div className="modal-form-row modal-form-row--2">
               <input
                 name="schoolClass"
