@@ -9,7 +9,6 @@ export default function FeedbackBridge() {
   const { message } = App.useApp();
 
   useEffect(() => {
-    message.config({ duration: 2, maxCount: 3 });
     setMessageApi(message);
     return () => setMessageApi(null);
   }, [message]);
