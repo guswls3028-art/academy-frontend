@@ -216,23 +216,24 @@ export default function ClinicCreatePanel({
   };
 
   return (
-    <div className="clinic-panel overflow-hidden">
-      <div className="clinic-panel__header flex items-center justify-between">
-        <div>
-          <h2 className="clinic-panel__title">클리닉 생성</h2>
-          <p className="clinic-panel__meta">시작·종료 시간 설정</p>
+    <div className="ds-card-modal clinic-panel overflow-hidden">
+      <div className="ds-card-modal__header flex items-center justify-between">
+        <div className="ds-card-modal__accent" aria-hidden />
+        <div className="ds-card-modal__header-inner">
+          <h2 className="ds-card-modal__header-title">클리닉 생성</h2>
+          <p className="ds-card-modal__header-description">시작·종료 시간 설정</p>
         </div>
-        <span className="text-xs font-semibold text-[var(--color-text-muted)]">
-          선택 {selected.length}명
-        </span>
+        <div className="ds-card-modal__header-right">
+          <span className="text-xs font-semibold text-[var(--color-text-muted)]">
+            선택 {selected.length}명
+          </span>
+        </div>
       </div>
 
-      <div className="clinic-panel__body clinic-input-filled space-y-5">
+      <div className="ds-card-modal__body clinic-input-filled space-y-5">
         {!hideDatePicker && (
-          <section className="clinic-section">
-            <div className="clinic-section__header">
-              <p className="clinic-section__title">날짜</p>
-            </div>
+          <section className="modal-form-group">
+            <label className="modal-section-label">날짜</label>
             <DatePicker
               value={selectedDate.format("YYYY-MM-DD")}
               onChange={(s) => setSelectedDate(dayjs(s))}
@@ -241,10 +242,8 @@ export default function ClinicCreatePanel({
           </section>
         )}
 
-        <section className="clinic-section">
-          <div className="clinic-section__header">
-            <p className="clinic-section__title">시작 · 종료 시간</p>
-          </div>
+        <section className="modal-form-group">
+          <label className="modal-section-label">시작 · 종료 시간</label>
           <div className="flex gap-2">
             <Select
               placeholder="시작 시간"
@@ -282,10 +281,8 @@ export default function ClinicCreatePanel({
           </div>
         </section>
 
-        <section className="clinic-section">
-          <div className="clinic-section__header">
-            <p className="clinic-section__title">장소 · 정원</p>
-          </div>
+        <section className="modal-form-group">
+          <label className="modal-section-label">장소 · 정원</label>
           <Input
             placeholder="장소 / 룸"
             value={room}
@@ -319,10 +316,8 @@ export default function ClinicCreatePanel({
           />
         </section>
 
-        <section className="clinic-section">
-          <div className="clinic-section__header">
-            <p className="clinic-section__title">대상자 선택</p>
-          </div>
+        <section className="modal-form-group">
+          <label className="modal-section-label">대상자 선택</label>
           <Segmented
             options={[
               { label: "예약 대상자", value: "targets" },
