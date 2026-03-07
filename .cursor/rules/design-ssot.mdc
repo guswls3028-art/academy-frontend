@@ -30,7 +30,7 @@ import { DomainListToolbar, DomainTable, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_CO
 
 ## 날짜·시간 선택 (달력·원통 스크롤)
 
-- **SSOT**: 차시 추가 모달(ModalDateSection, ModalTimeSection)과 동일한 컴포넌트만 사용.
-- **달력**: `@/shared/ui/date`의 **DatePicker** — 프로젝트 내 모든 날짜 선택에서 이 컴포넌트만 사용 (AntD DatePicker 사용 금지).
-- **시간(원통형 스크롤)**: `@/shared/ui/time`의 **TimeRangeInput** — 내부에서 TimeScrollPopover(원통 롤러) 사용. 시작/종료 라벨 "시작"/"종료", placeholder "시작"/"종료"로 통일.
-- **사용처**: 차시 추가 모달(SessionCreateModal), 클리닉 생성(ClinicCreatePanel) 등. 새 화면에서 날짜/시간 입력이 필요하면 반드시 위 컴포넌트만 사용.
+- **단일 SSOT**: 차시 생성 모달(SessionCreateModal)의 날짜 섹션 = **ModalDateSection** = `@/shared/ui/date` **DatePicker**. 이 달력만 전역 SSOT이며, 구버전·다른 날짜 피커 사용 금지.
+- **달력**: `@/shared/ui/date`의 **DatePicker** — 모든 날짜 선택에서 이 컴포넌트만 사용 (AntD DatePicker 사용 금지). 포털 시 불투명 배경·트리거 위로 열림(아래 필드 가리지 않음).
+- **시간(원통형 스크롤)**: `@/shared/ui/time`의 **TimeRangeInput** — 내부 TimeScrollPopover(원통 롤러). 시작/종료 라벨 "시작"/"종료", placeholder "시작"/"종료"로 통일.
+- **사용처**: 차시 추가 모달(SessionCreateModal), 클리닉 생성(ClinicCreatePanel), 강의/비용/출석 등 모달. 새 화면에서 날짜/시간 입력이 필요하면 위 컴포넌트만 사용.

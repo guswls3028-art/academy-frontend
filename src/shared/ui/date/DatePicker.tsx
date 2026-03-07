@@ -1,6 +1,6 @@
 // PATH: src/shared/ui/date/DatePicker.tsx
-// 전역 SSOT: 프로젝트 내 모든 날짜 선택에서 사용하는 통일된 달력 UI (큼지막한 셀, 일관된 디자인)
-// 사용처: 차시 추가 모달(ModalDateSection), 클리닉 생성 등 — 이 컴포넌트만 사용, AntD DatePicker 사용 금지
+// 전역 단일 SSOT: 차시 생성 모달(ModalDateSection)과 동일한 달력. 프로젝트 내 모든 날짜 선택에서 이 컴포넌트만 사용.
+// AntD DatePicker 사용 금지. 포털 시 불투명 배경·테두리·그림자, 트리거 위로 열림(아래 필드 가리지 않음).
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
@@ -44,8 +44,7 @@ export default function DatePicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<{
-    bottom?: number;
-    top?: number;
+    bottom: number;
     left: number;
     maxHeight?: number;
     overflowY?: "auto";
@@ -60,7 +59,7 @@ export default function DatePicker({
     if (v) setViewMonth(v);
   }, [value]);
 
-  // 포털로 body에 렌더. 기본: 트리거 위로 열림(아래 시작/종료 시간 필드 가리지 않음). 공간 부족 시에만 아래로
+  // 포털로 body에 렌더. 전역 SSOT: 항상 트리거 위로 열림(시작/종료 시간 필드 가리지 않음). 공간 부족 시 높이 제한·스크롤
   useLayoutEffect(() => {
     if (!open) {
       setDropdownStyle(null);
@@ -70,13 +69,13 @@ export default function DatePicker({
     const rect = triggerRef.current.getBoundingClientRect();
     const space = 8;
     const dropdownHeight = 380;
-    const spaceAbove = rect.top;
-    const fitsAbove = spaceAbove >= dropdownHeight + space;
-    if (fitsAbove) {
-      setDropdownStyle({ bottom: window.innerHeight - rect.top + space, left: rect.left });
-    } else {
-      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
-    }
+    const spaceAbove = rect.top - space;
+    const fitsAbove = spaceAbove >= dropdownHeight;
+    setDropdownStyle({
+      bottom: window.innerHeight - rect.top + space,
+      left: rect.left,
+      ...(fitsAbove ? {} : { maxHeight: Math.max(200, spaceAbove), overflowY: "auto" as const }),
+    });
   }, [open]);
 
   useEffect(() => {
@@ -139,9 +138,10 @@ export default function DatePicker({
             position: "fixed",
             zIndex: 1200,
             backgroundColor: "var(--color-bg-surface, #ffffff)",
-            ...(dropdownStyle.top != null
-              ? { top: dropdownStyle.top, left: dropdownStyle.left }
-              : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
+            bottom: dropdownStyle.bottom,
+            left: dropdownStyle.left,
+            maxHeight: dropdownStyle.maxHeight,
+            overflowY: dropdownStyle.overflowY,
           }}
         >
           <div className="shared-date-picker-header">
