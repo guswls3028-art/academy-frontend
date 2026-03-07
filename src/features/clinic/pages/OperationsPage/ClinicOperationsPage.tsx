@@ -96,11 +96,21 @@ export default function ClinicOperationsPage() {
         <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[360px]">
           <ClinicDaySchedulePanel
             date={baseDate}
+            sessionsForDay={(treeQ.data ?? []).filter((s) => s.date === baseDate)}
             rows={participants.listQ.data ?? []}
           />
         </div>
         <div className="clinic-three-panel__cell clinic-three-panel__cell--fill">
-          <ClinicCreatePanel date={baseDate} />
+          <ClinicCreatePanel
+            date={baseDate}
+            onCreated={(createdDate) => {
+              if (createdDate) {
+                setBaseDate(createdDate);
+                setMode("day");
+                setSelectedSessionId(null);
+              }
+            }}
+          />
         </div>
       </div>
     </div>

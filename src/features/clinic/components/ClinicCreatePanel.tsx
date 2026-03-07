@@ -55,7 +55,7 @@ type Props = {
   hideDatePicker?: boolean;
   selectedTargetEnrollmentIds?: number[];
   onChangeSelectedTargetEnrollmentIds?: (ids: number[]) => void;
-  onCreated?: () => void;
+  onCreated?: (createdDate?: string) => void;
 };
 
 export default function ClinicCreatePanel({
@@ -184,7 +184,8 @@ export default function ClinicCreatePanel({
       setTimeRange("");
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
-      onCreated?.();
+      qc.invalidateQueries({ queryKey: ["clinic-sessions-month"] });
+      onCreated?.(selectedDate.format("YYYY-MM-DD"));
     } catch (e: any) {
       const res = e?.response?.data;
       let detail = "생성 실패";
