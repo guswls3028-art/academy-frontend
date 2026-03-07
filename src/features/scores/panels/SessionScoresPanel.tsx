@@ -66,13 +66,35 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
   const [activeColumn, setActiveColumn] = useState<"exam" | "homework">("exam");
   const [editRowState, setEditRowState] = useState<EditRowState>({ all: false });
 
-  const handleEditRowChange = useCallback((key: string | "all", value: boolean) => {
-    if (key === "all") {
-      setEditRowState((prev) => ({ ...prev, all: value }));
-    } else {
-      setEditRowState((prev) => ({ ...prev, [key]: value }));
-    }
-  }, []);
+  const editableKeys = useMemo(() => {
+    const keys: string[] = [];
+    (meta?.exams ?? []).forEach((e) => {
+      keys.push(`exam_${e.exam_id}_subj`, `exam_${e.exam_id}_obj`, `exam_${e.exam_id}_total`);
+    });
+    (meta?.homeworks ?? []).forEach((h) => keys.push(`hw_${h.homework_id}_score`));
+    return keys;
+  }, [meta?.exams, meta?.homeworks]);
+
+  const handleEditRowChange = useCallback(
+    (key: string | "all", value: boolean) => {
+      if (key === "all") {
+        if (value) {
+          setEditRowState((prev) => ({ ...prev, all: true }));
+        } else {
+          setEditRowState((prev) => {
+            const next = { ...prev, all: false };
+            editableKeys.forEach((k) => {
+              next[k] = false;
+            });
+            return next;
+          });
+        }
+      } else {
+        setEditRowState((prev) => ({ ...prev, [key]: value }));
+      }
+    },
+    [editableKeys]
+  );
 
   const examCols = meta?.exams ?? [];
   const homeworkCols = meta?.homeworks ?? [];

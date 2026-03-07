@@ -260,7 +260,7 @@ export default function ScoresTable({
               <th scope="col" style={{ width: COL_SCORE }} title={ex.title}>
                 합산
               </th>
-              <th scope="col" style={{ width: COL_NARROW }} title={ex.title}>
+              <th scope="col" style={{ width: COL_NARROW }} title={`${ex.title} 합불`}>
                 합불
               </th>
             </Fragment>
@@ -270,7 +270,7 @@ export default function ScoresTable({
               <th scope="col" style={{ width: COL_SCORE }} title={hw.title}>
                 점수
               </th>
-              <th scope="col" style={{ width: COL_NARROW }} title={hw.title}>
+              <th scope="col" style={{ width: COL_NARROW }} title={`${hw.title} 합불`}>
                 합불
               </th>
             </Fragment>
@@ -422,10 +422,6 @@ export default function ScoresTable({
                     ) ?? null;
                   const block = entry?.block;
                   const isSelected = selected && selectedHomeworkId === hw.homework_id;
-                  const hwStatus = getHomeworkStatus({
-                    score: block?.score,
-                    metaStatus: block?.meta?.status ?? null,
-                  });
                   const canEditScore = isEditEnabled(`hw_${hw.homework_id}_score`);
 
                   return (
