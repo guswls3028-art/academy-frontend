@@ -16,6 +16,8 @@ export interface ModalDateSectionProps {
   onCustomDateChange: (value: string) => void;
   /** 기본값 옵션 표시 여부 (예: 보강 시 숨김) */
   showDefaultOption: boolean;
+  /** 기본값이 없을 때 "직접선택" 행 없이 내용만 표시 (클리닉 등) */
+  inlineOnly?: boolean;
   /** 기본값 옵션 비활성화 (예: 보강 시) */
   disableDefaultOption?: boolean;
   /** 기본값 설명 (예: "다음 주 같은 요일 (2025-02-21)") */
@@ -31,12 +33,22 @@ export default function ModalDateSection({
   customDate,
   onCustomDateChange,
   showDefaultOption,
+  inlineOnly = false,
   disableDefaultOption = false,
   defaultLabel = "미설정",
   placeholder = "날짜 선택",
   disabled = false,
 }: ModalDateSectionProps) {
   const showCustom = !useDefault || disableDefaultOption;
+
+  const datePicker = (
+    <DatePicker
+      value={customDate}
+      onChange={onCustomDateChange}
+      placeholder={placeholder}
+      disabled={disabled}
+    />
+  );
 
   return (
     <div>
@@ -53,22 +65,19 @@ export default function ModalDateSection({
             secondaryLabel={defaultLabel}
           />
         )}
-        <ModalOptionRowWithContent
-          name={name}
-          value="custom"
-          checked={showCustom}
-          onChange={() => onUseDefaultChange(false)}
-          primaryLabel="직접선택"
-          showContent={showCustom}
-          content={
-            <DatePicker
-              value={customDate}
-              onChange={onCustomDateChange}
-              placeholder={placeholder}
-              disabled={disabled}
-            />
-          }
-        />
+        {showDefaultOption || !inlineOnly ? (
+          <ModalOptionRowWithContent
+            name={name}
+            value="custom"
+            checked={showCustom}
+            onChange={() => onUseDefaultChange(false)}
+            primaryLabel="직접선택"
+            showContent={showCustom}
+            content={datePicker}
+          />
+        ) : (
+          datePicker
+        )}
       </div>
     </div>
   );

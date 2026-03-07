@@ -205,6 +205,7 @@ export default function ClinicCreatePanel({
                 customDate={selectedDate.format("YYYY-MM-DD")}
                 onCustomDateChange={(s) => setSelectedDate(dayjs(s))}
                 showDefaultOption={false}
+                inlineOnly
                 placeholder="날짜 선택"
               />
             </div>
@@ -219,6 +220,7 @@ export default function ClinicCreatePanel({
               customTime={timeRange}
               onCustomTimeChange={setTimeRange}
               showDefaultOption={false}
+              inlineOnly
             />
           </div>
 

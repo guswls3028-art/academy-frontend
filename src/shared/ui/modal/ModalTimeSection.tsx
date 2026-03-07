@@ -12,6 +12,8 @@ export interface ModalTimeSectionProps {
   customTime: string;
   onCustomTimeChange: (value: string) => void;
   showDefaultOption: boolean;
+  /** 기본값이 없을 때 "직접선택" 행 없이 내용만 표시 (클리닉 등) */
+  inlineOnly?: boolean;
   disableDefaultOption?: boolean;
   defaultLabel?: string;
   disabled?: boolean;
@@ -24,11 +26,26 @@ export default function ModalTimeSection({
   customTime,
   onCustomTimeChange,
   showDefaultOption,
+  inlineOnly = false,
   disableDefaultOption = false,
   defaultLabel = "미설정",
   disabled = false,
 }: ModalTimeSectionProps) {
   const showCustom = !useDefault || disableDefaultOption;
+
+  const timeContent = (
+    <div role="group" aria-label="시간 선택">
+      <TimeRangeInput
+        value={customTime}
+        onChange={onCustomTimeChange}
+        disabled={disabled}
+        startLabel="시작"
+        endLabel="종료"
+        startPlaceholder="시작"
+        endPlaceholder="종료"
+      />
+    </div>
+  );
 
   return (
     <div>
@@ -45,27 +62,19 @@ export default function ModalTimeSection({
             secondaryLabel={defaultLabel}
           />
         )}
-        <ModalOptionRowWithContent
-          name={name}
-          value="custom"
-          checked={showCustom}
-          onChange={() => onUseDefaultChange(false)}
-          primaryLabel="직접선택"
-          showContent={showCustom}
-          content={
-            <div role="group" aria-label="시간 선택">
-              <TimeRangeInput
-                value={customTime}
-                onChange={onCustomTimeChange}
-                disabled={disabled}
-                startLabel="시작"
-                endLabel="종료"
-                startPlaceholder="시작"
-                endPlaceholder="종료"
-              />
-            </div>
-          }
-        />
+        {showDefaultOption || !inlineOnly ? (
+          <ModalOptionRowWithContent
+            name={name}
+            value="custom"
+            checked={showCustom}
+            onChange={() => onUseDefaultChange(false)}
+            primaryLabel="직접선택"
+            showContent={showCustom}
+            content={timeContent}
+          />
+        ) : (
+          timeContent
+        )}
       </div>
     </div>
   );
