@@ -1,0 +1,40 @@
+---
+description: 전역 디자인 시스템 — 색상·버튼·뱃지·상태는 앱별 DS 준수
+globs: src/**/*.{tsx,jsx,css,module.css}
+alwaysApply: true
+---
+
+# 전역 디자인 시스템 (색상 · 버튼 · 뱃지 · 상태)
+
+모든 **색상 규칙**, **버튼 상태**, **뱃지/태그**, **상태 표시**는 반드시 전역 디자인 시스템을 따릅니다.
+
+## 앱별 SSOT
+
+- **선생(관리자) 앱** (`[data-app="admin"]` 또는 admin 레이아웃 하위): **선생(Admin) 디자인 시스템**
+  - 경로: `src/styles/design-system/` (colors, patterns, ds, antd 등)
+  - 색상: `--color-*`, `--scale-*` (role/scale 토큰만 사용, hex/rgba 하드코딩 금지)
+  - 버튼: `ds-button` + `data-intent` / `data-size` 또는 AntD Button + design-system/antd/button.css
+  - 뱃지/상태: `ds-status-badge` + `data-status` / `data-tone`, `ds-badge` (patterns/badge.css, ds/status.css)
+- **학생 앱** (학생 전용 라우트/레이아웃): **학생 디자인 시스템**
+  - 경로: `src/student/shared/ui/theme/` 등 학생 도메인 SSOT
+  - 학생 앱 내 UI는 학생용 토큰·컴포넌트 클래스만 사용
+
+## 필수 준수 사항
+
+1. **색상**
+   - UI 테마 색은 `var(--color-text-primary)`, `var(--color-brand-primary)`, `var(--color-border-divider)`, `var(--color-bg-surface)` 등 **역할 토큰**만 사용.
+   - `#334155`, `#F1F5F9`, `rgba(0,0,0,0.04)` 등 하드코딩 금지. (예외: 사용자 선택 색상 팔레트·패스카드 색 등 **데이터**는 hex 유지 가능.)
+2. **버튼**
+   - 기본/보조/위험: `ds-button` + `data-intent="primary"|"secondary"|"ghost"|"danger"` 또는 AntD Button에 design-system 오버레이 적용.
+   - 크기: `data-size="sm"|"md"|"lg"` 또는 AntD size.
+3. **뱃지·상태**
+   - 상태 뱃지(활성/비활성/출결 등): `ds-status-badge` + `data-status="active"|"inactive"|"archived"` 또는 `data-tone="success"|"danger"|"warning"|"primary"|"neutral"` (ds/status.css SSOT).
+   - 태그/칩: `ds-badge`, `--badge-bg` / `--badge-text` (patterns/badge.css).
+4. **모서리·그림자**
+   - `border-radius`: `var(--radius-sm)` ~ `var(--radius-2xl)` (density/radius.css).
+   - `box-shadow`: `var(--elevation-0)` ~ `var(--elevation-3)` (density/elevation.css) 또는 DS에서 정의한 패턴.
+
+## 참고
+
+- Admin 모달·카드: `src/styles/design-system/modal.css`, `ds/card-modal-style.css`
+- Design SSOT 상세: `.cursor/rules/design-ssot.mdc`

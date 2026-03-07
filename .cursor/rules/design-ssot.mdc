@@ -7,7 +7,7 @@ alwaysApply: false
 # Design SSOT
 
 - **Reference**: `features/students`
-- **전역 규칙**: `src/styles/design-system/DESIGN-SSOT.md`
+- **전역 규칙**: 색상·버튼·뱃지는 `.cursor/rules/design-system-global.mdc` 준수 (선생 앱 = Admin 디자인 시스템, 학생 앱 = 학생 디자인 시스템).
 
 ## 필수 준수
 
