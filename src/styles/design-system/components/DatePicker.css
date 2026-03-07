@@ -88,6 +88,11 @@
   backdrop-filter: none;
 }
 
+/* 아래로 열 때(클리닉 등): 위쪽 흰 여백 제거 — 트리거 바로 아래에서 달력 시작 */
+.shared-date-picker-dropdown--portaled.shared-date-picker-dropdown--open-below {
+  padding-top: 0 !important;
+}
+
 /* 다크 테마: 모달 배경과 동일한 surface 사용 (불투명) */
 [data-theme="modern-dark"] .shared-date-picker-dropdown--portaled,
 [data-theme="dark-navy"] .shared-date-picker-dropdown--portaled,

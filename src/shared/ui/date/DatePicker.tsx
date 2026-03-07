@@ -125,7 +125,7 @@ export default function DatePicker({
 
       {open && dropdownStyle && ReactDOM.createPortal(
         <div
-          className="shared-date-picker-dropdown shared-date-picker-dropdown--portaled"
+          className={`shared-date-picker-dropdown shared-date-picker-dropdown--portaled ${openBelow ? "shared-date-picker-dropdown--open-below" : ""}`}
           role="dialog"
           aria-label="날짜 선택"
           style={{
