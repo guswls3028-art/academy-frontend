@@ -15,6 +15,8 @@ export type ClinicSession = {
   participant_count: number;
   booked_count: number;
   max_participants?: number;
+  /** 백엔드가 내려주면 사용, 없으면 booked_count >= max_participants로 계산 */
+  is_full?: boolean;
 };
 
 /**
@@ -63,12 +65,8 @@ export async function fetchAvailableClinicSessions(params?: {
       ? res.data.results
       : [];
 
-    // booked_count에 pending도 포함되므로, max_participants와 비교하여 예약 가능 여부 판단
-    return sessions.filter((s: any) => {
-      if (!s.max_participants) return true; // 정원 제한 없으면 예약 가능
-      const booked = s.booked_count || 0;
-      return booked < s.max_participants;
-    }) as ClinicSession[];
+    // 전체 세션 반환 (정원 마감된 것도 포함해 학생 앱에서 비활성+시각 효과로 표시)
+    return sessions as ClinicSession[];
   } catch (error) {
     console.error("예약 가능 세션 조회 실패:", error);
     return [];

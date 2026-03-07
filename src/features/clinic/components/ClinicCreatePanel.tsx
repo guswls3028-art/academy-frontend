@@ -119,6 +119,8 @@ export default function ClinicCreatePanel({
 
   const [room, setRoom] = useState("");
   const [memo, setMemo] = useState("");
+  /** 정원: 학생 미선택 시 필수. 선생이 먼저 클리닉을 만들 때 사용 */
+  const [maxParticipants, setMaxParticipants] = useState<number>(10);
 
   const targetsQ = useClinicTargets();
   const studentsSearchQ = useClinicStudentSearch(keyword);
@@ -180,8 +182,6 @@ export default function ClinicCreatePanel({
   const submit = async () => {
     if (!startTime || !endTime)
       return message.warning("시작/종료 시간을 선택해주세요.");
-    if (selected.length === 0)
-      return message.warning("학생을 1명 이상 선택해주세요.");
     if (!room.trim()) return message.warning("장소/룸을 입력해주세요.");
 
     const [sh, sm] = startTime.split(":").map(Number);
@@ -191,13 +191,17 @@ export default function ClinicCreatePanel({
     if (duration <= 0)
       return message.error("종료 시간은 시작 시간 이후여야 합니다.");
 
+    // 학생 선택 없이 클리닉만 생성 시 정원 필수
+    const cap = selected.length > 0 ? selected.length : maxParticipants;
+    if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
+
     try {
       await createSessionM.mutateAsync({
         date: selectedDate.format("YYYY-MM-DD"),
         start_time: startTime,
         duration_minutes: duration,
         location: room.trim(),
-        max_participants: selected.length,
+        max_participants: cap,
       });
 
       message.success("클리닉 생성 완료");
@@ -266,6 +270,25 @@ export default function ClinicCreatePanel({
           onChange={(e) => setRoom(e.target.value)}
           className="bg-[var(--bg-surface)]"
         />
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-[var(--text-muted)] whitespace-nowrap">정원</span>
+          <Input
+            type="number"
+            min={1}
+            max={999}
+            value={selected.length > 0 ? selected.length : maxParticipants}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              if (!Number.isNaN(v) && v >= 1) setMaxParticipants(v);
+            }}
+            disabled={selected.length > 0}
+            className="bg-[var(--bg-surface)] w-24"
+          />
+          <span className="text-xs text-[var(--text-muted)]">
+            {selected.length > 0 ? "선택 인원으로 설정됨" : "명 (학생 없이 클리닉만 생성 시)"}
+          </span>
+        </div>
 
         <Input.TextArea
           rows={2}
@@ -343,7 +366,9 @@ export default function ClinicCreatePanel({
             loading={createSessionM.isPending}
             onClick={submit}
           >
-            선택 {selected.length}명 클리닉 생성
+            {selected.length > 0
+              ? `선택 ${selected.length}명 클리닉 생성`
+              : `클리닉만 생성 (정원 ${maxParticipants}명)`}
           </Button>
         </div>
       </div>
