@@ -30,7 +30,9 @@ alwaysApply: true
 3. **뱃지·상태**
    - 상태 뱃지(활성/비활성/출결 등): `ds-status-badge` + `data-status="active"|"inactive"|"archived"` 또는 `data-tone="success"|"danger"|"warning"|"primary"|"neutral"` (ds/status.css SSOT).
    - 태그/칩: `ds-badge`, `--badge-bg` / `--badge-text` (patterns/badge.css).
-4. **모서리·그림자**
+4. **클리닉 대상자 이름 컬럼**
+   - 테이블에서 클리닉 대상자인 학생 행의 **이름 셀**에는 항상 보색 배경 적용. 클래스 `ds-table-cell-name--clinic-target` 사용 (patterns/table.css SSOT). `--color-brand-complement` 기반.
+5. **모서리·그림자**
    - `border-radius`: `var(--radius-sm)` ~ `var(--radius-2xl)` (density/radius.css).
    - `box-shadow`: `var(--elevation-0)` ~ `var(--elevation-3)` (density/elevation.css) 또는 DS에서 정의한 패턴.
 
@@ -38,3 +40,4 @@ alwaysApply: true
 
 - Admin 모달·카드: `src/styles/design-system/modal.css`, `ds/card-modal-style.css`
 - Design SSOT 상세: `.cursor/rules/design-ssot.mdc`
+- 클리닉 대상자 이름 셀 보색: `src/styles/design-system/patterns/table.css` — `.ds-table-cell-name--clinic-target`
