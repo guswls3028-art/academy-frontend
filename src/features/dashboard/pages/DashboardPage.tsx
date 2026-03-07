@@ -1,7 +1,7 @@
 /**
- * Dashboard — 학원 운영 현황 · 위젯형 레이아웃
- * - 위젯: 미처리 일감, 알림톡, 요약 지표, 바로가기(클리닉 리모컨 포함)
- * - 검색 시 검색 결과 섹션 표시
+ * Dashboard — 학원 운영 현황 · 섹션형 레이아웃 (SSOT: patterns/section.css)
+ * - 위젯: 미처리 일감, 알림톡, 요약 지표, 바로가기
+ * - 카드형 없음. 섹션 헤더 + 본문 그리드/행만 사용.
  */
 
 import { useState } from "react";
@@ -19,13 +19,6 @@ import DashboardWidget from "../components/DashboardWidget";
 import DashboardShortcutWidget from "../components/DashboardShortcutWidget";
 import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
 import ClinicPasscardModal from "@/features/clinic/components/ClinicPasscardModal";
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: "var(--text-sm)",
-  fontWeight: 700,
-  color: "var(--color-text-secondary)",
-  marginBottom: 12,
-};
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -78,12 +71,7 @@ export default function DashboardPage() {
             title={`검색 결과 — "${searchQuery}"`}
             description="학생·강의 통합 검색"
           >
-            <div
-              className="grid gap-4"
-              style={{
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              }}
-            >
+            <div className="ds-section__grid ds-section__grid--wide">
               <SearchResultBlock
                 title="학생"
                 loading={searchStudentsLoading}
@@ -126,17 +114,11 @@ export default function DashboardPage() {
           </DashboardWidget>
         )}
 
-        {/* 바로가기 위젯 — 클리닉 리모컨 + 메뉴 */}
         <DashboardWidget
           title="바로가기"
           description="자주 쓰는 메뉴와 클리닉 패스카드 설정"
         >
-          <div
-            className="grid gap-4"
-            style={{
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            }}
-          >
+          <div className="ds-section__grid">
             <DashboardShortcutWidget
               icon={<ClinicRemoconIcon />}
               label="클리닉 리모컨"
@@ -178,33 +160,27 @@ export default function DashboardPage() {
           </div>
         </DashboardWidget>
 
-        {/* 미처리 일감 */}
         <DashboardWidget
           title="미처리 일감"
           description="빠르게 처리할 항목"
         >
-          <div
-            className="grid gap-4"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}
-          >
-            <TodoCard
+          <div className="ds-section__grid">
+            <TodoRow
               label="미답변 질의"
-              value={pendingQnaCount}
-              suffix="건"
+              value={`${pendingQnaCount}건`}
               onClick={() => navigate("/admin/community/qna")}
             />
-            <TodoCard
+            <TodoRow
               label="채점 · 성적"
               value="보기"
               onClick={() => navigate("/admin/results")}
             />
-            <TodoCard
+            <TodoRow
               label="시험 운영"
-              value={activeExams.length}
-              suffix="건"
+              value={`${activeExams.length}건`}
               onClick={() => navigate("/admin/exams")}
             />
-            <TodoCard
+            <TodoRow
               label="영상 관리"
               value="보기"
               onClick={() => navigate("/admin/videos")}
@@ -212,17 +188,14 @@ export default function DashboardPage() {
           </div>
         </DashboardWidget>
 
-        {/* 알림톡 */}
         <DashboardWidget
           title="알림톡"
           description="잔액 및 충전"
         >
           <div className="flex flex-wrap items-center gap-4">
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)" }}>
-                현재 잔액
-              </div>
-              <div style={{ marginTop: 6, fontSize: 24, fontWeight: 800, color: "var(--color-text-primary)" }}>
+              <div className="ds-section__kpi-label">현재 잔액</div>
+              <div className="ds-section__kpi-value" style={{ marginTop: 6 }}>
                 {messagingInfo
                   ? `${Number(messagingInfo.credit_balance).toLocaleString()}원`
                   : "—"}
@@ -234,18 +207,14 @@ export default function DashboardPage() {
           </div>
         </DashboardWidget>
 
-        {/* 요약 지표 */}
         <DashboardWidget
           title="요약 지표"
           description="운영 현황"
         >
-          <div
-            className="grid gap-4"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}
-          >
-            <KpiCard label="운영 강의" value={`${lectures.length}개`} />
-            <KpiCard label="운영 중 시험" value={`${activeExams.length}건`} />
-            <KpiCard label="미답변 질의" value={`${pendingQnaCount}건`} />
+          <div className="ds-section__kpi-list">
+            <KpiRow label="운영 강의" value={`${lectures.length}개`} />
+            <KpiRow label="운영 중 시험" value={`${activeExams.length}건`} />
+            <KpiRow label="미답변 질의" value={`${pendingQnaCount}건`} />
           </div>
         </DashboardWidget>
       </div>
@@ -295,21 +264,14 @@ function SearchResultBlock({
   onNavigate: (to: string) => void;
 }) {
   return (
-    <div
-      style={{
-        padding: "var(--space-4)",
-        background: "var(--color-bg-elevated)",
-        border: "1px solid var(--color-border-divider)",
-        borderRadius: "var(--radius-lg)",
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 8 }}>
+    <div className="ds-section__body">
+      <div className="ds-section__title" style={{ marginBottom: 8 }}>
         {title}
       </div>
       {loading ? (
-        <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>검색 중…</div>
+        <div className="ds-section__empty">검색 중…</div>
       ) : items.length === 0 ? (
-        <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{emptyMessage}</div>
+        <div className="ds-section__empty">{emptyMessage}</div>
       ) : (
         <>
           <div className="flex flex-col gap-1">
@@ -318,13 +280,14 @@ function SearchResultBlock({
                 key={item.to + item.label}
                 type="button"
                 onClick={() => onNavigate(item.to)}
-                className="text-left cursor-pointer hover:bg-[var(--color-bg-surface-hover)] rounded px-2 py-2 -mx-2"
-                style={{ fontSize: 14 }}
+                className="ds-section__item"
               >
-                <div style={{ fontWeight: 600, color: "var(--color-text-primary)" }}>{item.label}</div>
-                {item.sub && (
-                  <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{item.sub}</div>
-                )}
+                <div className="ds-section__item-content">
+                  <span className="ds-section__item-label">{item.label}</span>
+                  {item.sub && (
+                    <span className="ds-section__item-meta">{item.sub}</span>
+                  )}
+                </div>
               </button>
             ))}
           </div>
@@ -345,46 +308,30 @@ function SearchResultBlock({
   );
 }
 
-function TodoCard({
+function TodoRow({
   label,
   value,
-  suffix,
   onClick,
 }: {
   label: string;
-  value: number | string;
-  suffix?: string;
+  value: string;
   onClick: () => void;
 }) {
-  const display = typeof value === "number" ? `${value}${suffix ?? ""}` : value;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="ds-kpi text-left cursor-pointer transition-colors hover:bg-[var(--color-bg-surface-hover)] hover:border-[var(--color-border-strong)] rounded-xl border border-[var(--color-border-divider)] p-4 bg-[var(--color-bg-surface)]"
-    >
-      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)" }}>{label}</div>
-      <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800, color: "var(--color-text-primary)" }}>
-        {display}
+    <button type="button" onClick={onClick} className="ds-section__item">
+      <div className="ds-section__item-content">
+        <span className="ds-section__item-label">{label}</span>
       </div>
+      <span className="ds-section__item-value">{value}</span>
     </button>
   );
 }
 
-function KpiCard({ label, value }: { label: string; value: string }) {
+function KpiRow({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        padding: "var(--space-4)",
-        background: "var(--color-bg-surface)",
-        border: "1px solid var(--color-border-divider)",
-        borderRadius: "var(--radius-lg)",
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)" }}>{label}</div>
-      <div style={{ marginTop: 4, fontSize: 18, fontWeight: 800, color: "var(--color-text-primary)" }}>
-        {value}
-      </div>
+    <div className="ds-section__kpi-row">
+      <span className="ds-section__kpi-label">{label}</span>
+      <span className="ds-section__kpi-value">{value}</span>
     </div>
   );
 }

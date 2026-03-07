@@ -108,6 +108,14 @@
   margin-top: 2px;
 }
 
+.ds-section__item-value {
+  flex-shrink: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
 /* KPI/숫자 행 — 라벨 + 값 한 줄 */
 .ds-section__kpi-row {
   display: flex;
@@ -158,4 +166,21 @@ button.ds-section__item.ds-section__kpi-row:hover {
   text-align: center;
   font-size: 13px;
   color: var(--color-text-muted);
+}
+
+/* 요약 지표용 KPI 목록(비클릭) */
+.ds-section__kpi-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.ds-section__kpi-list .ds-section__kpi-row {
+  flex: 1;
+  min-width: 140px;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-bottom: none;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft, #f9fafb);
 }

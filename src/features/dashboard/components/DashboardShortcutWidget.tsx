@@ -1,5 +1,6 @@
 /**
- * 대시보드 바로가기 위젯 — 아이콘 + 라벨, 클릭 시 동작
+ * 대시보드 바로가기 항목 — SSOT: ds-section__item (section.css)
+ * 카드형 없음. 행형 아이템만.
  */
 import type { ReactNode } from "react";
 
@@ -23,21 +24,14 @@ export default function DashboardShortcutWidget({
       type="button"
       onClick={onClick}
       data-testid={testId}
-      className="w-full rounded-2xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5 text-left transition-colors hover:bg-[var(--color-bg-surface-hover)] hover:border-[var(--color-border-strong)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand-primary)] focus:ring-offset-2"
+      className="ds-section__item"
     >
-      <div className="flex items-center gap-4">
-        <div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--color-bg-surface-soft)] text-[var(--color-brand-primary)]"
-          aria-hidden
-        >
-          {icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">{label}</div>
-          {subLabel && (
-            <div className="text-[11px] text-[var(--color-text-muted)] mt-0.5">{subLabel}</div>
-          )}
-        </div>
+      <span className="ds-section__item-icon" aria-hidden>
+        {icon}
+      </span>
+      <div className="ds-section__item-content">
+        <span className="ds-section__item-label">{label}</span>
+        {subLabel && <span className="ds-section__item-meta">{subLabel}</span>}
       </div>
     </button>
   );
