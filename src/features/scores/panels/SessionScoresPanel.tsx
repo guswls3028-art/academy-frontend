@@ -1,7 +1,7 @@
 // PATH: src/features/scores/panels/SessionScoresPanel.tsx
 // 성적 테이블 + 사이드패널 — 엑셀형 키보드 이동 (Tab/화살표)
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -11,7 +11,7 @@ import {
 } from "../api/sessionScores";
 import { fetchAttendance } from "@/features/lectures/api/attendance";
 
-import ScoresTable from "../components/ScoresTable";
+import ScoresTable, { type EditRowState } from "../components/ScoresTable";
 import ScoreSidePanel from "./ScoreSidePanel";
 import { EmptyState } from "@/shared/ui/ds";
 
@@ -64,10 +64,24 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
   const [currentExamId, setCurrentExamId] = useState<number | null>(null);
   const [currentHomeworkId, setCurrentHomeworkId] = useState<number | null>(null);
   const [activeColumn, setActiveColumn] = useState<"exam" | "homework">("exam");
+  const [editRowState, setEditRowState] = useState<EditRowState>({ all: false });
+
+  const handleEditRowChange = useCallback((key: string | "all", value: boolean) => {
+    if (key === "all") {
+      setEditRowState((prev) => ({ ...prev, all: value }));
+    } else {
+      setEditRowState((prev) => ({ ...prev, [key]: value }));
+    }
+  }, []);
 
   const examCols = meta?.exams ?? [];
   const homeworkCols = meta?.homeworks ?? [];
-  const totalCols = 2 + examCols.length + homeworkCols.length;
+  const totalCols =
+    1 +
+    2 +
+    examCols.length * 4 +
+    homeworkCols.length * 2 +
+    2; /* name, attendance, clinic_target, clinic_reason */
 
   const rowIndex = useMemo(
     () => (selected ? rows.findIndex((r) => r.enrollment_id === selected.enrollment_id) : 0),
@@ -76,11 +90,11 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
   const colIndex = useMemo(() => {
     if (activeColumn === "exam" && currentExamId != null) {
       const i = examCols.findIndex((e) => e.exam_id === currentExamId);
-      return i >= 0 ? 2 + i : 2;
+      return i >= 0 ? 3 + i * 4 : 3;
     }
     if (activeColumn === "homework" && currentHomeworkId != null) {
       const i = homeworkCols.findIndex((h) => h.homework_id === currentHomeworkId);
-      return i >= 0 ? 2 + examCols.length + i : 2 + examCols.length;
+      return i >= 0 ? 3 + examCols.length * 4 + i * 2 : 3 + examCols.length * 4;
     }
     return 1;
   }, [activeColumn, currentExamId, currentHomeworkId, examCols, homeworkCols]);
@@ -94,26 +108,34 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
         if (!row) return;
         setSelected(row);
         setFocusHomeworkCell(null);
-        if (c <= 1) {
+        if (c <= 2) {
           setActiveColumn(examCols.length > 0 ? "exam" : "homework");
           setCurrentExamId(examCols[0]?.exam_id ?? null);
           setCurrentHomeworkId(homeworkCols[0]?.homework_id ?? null);
           return;
         }
-        if (c < 2 + examCols.length) {
-          const exam = examCols[c - 2];
+        if (c < 3 + examCols.length * 4) {
+          const examIdx = Math.floor((c - 3) / 4);
+          const exam = examCols[examIdx];
           setActiveColumn("exam");
           setCurrentExamId(exam?.exam_id ?? null);
           setCurrentHomeworkId(homeworkCols[0]?.homework_id ?? null);
           return;
         }
-        const hw = homeworkCols[c - 2 - examCols.length];
-        setActiveColumn("homework");
-        setCurrentHomeworkId(hw?.homework_id ?? null);
-        setCurrentExamId(examCols[0]?.exam_id ?? null);
-        if (hw && row) {
-          setFocusHomeworkCell({ enrollmentId: row.enrollment_id, homeworkId: hw.homework_id });
+        if (c < 3 + examCols.length * 4 + homeworkCols.length * 2) {
+          const hwIdx = Math.floor((c - 3 - examCols.length * 4) / 2);
+          const hw = homeworkCols[hwIdx];
+          setActiveColumn("homework");
+          setCurrentHomeworkId(hw?.homework_id ?? null);
+          setCurrentExamId(examCols[0]?.exam_id ?? null);
+          if (hw && row) {
+            setFocusHomeworkCell({ enrollmentId: row.enrollment_id, homeworkId: hw.homework_id });
+          }
+          return;
         }
+        setActiveColumn(examCols.length > 0 ? "exam" : "homework");
+        setCurrentExamId(examCols[0]?.exam_id ?? null);
+        setCurrentHomeworkId(homeworkCols[0]?.homework_id ?? null);
       },
     [rows, examCols, homeworkCols, totalCols]
   );
@@ -216,6 +238,8 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
           selectedEnrollmentId={selected?.enrollment_id ?? null}
           selectedExamId={currentExamId}
           selectedHomeworkId={currentHomeworkId}
+          editRowState={editRowState}
+          onEditRowChange={handleEditRowChange}
           focusHomeworkCell={focusHomeworkCell}
           onFocusHomeworkDone={() => setFocusHomeworkCell(null)}
           onSelectCell={(row, type, id) => {
