@@ -43,7 +43,13 @@ export default function DatePicker({
   const [viewMonth, setViewMonth] = useState<Dayjs>(() => toDayjs(value) || dayjs());
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<{
+    bottom?: number;
+    top?: number;
+    left: number;
+    maxHeight?: number;
+    overflowY?: "auto";
+  } | null>(null);
 
   const selected = toDayjs(value);
   const today = dayjs();
@@ -54,7 +60,7 @@ export default function DatePicker({
     if (v) setViewMonth(v);
   }, [value]);
 
-  // 포털로 body에 렌더해 overflow 잘림 방지. position: fixed 좌표 계산
+  // 포털로 body에 렌더. 기본: 트리거 위로 열림(아래 시작/종료 시간 필드 가리지 않음). 공간 부족 시에만 아래로
   useLayoutEffect(() => {
     if (!open) {
       setDropdownStyle(null);
@@ -63,10 +69,9 @@ export default function DatePicker({
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const space = 8;
-    const dropdownHeight = 380; // 대략적 달력 높이
-    const viewportTop = rect.top;
-    const fitsAbove = viewportTop >= dropdownHeight + space;
-    // 기본: 위로 열림. 공간 부족 시에만 아래로
+    const dropdownHeight = 380;
+    const spaceAbove = rect.top;
+    const fitsAbove = spaceAbove >= dropdownHeight + space;
     if (fitsAbove) {
       setDropdownStyle({ bottom: window.innerHeight - rect.top + space, left: rect.left });
     } else {
