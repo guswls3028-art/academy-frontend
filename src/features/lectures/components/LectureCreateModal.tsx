@@ -465,7 +465,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             <div style={{ gridColumn: 1, gridRow: 2 }}>
               <input
                 className="ds-input"
-                placeholder="아이콘 (미입력 시 강의명 앞 2글자)"
+                placeholder="아이콘"
                 value={chipLabel}
                 onChange={(e) => setChipLabel(e.target.value.slice(0, 2))}
                 maxLength={2}
@@ -508,7 +508,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                   type="text"
                   readOnly
                   className="ds-input w-full min-w-0"
-                  placeholder="담당 강사 (필수) — 클릭하여 선택"
+                  placeholder="담당 강사 (필수)"
                   value={name}
                   data-required="true"
                   data-invalid={hasAttemptedSubmit && !name.trim() ? "true" : "false"}
@@ -533,7 +533,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                   type="text"
                   readOnly
                   className="ds-input w-full min-w-0"
-                  placeholder="과목 — 클릭하여 선택"
+                  placeholder="과목"
                   value={subject}
                   disabled={isPending}
                   aria-label="과목"
