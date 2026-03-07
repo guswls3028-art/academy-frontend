@@ -57,8 +57,12 @@ export default function SessionAttendancePage({
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
   const statusPopoverRef = useRef<HTMLDivElement>(null);
   const [statusPopoverAnchor, setStatusPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
-  /** 상태 뱃지 클릭 시 해당 행 셀 안에 상태 목록 나열(상태필터와 동일 스타일). null이면 단일 뱃지만 표시 */
+  /** 상태 뱃지 클릭 시 테이블 외부 가로 팝오버로 표시. null이면 닫힘 */
   const [openStatusRowAttId, setOpenStatusRowAttId] = useState<number | null>(null);
+  /** 팝오버 위치(트리거 버튼 기준). createPortal로 body에 그릴 때 사용 */
+  const [statusRowPopoverAnchor, setStatusRowPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
+  const statusRowPopoverRef = useRef<HTMLDivElement>(null);
+  const statusRowTriggerRef = useRef<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
     if (!statusPopoverOpen) {
@@ -86,6 +90,20 @@ export default function SessionAttendancePage({
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [statusPopoverOpen]);
+
+  /** 출결 상태 행 팝오버: 바깥 클릭 시 닫기 */
+  useEffect(() => {
+    if (openStatusRowAttId == null) return;
+    const close = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (statusRowTriggerRef.current?.contains(target) || statusRowPopoverRef.current?.contains(target)) return;
+      setOpenStatusRowAttId(null);
+      setStatusRowPopoverAnchor(null);
+      statusRowTriggerRef.current = null;
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [openStatusRowAttId]);
 
   const { data: attendance, isLoading } = useQuery({
     queryKey: ["attendance", sessionId],
@@ -364,6 +382,56 @@ export default function SessionAttendancePage({
 
   return (
     <div className="flex flex-col gap-4 relative">
+      {/* 출결 상태 선택 팝오버: 테이블 외부, 가로 나열, 상태필터와 동일 스타일 */}
+      {openStatusRowAttId != null && statusRowPopoverAnchor != null && (() => {
+        const att = sorted.find((a: any) => a.id === openStatusRowAttId);
+        if (!att) return null;
+        return createPortal(
+          <div
+            ref={statusRowPopoverRef}
+            className="fixed flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-lg z-[9999]"
+            style={{
+              left: statusRowPopoverAnchor.left,
+              top: statusRowPopoverAnchor.top,
+              transform: "translateY(-100%)",
+              marginTop: -4,
+              background: "var(--color-bg-surface)",
+              borderColor: "var(--color-border-divider)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {STATUS_LIST.map((code) => {
+              const active = att.status === code;
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => {
+                    if (active) {
+                      setOpenStatusRowAttId(null);
+                      setStatusRowPopoverAnchor(null);
+                      statusRowTriggerRef.current = null;
+                      return;
+                    }
+                    updateStatus.mutate({ id: att.id, status: code });
+                    setOpenStatusRowAttId(null);
+                    setStatusRowPopoverAnchor(null);
+                    statusRowTriggerRef.current = null;
+                  }}
+                  className="cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                  style={{
+                    opacity: active ? 1 : 0.85,
+                    boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
+                  }}
+                >
+                  <AttendanceStatusBadge status={code} variant="2ch" />
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        );
+      })()}
       <DomainListToolbar
         totalLabel={`총 ${sorted.length}명`}
         searchSlot={
@@ -474,40 +542,26 @@ export default function SessionAttendancePage({
                       />
                     </td>
                     <td className="text-center align-middle" style={{ width: columnWidths.status ?? col.statusBadge }}>
-                      {openStatusRowAttId === att.id ? (
-                        <div className="flex flex-wrap items-center gap-2 justify-center py-1">
-                          {STATUS_LIST.map((code) => {
-                            const active = att.status === code;
-                            return (
-                              <button
-                                key={code}
-                                type="button"
-                                onClick={() => {
-                                  if (active) return;
-                                  updateStatus.mutate({ id: att.id, status: code });
-                                  setOpenStatusRowAttId(null);
-                                }}
-                                className="cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
-                                style={{
-                                  opacity: active ? 1 : 0.85,
-                                  boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
-                                }}
-                              >
-                                <AttendanceStatusBadge status={code} variant="2ch" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setOpenStatusRowAttId(att.id)}
-                          className="cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
-                          aria-label={`${att.name ?? ""} 출결 상태 변경`}
-                        >
-                          <AttendanceStatusBadge status={att.status} variant="2ch" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          if (openStatusRowAttId === att.id) {
+                            setOpenStatusRowAttId(null);
+                            setStatusRowPopoverAnchor(null);
+                            statusRowTriggerRef.current = null;
+                            return;
+                          }
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setStatusRowPopoverAnchor({ left: rect.left, top: rect.top });
+                          setOpenStatusRowAttId(att.id);
+                          statusRowTriggerRef.current = e.currentTarget as HTMLElement;
+                        }}
+                        className="cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                        aria-label={`${att.name ?? ""} 출결 상태 변경`}
+                        aria-expanded={openStatusRowAttId === att.id}
+                      >
+                        <AttendanceStatusBadge status={att.status} variant="2ch" />
+                      </button>
                     </td>
                     <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.parent_phone ?? col.parentPhone }}>
                       {formatPhone(att.parent_phone)}
