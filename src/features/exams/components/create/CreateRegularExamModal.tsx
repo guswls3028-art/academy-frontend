@@ -36,6 +36,7 @@ type QuestionRow = {
   answer: string;
 };
 
+/** 정답키 존재 여부. exam 없거나 정답키 없으면 200 [] 이므로 false 처리. */
 async function checkAnswerKey(examId: number): Promise<boolean> {
   try {
     const res = await api.get("/exams/answer-keys/", { params: { exam: examId } });
@@ -321,7 +322,11 @@ export default function CreateRegularExamModal({
   const headerTitle =
     step === "select" ? "시험 추가" : step === "template_design" ? "시험 설계 — 템플릿 · 정답 · 배점" : "운영 시험 설정";
   const headerDesc =
-    step === "select" ? "템플릿 선택 또는 새 템플릿을 한 화면에서 만든 뒤 운영 시험을 생성합니다." : step === "template_design" ? "선택형/서술형 문항·배점·정답을 입력하고 저장하세요." : "이 차시에 배포할 시험 정보를 입력하세요.";
+    step === "select"
+      ? "템플릿을 선택한 뒤 시험을 생성하세요. 합격점·공개·마감 등은 생성 후 시험 상세에서 설정할 수 있습니다."
+      : step === "template_design"
+        ? "선택형/서술형 문항·배점·정답을 입력하고 저장하세요."
+        : "이 차시에 배포할 시험 정보를 입력하세요.";
 
   return (
     <AdminModal open onClose={onClose} type="action" width={step === "template_design" ? MODAL_WIDTH.xwide : MODAL_WIDTH.wide}>
