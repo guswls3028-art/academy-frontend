@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import Section from "@/shared/ui/ds/Section";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -152,13 +153,11 @@ export default function ClinicReportsPage() {
   };
 
   return (
-    <div className="clinic-page">
-      <section className="ds-section clinic-panel">
-        <div className="clinic-panel__header flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="clinic-panel__title">리포트</h2>
-            <p className="clinic-panel__meta">월 단위 클리닉 현황</p>
-          </div>
+    <div className="clinic-page space-y-0">
+      <Section
+        title="리포트"
+        description="월 단위 클리닉 현황"
+        right={
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -229,11 +228,11 @@ export default function ClinicReportsPage() {
               </span>
             )}
           </div>
-        </div>
-      </section>
+        }
+      />
 
       {mode === "detail" ? (
-        <div className="clinic-panel overflow-hidden">
+        <Section title="월별 캘린더">
           <div className="grid grid-cols-7 border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] text-xs font-semibold text-[var(--color-text-primary)]">
             {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
               <div key={d} className="px-3 py-2">
@@ -298,17 +297,16 @@ export default function ClinicReportsPage() {
               );
             })}
           </div>
-        </div>
+        </Section>
       ) : (
-        <div className="clinic-panel overflow-hidden">
-          <div className="clinic-panel__header">
-            <h2 className="clinic-panel__title">월간 일정 (간략)</h2>
-            <p className="clinic-panel__meta">일정 있는 날만 표시</p>
-          </div>
-          <div className="clinic-panel__body space-y-2">
-            {!sessionsQ.isLoading && !hasAny && (
-              <p className="ds-section__empty">이번 달 클리닉 일정이 없습니다.</p>
-            )}
+        <Section
+          title="월간 일정 (간략)"
+          description="일정 있는 날만 표시"
+        >
+          {!sessionsQ.isLoading && !hasAny && (
+            <p className="ds-section__empty">이번 달 클리닉 일정이 없습니다.</p>
+          )}
+          <div className="space-y-2">
             {compactDays.map((d) => {
               const collapsed = !!collapsedDays[d.date];
               const count = d.items.length;
@@ -366,7 +364,7 @@ export default function ClinicReportsPage() {
               );
             })}
           </div>
-        </div>
+        </Section>
       )}
     </div>
   );
