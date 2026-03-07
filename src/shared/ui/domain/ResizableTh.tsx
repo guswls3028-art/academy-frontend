@@ -1,12 +1,13 @@
 /**
  * 리사이즈 가능한 테이블 헤더 셀
  * - 헤더 오른쪽 가장자리 드래그로 너비 조절
+ * - 드래그 중에는 로컬 상태로 즉시 반영해 부모 리렌더 대기 없이 부드럽게 동작
  */
 
 import { useRef, useCallback, useState, useEffect } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
-const RESIZE_HANDLE_WIDTH = 6;
+const RESIZE_HANDLE_WIDTH = 8;
 
 type ResizableThProps = {
   columnKey: string;
@@ -20,9 +21,7 @@ type ResizableThProps = {
   onClick?: () => void;
   "aria-sort"?: "ascending" | "descending" | "none";
   scope?: "col";
-  /** 다중 헤더 행일 때 해당 셀이 차지할 행 수 */
   rowSpan?: number;
-  /** true면 children을 span으로 감싸지 않음 (커스텀 블록 레이아웃용) */
   noWrap?: boolean;
 };
 
@@ -44,6 +43,12 @@ export default function ResizableTh({
   const startX = useRef(0);
   const startWidth = useRef(0);
   const [isResizing, setIsResizing] = useState(false);
+  /** 드래그 중 표시 너비 — 부모 상태 대기 없이 즉시 반영 */
+  const [localWidth, setLocalWidth] = useState(width);
+
+  useEffect(() => {
+    if (!isResizing && localWidth !== width) setLocalWidth(width);
+  }, [isResizing, width, localWidth]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLSpanElement>) => {
@@ -51,6 +56,7 @@ export default function ResizableTh({
       e.stopPropagation();
       startX.current = e.clientX;
       startWidth.current = width;
+      setLocalWidth(width);
       setIsResizing(true);
     },
     [width]
@@ -61,6 +67,7 @@ export default function ResizableTh({
       if (!isResizing) return;
       const delta = e.clientX - startX.current;
       const next = Math.min(maxWidth, Math.max(minWidth, startWidth.current + delta));
+      setLocalWidth(next);
       onWidthChange(columnKey, next);
     },
     [isResizing, columnKey, minWidth, maxWidth, onWidthChange]
@@ -80,6 +87,8 @@ export default function ResizableTh({
     };
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
+  const displayWidth = isResizing ? localWidth : width;
+
   return (
     <th
       scope={scope}
@@ -88,7 +97,7 @@ export default function ResizableTh({
       rowSpan={rowSpan}
       style={{
         ...style,
-        width,
+        width: displayWidth,
         minWidth,
         maxWidth,
         position: "relative",

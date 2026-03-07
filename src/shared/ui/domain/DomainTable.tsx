@@ -16,13 +16,13 @@ export default function DomainTable({
   tableClassName,
   tableStyle,
 }: DomainTableProps) {
+  const hasExplicitWidth = tableStyle?.width != null;
   return (
     <div className="ds-table-wrap" style={{ overflowX: "auto", overflowY: "visible" }}>
       <table
-        className={`ds-table w-full ${tableClassName ?? ""}`.trim()}
+        className={`ds-table ${hasExplicitWidth ? "" : "w-full"} ${tableClassName ?? ""}`.trim()}
         style={{
           ...tableStyle,
-          /* tableLayout: fixed 시 컬럼 리사이즈 후에도 너비가 유지되도록 minWidth 동기화 */
           ...(tableStyle?.width != null && tableStyle?.minWidth == null
             ? { minWidth: tableStyle.width }
             : undefined),
