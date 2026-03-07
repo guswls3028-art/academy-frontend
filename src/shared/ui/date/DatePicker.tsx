@@ -1,6 +1,5 @@
 // PATH: src/shared/ui/date/DatePicker.tsx
-// 전역 단일 SSOT: 차시 생성 모달(ModalDateSection)과 동일한 달력. 프로젝트 내 모든 날짜 선택에서 이 컴포넌트만 사용.
-// AntD DatePicker 사용 금지. 포털 시 불투명 배경·테두리·그림자, 트리거 위로 열림(아래 필드 가리지 않음).
+// 전역 단일 SSOT: 차시 생성 모달(ModalDateSection)에 쓰는 달력과 동일한 컴포넌트. 그대로 사용만 하고, 여기서 창조·추가 로직 금지.
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
@@ -43,12 +42,7 @@ export default function DatePicker({
   const [viewMonth, setViewMonth] = useState<Dayjs>(() => toDayjs(value) || dayjs());
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<{
-    bottom: number;
-    left: number;
-    maxHeight?: number;
-    overflowY?: "auto";
-  } | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
   const selected = toDayjs(value);
   const today = dayjs();
@@ -59,7 +53,7 @@ export default function DatePicker({
     if (v) setViewMonth(v);
   }, [value]);
 
-  // 포털로 body에 렌더. 전역 SSOT: 항상 트리거 위로 열림(시작/종료 시간 필드 가리지 않음). 공간 부족 시 높이 제한·스크롤
+  // 포털: body에 렌더. 차시 생성 모달과 동일 — 위 공간 있으면 위로, 없으면 아래로 (추가 로직 없음)
   useLayoutEffect(() => {
     if (!open) {
       setDropdownStyle(null);
@@ -69,13 +63,12 @@ export default function DatePicker({
     const rect = triggerRef.current.getBoundingClientRect();
     const space = 8;
     const dropdownHeight = 380;
-    const spaceAbove = rect.top - space;
-    const fitsAbove = spaceAbove >= dropdownHeight;
-    setDropdownStyle({
-      bottom: window.innerHeight - rect.top + space,
-      left: rect.left,
-      ...(fitsAbove ? {} : { maxHeight: Math.max(200, spaceAbove), overflowY: "auto" as const }),
-    });
+    const fitsAbove = rect.top >= dropdownHeight + space;
+    if (fitsAbove) {
+      setDropdownStyle({ bottom: window.innerHeight - rect.top + space, left: rect.left });
+    } else {
+      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
+    }
   }, [open]);
 
   useEffect(() => {
@@ -138,10 +131,9 @@ export default function DatePicker({
             position: "fixed",
             zIndex: 1200,
             backgroundColor: "var(--color-bg-surface, #ffffff)",
-            bottom: dropdownStyle.bottom,
-            left: dropdownStyle.left,
-            maxHeight: dropdownStyle.maxHeight,
-            overflowY: dropdownStyle.overflowY,
+            ...(dropdownStyle.top != null
+              ? { top: dropdownStyle.top, left: dropdownStyle.left }
+              : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
           }}
         >
           <div className="shared-date-picker-header">
