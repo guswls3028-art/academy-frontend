@@ -10,6 +10,7 @@
 
 import { useMemo, useRef, useEffect, Fragment } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { FiEdit2 } from "react-icons/fi";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import InlineExamItemsRow from "./InlineExamItemsRow";
@@ -25,6 +26,7 @@ import AttendanceStatusBadge, {
 const COL_NARROW = 56;   // 합불 등 짧은 컬럼
 const COL_SCORE = 72;   // 점수 입력 셀
 const COL_REASON = 120; // 대상 사유
+const COL_EDIT_SELECT = 72; // 수정/선택 통합 컬럼 (아이콘+라벨 여유)
 
 /** 합불 뱃지 (가로 배치용 인라인) */
 function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
@@ -169,8 +171,7 @@ export default function ScoresTable({
   }, [examOptions, homeworkOptions]);
 
   const editRowCols = useMemo(() => {
-    const first = TABLE_COL.checkbox;
-    return [first, ...columns.map((c) => c.width)];
+    return [COL_EDIT_SELECT, ...columns.map((c) => c.width)];
   }, [columns]);
 
   const tableWidth = useMemo(
@@ -214,26 +215,64 @@ export default function ScoresTable({
       </colgroup>
 
       <thead>
-        {/* 수정하기 행: 헤더 바로 위 */}
-        <tr className="bg-[var(--color-bg-surface-soft)] border-b border-[var(--border-divider)]">
+        {/* 1행: 수정(전체/컬럼별 편집 허용) — 첫 셀만 rowSpan=3으로 수정/선택 통합 */}
+        <tr className="bg-[var(--color-bg-surface-soft)] border-b border-[var(--color-border-divider)]">
           <th
+            rowSpan={3}
             scope="col"
-            style={{ width: TABLE_COL.checkbox }}
-            className="ds-checkbox-cell text-center font-normal"
+            style={{ width: COL_EDIT_SELECT }}
+            className="ds-scores-edit-column align-top py-2 px-2 border-r border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] w-[72px] min-w-[72px]"
           >
-            <label className="inline-flex items-center gap-1 cursor-pointer text-xs text-[var(--color-text-secondary)]">
-              <input
-                type="checkbox"
-                checked={editRowState.all || allEditableChecked}
-                onChange={(e) => onEditRowChange("all", e.target.checked)}
-                className="cursor-pointer"
-                aria-label="전체 수정 허용"
-              />
-              수정
-            </label>
+            <div className="flex flex-col gap-2 items-center">
+              <label
+                className={`ds-scores-edit-trigger inline-flex flex-col items-center gap-1 cursor-pointer rounded-lg border-2 px-2 py-1.5 w-full transition-colors group ${
+                  editRowState.all || allEditableChecked
+                    ? "border-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_12%,transparent)]"
+                    : "border-dashed border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)]"
+                }`}
+                title="체크 시 해당 컬럼 성적을 수정할 수 있습니다"
+              >
+                <FiEdit2
+                  className={`w-4 h-4 ${editRowState.all || allEditableChecked ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-muted)] group-hover:text-[var(--color-brand-primary)]"}`}
+                  aria-hidden
+                />
+                <span
+                  className={`text-[10px] font-semibold uppercase tracking-wide ${
+                    editRowState.all || allEditableChecked ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-secondary)] group-hover:text-[var(--color-brand-primary)]"
+                  }`}
+                >
+                  수정
+                </span>
+                <input
+                  type="checkbox"
+                  checked={editRowState.all || allEditableChecked}
+                  onChange={(e) => onEditRowChange("all", e.target.checked)}
+                  className="cursor-pointer w-3.5 h-3.5"
+                  aria-label="전체 수정 허용"
+                />
+              </label>
+              {onSelectionChange && (
+                <label className="inline-flex items-center gap-1 cursor-pointer text-[10px] text-[var(--color-text-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        onSelectionChange(rows.map((r) => r.enrollment_id));
+                      } else {
+                        onSelectionChange([]);
+                      }
+                    }}
+                    className="cursor-pointer w-3.5 h-3.5"
+                    aria-label="전체 선택"
+                  />
+                  선택
+                </label>
+              )}
+            </div>
           </th>
           {columns.map((col) => (
-            <th key={col.key} scope="col" style={{ width: col.width }} className="ds-checkbox-cell text-center">
+            <th key={col.key} scope="col" style={{ width: col.width }} className="ds-checkbox-cell text-center py-1">
               {col.editable ? (
                 <input
                   type="checkbox"
@@ -243,37 +282,15 @@ export default function ScoresTable({
                     onEditRowChange(col.key, e.target.checked);
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  className="cursor-pointer"
+                  className="cursor-pointer w-3.5 h-3.5"
                   aria-label={`${col.type === "exam" ? col.title : col.type === "homework" ? col.title : ""} 수정 허용`}
                 />
               ) : null}
             </th>
           ))}
         </tr>
-        {/* 시험/과제명 행 — 캡처처럼 실제 시험명·과제명을 상단에 표시 */}
-        <tr className="border-b border-[var(--border-divider)]">
-          <th scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
-            {onSelectionChange ? (
-              <label className="inline-flex items-center gap-1 cursor-pointer text-xs text-[var(--color-text-secondary)]">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      onSelectionChange(rows.map((r) => r.enrollment_id));
-                    } else {
-                      onSelectionChange([]);
-                    }
-                  }}
-                  className="cursor-pointer"
-                  aria-label="전체 선택"
-                />
-                선택
-              </label>
-            ) : (
-              " "
-            )}
-          </th>
+        {/* 2행: 시험/과제명 — 첫 컬럼은 rowSpan으로 이미 차지됨 */}
+        <tr className="border-b border-[var(--color-border-divider)]">
           <th scope="col" style={{ width: TABLE_COL.name }}>
             이름
           </th>
@@ -298,7 +315,7 @@ export default function ScoresTable({
               scope="col"
               colSpan={2}
               className="text-left font-semibold text-[var(--color-text-primary)] truncate"
-              style={{ maxWidth: (COL_SCORE + COL_NARROW) }}
+              style={{ maxWidth: COL_SCORE + COL_NARROW }}
               title={hw.title}
             >
               {hw.title}
@@ -311,11 +328,8 @@ export default function ScoresTable({
             대상 사유
           </th>
         </tr>
-        {/* 서브 헤더: 주관식/객관식/합산/합불, 점수/합불 */}
+        {/* 3행: 서브 헤더 — 주관식/객관식/합산/합불, 점수/합불 */}
         <tr>
-          <th scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
-            {" "}
-          </th>
           <th scope="col" style={{ width: TABLE_COL.name }}>
             이름
           </th>
