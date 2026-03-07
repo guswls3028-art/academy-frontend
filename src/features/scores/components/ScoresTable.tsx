@@ -575,7 +575,7 @@ export default function ScoresTable({
                   return (
                     <Fragment key={hw.homework_id}>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected && selectedHomeworkId === hw.homework_id ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         style={rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -597,6 +597,8 @@ export default function ScoresTable({
                                 style={{ listStyle: "none" }}
                                 onFocus={(e) => {
                                   const el = e.currentTarget;
+                                  const key = `${row.enrollment_id}-${hw.homework_id}`;
+                                  scoreValueOnFocusRef.current[key] = block?.score != null ? String(block.score) : "";
                                   requestAnimationFrame(() => selectAllScoreCell(el));
                                 }}
                                 onBlur={async () => {
@@ -604,8 +606,22 @@ export default function ScoresTable({
                                   const el = homeworkInputRefs.current[key];
                                   if (!el) return;
                                   const raw = el.innerText.trim();
+                                  if (raw === "") {
+                                    await patchHomeworkQuick({
+                                      sessionId,
+                                      enrollmentId: row.enrollment_id,
+                                      homeworkId: hw.homework_id,
+                                      score: null,
+                                    });
+                                    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    return;
+                                  }
                                   const parsed = parseScoreInput(raw, block?.max_score ?? null);
                                   if (parsed != null) {
+                                    if (!validateScore(parsed, block?.max_score)) {
+                                      el.innerText = block?.score != null ? String(block.score) : "";
+                                      return;
+                                    }
                                     await patchHomeworkQuick({
                                       sessionId,
                                       enrollmentId: row.enrollment_id,
@@ -613,6 +629,8 @@ export default function ScoresTable({
                                       score: parsed,
                                     });
                                     qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                  } else {
+                                    el.innerText = block?.score != null ? String(block.score) : "";
                                   }
                                 }}
                                 onKeyDown={async (e) => {
@@ -620,6 +638,13 @@ export default function ScoresTable({
                                   const el = homeworkInputRefs.current[key];
                                   const raw = el?.innerText?.trim() ?? "";
 
+                                  if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    const prev = scoreValueOnFocusRef.current[key] ?? "";
+                                    if (el) el.innerText = prev;
+                                    el?.blur();
+                                    return;
+                                  }
                                   if (e.key === "Tab") {
                                     e.preventDefault();
                                     if (e.shiftKey) onRequestMovePrev?.();
@@ -628,6 +653,10 @@ export default function ScoresTable({
                                   }
                                   if (e.key === "Enter") {
                                     e.preventDefault();
+                                    if (e.shiftKey) {
+                                      onRequestMoveUp?.();
+                                      return;
+                                    }
                                     if (raw === "/") {
                                       await patchHomeworkQuick({
                                         sessionId,
@@ -642,6 +671,10 @@ export default function ScoresTable({
                                     }
                                     const parsed = parseScoreInput(raw, block?.max_score ?? null);
                                     if (parsed != null) {
+                                      if (!validateScore(parsed, block?.max_score)) {
+                                        if (el) el.innerText = block?.score != null ? String(block.score) : "";
+                                        return;
+                                      }
                                       await patchHomeworkQuick({
                                         sessionId,
                                         enrollmentId: row.enrollment_id,
@@ -652,6 +685,33 @@ export default function ScoresTable({
                                     }
                                     onRequestMoveDown?.();
                                     return;
+                                  }
+                                  if (e.key === "Delete" || e.key === "Backspace") {
+                                    e.preventDefault();
+                                    if (el) el.innerText = "";
+                                    return;
+                                  }
+                                  if (e.ctrlKey || e.metaKey) {
+                                    if (e.key === "c") {
+                                      e.preventDefault();
+                                      const text = el?.innerText?.trim() ?? "";
+                                      if (text) await navigator.clipboard.writeText(text);
+                                      return;
+                                    }
+                                    if (e.key === "v") {
+                                      e.preventDefault();
+                                      try {
+                                        const text = await navigator.clipboard.readText();
+                                        const pasted = text.trim();
+                                        if (el) {
+                                          el.innerText = pasted;
+                                          requestAnimationFrame(() => selectAllScoreCell(el));
+                                        }
+                                      } catch {
+                                        // clipboard denied
+                                      }
+                                      return;
+                                    }
                                   }
                                   if (e.key === "ArrowUp") {
                                     e.preventDefault();

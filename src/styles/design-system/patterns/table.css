@@ -403,6 +403,22 @@ table.ds-table {
   box-shadow: none !important;
 }
 
+/* Active cell — 엑셀 스타일 굵은 테두리 */
+.ds-scores-table tbody td.ds-scores-cell-active {
+  outline: 2px solid var(--color-brand-primary) !important;
+  outline-offset: -2px;
+  z-index: 1;
+  position: relative;
+}
+
+.ds-scores-table tbody tr.ds-scores-table-row--alt td.ds-scores-cell-active {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+}
+
+.ds-scores-table tbody tr.ds-scores-table-row--checked td.ds-scores-cell-active {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface)) !important;
+}
+
 .ds-scores-table tbody tr.ds-scores-table-row--alt {
   background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
 }
