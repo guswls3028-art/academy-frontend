@@ -78,6 +78,7 @@ export default function StudentsRequestsPage() {
               <th className="px-4 py-3 font-semibold">학생 전화</th>
               <th className="px-4 py-3 font-semibold">구분</th>
               <th className="px-4 py-3 font-semibold">학교/학년</th>
+              <th className="px-4 py-3 font-semibold">주소</th>
               <th className="px-4 py-3 font-semibold">신청일시</th>
               <th className="px-4 py-3 font-semibold w-[100px]">동작</th>
             </tr>
@@ -96,6 +97,7 @@ export default function StudentsRequestsPage() {
                   {r.highSchool || r.middleSchool || "-"}
                   {r.grade != null ? ` ${r.grade}학년` : ""}
                 </td>
+                <td className="px-4 py-3 text-[var(--color-text-muted)]">{r.address || "-"}</td>
                 <td className="px-4 py-3 text-[var(--color-text-muted)]">{formatDate(r.createdAt)}</td>
                 <td className="px-4 py-3">
                   <Button

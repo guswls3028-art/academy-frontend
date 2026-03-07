@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useClinicStudentSearch } from "../hooks/useClinicStudentSearch";
 import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
+import { fetchClinicSessionTree } from "../api/clinicSessions.api";
 
 import api from "@/shared/api/axios";
 
