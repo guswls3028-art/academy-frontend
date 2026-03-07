@@ -99,10 +99,10 @@ export default function LectureStudentsPage() {
 
   const sessionColWidth = columnWidths.session ?? STUDENTS_TABLE_COL.sessionCol;
   const tableMinWidth =
-    col.checkbox +
-    (columnWidths.name ?? col.name) +
-    (columnWidths.parentPhone ?? col.parentPhone) +
-    (columnWidths.studentPhone ?? col.studentPhone) +
+    STUDENTS_TABLE_COL.checkbox +
+    (columnWidths.name ?? STUDENTS_TABLE_COL.name) +
+    (columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone) +
+    (columnWidths.studentPhone ?? STUDENTS_TABLE_COL.studentPhone) +
     sessionsByDateDesc.length * sessionColWidth;
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -252,17 +252,17 @@ export default function LectureStudentsPage() {
                   tableStyle={{ width: tableMinWidth, minWidth: tableMinWidth, tableLayout: "fixed" }}
                 >
                   <colgroup>
-                    <col style={{ width: col.checkbox }} />
-                    <col style={{ width: columnWidths.name ?? col.name }} />
-                    <col style={{ width: columnWidths.parentPhone ?? col.parentPhone }} />
-                    <col style={{ width: columnWidths.studentPhone ?? col.studentPhone }} />
+                    <col style={{ width: STUDENTS_TABLE_COL.checkbox }} />
+                    <col style={{ width: columnWidths.name ?? STUDENTS_TABLE_COL.name }} />
+                    <col style={{ width: columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone }} />
+                    <col style={{ width: columnWidths.studentPhone ?? STUDENTS_TABLE_COL.studentPhone }} />
                     {sessionsByDateDesc.map((s) => (
                       <col key={s.id} style={{ width: sessionColWidth }} />
                     ))}
                   </colgroup>
                   <thead>
                     <tr>
-                      <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                      <th scope="col" className="ds-checkbox-cell" style={{ width: STUDENTS_TABLE_COL.checkbox }} onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={allSelected}
@@ -275,19 +275,19 @@ export default function LectureStudentsPage() {
                         colKey="name"
                         label="이름"
                         widthKey="name"
-                        width={columnWidths.name ?? col.name}
+                        width={columnWidths.name ?? STUDENTS_TABLE_COL.name}
                       />
                       <SortableTh
                         colKey="parentPhone"
                         label="학부모 전화번호"
                         widthKey="parentPhone"
-                        width={columnWidths.parentPhone ?? col.parentPhone}
+                        width={columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone}
                       />
                       <SortableTh
                         colKey="studentPhone"
                         label="학생 전화번호"
                         widthKey="studentPhone"
-                        width={columnWidths.studentPhone ?? col.studentPhone}
+                        width={columnWidths.studentPhone ?? STUDENTS_TABLE_COL.studentPhone}
                       />
                       {sessionsByDateDesc.map((s) => (
                         <ResizableTh
@@ -315,7 +315,7 @@ export default function LectureStudentsPage() {
                         role="button"
                         className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${selectedSet.has(row.student_id) ? "ds-row-selected" : ""}`}
                       >
-                        <td className="ds-checkbox-cell align-middle" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                        <td className="ds-checkbox-cell align-middle" style={{ width: STUDENTS_TABLE_COL.checkbox }} onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={selectedSet.has(row.student_id)}
@@ -325,7 +325,7 @@ export default function LectureStudentsPage() {
                             className="cursor-pointer"
                           />
                         </td>
-                        <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: columnWidths.name ?? col.name }}>
+                        <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: columnWidths.name ?? STUDENTS_TABLE_COL.name }}>
                           <StudentNameWithLectureChip
                             name={row.name ?? ""}
                             profilePhotoUrl={row.profile_photo_url ?? undefined}
@@ -338,10 +338,10 @@ export default function LectureStudentsPage() {
                             chipSize={16}
                           />
                         </td>
-                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.parentPhone ?? col.parentPhone }}>
+                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone }}>
                           {formatPhone(row.parent_phone)}
                         </td>
-                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.studentPhone ?? col.studentPhone }}>
+                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.studentPhone ?? STUDENTS_TABLE_COL.studentPhone }}>
                           {formatPhone(row.phone)}
                         </td>
                         {sessionsByDateDesc.map((s) => {

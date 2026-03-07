@@ -45,6 +45,47 @@ function isPastLecture(lec: LectureItem) {
   return lec.is_active === false;
 }
 
+/** 컴포넌트를 페이지 밖에 두어 리사이즈 중 부모 리렌더 시에도 ResizableTh가 언마운트되지 않도록 함 */
+function LectureSortableTh({
+  colKey,
+  label,
+  widthKey,
+  width,
+  sort,
+  onSort,
+  onWidthChange,
+}: {
+  colKey: string;
+  label: string;
+  widthKey: string;
+  width: number;
+  sort: string;
+  onSort: (colKey: string) => void;
+  onWidthChange: (key: string, width: number) => void;
+}) {
+  const isAsc = sort === colKey;
+  const isDesc = sort === `-${colKey}`;
+  return (
+    <ResizableTh
+      columnKey={widthKey}
+      width={width}
+      minWidth={40}
+      maxWidth={600}
+      onWidthChange={onWidthChange}
+      onClick={() => onSort(colKey)}
+      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+      className="cursor-pointer select-none"
+    >
+      <span className="inline-flex items-center justify-center gap-2">
+        {label}
+        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+        </span>
+      </span>
+    </ResizableTh>
+  );
+}
+
 export default function LecturesPage({ tab = "active" }: LecturesPageProps = {}) {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
@@ -150,40 +191,6 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
     });
   }, []);
 
-  function SortableTh({
-    colKey,
-    label,
-    widthKey,
-    width,
-  }: {
-    colKey: string;
-    label: string;
-    widthKey: string;
-    width: number;
-  }) {
-    const isAsc = sort === colKey;
-    const isDesc = sort === `-${colKey}`;
-    return (
-      <ResizableTh
-        columnKey={widthKey}
-        width={width}
-        minWidth={40}
-        maxWidth={600}
-        onWidthChange={setColumnWidth}
-        onClick={() => handleSort(colKey)}
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-        className="cursor-pointer select-none"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {label}
-          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
-      </ResizableTh>
-    );
-  }
-
   return (
     <>
       <div className="flex flex-col gap-4">
@@ -228,35 +235,50 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
                 </colgroup>
                 <thead>
                   <tr>
-                    <SortableTh
+                    <LectureSortableTh
                       colKey="title"
                       label="강의 이름"
                       widthKey="title"
                       width={columnWidths.title ?? TABLE_COL.title}
+                      sort={sort}
+                      onSort={handleSort}
+                      onWidthChange={setColumnWidth}
                     />
-                    <SortableTh
+                    <LectureSortableTh
                       colKey="subject"
                       label="과목"
                       widthKey="subject"
                       width={columnWidths.subject ?? TABLE_COL.subject}
+                      sort={sort}
+                      onSort={handleSort}
+                      onWidthChange={setColumnWidth}
                     />
-                    <SortableTh
+                    <LectureSortableTh
                       colKey="name"
                       label="강사"
                       widthKey="name"
                       width={columnWidths.name ?? TABLE_COL.medium}
+                      sort={sort}
+                      onSort={handleSort}
+                      onWidthChange={setColumnWidth}
                     />
-                    <SortableTh
+                    <LectureSortableTh
                       colKey="lecture_time"
                       label="강의 시간"
                       widthKey="lecture_time"
                       width={columnWidths.lecture_time ?? TABLE_COL.timeRange}
+                      sort={sort}
+                      onSort={handleSort}
+                      onWidthChange={setColumnWidth}
                     />
-                    <SortableTh
+                    <LectureSortableTh
                       colKey="dateRange"
                       label="기간"
                       widthKey="dateRange"
                       width={columnWidths.dateRange ?? TABLE_COL.dateRange}
+                      sort={sort}
+                      onSort={handleSort}
+                      onWidthChange={setColumnWidth}
                     />
                     <th scope="col" aria-label="설정" style={{ width: 56 }} />
                   </tr>
