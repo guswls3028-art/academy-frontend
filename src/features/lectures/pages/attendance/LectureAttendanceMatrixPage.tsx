@@ -1,6 +1,7 @@
 // PATH: src/features/lectures/pages/attendance/LectureAttendanceMatrixPage.tsx
 // Design: docs/DESIGN_SSOT.md
 // 컬럼: 체크박스, 이름, 학부모 전화, 학생 전화, 출결블록(N차 → 1차 역순, 1글자)
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -12,12 +13,21 @@ import { sortSessionsByDateDesc } from "@/features/lectures/api/sessions";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
+
+const LECTURE_ATTENDANCE_MATRIX_COLUMNS: TableColumnDef[] = [
+  { key: "name", label: "이름", defaultWidth: STUDENTS_TABLE_COL.name, minWidth: 80 },
+  { key: "parentPhone", label: "학부모 전화", defaultWidth: STUDENTS_TABLE_COL.parentPhone, minWidth: 90 },
+  { key: "studentPhone", label: "학생 전화", defaultWidth: STUDENTS_TABLE_COL.studentPhone, minWidth: 90 },
+  { key: "session", label: "차시", defaultWidth: STUDENTS_TABLE_COL.sessionCol, minWidth: 34 },
+];
 
 export default function LectureAttendanceMatrixPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("lecture-attendance-matrix", LECTURE_ATTENDANCE_MATRIX_COLUMNS);
 
   const { data, isLoading } = useQuery<AttendanceMatrixResponse>({
     queryKey: ["attendance-matrix", lectureIdNum],
@@ -41,8 +51,14 @@ export default function LectureAttendanceMatrixPage() {
   const sessionsByDateDesc = sortSessionsByDateDesc(sessions);
 
   const col = STUDENTS_TABLE_COL;
-  const sessionColsTotal = sessionsByDateDesc.length * col.sessionCol;
-  const tableMinWidth = col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionColsTotal;
+  const sessionColWidth = columnWidths.session ?? STUDENTS_TABLE_COL.sessionCol;
+  const sessionColsTotal = sessionsByDateDesc.length * sessionColWidth;
+  const tableMinWidth =
+    col.checkbox +
+    (columnWidths.name ?? col.name) +
+    (columnWidths.parentPhone ?? col.parentPhone) +
+    (columnWidths.studentPhone ?? col.studentPhone) +
+    sessionColsTotal;
 
   const primaryAction = (
     <Button
@@ -70,11 +86,11 @@ export default function LectureAttendanceMatrixPage() {
           >
             <colgroup>
               <col style={{ width: col.checkbox }} />
-              <col style={{ width: col.name }} />
-              <col style={{ width: col.parentPhone }} />
-              <col style={{ width: col.studentPhone }} />
+              <col style={{ width: columnWidths.name ?? col.name }} />
+              <col style={{ width: columnWidths.parentPhone ?? col.parentPhone }} />
+              <col style={{ width: columnWidths.studentPhone ?? col.studentPhone }} />
               {sessionsByDateDesc.map((s) => (
-                <col key={s.id} style={{ width: col.sessionCol }} />
+                <col key={s.id} style={{ width: sessionColWidth }} />
               ))}
             </colgroup>
             <thead>
@@ -82,25 +98,50 @@ export default function LectureAttendanceMatrixPage() {
                 <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox }}>
                   <span className="sr-only">선택</span>
                 </th>
-                <th scope="col" style={{ width: col.name }}>
+                <ResizableTh
+                  columnKey="name"
+                  width={columnWidths.name ?? col.name}
+                  minWidth={80}
+                  maxWidth={500}
+                  onWidthChange={setColumnWidth}
+                  className="text-left"
+                >
                   이름
-                </th>
-                <th scope="col" style={{ width: col.parentPhone }}>
+                </ResizableTh>
+                <ResizableTh
+                  columnKey="parentPhone"
+                  width={columnWidths.parentPhone ?? col.parentPhone}
+                  minWidth={90}
+                  maxWidth={400}
+                  onWidthChange={setColumnWidth}
+                  className="text-left"
+                >
                   학부모 전화번호
-                </th>
-                <th scope="col" style={{ width: col.studentPhone }}>
+                </ResizableTh>
+                <ResizableTh
+                  columnKey="studentPhone"
+                  width={columnWidths.studentPhone ?? col.studentPhone}
+                  minWidth={90}
+                  maxWidth={400}
+                  onWidthChange={setColumnWidth}
+                  className="text-left"
+                >
                   학생 전화번호
-                </th>
+                </ResizableTh>
                 {sessionsByDateDesc.map((s) => (
-                  <th
+                  <ResizableTh
                     key={s.id}
-                    scope="col"
+                    columnKey="session"
+                    width={sessionColWidth}
+                    minWidth={34}
+                    maxWidth={80}
+                    onWidthChange={setColumnWidth}
                     className="text-center"
-                    style={{ width: col.sessionCol }}
+                    style={{ paddingLeft: 0, paddingRight: 0 }}
                     title={`${s.order ?? "-"}차시${s.date ? ` (${s.date})` : ""}`}
                   >
                     {s.order ?? "-"}차
-                  </th>
+                  </ResizableTh>
                 ))}
               </tr>
             </thead>
@@ -112,7 +153,7 @@ export default function LectureAttendanceMatrixPage() {
                   </td>
                     <td
                     className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle"
-                    style={{ width: col.name }}
+                    style={{ width: columnWidths.name ?? col.name }}
                   >
                     <StudentNameWithLectureChip
                       name={row.name ?? ""}
@@ -128,13 +169,13 @@ export default function LectureAttendanceMatrixPage() {
                   </td>
                   <td
                     className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle"
-                    style={{ width: col.parentPhone }}
+                    style={{ width: columnWidths.parentPhone ?? col.parentPhone }}
                   >
                     {formatPhone(row.parent_phone)}
                   </td>
                   <td
                     className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle"
-                    style={{ width: col.studentPhone }}
+                    style={{ width: columnWidths.studentPhone ?? col.studentPhone }}
                   >
                     {formatPhone(row.phone)}
                   </td>
@@ -144,7 +185,7 @@ export default function LectureAttendanceMatrixPage() {
                       <td
                         key={s.id}
                         className="text-center align-middle px-0"
-                        style={{ width: col.sessionCol }}
+                        style={{ width: sessionColWidth }}
                       >
                         {cell?.status ? (
                           <AttendanceStatusBadge

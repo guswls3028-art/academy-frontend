@@ -1,16 +1,26 @@
 // PATH: src/features/lectures/pages/lectures/LecturesPage.tsx
 // Design: docs/DESIGN_SSOT.md (강의 관리만 체크박스 없음 — 유일 예외)
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Settings } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable, DEFAULT_PRESET_COLOR, TABLE_COL } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, DEFAULT_PRESET_COLOR, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import LectureCreateModal from "../../components/LectureCreateModal";
 import LectureSettingsModal from "../../components/LectureSettingsModal";
+
+/** 강의 목록 테이블 컬럼 정의 (useTableColumnPrefs SSOT) */
+const LECTURES_TABLE_COLUMN_DEFS: TableColumnDef[] = [
+  { key: "title", label: "강의 이름", defaultWidth: TABLE_COL.title, minWidth: 100 },
+  { key: "subject", label: "과목", defaultWidth: TABLE_COL.subject, minWidth: 60 },
+  { key: "name", label: "강사", defaultWidth: TABLE_COL.medium, minWidth: 60 },
+  { key: "lecture_time", label: "강의 시간", defaultWidth: TABLE_COL.timeRange, minWidth: 80 },
+  { key: "dateRange", label: "기간", defaultWidth: TABLE_COL.dateRange, minWidth: 140 },
+];
 
 type LecturesPageProps = {
   tab?: "active" | "past";
@@ -39,6 +49,8 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [q, setQ] = useState("");
+  const [sort, setSort] = useState("");
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("lectures", LECTURES_TABLE_COLUMN_DEFS);
 
   const { data = [], isLoading, error, isFetching } = useQuery({
     queryKey: ["lectures"],
@@ -78,25 +90,99 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
   return ["#eab308", "#06b6d4"].includes(c);
 }
 
+  const toTime = useCallback((v?: string | null) => {
+    if (!v) return 0;
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? t : 0;
+  }, []);
+
   const list = useMemo(() => {
     const base = tab === "active" ? activeLectures : pastLectures;
     const keyword = q.trim().toLowerCase();
-    if (!keyword) return base;
+    const filtered = !keyword
+      ? base
+      : base.filter((lec) =>
+          [
+            lec.title,
+            lec.subject ?? "",
+            lec.name ?? "",
+            lec.lecture_time ?? "",
+            lec.start_date ?? "",
+            lec.end_date ?? "",
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(keyword)
+        );
+    if (!sort) return filtered;
+    const key = sort.startsWith("-") ? sort.slice(1) : sort;
+    const asc = !sort.startsWith("-");
+    return [...filtered].sort((a, b) => {
+      let aVal: string | number = "";
+      let bVal: string | number = "";
+      if (key === "dateRange") {
+        aVal = toTime(a.start_date);
+        bVal = toTime(b.start_date);
+      } else {
+        aVal = (a as Record<string, unknown>)[key] ?? "";
+        bVal = (b as Record<string, unknown>)[key] ?? "";
+      }
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        const cmp = aVal.localeCompare(String(bVal), "ko");
+        return asc ? cmp : -cmp;
+      }
+      const cmp = Number(aVal) - Number(bVal);
+      return asc ? cmp : -cmp;
+    });
+  }, [tab, activeLectures, pastLectures, q, sort, toTime]);
 
-    return base.filter((lec) =>
-      [
-        lec.title,
-        lec.subject ?? "",
-        lec.name ?? "",
-        lec.lecture_time ?? "",
-        lec.start_date ?? "",
-        lec.end_date ?? "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(keyword)
+  const tableWidth = useMemo(
+    () =>
+      LECTURES_TABLE_COLUMN_DEFS.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0) + 56,
+    [columnWidths]
+  );
+
+  const handleSort = useCallback((colKey: string) => {
+    setSort((prev) => {
+      if (prev === colKey) return `-${colKey}`;
+      if (prev === `-${colKey}`) return "";
+      return colKey;
+    });
+  }, []);
+
+  function SortableTh({
+    colKey,
+    label,
+    widthKey,
+    width,
+  }: {
+    colKey: string;
+    label: string;
+    widthKey: string;
+    width: number;
+  }) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    return (
+      <ResizableTh
+        columnKey={widthKey}
+        width={width}
+        minWidth={40}
+        maxWidth={600}
+        onWidthChange={setColumnWidth}
+        onClick={() => handleSort(colKey)}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        className="cursor-pointer select-none"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          {label}
+          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
+        </span>
+      </ResizableTh>
     );
-  }, [tab, activeLectures, pastLectures, q]);
+  }
 
   return (
     <>
@@ -131,28 +217,48 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
           ) : (
             <div style={{ width: "fit-content" }}>
               <DomainTable
-                tableClassName="ds-table--flat"
-                tableStyle={{
-                  tableLayout: "fixed",
-                  width: TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.timeRange + TABLE_COL.dateRange + 56,
-                }}
+                tableClassName="ds-table--flat ds-table--center"
+                tableStyle={{ tableLayout: "fixed", width: tableWidth }}
               >
                 <colgroup>
-                  <col style={{ width: TABLE_COL.title }} />
-                  <col style={{ width: TABLE_COL.subject }} />
-                  <col style={{ width: TABLE_COL.medium }} />
-                  <col style={{ width: TABLE_COL.timeRange }} />
-                  <col style={{ width: TABLE_COL.dateRange }} />
+                  {LECTURES_TABLE_COLUMN_DEFS.map((c) => (
+                    <col key={c.key} style={{ width: columnWidths[c.key] ?? c.defaultWidth }} />
+                  ))}
                   <col style={{ width: 56 }} />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col">강의 이름</th>
-                    <th scope="col">과목</th>
-                    <th scope="col">강사</th>
-                    <th scope="col">강의 시간</th>
-                    <th scope="col">기간</th>
-                    <th scope="col" aria-label="설정" />
+                    <SortableTh
+                      colKey="title"
+                      label="강의 이름"
+                      widthKey="title"
+                      width={columnWidths.title ?? TABLE_COL.title}
+                    />
+                    <SortableTh
+                      colKey="subject"
+                      label="과목"
+                      widthKey="subject"
+                      width={columnWidths.subject ?? TABLE_COL.subject}
+                    />
+                    <SortableTh
+                      colKey="name"
+                      label="강사"
+                      widthKey="name"
+                      width={columnWidths.name ?? TABLE_COL.medium}
+                    />
+                    <SortableTh
+                      colKey="lecture_time"
+                      label="강의 시간"
+                      widthKey="lecture_time"
+                      width={columnWidths.lecture_time ?? TABLE_COL.timeRange}
+                    />
+                    <SortableTh
+                      colKey="dateRange"
+                      label="기간"
+                      widthKey="dateRange"
+                      width={columnWidths.dateRange ?? TABLE_COL.dateRange}
+                    />
+                    <th scope="col" aria-label="설정" style={{ width: 56 }} />
                   </tr>
                 </thead>
                 <tbody>

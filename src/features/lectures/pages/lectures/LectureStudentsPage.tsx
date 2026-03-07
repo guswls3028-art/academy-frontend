@@ -1,7 +1,7 @@
 // PATH: src/features/lectures/pages/lectures/LectureStudentsPage.tsx
 // 학생 테이블 = 세션 출결 테이블 UI/UX 카피: 강의 뱃지 + 체크박스, 이름, 학부모/학생 전화, N차…1차(역순) 1글자
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -15,10 +15,18 @@ import SessionCreateModal from "@/features/lectures/components/SessionCreateModa
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Button, EmptyState } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+
+const LECTURE_STUDENTS_FIXED_COLUMNS: TableColumnDef[] = [
+  { key: "name", label: "이름", defaultWidth: STUDENTS_TABLE_COL.name, minWidth: 80 },
+  { key: "parentPhone", label: "학부모 전화", defaultWidth: STUDENTS_TABLE_COL.parentPhone, minWidth: 90 },
+  { key: "studentPhone", label: "학생 전화", defaultWidth: STUDENTS_TABLE_COL.studentPhone, minWidth: 90 },
+  { key: "session", label: "차시", defaultWidth: STUDENTS_TABLE_COL.sessionCol, minWidth: 34 },
+];
 
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
@@ -33,6 +41,8 @@ export default function LectureStudentsPage() {
   const [showSessionCreateModal, setShowSessionCreateModal] = useState(false);
   const [showEnrollExcelModal, setShowEnrollExcelModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [sort, setSort] = useState("");
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("lecture-students", LECTURE_STUDENTS_FIXED_COLUMNS);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 250);
@@ -67,13 +77,37 @@ export default function LectureStudentsPage() {
     );
   }, [students, search]);
 
-  const col = STUDENTS_TABLE_COL;
+  const sortedFiltered = useMemo(() => {
+    if (!sort) return filtered;
+    const key = sort.startsWith("-") ? sort.slice(1) : sort;
+    const asc = !sort.startsWith("-");
+    return [...filtered].sort((a, b) => {
+      const aVal = key === "name" ? (a.name ?? "") : key === "parentPhone" ? (a.parent_phone ?? "") : (a.phone ?? "");
+      const bVal = key === "name" ? (b.name ?? "") : key === "parentPhone" ? (b.parent_phone ?? "") : (b.phone ?? "");
+      const cmp = String(aVal).localeCompare(String(bVal), "ko");
+      return asc ? cmp : -cmp;
+    });
+  }, [filtered, sort]);
+
+  const handleSort = useCallback((colKey: string) => {
+    setSort((prev) => {
+      if (prev === colKey) return `-${colKey}`;
+      if (prev === `-${colKey}`) return "";
+      return colKey;
+    });
+  }, []);
+
+  const sessionColWidth = columnWidths.session ?? STUDENTS_TABLE_COL.sessionCol;
   const tableMinWidth =
-    col.checkbox + col.name + col.parentPhone + col.studentPhone + sessionsByDateDesc.length * col.sessionCol;
+    col.checkbox +
+    (columnWidths.name ?? col.name) +
+    (columnWidths.parentPhone ?? col.parentPhone) +
+    (columnWidths.studentPhone ?? col.studentPhone) +
+    sessionsByDateDesc.length * sessionColWidth;
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const allIds = useMemo(() => filtered.map((s) => s.student_id), [filtered]);
-  const allSelected = filtered.length > 0 && allIds.every((id) => selectedSet.has(id));
+  const allIds = useMemo(() => sortedFiltered.map((s) => s.student_id), [sortedFiltered]);
+  const allSelected = sortedFiltered.length > 0 && allIds.every((id) => selectedSet.has(id));
 
   function toggleSelect(id: number) {
     if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
@@ -137,11 +171,47 @@ export default function LectureStudentsPage() {
     );
   }
 
+  function SortableTh({
+    colKey,
+    label,
+    widthKey,
+    width,
+  }: {
+    colKey: string;
+    label: string;
+    widthKey: string;
+    width: number;
+  }) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    return (
+      <ResizableTh
+        columnKey={widthKey}
+        width={width}
+        minWidth={40}
+        maxWidth={500}
+        onWidthChange={setColumnWidth}
+        onClick={() => handleSort(colKey)}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        className="cursor-pointer select-none"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          {label}
+          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
+        </span>
+      </ResizableTh>
+    );
+  }
+
+  const col = STUDENTS_TABLE_COL;
+
   return (
     <>
       <div className="flex flex-col gap-4">
         <DomainListToolbar
-          totalLabel={isLoading ? "…" : `총 ${filtered.length}명`}
+          totalLabel={isLoading ? "…" : `총 ${sortedFiltered.length}명`}
           searchSlot={
             <input
               className="ds-input"
@@ -162,7 +232,7 @@ export default function LectureStudentsPage() {
         <div>
           {isLoading ? (
             <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-          ) : !filtered.length ? (
+          ) : !sortedFiltered.length ? (
             <EmptyState
               scope="panel"
               tone="empty"
@@ -183,11 +253,11 @@ export default function LectureStudentsPage() {
                 >
                   <colgroup>
                     <col style={{ width: col.checkbox }} />
-                    <col style={{ width: col.name }} />
-                    <col style={{ width: col.parentPhone }} />
-                    <col style={{ width: col.studentPhone }} />
+                    <col style={{ width: columnWidths.name ?? col.name }} />
+                    <col style={{ width: columnWidths.parentPhone ?? col.parentPhone }} />
+                    <col style={{ width: columnWidths.studentPhone ?? col.studentPhone }} />
                     {sessionsByDateDesc.map((s) => (
-                      <col key={s.id} style={{ width: col.sessionCol }} />
+                      <col key={s.id} style={{ width: sessionColWidth }} />
                     ))}
                   </colgroup>
                   <thead>
@@ -201,24 +271,43 @@ export default function LectureStudentsPage() {
                           className="cursor-pointer"
                         />
                       </th>
-                      <th scope="col" style={{ width: col.name }}>이름</th>
-                      <th scope="col" style={{ width: col.parentPhone }}>학부모 전화번호</th>
-                      <th scope="col" style={{ width: col.studentPhone }}>학생 전화번호</th>
+                      <SortableTh
+                        colKey="name"
+                        label="이름"
+                        widthKey="name"
+                        width={columnWidths.name ?? col.name}
+                      />
+                      <SortableTh
+                        colKey="parentPhone"
+                        label="학부모 전화번호"
+                        widthKey="parentPhone"
+                        width={columnWidths.parentPhone ?? col.parentPhone}
+                      />
+                      <SortableTh
+                        colKey="studentPhone"
+                        label="학생 전화번호"
+                        widthKey="studentPhone"
+                        width={columnWidths.studentPhone ?? col.studentPhone}
+                      />
                       {sessionsByDateDesc.map((s) => (
-                        <th
+                        <ResizableTh
                           key={s.id}
-                          scope="col"
+                          columnKey="session"
+                          width={sessionColWidth}
+                          minWidth={34}
+                          maxWidth={80}
+                          onWidthChange={setColumnWidth}
                           className="text-center"
-                          style={{ width: col.sessionCol }}
+                          style={{ paddingLeft: 0, paddingRight: 0 }}
                           title={`${s.order ?? "-"}차시${s.date ? ` (${s.date})` : ""}`}
                         >
                           {s.order ?? "-"}차
-                        </th>
+                        </ResizableTh>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((row) => (
+                    {sortedFiltered.map((row) => (
                       <tr
                         key={row.student_id}
                         onClick={() => navigate(`/admin/students/${row.student_id}`)}
@@ -236,7 +325,7 @@ export default function LectureStudentsPage() {
                             className="cursor-pointer"
                           />
                         </td>
-                        <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: col.name }}>
+                        <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: columnWidths.name ?? col.name }}>
                           <StudentNameWithLectureChip
                             name={row.name ?? ""}
                             profilePhotoUrl={row.profile_photo_url ?? undefined}
@@ -249,10 +338,10 @@ export default function LectureStudentsPage() {
                             chipSize={16}
                           />
                         </td>
-                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: col.parentPhone }}>
+                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.parentPhone ?? col.parentPhone }}>
                           {formatPhone(row.parent_phone)}
                         </td>
-                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: col.studentPhone }}>
+                        <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.studentPhone ?? col.studentPhone }}>
                           {formatPhone(row.phone)}
                         </td>
                         {sessionsByDateDesc.map((s) => {
@@ -261,7 +350,7 @@ export default function LectureStudentsPage() {
                             <td
                               key={s.id}
                               className="text-center align-middle px-0"
-                              style={{ width: col.sessionCol }}
+                              style={{ width: sessionColWidth }}
                               onClick={(e) => e.stopPropagation()}
                             >
                               {cell?.status ? (

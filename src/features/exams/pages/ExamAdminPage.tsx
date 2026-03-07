@@ -3,13 +3,24 @@
  * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchExams } from "../api/exams";
 import { DomainLayout } from "@/shared/ui/layout";
-import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
+
+const EXAM_ADMIN_COLUMN_DEFS: TableColumnDef[] = [
+  { key: "title", label: "시험명", defaultWidth: TABLE_COL.title, minWidth: 100 },
+  { key: "subject", label: "과목", defaultWidth: TABLE_COL.subject, minWidth: 60 },
+  { key: "exam_type", label: "유형", defaultWidth: TABLE_COL.short, minWidth: 50 },
+  { key: "retake", label: "재응시", defaultWidth: TABLE_COL.status, minWidth: 60 },
+  { key: "status", label: "상태", defaultWidth: TABLE_COL.status, minWidth: 60 },
+  { key: "created_at", label: "개설일", defaultWidth: TABLE_COL.medium, minWidth: 80 },
+  { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
+];
 
 function formatDate(s: string | null): string {
   if (!s) return "—";
@@ -25,6 +36,8 @@ export default function ExamAdminPage() {
   const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("");
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("exams", EXAM_ADMIN_COLUMN_DEFS);
 
   const { data: list = [], isLoading } = useQuery({
     queryKey: ["admin-exams"],
@@ -42,8 +55,63 @@ export default function ExamAdminPage() {
     );
   }, [list, search]);
 
+  const sortedFiltered = useMemo(() => {
+    if (!sort) return filtered;
+    const key = sort.startsWith("-") ? sort.slice(1) : sort;
+    const asc = !sort.startsWith("-");
+    return [...filtered].sort((a, b) => {
+      let aVal: string | number = (a as Record<string, unknown>)[key] ?? "";
+      let bVal: string | number = (b as Record<string, unknown>)[key] ?? "";
+      if (key === "created_at") {
+        aVal = a.created_at ? new Date(a.created_at).getTime() : 0;
+        bVal = b.created_at ? new Date(b.created_at).getTime() : 0;
+      } else if (key === "status") {
+        aVal = a.is_active ? 1 : 0;
+        bVal = b.is_active ? 1 : 0;
+      }
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return asc ? String(aVal).localeCompare(String(bVal), "ko") : -String(aVal).localeCompare(String(bVal), "ko");
+      }
+      return asc ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
+    });
+  }, [filtered, sort]);
+
+  const handleSort = useCallback((colKey: string) => {
+    setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
+  }, []);
+
   const totalWidth =
-    TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.short + TABLE_COL.status + TABLE_COL.medium + TABLE_COL.actions;
+    (columnWidths.title ?? TABLE_COL.title) +
+    (columnWidths.subject ?? TABLE_COL.subject) +
+    (columnWidths.exam_type ?? TABLE_COL.short) +
+    (columnWidths.retake ?? TABLE_COL.status) +
+    (columnWidths.status ?? TABLE_COL.status) +
+    (columnWidths.created_at ?? TABLE_COL.medium) +
+    (columnWidths.actions ?? TABLE_COL.actions);
+
+  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    return (
+      <ResizableTh
+        columnKey={widthKey}
+        width={width}
+        minWidth={40}
+        maxWidth={600}
+        onWidthChange={setColumnWidth}
+        onClick={() => handleSort(colKey)}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        className="cursor-pointer select-none"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          {label}
+          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
+        </span>
+      </ResizableTh>
+    );
+  }
 
   return (
     <DomainLayout
@@ -86,29 +154,29 @@ export default function ExamAdminPage() {
             }
           />
         ) : (
-          <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
+          <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
             <colgroup>
-              <col style={{ width: TABLE_COL.title }} />
-              <col style={{ width: TABLE_COL.subject }} />
-              <col style={{ width: TABLE_COL.medium }} />
-              <col style={{ width: TABLE_COL.short }} />
-              <col style={{ width: TABLE_COL.status }} />
-              <col style={{ width: TABLE_COL.medium }} />
-              <col style={{ width: TABLE_COL.actions }} />
+              <col style={{ width: columnWidths.title ?? TABLE_COL.title }} />
+              <col style={{ width: columnWidths.subject ?? TABLE_COL.subject }} />
+              <col style={{ width: columnWidths.exam_type ?? TABLE_COL.short }} />
+              <col style={{ width: columnWidths.retake ?? TABLE_COL.status }} />
+              <col style={{ width: columnWidths.status ?? TABLE_COL.status }} />
+              <col style={{ width: columnWidths.created_at ?? TABLE_COL.medium }} />
+              <col style={{ width: columnWidths.actions ?? TABLE_COL.actions }} />
             </colgroup>
             <thead>
               <tr>
-                <th scope="col">시험명</th>
-                <th scope="col">과목</th>
-                <th scope="col">유형</th>
-                <th scope="col">재응시</th>
-                <th scope="col">상태</th>
-                <th scope="col">개설일</th>
-                <th scope="col" />
+                <SortableTh colKey="title" label="시험명" widthKey="title" width={columnWidths.title ?? TABLE_COL.title} />
+                <SortableTh colKey="subject" label="과목" widthKey="subject" width={columnWidths.subject ?? TABLE_COL.subject} />
+                <SortableTh colKey="exam_type" label="유형" widthKey="exam_type" width={columnWidths.exam_type ?? TABLE_COL.short} />
+                <SortableTh colKey="retake" label="재응시" widthKey="retake" width={columnWidths.retake ?? TABLE_COL.status} />
+                <SortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? TABLE_COL.status} />
+                <SortableTh colKey="created_at" label="개설일" widthKey="created_at" width={columnWidths.created_at ?? TABLE_COL.medium} />
+                <th scope="col" style={{ width: columnWidths.actions ?? TABLE_COL.actions }} aria-label="관리" />
               </tr>
             </thead>
             <tbody>
-              {filtered.map((e) => (
+              {sortedFiltered.map((e) => (
                 <tr
                   key={e.id}
                   className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"

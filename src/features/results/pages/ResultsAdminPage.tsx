@@ -3,18 +3,29 @@
  * Design SSOT: students 도메인 (DomainLayout, DomainListToolbar, DomainTable ds-table--flat)
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLectures } from "@/features/lectures/api/sessions";
 import { DomainLayout } from "@/shared/ui/layout";
-import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
+
+const RESULTS_ADMIN_COLUMN_DEFS: TableColumnDef[] = [
+  { key: "title", label: "강의명", defaultWidth: TABLE_COL.title, minWidth: 100 },
+  { key: "subject", label: "과목", defaultWidth: TABLE_COL.subject, minWidth: 60 },
+  { key: "dateRange", label: "기간", defaultWidth: TABLE_COL.medium, minWidth: 80 },
+  { key: "status", label: "상태", defaultWidth: TABLE_COL.status, minWidth: 60 },
+  { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
+];
 
 export default function ResultsAdminPage() {
   const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("");
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("results", RESULTS_ADMIN_COLUMN_DEFS);
 
   const { data: lectures = [], isLoading } = useQuery({
     queryKey: ["admin-results-lectures"],
@@ -32,7 +43,64 @@ export default function ResultsAdminPage() {
     );
   }, [lectures, search]);
 
-  const totalWidth = TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.status + TABLE_COL.actions;
+  const sortedFiltered = useMemo(() => {
+    if (!sort) return filtered;
+    const key = sort.startsWith("-") ? sort.slice(1) : sort;
+    const asc = !sort.startsWith("-");
+    return [...filtered].sort((a, b) => {
+      let aVal: string | number = "";
+      let bVal: string | number = "";
+      if (key === "dateRange") {
+        aVal = a.start_date ? new Date(a.start_date).getTime() : 0;
+        bVal = b.start_date ? new Date(b.start_date).getTime() : 0;
+      } else if (key === "status") {
+        aVal = a.is_active ? 1 : 0;
+        bVal = b.is_active ? 1 : 0;
+      } else {
+        aVal = (a as Record<string, unknown>)[key] ?? "";
+        bVal = (b as Record<string, unknown>)[key] ?? "";
+      }
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return asc ? aVal.localeCompare(String(bVal), "ko") : -aVal.localeCompare(String(bVal), "ko");
+      }
+      return asc ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
+    });
+  }, [filtered, sort]);
+
+  const handleSort = useCallback((colKey: string) => {
+    setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
+  }, []);
+
+  const totalWidth =
+    (columnWidths.title ?? TABLE_COL.title) +
+    (columnWidths.subject ?? TABLE_COL.subject) +
+    (columnWidths.dateRange ?? TABLE_COL.medium) +
+    (columnWidths.status ?? TABLE_COL.status) +
+    (columnWidths.actions ?? TABLE_COL.actions);
+
+  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    return (
+      <ResizableTh
+        columnKey={widthKey}
+        width={width}
+        minWidth={40}
+        maxWidth={600}
+        onWidthChange={setColumnWidth}
+        onClick={() => handleSort(colKey)}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        className="cursor-pointer select-none"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          {label}
+          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
+        </span>
+      </ResizableTh>
+    );
+  }
 
   return (
     <DomainLayout
@@ -75,25 +143,25 @@ export default function ResultsAdminPage() {
             }
           />
         ) : (
-          <DomainTable tableClassName="ds-table--flat" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
+          <DomainTable tableClassName="ds-table--flat ds-table--center" tableStyle={{ tableLayout: "fixed", width: totalWidth }}>
             <colgroup>
-              <col style={{ width: TABLE_COL.title }} />
-              <col style={{ width: TABLE_COL.subject }} />
-              <col style={{ width: TABLE_COL.medium }} />
-              <col style={{ width: TABLE_COL.status }} />
-              <col style={{ width: TABLE_COL.actions }} />
+              <col style={{ width: columnWidths.title ?? TABLE_COL.title }} />
+              <col style={{ width: columnWidths.subject ?? TABLE_COL.subject }} />
+              <col style={{ width: columnWidths.dateRange ?? TABLE_COL.medium }} />
+              <col style={{ width: columnWidths.status ?? TABLE_COL.status }} />
+              <col style={{ width: columnWidths.actions ?? TABLE_COL.actions }} />
             </colgroup>
             <thead>
               <tr>
-                <th scope="col">강의명</th>
-                <th scope="col">과목</th>
-                <th scope="col">기간</th>
-                <th scope="col">상태</th>
-                <th scope="col" />
+                <SortableTh colKey="title" label="강의명" widthKey="title" width={columnWidths.title ?? TABLE_COL.title} />
+                <SortableTh colKey="subject" label="과목" widthKey="subject" width={columnWidths.subject ?? TABLE_COL.subject} />
+                <SortableTh colKey="dateRange" label="기간" widthKey="dateRange" width={columnWidths.dateRange ?? TABLE_COL.medium} />
+                <SortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? TABLE_COL.status} />
+                <th scope="col" style={{ width: columnWidths.actions ?? TABLE_COL.actions }} aria-label="관리" />
               </tr>
             </thead>
             <tbody>
-              {filtered.map((l) => (
+              {sortedFiltered.map((l) => (
                 <tr
                   key={l.id}
                   className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"

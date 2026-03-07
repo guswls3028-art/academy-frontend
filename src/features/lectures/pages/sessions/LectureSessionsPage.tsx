@@ -6,7 +6,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchSessions, sortSessionsByDateDesc, type Session } from "../../api/sessions";
 import SessionCreateModal from "../../components/SessionCreateModal";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable, TABLE_COL } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
+
+const LECTURE_SESSIONS_COLUMN_DEFS: TableColumnDef[] = [
+  { key: "order", label: "차시", defaultWidth: TABLE_COL.mediumAlt, minWidth: 60 },
+  { key: "title", label: "제목", defaultWidth: TABLE_COL.title, minWidth: 80 },
+  { key: "date", label: "날짜", defaultWidth: TABLE_COL.timeRange, minWidth: 90 },
+  { key: "id", label: "ID", defaultWidth: TABLE_COL.tag, minWidth: 50 },
+];
 
 export default function LectureSessionsPage() {
   const navigate = useNavigate();
@@ -16,13 +24,34 @@ export default function LectureSessionsPage() {
 
   const [open, setOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [sort, setSort] = useState("");
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("lecture-sessions", LECTURE_SESSIONS_COLUMN_DEFS);
 
   const { data: rawSessions = [], isLoading, isError } = useQuery<Session[]>({
     queryKey: ["lecture-sessions", lecId],
     queryFn: () => fetchSessions(lecId),
     enabled: Number.isFinite(lecId),
   });
-  const sessions = useMemo(() => sortSessionsByDateDesc(rawSessions), [rawSessions]);
+  const sessions = useMemo(() => {
+    const sorted = sortSessionsByDateDesc(rawSessions);
+    if (!sort) return sorted;
+    const key = sort.startsWith("-") ? sort.slice(1) : sort;
+    const asc = !sort.startsWith("-");
+    return [...sorted].sort((a, b) => {
+      let aVal: string | number = (a as Record<string, unknown>)[key] ?? "";
+      let bVal: string | number = (b as Record<string, unknown>)[key] ?? "";
+      if (key === "date") {
+        aVal = new Date(String(aVal)).getTime();
+        bVal = new Date(String(bVal)).getTime();
+      }
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        const cmp = aVal.localeCompare(String(bVal), "ko");
+        return asc ? cmp : -cmp;
+      }
+      const cmp = Number(aVal) - Number(bVal);
+      return asc ? cmp : -cmp;
+    });
+  }, [rawSessions, sort]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
@@ -78,10 +107,59 @@ export default function LectureSessionsPage() {
     [selectedIds.length, handleClearSelection]
   );
 
+  const handleSort = useCallback((colKey: string) => {
+    setSort((prev) => {
+      if (prev === colKey) return `-${colKey}`;
+      if (prev === `-${colKey}`) return "";
+      return colKey;
+    });
+  }, []);
+
+  const tableWidth =
+    TABLE_COL.checkbox +
+    (columnWidths.order ?? TABLE_COL.mediumAlt) +
+    (columnWidths.title ?? TABLE_COL.title) +
+    (columnWidths.date ?? TABLE_COL.timeRange) +
+    (columnWidths.id ?? TABLE_COL.tag);
+
   const handleClose = useCallback(() => {
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["lecture-sessions", lecId] });
   }, [qc, lecId]);
+
+  function SortableTh({
+    colKey,
+    label,
+    widthKey,
+    width,
+  }: {
+    colKey: string;
+    label: string;
+    widthKey: string;
+    width: number;
+  }) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    return (
+      <ResizableTh
+        columnKey={widthKey}
+        width={width}
+        minWidth={40}
+        maxWidth={600}
+        onWidthChange={setColumnWidth}
+        onClick={() => handleSort(colKey)}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        className="cursor-pointer select-none"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          {label}
+          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
+        </span>
+      </ResizableTh>
+    );
+  }
 
   if (!Number.isFinite(lecId)) {
     return <div className="p-2 text-sm" style={{ color: "var(--color-error)" }}>잘못된 강의 ID</div>;
@@ -119,19 +197,18 @@ export default function LectureSessionsPage() {
               belowSlot={selectionBar}
             />
             <DomainTable
-              tableClassName="ds-table--flat"
+              tableClassName="ds-table--flat ds-table--center"
               tableStyle={{
                 tableLayout: "fixed",
-                width:
-                  TABLE_COL.checkbox + TABLE_COL.mediumAlt + TABLE_COL.title + TABLE_COL.timeRange + TABLE_COL.tag,
+                width: tableWidth,
               }}
             >
               <colgroup>
                 <col style={{ width: TABLE_COL.checkbox }} />
-                <col style={{ width: TABLE_COL.mediumAlt }} />
-                <col style={{ width: TABLE_COL.title }} />
-                <col style={{ width: TABLE_COL.timeRange }} />
-                <col style={{ width: TABLE_COL.tag }} />
+                <col style={{ width: columnWidths.order ?? TABLE_COL.mediumAlt }} />
+                <col style={{ width: columnWidths.title ?? TABLE_COL.title }} />
+                <col style={{ width: columnWidths.date ?? TABLE_COL.timeRange }} />
+                <col style={{ width: columnWidths.id ?? TABLE_COL.tag }} />
               </colgroup>
               <thead>
                 <tr>
@@ -144,10 +221,30 @@ export default function LectureSessionsPage() {
                       className="cursor-pointer"
                     />
                   </th>
-                  <th scope="col">차시</th>
-                  <th scope="col">제목</th>
-                  <th scope="col">날짜</th>
-                  <th scope="col">ID</th>
+                  <SortableTh
+                    colKey="order"
+                    label="차시"
+                    widthKey="order"
+                    width={columnWidths.order ?? TABLE_COL.mediumAlt}
+                  />
+                  <SortableTh
+                    colKey="title"
+                    label="제목"
+                    widthKey="title"
+                    width={columnWidths.title ?? TABLE_COL.title}
+                  />
+                  <SortableTh
+                    colKey="date"
+                    label="날짜"
+                    widthKey="date"
+                    width={columnWidths.date ?? TABLE_COL.timeRange}
+                  />
+                  <SortableTh
+                    colKey="id"
+                    label="ID"
+                    widthKey="id"
+                    width={columnWidths.id ?? TABLE_COL.tag}
+                  />
                 </tr>
               </thead>
               <tbody>
