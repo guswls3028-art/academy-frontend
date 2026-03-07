@@ -49,6 +49,7 @@ export interface PostEntity {
   title: string;
   content: string;
   created_by: number | null;
+  created_by_display?: string | null;
   created_at: string;
   updated_at?: string;
   replies_count?: number;
@@ -329,6 +330,7 @@ export interface Question {
   student_name?: string;
   lecture_id?: number;
   lecture_title?: string;
+  created_by?: number | null;
 }
 
 function postEntityToQuestion(p: PostEntity): Omit<Question, "is_answered"> {
@@ -338,6 +340,8 @@ function postEntityToQuestion(p: PostEntity): Omit<Question, "is_answered"> {
     title: p.title,
     content: p.content,
     created_at: p.created_at,
+    student_name: p.created_by_display ?? undefined,
+    created_by: p.created_by ?? undefined,
     lecture_id: firstNode?.lecture,
     lecture_title: firstNode?.lecture_title,
   };
@@ -383,6 +387,7 @@ export interface Answer {
   question: number;
   content: string;
   created_at: string;
+  created_by_display?: string | null;
 }
 
 /**
@@ -406,7 +411,7 @@ export async function fetchQuestionAnswer(questionId: number): Promise<Answer | 
 
 /** 게시물(질문)에 답변 등록 — POST /community/posts/:id/replies/ */
 export async function createAnswer(questionId: number, content: string): Promise<Answer> {
-  const res = await api.post<{ id: number; post: number; question: number; content: string; created_at: string }>(
+  const res = await api.post<{ id: number; post: number; question: number; content: string; created_at: string; created_by_display?: string | null }>(
     `${PREFIX}/posts/${questionId}/replies/`,
     { content }
   );
@@ -416,7 +421,24 @@ export async function createAnswer(questionId: number, content: string): Promise
     question: d.question ?? d.post,
     content: d.content,
     created_at: d.created_at,
+    created_by_display: d.created_by_display ?? null,
   };
+}
+
+/** 게시물(질문) 삭제 — DELETE /community/posts/:id/ */
+export async function deletePost(postId: number): Promise<void> {
+  await api.delete(`${PREFIX}/posts/${postId}/`);
+}
+
+/** 답변 수정 — PATCH /community/posts/:postId/replies/:replyId/ */
+export async function updateReply(postId: number, replyId: number, content: string): Promise<Answer> {
+  const res = await api.patch<Answer>(`${PREFIX}/posts/${postId}/replies/${replyId}/`, { content });
+  return res.data;
+}
+
+/** 답변 삭제 — DELETE /community/posts/:postId/replies/:replyId/ */
+export async function deleteReply(postId: number, replyId: number): Promise<void> {
+  await api.delete(`${PREFIX}/posts/${postId}/replies/${replyId}/`);
 }
 
 // ----------------------------------------

@@ -1,40 +1,74 @@
 // PATH: src/features/community/pages/QnaBoardPage.tsx
-// 커뮤니티 QnA — scope에 따라 목록 + 답변
+// QnA 목록 — 섹션형 레이아웃(SSOT: patterns/section.css), 검색·필터·상세 이동
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
-import {
-  fetchCommunityQuestions,
-  fetchQuestionAnswer,
-  createAnswer,
-  type Question,
-} from "../api/community.api";
+import { fetchCommunityQuestions, type Question } from "../api/community.api";
 import { EmptyState, Button } from "@/shared/ui/ds";
 
-export default function QnaBoardPage() {
-  const qc = useQueryClient();
-  const { scope, lectureId, sessionId, effectiveLectureId } = useCommunityScope();
-  const [openedId, setOpenedId] = useState<number | null>(null);
-  const [filterAnswered, setFilterAnswered] = useState<"all" | "pending">("all");
+const SNIPPET_LEN = 80;
 
-  const scopeParams = {
-    scope,
-    lectureId: effectiveLectureId ?? undefined,
-    sessionId: sessionId ?? undefined,
-  };
+export default function QnaBoardPage() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { scope, effectiveLectureId, sessionId } = useCommunityScope();
+  const [filterPending, setFilterPending] = useState<boolean>(() =>
+    searchParams.get("pending") === "1"
+  );
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") ?? "");
+
+  const scopeParams = useMemo(
+    () => ({
+      scope,
+      lectureId: effectiveLectureId ?? undefined,
+      sessionId: sessionId ?? undefined,
+    }),
+    [scope, effectiveLectureId, sessionId]
+  );
 
   const { data: questions = [], isLoading } = useQuery<Question[]>({
     queryKey: ["community-questions", scope, effectiveLectureId, sessionId],
     queryFn: () => fetchCommunityQuestions(scopeParams),
-    enabled: scope === "all" || (scope === "lecture" && effectiveLectureId != null) || (scope === "session" && sessionId != null),
+    enabled:
+      scope === "all" ||
+      (scope === "lecture" && effectiveLectureId != null) ||
+      (scope === "session" && sessionId != null),
   });
 
-  const filtered = filterAnswered === "pending"
-    ? questions.filter((q) => !q.is_answered)
-    : questions;
+  const filtered = useMemo(() => {
+    let list = filterPending ? questions.filter((q) => !q.is_answered) : questions;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (x) =>
+          x.title.toLowerCase().includes(q) || (x.content || "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [questions, filterPending, searchQuery]);
 
-  if ((scope === "lecture" && effectiveLectureId == null) || (scope === "session" && (!effectiveLectureId || sessionId == null))) {
+  const pendingCount = useMemo(
+    () => questions.filter((q) => !q.is_answered).length,
+    [questions]
+  );
+
+  const handleSearch = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (searchQuery.trim()) next.set("search", searchQuery.trim());
+      else next.delete("search");
+      if (filterPending) next.set("pending", "1");
+      else next.delete("pending");
+      return next;
+    });
+  };
+
+  if (
+    (scope === "lecture" && effectiveLectureId == null) ||
+    (scope === "session" && (!effectiveLectureId || sessionId == null))
+  ) {
     return (
       <EmptyState
         scope="panel"
@@ -49,187 +83,129 @@ export default function QnaBoardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <select
-          className="ds-input"
-          value={filterAnswered}
-          onChange={(e) => setFilterAnswered(e.target.value as "all" | "pending")}
-          style={{ width: 140 }}
-        >
-          <option value="all">전체</option>
-          <option value="pending">답변 대기</option>
-        </select>
-        <span
-          style={{
-            fontSize: "var(--text-sm)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          {filtered.length}건
-        </span>
-      </div>
+    <section className="ds-section">
+      <header className="ds-section__header">
+        <h2 className="ds-section__title">질의응답</h2>
+        <p className="ds-section__description">학생 질문 목록 · 검색 후 상세에서 답변할 수 있습니다.</p>
+      </header>
 
-      {isLoading ? (
-        <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          scope="panel"
-          title="질문이 없습니다."
-          description="학생이 올린 질문이 여기에 표시됩니다."
-        />
-      ) : (
-        <ul className="flex flex-col gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {filtered.map((q) => (
-            <li key={q.id}>
-              <QuestionRow
-                question={q}
-                isOpen={openedId === q.id}
-                onToggle={() => setOpenedId((id) => (id === q.id ? null : q.id))}
-                onAnswerSuccess={() => {
-                  qc.invalidateQueries({ queryKey: ["community-questions"] });
-                  setOpenedId(null);
-                }}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      <div className="ds-section__body">
+        {/* 검색·필터 바 */}
+        <div
+          className="flex flex-wrap items-center gap-3"
+          style={{ marginBottom: "var(--space-4)" }}
+        >
+          <select
+            className="ds-input"
+            style={{ width: 140 }}
+            aria-label="카테고리"
+          >
+            <option value="all">전체</option>
+          </select>
+          <input
+            type="search"
+            className="ds-input"
+            placeholder="Q 검색"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            style={{ width: 200 }}
+            aria-label="검색어"
+          />
+          <Button intent="primary" size="sm" onClick={handleSearch}>
+            검색
+          </Button>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filterPending}
+              onChange={(e) => setFilterPending(e.target.checked)}
+              className="rounded border-[var(--color-border-divider)]"
+            />
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              답변 필요 질문만
+            </span>
+            {pendingCount > 0 && (
+              <span
+                className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold text-white bg-[var(--color-status-error,#ef4444)]"
+                aria-label={`답변 대기 ${pendingCount}건`}
+              >
+                {pendingCount}
+              </span>
+            )}
+          </label>
+        </div>
+
+        {isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            scope="panel"
+            title="질문이 없습니다."
+            description={
+              searchQuery.trim() || filterPending
+                ? "검색 조건을 바꿔 보세요."
+                : "학생이 올린 질문이 여기에 표시됩니다."
+            }
+          />
+        ) : (
+          <ul className="flex flex-col gap-2" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {filtered.map((q) => (
+              <li key={q.id}>
+                <QuestionRow question={q} onOpen={() => navigate(`/admin/community/qna/read/${q.id}`)} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
   );
 }
 
-function QuestionRow({
-  question,
-  isOpen,
-  onToggle,
-  onAnswerSuccess,
-}: {
-  question: Question;
-  isOpen: boolean;
-  onToggle: () => void;
-  onAnswerSuccess: () => void;
-}) {
-  const { data: answer } = useQuery({
-    queryKey: ["question-answer", question.id],
-    queryFn: () => fetchQuestionAnswer(question.id),
-    enabled: isOpen,
-  });
+function QuestionRow({ question, onOpen }: { question: Question; onOpen: () => void }) {
+  const snippet =
+    question.content && question.content.length > SNIPPET_LEN
+      ? question.content.slice(0, SNIPPET_LEN).trim() + "…"
+      : question.content || "";
 
   return (
-    <div
-      style={{
-        padding: "var(--space-4)",
-        borderRadius: "var(--radius-lg)",
-        border: "1px solid var(--color-border-divider)",
-        background: "var(--color-bg-surface)",
-      }}
+    <button
+      type="button"
+      onClick={onOpen}
+      className="ds-section__item w-full flex items-start gap-3 text-left"
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full text-left"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-        }}
-      >
-        <span
-          style={{
-            fontSize: "var(--text-md)",
-            fontWeight: 600,
-            color: "var(--color-text-primary)",
-          }}
-        >
-          {question.title}
-        </span>
-        <span
-          style={{
-            fontSize: "var(--text-xs)",
-            padding: "2px 8px",
-            borderRadius: 999,
-            background: question.is_answered
-              ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
-              : "var(--color-bg-surface-soft)",
-            color: question.is_answered ? "var(--color-primary)" : "var(--color-text-muted)",
-          }}
-        >
-          {question.is_answered ? "답변 완료" : "답변 대기"}
-        </span>
-      </button>
-      <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 6 }}>
-        {new Date(question.created_at).toLocaleDateString("ko-KR")}
-      </div>
-
-      {isOpen && (
-        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--color-border-divider)" }}>
-          <div
+      <div className="ds-section__item-content flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[var(--color-text-muted)] font-medium tabular-nums">
+            {question.id}
+          </span>
+          <span className="ds-section__item-label">{question.title}</span>
+          <span
+            className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
             style={{
-              fontSize: "var(--text-sm)",
-              color: "var(--color-text-secondary)",
-              whiteSpace: "pre-wrap",
+              background: question.is_answered
+                ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
+                : "var(--color-bg-surface-soft)",
+              color: question.is_answered ? "var(--color-primary)" : "var(--color-text-muted)",
             }}
           >
-            {question.content}
-          </div>
-          {answer && (
-            <div
-              style={{
-                marginTop: 12,
-                padding: 12,
-                background: "var(--color-bg-surface-soft)",
-                borderRadius: "var(--radius-md)",
-                fontSize: "var(--text-sm)",
-              }}
-            >
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>답변</div>
-              <div style={{ whiteSpace: "pre-wrap" }}>{answer.content}</div>
-            </div>
-          )}
-          {!question.is_answered && (
-            <AnswerForm questionId={question.id} onSuccess={onAnswerSuccess} />
-          )}
+            {question.is_answered ? "답변 완료" : "답변 대기"}
+          </span>
         </div>
-      )}
-    </div>
-  );
-}
-
-function AnswerForm({ questionId, onSuccess }: { questionId: number; onSuccess: () => void }) {
-  const [content, setContent] = useState("");
-  const qc = useQueryClient();
-  const createMut = useMutation({
-    mutationFn: () => createAnswer(questionId, content),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["community-questions"] });
-      qc.invalidateQueries({ queryKey: ["question-answer", questionId] });
-      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
-      setContent("");
-      onSuccess();
-    },
-  });
-
-  return (
-    <div style={{ marginTop: 12 }}>
-      <textarea
-        className="ds-input"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="답변 입력"
-        rows={3}
-        style={{ width: "100%", resize: "vertical" }}
-      />
-      <Button
-        intent="primary"
-        size="sm"
-        className="mt-2"
-        onClick={() => createMut.mutate()}
-        disabled={!content.trim() || createMut.isPending}
-      >
-        {createMut.isPending ? "등록 중…" : "답변 등록"}
-      </Button>
-    </div>
+        {snippet && (
+          <p className="ds-section__item-meta mt-1 line-clamp-2">{snippet}</p>
+        )}
+        <p className="ds-section__item-meta mt-1">
+          {question.student_name ?? "—"} ·{" "}
+          {new Date(question.created_at).toLocaleString("ko-KR", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </p>
+      </div>
+    </button>
   );
 }
