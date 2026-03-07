@@ -59,12 +59,20 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && activeTab === "single") handleSubmit();
+      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
+      if (e.key === "Enter" && !isTextarea && activeTab === "single") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.key === "Enter" && !isTextarea && activeTab === "excel" && selectedExcelFile) {
+        e.preventDefault();
+        handleExcelRegister();
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, form, busy, activeTab]);
+  }, [open, onClose, form, busy, activeTab, selectedExcelFile]);
 
   useEffect(() => {
     if (!open) return;
@@ -278,7 +286,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       <ModalHeader
         type="action"
         title="학생 등록"
-        description={activeTab === "single" ? "⌘/Ctrl + Enter 로 등록" : "엑셀 파일로 학생을 일괄 등록합니다"}
+        description={activeTab === "single" ? undefined : "엑셀 파일로 학생을 일괄 등록합니다"}
       />
 
       <div className="modal-tabs-area">
@@ -569,13 +577,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
       <ModalFooter
         left={
-          <span className="modal-hint" style={{ marginBottom: 0 }}>
-            {activeTab === "single"
-              ? "⌘/Ctrl + Enter 등록"
-              : selectedExcelFile
-              ? "초기 비밀번호 입력 후 등록"
-              : "엑셀 파일 선택 후 등록"}
-          </span>
+          activeTab === "single" ? null : (
+            <span className="modal-hint" style={{ marginBottom: 0 }}>
+              {selectedExcelFile ? "초기 비밀번호 입력 후 등록" : "엑셀 파일 선택 후 등록"}
+            </span>
+          )
         }
         right={
           <>

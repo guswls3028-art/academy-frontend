@@ -48,10 +48,10 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
     function onKeyDown(e: KeyboardEvent) {
       if (!isOpen) return;
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        if (selectedIds.length > 0 && !mutation.isPending) {
-          mutation.mutate(selectedIds);
-        }
+      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
+      if (e.key === "Enter" && !isTextarea && selectedIds.length > 0 && !mutation.isPending) {
+        e.preventDefault();
+        mutation.mutate(selectedIds);
       }
     }
     window.addEventListener("keydown", onKeyDown);

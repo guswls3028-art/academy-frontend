@@ -85,8 +85,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        if (!isPending && title.trim()) submit();
+      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
+      if (e.key === "Enter" && !isTextarea && !isPending && title.trim()) {
+        e.preventDefault();
+        submit();
       }
     }
 
@@ -115,7 +117,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
 
   return (
     <AdminModal open={true} onClose={onClose} type="action" width={480}>
-      <ModalHeader type="action" title={modalTitle} description="⌘/Ctrl + Enter 로 등록" />
+      <ModalHeader type="action" title={modalTitle} />
 
       <ModalBody>
         {isError && (
@@ -246,11 +248,6 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
-            ESC 로 닫기 · ⌘/Ctrl + Enter 등록
-          </span>
-        }
         right={
           <>
             <Button intent="secondary" onClick={onClose} disabled={isPending}>

@@ -127,7 +127,8 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
+      if (e.key === "Enter" && !isTextarea) handleSubmit();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -175,7 +176,6 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
       <ModalHeader
         type="action"
         title="차시 추가"
-        description="⌘/Ctrl + Enter 로 저장"
       />
 
       <ModalBody>
@@ -244,11 +244,6 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span className="text-[12px] font-semibold text-[var(--color-text-muted)]">
-            ESC 로 닫기
-          </span>
-        }
         right={
           <>
             <Button intent="secondary" onClick={onClose} disabled={busy}>

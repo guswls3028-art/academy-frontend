@@ -49,8 +49,10 @@ export default function MaterialUploadModal({ lectureId, categoryId, onClose }: 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        if (!busy && (file || url.trim())) mutate();
+      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
+      if (e.key === "Enter" && !isTextarea && !busy && (file || url.trim())) {
+        e.preventDefault();
+        mutate();
       }
     }
     window.addEventListener("keydown", onKeyDown);

@@ -73,8 +73,10 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        if (!busy && titleInput.trim()) mutate();
+      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
+      if (e.key === "Enter" && !isTextarea && !busy && titleInput.trim()) {
+        e.preventDefault();
+        mutate();
       }
     }
     window.addEventListener("keydown", onKeyDown);

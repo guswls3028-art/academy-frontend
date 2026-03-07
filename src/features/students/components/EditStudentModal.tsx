@@ -62,7 +62,11 @@ export default function EditStudentModal({
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleSubmit();
+      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
+      if (e.key === "Enter" && !isTextarea) {
+        e.preventDefault();
+        handleSubmit();
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -196,7 +200,6 @@ export default function EditStudentModal({
       <ModalHeader
         type="action"
         title="학생 수정"
-        description="⌘/Ctrl + Enter 로 저장"
       />
 
       <ModalBody>
@@ -411,11 +414,6 @@ export default function EditStudentModal({
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span className="modal-hint" style={{ marginBottom: 0 }}>
-            ⌘/Ctrl + Enter 저장
-          </span>
-        }
         right={
           <>
             <Button intent="secondary" onClick={onClose} disabled={busy}>

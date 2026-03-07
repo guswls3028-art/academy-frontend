@@ -36,8 +36,9 @@ export default function MaterialCategoryModal({ lectureId, onClose }: Props) {
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        if (!busy && name.trim()) mutate();
+      if (e.key === "Enter" && !busy && name.trim()) {
+        e.preventDefault();
+        mutate();
       }
     }
     window.addEventListener("keydown", onKeyDown);
