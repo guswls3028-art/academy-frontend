@@ -1,0 +1,41 @@
+---
+description: 로컬 개발 시 API 연동 — 백엔드 선기동, 프록시, ERR_CONNECTION_REFUSED 대응
+globs: src/**/*.{ts,tsx}
+alwaysApply: true
+---
+
+# 로컬 개발 · API 연동 (academyfront)
+
+## 원칙
+
+- **API 요청은 `src/shared/api/axios.ts`의 공용 인스턴스 사용.** baseURL은 `VITE_API_BASE_URL` + `/api/v1` (환경 변수 SSOT).
+- **로컬 개발 시 백엔드(academy)가 먼저 기동되어 있어야 함.** 프론트만 켜면 `GET ... net::ERR_CONNECTION_REFUSED` 발생.
+
+## 환경 변수
+
+- **`.env.development`**
+  - `VITE_API_BASE_URL`: 개발 시 빈 값 권장 → Vite가 `/api`를 `http://localhost:8000`으로 프록시.
+  - 빈 값이면 axios baseURL은 `/api/v1`(상대 경로) → 동일 오리진으로 요청 후 Vite가 백엔드로 전달.
+  - 프록시 미사용 시(예: 별도 도메인) `http://localhost:8000` 등으로 설정.
+- **`.env.example`**: 프로덕션용 `VITE_API_BASE_URL` 예시만 기재.
+
+## Vite 개발 서버
+
+- `vite.config.ts`에 `/api` → `http://localhost:8000` 프록시 설정됨.
+- `pnpm dev`(또는 포트 5174) 실행 시 API 요청은 프록시를 통해 백엔드(8000)로 전달됨.
+
+## ERR_CONNECTION_REFUSED 발생 시
+
+1. **백엔드(academy) 기동 여부 확인**
+   - academy 리포에서 `docker compose up -d` (postgres + api) 또는 `python manage.py runserver` (0.0.0.0:8000).
+   - `curl http://localhost:8000/health` 로 200 확인.
+2. **환경 확인**
+   - academy: `.env` / `.env.local` (DB 등) 설정. 로컬 DB/터널 설정은 `docs/02-OPERATIONS/local-dev-db.md` 참고.
+   - academyfront: `.env.development`에 `VITE_API_BASE_URL=`(빈 값)이면 프록시 사용 중.
+3. **에이전트 작업**
+   - 에이전트가 로컬 개발·검증 시 백엔드 기동이 필요하면 직접 academy에서 `docker compose up -d` 또는 `runserver` 실행. 마이그레이션 필요 시 `python manage.py migrate` 실행.
+
+## 참고
+
+- academy 백엔드 로컬 실행: `README.md` · `docs/02-OPERATIONS/local-dev-db.md`
+- API baseURL/인터셉터: `src/shared/api/axios.ts`

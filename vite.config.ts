@@ -16,6 +16,13 @@ export default defineConfig({
     allowedHosts: [
       "dev-web.hakwonplus.com", // 🔥 Cloudflare 고정 도메인
     ],
+    // 로컬 개발 시 API를 백엔드(academy)로 프록시. 백엔드가 먼저 localhost:8000 에서 기동되어 있어야 함.
+    proxy: {
+      "/api": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+      },
+    },
   },
 
   build: {
