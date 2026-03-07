@@ -1,7 +1,8 @@
 // PATH: src/features/students/components/StudentsTable.tsx
 import { useMemo } from "react";
 import { EmptyState } from "@/shared/ui/ds";
-import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
+import { DomainTable, TABLE_COL, ResizableTh } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
 
@@ -33,6 +34,25 @@ function highlight(text: string, keyword: string) {
   );
 }
 
+/** 학생 테이블 컬럼 정의 (useTableColumnPrefs + TableColumnPicker용) — 체크박스 제외 */
+export function getStudentsTableColumnsDef(isDeletedTab: boolean): TableColumnDef[] {
+  return [
+    { key: "name", label: "이름", defaultWidth: TABLE_COL.name, minWidth: 80 },
+    { key: "parentPhone", label: "학부모 전화", defaultWidth: TABLE_COL.phone, minWidth: 90 },
+    { key: "studentPhone", label: "학생 전화", defaultWidth: TABLE_COL.phone, minWidth: 90 },
+    { key: "school", label: "학교", defaultWidth: TABLE_COL.medium, minWidth: 70 },
+    { key: "schoolClass", label: "반", defaultWidth: TABLE_COL.short, minWidth: 50 },
+    {
+      key: isDeletedTab ? "deletedAt" : "registeredAt",
+      label: isDeletedTab ? "삭제일" : "등록일",
+      defaultWidth: TABLE_COL.medium,
+      minWidth: 80,
+    },
+    { key: "tags", label: "태그", defaultWidth: TABLE_COL.tag, minWidth: 60 },
+    ...(isDeletedTab ? [] : [{ key: "active", label: "상태", defaultWidth: TABLE_COL.status, minWidth: 60 }]),
+  ];
+}
+
 export default function StudentsTable({
   data = [],
   search,
@@ -44,6 +64,7 @@ export default function StudentsTable({
   isDeletedTab = false,
   onToggleActive,
   togglingId = null,
+  columnPrefs,
 }: {
   data: any[];
   search: string;
@@ -53,9 +74,13 @@ export default function StudentsTable({
   selectedIds?: number[];
   onSelectionChange?: (ids: number[]) => void;
   isDeletedTab?: boolean;
-  /** 학생 도메인 예외: 테이블에서 활성/비활성 클릭 토글 */
   onToggleActive?: (id: number, nextActive: boolean) => void;
   togglingId?: number | null;
+  columnPrefs?: {
+    visibleColumns: TableColumnDef[];
+    columnWidths: Record<string, number>;
+    setColumnWidth: (key: string, width: number) => void;
+  };
 }) {
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => data.map((s) => s.id), [data]);
@@ -81,10 +106,9 @@ export default function StudentsTable({
     }
   }
 
-  // TABLE_COL SSOT: tableColumnSpec
-  const columns = useMemo(
-    () => [
-      { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
+  // TABLE_COL SSOT + 전역 컬럼 프리프(표시/너비)
+  const columns = useMemo(() => {
+    const dataCols = [
       { key: "name", label: "이름", w: TABLE_COL.name },
       { key: "parentPhone", label: "학부모 전화", w: TABLE_COL.phone },
       { key: "studentPhone", label: "학생 전화", w: TABLE_COL.phone },
@@ -93,9 +117,20 @@ export default function StudentsTable({
       { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: TABLE_COL.medium },
       { key: "tags", label: "태그", w: TABLE_COL.tag },
       ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: TABLE_COL.status }]),
-    ],
-    [isDeletedTab]
-  );
+    ];
+    if (columnPrefs) {
+      const visible = columnPrefs.visibleColumns.map((c) => ({
+        key: c.key,
+        label: c.label,
+        w: columnPrefs.columnWidths[c.key] ?? c.defaultWidth,
+      }));
+      return [{ key: "_checkbox", label: "", w: TABLE_COL.checkbox }, ...visible];
+    }
+    return [
+      { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
+      ...dataCols,
+    ];
+  }, [isDeletedTab, columnPrefs]);
   const tableWidth = useMemo(
     () => columns.reduce((sum, c) => sum + c.w, 0),
     [columns]
@@ -112,11 +147,42 @@ export default function StudentsTable({
     );
   }
 
-  function sortHeader(colKey: string, label: string) {
+  function sortHeader(colKey: string, label: string, w: number) {
     const isAsc = sort === colKey;
     const isDesc = sort === `-${colKey}`;
     const next = isAsc ? `-${colKey}` : isDesc ? "" : colKey;
-
+    const content = (
+      <span className="inline-flex items-center justify-center gap-2">
+        {label}
+        <span
+          aria-hidden
+          style={{
+            fontSize: 11,
+            opacity: isAsc || isDesc ? 1 : 0.35,
+            color: "var(--color-primary)",
+          }}
+        >
+          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+        </span>
+      </span>
+    );
+    if (columnPrefs && colKey !== "tags") {
+      return (
+        <ResizableTh
+          key={colKey}
+          columnKey={colKey}
+          width={w}
+          minWidth={40}
+          maxWidth={500}
+          onWidthChange={columnPrefs.setColumnWidth}
+          onClick={() => onSortChange(next)}
+          aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+          className="cursor-pointer select-none"
+        >
+          {content}
+        </ResizableTh>
+      );
+    }
     return (
       <th
         key={colKey}
@@ -124,20 +190,9 @@ export default function StudentsTable({
         className="cursor-pointer select-none"
         aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
         scope="col"
+        style={{ width: w }}
       >
-        <span className="inline-flex items-center justify-center gap-2">
-          {label}
-          <span
-            aria-hidden
-            style={{
-              fontSize: 11,
-              opacity: isAsc || isDesc ? 1 : 0.35,
-              color: "var(--color-primary)",
-            }}
-          >
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
+        {content}
       </th>
     );
   }
@@ -167,11 +222,11 @@ export default function StudentsTable({
                 ) : null}
               </th>
             ) : c.key === "tags" ? (
-              <th key="tags" scope="col">
+              <th key="tags" scope="col" style={{ width: c.w }}>
                 태그
               </th>
             ) : (
-              sortHeader(c.key, c.label)
+              sortHeader(c.key, c.label, c.w)
             )
           )}
         </tr>
