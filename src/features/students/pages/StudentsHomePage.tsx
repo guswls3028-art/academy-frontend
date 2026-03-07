@@ -14,12 +14,12 @@ import {
   fixDeletedStudentDuplicates,
   toggleStudentActive,
 } from "../api/students";
-import StudentsTable from "../components/StudentsTable";
+import StudentsTable, { getStudentsTableColumnsDef } from "../components/StudentsTable";
 import StudentCreateModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
 
 import { Button, EmptyState } from "@/shared/ui/ds";
-import { DomainListToolbar } from "@/shared/ui/domain";
+import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
@@ -94,6 +94,15 @@ export default function StudentsHomePage() {
   const activeFilterCount = useMemo(
     () => Object.keys(filters || {}).length,
     [filters]
+  );
+
+  const studentsColumnsDef = useMemo(
+    () => getStudentsTableColumnsDef(isDeletedTab),
+    [isDeletedTab]
+  );
+  const tablePrefs = useTableColumnPrefs(
+    isDeletedTab ? "students-deleted" : "students-home",
+    studentsColumnsDef
   );
 
   const toggleActiveMutation = useMutation({
@@ -317,9 +326,18 @@ export default function StudentsHomePage() {
             />
           }
           filterSlot={
-            <Button intent="secondary" onClick={() => setShowFilter(true)}>
-              고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button intent="secondary" onClick={() => setShowFilter(true)}>
+                고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
+              </Button>
+              <TableColumnPicker
+                allColumns={tablePrefs.allColumns}
+                visibleKeys={tablePrefs.visibleKeys}
+                onToggle={tablePrefs.setColumnVisible}
+                onReset={tablePrefs.resetToDefaults}
+                triggerLabel="컬럼 표시"
+              />
+            </div>
           }
           primaryAction={
             !isDeletedTab ? (
@@ -392,6 +410,11 @@ export default function StudentsHomePage() {
                   : undefined
               }
               togglingId={togglingId ?? undefined}
+              columnPrefs={{
+                visibleColumns: tablePrefs.visibleColumns,
+                columnWidths: tablePrefs.columnWidths,
+                setColumnWidth: tablePrefs.setColumnWidth,
+              }}
             />
           ) : (
             <EmptyState
