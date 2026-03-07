@@ -80,7 +80,7 @@ export default function SessionScoresEntryPage(_props: Props) {
 
       {isEditMode && (
         <div
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+          className="flex flex-col gap-1 px-4 py-2 rounded-lg text-sm font-medium"
           style={{
             background: "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))",
             color: "var(--color-brand-primary)",
@@ -88,7 +88,9 @@ export default function SessionScoresEntryPage(_props: Props) {
           }}
         >
           <span aria-live="polite">편집 모드</span>
-          <span className="text-[var(--color-text-secondary)] font-normal">· 성적을 수정할 수 있습니다.</span>
+          <span className="text-[var(--color-text-secondary)] font-normal">
+            엑셀과 동일한 조작방식. · Tab/Enter/방향키로 셀 이동 · 숫자 입력 시 기존 값 대체 · 미제출: <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)]">/</kbd> + Enter
+          </span>
         </div>
       )}
 

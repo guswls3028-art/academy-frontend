@@ -1,7 +1,7 @@
 // PATH: src/features/scores/panels/SessionScoresPanel.tsx
 // 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 입력은 테이블 셀에서만
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -67,6 +67,7 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   const [currentExamId, setCurrentExamId] = useState<number | null>(null);
   const [currentHomeworkId, setCurrentHomeworkId] = useState<number | null>(null);
   const [activeColumn, setActiveColumn] = useState<"exam" | "homework">("exam");
+  const prevEditModeRef = useRef(false);
 
   const examCols = meta?.exams ?? [];
   const homeworkCols = meta?.homeworks ?? [];
@@ -243,13 +244,31 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
 
   useEffect(() => {
     if (!isEditMode) {
+      prevEditModeRef.current = false;
       setSelected(null);
       setCurrentExamId(null);
       setCurrentHomeworkId(null);
       setFocusHomeworkCell(null);
       return;
     }
-  }, [isEditMode]);
+    // 편집 모드 진입 시에만 첫 점수 셀 자동 포커스
+    const justEntered = !prevEditModeRef.current;
+    prevEditModeRef.current = true;
+    if (justEntered && rows.length > 0 && homeworkCols.length > 0) {
+      const firstRow = rows[0];
+      const firstHw = homeworkCols[0];
+      if (firstRow && firstHw) {
+        const timer = setTimeout(() => {
+          setSelected(firstRow);
+          setActiveColumn("homework");
+          setCurrentHomeworkId(firstHw.homework_id);
+          setCurrentExamId(examCols[0]?.exam_id ?? null);
+          setFocusHomeworkCell({ enrollmentId: firstRow.enrollment_id, homeworkId: firstHw.homework_id });
+        }, 0);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isEditMode, rows, homeworkCols, examCols]);
 
   useEffect(() => {
     if (!rows.length) {

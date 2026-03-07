@@ -7,7 +7,7 @@
  * - 디자인 토큰만 사용, DomainTable 기반
  */
 
-import { useMemo, useRef, useEffect, Fragment } from "react";
+import { useMemo, useRef, useEffect, Fragment, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
@@ -44,6 +44,16 @@ function parseScoreInput(input: string, maxScore?: number | null): number | null
     if (Number.isFinite(p)) return Math.round((p / 100) * Number(maxScore));
   }
   return null;
+}
+
+/** 0 ~ (maxScore ?? 100) 범위 검증, 초과 시 알림 후 false */
+function validateScore(value: number, maxScore?: number | null): boolean {
+  const max = maxScore != null && Number(maxScore) > 0 ? Number(maxScore) : 100;
+  if (value < 0 || value > max) {
+    alert(`점수는 0 ~ ${max} 사이로 입력해 주세요.`);
+    return false;
+  }
+  return true;
 }
 
 /** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
@@ -151,6 +161,8 @@ export default function ScoresTable({
 }: Props) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  /** ESC 복원용 — 포커스 진입 시점의 값 */
+  const scoreValueOnFocusRef = useRef<Record<string, string>>({});
 
   const examOptions = meta?.exams ?? [];
   const homeworkOptions = meta?.homeworks ?? [];
