@@ -215,11 +215,13 @@ export default function SessionScoresEntryPage({
         </div>
       )}
 
-      <p className="text-xs text-[var(--color-text-muted)]">
-        <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Tab</kbd> / <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 셀 이동 ·
-        숫자 입력 후 <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 저장 ·
-        <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">/</kbd>+<kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 미제출
-      </p>
+      {isEditMode && (
+        <p className="text-xs text-[var(--color-text-muted)]">
+          <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Tab</kbd> / <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 셀 이동 ·
+          숫자 입력 후 <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 저장 ·
+          <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">/</kbd>+<kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 미제출
+        </p>
+      )}
 
       {isLoading && (
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />

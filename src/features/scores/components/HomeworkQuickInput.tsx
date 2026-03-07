@@ -182,6 +182,20 @@ const HomeworkQuickInput = React.forwardRef<HTMLInputElement, Props>(
             onMoveDown?.();
             return;
           }
+
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            e.stopPropagation();
+            onMovePrev?.();
+            return;
+          }
+
+          if (e.key === "ArrowRight") {
+            e.preventDefault();
+            e.stopPropagation();
+            onMoveNext?.();
+            return;
+          }
         }}
         disabled={disabled || saving}
         title={

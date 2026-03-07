@@ -142,6 +142,13 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
     if (rows.length === 0 || totalCols <= 0) return;
     const isTab = e.key === "Tab";
     const isShiftTab = e.key === "Tab" && e.shiftKey;
+    /** 과제 점수 입력 컬럼인지(점수만, 합불 컬럼 제외). 과제가 없으면 false */
+    const inHomeworkScoreCol =
+      homeworkCols.length > 0 &&
+      colIndex >= firstHomeworkScoreCol &&
+      colIndex <= lastHomeworkScoreCol &&
+      (colIndex - firstHomeworkScoreCol) % 2 === 0;
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       moveTo(rowIndex + 1, colIndex);
@@ -152,16 +159,47 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
       moveTo(rowIndex - 1, colIndex);
       return;
     }
-    if (isTab || e.key === "ArrowRight") {
+    if (e.key === "ArrowRight") {
       e.preventDefault();
-      if (colIndex + 1 >= totalCols) moveTo(rowIndex + 1, firstHomeworkScoreCol);
-      else moveTo(rowIndex, colIndex + 1);
+      if (inHomeworkScoreCol) {
+        const next = colIndex + 2;
+        if (next > lastHomeworkScoreCol) moveTo(rowIndex + 1, firstHomeworkScoreCol);
+        else moveTo(rowIndex, next);
+      } else {
+        moveTo(rowIndex, firstHomeworkScoreCol);
+      }
       return;
     }
-    if (isShiftTab || e.key === "ArrowLeft") {
+    if (e.key === "ArrowLeft") {
       e.preventDefault();
-      if (colIndex - 1 < 0) moveTo(rowIndex - 1, lastHomeworkScoreCol);
-      else moveTo(rowIndex, colIndex - 1);
+      if (inHomeworkScoreCol) {
+        const prev = colIndex - 2;
+        if (prev < firstHomeworkScoreCol) moveTo(rowIndex - 1, lastHomeworkScoreCol);
+        else moveTo(rowIndex, prev);
+      } else {
+        moveTo(rowIndex, lastHomeworkScoreCol);
+      }
+      return;
+    }
+    if (isTab || isShiftTab) {
+      e.preventDefault();
+      if (isTab) {
+        if (inHomeworkScoreCol) {
+          const next = colIndex + 2;
+          if (next > lastHomeworkScoreCol) moveTo(rowIndex + 1, firstHomeworkScoreCol);
+          else moveTo(rowIndex, next);
+        } else {
+          moveTo(rowIndex, firstHomeworkScoreCol);
+        }
+      } else {
+        if (inHomeworkScoreCol) {
+          const prev = colIndex - 2;
+          if (prev < firstHomeworkScoreCol) moveTo(rowIndex - 1, lastHomeworkScoreCol);
+          else moveTo(rowIndex, prev);
+        } else {
+          moveTo(rowIndex, lastHomeworkScoreCol);
+        }
+      }
       return;
     }
   };
