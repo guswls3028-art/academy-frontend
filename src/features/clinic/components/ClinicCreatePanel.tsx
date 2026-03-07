@@ -2,7 +2,7 @@
 // 클리닉 생성 — 차시 추가 모달과 똑같은 DatePicker·TimeRangeInput만 사용 (같은 컴포넌트·같은 props, 직접선택 행 없음)
 
 import { useEffect, useMemo, useState } from "react";
-import { Input, Checkbox, App, Dropdown, Popover } from "antd";
+import { Input, Checkbox, App, Popover } from "antd";
 import dayjs from "dayjs";
 import { Save, FolderOpen, Trash2 } from "lucide-react";
 
@@ -14,7 +14,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useClinicStudentSearch } from "../hooks/useClinicStudentSearch";
 import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
-import { fetchClinicLocations } from "../api/clinicSessions.api";
 
 import api from "@/shared/api/axios";
 
@@ -148,13 +147,6 @@ export default function ClinicCreatePanel({
   const targetsQ = useClinicTargets();
   const studentsSearchQ = useClinicStudentSearch(keyword);
 
-  const locationsQ = useQuery({
-    queryKey: ["clinic-locations"],
-    queryFn: fetchClinicLocations,
-    enabled: false,
-    staleTime: 60_000,
-  });
-
   const studentsDefaultQ = useQuery({
     queryKey: ["clinic-students-default"],
     queryFn: fetchClinicStudentsDefault,
@@ -279,10 +271,10 @@ export default function ClinicCreatePanel({
             지난 날짜는 조회만 가능합니다. 새 클리닉은 오늘 이후 날짜에만 생성할 수 있습니다.
           </div>
         )}
-        <div className="modal-scroll-body modal-scroll-body--compact grid gap-4 flex-1 min-h-0 w-full max-w-full box-border">
-          {/* 날짜 — 차시 모달과 디자인 동일: 같은 래퍼 구조(modal-section-label + flex flex-col gap-2), 직접선택 행 없음 */}
+        <div className="modal-scroll-body modal-scroll-body--compact flex flex-col gap-5 flex-1 min-h-0 w-full max-w-full box-border">
+          {/* 날짜 — 모달 SSOT: modal-form-group으로 영역 구분 */}
           {!hideDatePicker && (
-            <div className="min-w-0">
+            <div className="modal-form-group modal-form-group--compact">
               <label className="modal-section-label">날짜</label>
               <div className="flex flex-col gap-2">
                 <DatePicker
@@ -296,8 +288,8 @@ export default function ClinicCreatePanel({
             </div>
           )}
 
-          {/* 시간 — 차시 모달과 디자인 동일: 같은 래퍼 구조 + role="group" 래퍼, 직접선택 행 없음 */}
-          <div className="min-w-0">
+          {/* 시간 — 모달 SSOT: modal-form-group으로 영역 구분 */}
+          <div className="modal-form-group modal-form-group--compact">
             <div className="modal-section-label">시간</div>
             <div className="flex flex-col gap-2">
               <div role="group" aria-label="시간 선택">
@@ -313,11 +305,11 @@ export default function ClinicCreatePanel({
             </div>
           </div>
 
-          {/* 2행: 장소 · 정원 · 메모 */}
+          {/* 장소 · 정원 · 메모 — 모달 SSOT */}
           <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
             <label className="modal-section-label">장소 · 정원</label>
-            <div className="modal-form-row modal-form-row--1-auto-auto gap-2 flex-wrap items-center">
-              <div className="flex flex-1 min-w-[120px] gap-1">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-1 min-w-[180px] gap-2 items-center">
                 <Input
                   placeholder="장소 / 룸"
                   value={room}
@@ -476,43 +468,36 @@ export default function ClinicCreatePanel({
                     <FolderOpen size={16} />
                   </button>
                 </Popover>
-                <Dropdown
-                  trigger={["click"]}
-                  onOpenChange={(open) => open && locationsQ.refetch()}
-                  menu={{
-                    items: (locationsQ.data ?? []).map((loc) => ({
-                      key: loc,
-                      label: loc,
-                      onClick: () => setRoom(loc),
-                    })),
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="text-xs font-semibold px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-secondary)] whitespace-nowrap"
-                  >
-                    {locationsQ.isFetching ? "불러오는 중…" : "API"}
-                  </button>
-                </Dropdown>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">정원</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={999}
-                  value={selected.length > 0 ? selected.length : maxParticipants}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10);
-                    if (!Number.isNaN(v) && v >= 1) setMaxParticipants(v);
-                  }}
-                  disabled={selected.length > 0}
-                  className="clinic-input-filled w-16"
-                />
+                <div className="clinic-capacity-stepper">
+                  <button
+                    type="button"
+                    className="clinic-capacity-stepper__btn"
+                    onClick={() => setMaxParticipants((p) => Math.max(1, p - 1))}
+                    disabled={selected.length > 0}
+                    aria-label="정원 1 감소"
+                  >
+                    −
+                  </button>
+                  <span className="clinic-capacity-stepper__value">
+                    {selected.length > 0 ? selected.length : maxParticipants}
+                  </span>
+                  <button
+                    type="button"
+                    className="clinic-capacity-stepper__btn"
+                    onClick={() => setMaxParticipants((p) => Math.min(999, p + 1))}
+                    disabled={selected.length > 0}
+                    aria-label="정원 1 증가"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+                  {selected.length > 0 ? "선택 인원으로 설정" : "명"}
+                </span>
               </div>
-              <span className="text-xs text-[var(--color-text-muted)] shrink-0">
-                {selected.length > 0 ? "선택 인원으로 설정" : "명"}
-              </span>
             </div>
             <Input.TextArea
               rows={1}
@@ -524,7 +509,7 @@ export default function ClinicCreatePanel({
             />
           </div>
 
-          {/* 3행: 대상자 — ds-choice-btn (모달 SSOT) */}
+          {/* 대상자 선택 — 모달 SSOT */}
           <div className="modal-form-group modal-form-group--compact flex flex-col gap-2 flex-1 min-h-0">
             <label className="modal-section-label">대상자 선택</label>
             <div className="flex gap-2">
