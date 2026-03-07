@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Switch } from "antd";
 import { fetchClinicMe } from "../../api/clinicMe.api";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
 import ClinicRemoteControl from "../../components/ClinicRemoteControl";
@@ -92,26 +93,39 @@ function ClinicIdcardColorSettings() {
   });
 
   const [localColors, setLocalColors] = useState<[string, string, string]>(
-    settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"]
+    settings?.saved_colors || settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"]
   );
 
   const updateMutation = useMutation({
-    mutationFn: (colors: [string, string, string]) => updateClinicSettings(colors),
+    mutationFn: (payload: { colors?: [string, string, string]; use_daily_random?: boolean }) =>
+      updateClinicSettings(payload.colors, payload.use_daily_random),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-settings"] });
-      feedback.success("패스카드 배경 색상이 변경되었습니다.");
+      qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
+      feedback.success("설정이 저장되었습니다.");
     },
     onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail || "색상 저장에 실패했습니다.");
+      feedback.error(e?.response?.data?.detail || "저장에 실패했습니다.");
     },
   });
 
-  // 설정 로드 시 로컬 상태 동기화
+  const useDailyRandom = settings?.use_daily_random ?? false;
+
+  // 설정 로드 시 로컬 상태 동기화 (수동 색상)
   useEffect(() => {
-    if (settings?.colors) {
-      setLocalColors(settings.colors);
+    const saved = settings?.saved_colors || settings?.colors;
+    if (saved) {
+      setLocalColors([saved[0], saved[1], saved[2]]);
     }
-  }, [settings?.colors]);
+  }, [settings?.saved_colors, settings?.colors]);
+
+  const handleToggleDailyRandom = (checked: boolean) => {
+    updateMutation.mutate({ use_daily_random: checked });
+  };
+
+  const handleSave = () => {
+    updateMutation.mutate({ colors: localColors });
+  };
 
   const presetPalettes: Array<{ name: string; colors: [string, string, string] }> = [
     { name: "빨강-파랑-초록", colors: ["#ef4444", "#3b82f6", "#22c55e"] },
