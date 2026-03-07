@@ -148,6 +148,24 @@ export default function SessionAttendancePage({
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
+  const col = STUDENTS_TABLE_COL;
+  const attendanceColumnDefs: TableColumnDef[] = useMemo(
+    () => [
+      { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 40, maxWidth: 120 },
+      { key: "name", label: "이름", defaultWidth: col.name, minWidth: 80, maxWidth: 400 },
+      { key: "status", label: "상태", defaultWidth: col.statusBadge, minWidth: 60, maxWidth: 140 },
+      { key: "parent_phone", label: "학부모 전화번호", defaultWidth: col.parentPhone, minWidth: 90, maxWidth: 200 },
+      { key: "phone", label: "학생 전화번호", defaultWidth: col.studentPhone, minWidth: 90, maxWidth: 200 },
+      { key: "memo", label: "메모", defaultWidth: col.memo, minWidth: 140, maxWidth: 500 },
+    ],
+    []
+  );
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-attendance", attendanceColumnDefs);
+  const tableWidth = useMemo(
+    () => attendanceColumnDefs.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0),
+    [attendanceColumnDefs, columnWidths]
+  );
+
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
   if (!attendance) return <EmptyState scope="panel" tone="error" title="출결 데이터를 불러올 수 없습니다." />;
 
@@ -238,21 +256,6 @@ export default function SessionAttendancePage({
     </div>
   );
 
-  const col = STUDENTS_TABLE_COL;
-  const attendanceColumnDefs: TableColumnDef[] = useMemo(
-    () => [
-      { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 40, maxWidth: 120 },
-      { key: "name", label: "이름", defaultWidth: col.name, minWidth: 80, maxWidth: 400 },
-      { key: "status", label: "상태", defaultWidth: col.statusBadge, minWidth: 60, maxWidth: 140 },
-      { key: "parent_phone", label: "학부모 전화번호", defaultWidth: col.parentPhone, minWidth: 90, maxWidth: 200 },
-      { key: "phone", label: "학생 전화번호", defaultWidth: col.studentPhone, minWidth: 90, maxWidth: 200 },
-      { key: "memo", label: "메모", defaultWidth: col.memo, minWidth: 140, maxWidth: 500 },
-    ],
-    []
-  );
-  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-attendance", attendanceColumnDefs);
-  const tableWidth = attendanceColumnDefs.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0);
-
   const primaryAction =
     onOpenEnrollModal ? (
       <Button type="button" intent="primary" size="sm" onClick={onOpenEnrollModal}>
@@ -332,13 +335,14 @@ export default function SessionAttendancePage({
     const isAsc = sort === colKey;
     const isDesc = sort === `-${colKey}`;
     const next = isAsc ? `-${colKey}` : isDesc ? "" : colKey;
-    const w = columnWidths[colKey] ?? col.name;
+    const def = attendanceColumnDefs.find((c) => c.key === colKey);
+    const w = columnWidths[colKey] ?? def?.defaultWidth ?? 100;
     return (
       <ResizableTh
         columnKey={colKey}
         width={w}
-        minWidth={attendanceColumnDefs.find((c) => c.key === colKey)?.minWidth ?? 40}
-        maxWidth={attendanceColumnDefs.find((c) => c.key === colKey)?.maxWidth ?? 500}
+        minWidth={def?.minWidth ?? 40}
+        maxWidth={def?.maxWidth ?? 500}
         onWidthChange={setColumnWidth}
         scope="col"
         onClick={() => setSort(next || "name")}
