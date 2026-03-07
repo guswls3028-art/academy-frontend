@@ -1,5 +1,5 @@
 // PATH: src/features/clinic/components/OperationsSessionTree.tsx
-// SaaS 스타일 좌측 스케줄러 — 미니 캘린더만 (헤더 + ◀ 오늘 ▶ + 그리드)
+// SaaS 스타일 좌측 스케줄러 — 헤더(연도) + ◀ N월 ▶ + 미니 캘린더 (오늘 테두리, 지난 날짜 클릭 가능)
 
 import { useMemo } from "react";
 import dayjs from "dayjs";
@@ -57,7 +57,6 @@ export default function OperationsSessionTree({
   year,
   month,
   todayISO,
-  onToday,
   onPrevMonth,
   onNextMonth,
 }: {
@@ -67,7 +66,6 @@ export default function OperationsSessionTree({
   year: number;
   month: number;
   todayISO: string;
-  onToday: () => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
 }) {
@@ -98,19 +96,16 @@ export default function OperationsSessionTree({
   }, [sessionsByDate]);
 
   const totalClinicsInMonth = sessions.length;
-  const monthLabel = dayjs(`${year}-${String(month).padStart(2, "0")}-01`).format("YYYY년 M월");
+  const monthLabelShort = dayjs(`${year}-${String(month).padStart(2, "0")}-01`).format("M월");
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
   return (
     <div className="clinic-scheduler-panel ds-card-modal clinic-panel w-[320px] shrink-0 overflow-hidden flex flex-col">
-      {/* 헤더: 제목 + 월 + 총 클리닉 수 */}
+      {/* 헤더: 클리닉 스케줄러 + 연도 */}
       <div className="clinic-scheduler-panel__header">
         <div className="ds-card-modal__accent" aria-hidden />
         <div className="clinic-scheduler-panel__header-inner">
-          <h2 className="clinic-scheduler-panel__title">클리닉 스케줄러</h2>
-          <p className="clinic-scheduler-panel__meta">
-            {monthLabel}
-          </p>
+          <h2 className="clinic-scheduler-panel__title">클리닉 스케줄러 {year}</h2>
           <p className="clinic-scheduler-panel__count">
             {totalClinicsInMonth}개 클리닉 일정
           </p>
@@ -118,7 +113,7 @@ export default function OperationsSessionTree({
       </div>
 
       <div className="clinic-scheduler-panel__body flex flex-col min-h-0">
-        {/* ◀ Today ▶ */}
+        {/* ◀ N월 ▶ */}
         <div className="clinic-scheduler-panel__nav">
           <button
             type="button"
@@ -128,13 +123,9 @@ export default function OperationsSessionTree({
           >
             ◀
           </button>
-          <button
-            type="button"
-            className="clinic-scheduler-panel__today-btn"
-            onClick={onToday}
-          >
-            오늘
-          </button>
+          <span className="clinic-scheduler-panel__month-label">
+            {monthLabelShort}
+          </span>
           <button
             type="button"
             className="clinic-scheduler-panel__nav-btn"
@@ -166,8 +157,7 @@ export default function OperationsSessionTree({
                 <button
                   key={date}
                   type="button"
-                  disabled={isPast}
-                  onClick={() => !isPast && onSelectDay(date)}
+                  onClick={() => onSelectDay(date)}
                   className={cx(
                     "clinic-scheduler-panel__mini-cal-cell",
                     count > 0 && status === "normal" && "clinic-scheduler-panel__mini-cal-cell--status-normal",
@@ -179,7 +169,7 @@ export default function OperationsSessionTree({
                   )}
                   title={
                     isPast
-                      ? "지난 날짜는 선택할 수 없습니다"
+                      ? "지난 날짜 (일정 조회만 가능)"
                       : status === "full"
                         ? "마감"
                         : status === "almost"

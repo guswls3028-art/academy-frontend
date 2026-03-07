@@ -73,6 +73,8 @@ export default function ClinicCreatePanel({
   const initialDate = date ?? todayISO();
   const [selectedDate, setSelectedDate] = useState(dayjs(initialDate));
 
+  const isPastDate = (selectedDate.format("YYYY-MM-DD") < todayISO());
+
   useEffect(() => {
     if (date) setSelectedDate(dayjs(date));
   }, [date]);
@@ -230,6 +232,11 @@ export default function ClinicCreatePanel({
       </div>
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
+        {isPastDate && (
+          <div className="mx-4 mt-3 px-3 py-2 rounded-lg bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)] text-sm text-[var(--color-text-muted)]">
+            지난 날짜는 조회만 가능합니다. 새 클리닉은 오늘 이후 날짜에만 생성할 수 있습니다.
+          </div>
+        )}
         <div className="modal-scroll-body modal-scroll-body--compact grid gap-4 flex-1 min-h-0 w-full max-w-full box-border">
           {/* 날짜 — 차시 모달과 디자인 동일: 같은 래퍼 구조(modal-section-label + flex flex-col gap-2), 직접선택 행 없음 */}
           {!hideDatePicker && (

@@ -86,11 +86,6 @@ export default function ClinicOperationsPage() {
             year={ym.year}
             month={ym.month}
             todayISO={todayISO()}
-            onToday={() => {
-              setBaseDate(todayISO());
-              setMode("day");
-              setSelectedSessionId(null);
-            }}
             onPrevMonth={() => {
               const d = dayjs(baseDate).subtract(1, "month");
               setBaseDate(d.startOf("month").format("YYYY-MM-DD"));
