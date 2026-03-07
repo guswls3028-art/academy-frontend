@@ -378,6 +378,12 @@ export default function EnhancedCommonLoginPage() {
                       value={signupForm.major}
                       onChange={(e) => setSignupForm((f) => ({ ...f, major: e.target.value }))}
                     />
+                    <input
+                      className={styles.input}
+                      placeholder="출신중학교 (선택)"
+                      value={signupForm.originMiddleSchool}
+                      onChange={(e) => setSignupForm((f) => ({ ...f, originMiddleSchool: e.target.value }))}
+                    />
                   </>
                 ) : (
                   <input
