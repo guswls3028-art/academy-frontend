@@ -14,6 +14,46 @@ const PROFILE_EXPENSE_COLUMN_DEFS: TableColumnDef[] = [
   { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
 ];
 
+function ExpenseSortableTh({
+  colKey,
+  label,
+  widthKey,
+  width,
+  sort,
+  onSort,
+  onWidthChange,
+}: {
+  colKey: string;
+  label: string;
+  widthKey: string;
+  width: number;
+  sort: string;
+  onSort: (colKey: string) => void;
+  onWidthChange: (key: string, width: number) => void;
+}) {
+  const isAsc = sort === colKey;
+  const isDesc = sort === `-${colKey}`;
+  return (
+    <ResizableTh
+      columnKey={widthKey}
+      width={width}
+      minWidth={40}
+      maxWidth={600}
+      onWidthChange={onWidthChange}
+      onClick={() => onSort(colKey)}
+      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+      className="cursor-pointer select-none"
+    >
+      <span className="inline-flex items-center justify-center gap-2">
+        {label}
+        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+        </span>
+      </span>
+    </ResizableTh>
+  );
+}
+
 export default function ExpenseTable({
   rows,
   onEdit,
@@ -55,30 +95,6 @@ export default function ExpenseTable({
   const handleSort = useCallback((colKey: string) => {
     setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
   }, []);
-
-  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
-    const isAsc = sort === colKey;
-    const isDesc = sort === `-${colKey}`;
-    return (
-      <ResizableTh
-        columnKey={widthKey}
-        width={width}
-        minWidth={40}
-        maxWidth={600}
-        onWidthChange={setColumnWidth}
-        onClick={() => handleSort(colKey)}
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-        className="cursor-pointer select-none"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {label}
-          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
-      </ResizableTh>
-    );
-  }
 
   const toggleSelect = (id: number) => {
     if (selectedSet.has(id)) setSelectedIds((prev) => prev.filter((x) => x !== id));
@@ -127,10 +143,10 @@ export default function ExpenseTable({
               className="cursor-pointer"
             />
           </th>
-          <SortableTh colKey="date" label="날짜" widthKey="date" width={columnWidths.date ?? TABLE_COL.medium} />
-          <SortableTh colKey="title" label="항목" widthKey="title" width={columnWidths.title ?? TABLE_COL.subject} />
-          <SortableTh colKey="memo" label="메모" widthKey="memo" width={columnWidths.memo ?? TABLE_COL.memo} />
-          <SortableTh colKey="amount" label="금액" widthKey="amount" width={columnWidths.amount ?? TABLE_COL.medium} />
+          <ExpenseSortableTh colKey="date" label="날짜" widthKey="date" width={columnWidths.date ?? TABLE_COL.medium} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+          <ExpenseSortableTh colKey="title" label="항목" widthKey="title" width={columnWidths.title ?? TABLE_COL.subject} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+          <ExpenseSortableTh colKey="memo" label="메모" widthKey="memo" width={columnWidths.memo ?? TABLE_COL.memo} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+          <ExpenseSortableTh colKey="amount" label="금액" widthKey="amount" width={columnWidths.amount ?? TABLE_COL.medium} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
           <ResizableTh
             columnKey="actions"
             width={columnWidths.actions ?? TABLE_COL.actions}

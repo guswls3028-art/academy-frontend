@@ -122,6 +122,47 @@ const STAFF_HOME_COLUMN_DEFS: TableColumnDef[] = [
   { key: "workTypeTags", label: "시급태그", defaultWidth: COL.workTypeTags, minWidth: 120 },
 ];
 
+/** 리사이즈 시 ResizableTh가 언마운트되지 않도록 페이지 밖에 정의 */
+function StaffHomeSortableTh({
+  colKey,
+  label,
+  widthKey,
+  width,
+  sort,
+  onSort,
+  onWidthChange,
+}: {
+  colKey: string;
+  label: string;
+  widthKey: string;
+  width: number;
+  sort: string;
+  onSort: (colKey: string) => void;
+  onWidthChange: (key: string, width: number) => void;
+}) {
+  const isAsc = sort === colKey;
+  const isDesc = sort === `-${colKey}`;
+  return (
+    <ResizableTh
+      columnKey={widthKey}
+      width={width}
+      minWidth={40}
+      maxWidth={600}
+      onWidthChange={onWidthChange}
+      onClick={() => onSort(colKey)}
+      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+      className="cursor-pointer select-none"
+    >
+      <span className="inline-flex items-center justify-center gap-2">
+        {label}
+        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+        </span>
+      </span>
+    </ResizableTh>
+  );
+}
+
 export function StaffHomeTable({
   staffs,
   owner,
@@ -185,30 +226,6 @@ export function StaffHomeTable({
     (columnWidths.manager ?? COL.manager) +
     (columnWidths.payType ?? COL.payType) +
     (columnWidths.workTypeTags ?? COL.workTypeTags);
-
-  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
-    const isAsc = sort === colKey;
-    const isDesc = sort === `-${colKey}`;
-    return (
-      <ResizableTh
-        columnKey={widthKey}
-        width={width}
-        minWidth={40}
-        maxWidth={600}
-        onWidthChange={setColumnWidth}
-        onClick={() => handleSort(colKey)}
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-        className="cursor-pointer select-none"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {label}
-          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
-      </ResizableTh>
-    );
-  }
 
   const toggleSelect = (id: number) => {
     if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
@@ -327,13 +344,13 @@ export function StaffHomeTable({
                 className="cursor-pointer"
               />
             </th>
-            <SortableTh colKey="role" label="직위" widthKey="role" width={columnWidths.role ?? COL.role} />
-            <SortableTh colKey="name" label="이름" widthKey="name" width={columnWidths.name ?? COL.name} />
-            <SortableTh colKey="phone" label="전화번호" widthKey="phone" width={columnWidths.phone ?? COL.phone} />
-            <SortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? COL.status} />
-            <SortableTh colKey="manager" label="관리자권한" widthKey="manager" width={columnWidths.manager ?? COL.manager} />
-            <SortableTh colKey="payType" label="급여유형" widthKey="payType" width={columnWidths.payType ?? COL.payType} />
-            <SortableTh colKey="workTypeTags" label="시급태그" widthKey="workTypeTags" width={columnWidths.workTypeTags ?? COL.workTypeTags} />
+            <StaffHomeSortableTh colKey="role" label="직위" widthKey="role" width={columnWidths.role ?? COL.role} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+            <StaffHomeSortableTh colKey="name" label="이름" widthKey="name" width={columnWidths.name ?? COL.name} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+            <StaffHomeSortableTh colKey="phone" label="전화번호" widthKey="phone" width={columnWidths.phone ?? COL.phone} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+            <StaffHomeSortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+            <StaffHomeSortableTh colKey="manager" label="관리자권한" widthKey="manager" width={columnWidths.manager ?? COL.manager} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+            <StaffHomeSortableTh colKey="payType" label="급여유형" widthKey="payType" width={columnWidths.payType ?? COL.payType} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+            <StaffHomeSortableTh colKey="workTypeTags" label="시급태그" widthKey="workTypeTags" width={columnWidths.workTypeTags ?? COL.workTypeTags} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
           </tr>
         </thead>
 

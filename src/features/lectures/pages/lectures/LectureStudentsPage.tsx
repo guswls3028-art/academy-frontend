@@ -28,6 +28,46 @@ const LECTURE_STUDENTS_FIXED_COLUMNS: TableColumnDef[] = [
   { key: "session", label: "차시", defaultWidth: STUDENTS_TABLE_COL.sessionCol, minWidth: 34 },
 ];
 
+function LectureStudentsSortableTh({
+  colKey,
+  label,
+  widthKey,
+  width,
+  sort,
+  onSort,
+  onWidthChange,
+}: {
+  colKey: string;
+  label: string;
+  widthKey: string;
+  width: number;
+  sort: string;
+  onSort: (colKey: string) => void;
+  onWidthChange: (key: string, width: number) => void;
+}) {
+  const isAsc = sort === colKey;
+  const isDesc = sort === `-${colKey}`;
+  return (
+    <ResizableTh
+      columnKey={widthKey}
+      width={width}
+      minWidth={40}
+      maxWidth={500}
+      onWidthChange={onWidthChange}
+      onClick={() => onSort(colKey)}
+      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+      className="cursor-pointer select-none"
+    >
+      <span className="inline-flex items-center justify-center gap-2">
+        {label}
+        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+        </span>
+      </span>
+    </ResizableTh>
+  );
+}
+
 export default function LectureStudentsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -171,42 +211,6 @@ export default function LectureStudentsPage() {
     );
   }
 
-  function SortableTh({
-    colKey,
-    label,
-    widthKey,
-    width,
-  }: {
-    colKey: string;
-    label: string;
-    widthKey: string;
-    width: number;
-  }) {
-    const isAsc = sort === colKey;
-    const isDesc = sort === `-${colKey}`;
-    return (
-      <ResizableTh
-        columnKey={widthKey}
-        width={width}
-        minWidth={40}
-        maxWidth={500}
-        onWidthChange={setColumnWidth}
-        onClick={() => handleSort(colKey)}
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-        className="cursor-pointer select-none"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {label}
-          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
-      </ResizableTh>
-    );
-  }
-
-  const col = STUDENTS_TABLE_COL;
-
   return (
     <>
       <div className="flex flex-col gap-4">
@@ -271,23 +275,32 @@ export default function LectureStudentsPage() {
                           className="cursor-pointer"
                         />
                       </th>
-                      <SortableTh
+                      <LectureStudentsSortableTh
                         colKey="name"
                         label="이름"
                         widthKey="name"
                         width={columnWidths.name ?? STUDENTS_TABLE_COL.name}
+                        sort={sort}
+                        onSort={handleSort}
+                        onWidthChange={setColumnWidth}
                       />
-                      <SortableTh
+                      <LectureStudentsSortableTh
                         colKey="parentPhone"
                         label="학부모 전화번호"
                         widthKey="parentPhone"
                         width={columnWidths.parentPhone ?? STUDENTS_TABLE_COL.parentPhone}
+                        sort={sort}
+                        onSort={handleSort}
+                        onWidthChange={setColumnWidth}
                       />
-                      <SortableTh
+                      <LectureStudentsSortableTh
                         colKey="studentPhone"
                         label="학생 전화번호"
                         widthKey="studentPhone"
                         width={columnWidths.studentPhone ?? STUDENTS_TABLE_COL.studentPhone}
+                        sort={sort}
+                        onSort={handleSort}
+                        onWidthChange={setColumnWidth}
                       />
                       {sessionsByDateDesc.map((s) => (
                         <ResizableTh

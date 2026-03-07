@@ -20,6 +20,46 @@ const RESULTS_ADMIN_COLUMN_DEFS: TableColumnDef[] = [
   { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
 ];
 
+function ResultsSortableTh({
+  colKey,
+  label,
+  widthKey,
+  width,
+  sort,
+  onSort,
+  onWidthChange,
+}: {
+  colKey: string;
+  label: string;
+  widthKey: string;
+  width: number;
+  sort: string;
+  onSort: (colKey: string) => void;
+  onWidthChange: (key: string, width: number) => void;
+}) {
+  const isAsc = sort === colKey;
+  const isDesc = sort === `-${colKey}`;
+  return (
+    <ResizableTh
+      columnKey={widthKey}
+      width={width}
+      minWidth={40}
+      maxWidth={600}
+      onWidthChange={onWidthChange}
+      onClick={() => onSort(colKey)}
+      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+      className="cursor-pointer select-none"
+    >
+      <span className="inline-flex items-center justify-center gap-2">
+        {label}
+        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+        </span>
+      </span>
+    </ResizableTh>
+  );
+}
+
 export default function ResultsAdminPage() {
   const navigate = useNavigate();
   const [searchInput, setSearchInput] = useState("");
@@ -78,30 +118,6 @@ export default function ResultsAdminPage() {
     (columnWidths.status ?? TABLE_COL.status) +
     (columnWidths.actions ?? TABLE_COL.actions);
 
-  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
-    const isAsc = sort === colKey;
-    const isDesc = sort === `-${colKey}`;
-    return (
-      <ResizableTh
-        columnKey={widthKey}
-        width={width}
-        minWidth={40}
-        maxWidth={600}
-        onWidthChange={setColumnWidth}
-        onClick={() => handleSort(colKey)}
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-        className="cursor-pointer select-none"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {label}
-          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
-      </ResizableTh>
-    );
-  }
-
   return (
     <DomainLayout
       title="성적"
@@ -153,10 +169,10 @@ export default function ResultsAdminPage() {
             </colgroup>
             <thead>
               <tr>
-                <SortableTh colKey="title" label="강의명" widthKey="title" width={columnWidths.title ?? TABLE_COL.title} />
-                <SortableTh colKey="subject" label="과목" widthKey="subject" width={columnWidths.subject ?? TABLE_COL.subject} />
-                <SortableTh colKey="dateRange" label="기간" widthKey="dateRange" width={columnWidths.dateRange ?? TABLE_COL.medium} />
-                <SortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? TABLE_COL.status} />
+                <ResultsSortableTh colKey="title" label="강의명" widthKey="title" width={columnWidths.title ?? TABLE_COL.title} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+                <ResultsSortableTh colKey="subject" label="과목" widthKey="subject" width={columnWidths.subject ?? TABLE_COL.subject} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+                <ResultsSortableTh colKey="dateRange" label="기간" widthKey="dateRange" width={columnWidths.dateRange ?? TABLE_COL.medium} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+                <ResultsSortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? TABLE_COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
                 <th scope="col" style={{ width: columnWidths.actions ?? TABLE_COL.actions }} aria-label="관리" />
               </tr>
             </thead>

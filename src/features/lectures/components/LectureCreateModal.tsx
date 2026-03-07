@@ -11,6 +11,7 @@ import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { fetchLectureInstructorOptions } from "@/features/lectures/api/sessions";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
@@ -298,14 +299,9 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     </div>
   );
 
-  const instructorList = useMemo(
-    () => [...new Set(instructorOptions.map((o) => o.name).filter(Boolean))],
-    [instructorOptions]
-  );
-
   const instructorPopoverContent = (
     <div className="saved-list-field-popover">
-      {instructorList.length === 0 ? (
+      {instructorOptions.length === 0 ? (
         <div className="saved-list-field-popover-empty">
           <p className="text-xs text-[var(--color-text-muted)] mb-2">등록된 담당 강사가 없습니다.</p>
           <p className="text-xs text-[var(--color-text-muted)] mb-2">직원관리에서 강사를 추가해 주세요.</p>
@@ -323,17 +319,18 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
         </div>
       ) : (
         <div className="saved-list-field-popover-list">
-          {instructorList.map((instructorName) => (
-            <div key={instructorName} className="saved-list-field-popover-item-row">
+          {instructorOptions.map((opt) => (
+            <div key={`${opt.type}-${opt.name}`} className="saved-list-field-popover-item-row">
               <button
                 type="button"
-                className="saved-list-field-popover-item flex-1 min-w-0 text-left"
+                className="saved-list-field-popover-item flex-1 min-w-0 text-left inline-flex items-center gap-2"
                 onClick={() => {
-                  setName(instructorName);
+                  setName(opt.name);
                   setInstructorPopoverOpen(false);
                 }}
               >
-                {instructorName}
+                <StaffRoleAvatar role={opt.type === "owner" ? "owner" : "TEACHER"} size={18} className="shrink-0" />
+                <span>{opt.name}</span>
               </button>
             </div>
           ))}

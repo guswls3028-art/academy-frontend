@@ -15,6 +15,46 @@ const PROFILE_ATTENDANCE_COLUMN_DEFS: TableColumnDef[] = [
   { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
 ];
 
+function AttendanceSortableTh({
+  colKey,
+  label,
+  widthKey,
+  width,
+  sort,
+  onSort,
+  onWidthChange,
+}: {
+  colKey: string;
+  label: string;
+  widthKey: string;
+  width: number;
+  sort: string;
+  onSort: (colKey: string) => void;
+  onWidthChange: (key: string, width: number) => void;
+}) {
+  const isAsc = sort === colKey;
+  const isDesc = sort === `-${colKey}`;
+  return (
+    <ResizableTh
+      columnKey={widthKey}
+      width={width}
+      minWidth={40}
+      maxWidth={400}
+      onWidthChange={onWidthChange}
+      onClick={() => onSort(colKey)}
+      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+      className="cursor-pointer select-none"
+    >
+      <span className="inline-flex items-center justify-center gap-2">
+        {label}
+        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+        </span>
+      </span>
+    </ResizableTh>
+  );
+}
+
 interface Props {
   rows: Attendance[];
   onEdit: (row: Attendance) => void;
@@ -68,30 +108,6 @@ export default function AttendanceTable({
     (columnWidths.amount ?? TABLE_COL.medium) +
     (columnWidths.actions ?? TABLE_COL.actions);
 
-  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
-    const isAsc = sort === colKey;
-    const isDesc = sort === `-${colKey}`;
-    return (
-      <ResizableTh
-        columnKey={widthKey}
-        width={width}
-        minWidth={40}
-        maxWidth={400}
-        onWidthChange={setColumnWidth}
-        onClick={() => handleSort(colKey)}
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-        className="cursor-pointer select-none"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {label}
-          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
-      </ResizableTh>
-    );
-  }
-
   const toggleSelect = (id: number) => {
     if (selectedSet.has(id)) setSelectedIds((prev) => prev.filter((x) => x !== id));
     else setSelectedIds((prev) => [...prev, id]);
@@ -135,11 +151,11 @@ export default function AttendanceTable({
               className="cursor-pointer"
             />
           </th>
-          <SortableTh colKey="date" label="날짜" widthKey="date" width={columnWidths.date ?? TABLE_COL.medium} />
-          <SortableTh colKey="work_type" label="유형" widthKey="work_type" width={columnWidths.work_type ?? TABLE_COL.mediumAlt} />
-          <SortableTh colKey="timeRange" label="근무시간" widthKey="timeRange" width={columnWidths.timeRange ?? TABLE_COL.timeRange} />
-          <SortableTh colKey="hourly" label="시급" widthKey="hourly" width={columnWidths.hourly ?? TABLE_COL.mediumAlt} />
-          <SortableTh colKey="amount" label="금액" widthKey="amount" width={columnWidths.amount ?? TABLE_COL.medium} />
+          <AttendanceSortableTh colKey="date" label="날짜" widthKey="date" width={columnWidths.date ?? TABLE_COL.medium} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+          <AttendanceSortableTh colKey="work_type" label="유형" widthKey="work_type" width={columnWidths.work_type ?? TABLE_COL.mediumAlt} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+          <AttendanceSortableTh colKey="timeRange" label="근무시간" widthKey="timeRange" width={columnWidths.timeRange ?? TABLE_COL.timeRange} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+          <AttendanceSortableTh colKey="hourly" label="시급" widthKey="hourly" width={columnWidths.hourly ?? TABLE_COL.mediumAlt} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+          <AttendanceSortableTh colKey="amount" label="금액" widthKey="amount" width={columnWidths.amount ?? TABLE_COL.medium} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
           <ResizableTh
             columnKey="actions"
             width={columnWidths.actions ?? TABLE_COL.actions}

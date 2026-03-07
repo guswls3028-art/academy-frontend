@@ -22,6 +22,46 @@ const EXAM_ADMIN_COLUMN_DEFS: TableColumnDef[] = [
   { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
 ];
 
+function ExamSortableTh({
+  colKey,
+  label,
+  widthKey,
+  width,
+  sort,
+  onSort,
+  onWidthChange,
+}: {
+  colKey: string;
+  label: string;
+  widthKey: string;
+  width: number;
+  sort: string;
+  onSort: (colKey: string) => void;
+  onWidthChange: (key: string, width: number) => void;
+}) {
+  const isAsc = sort === colKey;
+  const isDesc = sort === `-${colKey}`;
+  return (
+    <ResizableTh
+      columnKey={widthKey}
+      width={width}
+      minWidth={40}
+      maxWidth={600}
+      onWidthChange={onWidthChange}
+      onClick={() => onSort(colKey)}
+      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+      className="cursor-pointer select-none"
+    >
+      <span className="inline-flex items-center justify-center gap-2">
+        {label}
+        <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+          {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+        </span>
+      </span>
+    </ResizableTh>
+  );
+}
+
 function formatDate(s: string | null): string {
   if (!s) return "—";
   try {
@@ -89,30 +129,6 @@ export default function ExamAdminPage() {
     (columnWidths.created_at ?? TABLE_COL.medium) +
     (columnWidths.actions ?? TABLE_COL.actions);
 
-  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
-    const isAsc = sort === colKey;
-    const isDesc = sort === `-${colKey}`;
-    return (
-      <ResizableTh
-        columnKey={widthKey}
-        width={width}
-        minWidth={40}
-        maxWidth={600}
-        onWidthChange={setColumnWidth}
-        onClick={() => handleSort(colKey)}
-        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
-        className="cursor-pointer select-none"
-      >
-        <span className="inline-flex items-center justify-center gap-2">
-          {label}
-          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
-            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
-          </span>
-        </span>
-      </ResizableTh>
-    );
-  }
-
   return (
     <DomainLayout
       title="시험"
@@ -166,12 +182,12 @@ export default function ExamAdminPage() {
             </colgroup>
             <thead>
               <tr>
-                <SortableTh colKey="title" label="시험명" widthKey="title" width={columnWidths.title ?? TABLE_COL.title} />
-                <SortableTh colKey="subject" label="과목" widthKey="subject" width={columnWidths.subject ?? TABLE_COL.subject} />
-                <SortableTh colKey="exam_type" label="유형" widthKey="exam_type" width={columnWidths.exam_type ?? TABLE_COL.short} />
-                <SortableTh colKey="retake" label="재응시" widthKey="retake" width={columnWidths.retake ?? TABLE_COL.status} />
-                <SortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? TABLE_COL.status} />
-                <SortableTh colKey="created_at" label="개설일" widthKey="created_at" width={columnWidths.created_at ?? TABLE_COL.medium} />
+                <ExamSortableTh colKey="title" label="시험명" widthKey="title" width={columnWidths.title ?? TABLE_COL.title} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+                <ExamSortableTh colKey="subject" label="과목" widthKey="subject" width={columnWidths.subject ?? TABLE_COL.subject} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+                <ExamSortableTh colKey="exam_type" label="유형" widthKey="exam_type" width={columnWidths.exam_type ?? TABLE_COL.short} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+                <ExamSortableTh colKey="retake" label="재응시" widthKey="retake" width={columnWidths.retake ?? TABLE_COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+                <ExamSortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? TABLE_COL.status} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
+                <ExamSortableTh colKey="created_at" label="개설일" widthKey="created_at" width={columnWidths.created_at ?? TABLE_COL.medium} sort={sort} onSort={handleSort} onWidthChange={setColumnWidth} />
                 <th scope="col" style={{ width: columnWidths.actions ?? TABLE_COL.actions }} aria-label="관리" />
               </tr>
             </thead>
