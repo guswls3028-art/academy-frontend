@@ -33,28 +33,25 @@ export default function ClinicSettingsPage() {
 
   if (!canManage) {
     return (
-      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-5">
-        <div className="text-sm font-semibold">권한이 없습니다.</div>
-        <div className="text-xs text-[var(--text-muted)] mt-1">
-          설정은 관리자만 접근 가능합니다.
+      <div className="clinic-panel">
+        <div className="clinic-panel__body">
+          <p className="clinic-panel__title">권한 없음</p>
+          <p className="clinic-panel__meta">설정은 관리자만 접근 가능합니다.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <div className="text-lg font-semibold">설정</div>
-        <div className="text-xs text-[var(--text-muted)]">
-          * 정책/기준/자동화 설정은 서버 단일진실로 관리됩니다.
+    <div className="clinic-page space-y-6">
+      <section className="ds-section">
+        <div className="ds-section__header">
+          <h2 className="ds-section__title">설정</h2>
+          <p className="ds-section__description">정책·기준은 서버 단일진실로 관리됩니다.</p>
         </div>
-      </div>
+      </section>
 
-      {/* 패스카드 배경 색상 설정 */}
       <ClinicIdcardColorSettings />
-
-      {/* 클리닉 리모컨 — 설정에서만 사용 (운영 탭에서는 제거됨) */}
       <ClinicRemoteControl />
 
       <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
