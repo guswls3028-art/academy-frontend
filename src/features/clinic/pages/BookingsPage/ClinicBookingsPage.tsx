@@ -53,11 +53,6 @@ export default function ClinicBookingsPage() {
       .map((t) => t.enrollment_id);
   }, [targetsQ.data, bookedEnrollmentIds]);
 
-  const autoSelected = useMemo(() => {
-    if (focus !== "required") return null;
-    return requiredEnrollmentIds;
-  }, [focus, requiredEnrollmentIds]);
-
   useEffect(() => {
     if (focus !== "required" || didAutoSelect.current) return;
     if (requiredEnrollmentIds.length > 0) {
