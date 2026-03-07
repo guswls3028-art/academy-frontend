@@ -83,6 +83,9 @@
   border: 1px solid var(--ui-control-border, var(--color-border-divider)) !important;
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3) !important;
+  /* 배경 투명 방지: 어디서 열리든 차시 생성과 동일한 불투명 */
+  isolation: isolate;
+  backdrop-filter: none;
 }
 
 /* 다크 테마: 모달 배경과 동일한 surface 사용 (불투명) */
@@ -92,9 +95,16 @@
 [data-theme="terminal-neon"] .shared-date-picker-dropdown--portaled {
   background-color: var(--scale-Neutral50) !important;
 }
+[data-theme="modern-dark"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
+[data-theme="dark-navy"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
+[data-theme="youtube-studio"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds,
+[data-theme="terminal-neon"] .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds {
+  background: var(--scale-Neutral50);
+}
 
 /* 달력 본체 전역 디자인 격리: body 포털 시에도 차시 모달·클리닉 동일한 토큰 사용 (페이지/래퍼 상속 차단) */
 .shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds {
+  background: #ffffff;
   --color-text-primary: var(--scale-Neutral900);
   --color-text-secondary: var(--scale-Neutral700);
   --color-text-muted: var(--scale-Neutral500);

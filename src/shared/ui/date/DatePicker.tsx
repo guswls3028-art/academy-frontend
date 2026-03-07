@@ -53,7 +53,6 @@ export default function DatePicker({
     if (v) setViewMonth(v);
   }, [value]);
 
-  // 포털: body에 렌더. 차시 생성 모달과 동일 — 위 공간 있으면 위로, 없으면 아래로 (추가 로직 없음)
   useLayoutEffect(() => {
     if (!open) {
       setDropdownStyle(null);
@@ -62,13 +61,11 @@ export default function DatePicker({
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const space = 8;
-    const dropdownHeight = 380;
-    const fitsAbove = rect.top >= dropdownHeight + space;
-    if (fitsAbove) {
-      setDropdownStyle({ bottom: window.innerHeight - rect.top + space, left: rect.left });
-    } else {
-      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
-    }
+    // 차시 생성과 동일: 항상 트리거 위로 열림 (아래로 열리지 않음)
+    setDropdownStyle({
+      bottom: window.innerHeight - rect.top + space,
+      left: rect.left,
+    });
   }, [open]);
 
   useEffect(() => {
@@ -130,6 +127,7 @@ export default function DatePicker({
             width: "max-content",
             position: "fixed",
             zIndex: 1200,
+            background: "#ffffff",
             ...(dropdownStyle.top != null
               ? { top: dropdownStyle.top, left: dropdownStyle.left }
               : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
