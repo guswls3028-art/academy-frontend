@@ -1,12 +1,11 @@
 // PATH: src/features/clinic/components/ClinicCreatePanel.tsx
-// 클리닉 생성 — 모달 SSOT(TimeRangeInput, DatePicker, ds-choice-btn, DS Button) + 한 페이지 컴팩트 레이아웃
+// 클리닉 생성 — 구조적으로 차시 추가 모달과 동일: ModalDateSection, ModalTimeSection 사용 (같은 달력·같은 시간 블록)
 
 import { useEffect, useMemo, useState } from "react";
 import { Input, Checkbox, message } from "antd";
 import dayjs from "dayjs";
 
-import { DatePicker } from "@/shared/ui/date";
-import { TimeRangeInput } from "@/shared/ui/time";
+import { ModalDateSection, ModalTimeSection } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -196,28 +195,30 @@ export default function ClinicCreatePanel({
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
         <div className="modal-scroll-body modal-scroll-body--compact grid gap-4 flex-1 min-h-0 w-full max-w-full box-border">
-          {/* 1행: 날짜 — 세로 단일 행 (차시 추가 모달과 동일 DatePicker·달력 팝업) */}
+          {/* 날짜 — 구조적으로 차시 추가 모달과 동일: ModalDateSection(내부에 전역 DatePicker) */}
           {!hideDatePicker && (
-            <div className="min-w-0 shared-date-picker-wrap">
-              <label className="modal-section-label">날짜</label>
-              <DatePicker
-                value={selectedDate.format("YYYY-MM-DD")}
-                onChange={(s) => setSelectedDate(dayjs(s))}
+            <div className="min-w-0">
+              <ModalDateSection
+                name="clinicDateMode"
+                useDefault={false}
+                onUseDefaultChange={() => {}}
+                customDate={selectedDate.format("YYYY-MM-DD")}
+                onCustomDateChange={(s) => setSelectedDate(dayjs(s))}
+                showDefaultOption={false}
                 placeholder="날짜 선택"
               />
             </div>
           )}
 
-          {/* 2행: 시작 · 종료 시간 — 차시 추가 모달과 동일 SSOT(TimeRangeInput + 원통 스크롤) */}
-          <div className="min-w-0 shared-time-range-wrap">
-            <label className="modal-section-label">시작 · 종료 시간</label>
-            <TimeRangeInput
-              value={timeRange}
-              onChange={setTimeRange}
-              startLabel="시작"
-              endLabel="종료"
-              startPlaceholder="시작"
-              endPlaceholder="종료"
+          {/* 시간 — 구조적으로 차시 추가 모달과 동일: ModalTimeSection(내부에 전역 TimeRangeInput) */}
+          <div className="min-w-0">
+            <ModalTimeSection
+              name="clinicTimeMode"
+              useDefault={false}
+              onUseDefaultChange={() => {}}
+              customTime={timeRange}
+              onCustomTimeChange={setTimeRange}
+              showDefaultOption={false}
             />
           </div>
 
