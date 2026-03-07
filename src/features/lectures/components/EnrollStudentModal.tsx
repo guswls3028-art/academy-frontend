@@ -85,7 +85,7 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
       <ModalHeader
         type="action"
         title={title}
-        description="검색 후 체크하여 세션 출결 대상 학생을 추가합니다. (⌘/Ctrl + Enter 추가)"
+        description="검색 후 체크하여 세션 출결 대상 학생을 추가합니다."
       />
 
       <ModalBody>
@@ -165,11 +165,6 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
-            ESC 로 닫기 · ⌘/Ctrl + Enter 추가
-          </span>
-        }
         right={
           <>
             <Button intent="secondary" onClick={onClose}>

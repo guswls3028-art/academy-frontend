@@ -312,13 +312,13 @@ export default function SessionEnrollModal({
     function onKeyDown(e: KeyboardEvent) {
       if (!isOpen) return;
       if (e.key === "Escape") onClose();
-        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-          if (idsToAdd.length > 0 && !addByStudentMutation.isPending) {
-            addByStudentMutation.mutate({
-            studentIds: idsToAdd,
-            statusByStudentId: excelStatusByStudentId,
-          });
-        }
+      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
+      if (e.key === "Enter" && !isTextarea && idsToAdd.length > 0 && !addByStudentMutation.isPending) {
+        e.preventDefault();
+        addByStudentMutation.mutate({
+          studentIds: idsToAdd,
+          statusByStudentId: excelStatusByStudentId,
+        });
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -976,11 +976,6 @@ export default function SessionEnrollModal({
         </ModalBody>
 
         <ModalFooter
-          left={
-            <span className="text-[12px] font-semibold text-[var(--color-text-muted)]">
-              ESC 닫기 · ⌘/Ctrl + Enter 추가
-            </span>
-          }
           right={
             <>
               <Button intent="secondary" onClick={onClose} className="text-[13px]">

@@ -48,7 +48,7 @@ export default function MaterialCategoryModal({ lectureId, onClose }: Props) {
 
   return (
     <AdminModal open={true} onClose={onClose} type="action" width={560}>
-      <ModalHeader type="action" title={title} description="⌘/Ctrl + Enter 로 저장" />
+      <ModalHeader type="action" title={title} />
 
       <ModalBody>
         <div style={{ display: "grid", gap: 10 }}>
@@ -67,11 +67,6 @@ export default function MaterialCategoryModal({ lectureId, onClose }: Props) {
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
-            ESC 로 닫기 · ⌘/Ctrl + Enter 저장
-          </span>
-        }
         right={
           <>
             <Button intent="secondary" onClick={onClose} disabled={busy}>

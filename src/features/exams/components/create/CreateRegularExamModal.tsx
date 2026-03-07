@@ -617,13 +617,11 @@ export default function CreateRegularExamModal({
 
       <ModalFooter
         left={
-          <span className="modal-hint">
-            {step === "template_design"
-              ? `총점 ${totalScore}점`
-              : step === "regular_settings"
-                ? (!title.trim() ? "시험 제목을 입력하면 생성 버튼이 활성화됩니다." : "")
-                : "ESC 로 닫기"}
-          </span>
+          step === "template_design" ? (
+            <span className="modal-hint">총점 {totalScore}점</span>
+          ) : step === "regular_settings" && !title.trim() ? (
+            <span className="modal-hint">시험 제목을 입력하면 생성 버튼이 활성화됩니다.</span>
+          ) : undefined
         }
         right={
           step === "select" ? (

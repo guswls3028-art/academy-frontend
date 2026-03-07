@@ -50,7 +50,7 @@ export default function BoardCategoryModal({ lectureId, isOpen, onClose }: Props
 
   return (
     <AdminModal open={true} onClose={onClose} type="action" width={560}>
-      <ModalHeader type="action" title={title} description="⌘/Ctrl + Enter 저장" />
+      <ModalHeader type="action" title={title} />
       <ModalBody>
         <input
           className="ds-input"

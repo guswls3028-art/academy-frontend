@@ -114,7 +114,6 @@ export default function CreateHomeworkModal({
       </ModalBody>
 
       <ModalFooter
-        left={<span className="modal-hint">ESC 로 닫기</span>}
         right={
           <>
             <Button intent="secondary" onClick={onClose} disabled={m.isPending}>

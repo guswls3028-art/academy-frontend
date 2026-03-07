@@ -86,7 +86,7 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
 
   return (
     <AdminModal open={true} onClose={onClose} type="action" width={980}>
-      <ModalHeader type="action" title={title} description="⌘/Ctrl + Enter 로 등록" />
+      <ModalHeader type="action" title={title} />
 
       <ModalBody>
         <div style={{ display: "grid", gap: 12 }}>
@@ -149,20 +149,15 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
 
       <ModalFooter
         left={
-          <div className="flex items-center gap-2">
-            {(titleInput.trim() || content.trim()) && (
-              <Button
-                intent="ghost"
-                size="sm"
-                onClick={() => setShowSaveAsTemplate(true)}
-              >
-                현재 내용을 양식으로 저장
-              </Button>
-            )}
-            <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
-              ESC 로 닫기 · ⌘/Ctrl + Enter 등록
-            </span>
-          </div>
+          (titleInput.trim() || content.trim()) ? (
+            <Button
+              intent="ghost"
+              size="sm"
+              onClick={() => setShowSaveAsTemplate(true)}
+            >
+              현재 내용을 양식으로 저장
+            </Button>
+          ) : null
         }
         right={
           <>

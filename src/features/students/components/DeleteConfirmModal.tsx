@@ -22,10 +22,15 @@ export default function DeleteConfirmModal({
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
+      if (e.key === "Enter" && !busy) {
+        e.preventDefault();
+        handleDelete();
+      }
     }
     if (open) window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose, busy]);
 
   async function handleDelete() {
     if (busy) return;
@@ -79,17 +84,6 @@ export default function DeleteConfirmModal({
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 850,
-              color: "var(--color-text-muted)",
-            }}
-          >
-            ESC 로 닫기
-          </span>
-        }
         right={
           <>
             <Button intent="secondary" onClick={onClose} disabled={busy}>

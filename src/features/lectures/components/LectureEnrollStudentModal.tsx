@@ -78,11 +78,6 @@ export default function LectureEnrollStudentModal({
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span className="text-[12px] font-semibold text-[var(--color-text-muted)]">
-            ESC 로 닫기
-          </span>
-        }
         right={
           <Button intent="secondary" onClick={onClose}>
             취소

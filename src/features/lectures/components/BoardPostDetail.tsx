@@ -198,11 +198,6 @@ export default function BoardPostDetail({ lectureId, post, onClose }: Props) {
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span style={{ fontSize: 12, fontWeight: 850, color: "var(--color-text-muted)" }}>
-            ESC 로 닫기
-          </span>
-        }
         right={
           <Button intent="secondary" onClick={onClose}>
             닫기
