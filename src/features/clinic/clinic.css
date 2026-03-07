@@ -85,7 +85,7 @@
   color: var(--color-error);
 }
 
-/* 패널 래퍼 (panel.css 확장) */
+/* 패널 — 섹션형 헤더 (카드형 헤더 제거) */
 .clinic-panel {
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-border-divider);
@@ -94,14 +94,25 @@
   overflow: hidden;
 }
 
+/* 섹션형 헤더: 배경 블록 없음, 좌측 액센트 + 제목만 */
 .clinic-panel__header {
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  padding: var(--space-4) var(--space-6);
+  padding-left: var(--space-5);
+  border-bottom: none;
+  background: transparent;
+  position: relative;
 }
 
-.clinic-panel__body {
-  padding: var(--space-6);
+.clinic-panel__header::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
+  background: var(--color-primary);
 }
 
 .clinic-panel__title {
