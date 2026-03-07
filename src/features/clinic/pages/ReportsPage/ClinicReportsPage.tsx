@@ -277,7 +277,7 @@ export default function ClinicReportsPage() {
                       {items.slice(0, 3).map((s) => (
                         <div
                           key={s.id}
-                          className="text-[11px] rounded-md px-2 py-1 font-semibold border border-[color-mix(in_srgb,var(--color-primary)_20%,var(--color-border-divider))] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]"
+                          className="text-[11px] rounded-md px-2 py-1 font-semibold border border-[color-mix(in_srgb,var(--color-brand-primary)_20%,var(--color-border-divider))] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]"
                         >
                           {startTimeHHMM(s.start_time)}
                           {s.location ? (
