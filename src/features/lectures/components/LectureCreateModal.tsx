@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Popover } from "antd";
-import { Trash2, FolderOpen } from "lucide-react";
+import { Trash2, FolderOpen, Save } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
@@ -492,6 +492,23 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                   disabled={isPending}
                   aria-label="과목 (필수)"
                 />
+                <button
+                  type="button"
+                  className="saved-list-field-icon-btn"
+                  title="과목 저장"
+                  aria-label="과목 저장"
+                  onClick={() => {
+                    const v = subject.trim();
+                    if (!v) {
+                      feedback.warning("과목을 입력한 뒤 저장해 주세요.");
+                      return;
+                    }
+                    setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, v));
+                    feedback.success("저장됨");
+                  }}
+                >
+                  <Save size={16} />
+                </button>
                 <Popover
                   open={subjectPopoverOpen}
                   onOpenChange={(open) => {

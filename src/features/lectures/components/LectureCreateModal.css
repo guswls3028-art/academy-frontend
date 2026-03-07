@@ -9,6 +9,19 @@
   font-weight: 600;
 }
 
+/* placeholder — 담당 강사 빈 상태와 동일 (색상·굵기) */
+.lecture-create-modal-form input::placeholder,
+.lecture-create-modal-form textarea::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+/* DatePicker · TimeRangeInput placeholder도 동일 굵기 */
+.lecture-create-modal-form .shared-date-picker-placeholder,
+.lecture-create-modal-form .shared-time-range-trigger--placeholder .shared-time-range-trigger-text {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
 /* 담당 강사 선택 트리거 — ds-input과 동일한 높이/테두리 */
 .lecture-create-instructor-trigger {
   display: flex;
