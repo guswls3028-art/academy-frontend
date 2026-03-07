@@ -48,6 +48,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     grade: "",
     schoolClass: "",
     major: "",
+    address: "",
     memo: "",
     active: true,
   });
@@ -85,6 +86,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       grade: "",
       schoolClass: "",
       major: "",
+      address: "",
       memo: "",
       active: true,
     });
@@ -477,9 +479,17 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 disabled={busy}
               />
             </div>
+            <input
+              name="address"
+              placeholder="주소 (선택)"
+              value={form.address ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              disabled={busy}
+            />
             <textarea
               name="memo"
-              rows={3}
+              rows={2}
               placeholder="메모"
               value={form.memo ?? ""}
               onChange={handleChange}

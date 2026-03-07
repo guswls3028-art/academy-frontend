@@ -531,7 +531,7 @@ export async function submitRegistrationRequest(form: {
   if (form.phone && normalizePhone(String(form.phone)).length === 11) {
     (payload as any).phone = normalizePhone(String(form.phone));
   }
-  const res = await api.post("/students/registration_requests/", payload);
+  const res = await api.post("/students/registration_requests/", payload, { skipAuth: true as any });
   return mapRegistrationRequest(res.data);
 }
 

@@ -80,6 +80,7 @@ export default function EnhancedCommonLoginPage() {
     major: "",
     grade: "",
     gender: "",
+    address: "",
     memo: "",
   });
 
@@ -132,6 +133,7 @@ export default function EnhancedCommonLoginPage() {
         major: signupForm.major.trim() || undefined,
         grade: signupForm.grade ? Number(signupForm.grade) : undefined,
         gender: signupForm.gender.trim() || undefined,
+        address: signupForm.address.trim() || undefined,
         memo: signupForm.memo.trim() || undefined,
       });
       setSignupSuccess(true);
@@ -150,6 +152,7 @@ export default function EnhancedCommonLoginPage() {
           major: "",
           grade: "",
           gender: "",
+          address: "",
           memo: "",
         });
       }, 1500);
@@ -381,6 +384,20 @@ export default function EnhancedCommonLoginPage() {
                     onChange={(e) => setSignupForm((f) => ({ ...f, middleSchool: e.target.value }))}
                   />
                 )}
+                <input
+                  className={styles.input}
+                  placeholder="주소 (선택)"
+                  value={signupForm.address}
+                  onChange={(e) => setSignupForm((f) => ({ ...f, address: e.target.value }))}
+                />
+                <textarea
+                  className={styles.input}
+                  placeholder="메모 (선택)"
+                  value={signupForm.memo}
+                  onChange={(e) => setSignupForm((f) => ({ ...f, memo: e.target.value }))}
+                  rows={2}
+                  style={{ resize: "vertical", minHeight: "2.5rem" }}
+                />
                 {signupError && <div className={styles.error}>{signupError}</div>}
                 <div className={styles.overlayActions}>
                   <button type="button" className={styles.btnSecondary} onClick={closeSignupModal}>

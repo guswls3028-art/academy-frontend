@@ -51,6 +51,7 @@ export default function EditStudentModal({
     grade: initialValue.grade ? String(initialValue.grade) : "",
     schoolClass: initialValue.schoolClass || "",
     major: initialValue.major || "",
+    address: initialValue.address || "",
     memo: initialValue.memo || "",
     active: !!initialValue.active,
   });
@@ -89,6 +90,7 @@ export default function EditStudentModal({
       grade: initialValue.grade ? String(initialValue.grade) : "",
       schoolClass: initialValue.schoolClass || "",
       major: initialValue.major || "",
+      address: initialValue.address || "",
       memo: initialValue.memo || "",
       active: !!initialValue.active,
     });
@@ -359,9 +361,17 @@ export default function EditStudentModal({
                 disabled={busy}
               />
             </div>
+            <input
+              name="address"
+              placeholder="주소 (선택)"
+              value={form.address ?? ""}
+              onChange={handleChange}
+              className="ds-input"
+              disabled={busy}
+            />
             <textarea
               name="memo"
-              rows={3}
+              rows={2}
               placeholder="메모"
               value={form.memo ?? ""}
               onChange={handleChange}
