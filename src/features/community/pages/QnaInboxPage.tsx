@@ -207,6 +207,7 @@ export default function QnaInboxPage() {
             questions={questions}
             onClose={() => setSelectedId(null)}
             onDelete={() => setSelectedId(null)}
+            onSelectQuestion={setSelectedId}
           />
         )}
       </main>
@@ -266,11 +267,13 @@ function ThreadView({
   questions,
   onClose,
   onDelete,
+  onSelectQuestion,
 }: {
   postId: number;
   questions: Question[];
   onClose: () => void;
   onDelete: () => void;
+  onSelectQuestion: (id: number) => void;
 }) {
   const qc = useQueryClient();
   const { data: post, isLoading } = useQuery({
@@ -379,10 +382,10 @@ function ThreadView({
             {questionHistory.map((q) => (
               <div key={q.id} className="qna-inbox__timeline-item">
                 <span className="qna-inbox__timeline-dot" />
-                <span>
+                <button type="button" onClick={() => onSelectQuestion(q.id)}>
                   {new Date(q.created_at).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}{" "}
                   {q.title}
-                </span>
+                </button>
                 <span className="qna-inbox__status qna-inbox__status--resolved">해결됨</span>
               </div>
             ))}

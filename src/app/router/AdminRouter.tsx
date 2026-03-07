@@ -1,6 +1,6 @@
 // PATH: src/app/router/AdminRouter.tsx
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AppLayout, DomainLayout } from "@/shared/ui/layout";
 import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
 
@@ -32,11 +32,15 @@ import VideoDetailPage from "@/features/videos/pages/VideoDetailPage";
 
 /* ================= Community ================= */
 import CommunityPage from "@/features/community/pages/CommunityPage";
-import QnaBoardPage from "@/features/community/pages/QnaBoardPage";
-import QnaReadPage from "@/features/community/pages/QnaReadPage";
+import QnaInboxPage from "@/features/community/pages/QnaInboxPage";
 import MaterialsBoardPage from "@/features/community/pages/MaterialsBoardPage";
 import CommunityAdminPage from "@/features/community/pages/CommunityAdminPage";
 import CommunitySettingsPage from "@/features/community/pages/CommunitySettingsPage";
+
+function QnaReadRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? `/admin/community/qna?id=${id}` : "/admin/community/qna"} replace />;
+}
 
 /* ================= Clinic ================= */
 import ClinicRoutes from "@/features/clinic/ClinicRoutes";
@@ -159,8 +163,8 @@ export default function AdminRouter() {
         <Route path="community" element={<CommunityPage />}>
           <Route index element={<Navigate to="admin" replace />} />
           <Route path="notice" element={<Navigate to="/admin/community/admin?tab=notice" replace />} />
-          <Route path="qna" element={<QnaBoardPage />} />
-          <Route path="qna/read/:id" element={<QnaReadPage />} />
+          <Route path="qna" element={<QnaInboxPage />} />
+          <Route path="qna/read/:id" element={<QnaReadRedirect />} />
           <Route path="materials" element={<MaterialsBoardPage />} />
           <Route path="admin" element={<CommunityAdminPage />} />
           <Route path="settings" element={<CommunitySettingsPage />} />
