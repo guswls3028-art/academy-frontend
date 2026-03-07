@@ -1,5 +1,11 @@
 /* PATH: src/styles/design-system/components/DatePicker.css
-   전역 날짜 선택 — DS 토큰(ui-control, space, radius, elevation) 준수, 큼지막한 셀 */
+   전역 날짜 선택 — 차시 생성 모달과 동일한 글씨체·타이포 카피 (DS 토큰만 사용) */
+
+.shared-date-picker,
+.shared-date-picker-trigger,
+.shared-date-picker-dropdown {
+  font-family: var(--font-sans);
+}
 
 .shared-date-picker-trigger {
   appearance: none;
@@ -9,8 +15,8 @@
   width: 100%;
   min-height: var(--control-lg, 40px);
   padding: 0 var(--space-3);
-  font-size: 15px;
-  font-weight: 500;
+  font-size: var(--text-md, 14px);
+  font-weight: var(--font-medium, 500);
   line-height: 1.25;
   color: var(--ui-control-text, var(--color-text-primary));
   background: var(--ui-control-bg, var(--color-bg-surface));
@@ -46,7 +52,7 @@
 
 .shared-date-picker-placeholder {
   color: var(--ui-control-placeholder, var(--color-text-muted));
-  font-weight: 400;
+  font-weight: var(--font-regular, 400);
 }
 
 .shared-date-picker-dropdown {
@@ -68,8 +74,9 @@
   background-position: 0 0, 0 0, 0 0;
 }
 
-/* 포털 시에도 .shared-date-picker-dropdown과 동일한 스타일만 적용 (카피, 창조 금지). body에서 변수 미상속 시 대비해 불투명 보장 */
+/* 포털 시에도 .shared-date-picker-dropdown과 동일한 스타일만 적용 (카피, 창조 금지). body에서 변수 미상속 시 대비해 불투명·글씨체 보장 */
 .shared-date-picker-dropdown--portaled {
+  font-family: var(--font-sans) !important;
   background-color: var(--color-bg-surface, #ffffff) !important;
   background-image: none !important;
   border: 1px solid var(--ui-control-border, var(--color-border-divider)) !important;
@@ -85,8 +92,8 @@
 }
 
 .shared-date-picker-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--text-lg, 16px);
+  font-weight: var(--font-title, 600);
   color: var(--ui-control-text, var(--color-text-primary));
 }
 
@@ -96,7 +103,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: var(--text-xl, 18px);
+  font-weight: var(--font-regular, 400);
   color: var(--color-text-secondary);
   background: transparent;
   border: none;
@@ -123,8 +131,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--text-sm, 12px);
+  font-weight: var(--font-semibold, 600);
   color: var(--color-text-muted);
 }
 
@@ -132,8 +140,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: var(--text-md, 14px);
+  font-weight: var(--font-medium, 500);
   color: var(--ui-control-text, var(--color-text-primary));
   background: transparent;
   border: none;
@@ -147,7 +155,7 @@
 }
 
 .shared-date-picker-cell-today {
-  font-weight: 700;
+  font-weight: var(--font-bold, 700);
   color: var(--color-brand-primary, var(--color-primary));
 }
 
