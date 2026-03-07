@@ -1,11 +1,10 @@
 // PATH: src/features/clinic/pages/BookingsPage/ClinicBookingsPage.tsx
-// 예약대상자 — 섹션형 SSOT, 3열(대상자 | 주간보드 | 생성)
+// 예약대상자 — 2열(대상자 | 클리닉 생성)
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
 import ClinicTargetTable from "../../components/bookings/ClinicTargetTable";
-import WeeklyClinicBoard from "../../components/bookings/WeeklyClinicBoard";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
@@ -63,14 +62,11 @@ export default function ClinicBookingsPage() {
 
   return (
     <div className="clinic-page">
-      <div className="clinic-three-panel">
-        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[360px]">
+      <div className="clinic-two-panel">
+        <div className="clinic-two-panel__cell clinic-two-panel__cell--fixed w-full lg:w-[360px]">
           <ClinicTargetTable selected={selected} onChangeSelected={setSelected} />
         </div>
-        <div className="clinic-three-panel__cell clinic-three-panel__cell--fill">
-          <WeeklyClinicBoard baseDate={today} selectedEnrollmentIds={selected} />
-        </div>
-        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[420px]">
+        <div className="clinic-two-panel__cell clinic-two-panel__cell--fill">
           <ClinicCreatePanel
             defaultMode="targets"
             selectedTargetEnrollmentIds={selected}

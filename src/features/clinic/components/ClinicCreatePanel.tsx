@@ -2,7 +2,7 @@
 // 클리닉 생성 — 차시 추가 모달과 똑같은 DatePicker·TimeRangeInput만 사용 (같은 컴포넌트·같은 props, 직접선택 행 없음)
 
 import { useEffect, useMemo, useState } from "react";
-import { Input, Checkbox, App } from "antd";
+import { Input, Checkbox, App, Dropdown } from "antd";
 import dayjs from "dayjs";
 
 import { DatePicker } from "@/shared/ui/date";
@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useClinicStudentSearch } from "../hooks/useClinicStudentSearch";
 import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
+import { fetchClinicLocations } from "../api/clinicSessions.api";
 
 import api from "@/shared/api/axios";
 
@@ -102,6 +103,13 @@ export default function ClinicCreatePanel({
 
   const targetsQ = useClinicTargets();
   const studentsSearchQ = useClinicStudentSearch(keyword);
+
+  const locationsQ = useQuery({
+    queryKey: ["clinic-locations"],
+    queryFn: fetchClinicLocations,
+    enabled: false,
+    staleTime: 60_000,
+  });
 
   const studentsDefaultQ = useQuery({
     queryKey: ["clinic-students-default"],
@@ -260,12 +268,32 @@ export default function ClinicCreatePanel({
           <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
             <label className="modal-section-label">장소 · 정원</label>
             <div className="modal-form-row modal-form-row--1-auto-auto gap-2 flex-wrap items-center">
-              <Input
-                placeholder="장소 / 룸"
-                value={room}
-                onChange={(e) => setRoom(e.target.value)}
-                className="clinic-input-filled flex-1 min-w-[120px]"
-              />
+              <div className="flex flex-1 min-w-[120px] gap-2">
+                <Input
+                  placeholder="장소 / 룸"
+                  value={room}
+                  onChange={(e) => setRoom(e.target.value)}
+                  className="clinic-input-filled flex-1 min-w-0"
+                />
+                <Dropdown
+                  trigger={["click"]}
+                  onOpenChange={(open) => open && locationsQ.refetch()}
+                  menu={{
+                    items: (locationsQ.data ?? []).map((loc) => ({
+                      key: loc,
+                      label: loc,
+                      onClick: () => setRoom(loc),
+                    })),
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="text-xs font-semibold px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-secondary)] whitespace-nowrap"
+                  >
+                    {locationsQ.isFetching ? "불러오는 중…" : "장소 불러오기"}
+                  </button>
+                </Dropdown>
+              </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">정원</span>
                 <Input

@@ -6,6 +6,7 @@
 /* 클리닉 도메인 폰트 — 가독성 개선 */
 .clinic-page,
 .clinic-three-panel,
+.clinic-two-panel,
 .clinic-panel {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -417,6 +418,33 @@
   }
 
   .clinic-three-panel__cell--fill {
+    flex: 1 1 0;
+  }
+}
+
+.clinic-two-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  width: 100%;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .clinic-two-panel {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .clinic-two-panel__cell {
+    min-width: 0;
+  }
+
+  .clinic-two-panel__cell--fixed {
+    flex-shrink: 0;
+  }
+
+  .clinic-two-panel__cell--fill {
     flex: 1 1 0;
   }
 }

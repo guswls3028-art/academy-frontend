@@ -41,3 +41,12 @@ export async function fetchClinicSessionTree(params: {
     date: normalizeDate(s.date),
   }));
 }
+
+/**
+ * 클리닉 생성 시 장소 불러오기
+ * GET /clinic/sessions/locations/
+ */
+export async function fetchClinicLocations(): Promise<string[]> {
+  const res = await api.get("/clinic/sessions/locations/");
+  return Array.isArray(res.data) ? res.data : [];
+}
