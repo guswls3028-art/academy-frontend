@@ -152,6 +152,9 @@ export default function ScoresTable({
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
 
+  const examOptions = meta?.exams ?? [];
+  const homeworkOptions = meta?.homeworks ?? [];
+
   /** 편집 모드 시 점수 셀 동기화: 포커스 아닐 때만 서버 값으로 contenteditable 텍스트 갱신 */
   useEffect(() => {
     if (!rows.length) return;
@@ -178,9 +181,6 @@ export default function ScoresTable({
       onFocusHomeworkDone();
     }
   }, [focusHomeworkCell, onFocusHomeworkDone]);
-
-  const examOptions = meta?.exams ?? [];
-  const homeworkOptions = meta?.homeworks ?? [];
 
   const columns = useMemo((): ScoreColumnDef[] => {
     const list: ScoreColumnDef[] = [
@@ -569,7 +569,7 @@ export default function ScoresTable({
                                 }}
                                 contentEditable
                                 suppressContentEditableWarning
-                                className="font-medium text-right tabular-nums text-sm text-[var(--color-text-primary)] outline-none min-w-[1.5ch] inline-block"
+                                className="font-medium text-right tabular-nums text-sm text-[var(--color-text-primary)] outline-none inline-block w-full min-w-0 [list-style:none] [&::before]:content-none [&::after]:content-none"
                                 onBlur={async () => {
                                   const key = `${row.enrollment_id}-${hw.homework_id}`;
                                   const el = homeworkInputRefs.current[key];
