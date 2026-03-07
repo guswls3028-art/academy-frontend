@@ -171,7 +171,7 @@ export default function ClinicCreatePanel({
     try {
       await createSessionM.mutateAsync({
         date: selectedDate.format("YYYY-MM-DD"),
-        start_time: start,
+        start_time: toHHmmss(start),
         duration_minutes: duration,
         location: room.trim(),
         max_participants: cap,
@@ -185,7 +185,22 @@ export default function ClinicCreatePanel({
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       onCreated?.();
     } catch (e: any) {
-      message.error(e?.response?.data?.detail || "생성 실패");
+      const res = e?.response?.data;
+      let detail = "생성 실패";
+      if (res) {
+        if (typeof res.detail === "string") detail = res.detail;
+        else if (Array.isArray(res.detail))
+          detail = res.detail.map((x: any) => x?.msg ?? JSON.stringify(x)).join(", ");
+        else if (res.detail && typeof res.detail === "object")
+          detail = JSON.stringify(res.detail);
+        else if (typeof res === "object" && !res.detail) {
+          const parts = Object.entries(res).map(
+            ([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`
+          );
+          if (parts.length) detail = parts.join(" · ");
+        }
+      }
+      message.error(detail);
     }
   };
 
