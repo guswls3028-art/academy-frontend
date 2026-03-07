@@ -312,6 +312,12 @@ table.ds-table {
 .ds-table tbody tr:hover .ds-table-cell-name--clinic-target {
   background: color-mix(in srgb, var(--color-brand-complement) 18%, var(--color-bg-surface)) !important;
 }
+.ds-table tbody tr.ds-scores-table-row--checked .ds-table-cell-name--clinic-target {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface)) !important;
+}
+.ds-table tbody tr.ds-scores-table-row--checked:hover .ds-table-cell-name--clinic-target {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface)) !important;
+}
 
 /* 클리닉 대상자이지만 예약 없음 — 이름 셀 노란 배경 (백엔드 name_highlight_clinic_no_reservation) */
 .ds-table-cell-name--clinic-no-reservation {
