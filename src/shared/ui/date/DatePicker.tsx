@@ -103,12 +103,6 @@ export default function DatePicker({
 
   const displayText = value ? dayjs(value).format("YYYY년 MM월 DD일") : placeholder;
 
-  // 포털 대상: body가 아니라 앱 루트([data-app="admin"])로 하면 차시 모달·클리닉 동일한 변수·글씨체 상속 (전역화)
-  const portalTarget =
-    typeof document !== "undefined"
-      ? document.querySelector('[data-app="admin"]') ?? document.body
-      : document.body;
-
   return (
     <div ref={containerRef} className="shared-date-picker" style={{ position: "relative" }}>
       <button
@@ -136,7 +130,7 @@ export default function DatePicker({
             width: "max-content",
             position: "fixed",
             zIndex: 1200,
-            backgroundColor: "var(--color-bg-surface, #ffffff)",
+            /* 인라인은 변수 의존 제거: 포털이 body에 있어도 CSS .shared-date-picker-dropdown--portaled에서 불투명 배경 강제 */
             ...(dropdownStyle.top != null
               ? { top: dropdownStyle.top, left: dropdownStyle.left }
               : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
@@ -200,7 +194,7 @@ export default function DatePicker({
             })}
           </div>
         </div>,
-        portalTarget
+        document.body
       )}
     </div>
   );
