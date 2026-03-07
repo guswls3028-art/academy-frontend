@@ -115,8 +115,17 @@ export default function ClinicDaySchedulePanel({
           const sessionsAtTime = sessionsForDay.filter((s) => formatTime(s.start_time) === time);
           const items = byTime[time] ?? [];
           const totalCount = sessionsAtTime.reduce((n, s) => n + (s.participant_count ?? 0), 0) || items.length;
+          const slotStatus = getSlotStatus(sessionsAtTime);
           return (
-            <section key={time} className="clinic-section">
+            <section
+              key={time}
+              className={cx(
+                "clinic-section clinic-schedule-slot",
+                slotStatus === "normal" && "clinic-schedule-slot--status-normal",
+                slotStatus === "almost" && "clinic-schedule-slot--status-almost",
+                slotStatus === "full" && "clinic-schedule-slot--status-full"
+              )}
+            >
               <div className="clinic-section__header">
                 <p className="clinic-section__title">{time}</p>
                 {sessionsAtTime.length > 0 && (
@@ -139,7 +148,7 @@ export default function ClinicDaySchedulePanel({
                     </li>
                   ))
                 ) : sessionsAtTime.length > 0 ? (
-                  <li className="ds-section__empty rounded-lg border border-dashed border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3 text-[var(--color-text-muted)]">
+                  <li className="ds-section__empty clinic-schedule-slot__empty rounded-lg border border-dashed border-[var(--color-border-divider)] px-4 py-3 text-[var(--color-text-muted)]">
                     예약 없음
                   </li>
                 ) : null}
