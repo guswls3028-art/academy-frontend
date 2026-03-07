@@ -8,7 +8,6 @@ import {
   Segmented,
   Select,
   message,
-  Divider,
 } from "antd";
 import dayjs from "dayjs";
 
@@ -217,90 +216,113 @@ export default function ClinicCreatePanel({
   };
 
   return (
-    <div className="rounded-2xl border bg-[var(--bg-surface)] overflow-hidden">
-      <div className="px-5 py-4 border-b bg-[var(--bg-surface-soft)] flex items-center justify-between">
+    <div className="clinic-panel overflow-hidden">
+      <div className="clinic-panel__header flex items-center justify-between">
         <div>
-          <div className="text-sm font-semibold">클리닉 생성</div>
-          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-            시작·종료 시간 설정
-          </div>
+          <h2 className="clinic-panel__title">클리닉 생성</h2>
+          <p className="clinic-panel__meta">시작·종료 시간 설정</p>
         </div>
-        <div className="text-xs text-[var(--text-muted)]">
+        <span className="text-xs font-semibold text-[var(--color-text-muted)]">
           선택 {selected.length}명
-        </div>
+        </span>
       </div>
 
-      <div className="p-5 space-y-4">
+      <div className="clinic-panel__body space-y-5">
         {!hideDatePicker && (
-          <DatePicker
-            value={selectedDate.format("YYYY-MM-DD")}
-            onChange={(s) => setSelectedDate(dayjs(s))}
-            placeholder="날짜 선택"
-          />
+          <section className="clinic-section">
+            <div className="clinic-section__header">
+              <p className="clinic-section__title">날짜</p>
+            </div>
+            <DatePicker
+              value={selectedDate.format("YYYY-MM-DD")}
+              onChange={(s) => setSelectedDate(dayjs(s))}
+              placeholder="날짜 선택"
+            />
+          </section>
         )}
 
-        <div className="flex gap-2">
-          <Select
-            placeholder="시작 시간"
-            options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
-            value={startTime}
-            onChange={(v) => {
-              setStartTime(v);
-              setEndTime(undefined); // 시작 시간 바뀌면 종료 리셋
-            }}
-            className="flex-1 bg-[var(--bg-surface)]"
-          />
-          <Select
-            placeholder="종료 시간"
-            options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
-            value={endTime}
-            onChange={setEndTime}
-            className="flex-1 bg-[var(--bg-surface)]"
-          />
-        </div>
+        <section className="clinic-section">
+          <div className="clinic-section__header">
+            <p className="clinic-section__title">시작 · 종료 시간</p>
+          </div>
+          <div className="flex gap-2">
+            <Select
+              placeholder="시작 시간"
+              options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
+              value={startTime}
+              onChange={(v) => {
+                setStartTime(v);
+                setEndTime(undefined);
+              }}
+              className="flex-1 bg-[var(--bg-surface)]"
+            />
+            <Select
+              placeholder="종료 시간"
+              options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
+              value={endTime}
+              onChange={setEndTime}
+              className="flex-1 bg-[var(--bg-surface)]"
+            />
+          </div>
+          <div className="flex gap-2 mt-2">
+            <Button
+              type="default"
+              onClick={() => quickAdd(30)}
+              className="!rounded-lg !border-[var(--color-border-divider)] !bg-[var(--color-bg-surface-soft)] hover:!bg-[var(--color-bg-surface-hover)] !font-semibold"
+            >
+              +30분
+            </Button>
+            <Button
+              type="default"
+              onClick={() => quickAdd(60)}
+              className="!rounded-lg !border-[var(--color-border-divider)] !bg-[var(--color-bg-surface-soft)] hover:!bg-[var(--color-bg-surface-hover)] !font-semibold"
+            >
+              +1시간
+            </Button>
+          </div>
+        </section>
 
-        <div className="flex gap-2">
-          <Button onClick={() => quickAdd(30)}>+30분</Button>
-          <Button onClick={() => quickAdd(60)}>+1시간</Button>
-        </div>
-
-        <Input
-          placeholder="장소 / 룸"
-          value={room}
-          onChange={(e) => setRoom(e.target.value)}
-          className="bg-[var(--bg-surface)]"
-        />
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-[var(--text-muted)] whitespace-nowrap">정원</span>
+        <section className="clinic-section">
+          <div className="clinic-section__header">
+            <p className="clinic-section__title">장소 · 정원</p>
+          </div>
           <Input
-            type="number"
-            min={1}
-            max={999}
-            value={selected.length > 0 ? selected.length : maxParticipants}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              if (!Number.isNaN(v) && v >= 1) setMaxParticipants(v);
-            }}
-            disabled={selected.length > 0}
-            className="bg-[var(--bg-surface)] w-24"
+            placeholder="장소 / 룸"
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            className="bg-[var(--bg-surface)] mb-3"
           />
-          <span className="text-xs text-[var(--text-muted)]">
-            {selected.length > 0 ? "선택 인원으로 설정됨" : "명 (학생 없이 클리닉만 생성 시)"}
-          </span>
-        </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">정원</span>
+            <Input
+              type="number"
+              min={1}
+              max={999}
+              value={selected.length > 0 ? selected.length : maxParticipants}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!Number.isNaN(v) && v >= 1) setMaxParticipants(v);
+              }}
+              disabled={selected.length > 0}
+              className="bg-[var(--bg-surface)] w-24"
+            />
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {selected.length > 0 ? "선택 인원으로 설정됨" : "명 (학생 없이 클리닉만 생성 시)"}
+            </span>
+          </div>
+          <Input.TextArea
+            rows={2}
+            placeholder="메모 (선택)"
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            className="bg-[var(--bg-surface)] mt-3"
+          />
+        </section>
 
-        <Input.TextArea
-          rows={2}
-          placeholder="메모 (선택)"
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          className="bg-[var(--bg-surface)]"
-        />
-
-        <Divider className="my-2" />
-
-        <div className="space-y-2">
+        <section className="clinic-section">
+          <div className="clinic-section__header">
+            <p className="clinic-section__title">대상자 선택</p>
+          </div>
           <Segmented
             options={[
               { label: "예약 대상자", value: "targets" },
@@ -313,7 +335,6 @@ export default function ClinicCreatePanel({
               setSelected([]);
             }}
           />
-
           <Input
             placeholder={
               mode === "students"
@@ -323,16 +344,20 @@ export default function ClinicCreatePanel({
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             allowClear
-            className="bg-[var(--bg-surface)]"
+            className="bg-[var(--bg-surface)] mt-3"
           />
-
-          <div className="flex items-center justify-between text-xs">
-            <Checkbox checked={allChecked} onChange={toggleAll}>
+          <div
+            className="clinic-action-row mt-3"
+            onClick={() => toggleAll()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && toggleAll()}
+          >
+            <Checkbox checked={allChecked} onChange={toggleAll} onClick={(e) => e.stopPropagation()}>
               전체 선택
             </Checkbox>
           </div>
-
-          <div className="max-h-[360px] overflow-auto border rounded-lg p-2 space-y-1">
+          <div className="max-h-[280px] overflow-auto border border-[var(--color-border-divider)] rounded-xl mt-3 p-2 space-y-1 bg-[var(--color-bg-surface-soft)]">
             {rows.map((r: any) => {
               const key =
                 mode === "targets" ? r.enrollment_id : r.id;
@@ -341,7 +366,7 @@ export default function ClinicCreatePanel({
               return (
                 <label
                   key={key}
-                  className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-[var(--bg-surface-soft)]"
+                  className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg hover:bg-[var(--color-bg-surface-hover)] cursor-pointer border border-transparent hover:border-[var(--color-border-divider)] transition-colors"
                 >
                   <input
                     type="checkbox"
@@ -354,23 +379,24 @@ export default function ClinicCreatePanel({
                       );
                     }}
                   />
-                  <span className="flex-1">{label}</span>
+                  <span className="flex-1 font-medium text-[var(--color-text-primary)]">{label}</span>
                 </label>
               );
             })}
           </div>
-
           <Button
             type="primary"
             block
+            size="large"
             loading={createSessionM.isPending}
             onClick={submit}
+            className="mt-4 !rounded-xl !font-semibold !h-11"
           >
             {selected.length > 0
               ? `선택 ${selected.length}명 클리닉 생성`
               : `클리닉만 생성 (정원 ${maxParticipants}명)`}
           </Button>
-        </div>
+        </section>
       </div>
     </div>
   );
