@@ -16,6 +16,8 @@ export interface DatePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** true면 드롭다운을 트리거 아래로만 열림 (예: 클리닉 생성) */
+  openBelow?: boolean;
   id?: string;
   "data-testid"?: string;
 }
@@ -35,6 +37,7 @@ export default function DatePicker({
   onChange,
   placeholder = "날짜 선택",
   disabled = false,
+  openBelow = false,
   id,
   "data-testid": dataTestId,
 }: DatePickerProps) {
@@ -61,12 +64,15 @@ export default function DatePicker({
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const space = 8;
-    // 차시 생성과 동일: 항상 트리거 위로 열림 (아래로 열리지 않음)
-    setDropdownStyle({
-      bottom: window.innerHeight - rect.top + space,
-      left: rect.left,
-    });
-  }, [open]);
+    if (openBelow) {
+      setDropdownStyle({ top: rect.bottom + space, left: rect.left });
+    } else {
+      setDropdownStyle({
+        bottom: window.innerHeight - rect.top + space,
+        left: rect.left,
+      });
+    }
+  }, [open, openBelow]);
 
   useEffect(() => {
     if (!open) return;

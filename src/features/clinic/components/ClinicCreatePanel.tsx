@@ -205,6 +205,7 @@ export default function ClinicCreatePanel({
                   value={selectedDate.format("YYYY-MM-DD")}
                   onChange={(s) => setSelectedDate(dayjs(s))}
                   placeholder="날짜 선택"
+                  openBelow
                 />
               </div>
             </div>
