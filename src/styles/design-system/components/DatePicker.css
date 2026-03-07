@@ -93,6 +93,23 @@
   background-color: var(--scale-Neutral50) !important;
 }
 
+/* 달력 본체 전역 디자인 격리: body 포털 시에도 차시 모달·클리닉 동일한 토큰 사용 (페이지/래퍼 상속 차단) */
+.shared-date-picker-dropdown--portaled .shared-date-picker-dropdown__ds {
+  --color-text-primary: var(--scale-Neutral900);
+  --color-text-secondary: var(--scale-Neutral700);
+  --color-text-muted: var(--scale-Neutral500);
+  --color-brand-primary: var(--scale-Primary500);
+  --color-primary: var(--scale-Primary500);
+  --color-bg-surface: var(--scale-Neutral50);
+  --color-bg-surface-hover: var(--scale-Neutral100);
+  --color-border-divider: var(--scale-Neutral200);
+  --ui-control-text: var(--scale-Neutral900);
+  --ui-control-border: var(--scale-Neutral200);
+  --state-hover-bg: var(--scale-Neutral100);
+  --state-focus-ring: 0 0 0 2px var(--scale-Primary500);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif);
+}
+
 .shared-date-picker-header {
   display: flex;
   align-items: center;

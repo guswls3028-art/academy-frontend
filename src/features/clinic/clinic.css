@@ -220,21 +220,6 @@
   background: var(--color-bg-surface) !important;
 }
 
-/* 클리닉 생성 패널 — 날짜 트리거도 같은 filled 톤 (달력 열기 버튼 = 다른 입력과 디자인 일치) */
-.clinic-create-body .shared-date-picker-trigger {
-  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface)) !important;
-  border: none !important;
-  border-radius: var(--radius-md);
-  transition: box-shadow 0.2s ease, background 0.2s ease;
-}
-.clinic-create-body .shared-date-picker-trigger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-border-divider) 18%, var(--color-bg-surface)) !important;
-}
-.clinic-create-body .shared-date-picker-trigger:focus {
-  box-shadow: 0 0 0 1.5px var(--color-brand-primary) !important;
-  background: var(--color-bg-surface) !important;
-}
-
 /* ========== 빠른 시간 버튼 (+30분, +1시간) — DS secondary/ghost 톤, hover 시 primary 옅은 배경 ========== */
 .clinic-quick-time-btn {
   border-radius: var(--radius-md) !important;

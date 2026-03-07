@@ -130,12 +130,13 @@ export default function DatePicker({
             width: "max-content",
             position: "fixed",
             zIndex: 1200,
-            /* 인라인은 변수 의존 제거: 포털이 body에 있어도 CSS .shared-date-picker-dropdown--portaled에서 불투명 배경 강제 */
             ...(dropdownStyle.top != null
               ? { top: dropdownStyle.top, left: dropdownStyle.left }
               : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
           }}
         >
+          {/* 달력 본체 전역 디자인 격리: 열리는 위치와 관계없이 동일한 토큰 사용 */}
+          <div className="shared-date-picker-dropdown__ds">
           <div className="shared-date-picker-header">
             <button
               type="button"
@@ -192,6 +193,7 @@ export default function DatePicker({
                 </button>
               );
             })}
+          </div>
           </div>
         </div>,
         document.body
