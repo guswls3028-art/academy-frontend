@@ -294,7 +294,7 @@ export default function ScoresTable({
             >
               <span className="inline-flex items-center gap-1.5">
                 <span className="ds-status-badge ds-status-badge--1ch" data-tone="primary" aria-label="시험">
-                  시험
+                  시
                 </span>
                 <span className="truncate">{ex.title}</span>
               </span>
@@ -311,7 +311,7 @@ export default function ScoresTable({
             >
               <span className="inline-flex items-center gap-1.5">
                 <span className="ds-status-badge ds-status-badge--1ch" data-tone="neutral" aria-label="과제">
-                  과제
+                  과
                 </span>
                 <span className="truncate">{hw.title}</span>
               </span>
