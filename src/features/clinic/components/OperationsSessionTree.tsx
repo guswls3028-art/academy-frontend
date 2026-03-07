@@ -14,6 +14,29 @@ function cx(...xs: Array<string | false | null | undefined>) {
 
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
 
+/** 날짜별 상태: 🟢 정상 | 🟡 예약 거의 찼음 | 🔴 마감 */
+export type DateStatus = "normal" | "almost" | "full";
+
+function getSessionStatus(s: ClinicSessionTreeNode): DateStatus {
+  const max = s.max_participants;
+  if (max == null || max <= 0) return "normal";
+  const booked = s.booked_count ?? 0;
+  if (booked >= max) return "full";
+  if (booked >= Math.ceil(max * 0.8)) return "almost";
+  return "normal";
+}
+
+function getDateStatus(sessions: ClinicSessionTreeNode[]): DateStatus {
+  if (!sessions.length) return "normal";
+  let status: DateStatus = "normal";
+  for (const s of sessions) {
+    const sStatus = getSessionStatus(s);
+    if (sStatus === "full") return "full";
+    if (sStatus === "almost") status = "almost";
+  }
+  return status;
+}
+
 function buildMonthGrid(year: number, month: number) {
   const first = dayjs(`${year}-${String(month).padStart(2, "0")}-01`);
   const daysInMonth = first.daysInMonth();
@@ -56,6 +79,14 @@ export default function OperationsSessionTree({
     });
     return map;
   }, [sessions]);
+
+  const dateStatusByDate = useMemo(() => {
+    const out: Record<string, DateStatus> = {};
+    Object.entries(sessionsByDate).forEach(([date, list]) => {
+      out[date] = getDateStatus(list);
+    });
+    return out;
+  }, [sessionsByDate]);
 
   const totalClinicsInMonth = sessions.length;
   const monthLabel = dayjs(`${year}-${String(month).padStart(2, "0")}-01`).format("YYYY년 M월");
@@ -120,6 +151,7 @@ export default function OperationsSessionTree({
               const isSelected = date === selectedDay;
               const isToday = date === todayISO;
               const count = (sessionsByDate[date]?.length ?? 0);
+              const status = dateStatusByDate[date] ?? "normal";
               return (
                 <button
                   key={date}
@@ -130,9 +162,25 @@ export default function OperationsSessionTree({
                     isSelected && "clinic-scheduler-panel__mini-cal-cell--selected",
                     isToday && "clinic-scheduler-panel__mini-cal-cell--today"
                   )}
+                  title={
+                    status === "full"
+                      ? "마감"
+                      : status === "almost"
+                        ? "예약 거의 찼음"
+                        : "정상"
+                  }
                 >
                   {dayjs(date).format("D")}
-                  {count > 0 && <span className="clinic-scheduler-panel__mini-cal-dot" />}
+                  {count > 0 && (
+                    <span
+                      className={cx(
+                        "clinic-scheduler-panel__mini-cal-dot",
+                        status === "full" && "clinic-scheduler-panel__mini-cal-dot--full",
+                        status === "almost" && "clinic-scheduler-panel__mini-cal-dot--almost",
+                        status === "normal" && "clinic-scheduler-panel__mini-cal-dot--normal"
+                      )}
+                    />
+                  )}
                 </button>
               );
             })}

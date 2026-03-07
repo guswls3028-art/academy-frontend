@@ -195,6 +195,19 @@
   opacity: 0.8;
 }
 
+/* 날짜 상태 dot — 🟢 정상 | 🟡 예약 거의 찼음 | 🔴 마감 */
+.clinic-scheduler-panel__mini-cal-dot--normal {
+  background: var(--color-success, #22c55e);
+}
+
+.clinic-scheduler-panel__mini-cal-dot--almost {
+  background: var(--color-warning, #eab308);
+}
+
+.clinic-scheduler-panel__mini-cal-dot--full {
+  background: var(--color-error, #ef4444);
+}
+
 .clinic-scheduler-panel__search {
   display: flex;
   align-items: center;

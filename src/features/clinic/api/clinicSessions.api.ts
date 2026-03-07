@@ -10,6 +10,8 @@ export type ClinicSessionTreeNode = {
   participant_count: number;
   booked_count: number;
   no_show_count: number;
+  /** 정원. 있으면 날짜 상태 dot(🟢🟡🔴) 계산에 사용 */
+  max_participants?: number | null;
 };
 
 /**
