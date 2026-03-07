@@ -370,28 +370,30 @@ export default function ScoresTable({
           ))}
           {homeworkOptions.map((hw) => (
             <Fragment key={hw.homework_id}>
-              <ResizableTh
-                columnKey={`hw_${hw.homework_id}_score`}
-                width={columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE}
-                minWidth={48}
-                maxWidth={200}
-                onWidthChange={setColumnWidth}
+              <th
+                scope="col"
                 className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                style={{ backgroundColor: BG_HOMEWORK }}
+                style={{
+                  width: columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE,
+                  minWidth: 48,
+                  maxWidth: 200,
+                  backgroundColor: BG_HOMEWORK,
+                }}
               >
                 점수
-              </ResizableTh>
-              <ResizableTh
-                columnKey={`hw_${hw.homework_id}_pass`}
-                width={columnWidths[`hw_${hw.homework_id}_pass`] ?? COL_PASS}
-                minWidth={48}
-                maxWidth={100}
-                onWidthChange={setColumnWidth}
+              </th>
+              <th
+                scope="col"
                 className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                style={{ backgroundColor: BG_HOMEWORK }}
+                style={{
+                  width: columnWidths[`hw_${hw.homework_id}_pass`] ?? COL_PASS,
+                  minWidth: 48,
+                  maxWidth: 100,
+                  backgroundColor: BG_HOMEWORK,
+                }}
               >
                 합불
-              </ResizableTh>
+              </th>
             </Fragment>
           ))}
         </tr>

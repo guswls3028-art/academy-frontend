@@ -139,6 +139,7 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   );
 
   const handleGridKeyDown = (e: React.KeyboardEvent) => {
+    if (!isEditMode) return;
     if (rows.length === 0 || totalCols <= 0) return;
     const isTab = e.key === "Tab";
     const isShiftTab = e.key === "Tab" && e.shiftKey;
@@ -241,6 +242,16 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   const onRequestMoveUp = useCallback(() => {
     moveTo(rowIndex - 1, colIndex);
   }, [rowIndex, colIndex, moveTo]);
+
+  useEffect(() => {
+    if (!isEditMode) {
+      setSelected(null);
+      setCurrentExamId(null);
+      setCurrentHomeworkId(null);
+      setFocusHomeworkCell(null);
+      return;
+    }
+  }, [isEditMode]);
 
   useEffect(() => {
     if (!rows.length) {

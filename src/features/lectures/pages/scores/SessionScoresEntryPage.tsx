@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
@@ -61,10 +61,6 @@ export default function SessionScoresEntryPage({
   });
 
   const totalCount = data?.rows?.length ?? 0;
-  const examsLink =
-    lectureId && sessionIdParam
-      ? `/admin/lectures/${lectureId}/sessions/${sessionIdParam}/exams`
-      : "#";
 
   if (!Number.isFinite(numericSessionId)) {
     return (
@@ -75,110 +71,15 @@ export default function SessionScoresEntryPage({
   }
 
   const primaryAction = (
-    <div className="flex items-center gap-2">
-      <Button
-        type="button"
-        intent={isEditMode ? "primary" : "secondary"}
-        size="sm"
-        onClick={() => setIsEditMode((v) => !v)}
-      >
-        {isEditMode ? "편집 종료" : "편집 모드"}
-      </Button>
-      <Link to={examsLink}>
-        <Button type="button" intent="secondary" size="sm">
-          시험 추가
-        </Button>
-      </Link>
-      <Button
-        type="button"
-        intent="secondary"
-        size="sm"
-        onClick={() => setAddHomeworkOpen(true)}
-      >
-        과제 추가
-      </Button>
-      {onOpenEnrollModal && (
-        <Button type="button" intent="primary" size="sm" onClick={onOpenEnrollModal}>
-          수강생 등록
-        </Button>
-      )}
-      {onOpenStudentModal && (
-        <Button type="button" intent="secondary" size="sm" onClick={onOpenStudentModal}>
-          학생 추가
-        </Button>
-      )}
-    </div>
-  );
-
-  /** students 도메인과 동일: belowSlot에 선택됨 + | + 선택 해제 + | + 일괄 액션 */
-  const selectionBar = (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2 pl-1">
-        <span
-          className="text-[13px] font-semibold"
-          style={{
-            color: selectedEnrollmentIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
-          }}
-        >
-          {selectedEnrollmentIds.length}명 선택됨
-        </span>
-        <span className="text-[var(--color-border-divider)]">|</span>
-        <Button
-          intent="secondary"
-          size="sm"
-          onClick={() => setSelectedEnrollmentIds([])}
-          disabled={selectedEnrollmentIds.length === 0}
-        >
-          선택 해제
-        </Button>
-        <span className="text-[var(--color-border-divider)]">|</span>
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          disabled={selectedEnrollmentIds.length === 0}
-          onClick={() => feedback.info("성적 일괄 변경 기능 준비 중입니다.")}
-        >
-          성적 일괄 변경
-        </Button>
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          disabled={selectedEnrollmentIds.length === 0}
-          onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}
-        >
-          메시지 발송
-        </Button>
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          disabled={selectedEnrollmentIds.length === 0}
-          onClick={() => feedback.info("수업 결과 발송 기능 준비 중입니다.")}
-        >
-          수업 결과 발송
-        </Button>
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          disabled={selectedEnrollmentIds.length === 0}
-          onClick={() => feedback.info("참여자 제거 기능 준비 중입니다.")}
-        >
-          참여자 제거
-        </Button>
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          disabled={selectedEnrollmentIds.length === 0}
-          onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}
-        >
-          엑셀 다운로드
-        </Button>
-      </div>
-    </div>
+    <Button
+      type="button"
+      intent="primary"
+      size="sm"
+      onClick={() => setIsEditMode((v) => !v)}
+      className={!isEditMode ? "!bg-[var(--color-brand-primary)] !text-white hover:!opacity-90" : undefined}
+    >
+      {isEditMode ? "편집 종료" : "편집 모드"}
+    </Button>
   );
 
   return (
@@ -198,7 +99,7 @@ export default function SessionScoresEntryPage({
         }
         filterSlot={null}
         primaryAction={primaryAction}
-        belowSlot={selectionBar}
+        belowSlot={null}
       />
 
       {isEditMode && (
@@ -216,11 +117,27 @@ export default function SessionScoresEntryPage({
       )}
 
       {isEditMode && (
-        <p className="text-xs text-[var(--color-text-muted)]">
-          <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Tab</kbd> / <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 셀 이동 ·
-          숫자 입력 후 <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 저장 ·
-          <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">/</kbd>+<kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 미제출
-        </p>
+        <div className="flex flex-col gap-1 text-xs text-[var(--color-text-muted)]">
+          <p>
+            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Tab</kbd>
+            {" · "}
+            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd>
+            {" · "}
+            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">방향키</kbd>
+            {" 로 셀 이동"}
+          </p>
+          <p>
+            {"숫자 입력 후 "}
+            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd>
+            {" 저장"}
+          </p>
+          <p>
+            {"미제출: "}
+            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">/</kbd>
+            {" + "}
+            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd>
+          </p>
+        </div>
       )}
 
       {isLoading && (
