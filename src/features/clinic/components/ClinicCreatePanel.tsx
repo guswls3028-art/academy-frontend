@@ -20,7 +20,7 @@ type TargetRow = { enrollment_id: number; student_name: string };
 type StudentRow = { id: number; name: string };
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return dayjs().format("YYYY-MM-DD");
 }
 
 function parseTimeRange(s: string): { start: string; end: string } {

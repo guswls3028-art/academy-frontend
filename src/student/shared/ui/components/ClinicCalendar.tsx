@@ -2,10 +2,10 @@
  * 클리닉 예약 달력 컴포넌트
  * - 날짜 선택 가능
  * - 예약 상태별 색상 표시 (노란색: pending, 초록색: 승인)
- * - 여러 날짜 예약 가능
+ * - 이미 생성된 클리닉 일정만 표시 (availableDates는 API 세션 기준)
  */
 import { useState, useMemo } from "react";
-import { formatYmd } from "@/student/shared/utils/date";
+import { formatYmd, todayYmd } from "@/student/shared/utils/date";
 import type { ClinicBookingRequest } from "@/student/domains/clinic/api/clinicBooking.api";
 
 type Props = {
@@ -25,7 +25,7 @@ export default function ClinicCalendar({
   minDate,
   maxDate,
 }: Props) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayYmd();
   const [currentMonth, setCurrentMonth] = useState(() => {
     const date = selectedDate ? new Date(selectedDate) : new Date();
     return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -66,7 +66,10 @@ export default function ClinicCalendar({
 
     const current = new Date(startDate);
     while (current <= endDate) {
-      const dateStr = current.toISOString().slice(0, 10); // YYYY-MM-DD
+      const y = current.getFullYear();
+      const m = String(current.getMonth() + 1).padStart(2, "0");
+      const d = String(current.getDate()).padStart(2, "0");
+      const dateStr = `${y}-${m}-${d}`;
       const isCurrentMonth = current.getMonth() === month;
       const isToday = dateStr === today;
       const booking = bookingByDate.get(dateStr);
@@ -183,7 +186,10 @@ export default function ClinicCalendar({
         }}
       >
       {calendarDays.map((day, idx) => {
-        const dateStr = day.date.toISOString().slice(0, 10); // YYYY-MM-DD
+        const y = day.date.getFullYear();
+        const m = String(day.date.getMonth() + 1).padStart(2, "0");
+        const d = String(day.date.getDate()).padStart(2, "0");
+        const dateStr = `${y}-${m}-${d}`;
         const isSelected = selectedDate === dateStr;
           const statusColor = getDateStatusColor(day.booking);
           const isClickable = day.isSelectable;

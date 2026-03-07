@@ -1,5 +1,6 @@
 // PATH: src/features/clinic/api/clinicSessions.api.ts
 import api from "@/shared/api/axios";
+import dayjs from "dayjs";
 
 export type ClinicSessionTreeNode = {
   id: number;
@@ -14,9 +15,15 @@ export type ClinicSessionTreeNode = {
   max_participants?: number | null;
 };
 
+function normalizeDate(s: string): string {
+  const d = dayjs(s);
+  return d.isValid() ? d.format("YYYY-MM-DD") : s;
+}
+
 /**
  * 운영 좌측 트리 전용
  * GET /clinic/sessions/tree/?year=YYYY&month=MM
+ * 응답 date를 YYYY-MM-DD로 정규화해 색상/필터 정합성 보장
  */
 export async function fetchClinicSessionTree(params: {
   year: number;
@@ -24,7 +31,13 @@ export async function fetchClinicSessionTree(params: {
 }) {
   const res = await api.get("/clinic/sessions/tree/", { params });
 
-  if (Array.isArray(res.data)) return res.data as ClinicSessionTreeNode[];
-  if (Array.isArray(res.data?.results)) return res.data.results as ClinicSessionTreeNode[];
-  return [];
+  const raw = Array.isArray(res.data)
+    ? res.data
+    : Array.isArray(res.data?.results)
+    ? res.data.results
+    : [];
+  return (raw as ClinicSessionTreeNode[]).map((s) => ({
+    ...s,
+    date: normalizeDate(s.date),
+  }));
 }

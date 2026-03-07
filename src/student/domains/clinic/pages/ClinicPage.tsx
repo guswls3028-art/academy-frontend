@@ -17,7 +17,7 @@ import {
   cancelClinicBookingRequest,
   type ClinicBookingRequest,
 } from "../api/clinicBooking.api";
-import { formatYmd } from "@/student/shared/utils/date";
+import { formatYmd, todayYmd } from "@/student/shared/utils/date";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
 
@@ -45,12 +45,13 @@ export default function ClinicPage() {
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["student", "clinic", "available-sessions"],
     queryFn: () => {
-      const today = new Date();
-      const twoWeeksLater = new Date(today);
-      twoWeeksLater.setDate(today.getDate() + 14);
+      const today = todayYmd();
+      const from = new Date(today);
+      const to = new Date(from);
+      to.setDate(to.getDate() + 14);
       return fetchAvailableClinicSessions({
-        date_from: today.toISOString().slice(0, 10),
-        date_to: twoWeeksLater.toISOString().slice(0, 10),
+        date_from: today,
+        date_to: `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, "0")}-${String(to.getDate()).padStart(2, "0")}`,
       });
     },
   });

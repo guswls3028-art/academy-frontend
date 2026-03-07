@@ -38,7 +38,7 @@ export type ClinicBookingRequest = {
 /**
  * 예약 가능한 클리닉 세션 목록 조회
  * GET /clinic/sessions/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
- * 백엔드에서 학생도 조회 가능하도록 권한 설정됨
+ * ✅ 이미 생성된 클리닉만 반환 — 학생은 이 목록에서만 예약 가능
  */
 export async function fetchAvailableClinicSessions(params?: {
   date_from?: string;
@@ -65,7 +65,6 @@ export async function fetchAvailableClinicSessions(params?: {
       ? res.data.results
       : [];
 
-    // 전체 세션 반환 (정원 마감된 것도 포함해 학생 앱에서 비활성+시각 효과로 표시)
     return sessions as ClinicSession[];
   } catch (error) {
     console.error("예약 가능 세션 조회 실패:", error);
@@ -117,37 +116,23 @@ export async function fetchMyClinicBookingRequests(): Promise<ClinicBookingReque
 /**
  * 클리닉 예약 신청
  * POST /clinic/participants/
- * 
- * 백엔드에서 자동 처리:
- * - student: 현재 로그인한 학생 자동 설정
- * - source: "student_request" 자동 설정
- * - status: "pending" 자동 설정
- * - enrollment_id: 활성 enrollment 자동 조회
+ *
+ * ✅ 이미 생성된 클리닉(세션)만 예약 가능 — session 필수
+ * 백엔드에서 student, source, status, enrollment_id 자동 설정
  */
 export async function createClinicBookingRequest(data: {
-  session?: number;
-  date?: string; // YYYY-MM-DD (세션이 없을 때)
-  start_time?: string; // HH:MM (세션이 없을 때)
+  session: number;
   memo?: string;
 }): Promise<ClinicBookingRequest> {
-  const payload: any = {
+  if (!data.session) {
+    throw new Error("등록 가능한 클리닉 시간을 선택해주세요.");
+  }
+  const res = await api.post("/clinic/participants/", {
     source: "student_request",
     status: "pending",
-    memo: data.memo,
-  };
-
-  if (data.session) {
-    // 기존 세션 선택 방식
-    payload.session = data.session;
-  } else if (data.date && data.start_time) {
-    // 시간 직접 선택 방식 (세션이 없을 때)
-    payload.requested_date = data.date;
-    payload.requested_start_time = data.start_time;
-  } else {
-    throw new Error("session 또는 (date + start_time) 중 하나는 필수입니다.");
-  }
-
-  const res = await api.post("/clinic/participants/", payload);
+    session: data.session,
+    memo: data.memo ?? undefined,
+  });
 
   return {
     id: res.data.id,

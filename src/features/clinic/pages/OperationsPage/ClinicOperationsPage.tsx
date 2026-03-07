@@ -13,7 +13,7 @@ import ClinicDaySchedulePanel from "../../components/ClinicDaySchedulePanel";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return dayjs().format("YYYY-MM-DD");
 }
 
 function normalizeClinicStatusParam(
@@ -113,7 +113,9 @@ export default function ClinicOperationsPage() {
         <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[360px]">
           <ClinicDaySchedulePanel
             date={baseDate}
-            sessionsForDay={(treeQ.data ?? []).filter((s) => s.date === baseDate)}
+            sessionsForDay={(treeQ.data ?? []).filter(
+              (s) => dayjs(s.date).format("YYYY-MM-DD") === baseDate
+            )}
             rows={participants.listQ.data ?? []}
           />
         </div>
