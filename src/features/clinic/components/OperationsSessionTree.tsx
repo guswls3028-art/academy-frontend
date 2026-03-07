@@ -52,18 +52,23 @@ export default function OperationsSessionTree({
   const monthLabel = `${year}-${String(month).padStart(2, "0")}`;
 
   return (
-    <div className="clinic-panel w-[320px] shrink-0 overflow-hidden">
-      <div className="clinic-panel__header flex items-center justify-between">
-        <h2 className="clinic-panel__title">날짜</h2>
-        <button
-          type="button"
-          className="clinic-btn-reset"
-          onClick={onClear}
-        >
-          초기화
-        </button>
+    <div className="ds-card-modal clinic-panel w-[320px] shrink-0 overflow-hidden">
+      <div className="ds-card-modal__header flex items-center justify-between">
+        <div className="ds-card-modal__accent" aria-hidden />
+        <div className="ds-card-modal__header-inner">
+          <h2 className="ds-card-modal__header-title">날짜</h2>
+        </div>
+        <div className="ds-card-modal__header-right">
+          <button
+            type="button"
+            className="clinic-btn-reset"
+            onClick={onClear}
+          >
+            초기화
+          </button>
+        </div>
       </div>
-      <div className="clinic-panel__body p-4 space-y-2 max-h-[680px] overflow-auto">
+      <div className="ds-card-modal__body p-4 space-y-2 max-h-[680px] overflow-auto">
         <details open>
           <summary className="clinic-tree__summary">{monthLabel}</summary>
           <div className="mt-2 pl-1 space-y-2">

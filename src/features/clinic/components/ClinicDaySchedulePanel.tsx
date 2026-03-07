@@ -32,12 +32,15 @@ export default function ClinicDaySchedulePanel({
 }) {
   if (!rows.length) {
     return (
-      <div className="clinic-panel overflow-hidden">
-        <div className="clinic-panel__header">
-          <h2 className="clinic-panel__title">클리닉 일정</h2>
-          <p className="clinic-panel__meta">{date}</p>
+      <div className="ds-card-modal clinic-panel overflow-hidden">
+        <div className="ds-card-modal__header">
+          <div className="ds-card-modal__accent" aria-hidden />
+          <div className="ds-card-modal__header-inner">
+            <h2 className="ds-card-modal__header-title">클리닉 일정</h2>
+            <p className="ds-card-modal__header-description">{date}</p>
+          </div>
         </div>
-        <div className="clinic-panel__body">
+        <div className="ds-card-modal__body">
           <div className="clinic-empty-state">
             <EmptyCalendarIcon className="clinic-empty-state__icon" />
             <p className="clinic-empty-state__text">해당 날짜에 일정이 없습니다.</p>
@@ -56,12 +59,15 @@ export default function ClinicDaySchedulePanel({
   const times = Object.keys(byTime).sort((a, b) => (a > b ? 1 : -1));
 
   return (
-    <div className="clinic-panel overflow-hidden">
-      <div className="clinic-panel__header">
-        <h2 className="clinic-panel__title">클리닉 일정</h2>
-        <p className="clinic-panel__meta">{date}</p>
+    <div className="ds-card-modal clinic-panel overflow-hidden">
+      <div className="ds-card-modal__header">
+        <div className="ds-card-modal__accent" aria-hidden />
+        <div className="ds-card-modal__header-inner">
+          <h2 className="ds-card-modal__header-title">클리닉 일정</h2>
+          <p className="ds-card-modal__header-description">{date}</p>
+        </div>
       </div>
-      <div className="clinic-panel__body space-y-5">
+      <div className="ds-card-modal__body space-y-5">
         {times.map((time) => {
           const items = byTime[time] ?? [];
           return (
