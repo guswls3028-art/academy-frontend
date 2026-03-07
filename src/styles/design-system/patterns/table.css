@@ -280,3 +280,12 @@ table.ds-table {
 .ds-table tbody tr.ds-row-selected:hover {
   background: color-mix(in srgb, var(--color-primary) 18%, var(--bg-surface)) !important;
 }
+
+/* 컬럼 리사이즈 핸들 — 헤더 오른쪽 가장자리 드래그 */
+.data-table-resize-handle:hover,
+.data-table-resize-handle:active {
+  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+.ds-table thead th:has(.data-table-resize-handle):hover .data-table-resize-handle {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}

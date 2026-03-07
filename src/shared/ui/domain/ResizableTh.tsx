@@ -4,6 +4,7 @@
  */
 
 import { useRef, useCallback, useState, useEffect } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 const RESIZE_HANDLE_WIDTH = 6;
 
@@ -13,9 +14,9 @@ type ResizableThProps = {
   minWidth?: number;
   maxWidth?: number;
   onWidthChange: (key: string, width: number) => void;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
   onClick?: () => void;
   "aria-sort"?: "ascending" | "descending" | "none";
   scope?: "col";
@@ -39,7 +40,7 @@ export default function ResizableTh({
   const [isResizing, setIsResizing] = useState(false);
 
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent<HTMLSpanElement>) => {
       e.preventDefault();
       e.stopPropagation();
       startX.current = e.clientX;
@@ -63,7 +64,7 @@ export default function ResizableTh({
     setIsResizing(false);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isResizing) return;
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
@@ -107,6 +108,3 @@ export default function ResizableTh({
     </th>
   );
 }
-
-// React import for useEffect
-import * as React from "react";
