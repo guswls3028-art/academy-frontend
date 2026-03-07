@@ -14,10 +14,11 @@ export function useClinicParticipants(params: {
 }) {
   const qc = useQueryClient();
 
-  // ✅ Home / Reports 에서 날짜 기반 조회 허용
+  // ✅ Home / Reports 에서 날짜 기반 조회 허용; 예약 신청 목록은 status=pending 만으로 조회 가능(날짜 무관)
   const enabled =
     !!params.session ||
-    (!!params.session_date_from && !!params.session_date_to);
+    (!!params.session_date_from && !!params.session_date_to) ||
+    params.status === "pending";
 
   const listQ = useQuery({
     queryKey: ["clinic-participants", params],

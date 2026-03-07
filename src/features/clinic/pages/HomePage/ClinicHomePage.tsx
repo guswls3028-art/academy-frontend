@@ -40,8 +40,6 @@ export default function ClinicHomePage() {
   });
   const targetsQ = useClinicTargets();
   const pendingQ = useClinicParticipants({
-    session_date_from: date,
-    session_date_to: dayjs(date).add(90, "day").format("YYYY-MM-DD"),
     status: "pending",
   });
   const settingsQ = useQuery({
@@ -72,6 +70,8 @@ export default function ClinicHomePage() {
       updateClinicSettings(undefined, undefined, on),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["clinic-settings"] });
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
   });
 
@@ -185,7 +185,7 @@ export default function ClinicHomePage() {
                         {p.student_name}
                       </div>
                       <div className="text-xs text-[var(--color-text-muted)]">
-                        {p.session_date} {p.session_start_time?.slice(0, 5)} · {p.session_location}
+                        {p.session_date ?? "-"} {p.session_start_time?.slice(0, 5) ?? ""} · {p.session_location ?? "-"}
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0">
