@@ -37,6 +37,7 @@ export default function SessionScoresEntryPage({
   const [searchInput, setSearchInput] = useState("");
   const [addHomeworkOpen, setAddHomeworkOpen] = useState(false);
   const [addHomeworkTitle, setAddHomeworkTitle] = useState("");
+  const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["session-scores", numericSessionId],
@@ -134,10 +135,44 @@ export default function SessionScoresEntryPage({
       )}
 
       {!isLoading && !isError && (
-        <SessionScoresPanel
-          sessionId={numericSessionId}
-          search={searchInput}
-        />
+        <>
+          {selectedEnrollmentIds.length > 0 && (
+            <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-[var(--color-bg-surface-soft)] border border-[var(--border-divider)] text-sm">
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {selectedEnrollmentIds.length}명을 대상으로
+              </span>
+              <Button type="button" intent="secondary" size="sm">
+                성적 일괄 변경
+              </Button>
+              <Button type="button" intent="secondary" size="sm">
+                메시지 발송
+              </Button>
+              <Button type="button" intent="secondary" size="sm">
+                수업 결과 발송
+              </Button>
+              <Button type="button" intent="secondary" size="sm">
+                참여자 제거
+              </Button>
+              <Button type="button" intent="secondary" size="sm">
+                엑셀 다운로드
+              </Button>
+              <Button
+                type="button"
+                intent="tertiary"
+                size="sm"
+                onClick={() => setSelectedEnrollmentIds([])}
+              >
+                선택 해제
+              </Button>
+            </div>
+          )}
+          <SessionScoresPanel
+            sessionId={numericSessionId}
+            search={searchInput}
+            selectedEnrollmentIds={selectedEnrollmentIds}
+            onSelectionChange={setSelectedEnrollmentIds}
+          />
+        </>
       )}
 
       {addHomeworkOpen && (

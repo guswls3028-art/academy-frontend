@@ -18,9 +18,12 @@ import { EmptyState } from "@/shared/ui/ds";
 type Props = {
   sessionId: number;
   search?: string;
+  /** 일괄 작업용 행 선택. 부모에서 관리 시 전달 */
+  selectedEnrollmentIds?: number[];
+  onSelectionChange?: (enrollmentIds: number[]) => void;
 };
 
-export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
+export default function SessionScoresPanel({ sessionId, search = "", selectedEnrollmentIds = [], onSelectionChange }: Props) {
   const tableWrapperRef = useRef<HTMLDivElement>(null);
   const [focusHomeworkCell, setFocusHomeworkCell] = useState<{
     enrollmentId: number;
@@ -280,6 +283,8 @@ export default function SessionScoresPanel({ sessionId, search = "" }: Props) {
             }
           }}
           onSelectRow={setSelected}
+          selectedEnrollmentIds={selectedEnrollmentIds}
+          onSelectionChange={onSelectionChange}
         />
       </div>
 
