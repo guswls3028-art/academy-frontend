@@ -371,7 +371,7 @@ export default function ScoresTable({
                 onClick={() => onSelectRow(row)}
                 tabIndex={0}
                 role="button"
-                className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] min-h-[40px] max-h-[44px] ${selected ? "ds-row-selected" : ""} hover:bg-[var(--color-bg-surface-hover)]`}
+                className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] ${selected ? "ds-row-selected" : ""} hover:bg-[var(--color-bg-surface-hover)]`}
               >
                 <td
                   className="ds-checkbox-cell align-middle py-2.5 px-3 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
@@ -495,7 +495,7 @@ export default function ScoresTable({
                   return (
                     <Fragment key={hw.homework_id}>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         style={{ backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
