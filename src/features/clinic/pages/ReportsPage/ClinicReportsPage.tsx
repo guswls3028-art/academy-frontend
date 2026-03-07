@@ -184,7 +184,7 @@ export default function ClinicReportsPage() {
                 className={cx(
                   "h-8 px-3 rounded-lg text-sm font-medium border",
                   mode === "detail"
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
+                    ? "border-[var(--color-brand-primary)] bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
                     : "border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)]"
                 )}
               >
@@ -196,7 +196,7 @@ export default function ClinicReportsPage() {
                 className={cx(
                   "h-8 px-3 rounded-lg text-sm font-medium border",
                   mode === "compact"
-                    ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-text-inverse)]"
+                    ? "border-[var(--color-brand-primary)] bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)]"
                     : "border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)]"
                 )}
               >
@@ -253,7 +253,7 @@ export default function ClinicReportsPage() {
                     !c.isCurrentMonth && "bg-[var(--color-bg-surface-soft)] opacity-60",
                     has &&
                       c.isCurrentMonth &&
-                      "bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-bg-surface))]"
+                      "bg-[color-mix(in_srgb,var(--color-brand-primary)_6%,var(--color-bg-surface))]"
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -267,7 +267,7 @@ export default function ClinicReportsPage() {
                     </span>
                     {has && (
                       <span
-                        className="inline-block w-2.5 h-2.5 rounded-full bg-[var(--color-primary)]"
+                        className="inline-block w-2.5 h-2.5 rounded-full bg-[var(--color-brand-primary)]"
                         title={`${items.length}개`}
                       />
                     )}
@@ -323,7 +323,7 @@ export default function ClinicReportsPage() {
                     className="w-full px-4 py-3 flex items-center justify-between text-left bg-[var(--color-bg-surface-soft)] hover:bg-[var(--color-bg-surface-hover)] transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-[var(--color-primary)]" />
+                      <span className="inline-block w-2.5 h-2.5 rounded-full bg-[var(--color-brand-primary)]" />
                       <span className="text-sm font-semibold text-[var(--color-text-primary)]">
                         {d.date}{" "}
                         <span className="text-[var(--color-text-muted)] font-medium">

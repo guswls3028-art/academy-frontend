@@ -220,7 +220,7 @@ function ClinicIdcardColorSettings() {
                   key={index}
                   type="button"
                   onClick={() => handleOpenColorModal(index)}
-                  className="group relative h-20 rounded-lg border-2 border-[var(--color-border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors flex flex-col items-center justify-center gap-1"
+                  className="group relative h-20 rounded-lg border-2 border-[var(--color-border-divider)] overflow-hidden hover:border-[var(--color-brand-primary)] transition-colors flex flex-col items-center justify-center gap-1"
                   style={{ background: localColors[index] }}
                 >
                   <span className="text-xs font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
@@ -314,8 +314,8 @@ function ColorSelectModal({
                   onClick={() => onSelect(item.color)}
                   className={`h-12 rounded-lg border-2 transition-all hover:scale-105 ${
                     currentColor === item.color
-                      ? "border-[var(--color-primary)] ring-2 ring-[var(--color-primary)] ring-offset-2"
-                      : "border-[var(--border-divider)] hover:border-[var(--color-primary)]"
+                      ? "border-[var(--color-brand-primary)] ring-2 ring-[var(--color-brand-primary)] ring-offset-2"
+                      : "border-[var(--border-divider)] hover:border-[var(--color-brand-primary)]"
                   }`}
                   style={{ background: item.color }}
                   title={item.name}

@@ -144,7 +144,7 @@ export default function ClinicHomePage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <span
-                      className={`text-lg font-semibold ${isToday ? "text-[var(--color-primary)]" : "text-[var(--color-text-primary)]"}`}
+                      className={`text-lg font-semibold ${isToday ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-primary)]"}`}
                     >
                       {d.dow}
                     </span>

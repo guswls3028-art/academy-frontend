@@ -88,7 +88,7 @@
   width: 2px;
   height: 14px;
   border-radius: 1px;
-  background: var(--color-primary);
+  background: var(--color-brand-primary);
   opacity: 0.7;
 }
 
@@ -137,7 +137,7 @@
   padding: 4px 10px;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -286,19 +286,19 @@ details[open] > .clinic-tree__summary {
   border-radius: var(--radius-sm);
 }
 
-/* 액션 행 (전체 선택) — 경계 부드럽게 */
+/* 액션 행 (전체 선택) — DS 경계 톤 ========== */
 .clinic-action-row {
   display: flex;
   align-items: center;
   padding: var(--space-4) var(--space-5);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: none;
-  background: rgba(0, 0, 0, 0.03);
+  background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface));
   transition: background 0.15s ease;
 }
 
 .clinic-action-row:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
 }
 
 .clinic-action-row label {
@@ -345,15 +345,15 @@ details[open] > .clinic-tree__summary {
   color: var(--color-text-muted);
 }
 
-/* 주간 일정 셀 등 (다른 패널에서 사용) */
+/* 주간 일정 셀 등 (다른 패널에서 사용) — DS elevation ========== */
 .clinic-day-cell {
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: none;
   background: var(--color-bg-surface-soft);
   padding: var(--space-4);
   font-size: var(--text-md);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--elevation-1);
   transition: background 0.15s ease, box-shadow 0.15s ease;
   text-align: left;
   cursor: pointer;
@@ -365,19 +365,19 @@ details[open] > .clinic-tree__summary {
 }
 
 .clinic-day-cell--today {
-  box-shadow: 0 0 0 1.5px var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+  box-shadow: 0 0 0 1.5px var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
 }
 
 .clinic-time-block {
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   background: var(--color-bg-surface-soft);
   border: none;
   font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--elevation-1);
 }
 
 .clinic-time-block--alert {

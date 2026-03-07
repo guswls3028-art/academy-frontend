@@ -176,7 +176,7 @@ export default function ClinicRemoteControl() {
             <h2 className="clinic-panel__title">클리닉 리모컨</h2>
             <p className="clinic-panel__meta">선택 즉시 학생 화면 반영</p>
           </div>
-          <span className="px-2 py-1 bg-[var(--color-primary)] text-[var(--color-text-inverse)] text-xs font-semibold rounded-md">
+          <span className="px-2 py-1 bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)] text-xs font-semibold rounded-md">
             LIVE
           </span>
         </div>
@@ -201,7 +201,7 @@ export default function ClinicRemoteControl() {
                   className="relative group text-left"
                 >
                   <div
-                    className="w-full h-20 rounded-lg border-2 border-[var(--color-border-divider)] transition-all hover:border-[var(--color-primary)] hover:scale-[1.02]"
+                    className="w-full h-20 rounded-lg border-2 border-[var(--color-border-divider)] transition-all hover:border-[var(--color-brand-primary)] hover:scale-[1.02]"
                     style={{ backgroundColor: colors[index] }}
                   />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
