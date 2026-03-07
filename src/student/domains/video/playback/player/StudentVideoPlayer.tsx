@@ -122,6 +122,7 @@ export default function StudentVideoPlayer({
   const [theater, setTheater] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenFallbackRef = useRef(false);
 
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
   const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -173,6 +174,7 @@ export default function StudentVideoPlayer({
         (document as any).webkitFullscreenElement ||
         (document as any).mozFullScreenElement;
       const active = el === wrap || (el && wrap.contains(el));
+      if (!active) fullscreenFallbackRef.current = false;
       setIsFullscreen(!!active);
       if (active) {
         document.body.style.overflow = "hidden";
