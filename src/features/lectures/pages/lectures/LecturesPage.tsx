@@ -2,13 +2,15 @@
 // Design: docs/DESIGN_SSOT.md (강의 관리만 체크박스 없음 — 유일 예외)
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { Settings } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, DEFAULT_PRESET_COLOR, TABLE_COL } from "@/shared/ui/domain";
 import LectureCreateModal from "../../components/LectureCreateModal";
+import LectureSettingsModal from "../../components/LectureSettingsModal";
 
 type LecturesPageProps = {
   tab?: "active" | "past";
@@ -28,20 +30,9 @@ type LectureItem = {
 
 type TabKey = "active" | "past";
 
+/** 지난 강의 = is_active === false 인 경우만. 종료일 자동 이동 로직 없음. */
 function isPastLecture(lec: LectureItem) {
-  const activeFlag =
-    typeof lec.is_active === "boolean" ? lec.is_active : undefined;
-  if (activeFlag === false) return true;
-  if (!lec.end_date) return false;
-
-  const end = new Date(lec.end_date);
-  if (Number.isNaN(end.getTime())) return false;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-
-  return end.getTime() < today.getTime();
+  return lec.is_active === false;
 }
 
 export default function LecturesPage({ tab = "active" }: LecturesPageProps = {}) {
@@ -74,10 +65,13 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
     };
 
     active.sort((a, b) => toTime(b.start_date) - toTime(a.start_date));
-    past.sort((a, b) => toTime(b.end_date) - toTime(a.end_date));
+    past.sort((a, b) => toTime(b.start_date) - toTime(a.start_date));
 
     return { activeLectures: active, pastLectures: past };
   }, [data]);
+
+  const [settingsLecture, setSettingsLecture] = useState<LectureItem | null>(null);
+  const qc = useQueryClient();
 
   function isLightColor(hex: string): boolean {
   const c = String(hex || "").toLowerCase();
@@ -140,7 +134,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
                 tableClassName="ds-table--flat"
                 tableStyle={{
                   tableLayout: "fixed",
-                  width: TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.timeRange + TABLE_COL.dateRange + TABLE_COL.subject,
+                  width: TABLE_COL.title + TABLE_COL.subject + TABLE_COL.medium + TABLE_COL.timeRange + TABLE_COL.dateRange + 56,
                 }}
               >
                 <colgroup>
@@ -149,7 +143,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
                   <col style={{ width: TABLE_COL.medium }} />
                   <col style={{ width: TABLE_COL.timeRange }} />
                   <col style={{ width: TABLE_COL.dateRange }} />
-                  <col style={{ width: TABLE_COL.subject }} />
+                  <col style={{ width: 56 }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -158,7 +152,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
                     <th scope="col">강사</th>
                     <th scope="col">강의 시간</th>
                     <th scope="col">기간</th>
-                    <th scope="col">바로가기</th>
+                    <th scope="col" aria-label="설정" />
                   </tr>
                 </thead>
                 <tbody>
@@ -207,40 +201,23 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
                       <td style={{ fontWeight: 600 }}>
                         {lec.start_date && lec.end_date
                           ? `${lec.start_date} ~ ${lec.end_date}`
-                          : "-"}
+                          : lec.start_date
+                            ? `${lec.start_date} ~`
+                            : "-"}
                       </td>
-                      <td onClick={(e) => e.stopPropagation()} style={{ verticalAlign: "middle" }}>
-                        <div className="flex flex-wrap gap-1">
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)]"
-                            onClick={() =>
-                              navigate(
-                                `/admin/community/admin?tab=notice&scope=lecture&lectureId=${lec.id}`
-                              )
-                            }
-                          >
-                            공지
-                          </button>
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)]"
-                            onClick={() => navigate("/admin/exams")}
-                          >
-                            시험
-                          </button>
-                          <button
-                            type="button"
-                            className="text-xs px-2 py-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)]"
-                            onClick={() =>
-                              navigate(
-                                `/admin/community/admin?tab=notice&scope=lecture&lectureId=${lec.id}`
-                              )
-                            }
-                          >
-                            게시판
-                          </button>
-                        </div>
+                      <td onClick={(e) => e.stopPropagation()} style={{ verticalAlign: "middle", padding: "4px 8px" }}>
+                        <button
+                          type="button"
+                          className="flex items-center justify-center w-9 h-9 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSettingsLecture(lec);
+                          }}
+                          aria-label="설정"
+                        >
+                          <Settings size={18} strokeWidth={2} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -256,6 +233,25 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
           isOpen
           onClose={() => setShowModal(false)}
           usedColors={data?.map((l) => l.color).filter(Boolean) ?? []}
+        />
+      )}
+
+      {settingsLecture && (
+        <LectureSettingsModal
+          open
+          onClose={() => setSettingsLecture(null)}
+          lecture={settingsLecture}
+          isPast={tab === "past"}
+          onEdit={(id) => {
+            setSettingsLecture(null);
+            navigate(`/admin/lectures/${id}`);
+          }}
+          onAfterEnd={() => {
+            qc.invalidateQueries({ queryKey: ["lectures"] });
+            navigate("/admin/lectures/past");
+          }}
+          onAfterRestore={() => qc.invalidateQueries({ queryKey: ["lectures"] })}
+          onAfterDelete={() => qc.invalidateQueries({ queryKey: ["lectures"] })}
         />
       )}
     </>

@@ -23,7 +23,7 @@ interface CreateLecturePayload {
   subject: string;
   description: string;
   start_date: string;
-  end_date: string;
+  end_date?: string | null;
   lecture_time: string;
   color: string;
   chip_label: string;
@@ -101,18 +101,19 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
 
   function submit() {
     if (!title.trim()) return;
-    mutate({
+    const payload: CreateLecturePayload = {
       title,
       name,
       subject,
       description,
       start_date: startDate,
-      end_date: endDate,
       lecture_time: lectureTime.trim(),
       color,
       chip_label: chipLabel.trim().slice(0, 2),
       is_active: true,
-    });
+    };
+    if (endDate.trim()) payload.end_date = endDate.trim();
+    mutate(payload);
   }
 
   return (
@@ -227,7 +228,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             <DatePicker
               value={endDate}
               onChange={setEndDate}
-              placeholder="종료일"
+              placeholder="종료일 (선택)"
               disabled={isPending}
             />
           </div>
