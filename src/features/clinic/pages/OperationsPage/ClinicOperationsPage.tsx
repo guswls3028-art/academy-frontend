@@ -85,12 +85,29 @@ export default function ClinicOperationsPage() {
             selectedDay={baseDate}
             year={ym.year}
             month={ym.month}
+            todayISO={todayISO()}
+            onToday={() => {
+              setBaseDate(todayISO());
+              setMode("day");
+              setSelectedSessionId(null);
+            }}
+            onPrevMonth={() => {
+              const d = dayjs(baseDate).subtract(1, "month");
+              setBaseDate(d.startOf("month").format("YYYY-MM-DD"));
+              setMode("day");
+              setSelectedSessionId(null);
+            }}
+            onNextMonth={() => {
+              const d = dayjs(baseDate).add(1, "month");
+              setBaseDate(d.startOf("month").format("YYYY-MM-DD"));
+              setMode("day");
+              setSelectedSessionId(null);
+            }}
             onSelectDay={(date) => {
               setBaseDate(date);
               setMode("day");
               setSelectedSessionId(null);
             }}
-            onClear={() => setSelectedSessionId(null)}
           />
         </aside>
         <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[360px]">

@@ -24,6 +24,313 @@
   font-weight: 500;
 }
 
+/* ========== 좌측 스케줄러 패널 (SaaS 스타일) ========== */
+.clinic-scheduler-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(85vh, 780px);
+}
+
+.clinic-scheduler-panel__header {
+  position: relative;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface));
+}
+
+.clinic-scheduler-panel__header-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-scheduler-panel__title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.clinic-scheduler-panel__meta {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.clinic-scheduler-panel__count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 4px 0 0 0;
+}
+
+.clinic-scheduler-panel__body {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.clinic-scheduler-panel__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.clinic-scheduler-panel__nav-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease;
+}
+
+.clinic-scheduler-panel__nav-btn:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.clinic-scheduler-panel__today-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.clinic-scheduler-panel__today-btn:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+  color: var(--color-brand-primary);
+}
+
+.clinic-scheduler-panel__mini-cal {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.clinic-scheduler-panel__mini-cal-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.clinic-scheduler-panel__mini-cal-dow-cell {
+  text-align: center;
+}
+
+.clinic-scheduler-panel__mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.clinic-scheduler-panel__mini-cal-cell {
+  aspect-ratio: 1;
+  max-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.12s ease;
+}
+
+.clinic-scheduler-panel__mini-cal-cell:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.clinic-scheduler-panel__mini-cal-cell--today {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+}
+
+.clinic-scheduler-panel__mini-cal-cell--selected {
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse, #fff);
+}
+
+.clinic-scheduler-panel__mini-cal-cell--empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+.clinic-scheduler-panel__mini-cal-dot {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
+}
+
+.clinic-scheduler-panel__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
+}
+
+.clinic-scheduler-panel__search-icon {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.clinic-scheduler-panel__search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.clinic-scheduler-panel__search-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.clinic-scheduler-panel__divider {
+  height: 1px;
+  background: var(--color-border-divider);
+  margin: 0 -4px;
+}
+
+.clinic-scheduler-panel__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 날짜 카드 — ▌ 27 Thu / 1 clinic, hover slide */
+.clinic-scheduler-panel__day-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.12s ease;
+  overflow: hidden;
+}
+
+.clinic-scheduler-panel__day-card:hover {
+  background: var(--color-bg-surface-hover);
+  transform: translateX(2px);
+}
+
+.clinic-scheduler-panel__day-card--selected {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
+}
+
+.clinic-scheduler-panel__day-card--selected:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface));
+}
+
+.clinic-scheduler-panel__day-card--today {
+  box-shadow: 0 0 0 1px var(--color-brand-primary);
+}
+
+.clinic-scheduler-panel__day-card-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-brand-primary);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.clinic-scheduler-panel__day-card--selected .clinic-scheduler-panel__day-card-accent {
+  opacity: 0.9;
+}
+
+.clinic-scheduler-panel__day-card-inner {
+  flex: 1;
+  padding: 10px 12px 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-scheduler-panel__day-card-date {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clinic-scheduler-panel__day-card-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-scheduler-panel__day-card-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.clinic-scheduler-panel__day-card-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  opacity: 0.85;
+}
+
+.clinic-scheduler-panel__day-card--selected .clinic-scheduler-panel__day-card-dot {
+  background: var(--color-brand-primary);
+}
+
 @import "@/styles/design-system/ds/card-modal-style.css";
 @import "@/styles/design-system/patterns/section.css";
 @import "@/styles/design-system/patterns/panel.css";
