@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
-import { Save, FolderOpen, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
@@ -492,113 +492,61 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             />
           </div>
 
-          {/* 담당 강사 · 과목 — 같은 줄, 같은 높이 */}
+          {/* 담당 강사 · 과목 — 입력란 클릭 시 불러오기(저장 목록)만 열림, 직접 입력 불가 */}
           <div className="modal-form-group" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "start" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
                 담당 강사 (필수)
               </label>
-              <div className="flex flex-1 min-w-0 gap-2 items-center" style={{ minHeight: 36 }}>
+              <Popover
+                open={instructorPopoverOpen}
+                onOpenChange={(open) => {
+                  setInstructorPopoverOpen(open);
+                  if (open) setSavedInstructors(getSavedList(SAVED_INSTRUCTORS_KEY));
+                }}
+                trigger="click"
+                placement="bottomLeft"
+                content={instructorPopoverContent}
+              >
                 <input
                   type="text"
-                  className="ds-input flex-1 min-w-0"
-                  placeholder="선택 또는 입력"
+                  readOnly
+                  className="ds-input flex-1 min-w-0 w-full"
+                  placeholder="클릭하여 선택"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
                   data-required="true"
                   data-invalid={hasAttemptedSubmit && !name.trim() ? "true" : "false"}
                   disabled={isPending}
                   aria-label="담당 강사"
+                  style={{ cursor: "pointer", caretColor: "transparent" }}
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const v = name.trim();
-                    if (!v) {
-                      feedback.warning("담당 강사를 입력한 뒤 저장해 주세요.");
-                      return;
-                    }
-                    setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
-                    feedback.success("저장됨");
-                  }}
-                  className="saved-list-field-icon-btn"
-                  title="담당 강사 저장"
-                  aria-label="담당 강사 저장"
-                >
-                  <Save size={16} />
-                </button>
-                <Popover
-                  open={instructorPopoverOpen}
-                  onOpenChange={(open) => {
-                    setInstructorPopoverOpen(open);
-                    if (open) setSavedInstructors(getSavedList(SAVED_INSTRUCTORS_KEY));
-                  }}
-                  trigger="click"
-                  placement="bottomLeft"
-                  content={instructorPopoverContent}
-                >
-                  <button
-                    type="button"
-                    className="saved-list-field-icon-btn"
-                    title="담당 강사 불러오기"
-                    aria-label="담당 강사 불러오기"
-                  >
-                    <FolderOpen size={16} />
-                  </button>
-                </Popover>
-              </div>
+              </Popover>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
                 과목
               </label>
-              <div className="flex flex-1 min-w-0 gap-2 items-center" style={{ minHeight: 36 }}>
+              <Popover
+                open={subjectPopoverOpen}
+                onOpenChange={(open) => {
+                  setSubjectPopoverOpen(open);
+                  if (open) setSavedSubjects(getSavedList(SAVED_SUBJECTS_KEY));
+                }}
+                trigger="click"
+                placement="bottomLeft"
+                content={subjectPopoverContent}
+              >
                 <input
                   type="text"
-                  className="ds-input flex-1 min-w-0"
-                  placeholder="선택 또는 입력"
+                  readOnly
+                  className="ds-input flex-1 min-w-0 w-full"
+                  placeholder="클릭하여 선택"
                   value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
                   disabled={isPending}
                   aria-label="과목"
+                  style={{ cursor: "pointer", caretColor: "transparent" }}
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const v = subject.trim();
-                    if (!v) {
-                      feedback.warning("과목을 입력한 뒤 저장해 주세요.");
-                      return;
-                    }
-                    setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, v));
-                    feedback.success("저장됨");
-                  }}
-                  className="saved-list-field-icon-btn"
-                  title="과목 저장"
-                  aria-label="과목 저장"
-                >
-                  <Save size={16} />
-                </button>
-                <Popover
-                  open={subjectPopoverOpen}
-                  onOpenChange={(open) => {
-                    setSubjectPopoverOpen(open);
-                    if (open) setSavedSubjects(getSavedList(SAVED_SUBJECTS_KEY));
-                  }}
-                  trigger="click"
-                  placement="bottomLeft"
-                  content={subjectPopoverContent}
-                >
-                  <button
-                    type="button"
-                    className="saved-list-field-icon-btn"
-                    title="과목 불러오기"
-                    aria-label="과목 불러오기"
-                  >
-                    <FolderOpen size={16} />
-                  </button>
-                </Popover>
-              </div>
+              </Popover>
             </div>
           </div>
 
