@@ -24,18 +24,22 @@ import AttendanceStatusBadge, {
   type AttendanceStatus,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 
-const COL_NARROW = 56;   // 합불 등 짧은 컬럼
-const COL_SCORE = 72;   // 점수 입력 셀
-const COL_REASON = 120; // 대상 사유
-const COL_EDIT_SELECT = 72; // 수정/선택 통합 컬럼 (아이콘+라벨 여유)
+const COL_NARROW = 64;   // 합불 뱃지 — 가독성
+const COL_SCORE = 84;   // 점수 입력 셀 — 여유
+const COL_REASON = 180; // 대상 사유 — "총괄 클리닉 대상 사유" 가시성
+const COL_CLINIC_TARGET = 100; // 총괄 클리닉 대상
+const COL_EDIT_SELECT = 80; // 수정/선택 통합 컬럼 (아이콘+라벨 여유)
 
-/** 합불 뱃지 (가로 배치용 인라인) */
+/** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
 function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
-  if (passed == null) return null;
+  if (passed == null) return <span className="text-[var(--color-text-muted)]">-</span>;
   const tone = passed ? "success" : "danger";
   return (
-    <span className="ds-status-badge ds-status-badge--1ch" data-tone={tone}>
-      {passed ? "합" : "불"}
+    <span
+      className="ds-status-badge inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-xs font-medium"
+      data-tone={tone}
+    >
+      {passed ? "합격" : "불합"}
     </span>
   );
 }
@@ -165,7 +169,7 @@ export default function ScoresTable({
       );
     });
     list.push(
-      { type: "clinic_target", key: "clinic_target", width: TABLE_COL.statusBadge + 20, editable: false },
+      { type: "clinic_target", key: "clinic_target", width: COL_CLINIC_TARGET, editable: false },
       { type: "clinic_reason", key: "clinic_reason", width: COL_REASON, editable: false }
     );
     return list;
@@ -173,13 +177,13 @@ export default function ScoresTable({
 
   const columnDefs = useMemo((): TableColumnDef[] => {
     return [
-      { key: "edit", label: "수정", defaultWidth: COL_EDIT_SELECT, minWidth: 56, maxWidth: 120 },
+      { key: "edit", label: "수정", defaultWidth: COL_EDIT_SELECT, minWidth: 56, maxWidth: 140 },
       ...columns.map((c) => ({
         key: c.key,
         label: c.key,
         defaultWidth: c.width,
-        minWidth: 40,
-        maxWidth: 400,
+        minWidth: c.key === "name" ? 100 : c.key === "clinic_reason" ? 140 : 48,
+        maxWidth: 500,
       })),
     ];
   }, [columns]);
@@ -240,42 +244,43 @@ export default function ScoresTable({
             columnKey="edit"
             width={columnWidths.edit ?? COL_EDIT_SELECT}
             minWidth={56}
-            maxWidth={120}
+            maxWidth={140}
             onWidthChange={setColumnWidth}
             rowSpan={3}
             noWrap
-            className="ds-scores-edit-column align-top py-2 px-2 border-r border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
+            className="ds-scores-edit-column align-top py-2.5 px-2 border-r border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
           >
-            <div className="flex flex-col gap-2 items-center">
+            <div className="flex flex-col gap-2.5 items-center w-full">
               <label
-                className={`ds-scores-edit-trigger inline-flex flex-col items-center gap-1 cursor-pointer rounded-lg border-2 px-2 py-1.5 w-full transition-colors group ${
+                className={`ds-scores-edit-trigger flex flex-col items-center gap-1.5 cursor-pointer rounded-xl border-2 px-2.5 py-2 w-full transition-all duration-200 group ${
                   editRowState.all || allEditableChecked
-                    ? "border-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_12%,transparent)]"
-                    : "border-dashed border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)]"
+                    ? "border-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_10%,transparent)] shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                    : "border-dashed border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)] hover:shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                 }`}
-                title="체크 시 해당 컬럼 성적을 수정할 수 있습니다"
+                title="체크 시 아래 점수·합불 컬럼을 수정할 수 있습니다"
               >
                 <FiEdit2
-                  className={`w-4 h-4 ${editRowState.all || allEditableChecked ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-muted)] group-hover:text-[var(--color-brand-primary)]"}`}
+                  className={`w-5 h-5 ${editRowState.all || allEditableChecked ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-muted)] group-hover:text-[var(--color-brand-primary)]"}`}
                   aria-hidden
                 />
                 <span
-                  className={`text-[10px] font-semibold uppercase tracking-wide ${
+                  className={`text-[11px] font-semibold uppercase tracking-wide ${
                     editRowState.all || allEditableChecked ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-secondary)] group-hover:text-[var(--color-brand-primary)]"
                   }`}
                 >
                   수정
                 </span>
+                <span className="text-[9px] text-[var(--color-text-muted)]">편집 허용</span>
                 <input
                   type="checkbox"
                   checked={editRowState.all || allEditableChecked}
                   onChange={(e) => onEditRowChange("all", e.target.checked)}
-                  className="cursor-pointer w-3.5 h-3.5"
+                  className="cursor-pointer w-4 h-4 mt-0.5"
                   aria-label="전체 수정 허용"
                 />
               </label>
               {onSelectionChange && (
-                <label className="inline-flex items-center gap-1 cursor-pointer text-[10px] text-[var(--color-text-muted)]">
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] text-[var(--color-text-muted)]">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -286,7 +291,7 @@ export default function ScoresTable({
                         onSelectionChange([]);
                       }
                     }}
-                    className="cursor-pointer w-3.5 h-3.5"
+                    className="cursor-pointer w-4 h-4"
                     aria-label="전체 선택"
                   />
                   선택
@@ -321,11 +326,11 @@ export default function ScoresTable({
           ))}
         </tr>
         {/* 2행: 시험/과제명 — 첫 컬럼은 rowSpan으로 이미 차지됨 */}
-        <tr className="border-b border-[var(--color-border-divider)]">
-          <th scope="col" style={{ width: TABLE_COL.name }}>
+        <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
+          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
             이름
           </th>
-          <th scope="col" style={{ width: TABLE_COL.statusBadge }}>
+          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
             출석
           </th>
           {examOptions.map((ex) => (
@@ -333,8 +338,7 @@ export default function ScoresTable({
               key={`name-exam-${ex.exam_id}`}
               scope="col"
               colSpan={4}
-              className="text-left font-semibold text-[var(--color-text-primary)] truncate"
-              style={{ maxWidth: COL_SCORE * 4 }}
+              className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 truncate"
               title={ex.title}
             >
               {ex.title}
@@ -345,58 +349,57 @@ export default function ScoresTable({
               key={`name-hw-${hw.homework_id}`}
               scope="col"
               colSpan={2}
-              className="text-left font-semibold text-[var(--color-text-primary)] truncate"
-              style={{ maxWidth: COL_SCORE + COL_NARROW }}
+              className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 truncate"
               title={hw.title}
             >
               {hw.title}
             </th>
           ))}
-          <th scope="col" style={{ width: TABLE_COL.statusBadge + 20 }}>
+          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
             총괄 클리닉 대상
           </th>
-          <th scope="col" style={{ width: COL_REASON }}>
+          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0">
             대상 사유
           </th>
         </tr>
         {/* 3행: 서브 헤더 — 주관식/객관식/합산/합불, 점수/합불 */}
-        <tr>
-          <th scope="col" style={{ width: TABLE_COL.name }}>
+        <tr className="border-b border-[var(--color-border-divider)]">
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
             이름
           </th>
-          <th scope="col" style={{ width: TABLE_COL.statusBadge }}>
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
             출석
           </th>
           {examOptions.map((ex) => (
             <Fragment key={ex.exam_id}>
-              <th scope="col" style={{ width: COL_SCORE }} title={`${ex.title} 주관식`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${ex.title} 주관식`}>
                 주관식
               </th>
-              <th scope="col" style={{ width: COL_SCORE }} title={`${ex.title} 객관식`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${ex.title} 객관식`}>
                 객관식
               </th>
-              <th scope="col" style={{ width: COL_SCORE }} title={`${ex.title} 합산`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${ex.title} 합산`}>
                 합산
               </th>
-              <th scope="col" style={{ width: COL_NARROW }} title={`${ex.title} 합불`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${ex.title} 합불`}>
                 합불
               </th>
             </Fragment>
           ))}
           {homeworkOptions.map((hw) => (
             <Fragment key={hw.homework_id}>
-              <th scope="col" style={{ width: COL_SCORE }} title={`${hw.title} 점수`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${hw.title} 점수`}>
                 점수
               </th>
-              <th scope="col" style={{ width: COL_NARROW }} title={`${hw.title} 합불`}>
+              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" title={`${hw.title} 합불`}>
                 합불
               </th>
             </Fragment>
           ))}
-          <th scope="col" style={{ width: TABLE_COL.statusBadge + 20 }}>
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
             총괄 클리닉 대상
           </th>
-          <th scope="col" style={{ width: COL_REASON }}>
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
             대상 사유
           </th>
         </tr>
@@ -423,7 +426,7 @@ export default function ScoresTable({
                 }`}
               >
                 <td
-                  className="ds-checkbox-cell"
+                  className="ds-checkbox-cell align-middle py-2.5 px-3"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {onSelectionChange ? (
