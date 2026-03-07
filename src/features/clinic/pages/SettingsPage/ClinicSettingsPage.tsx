@@ -22,7 +22,13 @@ export default function ClinicSettingsPage() {
   const canManage = !!meQ.data?.is_payroll_manager || !!meQ.data?.is_superuser;
 
   if (meQ.isLoading) {
-    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+    return (
+      <div className="clinic-panel">
+        <div className="clinic-panel__body">
+          <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
+        </div>
+      </div>
+    );
   }
 
   if (!canManage) {
@@ -172,22 +178,17 @@ function ClinicIdcardColorSettings() {
           100% { background-position: 0% 50%; }
         }
       `}</style>
-      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-          <div className="text-sm font-semibold">패스카드 배경 색상 (위조 방지)</div>
-          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-            수업 종료 후 "오늘은 빨 파 초로 해"라고 하면 배경이 해당 색상으로 변경됩니다.
-          </div>
+      <div className="clinic-panel overflow-hidden">
+        <div className="clinic-panel__header">
+          <h2 className="clinic-panel__title">패스카드 배경 색상</h2>
+          <p className="clinic-panel__meta">위조 방지 · 수업 후 “오늘은 빨 파 초”로 변경</p>
         </div>
 
-        <div className="p-5 space-y-4">
-          {/* 매일 자동 3색 사용 */}
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
+        <div className="clinic-panel__body space-y-4">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
             <div>
-              <div className="text-sm font-semibold">매일 자동 색상</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                날짜마다 서로 다른 3가지 색상이 자동으로 적용됩니다.
-              </div>
+              <p className="clinic-panel__title text-base">매일 자동 색상</p>
+              <p className="clinic-panel__meta">날짜마다 다른 3색 자동 적용</p>
             </div>
             <Switch
               checked={useDailyRandom}
@@ -196,12 +197,11 @@ function ClinicIdcardColorSettings() {
             />
           </div>
 
-          {/* 오늘의 색상 미리보기 (자동 모드 시 강조) */}
           {useDailyRandom && (
             <div className="space-y-2">
-              <div className="text-xs font-semibold text-[var(--text-muted)]">오늘의 색상 미리보기</div>
+              <p className="text-xs font-semibold text-[var(--color-text-muted)]">오늘 미리보기</p>
               <div
-                className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
+                className="h-24 rounded-lg border-2 border-[var(--color-border-divider)]"
                 style={{
                   background: `linear-gradient(135deg, ${(settings?.colors || localColors)[0]} 0%, ${(settings?.colors || localColors)[1]} 50%, ${(settings?.colors || localColors)[2]} 100%)`,
                   backgroundSize: "200% 200%",
@@ -211,13 +211,12 @@ function ClinicIdcardColorSettings() {
             </div>
           )}
 
-          {/* 현재 선택된 색상 미리보기 (수동 또는 저장값) */}
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-[var(--text-muted)]">
-              {useDailyRandom ? "수동 모드 시 사용할 색상" : "현재 색상 미리보기"}
-            </div>
+            <p className="text-xs font-semibold text-[var(--color-text-muted)]">
+              {useDailyRandom ? "수동 모드용 색상" : "현재 색상"}
+            </p>
             <div
-              className="h-24 rounded-lg border-2 border-[var(--border-divider)]"
+              className="h-24 rounded-lg border-2 border-[var(--color-border-divider)]"
               style={{
                 background: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
                 backgroundSize: "200% 200%",
@@ -226,16 +225,10 @@ function ClinicIdcardColorSettings() {
             />
           </div>
 
-          {/* 색상 3개 선택 + 자동 부여 */}
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-xs font-semibold text-[var(--text-muted)]">색상 선택 (3개)</div>
-              <Button
-                intent="secondary"
-                size="small"
-                onClick={handleAutoAssign}
-                className="shrink-0"
-              >
+              <p className="text-xs font-semibold text-[var(--color-text-muted)]">색상 3개</p>
+              <Button intent="secondary" size="small" onClick={handleAutoAssign} className="shrink-0">
                 자동 부여
               </Button>
             </div>
@@ -245,24 +238,21 @@ function ClinicIdcardColorSettings() {
                   key={index}
                   type="button"
                   onClick={() => handleOpenColorModal(index)}
-                  className="group relative h-20 rounded-lg border-2 border-[var(--border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors flex flex-col items-center justify-center gap-1"
-                  style={{
-                    background: localColors[index],
-                  }}
+                  className="group relative h-20 rounded-lg border-2 border-[var(--color-border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors flex flex-col items-center justify-center gap-1"
+                  style={{ background: localColors[index] }}
                 >
-                  <div className="text-xs font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                    색상 {index + 1}
-                  </div>
-                  <div className="text-[10px] font-mono text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                  <span className="text-xs font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                    {index + 1}
+                  </span>
+                  <span className="text-[10px] font-mono text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                     {localColors[index]}
-                  </div>
+                  </span>
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 저장 버튼 */}
           <div className="pt-2">
             <Button
               intent="primary"
@@ -270,7 +260,7 @@ function ClinicIdcardColorSettings() {
               disabled={updateMutation.isPending || isLoading}
               className="w-full"
             >
-              {updateMutation.isPending ? "저장 중…" : "색상 저장"}
+              {updateMutation.isPending ? "저장 중…" : "저장"}
             </Button>
           </div>
         </div>

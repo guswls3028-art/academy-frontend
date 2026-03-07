@@ -158,8 +158,10 @@ export default function ClinicRemoteControl() {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] p-4">
-        <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
+      <div className="clinic-panel">
+        <div className="clinic-panel__body">
+          <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
+        </div>
       </div>
     );
   }
@@ -168,54 +170,46 @@ export default function ClinicRemoteControl() {
 
   return (
     <>
-      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold">클리닉 리모컨</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                색상을 선택하면 학생 화면이 즉시 변경됩니다
-              </div>
-            </div>
-            <div className="px-2 py-1 bg-[var(--color-brand-primary)] text-white text-xs font-semibold rounded">
-              LIVE
-            </div>
+      <div className="clinic-panel overflow-hidden">
+        <div className="clinic-panel__header flex items-center justify-between">
+          <div>
+            <h2 className="clinic-panel__title">클리닉 리모컨</h2>
+            <p className="clinic-panel__meta">선택 즉시 학생 화면 반영</p>
           </div>
+          <span className="px-2 py-1 bg-[var(--color-primary)] text-[var(--color-text-inverse)] text-xs font-semibold rounded-md">
+            LIVE
+          </span>
         </div>
-
-        <div className="p-5">
+        <div className="clinic-panel__body">
           <div className="space-y-3">
-            {/* 현재 색상 미리보기 */}
             <div>
-              <div className="text-xs text-[var(--text-muted)] mb-2">현재 배경</div>
+              <p className="text-xs text-[var(--color-text-muted)] mb-2">현재 배경</p>
               <div
-                className="w-full h-16 rounded-lg border border-[var(--border-divider)]"
+                className="w-full h-16 rounded-lg border border-[var(--color-border-divider)]"
                 style={{
                   background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
                   backgroundSize: "200% 200%",
                 }}
               />
             </div>
-
-            {/* 색상 선택 버튼 */}
             <div className="grid grid-cols-3 gap-3">
               {[0, 1, 2].map((index) => (
                 <button
                   key={index}
                   type="button"
                   onClick={() => handleColorSelect(index)}
-                  className="relative group"
+                  className="relative group text-left"
                 >
                   <div
-                    className="w-full h-20 rounded-lg border-2 border-[var(--border-divider)] transition-all hover:border-[var(--color-brand-primary)] hover:scale-105"
+                    className="w-full h-20 rounded-lg border-2 border-[var(--color-border-divider)] transition-all hover:border-[var(--color-primary)] hover:scale-[1.02]"
                     style={{ backgroundColor: colors[index] }}
                   />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
-                    <div className="text-xs font-semibold text-white">클릭하여 변경</div>
+                    <span className="text-xs font-semibold text-white">변경</span>
                   </div>
-                  <div className="mt-2 text-center">
-                    <div className="text-xs font-semibold text-[var(--text-primary)]">색상 {index + 1}</div>
-                    <div className="text-[10px] font-mono text-[var(--text-muted)]">{colors[index]}</div>
+                  <div className="mt-2">
+                    <span className="text-xs font-semibold text-[var(--color-text-primary)]">색상 {index + 1}</span>
+                    <p className="text-[10px] font-mono text-[var(--color-text-muted)]">{colors[index]}</p>
                   </div>
                 </button>
               ))}
