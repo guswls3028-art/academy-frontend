@@ -103,6 +103,12 @@ export default function DatePicker({
 
   const displayText = value ? dayjs(value).format("YYYY년 MM월 DD일") : placeholder;
 
+  // 포털 대상: body가 아니라 앱 루트([data-app="admin"])로 하면 차시 모달·클리닉 동일한 변수·글씨체 상속 (전역화)
+  const portalTarget =
+    typeof document !== "undefined"
+      ? document.querySelector('[data-app="admin"]') ?? document.body
+      : document.body;
+
   return (
     <div ref={containerRef} className="shared-date-picker" style={{ position: "relative" }}>
       <button
@@ -194,7 +200,7 @@ export default function DatePicker({
             })}
           </div>
         </div>,
-        document.body
+        portalTarget
       )}
     </div>
   );
