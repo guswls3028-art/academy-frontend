@@ -138,6 +138,14 @@
   font-weight: 600;
 }
 
+/* 폼·리스트 본문 가독성 */
+.clinic-panel__body input,
+.clinic-panel__body textarea,
+.clinic-panel__body .ant-input,
+.clinic-panel__body .ant-select-selector {
+  font-size: var(--text-md);
+}
+
 .clinic-panel__title {
   font-size: var(--text-lg);
   font-weight: 700;
