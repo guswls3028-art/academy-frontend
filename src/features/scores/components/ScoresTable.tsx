@@ -36,10 +36,10 @@ function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
   const tone = passed ? "success" : "danger";
   return (
     <span
-      className="ds-status-badge inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-xs font-medium"
+      className="ds-status-badge inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-xs font-semibold"
       data-tone={tone}
     >
-      {passed ? "합격" : "불합"}
+      {passed ? "합" : "불"}
     </span>
   );
 }
@@ -238,8 +238,8 @@ export default function ScoresTable({
       </colgroup>
 
       <thead>
-        {/* 1행: 수정(전체/컬럼별 편집 허용) — 첫 셀만 rowSpan=3으로 수정/선택 통합, 모든 헤더 셀 리사이즈 가능 */}
-        <tr className="bg-[var(--color-bg-surface-soft)] border-b border-[var(--color-border-divider)]">
+        {/* 1행: 수정(전체/컬럼별 편집 허용) — 첫 셀만 rowSpan=3으로 수정/선택 통합, 경계 명확 */}
+        <tr className="bg-[var(--color-bg-surface-soft)] border-b-2 border-[var(--color-border-divider)]">
           <ResizableTh
             columnKey="edit"
             width={columnWidths.edit ?? COL_EDIT_SELECT}
@@ -248,7 +248,7 @@ export default function ScoresTable({
             onWidthChange={setColumnWidth}
             rowSpan={3}
             noWrap
-            className="ds-scores-edit-column align-top py-2.5 px-2 border-r border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
+            className="ds-scores-edit-column align-top py-2.5 px-2 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
           >
             <div className="flex flex-col gap-2.5 items-center w-full">
               <label
@@ -299,7 +299,7 @@ export default function ScoresTable({
               )}
             </div>
           </ResizableTh>
-          {columns.map((col) => (
+          {columns.map((col, idx) => (
             <ResizableTh
               key={col.key}
               columnKey={col.key}
@@ -307,7 +307,7 @@ export default function ScoresTable({
               minWidth={40}
               maxWidth={400}
               onWidthChange={setColumnWidth}
-              className="ds-checkbox-cell text-center py-1"
+              className={`ds-checkbox-cell text-center py-1 ${idx === 0 ? "border-l-2 border-[var(--color-border-divider)]" : ""}`}
             >
               {col.editable ? (
                 <input
@@ -426,7 +426,7 @@ export default function ScoresTable({
                 }`}
               >
                 <td
-                  className="ds-checkbox-cell align-middle py-2.5 px-3"
+                  className="ds-checkbox-cell align-middle py-2.5 px-3 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {onSelectionChange ? (
@@ -451,7 +451,7 @@ export default function ScoresTable({
                 </td>
 
                 <td
-                  className="font-semibold min-w-0 text-[var(--color-text-primary)]"
+                  className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle"
                   onClick={() => onSelectRow(row)}
                 >
                   <StudentNameWithLectureChip
@@ -467,11 +467,11 @@ export default function ScoresTable({
                   />
                 </td>
 
-                <td className="text-left" onClick={() => onSelectRow(row)}>
+                <td className="text-left py-2.5 px-3 align-middle" onClick={() => onSelectRow(row)}>
                   {(() => {
                     const status = attendanceMap[row.enrollment_id];
                     if (!status)
-                      return <span className="text-[var(--text-muted)]">-</span>;
+                      return <span className="text-[var(--color-text-muted)]">-</span>;
                     return (
                       <AttendanceStatusBadge
                         status={status as AttendanceStatus}
@@ -496,61 +496,44 @@ export default function ScoresTable({
                       : block?.max_score != null && block.max_score > 0
                         ? `${Math.round(block.score)}/${Math.round(block.max_score)}`
                         : `${Math.round(block!.score)}점`;
-                  const canEditTotal = isEditEnabled(`exam_${ex.exam_id}_total`);
 
                   return (
                     <Fragment key={ex.exam_id}>
                       <td
-                        className="min-w-0 text-left align-middle"
-                        style={{ padding: 4 }}
+                        className="min-w-0 text-left align-middle py-2.5 px-3 text-[var(--color-text-muted)]"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
                         }}
                       >
-                        <span className="inline-flex items-center gap-1 text-[var(--text-muted)]">
-                          -
-                        </span>
+                        -
                       </td>
                       <td
-                        className="min-w-0 text-left align-middle"
-                        style={{ padding: 4 }}
+                        className="min-w-0 text-left align-middle py-2.5 px-3 text-[var(--color-text-muted)]"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
                         }}
                       >
-                        <span className="inline-flex items-center gap-1 text-[var(--text-muted)]">
-                          -
-                        </span>
+                        -
                       </td>
                       <td
-                        className={`min-w-0 text-left align-middle ${isSelected ? "ring-1 ring-[var(--color-primary)] rounded" : ""}`}
-                        style={{ padding: 4 }}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md bg-[var(--color-bg-surface)]" : ""}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
                         }}
                       >
-                        <span className="inline-flex items-center gap-1 flex-wrap">
-                          {canEditTotal ? (
-                            <span className="font-medium">{scoreText}</span>
-                          ) : (
-                            <span className="font-medium">{scoreText}</span>
-                          )}
-                        </span>
+                        <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
                       </td>
                       <td
-                        className="min-w-0 text-left align-middle"
-                        style={{ padding: 4 }}
+                        className="min-w-0 text-left align-middle py-2.5 px-3"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "exam", ex.exam_id);
                         }}
                       >
-                        <span className="inline-flex items-center gap-1">
-                          <PassFailBadge passed={block?.passed} />
-                        </span>
+                        <PassFailBadge passed={block?.passed} />
                       </td>
                     </Fragment>
                   );
@@ -569,8 +552,7 @@ export default function ScoresTable({
                   return (
                     <Fragment key={hw.homework_id}>
                       <td
-                        className={`min-w-0 text-left align-middle ${isSelected ? "ring-1 ring-[var(--color-primary)] rounded" : ""}`}
-                        style={{ padding: 4 }}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md bg-[var(--color-bg-surface)]" : ""} ${canEditScore ? "bg-[color-mix(in_srgb,var(--color-bg-surface-hover)_50%,transparent)]" : ""}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
@@ -616,7 +598,7 @@ export default function ScoresTable({
                               </>
                             ) : (
                               <>
-                                <span className="font-medium">
+                                <span className="font-medium text-[var(--color-text-primary)]">
                                   {block?.score != null
                                     ? String(block.score)
                                     : "-"}
@@ -625,47 +607,44 @@ export default function ScoresTable({
                               </>
                             )
                           ) : (
-                            <span className="text-[var(--text-muted)]">-</span>
+                            <span className="text-[var(--color-text-muted)]">-</span>
                           )}
                         </span>
                       </td>
                       <td
-                        className="min-w-0 text-left align-middle"
-                        style={{ padding: 4 }}
+                        className="min-w-0 text-left align-middle py-2.5 px-3"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
                         }}
                       >
-                        <span className="inline-flex items-center gap-1">
-                          <PassFailBadge passed={block?.passed} />
-                        </span>
+                        <PassFailBadge passed={block?.passed} />
                       </td>
                     </Fragment>
                   );
                 })}
 
                 <td
-                  className="text-left align-middle"
+                  className="text-left align-middle py-2.5 px-3"
                   onClick={() => onSelectRow(row)}
                 >
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1.5">
                     {clinicTarget ? (
                       <span
-                        className="ds-status-badge"
+                        className="ds-status-badge px-2 py-0.5 rounded-md text-xs font-medium"
                         data-tone="danger"
                         title="클리닉 대상"
                       >
                         대상
                       </span>
                     ) : (
-                      <span className="text-[var(--text-muted)]">해당없음</span>
+                      <span className="text-[var(--color-text-muted)]">해당없음</span>
                     )}
                   </span>
                 </td>
 
                 <td
-                  className="text-left align-middle text-[var(--color-text-secondary)]"
+                  className="text-left align-middle py-2.5 px-3 text-[var(--color-text-secondary)] text-sm min-w-0"
                   onClick={() => onSelectRow(row)}
                 >
                   {clinicReason || "-"}
