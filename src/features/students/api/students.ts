@@ -41,6 +41,7 @@ export interface ClientStudent {
   registeredAt: string | null;
   active: boolean;
   memo?: string | null;
+  address?: string | null;
 
   schoolType: "MIDDLE" | "HIGH" | null;
 
@@ -96,6 +97,7 @@ export function mapStudent(item: any): ClientStudent {
     registeredAt: item?.created_at ?? null,
     active: item?.is_managed ?? false,
     memo: item?.memo ?? null,
+    address: item?.address ?? null,
 
     schoolType,
 
@@ -233,6 +235,7 @@ export async function createStudent(form: any) {
     grade: form?.grade ? Number(form.grade) : null,
     gender: form?.gender || null,
     memo: form?.memo?.trim() || null,
+    address: form?.address?.trim() || null,
     is_managed: !!form?.active,
     send_welcome_message: !!form?.sendWelcomeMessage,
     no_phone: noPhone,
@@ -313,6 +316,7 @@ export async function updateStudent(id: number, form: any) {
     grade: form?.grade ? Number(form.grade) : null,
     gender: form?.gender ?? null,
     memo: form?.memo ?? null,
+    address: form?.address?.trim() || null,
     is_managed: !!form?.active,
   };
 
@@ -439,6 +443,7 @@ export interface ClientRegistrationRequest {
   grade: number | null;
   gender: string | null;
   memo: string | null;
+  address: string | null;
   createdAt: string;
   studentId?: number | null;
 }
@@ -458,6 +463,7 @@ function mapRegistrationRequest(item: any): ClientRegistrationRequest {
     grade: item?.grade ?? null,
     gender: item?.gender ?? null,
     memo: item?.memo ?? null,
+    address: item?.address ?? null,
     createdAt: item?.created_at ?? "",
     studentId: item?.student ?? null,
   };
@@ -506,6 +512,7 @@ export async function submitRegistrationRequest(form: {
   grade?: number | null;
   gender?: string;
   memo?: string;
+  address?: string;
 }): Promise<ClientRegistrationRequest> {
   const payload: Record<string, unknown> = {
     name: String(form.name ?? "").trim(),
@@ -519,6 +526,7 @@ export async function submitRegistrationRequest(form: {
     grade: form.grade ?? null,
     gender: form.gender?.trim() || null,
     memo: form.memo?.trim() || null,
+    address: form.address?.trim() || null,
   };
   if (form.phone && normalizePhone(String(form.phone)).length === 11) {
     (payload as any).phone = normalizePhone(String(form.phone));
