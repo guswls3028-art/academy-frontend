@@ -7,8 +7,8 @@
  */
 
 import { useState } from "react";
-import { useParams, Link, useQueryClient } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useParams, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
 import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
