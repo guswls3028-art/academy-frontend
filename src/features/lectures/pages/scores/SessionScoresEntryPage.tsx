@@ -38,6 +38,7 @@ export default function SessionScoresEntryPage({
   const [addHomeworkOpen, setAddHomeworkOpen] = useState(false);
   const [addHomeworkTitle, setAddHomeworkTitle] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["session-scores", numericSessionId],
@@ -75,6 +76,14 @@ export default function SessionScoresEntryPage({
 
   const primaryAction = (
     <div className="flex items-center gap-2">
+      <Button
+        type="button"
+        intent={isEditMode ? "primary" : "secondary"}
+        size="sm"
+        onClick={() => setIsEditMode((v) => !v)}
+      >
+        {isEditMode ? "편집 종료" : "편집 모드"}
+      </Button>
       <Link to={examsLink}>
         <Button type="button" intent="secondary" size="sm">
           시험 추가
