@@ -23,6 +23,7 @@ import AttendanceStatusBadge, {
 const COL_NARROW = 64;   // 합불 뱃지 — 가독성
 const COL_SCORE = 84;   // 점수 입력 셀 — 여유
 const COL_REASON = 180; // 대상 사유 — "총괄 클리닉 대상 사유" 가시성
+const COL_CLINIC_TARGET = 80;
 const COL_SELECT = TABLE_COL.checkbox;
 
 /** 시험 컬럼 블록 배경 — 약한 구분 (3%) */
@@ -209,102 +210,45 @@ export default function ScoresTable({
       tableStyle={{ tableLayout: "fixed", width: tableWidth }}
     >
       <colgroup>
-        {editRowCols.map((w, i) => (
+        {tableCols.map((w, i) => (
           <col key={i} style={{ width: w }} />
         ))}
       </colgroup>
 
       <thead>
-        {/* 1행: 수정(전체/컬럼별 편집 허용) — 첫 셀만 rowSpan=3으로 수정/선택 통합, 경계 명확 */}
+        {/* 1행: 선택( rowSpan=2 ) | 이름 | 출석 | 시험명들 | 과제명들 | 클리닉 | 사유 */}
         <tr className="bg-[var(--color-bg-surface-soft)] border-b-2 border-[var(--color-border-divider)]">
           <ResizableTh
-            columnKey="edit"
-            width={columnWidths.edit ?? COL_EDIT_SELECT}
-            minWidth={56}
-            maxWidth={140}
+            columnKey="select"
+            width={columnWidths.select ?? COL_SELECT}
+            minWidth={40}
+            maxWidth={80}
             onWidthChange={setColumnWidth}
-            rowSpan={3}
+            rowSpan={2}
             noWrap
-            className="ds-scores-edit-column align-top py-2.5 px-2 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
+            className="ds-checkbox-cell align-top py-2.5 px-2 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
           >
-            <div className="flex flex-col gap-2.5 items-center w-full">
-              <label
-                className={`ds-scores-edit-trigger flex flex-col items-center gap-1.5 cursor-pointer rounded-xl border-2 px-2.5 py-2 w-full transition-all duration-200 group ${
-                  editRowState.all || allEditableChecked
-                    ? "border-[var(--color-brand-primary)] bg-[color-mix(in_srgb,var(--color-brand-primary)_10%,transparent)] shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                    : "border-dashed border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)] hover:shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-                }`}
-                title="체크 시 아래 점수·합불 컬럼을 수정할 수 있습니다"
-              >
-                <FiEdit2
-                  className={`w-5 h-5 ${editRowState.all || allEditableChecked ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-muted)] group-hover:text-[var(--color-brand-primary)]"}`}
-                  aria-hidden
-                />
-                <span
-                  className={`text-[11px] font-semibold uppercase tracking-wide ${
-                    editRowState.all || allEditableChecked ? "text-[var(--color-brand-primary)]" : "text-[var(--color-text-secondary)] group-hover:text-[var(--color-brand-primary)]"
-                  }`}
-                >
-                  수정
-                </span>
-                <span className="text-[9px] text-[var(--color-text-muted)]">편집 허용</span>
+            {onSelectionChange ? (
+              <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-[var(--color-text-secondary)]">
                 <input
                   type="checkbox"
-                  checked={editRowState.all || allEditableChecked}
-                  onChange={(e) => onEditRowChange("all", e.target.checked)}
-                  className="cursor-pointer w-4 h-4 mt-0.5"
-                  aria-label="전체 수정 허용"
-                />
-              </label>
-              {onSelectionChange && (
-                <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] text-[var(--color-text-muted)]">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        onSelectionChange(rows.map((r) => r.enrollment_id));
-                      } else {
-                        onSelectionChange([]);
-                      }
-                    }}
-                    className="cursor-pointer w-4 h-4"
-                    aria-label="전체 선택"
-                  />
-                  선택
-                </label>
-              )}
-            </div>
-          </ResizableTh>
-          {columns.map((col, idx) => (
-            <ResizableTh
-              key={col.key}
-              columnKey={col.key}
-              width={columnWidths[col.key] ?? col.width}
-              minWidth={40}
-              maxWidth={400}
-              onWidthChange={setColumnWidth}
-              style={col.type === "exam" ? { backgroundColor: BG_EXAM } : col.type === "homework" ? { backgroundColor: BG_HOMEWORK } : undefined}
-              className={`ds-checkbox-cell text-center py-1 ${idx === 0 ? "border-l-2 border-[var(--color-border-divider)]" : ""}`}
-            >
-              {col.editable ? (
-                <input
-                  type="checkbox"
-                  checked={editRowState.all || !!editRowState[col.key]}
+                  checked={allSelected}
                   onChange={(e) => {
-                    e.stopPropagation();
-                    onEditRowChange(col.key, e.target.checked);
+                    if (e.target.checked) {
+                      onSelectionChange(rows.map((r) => r.enrollment_id));
+                    } else {
+                      onSelectionChange([]);
+                    }
                   }}
-                  onClick={(e) => e.stopPropagation()}
-                  className="cursor-pointer w-3.5 h-3.5"
-                  aria-label={`${col.type === "exam" ? col.title : col.type === "homework" ? col.title : ""} 수정 허용`}
+                  className="cursor-pointer w-4 h-4"
+                  aria-label="전체 선택"
                 />
-              ) : null}
-            </ResizableTh>
-          ))}
-        </tr>
-        {/* 2행: 시험/과제명 — 수정 컬럼과 경계 구분, 시험/과제 블록 배경 */}
-        <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
+                선택
+              </label>
+            ) : (
+              <span className="text-xs text-[var(--color-text-muted)]">선택</span>
+            )}
+          </ResizableTh>
           <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
             이름
           </th>
@@ -342,7 +286,7 @@ export default function ScoresTable({
             대상 사유
           </th>
         </tr>
-        {/* 3행: 서브 헤더 — 시험/과제 블록 배경 */}
+        {/* 2행: 서브 헤더 — 주관식/객관식/합산/합불, 점수/합불 */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
           <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
             이름
@@ -406,7 +350,7 @@ export default function ScoresTable({
                 }`}
               >
                 <td
-                  className="ds-checkbox-cell align-middle py-2.5 px-3 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
+                  className="ds-checkbox-cell align-middle py-2.5 px-3 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {onSelectionChange ? (
@@ -531,12 +475,12 @@ export default function ScoresTable({
                     ) ?? null;
                   const block = entry?.block;
                   const isSelected = selected && selectedHomeworkId === hw.homework_id;
-                  const canEditScore = isEditEnabled(`hw_${hw.homework_id}_score`);
+                  const canEditScore = isEditMode;
 
                   return (
                     <Fragment key={hw.homework_id}>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md" : ""}`}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         style={{ backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -634,7 +578,7 @@ export default function ScoresTable({
               {showExpand && (
                 <tr key={`${row.enrollment_id}-expand`}>
                   <td
-                    colSpan={editRowCols.length}
+                    colSpan={tableCols.length}
                     className="!p-0 border-b border-[var(--color-border-divider)]"
                     style={{
                       background:
