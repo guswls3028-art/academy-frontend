@@ -1,10 +1,8 @@
-﻿// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffReportTab.tsx
+// PATH: src/features/staff/overlays/StaffDetailOverlay/StaffReportTab.tsx
 
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Panel } from "@/shared/ui/ds";
-
 
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
 
@@ -35,11 +33,11 @@ export default function StaffReportTab() {
   });
 
   if (summaryQ.isLoading) {
-    return <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+    return <div className="text-sm text-[var(--color-text-muted)]">불러오는 중...</div>;
   }
 
   if (!summaryQ.data) {
-    return <div className="text-sm text-[var(--text-muted)]">데이터가 없습니다.</div>;
+    return <div className="text-sm text-[var(--color-text-muted)]">데이터가 없습니다.</div>;
   }
 
   const s = summaryQ.data;
@@ -49,20 +47,23 @@ export default function StaffReportTab() {
       <div className="flex items-end justify-between gap-3">
         <div className="space-y-1">
           <div className="text-sm font-semibold">리포트</div>
-          <div className="text-xs text-[var(--text-muted)]">기간: {monthLabel}</div>
+          <div className="text-xs text-[var(--color-text-muted)]">기간: {monthLabel}</div>
         </div>
       </div>
 
-      <Card>
-        <CardBody className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div
+        className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4"
+        style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+      >
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Item label="근무시간" value={`${s.work_hours} h`} />
           <Item label="급여" value={`${s.work_amount.toLocaleString()} 원`} />
           <Item label="비용" value={`${s.expense_amount.toLocaleString()} 원`} />
           <Item label="실 지급액" value={`${s.total_amount.toLocaleString()} 원`} primary />
-        </CardBody>
-      </Card>
+        </div>
+      </div>
 
-      <div className="text-xs text-[var(--text-muted)]">
+      <div className="text-xs text-[var(--color-text-muted)]">
         * 리포트 수치는 <b>서버 집계 결과(Summary API)</b> 기준입니다.
       </div>
     </div>
@@ -71,12 +72,12 @@ export default function StaffReportTab() {
 
 function Item({ label, value, primary }: { label: string; value: string; primary?: boolean }) {
   return (
-    <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+    <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
+      <div className="text-xs text-[var(--color-text-muted)]">{label}</div>
       <div
         className={[
           "mt-1 text-lg font-semibold",
-          primary ? "text-[var(--color-primary)]" : "text-[var(--text-primary)]",
+          primary ? "text-[var(--color-primary)]" : "text-[var(--color-text-primary)]",
         ].join(" ")}
       >
         {value}
