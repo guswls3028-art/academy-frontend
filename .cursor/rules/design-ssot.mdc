@@ -27,3 +27,10 @@ alwaysApply: false
 ```ts
 import { DomainListToolbar, DomainTable, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR } from "@/shared/ui/domain";
 ```
+
+## 날짜·시간 선택 (달력·원통 스크롤)
+
+- **SSOT**: 차시 추가 모달(ModalDateSection, ModalTimeSection)과 동일한 컴포넌트만 사용.
+- **달력**: `@/shared/ui/date`의 **DatePicker** — 프로젝트 내 모든 날짜 선택에서 이 컴포넌트만 사용 (AntD DatePicker 사용 금지).
+- **시간(원통형 스크롤)**: `@/shared/ui/time`의 **TimeRangeInput** — 내부에서 TimeScrollPopover(원통 롤러) 사용. 시작/종료 라벨 "시작"/"종료", placeholder "시작"/"종료"로 통일.
+- **사용처**: 차시 추가 모달(SessionCreateModal), 클리닉 생성(ClinicCreatePanel) 등. 새 화면에서 날짜/시간 입력이 필요하면 반드시 위 컴포넌트만 사용.

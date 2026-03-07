@@ -1,6 +1,7 @@
 // PATH: src/shared/ui/time/TimeRangeInput.tsx
-// 전역 SSOT: 시작/종료 시간 — 12시간제(오전/오후) 원스크롤 순환, 시간 영역 클릭 시 피커, [+−30분·1시간].
+// 전역 SSOT: 시작/종료 시간 — 12시간제(오전/오후) 원통형 롤러(TimeScrollPopover), [+−30분·1시간].
 // 모달 SSOT: startLabel "시작" / endLabel "종료" 시 트리거 빈값 문구는 "시작 시간" / "종료 시간" 단일진실.
+// 사용처: 차시 추가 모달(ModalTimeSection), 클리닉 생성 등 — 이 컴포넌트만 사용, AntD TimePicker 사용 금지
 
 import { useRef, useState } from "react";
 import { Clock, ChevronDown } from "lucide-react";

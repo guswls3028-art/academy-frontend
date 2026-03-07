@@ -1,5 +1,6 @@
 // PATH: src/shared/ui/date/DatePicker.tsx
 // 전역 SSOT: 프로젝트 내 모든 날짜 선택에서 사용하는 통일된 달력 UI (큼지막한 셀, 일관된 디자인)
+// 사용처: 차시 추가 모달(ModalDateSection), 클리닉 생성 등 — 이 컴포넌트만 사용, AntD DatePicker 사용 금지
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
