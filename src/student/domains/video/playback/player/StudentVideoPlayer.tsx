@@ -198,6 +198,22 @@ export default function StudentVideoPlayer({
     };
   }, []);
 
+  // iOS 등: video 요소 네이티브 전체화면(webkitEnterFullscreen) 종료 시 상태 복구 — 플레이어 끄면 UI 꼬임 방지
+  useEffect(() => {
+    const vid = videoElRef.current;
+    if (!vid) return;
+    const onNativeVideoFullscreenEnd = () => {
+      fullscreenFallbackRef.current = false;
+      setIsFullscreen(false);
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
+    (vid as any).addEventListener?.("webkitendfullscreen", onNativeVideoFullscreenEnd);
+    return () => {
+      (vid as any).removeEventListener?.("webkitendfullscreen", onNativeVideoFullscreenEnd);
+    };
+  }, []);
+
   useEffect(() => {
     return () => {
       if (fullscreenFallbackRef.current) {
@@ -335,6 +351,12 @@ export default function StudentVideoPlayer({
 
       ctrl?.queueFullscreenEvent(true);
 
+      // 모바일(터치/좁은 화면): video 네이티브 전체화면(webkitEnterFullscreen) 사용 안 함.
+      // → 별도 플레이어 창 + 재생 한 번 더 누름 + 종료 시 UI 꼬임 방지. 래퍼 전체화면 또는 CSS 폴백만 사용.
+      const isMobileLike =
+        typeof navigator !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0) ||
+        (typeof window !== "undefined" && window.innerWidth < 768);
+
       const tryNative = () => {
         if (wrap?.requestFullscreen) {
           wrap.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
@@ -344,17 +366,19 @@ export default function StudentVideoPlayer({
           (wrap as any).webkitRequestFullscreen();
           return true;
         }
-        if (vid?.requestFullscreen) {
-          vid.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
-          return true;
-        }
-        if ((vid as any)?.webkitRequestFullscreen) {
-          (vid as any).webkitRequestFullscreen();
-          return true;
-        }
-        if ((vid as any)?.webkitEnterFullscreen) {
-          (vid as any).webkitEnterFullscreen();
-          return true;
+        if (!isMobileLike) {
+          if (vid?.requestFullscreen) {
+            vid.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
+            return true;
+          }
+          if ((vid as any)?.webkitRequestFullscreen) {
+            (vid as any).webkitRequestFullscreen();
+            return true;
+          }
+          if ((vid as any)?.webkitEnterFullscreen) {
+            (vid as any).webkitEnterFullscreen();
+            return true;
+          }
         }
         return false;
       };
