@@ -19,13 +19,13 @@
   text-align: center;
 }
 
-/* 로고: 상용화 서비스 느낌 — 적정 크기 (로그인 화면) */
+/* 로고: 상용화 서비스 느낌 — 약 2배 확대 */
 .logo {
   display: block;
   width: auto;
-  max-width: 12rem;
+  max-width: 24rem;
   height: auto;
-  max-height: 3.5rem;
+  max-height: 7rem;
   object-fit: contain;
   margin: 0 auto 1.5rem;
 }
