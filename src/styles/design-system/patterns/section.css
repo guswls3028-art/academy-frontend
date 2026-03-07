@@ -1,0 +1,161 @@
+/* PATH: src/styles/design-system/patterns/section.css
+ * SSOT: 섹션형 레이아웃 (카드형 대체)
+ * - 페이지를 섹션 단위로 구분, 섹션당 헤더 + 본문
+ * - 개별 카드 박스 없음. 아이템은 행/그리드로만 배치
+ * - 배경/색상은 역할 토큰만 사용
+ */
+
+.ds-section {
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.ds-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.ds-section__header {
+  margin-bottom: var(--space-4);
+}
+
+.ds-section__title {
+  font-size: var(--text-sm, 14px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.ds-section__description {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+  line-height: 1.4;
+}
+
+.ds-section__body {
+  /* 본문은 자식 그리드/리스트로 배치 */
+}
+
+/* 섹션 내 그리드 — 카드 없이 셀만 */
+.ds-section__grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.ds-section__grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.ds-section__grid--wide {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* 섹션 아이템 — 행형(클릭 가능), 카드 박스 없음 */
+.ds-section__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition: background 0.15s ease;
+}
+
+.ds-section__item:hover {
+  background: var(--color-bg-surface-hover, #f3f4f6);
+}
+
+.ds-section__item:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.ds-section__item-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+  color: var(--color-primary);
+}
+
+.ds-section__item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-section__item-label {
+  font-size: var(--text-sm, 14px);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.ds-section__item-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* KPI/숫자 행 — 라벨 + 값 한 줄 */
+.ds-section__kpi-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.ds-section__kpi-row:last-child {
+  border-bottom: none;
+}
+
+.ds-section__kpi-label {
+  font-size: var(--text-sm, 14px);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ds-section__kpi-value {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+/* 클릭 가능 KPI 행(미처리 일감 등) */
+a.ds-section__kpi-row,
+button.ds-section__item.ds-section__kpi-row {
+  width: 100%;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+a.ds-section__kpi-row:hover,
+button.ds-section__item.ds-section__kpi-row:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.ds-section__empty {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
