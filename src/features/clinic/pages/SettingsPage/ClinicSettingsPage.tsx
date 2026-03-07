@@ -169,10 +169,7 @@ function ClinicIdcardColorSettings() {
         }
       `}</style>
       <Section title="패스카드 배경 색상" description="위조 방지 · 수업 후 색상 변경">
-        <div className="space-y-4">위조 방지 · 수업 후 “오늘은 빨 파 초”로 변경</p>
-        </div>
-
-        <div className="clinic-panel__body space-y-4">
+        <div className="space-y-4">
           <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
             <div>
               <p className="clinic-panel__title text-base">매일 자동 색상</p>
