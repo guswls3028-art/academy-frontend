@@ -507,7 +507,7 @@ export default function Header() {
             onOpenChange={setProfileDropdownOpen}
             trigger={["click"]}
             placement="bottomRight"
-            overlayClassName="app-header__profileDropdownOverlay"
+            classNames={{ root: "app-header__profileDropdownOverlay" }}
             popupRender={() => profileDropdownContent}
           >
             <span>
