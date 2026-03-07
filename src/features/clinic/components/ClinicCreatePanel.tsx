@@ -208,7 +208,7 @@ export default function ClinicCreatePanel({
             </div>
           )}
 
-          {/* 2행: 시작 · 종료 시간 — 세로 배치 (시작시간 / 종료시간 블록) */}
+          {/* 2행: 시작 · 종료 시간 — 차시 추가 모달과 동일 SSOT(TimeRangeInput + 원통 스크롤) */}
           <div className="min-w-0">
             <label className="modal-section-label">시작 · 종료 시간</label>
             <TimeRangeInput
@@ -216,8 +216,8 @@ export default function ClinicCreatePanel({
               onChange={setTimeRange}
               startLabel="시작"
               endLabel="종료"
-              startPlaceholder="시작 시간"
-              endPlaceholder="종료 시간"
+              startPlaceholder="시작"
+              endPlaceholder="종료"
             />
           </div>
 
