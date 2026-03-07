@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Input, Checkbox, App, Dropdown, Popover } from "antd";
 import dayjs from "dayjs";
-import { Save, FolderOpen } from "lucide-react";
+import { Save, FolderOpen, Trash2 } from "lucide-react";
 
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
@@ -395,17 +395,34 @@ export default function ClinicCreatePanel({
                       ) : (
                         <div className="clinic-location-popover-list">
                           {savedLocations.map((loc) => (
-                            <button
+                            <div
                               key={loc}
-                              type="button"
-                              className="clinic-location-popover-item"
-                              onClick={() => {
-                                setRoom(loc);
-                                setLoadPopoverOpen(false);
-                              }}
+                              className="clinic-location-popover-item-row"
                             >
-                              {loc}
-                            </button>
+                              <button
+                                type="button"
+                                className="clinic-location-popover-item flex-1 min-w-0 text-left"
+                                onClick={() => {
+                                  setRoom(loc);
+                                  setLoadPopoverOpen(false);
+                                }}
+                              >
+                                {loc}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSavedLocations(removeSavedLocation(loc));
+                                  message.success("삭제됨");
+                                }}
+                                className="clinic-location-popover-delete"
+                                title="장소 삭제"
+                                aria-label={`${loc} 삭제`}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           ))}
                           <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
                             <p className="text-[11px] text-[var(--color-text-muted)] mb-1">장소 추가하기</p>
