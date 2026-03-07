@@ -1,17 +1,16 @@
 /* PATH: src/features/clinic/clinic.css
  * 클리닉 도메인 — 섹션형 SSOT (patterns/section.css, panel.css, kpi.css)
- * 토큰만 사용. 시각적 위계로 기능 직관 파악. */
+ * 프리미엄: 글자 크기·경계 구분 강화 (typography/scale, border role 토큰) */
 
 @import "@/styles/design-system/patterns/section.css";
 @import "@/styles/design-system/patterns/panel.css";
 @import "@/styles/design-system/patterns/kpi.css";
 
 /* ========== 레이아웃 ========== */
-/* 3단 패널: 운영 탭, 예약대상자 탭 — 좌·중·우 패널이 흐트러지지 않도록 컨테이너 */
 .clinic-three-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-7);
   width: 100%;
   min-height: 0;
 }
@@ -48,12 +47,14 @@
   gap: var(--space-3);
 }
 
-/* 주간 일정 요일 셀 — 클릭 가능, 숫자 우선 */
+/* 주간 일정 요일 셀 */
 .clinic-day-cell {
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-divider);
+  border: 1.5px solid var(--color-border-divider-strong);
   background: var(--color-bg-surface-soft);
   padding: var(--space-4);
+  font-size: var(--text-md);
+  font-weight: 600;
   transition: background-color 0.15s ease, border-color 0.15s ease;
   text-align: left;
   cursor: pointer;
@@ -70,13 +71,12 @@
   background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
 }
 
-/* 일정 타임블록 — 숫자 강조 */
 .clinic-time-block {
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   background: var(--color-bg-surface-soft);
-  border: 1px solid var(--color-border-divider);
-  font-size: var(--text-sm);
+  border: 1.5px solid var(--color-border-divider-strong);
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-primary);
 }
@@ -85,19 +85,18 @@
   color: var(--color-error);
 }
 
-/* 패널 — 섹션형 헤더 (카드형 헤더 제거) */
+/* ========== 패널 — 경계 명확 + 프리미엄 타이포 ========== */
 .clinic-panel {
   border-radius: var(--radius-xl);
-  border: 1px solid var(--color-border-divider);
+  border: 1.5px solid var(--color-border-divider-strong);
   background: var(--color-bg-surface);
   box-shadow: var(--elevation-1);
   overflow: hidden;
 }
 
-/* 섹션형 헤더: 배경 블록 없음, 좌측 액센트 + 제목만 */
 .clinic-panel__header {
-  padding: var(--space-4) var(--space-6);
-  padding-left: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+  padding-left: var(--space-6);
   border-bottom: none;
   background: transparent;
   position: relative;
@@ -109,35 +108,54 @@
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
+  width: 4px;
+  height: 24px;
   border-radius: 2px;
   background: var(--color-primary);
 }
 
 .clinic-panel__body {
-  padding: var(--space-6);
-  border-top: 1px solid var(--color-border-divider);
+  padding: var(--space-7);
+  border-top: 1.5px solid var(--color-border-divider-strong);
+}
+
+/* 패널 본문 내 기본 글자 크기 (프리미엄) */
+.clinic-panel__body,
+.clinic-panel__body .ds-section__empty,
+.clinic-panel__body .ds-section__item-label,
+.clinic-panel__body .ds-section__item-meta {
+  font-size: var(--text-md);
+}
+
+.clinic-panel__body .ds-section__empty {
+  padding: var(--space-7) var(--space-5);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-panel__body .ds-section__kpi-label {
+  font-size: var(--text-md);
+  font-weight: 600;
 }
 
 .clinic-panel__title {
-  font-size: var(--text-sm);
+  font-size: var(--text-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--color-text-primary);
 }
 
 .clinic-panel__meta {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-text-muted);
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
 }
 
-/* ========== 패널 내 섹션형 (고급화) ========== */
+/* ========== 패널 내 섹션 — 경계 구분 강화 ========== */
 .clinic-section {
-  padding-bottom: var(--space-5);
-  margin-bottom: var(--space-5);
-  border-bottom: 1px solid var(--color-border-divider);
+  padding-bottom: var(--space-6);
+  margin-bottom: var(--space-6);
+  border-bottom: 1.5px solid var(--color-border-divider-strong);
 }
 
 .clinic-section:last-child {
@@ -147,28 +165,28 @@
 }
 
 .clinic-section__header {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .clinic-section__title {
-  font-size: var(--text-xs, 13px);
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
   text-transform: uppercase;
 }
 
-/* 컨트롤 버튼형 — 주차/날짜/전체선택 등 */
+/* 컨트롤 버튼형 — 글자 크기·테두리 명확 */
 .clinic-control {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-divider);
+  border: 1.5px solid var(--color-border-divider-strong);
   background: var(--color-bg-surface-soft);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-primary);
   text-align: left;
@@ -178,7 +196,7 @@
 
 .clinic-control:hover {
   background: var(--color-bg-surface-hover);
-  border-color: var(--color-border-divider-strong);
+  border-color: var(--color-border-strong);
 }
 
 .clinic-control:focus-visible {
@@ -193,16 +211,16 @@
   box-shadow: 0 0 0 1px var(--color-primary);
 }
 
-/* 트리 요약 (월/주차) */
+/* 트리 요약 (월/주차) — 버튼처럼 보이게 */
 .clinic-tree__summary {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-divider);
+  border: 1.5px solid var(--color-border-divider-strong);
   background: var(--color-bg-surface-soft);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-primary);
   cursor: pointer;
@@ -217,11 +235,12 @@
 
 .clinic-tree__summary:hover {
   background: var(--color-bg-surface-hover);
-  border-color: var(--color-border-divider-strong);
+  border-color: var(--color-border-strong);
 }
 
 details[open] > .clinic-tree__summary {
   border-color: var(--color-primary);
+  border-width: 1.5px;
   background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
 }
 
@@ -231,11 +250,11 @@ details[open] > .clinic-tree__summary {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-divider);
+  border: 1.5px solid var(--color-border-divider-strong);
   background: var(--color-bg-surface);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-primary);
   text-align: left;
@@ -245,22 +264,23 @@ details[open] > .clinic-tree__summary {
 
 .clinic-tree__day:hover {
   background: var(--color-bg-surface-hover);
-  border-color: var(--color-border-divider-strong);
+  border-color: var(--color-border-strong);
 }
 
 .clinic-tree__day--active {
   border-color: var(--color-primary);
+  border-width: 1.5px;
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
   color: var(--color-primary);
   box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .clinic-tree__day-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 14%, transparent);
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: var(--radius-sm);
 }
 
@@ -268,26 +288,26 @@ details[open] > .clinic-tree__summary {
 .clinic-action-row {
   display: flex;
   align-items: center;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-divider);
+  border: 1.5px solid var(--color-border-divider-strong);
   background: var(--color-bg-surface-soft);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .clinic-action-row:hover {
   background: var(--color-bg-surface-hover);
-  border-color: var(--color-border-divider-strong);
+  border-color: var(--color-border-strong);
 }
 
 .clinic-action-row label {
   cursor: pointer;
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   flex: 1;
 }
