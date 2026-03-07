@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Popover } from "antd";
-import { Trash2 } from "lucide-react";
+import { Trash2, FolderOpen } from "lucide-react";
 
 import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
@@ -16,7 +17,6 @@ import { validateRequiredFields } from "@/shared/utils/modalValidation";
 import "./LectureCreateModal.css";
 
 const SAVED_SUBJECTS_KEY = "academy-lecture-saved-subjects";
-const SAVED_INSTRUCTORS_KEY = "academy-lecture-saved-instructors";
 
 function getSavedList(key: string): string[] {
   try {
@@ -74,6 +74,7 @@ interface CreateLecturePayload {
 
 export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }: Props) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
@@ -86,11 +87,9 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
   const [chipLabel, setChipLabel] = useState("");
 
   const [savedSubjects, setSavedSubjects] = useState<string[]>(() => getSavedList(SAVED_SUBJECTS_KEY));
-  const [savedInstructors, setSavedInstructors] = useState<string[]>(() => getSavedList(SAVED_INSTRUCTORS_KEY));
   const [subjectPopoverOpen, setSubjectPopoverOpen] = useState(false);
   const [instructorPopoverOpen, setInstructorPopoverOpen] = useState(false);
   const [addSubjectInput, setAddSubjectInput] = useState("");
-  const [addInstructorInput, setAddInstructorInput] = useState("");
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   const modalTitle = useMemo(() => "강의 추가", []);
@@ -102,20 +101,10 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
   });
 
   useEffect(() => {
-    if (isOpen && instructorOptions.length > 0 && savedInstructors.length === 0) {
-      const names = instructorOptions.map((o) => o.name).filter(Boolean);
-      const uniq = [...new Set(names)];
-      if (uniq.length > 0) {
-        setSavedInstructors(uniq);
-        try {
-          localStorage.setItem(SAVED_INSTRUCTORS_KEY, JSON.stringify(uniq));
-        } catch {
-          /* ignore */
-        }
-        if (!name) setName(uniq[0] ?? "");
-      }
+    if (isOpen && instructorOptions.length > 0 && !name) {
+      setName(instructorOptions[0]?.name ?? "");
     }
-  }, [isOpen, instructorOptions, savedInstructors.length, name]);
+  }, [isOpen, instructorOptions, name]);
 
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async (payload: CreateLecturePayload) => {
@@ -139,7 +128,6 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     setColor(getDefaultColorForPicker(usedColors));
     setChipLabel("");
     setAddSubjectInput("");
-    setAddInstructorInput("");
     setHasAttemptedSubmit(false);
   }, [isOpen, usedColors]);
 
@@ -166,6 +154,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     const err = validateRequiredFields([
       { value: title, label: "강의 이름" },
       { value: name, label: "담당 강사" },
+      { value: subject, label: "과목" },
       { value: startDate, label: "시작일" },
       { value: lectureTime, label: "강의 시간", message: "강의 시작·종료 시간을 선택해 주세요." },
     ]);
@@ -173,6 +162,9 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
       feedback.error(err);
       return;
     }
+
+    const trimmedSubject = subject.trim();
+    if (trimmedSubject) setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, trimmedSubject));
 
     const payload: CreateLecturePayload = {
       title: title.trim(),
@@ -306,117 +298,59 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     </div>
   );
 
+  const instructorList = useMemo(
+    () => [...new Set(instructorOptions.map((o) => o.name).filter(Boolean))],
+    [instructorOptions]
+  );
+
   const instructorPopoverContent = (
     <div className="saved-list-field-popover">
-      {savedInstructors.length === 0 ? (
+      {instructorList.length === 0 ? (
         <div className="saved-list-field-popover-empty">
-          <p className="text-xs text-[var(--color-text-muted)] mb-2">저장된 담당 강사가 없습니다.</p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              className="ds-input flex-1 min-w-0"
-              placeholder="강사명 입력"
-              value={addInstructorInput}
-              onChange={(e) => setAddInstructorInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const v = addInstructorInput.trim();
-                  if (v) {
-                    setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
-                    setName(v);
-                    setAddInstructorInput("");
-                    setInstructorPopoverOpen(false);
-                    feedback.success("추가됨");
-                  }
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              intent="primary"
-              onClick={() => {
-                const v = addInstructorInput.trim();
-                if (v) {
-                  setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
-                  setName(v);
-                  setAddInstructorInput("");
-                  setInstructorPopoverOpen(false);
-                  feedback.success("추가됨");
-                }
-              }}
-            >
-              추가
-            </Button>
-          </div>
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">등록된 담당 강사가 없습니다.</p>
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">직원관리에서 강사를 추가해 주세요.</p>
+          <Button
+            size="sm"
+            intent="primary"
+            onClick={() => {
+              setInstructorPopoverOpen(false);
+              onClose();
+              navigate("/admin/staff");
+            }}
+          >
+            직원관리로 이동
+          </Button>
         </div>
       ) : (
         <div className="saved-list-field-popover-list">
-          {savedInstructors.map((loc) => (
-            <div key={loc} className="saved-list-field-popover-item-row">
+          {instructorList.map((instructorName) => (
+            <div key={instructorName} className="saved-list-field-popover-item-row">
               <button
                 type="button"
                 className="saved-list-field-popover-item flex-1 min-w-0 text-left"
                 onClick={() => {
-                  setName(loc);
+                  setName(instructorName);
                   setInstructorPopoverOpen(false);
                 }}
               >
-                {loc}
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSavedInstructors(removeFromList(SAVED_INSTRUCTORS_KEY, loc));
-                  feedback.success("삭제됨");
-                }}
-                className="saved-list-field-popover-delete"
-                title="담당 강사 삭제"
-                aria-label={`${loc} 삭제`}
-              >
-                <Trash2 size={14} />
+                {instructorName}
               </button>
             </div>
           ))}
           <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
-            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">담당 강사 추가하기</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                className="ds-input flex-1 min-w-0 text-sm"
-                placeholder="새 강사명"
-                value={addInstructorInput}
-                onChange={(e) => setAddInstructorInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const v = addInstructorInput.trim();
-                    if (v) {
-                      setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
-                      setName(v);
-                      setAddInstructorInput("");
-                      setInstructorPopoverOpen(false);
-                      feedback.success("추가됨");
-                    }
-                  }
-                }}
-              />
-              <Button
-                size="sm"
-                intent="secondary"
-                onClick={() => {
-                  const v = addInstructorInput.trim();
-                  if (v) {
-                    setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
-                    setName(v);
-                    setAddInstructorInput("");
-                    setInstructorPopoverOpen(false);
-                    feedback.success("추가됨");
-                  }
-                }}
-              >
-                추가
-              </Button>
-            </div>
+            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">담당 강사 추가·삭제는 직원관리에서 합니다.</p>
+            <Button
+              size="sm"
+              intent="secondary"
+              className="w-full"
+              onClick={() => {
+                setInstructorPopoverOpen(false);
+                onClose();
+                navigate("/admin/staff");
+              }}
+            >
+              직원관리로 이동
+            </Button>
           </div>
         </div>
       )}
@@ -498,7 +432,6 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                 open={instructorPopoverOpen}
                 onOpenChange={(open) => {
                   setInstructorPopoverOpen(open);
-                  if (open) setSavedInstructors(getSavedList(SAVED_INSTRUCTORS_KEY));
                 }}
                 trigger="click"
                 placement="bottomLeft"
@@ -518,28 +451,39 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
                 />
               </Popover>
             </div>
-            <div className="modal-form-group modal-form-group--neutral">
-              <Popover
-                open={subjectPopoverOpen}
-                onOpenChange={(open) => {
-                  setSubjectPopoverOpen(open);
-                  if (open) setSavedSubjects(getSavedList(SAVED_SUBJECTS_KEY));
-                }}
-                trigger="click"
-                placement="bottomLeft"
-                content={subjectPopoverContent}
-              >
+            <div className="modal-form-group">
+              <div className="flex gap-2 items-center min-w-0">
                 <input
                   type="text"
-                  readOnly
-                  className="ds-input w-full min-w-0"
-                  placeholder="과목"
+                  className="ds-input flex-1 min-w-0"
+                  placeholder="과목 (필수)"
                   value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  data-required="true"
+                  data-invalid={hasAttemptedSubmit && !subject.trim() ? "true" : "false"}
                   disabled={isPending}
-                  aria-label="과목"
-                  style={{ cursor: "pointer", caretColor: "transparent" }}
+                  aria-label="과목 (필수)"
                 />
-              </Popover>
+                <Popover
+                  open={subjectPopoverOpen}
+                  onOpenChange={(open) => {
+                    setSubjectPopoverOpen(open);
+                    if (open) setSavedSubjects(getSavedList(SAVED_SUBJECTS_KEY));
+                  }}
+                  trigger="click"
+                  placement="bottomLeft"
+                  content={subjectPopoverContent}
+                >
+                  <button
+                    type="button"
+                    className="saved-list-field-icon-btn"
+                    title="저장된 과목 불러오기"
+                    aria-label="저장된 과목 불러오기"
+                  >
+                    <FolderOpen size={16} />
+                  </button>
+                </Popover>
+              </div>
             </div>
           </div>
 
