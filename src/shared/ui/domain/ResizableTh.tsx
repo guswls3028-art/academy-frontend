@@ -20,6 +20,10 @@ type ResizableThProps = {
   onClick?: () => void;
   "aria-sort"?: "ascending" | "descending" | "none";
   scope?: "col";
+  /** 다중 헤더 행일 때 해당 셀이 차지할 행 수 */
+  rowSpan?: number;
+  /** true면 children을 span으로 감싸지 않음 (커스텀 블록 레이아웃용) */
+  noWrap?: boolean;
 };
 
 export default function ResizableTh({
@@ -34,6 +38,8 @@ export default function ResizableTh({
   onClick,
   "aria-sort": ariaSort,
   scope = "col",
+  rowSpan,
+  noWrap = false,
 }: ResizableThProps) {
   const startX = useRef(0);
   const startWidth = useRef(0);
@@ -79,6 +85,7 @@ export default function ResizableTh({
       scope={scope}
       className={className}
       aria-sort={ariaSort}
+      rowSpan={rowSpan}
       style={{
         ...style,
         width,

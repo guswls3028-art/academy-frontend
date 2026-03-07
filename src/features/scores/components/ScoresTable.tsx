@@ -18,7 +18,8 @@ import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import HomeworkQuickInput from "./HomeworkQuickInput";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
+import { DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge, {
   type AttendanceStatus,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
@@ -170,9 +171,27 @@ export default function ScoresTable({
     return list;
   }, [examOptions, homeworkOptions]);
 
-  const editRowCols = useMemo(() => {
-    return [COL_EDIT_SELECT, ...columns.map((c) => c.width)];
+  const columnDefs = useMemo((): TableColumnDef[] => {
+    return [
+      { key: "edit", label: "수정", defaultWidth: COL_EDIT_SELECT, minWidth: 56, maxWidth: 120 },
+      ...columns.map((c) => ({
+        key: c.key,
+        label: c.key,
+        defaultWidth: c.width,
+        minWidth: 40,
+        maxWidth: 400,
+      })),
+    ];
   }, [columns]);
+
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores", columnDefs);
+
+  const editRowCols = useMemo(() => {
+    return [
+      columnWidths.edit ?? COL_EDIT_SELECT,
+      ...columns.map((c) => columnWidths[c.key] ?? c.width),
+    ];
+  }, [columns, columnWidths]);
 
   const tableWidth = useMemo(
     () => editRowCols.reduce((s, w) => s + w, 0),
@@ -215,13 +234,17 @@ export default function ScoresTable({
       </colgroup>
 
       <thead>
-        {/* 1행: 수정(전체/컬럼별 편집 허용) — 첫 셀만 rowSpan=3으로 수정/선택 통합 */}
+        {/* 1행: 수정(전체/컬럼별 편집 허용) — 첫 셀만 rowSpan=3으로 수정/선택 통합, 모든 헤더 셀 리사이즈 가능 */}
         <tr className="bg-[var(--color-bg-surface-soft)] border-b border-[var(--color-border-divider)]">
-          <th
+          <ResizableTh
+            columnKey="edit"
+            width={columnWidths.edit ?? COL_EDIT_SELECT}
+            minWidth={56}
+            maxWidth={120}
+            onWidthChange={setColumnWidth}
             rowSpan={3}
-            scope="col"
-            style={{ width: COL_EDIT_SELECT }}
-            className="ds-scores-edit-column align-top py-2 px-2 border-r border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] w-[72px] min-w-[72px]"
+            noWrap
+            className="ds-scores-edit-column align-top py-2 px-2 border-r border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
           >
             <div className="flex flex-col gap-2 items-center">
               <label
@@ -270,9 +293,17 @@ export default function ScoresTable({
                 </label>
               )}
             </div>
-          </th>
+          </ResizableTh>
           {columns.map((col) => (
-            <th key={col.key} scope="col" style={{ width: col.width }} className="ds-checkbox-cell text-center py-1">
+            <ResizableTh
+              key={col.key}
+              columnKey={col.key}
+              width={columnWidths[col.key] ?? col.width}
+              minWidth={40}
+              maxWidth={400}
+              onWidthChange={setColumnWidth}
+              className="ds-checkbox-cell text-center py-1"
+            >
               {col.editable ? (
                 <input
                   type="checkbox"
@@ -286,7 +317,7 @@ export default function ScoresTable({
                   aria-label={`${col.type === "exam" ? col.title : col.type === "homework" ? col.title : ""} 수정 허용`}
                 />
               ) : null}
-            </th>
+            </ResizableTh>
           ))}
         </tr>
         {/* 2행: 시험/과제명 — 첫 컬럼은 rowSpan으로 이미 차지됨 */}
