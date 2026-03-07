@@ -14,12 +14,12 @@ export function setMessageApi(
 
 export const feedback = {
   success(text: string) {
-    messageApiRef.current?.success({ content: text });
+    messageApiRef.current?.success({ content: text, duration: 2 });
   },
   error(text: string) {
-    messageApiRef.current?.error({ content: text });
+    messageApiRef.current?.error({ content: text, duration: 2 });
   },
   info(text: string) {
-    messageApiRef.current?.info({ content: text });
+    messageApiRef.current?.info({ content: text, duration: 2 });
   },
 };
