@@ -436,25 +436,25 @@ export default function Header() {
             trigger={["click"]}
             placement="bottomRight"
             popupRender={() => (
-              <div className="app-header__alarmDropdown">
-                <div className="app-header__alarmDropdownHeader">
+              <div className="app-header__alarmDropdown alarm-panel--workbox-style">
+                <div className="alarm-panel__header">
                   <span>알림</span>
                   <button
                     type="button"
-                    className="app-header__alarmDropdownHeaderLink"
+                    className="alarm-panel__header-link"
                     onClick={openNoticeAndCloseAlarm}
                   >
                     알림 전체 보기
                   </button>
                 </div>
-                <div className="app-header__alarmDropdownList">
+                <div className="alarm-panel__list">
                   {adminNotificationItems.length === 0 ? (
-                    <div className="app-header__alarmDropdownEmpty">알림이 없습니다</div>
+                    <div className="alarm-panel__empty">알림이 없습니다</div>
                   ) : (
                     adminNotificationItems.map((item) => (
                       <div
                         key={item.type}
-                        className="app-header__alarmDropdownItem"
+                        className="alarm-panel__item"
                         data-level="info"
                         onClick={() => {
                           setAlarmDropdownOpen(false);
@@ -470,11 +470,13 @@ export default function Header() {
                           }
                         }}
                       >
-                        <div className="app-header__alarmDropdownItemInner">
-                          <span className="app-header__alarmDropdownItemAccent" aria-hidden />
-                          <div className="app-header__alarmDropdownItemContent">
-                            <strong>{item.label}</strong>
-                            <span className="app-header__alarmDropdownItemBody">{item.count}건</span>
+                        <div className="alarm-panel__item-row">
+                          <span className="alarm-panel__item-accent" aria-hidden />
+                          <div className="alarm-panel__item-body">
+                            <div className="alarm-panel__item-content">
+                              <strong>{item.label}</strong>
+                              <span className="alarm-panel__item-meta">{item.count}건</span>
+                            </div>
                           </div>
                         </div>
                       </div>
