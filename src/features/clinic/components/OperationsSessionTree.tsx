@@ -74,9 +74,17 @@ export default function OperationsSessionTree({
   const sessionsByDate = useMemo(() => {
     const map: Record<string, ClinicSessionTreeNode[]> = {};
     sessions.forEach((s) => {
-      const key = dayjs(s.date).format("YYYY-MM-DD");
-      map[key] ??= [];
-      map[key].push(s);
+      const raw = s.date;
+      const key =
+        typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)
+          ? raw
+          : dayjs(raw).isValid()
+            ? dayjs(raw).format("YYYY-MM-DD")
+            : null;
+      if (key) {
+        map[key] ??= [];
+        map[key].push(s);
+      }
     });
     return map;
   }, [sessions]);
