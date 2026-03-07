@@ -261,6 +261,8 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
       return;
     }
 
+    if (!isEditMode) return;
+
     if (!selected) {
       const first = rows[0];
       setSelected(first);
@@ -286,7 +288,7 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
     ) {
       setCurrentHomeworkId(resolved.homeworks?.[0]?.homework_id ?? null);
     }
-  }, [rows, selected, currentExamId, currentHomeworkId]);
+  }, [rows, selected, currentExamId, currentHomeworkId, isEditMode]);
 
   if (isLoading) {
     return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
@@ -330,23 +332,25 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
           onRequestMovePrev={onRequestMovePrev}
           onRequestMoveDown={onRequestMoveDown}
           onRequestMoveUp={onRequestMoveUp}
-          onSelectCell={(row, type, id) => {
-            setSelected(row);
-            setFocusHomeworkCell(null);
-            if (type === "exam") {
-              setActiveColumn("exam");
-              setCurrentExamId(id);
-              if (currentHomeworkId == null && row.homeworks?.[0])
-                setCurrentHomeworkId(row.homeworks[0].homework_id);
-            } else {
-              setActiveColumn("homework");
-              setCurrentHomeworkId(id);
-              setFocusHomeworkCell({ enrollmentId: row.enrollment_id, homeworkId: id });
-              if (currentExamId == null && row.exams?.[0])
-                setCurrentExamId(row.exams[0].exam_id);
-            }
-          }}
-          onSelectRow={setSelected}
+          onSelectCell={isEditMode
+            ? (row, type, id) => {
+                setSelected(row);
+                setFocusHomeworkCell(null);
+                if (type === "exam") {
+                  setActiveColumn("exam");
+                  setCurrentExamId(id);
+                  if (currentHomeworkId == null && row.homeworks?.[0])
+                    setCurrentHomeworkId(row.homeworks[0].homework_id);
+                } else {
+                  setActiveColumn("homework");
+                  setCurrentHomeworkId(id);
+                  setFocusHomeworkCell({ enrollmentId: row.enrollment_id, homeworkId: id });
+                  if (currentExamId == null && row.exams?.[0])
+                    setCurrentExamId(row.exams[0].exam_id);
+                }
+              }
+            : () => {}}
+          onSelectRow={isEditMode ? setSelected : () => {}}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
         />

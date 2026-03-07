@@ -11,7 +11,8 @@ import {
 } from "@/features/lectures/api/attendance";
 import api from "@/shared/api/axios";
 import { EmptyState, Button } from "@/shared/ui/ds";
-import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, useTableColumnPrefs, ResizableTh } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import AttendanceStatusBadge, {
   ORDERED_ATTENDANCE_STATUS,
@@ -56,19 +57,8 @@ export default function SessionAttendancePage({
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
   const statusPopoverRef = useRef<HTMLDivElement>(null);
   const [statusPopoverAnchor, setStatusPopoverAnchor] = useState<{ left: number; top: number } | null>(null);
-  /** 상태 뱃지 클릭 시 우측 슬라이딩 패널에 표시할 출결 행 id (null이면 패널 닫힘) */
-  const [openStatusPanelAttId, setOpenStatusPanelAttId] = useState<number | null>(null);
-  const statusPanelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (openStatusPanelAttId == null) return;
-    const el = statusPanelRef.current;
-    if (!el) return;
-    const raf = requestAnimationFrame(() => {
-      el.style.transform = "translateX(0)";
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [openStatusPanelAttId]);
+  /** 상태 뱃지 클릭 시 해당 행 셀 안에 상태 목록 나열(상태필터와 동일 스타일). null이면 단일 뱃지만 표시 */
+  const [openStatusRowAttId, setOpenStatusRowAttId] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     if (!statusPopoverOpen) {
@@ -249,7 +239,19 @@ export default function SessionAttendancePage({
   );
 
   const col = STUDENTS_TABLE_COL;
-  const tableMinWidth = col.checkbox + col.name + col.statusBadge + col.parentPhone + col.studentPhone + col.memo;
+  const attendanceColumnDefs: TableColumnDef[] = useMemo(
+    () => [
+      { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 40, maxWidth: 120 },
+      { key: "name", label: "이름", defaultWidth: col.name, minWidth: 80, maxWidth: 400 },
+      { key: "status", label: "상태", defaultWidth: col.statusBadge, minWidth: 60, maxWidth: 140 },
+      { key: "parent_phone", label: "학부모 전화번호", defaultWidth: col.parentPhone, minWidth: 90, maxWidth: 200 },
+      { key: "phone", label: "학생 전화번호", defaultWidth: col.studentPhone, minWidth: 90, maxWidth: 200 },
+      { key: "memo", label: "메모", defaultWidth: col.memo, minWidth: 140, maxWidth: 500 },
+    ],
+    []
+  );
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-attendance", attendanceColumnDefs);
+  const tableWidth = attendanceColumnDefs.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0);
 
   const primaryAction =
     onOpenEnrollModal ? (
@@ -330,8 +332,14 @@ export default function SessionAttendancePage({
     const isAsc = sort === colKey;
     const isDesc = sort === `-${colKey}`;
     const next = isAsc ? `-${colKey}` : isDesc ? "" : colKey;
+    const w = columnWidths[colKey] ?? col.name;
     return (
-      <th
+      <ResizableTh
+        columnKey={colKey}
+        width={w}
+        minWidth={attendanceColumnDefs.find((c) => c.key === colKey)?.minWidth ?? 40}
+        maxWidth={attendanceColumnDefs.find((c) => c.key === colKey)?.maxWidth ?? 500}
+        onWidthChange={setColumnWidth}
         scope="col"
         onClick={() => setSort(next || "name")}
         className="cursor-pointer select-none"
@@ -346,76 +354,12 @@ export default function SessionAttendancePage({
             {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
           </span>
         </span>
-      </th>
+      </ResizableTh>
     );
   }
 
   return (
     <div className="flex flex-col gap-4 relative">
-      {/* 우측 슬라이딩 패널: 상태 뱃지 클릭 시 출결 상태 선택 */}
-      {openStatusPanelAttId != null && (() => {
-        const att = sorted.find((a: any) => a.id === openStatusPanelAttId);
-        return createPortal(
-          <>
-            <div
-              role="presentation"
-              className="fixed inset-0 z-[999] transition-opacity duration-200"
-              style={{ background: "rgba(0,0,0,0.2)" }}
-              onClick={() => setOpenStatusPanelAttId(null)}
-            />
-            <div
-              ref={statusPanelRef}
-              className="fixed top-0 right-0 bottom-0 z-[1000] flex flex-col bg-[var(--color-bg-surface)] shadow-[ -4px_0_24px_rgba(0,0,0,0.12)]"
-              style={{
-                width: 320,
-                transform: "translateX(100%)",
-                transition: "transform 0.25s ease-out",
-              }}
-            >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-divider)]">
-                <h3 className="text-[15px] font-semibold text-[var(--color-text-primary)]">출결 상태 변경</h3>
-                <button
-                  type="button"
-                  onClick={() => setOpenStatusPanelAttId(null)}
-                  className="p-1 rounded text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]"
-                  aria-label="닫기"
-                >
-                  ✕
-                </button>
-              </div>
-              {att && (
-                <div className="p-4 flex flex-col gap-4 overflow-auto">
-                  <p className="text-[14px] text-[var(--color-text-secondary)]">
-                    <span className="font-medium text-[var(--color-text-primary)]">{att.name ?? "이름 없음"}</span>
-                    <span className="ml-1">— 상태 선택</span>
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {STATUS_LIST.map((code) => {
-                      const active = att.status === code;
-                      return (
-                        <button
-                          key={code}
-                          type="button"
-                          onClick={() => {
-                            if (active) return;
-                            updateStatus.mutate({ id: att.id, status: code });
-                            setOpenStatusPanelAttId(null);
-                          }}
-                          className="cursor-pointer rounded border-0 p-1 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1 disabled:cursor-default"
-                          style={{ opacity: active ? 1 : 0.7 }}
-                        >
-                          <AttendanceStatusBadge status={code} variant="2ch" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </>,
-          document.body
-        );
-      })()}
       <DomainListToolbar
         totalLabel={`총 ${sorted.length}명`}
         searchSlot={
@@ -456,18 +400,23 @@ export default function SessionAttendancePage({
           />
         ) : (
           <div style={{ width: "fit-content" }}>
-            <DomainTable tableClassName="ds-table--flat ds-table--attendance" tableStyle={{ minWidth: tableMinWidth, width: "100%", tableLayout: "fixed" }}>
+            <DomainTable tableClassName="ds-table--flat ds-table--attendance" tableStyle={{ minWidth: tableWidth, width: tableWidth, tableLayout: "fixed" }}>
               <colgroup>
-                <col style={{ width: col.checkbox }} />
-                <col style={{ width: col.name }} />
-                <col style={{ width: col.statusBadge }} />
-                <col style={{ width: col.parentPhone }} />
-                <col style={{ width: col.studentPhone }} />
-                <col style={{ width: col.memo }} />
+                {attendanceColumnDefs.map((c) => (
+                  <col key={c.key} style={{ width: columnWidths[c.key] ?? c.defaultWidth }} />
+                ))}
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                  <ResizableTh
+                    columnKey="checkbox"
+                    width={columnWidths.checkbox ?? col.checkbox}
+                    minWidth={40}
+                    maxWidth={120}
+                    onWidthChange={setColumnWidth}
+                    scope="col"
+                    className="ds-checkbox-cell"
+                  >
                     <input
                       type="checkbox"
                       checked={allSelected}
@@ -475,18 +424,27 @@ export default function SessionAttendancePage({
                       aria-label="전체 선택"
                       className="cursor-pointer"
                     />
-                  </th>
+                  </ResizableTh>
                   {sortHeader("name", "이름")}
                   {sortHeader("status", "상태")}
                   {sortHeader("parent_phone", "학부모 전화번호")}
                   {sortHeader("phone", "학생 전화번호")}
-                  <th scope="col">메모</th>
+                  <ResizableTh
+                    columnKey="memo"
+                    width={columnWidths.memo ?? col.memo}
+                    minWidth={140}
+                    maxWidth={500}
+                    onWidthChange={setColumnWidth}
+                    scope="col"
+                  >
+                    메모
+                  </ResizableTh>
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((att: any) => (
                   <tr key={att.id} className={selectedSet.has(att.id) ? "ds-row-selected" : ""}>
-                    <td className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                    <td className="ds-checkbox-cell" style={{ width: columnWidths.checkbox ?? col.checkbox }} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedSet.has(att.id)}
@@ -496,7 +454,7 @@ export default function SessionAttendancePage({
                         className="cursor-pointer"
                       />
                     </td>
-                    <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle">
+                    <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: columnWidths.name ?? col.name }}>
                       <StudentNameWithLectureChip
                         name={att.name ?? ""}
                         profilePhotoUrl={att.profile_photo_url ?? undefined}
@@ -511,23 +469,49 @@ export default function SessionAttendancePage({
                         chipSize={16}
                       />
                     </td>
-                    <td className="text-center align-middle">
-                      <button
-                        type="button"
-                        onClick={() => setOpenStatusPanelAttId(att.id)}
-                        className="cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
-                        aria-label={`${att.name ?? ""} 출결 상태 변경`}
-                      >
-                        <AttendanceStatusBadge status={att.status} variant="2ch" />
-                      </button>
+                    <td className="text-center align-middle" style={{ width: columnWidths.status ?? col.statusBadge }}>
+                      {openStatusRowAttId === att.id ? (
+                        <div className="flex flex-wrap items-center gap-2 justify-center py-1">
+                          {STATUS_LIST.map((code) => {
+                            const active = att.status === code;
+                            return (
+                              <button
+                                key={code}
+                                type="button"
+                                onClick={() => {
+                                  if (active) return;
+                                  updateStatus.mutate({ id: att.id, status: code });
+                                  setOpenStatusRowAttId(null);
+                                }}
+                                className="cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                                style={{
+                                  opacity: active ? 1 : 0.85,
+                                  boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
+                                }}
+                              >
+                                <AttendanceStatusBadge status={code} variant="2ch" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setOpenStatusRowAttId(att.id)}
+                          className="cursor-pointer rounded border-0 p-0 bg-transparent inline-flex align-middle focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                          aria-label={`${att.name ?? ""} 출결 상태 변경`}
+                        >
+                          <AttendanceStatusBadge status={att.status} variant="2ch" />
+                        </button>
+                      )}
                     </td>
-                    <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
+                    <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.parent_phone ?? col.parentPhone }}>
                       {formatPhone(att.parent_phone)}
                     </td>
-                    <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle">
+                    <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.phone ?? col.studentPhone }}>
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
-                    <td className="align-middle">
+                    <td className="align-middle" style={{ width: columnWidths.memo ?? col.memo }}>
                       <input
                         defaultValue={att.memo || ""}
                         placeholder="메모 입력"

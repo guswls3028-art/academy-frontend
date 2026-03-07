@@ -116,30 +116,6 @@ export default function SessionScoresEntryPage({
         </div>
       )}
 
-      {isEditMode && (
-        <div className="flex flex-col gap-1 text-xs text-[var(--color-text-muted)]">
-          <p>
-            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Tab</kbd>
-            {" · "}
-            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd>
-            {" · "}
-            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">방향키</kbd>
-            {" 로 셀 이동"}
-          </p>
-          <p>
-            {"숫자 입력 후 "}
-            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd>
-            {" 저장"}
-          </p>
-          <p>
-            {"미제출: "}
-            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">/</kbd>
-            {" + "}
-            <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd>
-          </p>
-        </div>
-      )}
-
       {isLoading && (
         <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />
       )}
