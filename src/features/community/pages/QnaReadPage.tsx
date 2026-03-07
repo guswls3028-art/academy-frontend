@@ -194,7 +194,7 @@ export default function QnaReadPage() {
                           color: "var(--color-text-muted)",
                         }}
                       >
-                        답변 완료
+                        {q.is_answered ? "답변 완료" : "답변 대기"}
                       </span>
                     </button>
                   </li>
@@ -206,12 +206,12 @@ export default function QnaReadPage() {
       )}
 
       {/* 답변 섹션 */}
-      <AnswerSection postId={postId} repliesCount={post.replies_count ?? 0} />
+      <AnswerSection postId={postId} />
     </div>
   );
 }
 
-function AnswerSection({ postId, repliesCount }: { postId: number; repliesCount: number }) {
+function AnswerSection({ postId }: { postId: number }) {
   const qc = useQueryClient();
   const { data: replies = [], isLoading } = useQuery({
     queryKey: ["post-replies", postId],
