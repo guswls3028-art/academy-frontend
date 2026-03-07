@@ -232,7 +232,7 @@ export default function ScoresTable({
             className="ds-checkbox-cell align-top py-2.5 px-2 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
           >
             {onSelectionChange ? (
-              <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-[var(--color-text-secondary)]">
+              <label className="inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -246,10 +246,9 @@ export default function ScoresTable({
                   className="cursor-pointer w-4 h-4"
                   aria-label="전체 선택"
                 />
-                선택
               </label>
             ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">선택</span>
+              <span className="w-4 inline-block" />
             )}
           </ResizableTh>
           <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
@@ -399,31 +398,20 @@ export default function ScoresTable({
                 </td>
 
                 <td
-                  className={`font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)] ${clinicTarget ? "ds-table-cell-name--clinic-target" : ""}`}
+                  className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)]"
                   onClick={() => onSelectRow(row)}
                 >
-                  <span className="inline-flex items-center gap-2 flex-wrap">
-                    <StudentNameWithLectureChip
-                      name={row.student_name ?? ""}
-                      profilePhotoUrl={row.profile_photo_url ?? undefined}
-                      avatarSize={24}
-                      lectures={
-                        row.lecture_title
-                          ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
-                          : undefined
-                      }
-                      chipSize={14}
-                    />
-                    {clinicTarget && (
-                      <span
-                        className="ds-status-badge px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide"
-                        data-tone="danger"
-                        title="클리닉 대상"
-                      >
-                        CLINIC
-                      </span>
-                    )}
-                  </span>
+                  <StudentNameWithLectureChip
+                    name={row.student_name ?? ""}
+                    profilePhotoUrl={row.profile_photo_url ?? undefined}
+                    avatarSize={24}
+                    lectures={
+                      row.lecture_title
+                        ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
+                        : undefined
+                    }
+                    chipSize={14}
+                  />
                 </td>
 
                 <td className="text-left py-2.5 px-3 align-middle" onClick={() => onSelectRow(row)}>
