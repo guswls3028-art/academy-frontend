@@ -230,6 +230,13 @@ export default function ClinicCreatePanel({
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-month"] });
+      // 생성한 날짜의 연·월로 트리 즉시 refetch (목록 반영 보장)
+      const y = selectedDate.year();
+      const m = selectedDate.month() + 1;
+      await qc.fetchQuery({
+        queryKey: ["clinic-sessions-tree", y, m],
+        queryFn: () => fetchClinicSessionTree({ year: y, month: m }),
+      });
       onCreated?.(selectedDate.format("YYYY-MM-DD"));
     } catch (e: any) {
       const res = e?.response?.data;

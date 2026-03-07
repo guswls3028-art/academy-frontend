@@ -1,6 +1,7 @@
 // PATH: src/features/clinic/components/ClinicDaySchedulePanel.tsx
 // 당일 클리닉 일정 — 섹션형 SSOT (세션 + 참가자), 세션별 상태 색상(🟢🟡🔴)
 
+import { Trash2 } from "lucide-react";
 import type { ClinicSessionTreeNode } from "../api/clinicSessions.api";
 import { ClinicParticipant } from "../api/clinicParticipants.api";
 
@@ -61,10 +62,13 @@ export default function ClinicDaySchedulePanel({
   date,
   sessionsForDay = [],
   rows,
+  onDeleteSession,
 }: {
   date: string;
   sessionsForDay?: ClinicSessionTreeNode[];
   rows: ClinicParticipant[];
+  /** 세션 삭제 시 호출 (미제공 시 삭제 버튼 비표시) */
+  onDeleteSession?: (sessionId: number, label: string) => void;
 }) {
   const hasSessions = sessionsForDay.length > 0;
   const hasRows = rows.length > 0;
@@ -129,9 +133,25 @@ export default function ClinicDaySchedulePanel({
               <div className="clinic-section__header">
                 <p className="clinic-section__title">{time}</p>
                 {sessionsAtTime.length > 0 && (
-                  <p className="clinic-section__meta text-sm text-[var(--color-text-muted)] mt-0.5">
-                    {sessionsAtTime.map((s) => s.location).join(" · ")} · 예약 {totalCount}명
-                  </p>
+                  <div className="clinic-section__meta text-sm text-[var(--color-text-muted)] mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span>{sessionsAtTime.map((s) => s.location).join(" · ")} · 예약 {totalCount}명</span>
+                    {onDeleteSession &&
+                      sessionsAtTime.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() =>
+                            onDeleteSession(s.id, `${formatTime(s.start_time)} ${s.location}`)
+                          }
+                          className="text-[var(--color-text-muted)] hover:text-[var(--color-status-danger)] inline-flex items-center gap-1"
+                          title="클리닉 삭제"
+                          aria-label={`${s.location} 클리닉 삭제`}
+                        >
+                          <Trash2 size={14} />
+                          <span className="text-xs">{s.location} 삭제</span>
+                        </button>
+                      ))}
+                  </div>
                 )}
               </div>
               <ul className="space-y-2">

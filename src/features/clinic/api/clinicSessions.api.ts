@@ -50,3 +50,11 @@ export async function fetchClinicLocations(): Promise<string[]> {
   const res = await api.get("/clinic/sessions/locations/");
   return Array.isArray(res.data) ? res.data : [];
 }
+
+/**
+ * 클리닉(세션) 삭제 — 참가자·테스트 등 CASCADE 삭제됨
+ * DELETE /clinic/sessions/{id}/
+ */
+export async function deleteClinicSession(sessionId: number): Promise<void> {
+  await api.delete(`/clinic/sessions/${sessionId}/`);
+}
