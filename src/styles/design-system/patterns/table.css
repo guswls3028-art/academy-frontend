@@ -289,3 +289,11 @@ table.ds-table {
 .ds-table thead th:has(.data-table-resize-handle):hover .data-table-resize-handle {
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
+
+/* 클리닉 대상자 이름 셀 — 전역: 이름 컬럼에 보색 배경 (DS --color-brand-complement) */
+.ds-table-cell-name--clinic-target {
+  background: color-mix(in srgb, var(--color-brand-complement) 12%, var(--color-bg-surface)) !important;
+}
+.ds-table tbody tr:hover .ds-table-cell-name--clinic-target {
+  background: color-mix(in srgb, var(--color-brand-complement) 18%, var(--color-bg-surface)) !important;
+}

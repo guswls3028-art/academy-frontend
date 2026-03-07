@@ -33,7 +33,7 @@ const COL_EDIT_SELECT = 80; // 수정/선택 통합 컬럼
 /** 시험 컬럼 블록 배경 — 학생 도메인 베이스 + 연한 구분 */
 const BG_EXAM = "color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface))";
 /** 과제 컬럼 블록 배경 — 시험과 구분되는 연한 색 */
-const BG_HOMEWORK = "color-mix(in srgb, var(--color-text-secondary) 6%, var(--color-bg-surface))"; (아이콘+라벨 여유)
+const BG_HOMEWORK = "color-mix(in srgb, var(--color-text-secondary) 6%, var(--color-bg-surface))";
 
 /** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
 function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
@@ -459,7 +459,7 @@ export default function ScoresTable({
                 </td>
 
                 <td
-                  className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)]"
+                  className={`font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)] ${clinicTarget ? "ds-table-cell-name--clinic-target" : ""}`}
                   onClick={() => onSelectRow(row)}
                 >
                   <StudentNameWithLectureChip
