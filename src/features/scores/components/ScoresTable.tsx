@@ -325,9 +325,9 @@ export default function ScoresTable({
             </ResizableTh>
           ))}
         </tr>
-        {/* 2행: 시험/과제명 — 첫 컬럼은 rowSpan으로 이미 차지됨 */}
+        {/* 2행: 시험/과제명 — 수정 컬럼과 경계 구분 */}
         <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
-          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
+          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
             이름
           </th>
           <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
@@ -363,8 +363,8 @@ export default function ScoresTable({
           </th>
         </tr>
         {/* 3행: 서브 헤더 — 주관식/객관식/합산/합불, 점수/합불 */}
-        <tr className="border-b border-[var(--color-border-divider)]">
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
+        <tr className="border-b-2 border-[var(--color-border-divider)]">
+          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)]">
             이름
           </th>
           <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3">
@@ -451,7 +451,7 @@ export default function ScoresTable({
                 </td>
 
                 <td
-                  className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle"
+                  className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)]"
                   onClick={() => onSelectRow(row)}
                 >
                   <StudentNameWithLectureChip
