@@ -4,6 +4,7 @@ import { Switch } from "antd";
 import { fetchClinicMe } from "../../api/clinicMe.api";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
 import ClinicRemoteControl from "../../components/ClinicRemoteControl";
+import Section from "@/shared/ui/ds/Section";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AdminModal from "@/shared/ui/modal/AdminModal";
@@ -17,57 +18,64 @@ export default function ClinicSettingsPage() {
   const meQ = useQuery({
     queryKey: ["clinic-me"],
     queryFn: fetchClinicMe,
+    retry: 1,
   });
 
-  const canManage = !!meQ.data?.is_payroll_manager || !!meQ.data?.is_superuser;
+  const canManage =
+    meQ.data &&
+    (meQ.data.is_staff || meQ.data.is_payroll_manager || meQ.data.is_superuser);
 
   if (meQ.isLoading) {
     return (
-      <div className="clinic-panel">
-        <div className="clinic-panel__body">
-          <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
-        </div>
+      <div className="clinic-page">
+        <Section title="설정" description="불러오는 중…" />
+      </div>
+    );
+  }
+
+  if (meQ.isError) {
+    return (
+      <div className="clinic-page">
+        <Section
+          title="설정"
+          description="권한 정보를 불러오지 못했습니다. 네트워크를 확인한 뒤 새로고침해 주세요."
+        />
       </div>
     );
   }
 
   if (!canManage) {
     return (
-      <div className="clinic-panel">
-        <div className="clinic-panel__body">
-          <p className="clinic-panel__title">권한 없음</p>
-          <p className="clinic-panel__meta">설정은 관리자만 접근 가능합니다.</p>
-        </div>
+      <div className="clinic-page">
+        <Section
+          title="권한 없음"
+          description="설정은 스태프(관리자)만 접근할 수 있습니다."
+        />
       </div>
     );
   }
 
   return (
-    <div className="clinic-page space-y-6">
-      <section className="ds-section">
-        <div className="ds-section__header">
-          <h2 className="ds-section__title">설정</h2>
-          <p className="ds-section__description">정책·기준은 서버 단일진실로 관리됩니다.</p>
-        </div>
-      </section>
+    <div className="clinic-page space-y-0">
+      <Section
+        title="설정"
+        description="정책·기준은 서버 단일진실로 관리됩니다."
+      />
 
       <ClinicIdcardColorSettings />
       <ClinicRemoteControl />
 
-      <div className="clinic-panel overflow-hidden">
-        <div className="clinic-panel__header">
-          <h2 className="clinic-panel__title">클리닉 정책</h2>
-          <p className="clinic-panel__meta">백엔드 정책 API 연동 예정</p>
+      <Section
+        title="클리닉 정책"
+        description="ProgressPolicy · 대상자 자동 생성 · 예약 슬롯 규칙 등 (백엔드 정책 API 연동 예정)"
+      >
+        <div className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-5 py-4">
+          <p className="text-sm font-semibold text-[var(--color-text-primary)]">예시</p>
+          <p className="text-xs text-[var(--color-text-muted)] mt-1">
+            ProgressPolicy · 대상자 자동 생성 · 예약 슬롯 규칙
+          </p>
         </div>
-        <div className="clinic-panel__body space-y-3">
-          <div className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-5 py-4">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]">예시</p>
-            <p className="text-xs text-[var(--color-text-muted)] mt-1">
-              ProgressPolicy · 대상자 자동 생성 · 예약 슬롯 규칙
-            </p>
-          </div>
-        </div>
-      </div>
+      </Section>
     </div>
   );
 }
@@ -160,10 +168,8 @@ function ClinicIdcardColorSettings() {
           100% { background-position: 0% 50%; }
         }
       `}</style>
-      <div className="clinic-panel overflow-hidden">
-        <div className="clinic-panel__header">
-          <h2 className="clinic-panel__title">패스카드 배경 색상</h2>
-          <p className="clinic-panel__meta">위조 방지 · 수업 후 “오늘은 빨 파 초”로 변경</p>
+      <Section title="패스카드 배경 색상" description="위조 방지 · 수업 후 색상 변경">
+        <div className="space-y-4">위조 방지 · 수업 후 “오늘은 빨 파 초”로 변경</p>
         </div>
 
         <div className="clinic-panel__body space-y-4">
@@ -246,7 +252,7 @@ function ClinicIdcardColorSettings() {
             </Button>
           </div>
         </div>
-      </div>
+      </Section>
 
       {/* 색상 선택 모달 */}
       <ColorSelectModal
