@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
-import { Button } from "@/shared/ui/ds";
+import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
 import { type TenantId, getTenantBranding } from "@/shared/tenant";
-import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
+import { Button } from "@/shared/ui/ds";
 
 type Props = { tenantId: TenantId };
 

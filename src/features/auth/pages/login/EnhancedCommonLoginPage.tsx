@@ -4,6 +4,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
+import {
+  submitRegistrationRequest,
+  requestPasswordFindCode,
+  verifyPasswordFindCode,
+} from "@/features/students/api/students";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
 import {
@@ -11,11 +16,6 @@ import {
   getTenantIdFromCode,
   getTenantBranding,
 } from "@/shared/tenant";
-import {
-  submitRegistrationRequest,
-  requestPasswordFindCode,
-  verifyPasswordFindCode,
-} from "@/features/students/api/students";
 import CommonLogo from "../logos/commonlogo.png";
 import "@/features/auth/themes/tchul.css";
 import "@/features/auth/themes/limglish.css";
