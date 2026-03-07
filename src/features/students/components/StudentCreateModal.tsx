@@ -143,7 +143,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     if (busy) return;
 
     const err = validate();
-    if (err) return alert(err);
+    if (err) {
+      feedback.error(err);
+      return;
+    }
 
     setBusy(true);
     try {

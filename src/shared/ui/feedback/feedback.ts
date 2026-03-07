@@ -22,4 +22,7 @@ export const feedback = {
   info(text: string) {
     messageApiRef.current?.info({ content: text, duration: 2 });
   },
+  warning(text: string) {
+    messageApiRef.current?.warning({ content: text, duration: 2 });
+  },
 };

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import api from "@/shared/api/axios";
+import { Popover } from "antd";
+import { Save, FolderOpen, Trash2 } from "lucide-react";
 
+import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
@@ -9,11 +11,50 @@ import { TimeRangeInput } from "@/shared/ui/time";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { fetchLectureInstructorOptions } from "@/features/lectures/api/sessions";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { validateRequiredFields } from "@/shared/utils/modalValidation";
+
+const SAVED_SUBJECTS_KEY = "academy-lecture-saved-subjects";
+const SAVED_INSTRUCTORS_KEY = "academy-lecture-saved-instructors";
+
+function getSavedList(key: string): string[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x: unknown): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveToList(key: string, name: string): string[] {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return getSavedList(key);
+  const list = getSavedList(key);
+  if (list.includes(trimmed)) return list;
+  const next = [...list, trimmed];
+  try {
+    localStorage.setItem(key, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+  return next;
+}
+
+function removeFromList(key: string, name: string): string[] {
+  const list = getSavedList(key).filter((x) => x !== name);
+  try {
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch {
+    /* ignore */
+  }
+  return list;
+}
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  /** 이미 사용 중인 강의 색상 — 기본값이 이들과 최대한 차이나도록 선택됨 */
   usedColors?: string[];
 }
 
@@ -43,6 +84,14 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
   const [color, setColor] = useState(() => getDefaultColorForPicker(usedColors));
   const [chipLabel, setChipLabel] = useState("");
 
+  const [savedSubjects, setSavedSubjects] = useState<string[]>(() => getSavedList(SAVED_SUBJECTS_KEY));
+  const [savedInstructors, setSavedInstructors] = useState<string[]>(() => getSavedList(SAVED_INSTRUCTORS_KEY));
+  const [subjectPopoverOpen, setSubjectPopoverOpen] = useState(false);
+  const [instructorPopoverOpen, setInstructorPopoverOpen] = useState(false);
+  const [addSubjectInput, setAddSubjectInput] = useState("");
+  const [addInstructorInput, setAddInstructorInput] = useState("");
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
   const modalTitle = useMemo(() => "강의 추가", []);
 
   const { data: instructorOptions = [] } = useQuery({
@@ -50,6 +99,22 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     queryFn: fetchLectureInstructorOptions,
     enabled: isOpen,
   });
+
+  useEffect(() => {
+    if (isOpen && instructorOptions.length > 0 && savedInstructors.length === 0) {
+      const names = instructorOptions.map((o) => o.name).filter(Boolean);
+      const uniq = [...new Set(names)];
+      if (uniq.length > 0) {
+        setSavedInstructors(uniq);
+        try {
+          localStorage.setItem(SAVED_INSTRUCTORS_KEY, JSON.stringify(uniq));
+        } catch {
+          /* ignore */
+        }
+        if (!name) setName(uniq[0] ?? "");
+      }
+    }
+  }, [isOpen, instructorOptions, savedInstructors.length, name]);
 
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async (payload: CreateLecturePayload) => {
@@ -72,49 +137,290 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     setLectureTime("");
     setColor(getDefaultColorForPicker(usedColors));
     setChipLabel("");
+    setAddSubjectInput("");
+    setAddInstructorInput("");
+    setHasAttemptedSubmit(false);
   }, [isOpen, usedColors]);
 
   useEffect(() => {
-    if (isOpen && instructorOptions.length > 0 && !name) {
-      setName(instructorOptions[0].name);
-    }
-  }, [isOpen, instructorOptions, name]);
-
-  useEffect(() => {
     if (!isOpen) return;
-
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
       const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && !isPending && title.trim()) {
+      if (e.key === "Enter" && !isTextarea && !isPending) {
         e.preventDefault();
         submit();
       }
     }
-
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, title, name, subject, description, startDate, endDate, lectureTime, color, chipLabel, isPending]);
+  }, [isOpen, isPending, title, name, subject, description, startDate, endDate, lectureTime, color, chipLabel]);
 
   if (!isOpen) return null;
 
+  const effectiveChipLabel = (chipLabel.trim() || title.trim().slice(0, 2)).slice(0, 2);
+
   function submit() {
-    if (!title.trim()) return;
+    setHasAttemptedSubmit(true);
+    const err = validateRequiredFields([
+      { value: title, label: "강의 이름" },
+      { value: name, label: "담당 강사" },
+      { value: startDate, label: "시작일" },
+      { value: lectureTime, label: "강의 시간", message: "강의 시작·종료 시간을 선택해 주세요." },
+    ]);
+    if (err) {
+      feedback.error(err);
+      return;
+    }
+
     const payload: CreateLecturePayload = {
-      title,
-      name,
-      subject,
-      description,
-      start_date: startDate,
+      title: title.trim(),
+      name: name.trim(),
+      subject: subject.trim(),
+      description: description.trim(),
+      start_date: startDate.trim(),
       lecture_time: lectureTime.trim(),
       color,
-      chip_label: chipLabel.trim().slice(0, 2),
+      chip_label: effectiveChipLabel,
       is_active: true,
     };
     if (endDate.trim()) payload.end_date = endDate.trim();
     mutate(payload);
   }
+
+  const subjectPopoverContent = (
+    <div className="saved-list-field-popover">
+      {savedSubjects.length === 0 ? (
+        <div className="saved-list-field-popover-empty">
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">저장된 과목이 없습니다.</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="ds-input flex-1 min-w-0"
+              placeholder="과목 입력"
+              value={addSubjectInput}
+              onChange={(e) => setAddSubjectInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const v = addSubjectInput.trim();
+                  if (v) {
+                    setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, v));
+                    setSubject(v);
+                    setAddSubjectInput("");
+                    setSubjectPopoverOpen(false);
+                    feedback.success("추가됨");
+                  }
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              intent="primary"
+              onClick={() => {
+                const v = addSubjectInput.trim();
+                if (v) {
+                  setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, v));
+                  setSubject(v);
+                  setAddSubjectInput("");
+                  setSubjectPopoverOpen(false);
+                  feedback.success("추가됨");
+                }
+              }}
+            >
+              추가
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="saved-list-field-popover-list">
+          {savedSubjects.map((loc) => (
+            <div key={loc} className="saved-list-field-popover-item-row">
+              <button
+                type="button"
+                className="saved-list-field-popover-item flex-1 min-w-0 text-left"
+                onClick={() => {
+                  setSubject(loc);
+                  setSubjectPopoverOpen(false);
+                }}
+              >
+                {loc}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSavedSubjects(removeFromList(SAVED_SUBJECTS_KEY, loc));
+                  feedback.success("삭제됨");
+                }}
+                className="saved-list-field-popover-delete"
+                title="과목 삭제"
+                aria-label={`${loc} 삭제`}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+          <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
+            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">과목 추가하기</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="ds-input flex-1 min-w-0 text-sm"
+                placeholder="새 과목"
+                value={addSubjectInput}
+                onChange={(e) => setAddSubjectInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const v = addSubjectInput.trim();
+                    if (v) {
+                      setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, v));
+                      setSubject(v);
+                      setAddSubjectInput("");
+                      setSubjectPopoverOpen(false);
+                      feedback.success("추가됨");
+                    }
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                intent="secondary"
+                onClick={() => {
+                  const v = addSubjectInput.trim();
+                  if (v) {
+                    setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, v));
+                    setSubject(v);
+                    setAddSubjectInput("");
+                    setSubjectPopoverOpen(false);
+                    feedback.success("추가됨");
+                  }
+                }}
+              >
+                추가
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const instructorPopoverContent = (
+    <div className="saved-list-field-popover">
+      {savedInstructors.length === 0 ? (
+        <div className="saved-list-field-popover-empty">
+          <p className="text-xs text-[var(--color-text-muted)] mb-2">저장된 담당 강사가 없습니다.</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="ds-input flex-1 min-w-0"
+              placeholder="강사명 입력"
+              value={addInstructorInput}
+              onChange={(e) => setAddInstructorInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const v = addInstructorInput.trim();
+                  if (v) {
+                    setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
+                    setName(v);
+                    setAddInstructorInput("");
+                    setInstructorPopoverOpen(false);
+                    feedback.success("추가됨");
+                  }
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              intent="primary"
+              onClick={() => {
+                const v = addInstructorInput.trim();
+                if (v) {
+                  setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
+                  setName(v);
+                  setAddInstructorInput("");
+                  setInstructorPopoverOpen(false);
+                  feedback.success("추가됨");
+                }
+              }}
+            >
+              추가
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="saved-list-field-popover-list">
+          {savedInstructors.map((loc) => (
+            <div key={loc} className="saved-list-field-popover-item-row">
+              <button
+                type="button"
+                className="saved-list-field-popover-item flex-1 min-w-0 text-left"
+                onClick={() => {
+                  setName(loc);
+                  setInstructorPopoverOpen(false);
+                }}
+              >
+                {loc}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSavedInstructors(removeFromList(SAVED_INSTRUCTORS_KEY, loc));
+                  feedback.success("삭제됨");
+                }}
+                className="saved-list-field-popover-delete"
+                title="담당 강사 삭제"
+                aria-label={`${loc} 삭제`}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+          <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
+            <p className="text-[11px] text-[var(--color-text-muted)] mb-1">담당 강사 추가하기</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="ds-input flex-1 min-w-0 text-sm"
+                placeholder="새 강사명"
+                value={addInstructorInput}
+                onChange={(e) => setAddInstructorInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const v = addInstructorInput.trim();
+                    if (v) {
+                      setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
+                      setName(v);
+                      setAddInstructorInput("");
+                      setInstructorPopoverOpen(false);
+                      feedback.success("추가됨");
+                    }
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                intent="secondary"
+                onClick={() => {
+                  const v = addInstructorInput.trim();
+                  if (v) {
+                    setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
+                    setName(v);
+                    setAddInstructorInput("");
+                    setInstructorPopoverOpen(false);
+                    feedback.success("추가됨");
+                  }
+                }}
+              >
+                추가
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <AdminModal open={true} onClose={onClose} type="action" width={480}>
@@ -128,7 +434,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
         )}
 
         <div style={{ display: "grid", gap: 10, maxWidth: 400 }}>
-          {/* 딱지 영역: 좌측=미리보기+아이콘, 우측=팔레트 (방향 고정) */}
+          {/* 딱지 영역 */}
           <div
             style={{
               display: "grid",
@@ -143,7 +449,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
               <LectureChip
                 lectureName=""
                 color={color}
-                chipLabel={chipLabel || undefined}
+                chipLabel={effectiveChipLabel || undefined}
                 size={36}
               />
             </div>
@@ -158,7 +464,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             <div style={{ gridColumn: 1, gridRow: 2 }}>
               <input
                 className="ds-input"
-                placeholder="아이콘"
+                placeholder="아이콘 (미입력 시 강의명 앞 2글자)"
                 value={chipLabel}
                 onChange={(e) => setChipLabel(e.target.value.slice(0, 2))}
                 maxLength={2}
@@ -169,43 +475,131 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             </div>
           </div>
 
-          <input
-            className="ds-input"
-            placeholder="강의 이름"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            data-invalid={!title.trim() ? "true" : "false"}
-            disabled={isPending}
-            autoFocus
-          />
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
-                담당 강사
-              </label>
-              <select
-                className="ds-input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={isPending}
-                aria-label="담당 강사 선택"
-              >
-                <option value="">선택</option>
-                {instructorOptions.map((opt) => (
-                  <option key={`${opt.type}-${opt.name}`} value={opt.name}>
-                    {opt.type === "owner" ? `오너 · ${opt.name}` : opt.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* 강의 이름 — 필수 */}
+          <div className="modal-form-group">
+            <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+              강의 이름 (필수)
+            </label>
             <input
               className="ds-input"
-              placeholder="과목"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+              placeholder="강의 이름"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              data-required="true"
+              data-invalid={hasAttemptedSubmit && !title.trim() ? "true" : "false"}
               disabled={isPending}
+              autoFocus
             />
+          </div>
+
+          {/* 담당 강사 · 과목 — 같은 줄, 같은 높이 */}
+          <div className="modal-form-group" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "start" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+                담당 강사 (필수)
+              </label>
+              <div className="flex flex-1 min-w-0 gap-2 items-center" style={{ minHeight: 36 }}>
+                <input
+                  type="text"
+                  className="ds-input flex-1 min-w-0"
+                  placeholder="선택 또는 입력"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  data-required="true"
+                  data-invalid={hasAttemptedSubmit && !name.trim() ? "true" : "false"}
+                  disabled={isPending}
+                  aria-label="담당 강사"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = name.trim();
+                    if (!v) {
+                      feedback.warning("담당 강사를 입력한 뒤 저장해 주세요.");
+                      return;
+                    }
+                    setSavedInstructors(saveToList(SAVED_INSTRUCTORS_KEY, v));
+                    feedback.success("저장됨");
+                  }}
+                  className="saved-list-field-icon-btn"
+                  title="담당 강사 저장"
+                  aria-label="담당 강사 저장"
+                >
+                  <Save size={16} />
+                </button>
+                <Popover
+                  open={instructorPopoverOpen}
+                  onOpenChange={(open) => {
+                    setInstructorPopoverOpen(open);
+                    if (open) setSavedInstructors(getSavedList(SAVED_INSTRUCTORS_KEY));
+                  }}
+                  trigger="click"
+                  placement="bottomLeft"
+                  content={instructorPopoverContent}
+                >
+                  <button
+                    type="button"
+                    className="saved-list-field-icon-btn"
+                    title="담당 강사 불러오기"
+                    aria-label="담당 강사 불러오기"
+                  >
+                    <FolderOpen size={16} />
+                  </button>
+                </Popover>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+                과목
+              </label>
+              <div className="flex flex-1 min-w-0 gap-2 items-center" style={{ minHeight: 36 }}>
+                <input
+                  type="text"
+                  className="ds-input flex-1 min-w-0"
+                  placeholder="선택 또는 입력"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  disabled={isPending}
+                  aria-label="과목"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const v = subject.trim();
+                    if (!v) {
+                      feedback.warning("과목을 입력한 뒤 저장해 주세요.");
+                      return;
+                    }
+                    setSavedSubjects(saveToList(SAVED_SUBJECTS_KEY, v));
+                    feedback.success("저장됨");
+                  }}
+                  className="saved-list-field-icon-btn"
+                  title="과목 저장"
+                  aria-label="과목 저장"
+                >
+                  <Save size={16} />
+                </button>
+                <Popover
+                  open={subjectPopoverOpen}
+                  onOpenChange={(open) => {
+                    setSubjectPopoverOpen(open);
+                    if (open) setSavedSubjects(getSavedList(SAVED_SUBJECTS_KEY));
+                  }}
+                  trigger="click"
+                  placement="bottomLeft"
+                  content={subjectPopoverContent}
+                >
+                  <button
+                    type="button"
+                    className="saved-list-field-icon-btn"
+                    title="과목 불러오기"
+                    aria-label="과목 불러오기"
+                  >
+                    <FolderOpen size={16} />
+                  </button>
+                </Popover>
+              </div>
+            </div>
           </div>
 
           <textarea
@@ -219,22 +613,32 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <DatePicker
-              value={startDate}
-              onChange={setStartDate}
-              placeholder="시작일"
-              disabled={isPending}
-            />
-            <DatePicker
-              value={endDate}
-              onChange={setEndDate}
-              placeholder="종료일 (선택)"
-              disabled={isPending}
-            />
+            <div className="modal-form-group" data-required="true" data-invalid={hasAttemptedSubmit && !startDate.trim() ? "true" : "false"}>
+              <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+                시작일 (필수)
+              </label>
+              <DatePicker
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="시작일"
+                disabled={isPending}
+              />
+            </div>
+            <div className="modal-form-group">
+              <label className="modal-section-label" style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+                종료일 (선택)
+              </label>
+              <DatePicker
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="종료일 (선택)"
+                disabled={isPending}
+              />
+            </div>
           </div>
 
-          <div style={{ minWidth: 320 }}>
-            <div className="modal-section-label" style={{ marginBottom: 6 }}>강의 시간</div>
+          <div style={{ minWidth: 320 }} data-required="true" data-invalid={hasAttemptedSubmit && !lectureTime.trim() ? "true" : "false"}>
+            <div className="modal-section-label" style={{ marginBottom: 6 }}>강의 시간 (필수)</div>
             <TimeRangeInput
               value={lectureTime}
               onChange={setLectureTime}
@@ -254,7 +658,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             <Button intent="secondary" onClick={onClose} disabled={isPending}>
               취소
             </Button>
-            <Button intent="primary" onClick={submit} disabled={isPending || !title.trim()}>
+            <Button intent="primary" onClick={submit} disabled={isPending}>
               {isPending ? "등록 중…" : "등록"}
             </Button>
           </>

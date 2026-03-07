@@ -11,6 +11,7 @@ import {
   parseIdentifierInput,
 } from "@/shared/utils/phoneInput";
 import { updateStudent } from "../api/students";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 interface Props {
   open: boolean;
@@ -164,7 +165,10 @@ export default function EditStudentModal({
     if (busy) return;
 
     const err = validate();
-    if (err) return alert(err);
+    if (err) {
+      feedback.error(err);
+      return;
+    }
 
     setBusy(true);
     setFieldErrors({});
@@ -186,9 +190,9 @@ export default function EditStudentModal({
         const messages = Object.entries(next)
           .map(([k, v]) => (k === "name" ? "이름" : k === "psNumber" ? "아이디" : k === "studentPhone" ? "학생 전화/식별자" : k === "omrCode" ? "식별자" : k === "parentPhone" ? "학부모 전화" : k) + ": " + v)
           .join("\n");
-        alert(messages);
+        feedback.error(messages);
       } else {
-        alert(raw?.message || "저장에 실패했습니다.");
+        feedback.error(raw?.message || "저장에 실패했습니다.");
       }
     } finally {
       setBusy(false);
