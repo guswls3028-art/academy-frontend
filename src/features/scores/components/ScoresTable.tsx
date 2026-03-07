@@ -229,8 +229,8 @@ export default function ScoresTable({
       </colgroup>
 
       <thead>
-        {/* Row1: 선택 | 이름 | 출석 | [시험 뱃지] 시험이름 (colSpan=2) 반복 | [과제 뱃지] 과제이름 (colSpan=2) 반복 | 클리닉 | 사유 */}
-        <tr className="bg-[var(--color-bg-surface-soft)] border-b border-[var(--color-border-divider)]">
+        {/* Row1: 선택 | 이름 | 출석 | [시험 뱃지] 시험이름 (colSpan=2) 반복 | [과제 뱃지] 과제이름 (colSpan=2) 반복 | 클리닉 | 사유 — flat 스타일(students와 동일) */}
+        <tr className="border-b border-[var(--color-border-divider)]">
           <ResizableTh
             columnKey="select"
             width={columnWidths.select ?? COL_EDIT}
@@ -326,7 +326,7 @@ export default function ScoresTable({
             rowSpan={2}
             className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3"
           >
-            총괄 클리닉 대상
+            판정
           </ResizableTh>
           <ResizableTh
             columnKey="clinic_reason"
@@ -337,7 +337,7 @@ export default function ScoresTable({
             rowSpan={2}
             className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0"
           >
-            대상 사유
+            사유
           </ResizableTh>
         </tr>
         {/* Row2: 점수 | 합불 (시험별) | 점수 | 합불 (과제별) */}
@@ -443,7 +443,7 @@ export default function ScoresTable({
                 </td>
 
                 <td
-                  className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)]"
+                  className={`font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)] ${row.name_highlight_clinic_no_reservation ? "ds-table-cell-name--clinic-no-reservation" : ""}`}
                   onClick={() => onSelectRow(row)}
                 >
                   <StudentNameWithLectureChip

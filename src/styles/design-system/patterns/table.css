@@ -231,6 +231,21 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 4%, transparent);
 }
 
+/* 성적 테이블 — flat과 동일 배경/테두리, 시험·과제 블록만 3% tint 유지 */
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table thead th {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--border-divider));
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody td {
+  background: transparent;
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+.ds-table-wrap .ds-table.ds-table--flat.ds-scores-table tbody tr.ds-scores-table-row--checked:hover > td {
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface)) !important;
+}
+
 /* 학생 테이블 — 내용물 좌측정렬, 체크박스만 중앙 + 체크박스 칸 타이트 + 세로 간격 줄임 */
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center thead th,
 .ds-table-wrap .ds-table.ds-table--flat.ds-table--center tbody td {
@@ -296,6 +311,20 @@ table.ds-table {
 }
 .ds-table tbody tr:hover .ds-table-cell-name--clinic-target {
   background: color-mix(in srgb, var(--color-brand-complement) 18%, var(--color-bg-surface)) !important;
+}
+
+/* 클리닉 대상자이지만 예약 없음 — 이름 셀 노란 배경 (백엔드 name_highlight_clinic_no_reservation) */
+.ds-table-cell-name--clinic-no-reservation {
+  background: color-mix(in srgb, var(--color-warning, #e6b800) 28%, var(--color-bg-surface)) !important;
+}
+.ds-table tbody tr:hover .ds-table-cell-name--clinic-no-reservation {
+  background: color-mix(in srgb, var(--color-warning, #e6b800) 38%, var(--color-bg-surface)) !important;
+}
+.ds-table tbody tr.ds-scores-table-row--checked .ds-table-cell-name--clinic-no-reservation {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface)) !important;
+}
+.ds-table tbody tr.ds-scores-table-row--checked:hover .ds-table-cell-name--clinic-no-reservation {
+  background: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-bg-surface)) !important;
 }
 
 /* ========== 컬럼 표시 드롭다운 (TableColumnPicker) — 전역 DS 토큰 ========== */

@@ -50,6 +50,9 @@ export type SessionScoreRow = {
   homeworks: SessionScoreHomeworkEntry[];
 
   updated_at: string;
+
+  /** 클리닉 대상이면서 클리닉 예약 없음 → 이름 셀 노란 배경 */
+  name_highlight_clinic_no_reservation?: boolean;
 };
 
 export type SessionScoreMeta = {
