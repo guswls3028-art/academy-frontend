@@ -134,7 +134,13 @@
   outline-offset: -2px;
 }
 
-/* body 포털 시 배경/테마 보장 (클리닉·모달 동일) */
+/* body 포털 시 배경 불투명 강제 (차시 모달·클리닉 동일) */
 .time-picker--portaled {
-  background-color: var(--color-bg-surface, #ffffff) !important;
+  background-color: #ffffff !important;
+}
+[data-theme="modern-dark"] .time-picker--portaled,
+[data-theme="dark-navy"] .time-picker--portaled,
+[data-theme="youtube-studio"] .time-picker--portaled,
+[data-theme="terminal-neon"] .time-picker--portaled {
+  background-color: var(--scale-Neutral50) !important;
 }

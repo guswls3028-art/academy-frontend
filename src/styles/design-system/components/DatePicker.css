@@ -74,14 +74,23 @@
   background-position: 0 0, 0 0, 0 0;
 }
 
-/* 포털 시에도 .shared-date-picker-dropdown과 동일한 스타일만 적용 (카피, 창조 금지). body에서 변수 미상속 시 대비해 불투명·글씨체 보장 */
+/* 포털 시(body에 렌더): 변수 상속 없어도 차시 생성 모달과 동일한 불투명 배경·테두리·그림자 강제.
+   라이트 = 모달과 동일 흰색, 다크 = 테마 surface(scale-Neutral50) — 둘 다 불투명. */
 .shared-date-picker-dropdown--portaled {
   font-family: var(--font-sans) !important;
-  background-color: var(--color-bg-surface, #ffffff) !important;
+  background-color: #ffffff !important;
   background-image: none !important;
   border: 1px solid var(--ui-control-border, var(--color-border-divider)) !important;
   border-radius: var(--radius-lg);
   box-shadow: var(--elevation-3) !important;
+}
+
+/* 다크 테마: 모달 배경과 동일한 surface 사용 (불투명) */
+[data-theme="modern-dark"] .shared-date-picker-dropdown--portaled,
+[data-theme="dark-navy"] .shared-date-picker-dropdown--portaled,
+[data-theme="youtube-studio"] .shared-date-picker-dropdown--portaled,
+[data-theme="terminal-neon"] .shared-date-picker-dropdown--portaled {
+  background-color: var(--scale-Neutral50) !important;
 }
 
 .shared-date-picker-header {

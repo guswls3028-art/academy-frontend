@@ -325,10 +325,5 @@ export function TimeScrollPopover({
     </div>
   );
 
-  return ReactDOM.createPortal(
-    popoverContent,
-    typeof document !== "undefined"
-      ? document.querySelector('[data-app="admin"]') ?? document.body
-      : document.body
-  );
+  return ReactDOM.createPortal(popoverContent, document.body);
 }
