@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchClinicMe } from "../../api/clinicMe.api";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
+import ClinicRemoteControl from "../../components/ClinicRemoteControl";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AdminModal from "@/shared/ui/modal/AdminModal";
@@ -45,6 +46,9 @@ export default function ClinicSettingsPage() {
 
       {/* 패스카드 배경 색상 설정 */}
       <ClinicIdcardColorSettings />
+
+      {/* 클리닉 리모컨 — 설정에서만 사용 (운영 탭에서는 제거됨) */}
+      <ClinicRemoteControl />
 
       <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] overflow-hidden">
         <div className="px-5 py-4 border-b border-[var(--border-divider)] bg-[var(--bg-surface-soft)]">

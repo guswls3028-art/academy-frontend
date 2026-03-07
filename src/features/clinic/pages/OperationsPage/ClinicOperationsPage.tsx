@@ -15,7 +15,6 @@ import {
 import OperationsSessionTree from "../../components/OperationsSessionTree";
 import ClinicDaySchedulePanel from "../../components/ClinicDaySchedulePanel";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
-import ClinicRemoteControl from "../../components/ClinicRemoteControl";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -108,9 +107,8 @@ export default function ClinicOperationsPage() {
         <ClinicDaySchedulePanel date={baseDate} rows={participants.listQ.data ?? []} />
       </div>
 
-      {/* 우측: 생성 패널 + 리모컨 */}
+      {/* 우측: 생성 패널 */}
       <div className="flex-1 space-y-4">
-        <ClinicRemoteControl />
         <ClinicCreatePanel date={baseDate} />
       </div>
     </div>
