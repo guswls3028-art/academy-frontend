@@ -29,7 +29,6 @@ export default function ClinicPage() {
   const qc = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null); // HH:MM 형식
   const [memo, setMemo] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
@@ -99,39 +98,24 @@ export default function ClinicPage() {
   const handleDateSelect = (date: string) => {
     setSelectedDate(date);
     setSelectedSessionId(null);
-    setSelectedTime(null);
     setShowSuccessMessage(false);
 
-    // 해당 날짜의 예약이 있는지 확인
     const existingBooking = myRequests.find((r) => r.session_date === date);
     if (existingBooking && (existingBooking.status === "pending" || existingBooking.status === "booked" || existingBooking.status === "approved")) {
-      // 일정 변경 모드
-      setSelectedSessionId(existingBooking.session);
-      setSelectedTime(existingBooking.session_start_time.slice(0, 5)); // HH:MM 형식
+      setSelectedSessionId(existingBooking.session ?? null);
     }
   };
 
-  // 예약 신청 핸들러
+  // 예약 신청 핸들러 — 등록 가능한 클리닉(세션)만 신청 가능
   const handleBooking = () => {
-    if (!selectedSessionId && !selectedTime) {
-      alert("예약할 시간을 선택해주세요.");
+    if (!selectedSessionId) {
+      alert("등록 가능한 클리닉 시간을 선택해주세요.");
       return;
     }
-    
-    if (selectedSessionId) {
-      // 기존 세션 선택 방식
-      bookingMutation.mutate({
-        session: selectedSessionId,
-        memo: memo.trim() || undefined,
-      });
-    } else if (selectedTime && selectedDate) {
-      // 시간 직접 선택 방식 - 세션이 없어도 예약 신청 가능
-      bookingMutation.mutate({
-        date: selectedDate,
-        start_time: selectedTime,
-        memo: memo.trim() || undefined,
-      });
-    }
+    bookingMutation.mutate({
+      session: selectedSessionId,
+      memo: memo.trim() || undefined,
+    });
   };
 
   // 일정 변경 신청 핸들러
@@ -147,24 +131,18 @@ export default function ClinicPage() {
       return;
     }
 
-    // 기존 예약 취소 후 새 예약 신청
+    if (!selectedSessionId) {
+      alert("변경할 클리닉 시간을 선택해주세요.");
+      return;
+    }
+
     if (confirm("기존 예약을 취소하고 새로 신청하시겠습니까?")) {
       cancelMutation.mutate(existingBooking.id, {
         onSuccess: () => {
-          if (selectedSessionId) {
-            // 세션 선택 방식
-            bookingMutation.mutate({
-              session: selectedSessionId,
-              memo: memo.trim() || undefined,
-            });
-          } else if (selectedTime) {
-            // 시간 직접 선택 방식
-            bookingMutation.mutate({
-              date: selectedDate,
-              start_time: selectedTime,
-              memo: memo.trim() || undefined,
-            });
-          }
+          bookingMutation.mutate({
+            session: selectedSessionId,
+            memo: memo.trim() || undefined,
+          });
         },
       });
     }
@@ -182,12 +160,10 @@ export default function ClinicPage() {
     [myRequests]
   );
 
-  // 예약 가능한 날짜 목록
+  // 예약 가능한 날짜 목록: 해당 날짜에 클리닉(세션)이 있거나, 내 예약이 있는 날
   const availableDates = useMemo(() => {
     const dates = new Set<string>();
-    sessions.forEach((s) => {
-      dates.add(s.date);
-    });
+    sessions.forEach((s) => dates.add(s.date));
     myRequests.forEach((r) => {
       if (r.status === "pending" || r.status === "booked" || r.status === "approved") {
         dates.add(r.session_date);
@@ -207,6 +183,14 @@ export default function ClinicPage() {
     if (!selectedDate) return [];
     return sessions.filter((s) => s.date === selectedDate);
   }, [selectedDate, sessions]);
+
+  // 선택한 세션이 정원 마감인지
+  const selectedSessionIsFull = useMemo(() => {
+    if (!selectedSessionId || selectedDateSessions.length === 0) return false;
+    const s = selectedDateSessions.find((x) => x.id === selectedSessionId);
+    if (!s || s.max_participants == null) return false;
+    return (s.booked_count ?? 0) >= s.max_participants;
+  }, [selectedSessionId, selectedDateSessions]);
 
   // 선택한 날짜의 기존 예약
   const existingBookingForDate = useMemo(() => {
@@ -316,41 +300,62 @@ export default function ClinicPage() {
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
-              {/* 시간 선택 */}
+              {/* 시간 선택 — 해당 날짜에 열린 클리닉만 표시, 정원 마감 시 비활성 + 시각 효과 */}
               <div>
                 <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-                    시간
+                    클리닉 시간
                   </span>
-                  
-                  {/* 기존 세션이 있는 경우 세션 선택 */}
-                  {selectedDateSessions.length > 0 && (
+
+                  {selectedDateSessions.length === 0 ? (
+                    <div
+                      className="stu-panel"
+                      style={{
+                        padding: "var(--stu-space-4)",
+                        textAlign: "center",
+                        background: "var(--stu-surface-soft)",
+                        border: "1px dashed var(--stu-border)",
+                        color: "var(--stu-text-muted)",
+                        fontSize: 14,
+                      }}
+                    >
+                      이 날짜에는 등록 가능한 클리닉이 없습니다. 다른 날짜를 선택해주세요.
+                    </div>
+                  ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)", marginBottom: "var(--stu-space-3)" }}>
                       {selectedDateSessions.map((session) => {
+                        const isFull =
+                          session.max_participants != null &&
+                          (session.booked_count ?? 0) >= session.max_participants;
                         const isSelected = selectedSessionId === session.id;
                         const remaining =
                           session.max_participants != null
-                            ? session.max_participants - session.booked_count
+                            ? Math.max(0, session.max_participants - (session.booked_count ?? 0))
                             : null;
 
                         return (
                           <button
                             key={session.id}
                             type="button"
-                            className={`stu-panel stu-panel--pressable ${isSelected ? "stu-panel--accent" : ""}`}
+                            disabled={isFull}
+                            className={`stu-panel ${isFull ? "" : "stu-panel--pressable"} ${isSelected && !isFull ? "stu-panel--accent" : ""}`}
                             onClick={() => {
+                              if (isFull) return;
                               setSelectedSessionId(session.id);
-                              setSelectedTime(session.start_time.slice(0, 5));
                             }}
                             style={{
                               textAlign: "left",
                               padding: "var(--stu-space-3)",
-                              border: isSelected
+                              border: isSelected && !isFull
                                 ? "2px solid var(--stu-primary)"
                                 : "1px solid var(--stu-border)",
+                              opacity: isFull ? 0.65 : 1,
+                              cursor: isFull ? "not-allowed" : "pointer",
+                              position: "relative",
+                              background: isFull ? "var(--stu-surface-soft)" : undefined,
                             }}
                           >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                               <div>
                                 <div style={{ fontWeight: 600, fontSize: 14 }}>
                                   {formatTime(session.start_time)}
@@ -359,44 +364,27 @@ export default function ClinicPage() {
                                   {session.location}
                                 </div>
                               </div>
-                              {remaining != null && remaining > 0 && (
-                                <div className="stu-muted" style={{ fontSize: 12 }}>
-                                  잔여 {remaining}명
-                                </div>
-                              )}
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {isFull ? (
+                                  <span
+                                    style={{
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      color: "var(--stu-danger)",
+                                      padding: "2px 8px",
+                                      borderRadius: "var(--stu-radius)",
+                                      background: "rgba(239, 68, 68, 0.12)",
+                                    }}
+                                  >
+                                    정원 마감
+                                  </span>
+                                ) : remaining != null ? (
+                                  <span className="stu-muted" style={{ fontSize: 12 }}>
+                                    잔여 {remaining}명
+                                  </span>
+                                ) : null}
+                              </div>
                             </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                  
-                  {/* 시간 직접 선택 (1시간 단위) - 세션이 없을 때만 표시 */}
-                  {selectedDateSessions.length === 0 && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--stu-space-2)" }}>
-                      {Array.from({ length: 12 }, (_, i) => {
-                        const hour = 9 + i; // 09:00 ~ 20:00
-                        const timeStr = `${hour.toString().padStart(2, "0")}:00`;
-                        const isSelected = selectedTime === timeStr;
-                        
-                        return (
-                          <button
-                            key={timeStr}
-                            type="button"
-                            className={`stu-panel stu-panel--pressable ${isSelected ? "stu-panel--accent" : ""}`}
-                            onClick={() => {
-                              setSelectedTime(timeStr);
-                              setSelectedSessionId(null);
-                            }}
-                            style={{
-                              padding: "var(--stu-space-3)",
-                              textAlign: "center",
-                              border: isSelected
-                                ? "2px solid var(--stu-primary)"
-                                : "1px solid var(--stu-border)",
-                            }}
-                          >
-                            <div style={{ fontWeight: 600, fontSize: 14 }}>{timeStr}</div>
                           </button>
                         );
                       })}
@@ -427,7 +415,7 @@ export default function ClinicPage() {
                 <button
                   type="button"
                   className="stu-btn stu-btn--primary"
-                  disabled={(!selectedSessionId && !selectedTime) || bookingMutation.isPending || cancelMutation.isPending}
+                  disabled={!selectedSessionId || selectedSessionIsFull || bookingMutation.isPending || cancelMutation.isPending}
                   onClick={handleBooking}
                   style={{ width: "100%" }}
                 >
@@ -439,7 +427,7 @@ export default function ClinicPage() {
                 <button
                   type="button"
                   className="stu-btn stu-btn--secondary"
-                  disabled={!selectedSessionId || bookingMutation.isPending || cancelMutation.isPending || selectedDateSessions.length === 0}
+                  disabled={!selectedSessionId || selectedSessionIsFull || bookingMutation.isPending || cancelMutation.isPending || selectedDateSessions.length === 0}
                   onClick={handleChangeRequest}
                   style={{ width: "100%" }}
                 >
