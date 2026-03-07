@@ -1,16 +1,12 @@
 // PATH: src/features/scores/components/ScoresTable.tsx
 /**
  * 성적 탭 메인 테이블 — 동적 컬럼 구조
- * 디자인 SSOT: 학생(students) 도메인과 동일 — DomainTable + ds-table--flat
- * 컬럼 너비: TABLE_COL SSOT (checkbox 28, name 140, statusBadge 68) — tableColumnSpec
- *
- * 컬럼: 수정(전체선택) | 이름 | 출석 | [시험별: 주관식|객관식|합산|합불] | [과제별: 점수|합불] | 총괄 클리닉 대상 | 대상 사유
- * - 모든 점수·합불 가로 배치. 수정하기 행에서 체크된 컬럼만 기입 가능.
+ * - 읽기 기본 / 편집 모드 토글 시에만 점수 입력 가능 (실수 방지)
+ * - 컬럼: 선택 | 이름 | 출석 | [시험별: 실제 시험명] | [과제별: 실제 과제명] | 총괄 클리닉 대상 | 대상 사유
  */
 
 import { useMemo, useRef, useEffect, Fragment } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { FiEdit2 } from "react-icons/fi";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import InlineExamItemsRow from "./InlineExamItemsRow";
@@ -27,13 +23,12 @@ import AttendanceStatusBadge, {
 const COL_NARROW = 64;   // 합불 뱃지 — 가독성
 const COL_SCORE = 84;   // 점수 입력 셀 — 여유
 const COL_REASON = 180; // 대상 사유 — "총괄 클리닉 대상 사유" 가시성
-const COL_CLINIC_TARGET = 100; // 총괄 클리닉 대상
-const COL_EDIT_SELECT = 80; // 수정/선택 통합 컬럼
+const COL_SELECT = TABLE_COL.checkbox;
 
-/** 시험 컬럼 블록 배경 — 학생 도메인 베이스 + 연한 구분 */
-const BG_EXAM = "color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface))";
-/** 과제 컬럼 블록 배경 — 시험과 구분되는 연한 색 */
-const BG_HOMEWORK = "color-mix(in srgb, var(--color-text-secondary) 6%, var(--color-bg-surface))";
+/** 시험 컬럼 블록 배경 — 약한 구분 (3%) */
+const BG_EXAM = "color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface))";
+/** 과제 컬럼 블록 배경 — 약한 구분 (3%) */
+const BG_HOMEWORK = "color-mix(in srgb, var(--color-text-secondary) 3%, var(--color-bg-surface))";
 
 /** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
 function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
@@ -90,16 +85,14 @@ export type ScoreColumnDef =
   | { type: "clinic_target"; key: "clinic_target"; width: number; editable: false }
   | { type: "clinic_reason"; key: "clinic_reason"; width: number; editable: false };
 
-export type EditRowState = {
-  all: boolean;
-  [key: string]: boolean;
-};
-
 type Props = {
   rows: SessionScoreRow[];
   meta: SessionScoreMeta | null;
   sessionId: number;
   attendanceMap?: Record<number, string>;
+
+  /** 편집 모드일 때만 점수 셀 입력 가능. 기본은 읽기 전용 */
+  isEditMode?: boolean;
 
   selectedEnrollmentId: number | null;
   selectedExamId: number | null;
@@ -107,14 +100,9 @@ type Props = {
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number) => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
-  /** 수정하기 행: 전체선택 + 컬럼별 편집 허용. 기본 전부 false */
-  editRowState: EditRowState;
-  onEditRowChange: (key: string | "all", value: boolean) => void;
-
   focusHomeworkCell?: { enrollmentId: number; homeworkId: number } | null;
   onFocusHomeworkDone?: () => void;
 
-  /** 일괄 작업용 행 선택 (캡처: 18명을 대상으로 성적 일괄 변경 등) */
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 };
@@ -124,13 +112,12 @@ export default function ScoresTable({
   meta,
   sessionId,
   attendanceMap = {},
+  isEditMode = false,
   selectedEnrollmentId,
   selectedExamId,
   selectedHomeworkId,
   onSelectCell,
   onSelectRow,
-  editRowState,
-  onEditRowChange,
   focusHomeworkCell,
   onFocusHomeworkDone,
   selectedEnrollmentIds = [],
@@ -182,7 +169,7 @@ export default function ScoresTable({
 
   const columnDefs = useMemo((): TableColumnDef[] => {
     return [
-      { key: "edit", label: "수정", defaultWidth: COL_EDIT_SELECT, minWidth: 56, maxWidth: 140 },
+      { key: "select", label: "선택", defaultWidth: COL_SELECT, minWidth: 40, maxWidth: 80 },
       ...columns.map((c) => ({
         key: c.key,
         label: c.key,
@@ -195,31 +182,16 @@ export default function ScoresTable({
 
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("session-scores", columnDefs);
 
-  const editRowCols = useMemo(() => {
+  const tableCols = useMemo(() => {
     return [
-      columnWidths.edit ?? COL_EDIT_SELECT,
+      columnWidths.select ?? COL_SELECT,
       ...columns.map((c) => columnWidths[c.key] ?? c.width),
     ];
   }, [columns, columnWidths]);
 
   const tableWidth = useMemo(
-    () => editRowCols.reduce((s, w) => s + w, 0),
-    [editRowCols]
-  );
-
-  const isEditEnabled = (key: string): boolean => {
-    if (editRowState.all) return true;
-    return !!editRowState[key];
-  };
-
-  const editableKeys = useMemo(
-    () => columns.filter((c) => c.editable).map((c) => c.key),
-    [columns]
-  );
-
-  const allEditableChecked = useMemo(
-    () => editableKeys.every((k) => editRowState[k]),
-    [editableKeys, editRowState]
+    () => tableCols.reduce((s, w) => s + w, 0),
+    [tableCols]
   );
 
   const selectedSet = useMemo(() => new Set(selectedEnrollmentIds), [selectedEnrollmentIds]);

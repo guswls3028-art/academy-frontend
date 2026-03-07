@@ -11,19 +11,21 @@ import {
 } from "../api/sessionScores";
 import { fetchAttendance } from "@/features/lectures/api/attendance";
 
-import ScoresTable, { type EditRowState } from "../components/ScoresTable";
+import ScoresTable from "../components/ScoresTable";
 import ScoreSidePanel from "./ScoreSidePanel";
 import { EmptyState } from "@/shared/ui/ds";
 
 type Props = {
   sessionId: number;
   search?: string;
+  /** 편집 모드일 때만 점수 셀 입력 가능 */
+  isEditMode?: boolean;
   /** 일괄 작업용 행 선택. 부모에서 관리 시 전달 */
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 };
 
-export default function SessionScoresPanel({ sessionId, search = "", selectedEnrollmentIds = [], onSelectionChange }: Props) {
+export default function SessionScoresPanel({ sessionId, search = "", isEditMode = false, selectedEnrollmentIds = [], onSelectionChange }: Props) {
   const tableWrapperRef = useRef<HTMLDivElement>(null);
   const [focusHomeworkCell, setFocusHomeworkCell] = useState<{
     enrollmentId: number;
@@ -67,37 +69,6 @@ export default function SessionScoresPanel({ sessionId, search = "", selectedEnr
   const [currentExamId, setCurrentExamId] = useState<number | null>(null);
   const [currentHomeworkId, setCurrentHomeworkId] = useState<number | null>(null);
   const [activeColumn, setActiveColumn] = useState<"exam" | "homework">("exam");
-  const [editRowState, setEditRowState] = useState<EditRowState>({ all: false });
-
-  const editableKeys = useMemo(() => {
-    const keys: string[] = [];
-    (meta?.exams ?? []).forEach((e) => {
-      keys.push(`exam_${e.exam_id}_subj`, `exam_${e.exam_id}_obj`, `exam_${e.exam_id}_total`);
-    });
-    (meta?.homeworks ?? []).forEach((h) => keys.push(`hw_${h.homework_id}_score`));
-    return keys;
-  }, [meta?.exams, meta?.homeworks]);
-
-  const handleEditRowChange = useCallback(
-    (key: string | "all", value: boolean) => {
-      if (key === "all") {
-        if (value) {
-          setEditRowState((prev) => ({ ...prev, all: true }));
-        } else {
-          setEditRowState((prev) => {
-            const next = { ...prev, all: false };
-            editableKeys.forEach((k) => {
-              next[k] = false;
-            });
-            return next;
-          });
-        }
-      } else {
-        setEditRowState((prev) => ({ ...prev, [key]: value }));
-      }
-    },
-    [editableKeys]
-  );
 
   const examCols = meta?.exams ?? [];
   const homeworkCols = meta?.homeworks ?? [];
@@ -260,11 +231,10 @@ export default function SessionScoresPanel({ sessionId, search = "", selectedEnr
           meta={meta}
           sessionId={sessionId}
           attendanceMap={attendanceMap}
+          isEditMode={isEditMode}
           selectedEnrollmentId={selected?.enrollment_id ?? null}
           selectedExamId={currentExamId}
           selectedHomeworkId={currentHomeworkId}
-          editRowState={editRowState}
-          onEditRowChange={handleEditRowChange}
           focusHomeworkCell={focusHomeworkCell}
           onFocusHomeworkDone={() => setFocusHomeworkCell(null)}
           onSelectCell={(row, type, id) => {

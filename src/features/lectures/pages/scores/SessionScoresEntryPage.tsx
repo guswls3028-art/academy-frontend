@@ -201,6 +201,20 @@ export default function SessionScoresEntryPage({
         belowSlot={selectionBar}
       />
 
+      {isEditMode && (
+        <div
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
+          style={{
+            background: "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))",
+            color: "var(--color-brand-primary)",
+            border: "1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider))",
+          }}
+        >
+          <span aria-live="polite">편집 모드</span>
+          <span className="text-[var(--color-text-secondary)] font-normal">· 성적을 수정할 수 있습니다.</span>
+        </div>
+      )}
+
       <p className="text-xs text-[var(--color-text-muted)]">
         <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Tab</kbd> / <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 셀 이동 ·
         숫자 입력 후 <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface-soft)] font-mono">Enter</kbd> 저장 ·
@@ -219,6 +233,7 @@ export default function SessionScoresEntryPage({
         <SessionScoresPanel
           sessionId={numericSessionId}
           search={searchInput}
+          isEditMode={isEditMode}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
         />
