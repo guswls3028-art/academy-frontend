@@ -187,18 +187,30 @@
 
 /* 날짜 셀 상태 배경 — 🟢 정상 | 🟡 예약 거의 찼음 | 🔴 마감 (선택/오늘보다 우선순위 낮음) */
 .clinic-scheduler-panel__mini-cal-cell--status-normal {
-  background: color-mix(in srgb, var(--color-success, #22c55e) 18%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-success, #22c55e) 26%, var(--color-bg-surface));
   color: var(--color-text-primary);
+}
+
+.clinic-scheduler-panel__mini-cal-cell--status-normal:hover {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 36%, var(--color-bg-surface));
 }
 
 .clinic-scheduler-panel__mini-cal-cell--status-almost {
-  background: color-mix(in srgb, var(--color-warning, #eab308) 22%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-warning, #eab308) 28%, var(--color-bg-surface));
   color: var(--color-text-primary);
 }
 
+.clinic-scheduler-panel__mini-cal-cell--status-almost:hover {
+  background: color-mix(in srgb, var(--color-warning, #eab308) 38%, var(--color-bg-surface));
+}
+
 .clinic-scheduler-panel__mini-cal-cell--status-full {
-  background: color-mix(in srgb, var(--color-error, #ef4444) 18%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-error, #ef4444) 26%, var(--color-bg-surface));
   color: var(--color-text-primary);
+}
+
+.clinic-scheduler-panel__mini-cal-cell--status-full:hover {
+  background: color-mix(in srgb, var(--color-error, #ef4444) 36%, var(--color-bg-surface));
 }
 
 /* 오늘/선택 시 상태 배경 덮어씀 */
