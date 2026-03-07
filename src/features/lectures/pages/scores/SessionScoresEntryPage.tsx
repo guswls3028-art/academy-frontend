@@ -101,8 +101,79 @@ export default function SessionScoresEntryPage({
     </div>
   );
 
+  /** students 도메인과 동일: belowSlot에 선택됨 + | + 선택 해제 + | + 일괄 액션 */
+  const selectionBar = (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2 pl-1">
+        <span
+          className="text-[13px] font-semibold"
+          style={{
+            color: selectedEnrollmentIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
+          }}
+        >
+          {selectedEnrollmentIds.length}명 선택됨
+        </span>
+        <span className="text-[var(--color-border-divider)]">|</span>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => setSelectedEnrollmentIds([])}
+          disabled={selectedEnrollmentIds.length === 0}
+        >
+          선택 해제
+        </Button>
+        <span className="text-[var(--color-border-divider)]">|</span>
+        <Button
+          type="button"
+          intent="secondary"
+          size="sm"
+          disabled={selectedEnrollmentIds.length === 0}
+          onClick={() => feedback.info("성적 일괄 변경 기능 준비 중입니다.")}
+        >
+          성적 일괄 변경
+        </Button>
+        <Button
+          type="button"
+          intent="secondary"
+          size="sm"
+          disabled={selectedEnrollmentIds.length === 0}
+          onClick={() => feedback.info("메시지 발송 기능 준비 중입니다.")}
+        >
+          메시지 발송
+        </Button>
+        <Button
+          type="button"
+          intent="secondary"
+          size="sm"
+          disabled={selectedEnrollmentIds.length === 0}
+          onClick={() => feedback.info("수업 결과 발송 기능 준비 중입니다.")}
+        >
+          수업 결과 발송
+        </Button>
+        <Button
+          type="button"
+          intent="secondary"
+          size="sm"
+          disabled={selectedEnrollmentIds.length === 0}
+          onClick={() => feedback.info("참여자 제거 기능 준비 중입니다.")}
+        >
+          참여자 제거
+        </Button>
+        <Button
+          type="button"
+          intent="secondary"
+          size="sm"
+          disabled={selectedEnrollmentIds.length === 0}
+          onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}
+        >
+          엑셀 다운로드
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <DomainListToolbar
         totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
         searchSlot={
@@ -112,12 +183,13 @@ export default function SessionScoresEntryPage({
             placeholder="이름 검색 (초성 검색 가능)"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            style={{ maxWidth: 280 }}
+            style={{ maxWidth: 360 }}
             aria-label="학생 이름 검색"
           />
         }
         filterSlot={null}
         primaryAction={primaryAction}
+        belowSlot={selectionBar}
       />
 
       <p className="text-xs text-[var(--color-text-muted)]">
@@ -135,44 +207,12 @@ export default function SessionScoresEntryPage({
       )}
 
       {!isLoading && !isError && (
-        <>
-          {selectedEnrollmentIds.length > 0 && (
-            <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-[var(--color-bg-surface-soft)] border border-[var(--border-divider)] text-sm">
-              <span className="font-semibold text-[var(--color-text-primary)]">
-                {selectedEnrollmentIds.length}명을 대상으로
-              </span>
-              <Button type="button" intent="secondary" size="sm">
-                성적 일괄 변경
-              </Button>
-              <Button type="button" intent="secondary" size="sm">
-                메시지 발송
-              </Button>
-              <Button type="button" intent="secondary" size="sm">
-                수업 결과 발송
-              </Button>
-              <Button type="button" intent="secondary" size="sm">
-                참여자 제거
-              </Button>
-              <Button type="button" intent="secondary" size="sm">
-                엑셀 다운로드
-              </Button>
-              <Button
-                type="button"
-                intent="tertiary"
-                size="sm"
-                onClick={() => setSelectedEnrollmentIds([])}
-              >
-                선택 해제
-              </Button>
-            </div>
-          )}
-          <SessionScoresPanel
-            sessionId={numericSessionId}
-            search={searchInput}
-            selectedEnrollmentIds={selectedEnrollmentIds}
-            onSelectionChange={setSelectedEnrollmentIds}
-          />
-        </>
+        <SessionScoresPanel
+          sessionId={numericSessionId}
+          search={searchInput}
+          selectedEnrollmentIds={selectedEnrollmentIds}
+          onSelectionChange={setSelectedEnrollmentIds}
+        />
       )}
 
       {addHomeworkOpen && (

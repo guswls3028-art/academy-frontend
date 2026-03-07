@@ -2,6 +2,7 @@
 /**
  * 성적 탭 메인 테이블 — 동적 컬럼 구조
  * 디자인 SSOT: 학생(students) 도메인과 동일 — DomainTable + ds-table--flat
+ * 컬럼 너비: TABLE_COL SSOT (checkbox 28, name 140, statusBadge 68) — tableColumnSpec
  *
  * 컬럼: 수정(전체선택) | 이름 | 출석 | [시험별: 주관식|객관식|합산|합불] | [과제별: 점수|합불] | 총괄 클리닉 대상 | 대상 사유
  * - 모든 점수·합불 가로 배치. 수정하기 행에서 체크된 컬럼만 기입 가능.
