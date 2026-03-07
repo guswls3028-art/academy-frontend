@@ -1,3 +1,4 @@
+// PATH: src/features/dashboard/components/ClinicRemoconIcon.tsx
 /** 클리닉 패스카드/리모컨 아이콘 — 패스카드 3색 구간 느낌 */
 export default function ClinicRemoconIcon() {
   return (

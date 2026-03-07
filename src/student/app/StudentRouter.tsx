@@ -1,6 +1,6 @@
 /**
+ * PATH: src/student/app/StudentRouter.tsx
  * 학생 앱 라우터 — 모바일 전용, 5탭(홈|영상|일정|QnA|더보기)
- * TDZ 방지: lazy loading으로 청크 분리 (error→queryError 충돌 회피)
  */
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
@@ -86,10 +86,10 @@ export default function StudentRouter() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="qna" element={<QnaPage />} />
         <Route path="notices" element={<NoticesPage />} />
-                <Route path="notices/:id" element={<NoticeDetailPage />} />
-                <Route path="notifications" element={<NotificationsPage />} />
-                <Route path="idcard" element={<ClinicIDCardPage />} />
-                <Route path="clinic" element={<ClinicPage />} />
+        <Route path="notices/:id" element={<NoticeDetailPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="idcard" element={<ClinicIDCardPage />} />
+        <Route path="clinic" element={<ClinicPage />} />
         <Route path="attendance" element={<AttendancePage />} />
       </Route>
 

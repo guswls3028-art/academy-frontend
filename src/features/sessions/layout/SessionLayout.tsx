@@ -1,12 +1,10 @@
 // PATH: src/features/sessions/layout/SessionLayout.tsx
 // 구조: students 도메인과 동일 — DomainLayout > Outlet (페이지가 콘텐츠 전담)
+import { useMemo } from "react";
 import { Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
-
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
-
 import { useSessionParams } from "../hooks/useSessionParams";
 
 export default function SessionLayout() {

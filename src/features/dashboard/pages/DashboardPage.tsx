@@ -1,24 +1,22 @@
 /**
+ * PATH: src/features/dashboard/pages/DashboardPage.tsx
  * Dashboard — 학원 운영 현황 · 섹션형 레이아웃 (SSOT: patterns/section.css)
- * - 위젯: 미처리 일감, 알림톡, 요약 지표, 바로가기
- * - 카드형 없음. 섹션 헤더 + 본문 그리드/행만 사용.
  */
-
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCommunityQuestions } from "@/features/community/api/community.api";
-import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
-import ChargeCreditsModal from "@/features/messages/components/ChargeCreditsModal";
-import { fetchLectures } from "@/features/lectures/api/sessions";
-import { fetchExams } from "@/features/exams/api/exams";
-import { fetchStudents } from "@/features/students/api/students";
-import { DomainLayout } from "@/shared/ui/layout";
-import { Button } from "@/shared/ui/ds";
-import DashboardWidget from "../components/DashboardWidget";
-import DashboardShortcutWidget from "../components/DashboardShortcutWidget";
-import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
 import ClinicPasscardModal from "@/features/clinic/components/ClinicPasscardModal";
+import { fetchCommunityQuestions } from "@/features/community/api/community.api";
+import { fetchExams } from "@/features/exams/api/exams";
+import { fetchLectures } from "@/features/lectures/api/sessions";
+import ChargeCreditsModal from "@/features/messages/components/ChargeCreditsModal";
+import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
+import { fetchStudents } from "@/features/students/api/students";
+import { Button } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/layout";
+import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
+import DashboardShortcutWidget from "../components/DashboardShortcutWidget";
+import DashboardWidget from "../components/DashboardWidget";
 
 export default function DashboardPage() {
   const navigate = useNavigate();

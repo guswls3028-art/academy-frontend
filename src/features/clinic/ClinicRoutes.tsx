@@ -1,11 +1,11 @@
+// PATH: src/features/clinic/ClinicRoutes.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import ClinicLayout from "./ClinicLayout";
-
+import ClinicBookingsPage from "./pages/BookingsPage/ClinicBookingsPage";
 import ClinicHomePage from "./pages/HomePage/ClinicHomePage";
 import ClinicOperationsPage from "./pages/OperationsPage/ClinicOperationsPage";
 import ClinicReportsPage from "./pages/ReportsPage/ClinicReportsPage";
 import ClinicSettingsPage from "./pages/SettingsPage/ClinicSettingsPage";
-import ClinicBookingsPage from "./pages/BookingsPage/ClinicBookingsPage";
 
 export default function ClinicRoutes() {
   return (

@@ -1,6 +1,6 @@
 /**
+ * PATH: src/features/videos/pages/VideoExplorerPage.tsx
  * 영상 (사이드바 첫 페이지) — 저장소/메시지/시험과 동일한 폴더트리형 SSOT
- * 전체공개영상(맨위) + 강의명 > 1~n차시 트리, 우측에 영상 그리드
  */
 
 import { useState, useMemo, useCallback } from "react";

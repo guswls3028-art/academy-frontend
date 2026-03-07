@@ -1,6 +1,6 @@
 /**
+ * PATH: src/features/dashboard/components/DashboardShortcutWidget.tsx
  * 대시보드 바로가기 항목 — SSOT: ds-section__item (section.css)
- * 카드형 없음. 행형 아이템만.
  */
 import type { ReactNode } from "react";
 

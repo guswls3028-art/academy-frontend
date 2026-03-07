@@ -1,6 +1,6 @@
 /**
+ * PATH: src/features/dashboard/components/DashboardWidget.tsx
  * 대시보드 섹션 — SSOT: design-system/patterns/section.css
- * 카드형 없음. 섹션 헤더 + 본문만 사용.
  */
 import type { ReactNode } from "react";
 

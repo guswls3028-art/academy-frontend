@@ -1,6 +1,6 @@
 /**
+ * PATH: src/features/results/pages/ResultsExplorerPage.tsx
  * 성적 (사이드바 첫 페이지) — 저장소/메시지/시험과 동일한 폴더트리형 SSOT
- * 강의명 > 1~n차시 트리, 우측에 해당 차시의 성적 링크 그리드
  */
 
 import { useState, useMemo } from "react";

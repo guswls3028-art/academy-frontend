@@ -1,14 +1,13 @@
+// PATH: src/features/staff/StaffRoutes.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
-
 import StaffLayout from "./StaffLayout";
-
-import HomePage from "./pages/HomePage/HomePage";
+import StaffDetailOverlay from "./overlays/StaffDetailOverlay/StaffDetailOverlay";
 import AttendancePage from "./pages/AttendancePage/AttendancePage";
 import ExpensesPage from "./pages/ExpensesPage/ExpensesPage";
+import HomePage from "./pages/HomePage/HomePage";
 import MonthLockPage from "./pages/MonthLockPage/MonthLockPage";
 import PayrollSnapshotPage from "./pages/PayrollSnapshotPage/PayrollSnapshotPage";
 import ReportsPage from "./pages/ReportsPage/ReportsPage";
-import StaffDetailOverlay from "./overlays/StaffDetailOverlay/StaffDetailOverlay";
 
 export default function StaffRoutes() {
   return (

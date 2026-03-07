@@ -75,11 +75,7 @@ import ResultsExplorerPage from "@/features/results/pages/ResultsExplorerPage";
 import VideoExplorerPage from "@/features/videos/pages/VideoExplorerPage";
 
 /* ================= Placeholder (DomainLayout 적용) ================= */
-const CounselPage = () => (
-  <DomainLayout title="상담" description="상담·코칭 관리를 한 화면에서.">
-    <div className="p-6">상담 페이지</div>
-  </DomainLayout>
-);
+import CounselPage from "@/features/counseling/pages/CounselPage";
 const NoticePage = () => (
   <DomainLayout title="공지" description="전체 공지 관리">
     <div className="p-6">공지 페이지</div>
