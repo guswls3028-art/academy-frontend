@@ -1,7 +1,6 @@
 // PATH: src/features/lectures/pages/attendance/LectureAttendanceMatrixPage.tsx
 // Design: docs/DESIGN_SSOT.md
 // 컬럼: 체크박스, 이름, 학부모 전화, 학생 전화, 출결블록(N차 → 1차 역순, 1글자)
-import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {

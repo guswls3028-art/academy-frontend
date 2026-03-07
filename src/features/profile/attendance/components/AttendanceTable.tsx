@@ -1,9 +1,19 @@
 // PATH: src/features/profile/attendance/components/AttendanceTable.tsx
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { Attendance } from "../../api/profile.api";
 import { Button } from "@/shared/ui/ds";
-import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
+import { DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
+
+const PROFILE_ATTENDANCE_COLUMN_DEFS: TableColumnDef[] = [
+  { key: "date", label: "날짜", defaultWidth: TABLE_COL.medium, minWidth: 80 },
+  { key: "work_type", label: "유형", defaultWidth: TABLE_COL.mediumAlt, minWidth: 70 },
+  { key: "timeRange", label: "근무시간", defaultWidth: TABLE_COL.timeRange, minWidth: 100 },
+  { key: "hourly", label: "시급", defaultWidth: TABLE_COL.mediumAlt, minWidth: 70 },
+  { key: "amount", label: "금액", defaultWidth: TABLE_COL.medium, minWidth: 90 },
+  { key: "actions", label: "관리", defaultWidth: TABLE_COL.actions, minWidth: 72 },
+];
 
 interface Props {
   rows: Attendance[];
@@ -21,9 +31,66 @@ export default function AttendanceTable({
   onDelete,
 }: Props) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [sort, setSort] = useState("");
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("profile-attendance", PROFILE_ATTENDANCE_COLUMN_DEFS);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allIds = useMemo(() => rows.map((r) => r.id), [rows]);
   const allSelected = rows.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+    const key = sort.startsWith("-") ? sort.slice(1) : sort;
+    const asc = !sort.startsWith("-");
+    return [...rows].sort((a, b) => {
+      if (key === "date") {
+        const cmp = (a.date ?? "").localeCompare(b.date ?? "", "ko");
+        return asc ? cmp : -cmp;
+      }
+      if (key === "amount") {
+        return asc ? a.amount - b.amount : b.amount - a.amount;
+      }
+      const aVal = (a as Record<string, unknown>)[key] ?? "";
+      const bVal = (b as Record<string, unknown>)[key] ?? "";
+      return asc ? String(aVal).localeCompare(String(bVal), "ko") : -String(aVal).localeCompare(String(bVal), "ko");
+    });
+  }, [rows, sort]);
+
+  const handleSort = useCallback((colKey: string) => {
+    setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
+  }, []);
+
+  const tableWidth =
+    TABLE_COL.checkbox +
+    (columnWidths.date ?? TABLE_COL.medium) +
+    (columnWidths.work_type ?? TABLE_COL.mediumAlt) +
+    (columnWidths.timeRange ?? TABLE_COL.timeRange) +
+    (columnWidths.hourly ?? TABLE_COL.mediumAlt) +
+    (columnWidths.amount ?? TABLE_COL.medium) +
+    (columnWidths.actions ?? TABLE_COL.actions);
+
+  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    return (
+      <ResizableTh
+        columnKey={widthKey}
+        width={width}
+        minWidth={40}
+        maxWidth={400}
+        onWidthChange={setColumnWidth}
+        onClick={() => handleSort(colKey)}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        className="cursor-pointer select-none"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          {label}
+          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
+        </span>
+      </ResizableTh>
+    );
+  }
 
   const toggleSelect = (id: number) => {
     if (selectedSet.has(id)) setSelectedIds((prev) => prev.filter((x) => x !== id));
@@ -36,28 +103,19 @@ export default function AttendanceTable({
 
   if (!rows.length) return null;
 
-  const tableWidth =
-    TABLE_COL.checkbox +
-    TABLE_COL.medium +
-    TABLE_COL.mediumAlt +
-    TABLE_COL.timeRange +
-    TABLE_COL.mediumAlt +
-    TABLE_COL.medium +
-    TABLE_COL.actions;
-
   return (
     <DomainTable
-      tableClassName="ds-table--flat"
+      tableClassName="ds-table--flat ds-table--center"
       tableStyle={{ tableLayout: "fixed", width: tableWidth }}
     >
       <colgroup>
         <col style={{ width: TABLE_COL.checkbox }} />
-        <col style={{ width: TABLE_COL.medium }} />
-        <col style={{ width: TABLE_COL.mediumAlt }} />
-        <col style={{ width: TABLE_COL.timeRange }} />
-        <col style={{ width: TABLE_COL.mediumAlt }} />
-        <col style={{ width: TABLE_COL.medium }} />
-        <col style={{ width: TABLE_COL.actions }} />
+        <col style={{ width: columnWidths.date ?? TABLE_COL.medium }} />
+        <col style={{ width: columnWidths.work_type ?? TABLE_COL.mediumAlt }} />
+        <col style={{ width: columnWidths.timeRange ?? TABLE_COL.timeRange }} />
+        <col style={{ width: columnWidths.hourly ?? TABLE_COL.mediumAlt }} />
+        <col style={{ width: columnWidths.amount ?? TABLE_COL.medium }} />
+        <col style={{ width: columnWidths.actions ?? TABLE_COL.actions }} />
       </colgroup>
       <thead>
         <tr
@@ -65,7 +123,7 @@ export default function AttendanceTable({
             background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
           }}
         >
-          <th style={{ padding: "var(--space-3) var(--space-4)", width: TABLE_COL.checkbox, textAlign: "center" }}>
+          <th style={{ padding: "var(--space-3) var(--space-4)", width: TABLE_COL.checkbox, textAlign: "center" }} className="ds-checkbox-cell">
             <input
               type="checkbox"
               checked={allSelected}
@@ -77,76 +135,25 @@ export default function AttendanceTable({
               className="cursor-pointer"
             />
           </th>
-          <th
-            style={{
-              padding: "var(--space-3) var(--space-4)",
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-title)",
-              color: "var(--color-text-secondary)",
-              textAlign: "left",
-            }}
-          >
-            날짜
-          </th>
-          <th
-            style={{
-              padding: "var(--space-3) var(--space-4)",
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-title)",
-              color: "var(--color-text-secondary)",
-              textAlign: "left",
-            }}
-          >
-            유형
-          </th>
-          <th
-            style={{
-              padding: "var(--space-3) var(--space-4)",
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-title)",
-              color: "var(--color-text-secondary)",
-              textAlign: "left",
-            }}
-          >
-            근무시간
-          </th>
-          <th
-            style={{
-              padding: "var(--space-3) var(--space-4)",
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-title)",
-              color: "var(--color-text-secondary)",
-              textAlign: "right",
-            }}
-          >
-            시급
-          </th>
-          <th
-            style={{
-              padding: "var(--space-3) var(--space-4)",
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-title)",
-              color: "var(--color-text-secondary)",
-              textAlign: "right",
-            }}
-          >
-            금액
-          </th>
-          <th
-            style={{
-              padding: "var(--space-3) var(--space-4)",
-              fontSize: "var(--text-sm)",
-              fontWeight: "var(--font-title)",
-              color: "var(--color-text-secondary)",
-              textAlign: "center",
-            }}
+          <SortableTh colKey="date" label="날짜" widthKey="date" width={columnWidths.date ?? TABLE_COL.medium} />
+          <SortableTh colKey="work_type" label="유형" widthKey="work_type" width={columnWidths.work_type ?? TABLE_COL.mediumAlt} />
+          <SortableTh colKey="timeRange" label="근무시간" widthKey="timeRange" width={columnWidths.timeRange ?? TABLE_COL.timeRange} />
+          <SortableTh colKey="hourly" label="시급" widthKey="hourly" width={columnWidths.hourly ?? TABLE_COL.mediumAlt} />
+          <SortableTh colKey="amount" label="금액" widthKey="amount" width={columnWidths.amount ?? TABLE_COL.medium} />
+          <ResizableTh
+            columnKey="actions"
+            width={columnWidths.actions ?? TABLE_COL.actions}
+            minWidth={72}
+            maxWidth={120}
+            onWidthChange={setColumnWidth}
+            className="text-center"
           >
             관리
-          </th>
+          </ResizableTh>
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => {
+        {sortedRows.map((r) => {
           const hourly =
             r.duration_hours > 0
               ? Math.round(r.amount / r.duration_hours)

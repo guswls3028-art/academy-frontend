@@ -1,10 +1,11 @@
 // PATH: src/features/staff/pages/HomePage/StaffHomeTable.tsx
 // Design: docs/DESIGN_SSOT.md — staff 도메인: 대표(원장) / 강사 / 조교 통일
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { EmptyState } from "@/shared/ui/ds";
-import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
+import { DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import type { TableColumnDef } from "@/shared/ui/domain";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { Staff, type StaffListOwner } from "../../api/staff.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -111,15 +112,15 @@ const COL = {
   workTypeTags: 380,
 } as const;
 
-const TABLE_WIDTH =
-  COL.checkbox +
-  COL.role +
-  COL.name +
-  COL.phone +
-  COL.status +
-  COL.manager +
-  COL.payType +
-  COL.workTypeTags;
+const STAFF_HOME_COLUMN_DEFS: TableColumnDef[] = [
+  { key: "role", label: "직위", defaultWidth: COL.role, minWidth: 50 },
+  { key: "name", label: "이름", defaultWidth: COL.name, minWidth: 80 },
+  { key: "phone", label: "전화번호", defaultWidth: COL.phone, minWidth: 90 },
+  { key: "status", label: "상태", defaultWidth: COL.status, minWidth: 50 },
+  { key: "manager", label: "관리자권한", defaultWidth: COL.manager, minWidth: 60 },
+  { key: "payType", label: "급여유형", defaultWidth: COL.payType, minWidth: 80 },
+  { key: "workTypeTags", label: "시급태그", defaultWidth: COL.workTypeTags, minWidth: 120 },
+];
 
 export function StaffHomeTable({
   staffs,
@@ -134,6 +135,8 @@ export function StaffHomeTable({
   const hasOwner = !!owner?.name;
   const qc = useQueryClient();
   const [internalSelected, setInternalSelected] = useState<number[]>([]);
+  const [sort, setSort] = useState("");
+  const { columnWidths, setColumnWidth } = useTableColumnPrefs("staff-home", STAFF_HOME_COLUMN_DEFS);
   const selectedIds = onSelectionChange && controlledSelectedIds !== undefined ? controlledSelectedIds : internalSelected;
   const setSelectedIds = onSelectionChange && controlledSelectedIds !== undefined
     ? onSelectionChange
@@ -144,6 +147,68 @@ export function StaffHomeTable({
     [hasOwner, dataSource]
   );
   const allSelected = allIds.length > 0 && allIds.every((id) => selectedSet.has(id));
+
+  const sortedDataSource = useMemo(() => {
+    if (!sort) return dataSource;
+    const key = sort.startsWith("-") ? sort.slice(1) : sort;
+    const asc = !sort.startsWith("-");
+    return [...dataSource].sort((a, b) => {
+      let aVal: string | number = (a as Record<string, unknown>)[key] ?? "";
+      let bVal: string | number = (b as Record<string, unknown>)[key] ?? "";
+      if (key === "name") {
+        aVal = a.name ?? "";
+        bVal = b.name ?? "";
+      } else if (key === "phone") {
+        aVal = a.phone ?? "";
+        bVal = b.phone ?? "";
+      } else if (key === "status") {
+        aVal = a.is_active ? 1 : 0;
+        bVal = b.is_active ? 1 : 0;
+      }
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return asc ? aVal.localeCompare(String(bVal), "ko") : -aVal.localeCompare(String(bVal), "ko");
+      }
+      return asc ? Number(aVal) - Number(bVal) : Number(bVal) - Number(aVal);
+    });
+  }, [dataSource, sort]);
+
+  const handleSort = useCallback((colKey: string) => {
+    setSort((prev) => (prev === colKey ? `-${colKey}` : prev === `-${colKey}` ? "" : colKey));
+  }, []);
+
+  const tableWidth =
+    COL.checkbox +
+    (columnWidths.role ?? COL.role) +
+    (columnWidths.name ?? COL.name) +
+    (columnWidths.phone ?? COL.phone) +
+    (columnWidths.status ?? COL.status) +
+    (columnWidths.manager ?? COL.manager) +
+    (columnWidths.payType ?? COL.payType) +
+    (columnWidths.workTypeTags ?? COL.workTypeTags);
+
+  function SortableTh({ colKey, label, widthKey, width }: { colKey: string; label: string; widthKey: string; width: number }) {
+    const isAsc = sort === colKey;
+    const isDesc = sort === `-${colKey}`;
+    return (
+      <ResizableTh
+        columnKey={widthKey}
+        width={width}
+        minWidth={40}
+        maxWidth={600}
+        onWidthChange={setColumnWidth}
+        onClick={() => handleSort(colKey)}
+        aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
+        className="cursor-pointer select-none"
+      >
+        <span className="inline-flex items-center justify-center gap-2">
+          {label}
+          <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
+            {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
+          </span>
+        </span>
+      </ResizableTh>
+    );
+  }
 
   const toggleSelect = (id: number) => {
     if (selectedSet.has(id)) setSelectedIds(selectedIds.filter((x) => x !== id));
@@ -235,17 +300,17 @@ export function StaffHomeTable({
     <div style={{ width: "fit-content" }}>
       <DomainTable
         tableClassName="ds-table--flat ds-table--center"
-        tableStyle={{ tableLayout: "fixed", width: TABLE_WIDTH }}
+        tableStyle={{ tableLayout: "fixed", width: tableWidth }}
       >
         <colgroup>
           <col style={{ width: COL.checkbox }} />
-          <col style={{ width: COL.role }} />
-          <col style={{ width: COL.name }} />
-          <col style={{ width: COL.phone }} />
-          <col style={{ width: COL.status }} />
-          <col style={{ width: COL.manager }} />
-          <col style={{ width: COL.payType }} />
-          <col style={{ width: COL.workTypeTags }} />
+          <col style={{ width: columnWidths.role ?? COL.role }} />
+          <col style={{ width: columnWidths.name ?? COL.name }} />
+          <col style={{ width: columnWidths.phone ?? COL.phone }} />
+          <col style={{ width: columnWidths.status ?? COL.status }} />
+          <col style={{ width: columnWidths.manager ?? COL.manager }} />
+          <col style={{ width: columnWidths.payType ?? COL.payType }} />
+          <col style={{ width: columnWidths.workTypeTags ?? COL.workTypeTags }} />
         </colgroup>
 
         <thead>
@@ -262,13 +327,13 @@ export function StaffHomeTable({
                 className="cursor-pointer"
               />
             </th>
-            <th scope="col">직위</th>
-            <th scope="col">이름</th>
-            <th scope="col">전화번호</th>
-            <th scope="col">상태</th>
-            <th scope="col">관리자권한</th>
-            <th scope="col">급여유형</th>
-            <th scope="col">시급태그</th>
+            <SortableTh colKey="role" label="직위" widthKey="role" width={columnWidths.role ?? COL.role} />
+            <SortableTh colKey="name" label="이름" widthKey="name" width={columnWidths.name ?? COL.name} />
+            <SortableTh colKey="phone" label="전화번호" widthKey="phone" width={columnWidths.phone ?? COL.phone} />
+            <SortableTh colKey="status" label="상태" widthKey="status" width={columnWidths.status ?? COL.status} />
+            <SortableTh colKey="manager" label="관리자권한" widthKey="manager" width={columnWidths.manager ?? COL.manager} />
+            <SortableTh colKey="payType" label="급여유형" widthKey="payType" width={columnWidths.payType ?? COL.payType} />
+            <SortableTh colKey="workTypeTags" label="시급태그" widthKey="workTypeTags" width={columnWidths.workTypeTags ?? COL.workTypeTags} />
           </tr>
         </thead>
 
@@ -315,7 +380,7 @@ export function StaffHomeTable({
               </td>
             </tr>
           )}
-          {dataSource.map((r) => (
+          {sortedDataSource.map((r) => (
             <tr
               key={r.id}
               onClick={() => onDetail(r.id)}
