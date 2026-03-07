@@ -13,7 +13,7 @@ export default function Breadcrumb({ path, onSelect }: BreadcrumbProps) {
   return (
     <nav className={styles.root} aria-label="경로">
       {path.map((crumb, i) => (
-        <span key={crumb.id ?? "root"} className={styles.segment}>
+        <span key={`${i}-${crumb.id ?? "root"}`} className={styles.segment}>
           {i > 0 && <span className={styles.sep}>/</span>}
           <button
             type="button"

@@ -38,19 +38,6 @@ export default function CreateHomeworkModal({
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      if (e.key === "Enter" && !disabled) {
-        e.preventDefault();
-        m.mutate();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, disabled]);
-
   const m = useMutation({
     mutationFn: async () => {
       const res = await createHomework({
@@ -86,9 +73,22 @@ export default function CreateHomeworkModal({
     },
   });
 
-  if (!open) return null;
-
   const disabled = m.isPending || title.trim().length === 0 || !(sessionId > 0);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if (e.key === "Enter" && !disabled) {
+        e.preventDefault();
+        m.mutate();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose, disabled]);
+
+  if (!open) return null;
 
   return (
     <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default}>
