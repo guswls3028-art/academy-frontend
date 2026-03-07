@@ -589,7 +589,7 @@ export default function ScoresTable({
                                 ref={(el) => {
                                   const key = `${row.enrollment_id}-${hw.homework_id}`;
                                   homeworkInputRefs.current[key] = el;
-                                  if (el) el.innerText = block?.score != null ? String(block.score) : "";
+                                  if (el && el !== document.activeElement) el.innerText = block?.score != null ? String(block.score) : "";
                                 }}
                                 contentEditable
                                 suppressContentEditableWarning
