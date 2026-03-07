@@ -371,3 +371,89 @@
   font-weight: 700;
   flex-shrink: 0;
 }
+
+/* ----- 프로필 드롭다운 (모바일/PC뷰 · 설정 · 로그아웃) ----- */
+[data-app="admin"] .app-header__profileDropdown {
+  min-width: 200px;
+  padding: var(--space-2);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--elevation-dropdown, 0 8px 24px rgba(0, 0, 0, 0.12));
+  border: 1px solid var(--color-border-divider);
+}
+
+[data-app="admin"] .app-header__profileDropdownRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+[data-app="admin"] .app-header__profileDropdownRow--view .app-header__profileDropdownLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+[data-app="admin"] .app-header__profileDropdownViewBtn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+[data-app="admin"] .app-header__profileDropdownViewBtn:hover {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+}
+
+[data-app="admin"] .app-header__profileDropdownDivider {
+  height: 1px;
+  background: var(--color-border-divider);
+  margin: var(--space-2) 0;
+}
+
+[data-app="admin"] .app-header__profileDropdownItem {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+[data-app="admin"] .app-header__profileDropdownItem:hover {
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+[data-app="admin"] .app-header__profileDropdownItem--danger {
+  color: var(--color-status-error, #ef4444);
+}
+
+[data-app="admin"] .app-header__profileDropdownItem--danger:hover {
+  background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
+}
+
+/* 작업박스 버튼 — 모두 완료 시 초록 체크 */
+[data-app="admin"] .app-header__workboxBtn--done {
+  color: var(--color-success, #22c55e);
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 25%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-success, #22c55e) 8%, var(--color-bg-surface));
+}
+
+[data-app="admin"] .app-header__workboxBtn--done:hover {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, var(--color-border-divider));
+}

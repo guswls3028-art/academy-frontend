@@ -12,6 +12,7 @@ import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
+import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
 import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncStatusStore";
 import { workboxTenantMismatch } from "./workboxTelemetry";
 import "@/styles/design-system/components/AsyncStatusBar.css";
@@ -421,8 +422,14 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
 export default function AsyncStatusBar() {
   const queryClient = useQueryClient();
   const tasks = useAsyncStatus();
+  const workbox = useWorkbox();
   const currentTenantKey = getTenantCodeForApiRequest() ?? "";
-  const [expanded, setExpanded] = useState(false);
+  const isAnchorMode = workbox != null;
+
+  const [expandedLocal, setExpandedLocal] = useState(false);
+  const expanded = isAnchorMode ? workbox.workboxOpen : expandedLocal;
+  const setExpanded = isAnchorMode ? workbox.setWorkboxOpen : setExpandedLocal;
+
   const prevPendingCountRef = useRef(0);
   const hydratedRef = useRef(false);
 
