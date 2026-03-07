@@ -109,6 +109,12 @@ type Props = {
   focusHomeworkCell?: { enrollmentId: number; homeworkId: number } | null;
   onFocusHomeworkDone?: () => void;
 
+  /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 후 focusHomeworkCell 설정 */
+  onRequestMoveNext?: () => void;
+  onRequestMovePrev?: () => void;
+  onRequestMoveDown?: () => void;
+  onRequestMoveUp?: () => void;
+
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 };
@@ -126,6 +132,10 @@ export default function ScoresTable({
   onSelectRow,
   focusHomeworkCell,
   onFocusHomeworkDone,
+  onRequestMoveNext,
+  onRequestMovePrev,
+  onRequestMoveDown,
+  onRequestMoveUp,
   selectedEnrollmentIds = [],
   onSelectionChange,
 }: Props) {
@@ -524,6 +534,10 @@ export default function ScoresTable({
                                     queryKey: ["session-scores", sessionId],
                                   });
                                 }}
+                                onMoveUp={onRequestMoveUp}
+                                onMoveDown={onRequestMoveDown}
+                                onMoveNext={onRequestMoveNext}
+                                onMovePrev={onRequestMovePrev}
                               />
                             ) : (
                               <span className="font-medium text-[var(--color-text-primary)]">

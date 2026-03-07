@@ -28,6 +28,8 @@ type Props = {
 
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  onMoveNext?: () => void;
+  onMovePrev?: () => void;
 };
 
 function parseScore(input: string, maxScore?: number | null): number | null {
@@ -71,6 +73,8 @@ const HomeworkQuickInput = React.forwardRef<HTMLInputElement, Props>(
       onClearStatus,
       onMoveUp,
       onMoveDown,
+      onMoveNext,
+      onMovePrev,
     },
     ref
   ) {
@@ -138,6 +142,13 @@ const HomeworkQuickInput = React.forwardRef<HTMLInputElement, Props>(
         onKeyDown={async (e) => {
           if (disabled) return;
 
+          if (e.key === "Tab") {
+            e.preventDefault();
+            if (e.shiftKey) onMovePrev?.();
+            else onMoveNext?.();
+            return;
+          }
+
           if (e.key === "Enter") {
             e.preventDefault();
 
@@ -156,6 +167,7 @@ const HomeworkQuickInput = React.forwardRef<HTMLInputElement, Props>(
             }
 
             await commitScore();
+            onMoveDown?.();
             return;
           }
 

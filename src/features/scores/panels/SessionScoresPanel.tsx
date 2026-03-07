@@ -72,12 +72,8 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
 
   const examCols = meta?.exams ?? [];
   const homeworkCols = meta?.homeworks ?? [];
-  const totalCols =
-    1 +
-    2 +
-    examCols.length * 4 +
-    homeworkCols.length * 2 +
-    2; /* name, attendance, clinic_target, clinic_reason */
+  /** 선택(1) + 이름(1) + 출석(1) + 시험(2*E) + 과제(2*H) + 클리닉대상(1) + 사유(1) */
+  const totalCols = 5 + examCols.length * 2 + homeworkCols.length * 2;
 
   const rowIndex = useMemo(
     () => (selected ? rows.findIndex((r) => r.enrollment_id === selected.enrollment_id) : 0),
@@ -86,13 +82,13 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   const colIndex = useMemo(() => {
     if (activeColumn === "exam" && currentExamId != null) {
       const i = examCols.findIndex((e) => e.exam_id === currentExamId);
-      return i >= 0 ? 3 + i * 4 : 3;
+      return i >= 0 ? 3 + i * 2 : 3;
     }
     if (activeColumn === "homework" && currentHomeworkId != null) {
       const i = homeworkCols.findIndex((h) => h.homework_id === currentHomeworkId);
-      return i >= 0 ? 3 + examCols.length * 4 + i * 2 : 3 + examCols.length * 4;
+      return i >= 0 ? 3 + examCols.length * 2 + i * 2 : 3 + examCols.length * 2;
     }
-    return 1;
+    return 3;
   }, [activeColumn, currentExamId, currentHomeworkId, examCols, homeworkCols]);
 
   const moveTo = useMemo(
@@ -110,16 +106,16 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
           setCurrentHomeworkId(homeworkCols[0]?.homework_id ?? null);
           return;
         }
-        if (c < 3 + examCols.length * 4) {
-          const examIdx = Math.floor((c - 3) / 4);
+        if (c < 3 + examCols.length * 2) {
+          const examIdx = Math.floor((c - 3) / 2);
           const exam = examCols[examIdx];
           setActiveColumn("exam");
           setCurrentExamId(exam?.exam_id ?? null);
           setCurrentHomeworkId(homeworkCols[0]?.homework_id ?? null);
           return;
         }
-        if (c < 3 + examCols.length * 4 + homeworkCols.length * 2) {
-          const hwIdx = Math.floor((c - 3 - examCols.length * 4) / 2);
+        if (c < 3 + examCols.length * 2 + homeworkCols.length * 2) {
+          const hwIdx = Math.floor((c - 3 - examCols.length * 2) / 2);
           const hw = homeworkCols[hwIdx];
           setActiveColumn("homework");
           setCurrentHomeworkId(hw?.homework_id ?? null);
@@ -163,6 +159,24 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
       return;
     }
   };
+
+  const onRequestMoveNext = useCallback(() => {
+    if (colIndex + 1 >= totalCols) moveTo(rowIndex + 1, 0);
+    else moveTo(rowIndex, colIndex + 1);
+  }, [colIndex, rowIndex, totalCols, moveTo]);
+
+  const onRequestMovePrev = useCallback(() => {
+    if (colIndex - 1 < 0) moveTo(rowIndex - 1, totalCols - 1);
+    else moveTo(rowIndex, colIndex - 1);
+  }, [colIndex, rowIndex, totalCols, moveTo]);
+
+  const onRequestMoveDown = useCallback(() => {
+    moveTo(rowIndex + 1, colIndex);
+  }, [rowIndex, colIndex, moveTo]);
+
+  const onRequestMoveUp = useCallback(() => {
+    moveTo(rowIndex - 1, colIndex);
+  }, [rowIndex, colIndex, moveTo]);
 
   useEffect(() => {
     if (!rows.length) {
@@ -237,6 +251,10 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
           selectedHomeworkId={currentHomeworkId}
           focusHomeworkCell={focusHomeworkCell}
           onFocusHomeworkDone={() => setFocusHomeworkCell(null)}
+          onRequestMoveNext={onRequestMoveNext}
+          onRequestMovePrev={onRequestMovePrev}
+          onRequestMoveDown={onRequestMoveDown}
+          onRequestMoveUp={onRequestMoveUp}
           onSelectCell={(row, type, id) => {
             setSelected(row);
             setFocusHomeworkCell(null);
@@ -248,6 +266,7 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
             } else {
               setActiveColumn("homework");
               setCurrentHomeworkId(id);
+              setFocusHomeworkCell({ enrollmentId: row.enrollment_id, homeworkId: id });
               if (currentExamId == null && row.exams?.[0])
                 setCurrentExamId(row.exams[0].exam_id);
             }
