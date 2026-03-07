@@ -116,3 +116,162 @@
   color: var(--color-text-muted);
   margin-top: var(--space-1);
 }
+
+/* ========== 패널 내 섹션형 (고급화) ========== */
+.clinic-section {
+  padding-bottom: var(--space-5);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.clinic-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.clinic-section__header {
+  margin-bottom: var(--space-3);
+}
+
+.clinic-section__title {
+  font-size: var(--text-xs, 13px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+/* 컨트롤 버튼형 — 주차/날짜/전체선택 등 */
+.clinic-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clinic-control:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: var(--color-border-divider-strong);
+}
+
+.clinic-control:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.clinic-control--active {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
+  color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+/* 트리 요약 (월/주차) */
+.clinic-tree__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  list-style: none;
+}
+
+.clinic-tree__summary::-webkit-details-marker,
+.clinic-tree__summary::marker {
+  display: none;
+}
+
+.clinic-tree__summary:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: var(--color-border-divider-strong);
+}
+
+details[open] > .clinic-tree__summary {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+}
+
+/* 트리 날짜 버튼 */
+.clinic-tree__day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.clinic-tree__day:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: var(--color-border-divider-strong);
+}
+
+.clinic-tree__day--active {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
+  color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.clinic-tree__day-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* 액션 행 (전체 선택 등) */
+.clinic-action-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.clinic-action-row:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: var(--color-border-divider-strong);
+}
+
+.clinic-action-row label {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+}

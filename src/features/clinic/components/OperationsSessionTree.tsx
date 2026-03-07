@@ -57,7 +57,7 @@ export default function OperationsSessionTree({
         <h2 className="clinic-panel__title">날짜</h2>
         <button
           type="button"
-          className="text-xs px-2 py-1 rounded-md border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-primary)]"
+          className="clinic-control rounded-md px-3 py-1.5 text-xs border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-primary)]"
           onClick={onClear}
         >
           초기화
@@ -65,13 +65,11 @@ export default function OperationsSessionTree({
       </div>
       <div className="clinic-panel__body p-3 space-y-2 max-h-[680px] overflow-auto">
         <details open>
-          <summary className="cursor-pointer font-semibold text-[var(--color-text-primary)]">
-            {monthLabel}
-          </summary>
-          <div className="mt-2 pl-2 space-y-2">
+          <summary className="clinic-tree__summary">{monthLabel}</summary>
+          <div className="mt-2 pl-1 space-y-2">
             {weeks.map(([weekKey, weekDays], idx) => (
               <details key={weekKey}>
-                <summary className="cursor-pointer text-sm font-semibold text-[var(--color-text-primary)]">
+                <summary className="clinic-tree__summary ml-2">
                   {idx + 1}주차
                 </summary>
                 <div className="mt-1 pl-2 space-y-1">
@@ -84,20 +82,14 @@ export default function OperationsSessionTree({
                         type="button"
                         onClick={() => onSelectDay(d)}
                         className={cx(
-                          "w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors",
-                          active
-                            ? "border-[var(--color-primary)] bg-[var(--color-bg-surface-hover)] text-[var(--color-primary)]"
-                            : "border-[var(--color-border-divider)] bg-transparent hover:bg-[var(--color-bg-surface-hover)] text-[var(--color-text-primary)]"
+                          "clinic-tree__day",
+                          active && "clinic-tree__day--active"
                         )}
                       >
-                        <span className="flex items-center justify-between">
-                          {d}
-                          {count > 0 && (
-                            <span className="text-xs font-semibold text-[var(--color-primary)]">
-                              {count}
-                            </span>
-                          )}
-                        </span>
+                        <span>{d}</span>
+                        {count > 0 ? (
+                          <span className="clinic-tree__day-badge">{count}</span>
+                        ) : null}
                       </button>
                     );
                   })}

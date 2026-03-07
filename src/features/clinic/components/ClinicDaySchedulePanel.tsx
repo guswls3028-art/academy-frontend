@@ -10,19 +10,17 @@ export default function ClinicDaySchedulePanel({
   date: string;
   rows: ClinicParticipant[];
 }) {
-  if (!rows.length) {
-    return (
-      <div className="clinic-panel">
-        <div className="clinic-panel__header">
-          <h2 className="clinic-panel__title">클리닉 일정</h2>
-          <p className="clinic-panel__meta">{date}</p>
-        </div>
-        <div className="clinic-panel__body">
-          <p className="ds-section__empty">해당 날짜에 일정이 없습니다.</p>
-        </div>
+  return (
+    <div className="clinic-panel overflow-hidden">
+      <div className="clinic-panel__header">
+        <h2 className="clinic-panel__title">클리닉 일정</h2>
+        <p className="clinic-panel__meta">{date}</p>
       </div>
-    );
-  }
+      <div className="clinic-panel__body">
+        <p className="ds-section__empty">해당 날짜에 일정이 없습니다.</p>
+      </div>
+    </div>
+  );
 
   const byTime = rows.reduce<Record<string, ClinicParticipant[]>>((acc, r) => {
     const t = (r.session_start_time || "").slice(0, 5) || "-";
@@ -38,17 +36,19 @@ export default function ClinicDaySchedulePanel({
         <h2 className="clinic-panel__title">클리닉 일정</h2>
         <p className="clinic-panel__meta">{date}</p>
       </div>
-      <div className="clinic-panel__body space-y-4">
+      <div className="clinic-panel__body space-y-5">
         {times.map((time) => {
           const items = byTime[time] ?? [];
           return (
-            <div key={time}>
-              <p className="ds-section__kpi-label mb-1">{time}</p>
-              <ul className="space-y-1">
+            <section key={time} className="clinic-section">
+              <div className="clinic-section__header">
+                <p className="clinic-section__title">{time}</p>
+              </div>
+              <ul className="space-y-2">
                 {items.map((r) => (
                   <li
                     key={r.id}
-                    className="ds-section__item rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-2 cursor-default"
+                    className="ds-section__item rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3 cursor-default"
                   >
                     <div className="ds-section__item-label">{r.student_name}</div>
                     {r.session_location && (
@@ -57,7 +57,7 @@ export default function ClinicDaySchedulePanel({
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           );
         })}
       </div>
