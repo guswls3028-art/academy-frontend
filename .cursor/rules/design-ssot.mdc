@@ -15,6 +15,7 @@ alwaysApply: false
 2. **테이블 형태 디자인 (SSOT 확정)**: 프로젝트 단위로 **학생(students) 도메인 테이블**이 테이블 형태의 단일 진실(SSOT)이다. 모든 리스트·테이블(성적 탭 ScoresTable, 출결, 강의 목록 등)은 동일한 형태를 따른다.
    - **구성**: `DomainTable` + `table.ds-table.ds-table--flat.ds-table--center` + 시맨틱 `<table>`, `<colgroup>`, `<thead>`, `<tbody>`, `<tr>`, `<th>`, `<td>`
    - **컬럼 너비**: `@/shared/ui/domain` 의 `TABLE_COL` / `tableColumnSpec` 만 사용. 동적 컬럼은 동일 톤으로 `COL_*` 상수 정의 후 colgroup 적용.
+   - **컬럼 너비 조정**: 모든 테이블은 사용자 리사이즈 필수. SSOT: `.cursor/rules/frontend-tables-resize.mdc` — useTableColumnPrefs + ResizableTh.
    - **참조 구현**: `src/features/students/components/StudentsTable.tsx`
    - **적용 대상**: 성적 탭(SessionScoresPanel → ScoresTable), 출결 테이블, 강의·시험·클리닉 등 모든 도메인 리스트. grid 기반 커스텀 테이블 래퍼 사용 금지.
 3. **활성/비활성**: STATUS_ACTIVE_COLOR(#22c55e), STATUS_INACTIVE_COLOR(#ef4444) — `@/shared/ui/domain`

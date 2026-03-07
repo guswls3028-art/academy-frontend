@@ -96,7 +96,7 @@ export default function ResizableTh({
       }}
       onClick={onClick}
     >
-      <span className="inline-flex items-center justify-center gap-2">{children}</span>
+      {noWrap ? children : <span className="inline-flex items-center justify-center gap-2">{children}</span>}
       <span
         role="separator"
         aria-orientation="vertical"

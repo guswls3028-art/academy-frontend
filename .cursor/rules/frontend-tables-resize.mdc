@@ -1,0 +1,35 @@
+---
+description: 프론트 테이블 컬럼 너비 조정 SSOT — 모든 테이블에 사용자 리사이즈 필수
+globs: src/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# 테이블 컬럼 너비 조정 (SSOT)
+
+- **규칙**: 프로젝트 내 **모든 데이터 테이블**은 사용자가 컬럼 너비를 조정할 수 있어야 한다.
+- **구현 SSOT**: `@/shared/ui/domain`
+  - **useTableColumnPrefs**(tableId, columns) — localStorage 키 `academy-table-prefs-${tableId}` 에 표시/너비 저장
+  - **ResizableTh** — 헤더 셀 오른쪽 드래그로 너비 조절, `columnKey` / `width` / `onWidthChange` 필수
+  - **스타일**: `src/styles/design-system/patterns/table.css` — `.data-table-resize-handle`
+
+## 필수 적용
+
+1. **DomainTable** 을 쓰는 리스트/테이블 → **ResizableTh** 로 각 헤더 `<th>` 렌더, **useTableColumnPrefs** 로 너비/저장 관리.
+2. **tableId**: 테이블별 고유 문자열 (예: `"students"`, `"session-scores"`, `"videos"`). 동적 라우트는 공통 id 사용 가능 (예: 모든 세션 성적 테이블 `"session-scores"`).
+3. **컬럼 정의**: `TableColumnDef[]` — `key`, `label`, `defaultWidth`, `minWidth`(선택), `maxWidth`(선택). `TABLE_COL` / `tableColumnSpec` 과 맞춤.
+4. **colgroup / table width**: `columnWidths`(prefs) 또는 `defaultWidth` 로 고정. `tableLayout: "fixed"` 유지.
+
+## 참조 구현
+
+- **단일 헤더 행**: `src/features/students/components/StudentsTable.tsx` — columnPrefs 주입, ResizableTh per column
+- **다중 헤더 행**: `src/features/scores/components/ScoresTable.tsx` — useTableColumnPrefs 내부 호출, ResizableTh 에 `rowSpan` / `noWrap` 사용
+
+## ResizableTh 옵션
+
+- **rowSpan**: 다중 thead 행일 때 해당 셀이 차지할 행 수
+- **noWrap**: true 시 children 을 span 으로 감싸지 않음 (블록 레이아웃용)
+
+## 신규/기존 테이블 작업 시
+
+- DomainTable + thead 사용 시 **반드시** useTableColumnPrefs + ResizableTh 적용
+- 단순 `<table>` (모달 내 소형 목록 등) 도 컬럼이 2개 이상이면 동일 패턴 적용 권장
