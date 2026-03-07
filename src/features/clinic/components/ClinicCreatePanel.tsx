@@ -1,17 +1,13 @@
 // PATH: src/features/clinic/components/ClinicCreatePanel.tsx
+// 클리닉 생성 — 모달 SSOT(TimeRangeInput, DatePicker, ds-choice-btn, DS Button) + 한 페이지 컴팩트 레이아웃
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Input,
-  Button,
-  Checkbox,
-  Segmented,
-  Select,
-  message,
-} from "antd";
+import { Input, Checkbox, message } from "antd";
 import dayjs from "dayjs";
 
 import { DatePicker } from "@/shared/ui/date";
+import { TimeRangeInput } from "@/shared/ui/time";
+import { Button } from "@/shared/ui/ds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useClinicTargets } from "../hooks/useClinicTargets";
@@ -20,35 +16,27 @@ import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
 
 import api from "@/shared/api/axios";
 
-type TargetRow = {
-  enrollment_id: number;
-  student_name: string;
-};
-
-type StudentRow = {
-  id: number;
-  name: string;
-};
-
-const TIME_OPTIONS = Array.from({ length: 26 }, (_, i) => {
-  const h = Math.floor(i / 2) + 9;
-  const m = i % 2 === 0 ? "00" : "30";
-  return `${String(h).padStart(2, "0")}:${m}`;
-});
+type TargetRow = { enrollment_id: number; student_name: string };
+type StudentRow = { id: number; name: string };
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function addMinutes(base: string | undefined, minutes: number) {
-  if (!base) return undefined;
-  const [h, m] = base.split(":").map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  d.setMinutes(d.getMinutes() + minutes);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(
-    d.getMinutes()
-  ).padStart(2, "0")}`;
+function parseTimeRange(s: string): { start: string; end: string } {
+  const t = (s || "").trim();
+  const idx = t.indexOf("~");
+  if (idx >= 0) {
+    return { start: t.slice(0, idx).trim(), end: t.slice(idx + 1).trim() };
+  }
+  return { start: t, end: "" };
+}
+
+function durationMinutes(start: string, end: string): number {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  return eh * 60 + em - (sh * 60 + sm);
 }
 
 type Props = {
@@ -96,29 +84,9 @@ export default function ClinicCreatePanel({
     setInternalSelected(resolved);
   };
 
-  const [startTime, setStartTime] = useState<string>();
-  const [endTime, setEndTime] = useState<string>();
-
-  /**
-   * ✅ UX 수정 포인트
-   * - +30 / +1시간 버튼은 "누적"
-   * - endTime이 있으면 endTime 기준으로 추가
-   * - 없으면 startTime 기준으로 최초 계산
-   */
-  const quickAdd = (m: number) => {
-    if (!startTime) {
-      message.warning("시작 시간을 먼저 선택하세요.");
-      return;
-    }
-
-    // 기준점: endTime이 있으면 그 뒤에 누적, 없으면 startTime 기준
-    const base = endTime ?? startTime;
-    setEndTime(addMinutes(base, m));
-  };
-
+  const [timeRange, setTimeRange] = useState("");
   const [room, setRoom] = useState("");
   const [memo, setMemo] = useState("");
-  /** 정원: 학생 미선택 시 필수. 선생이 먼저 클리닉을 만들 때 사용 */
   const [maxParticipants, setMaxParticipants] = useState<number>(10);
 
   const targetsQ = useClinicTargets();
@@ -179,25 +147,21 @@ export default function ClinicCreatePanel({
   });
 
   const submit = async () => {
-    if (!startTime || !endTime)
+    const { start, end } = parseTimeRange(timeRange);
+    if (!start || !end)
       return message.warning("시작/종료 시간을 선택해주세요.");
-    if (!room.trim()) return message.warning("장소/룸을 입력해주세요.");
-
-    const [sh, sm] = startTime.split(":").map(Number);
-    const [eh, em] = endTime.split(":").map(Number);
-    const duration = eh * 60 + em - (sh * 60 + sm);
-
+    const duration = durationMinutes(start, end);
     if (duration <= 0)
       return message.error("종료 시간은 시작 시간 이후여야 합니다.");
+    if (!room.trim()) return message.warning("장소/룸을 입력해주세요.");
 
-    // 학생 선택 없이 클리닉만 생성 시 정원 필수
     const cap = selected.length > 0 ? selected.length : maxParticipants;
     if (cap < 1) return message.warning("정원을 1명 이상으로 설정하거나 학생을 선택해주세요.");
 
     try {
       await createSessionM.mutateAsync({
         date: selectedDate.format("YYYY-MM-DD"),
-        start_time: startTime,
+        start_time: start,
         duration_minutes: duration,
         location: room.trim(),
         max_participants: cap,
@@ -206,7 +170,7 @@ export default function ClinicCreatePanel({
       message.success("클리닉 생성 완료");
       setSelected([]);
       setMemo("");
-      setEndTime(undefined);
+      setTimeRange("");
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["clinic-sessions-tree"] });
       onCreated?.();
