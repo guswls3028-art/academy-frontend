@@ -38,6 +38,19 @@ export default function CreateHomeworkModal({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if (e.key === "Enter" && !disabled) {
+        e.preventDefault();
+        m.mutate();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose, disabled]);
+
   const m = useMutation({
     mutationFn: async () => {
       const res = await createHomework({
