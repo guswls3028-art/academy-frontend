@@ -196,29 +196,29 @@ export default function ClinicCreatePanel({
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
         <div className="modal-scroll-body modal-scroll-body--compact grid gap-4 flex-1 min-h-0 w-full max-w-full box-border">
-          {/* 1행: 날짜 + 시간 (모달 SSOT) */}
-          <div className={hideDatePicker ? "" : "modal-form-row modal-form-row--2 gap-4"}>
-            {!hideDatePicker && (
-              <div className="min-w-0">
-                <label className="modal-section-label">날짜</label>
-                <DatePicker
-                  value={selectedDate.format("YYYY-MM-DD")}
-                  onChange={(s) => setSelectedDate(dayjs(s))}
-                  placeholder="날짜 선택"
-                />
-              </div>
-            )}
+          {/* 1행: 날짜 — 세로 단일 행 */}
+          {!hideDatePicker && (
             <div className="min-w-0">
-              <label className="modal-section-label">시작 · 종료 시간</label>
-              <TimeRangeInput
-                value={timeRange}
-                onChange={setTimeRange}
-                startLabel="시작"
-                endLabel="종료"
-                startPlaceholder="시작 시간"
-                endPlaceholder="종료 시간"
+              <label className="modal-section-label">날짜</label>
+              <DatePicker
+                value={selectedDate.format("YYYY-MM-DD")}
+                onChange={(s) => setSelectedDate(dayjs(s))}
+                placeholder="날짜 선택"
               />
             </div>
+          )}
+
+          {/* 2행: 시작 · 종료 시간 — 세로 배치 (시작시간 / 종료시간 블록) */}
+          <div className="min-w-0">
+            <label className="modal-section-label">시작 · 종료 시간</label>
+            <TimeRangeInput
+              value={timeRange}
+              onChange={setTimeRange}
+              startLabel="시작"
+              endLabel="종료"
+              startPlaceholder="시작 시간"
+              endPlaceholder="종료 시간"
+            />
           </div>
 
           {/* 2행: 장소 · 정원 · 메모 */}
