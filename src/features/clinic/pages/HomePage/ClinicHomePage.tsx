@@ -73,6 +73,11 @@ export default function ClinicHomePage() {
       qc.invalidateQueries({ queryKey: ["clinic-participants"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
     },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.detail ?? err?.message ?? "자동 승인 설정 저장에 실패했습니다.";
+      console.error("[Clinic] auto_approve_booking PATCH failed:", err?.response?.status, msg);
+      alert(`자동 승인 설정을 저장할 수 없습니다. ${typeof msg === "string" ? msg : ""}`);
+    },
   });
 
   const patchStatusM = useMutation({
@@ -158,13 +163,19 @@ export default function ClinicHomePage() {
                 type="checkbox"
                 checked={autoApproved}
                 onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
-                disabled={updateAutoApprovedM.isPending}
+                disabled={updateAutoApprovedM.isPending || settingsQ.isError}
                 className="rounded border-[var(--color-border-divider)]"
+                aria-describedby={settingsQ.isError ? "clinic-auto-approve-error" : undefined}
               />
               <span className="text-sm font-medium text-[var(--color-text-primary)]">
                 자동 승인
               </span>
             </label>
+            {settingsQ.isError && (
+              <p id="clinic-auto-approve-error" className="text-xs text-[var(--color-error)] mt-1 w-full">
+                설정을 불러올 수 없습니다. 네트워크 또는 로그인을 확인하세요.
+              </p>
+            )}
           </div>
           <div className="clinic-home__body">
             {pendingQ.listQ.isLoading && (
