@@ -16,6 +16,8 @@ export interface DatePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** 지난 날짜 선택 불가 (클리닉 생성 등). YYYY-MM-DD, 이 날짜 미만 비활성화 */
+  minDate?: string;
   /** true면 드롭다운을 트리거 아래로만 열림 (예: 클리닉 생성) */
   openBelow?: boolean;
   id?: string;
@@ -37,6 +39,7 @@ export default function DatePicker({
   onChange,
   placeholder = "날짜 선택",
   disabled = false,
+  minDate,
   openBelow = false,
   id,
   "data-testid": dataTestId,
@@ -155,12 +158,14 @@ export default function DatePicker({
             const valueStr = toValue(cellDate);
             const isSelected = selected && toValue(selected) === valueStr;
             const isToday = toValue(today) === valueStr;
+            const isBeforeMin = minDate != null && valueStr < minDate;
             return (
               <button
                 key={valueStr}
                 type="button"
-                className={`shared-date-picker-cell ${isSelected ? "shared-date-picker-cell-selected" : ""} ${isToday ? "shared-date-picker-cell-today" : ""}`}
-                onClick={() => handleSelect(d)}
+                disabled={isBeforeMin}
+                className={`shared-date-picker-cell ${isSelected ? "shared-date-picker-cell-selected" : ""} ${isToday ? "shared-date-picker-cell-today" : ""} ${isBeforeMin ? "shared-date-picker-cell-disabled" : ""}`}
+                onClick={() => !isBeforeMin && handleSelect(d)}
                 style={{ width: CELL_SIZE, height: CELL_SIZE }}
               >
                 {d}

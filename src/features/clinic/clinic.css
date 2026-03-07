@@ -168,19 +168,21 @@
   background: var(--color-bg-surface-hover);
 }
 
-.clinic-scheduler-panel__mini-cal-cell--today {
-  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
-  color: var(--color-brand-primary);
-}
-
-.clinic-scheduler-panel__mini-cal-cell--selected {
-  background: var(--color-brand-primary);
-  color: var(--color-text-inverse, #fff);
-}
-
 .clinic-scheduler-panel__mini-cal-cell--empty {
   cursor: default;
   pointer-events: none;
+}
+
+.clinic-scheduler-panel__mini-cal-cell--past {
+  cursor: not-allowed;
+  opacity: 0.5;
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface-soft) !important;
+}
+
+.clinic-scheduler-panel__mini-cal-cell--past:hover {
+  background: var(--color-bg-surface-soft) !important;
+  transform: none;
 }
 
 /* 날짜 셀 상태 배경 — 🟢 정상 | 🟡 예약 거의 찼음 | 🔴 마감 (선택/오늘보다 우선순위 낮음) */

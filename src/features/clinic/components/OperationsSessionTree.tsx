@@ -150,27 +150,32 @@ export default function OperationsSessionTree({
               }
               const isSelected = date === selectedDay;
               const isToday = date === todayISO;
+              const isPast = date < todayISO;
               const count = (sessionsByDate[date]?.length ?? 0);
               const status = dateStatusByDate[date] ?? "normal";
               return (
                 <button
                   key={date}
                   type="button"
-                  onClick={() => onSelectDay(date)}
+                  disabled={isPast}
+                  onClick={() => !isPast && onSelectDay(date)}
                   className={cx(
                     "clinic-scheduler-panel__mini-cal-cell",
                     count > 0 && status === "normal" && "clinic-scheduler-panel__mini-cal-cell--status-normal",
                     count > 0 && status === "almost" && "clinic-scheduler-panel__mini-cal-cell--status-almost",
                     count > 0 && status === "full" && "clinic-scheduler-panel__mini-cal-cell--status-full",
                     isSelected && "clinic-scheduler-panel__mini-cal-cell--selected",
-                    isToday && "clinic-scheduler-panel__mini-cal-cell--today"
+                    isToday && "clinic-scheduler-panel__mini-cal-cell--today",
+                    isPast && "clinic-scheduler-panel__mini-cal-cell--past"
                   )}
                   title={
-                    status === "full"
-                      ? "마감"
-                      : status === "almost"
-                        ? "예약 거의 찼음"
-                        : "정상"
+                    isPast
+                      ? "지난 날짜는 선택할 수 없습니다"
+                      : status === "full"
+                        ? "마감"
+                        : status === "almost"
+                          ? "예약 거의 찼음"
+                          : "정상"
                   }
                 >
                   {dayjs(date).format("D")}
