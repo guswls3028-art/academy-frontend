@@ -70,6 +70,16 @@
   padding: var(--space-4) var(--space-5);
 }
 
+/* 클리닉 생성: 한 페이지 컴팩트 레이아웃 — 스크롤은 대상자 리스트만 */
+.clinic-create-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.clinic-create-body .modal-scroll-body {
+  max-height: none;
+}
+
 .clinic-panel__header {
   padding: var(--space-6) var(--space-7);
   padding-left: var(--space-7);

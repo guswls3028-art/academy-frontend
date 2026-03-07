@@ -180,7 +180,7 @@ export default function ClinicCreatePanel({
   };
 
   return (
-    <div className="ds-card-modal clinic-panel overflow-hidden">
+    <div className="ds-card-modal clinic-panel overflow-hidden flex flex-col">
       <div className="ds-card-modal__header flex items-center justify-between">
         <div className="ds-card-modal__accent" aria-hidden />
         <div className="ds-card-modal__header-inner">
@@ -194,168 +194,151 @@ export default function ClinicCreatePanel({
         </div>
       </div>
 
-      <div className="ds-card-modal__body clinic-input-filled space-y-5">
-        {!hideDatePicker && (
-          <section className="modal-form-group">
-            <label className="modal-section-label">날짜</label>
-            <DatePicker
-              value={selectedDate.format("YYYY-MM-DD")}
-              onChange={(s) => setSelectedDate(dayjs(s))}
-              placeholder="날짜 선택"
-            />
-          </section>
-        )}
+      <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
+        <div className="modal-scroll-body modal-scroll-body--compact grid gap-4 flex-1 min-h-0 w-full max-w-full box-border">
+          {/* 1행: 날짜 + 시간 (모달 SSOT) */}
+          <div className={hideDatePicker ? "" : "modal-form-row modal-form-row--2 gap-4"}>
+            {!hideDatePicker && (
+              <div className="min-w-0">
+                <label className="modal-section-label">날짜</label>
+                <DatePicker
+                  value={selectedDate.format("YYYY-MM-DD")}
+                  onChange={(s) => setSelectedDate(dayjs(s))}
+                  placeholder="날짜 선택"
+                />
+              </div>
+            )}
+            <div className="min-w-0">
+              <label className="modal-section-label">시작 · 종료 시간</label>
+              <TimeRangeInput
+                value={timeRange}
+                onChange={setTimeRange}
+                startLabel="시작"
+                endLabel="종료"
+                startPlaceholder="시작 시간"
+                endPlaceholder="종료 시간"
+              />
+            </div>
+          </div>
 
-        <section className="modal-form-group">
-          <label className="modal-section-label">시작 · 종료 시간</label>
-          <div className="flex gap-2">
-            <Select
-              placeholder="시작 시간"
-              options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
-              value={startTime}
-              onChange={(v) => {
-                setStartTime(v);
-                setEndTime(undefined);
-              }}
-              className="flex-1"
-            />
-            <Select
-              placeholder="종료 시간"
-              options={TIME_OPTIONS.map((t) => ({ label: t, value: t }))}
-              value={endTime}
-              onChange={setEndTime}
-              className="flex-1"
+          {/* 2행: 장소 · 정원 · 메모 */}
+          <div className="modal-form-group modal-form-group--compact flex flex-col gap-3">
+            <label className="modal-section-label">장소 · 정원</label>
+            <div className="modal-form-row modal-form-row--1-auto-auto gap-2 flex-wrap items-center">
+              <Input
+                placeholder="장소 / 룸"
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                className="clinic-input-filled flex-1 min-w-[120px]"
+              />
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">정원</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={selected.length > 0 ? selected.length : maxParticipants}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(v) && v >= 1) setMaxParticipants(v);
+                  }}
+                  disabled={selected.length > 0}
+                  className="clinic-input-filled w-16"
+                />
+              </div>
+              <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+                {selected.length > 0 ? "선택 인원으로 설정" : "명"}
+              </span>
+            </div>
+            <Input.TextArea
+              rows={1}
+              placeholder="메모 (선택)"
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              className="clinic-input-filled resize-none"
+              autoSize={{ minRows: 1, maxRows: 2 }}
             />
           </div>
-          <div className="flex gap-2 mt-2">
-            <Button
-              type="default"
-              onClick={() => quickAdd(30)}
-              className="clinic-quick-time-btn flex-1"
-            >
-              +30분
-            </Button>
-            <Button
-              type="default"
-              onClick={() => quickAdd(60)}
-              className="clinic-quick-time-btn flex-1"
-            >
-              +1시간
-            </Button>
-          </div>
-        </section>
 
-        <section className="modal-form-group">
-          <label className="modal-section-label">장소 · 정원</label>
-          <Input
-            placeholder="장소 / 룸"
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            className="mb-3"
-          />
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">정원</span>
+          {/* 3행: 대상자 — ds-choice-btn (모달 SSOT) */}
+          <div className="modal-form-group modal-form-group--compact flex flex-col gap-2 flex-1 min-h-0">
+            <label className="modal-section-label">대상자 선택</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={`ds-choice-btn ds-choice-btn--primary flex-1 ${mode === "targets" ? "is-selected" : ""}`}
+                onClick={() => { setMode("targets"); setKeyword(""); setSelected([]); }}
+                aria-pressed={mode === "targets"}
+              >
+                예약 대상자
+              </button>
+              <button
+                type="button"
+                className={`ds-choice-btn ds-choice-btn--primary flex-1 ${mode === "students" ? "is-selected" : ""}`}
+                onClick={() => { setMode("students"); setKeyword(""); setSelected([]); }}
+                aria-pressed={mode === "students"}
+              >
+                전체 학생
+              </button>
+            </div>
             <Input
-              type="number"
-              min={1}
-              max={999}
-              value={selected.length > 0 ? selected.length : maxParticipants}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (!Number.isNaN(v) && v >= 1) setMaxParticipants(v);
-              }}
-              disabled={selected.length > 0}
-              className="w-24"
+              placeholder={mode === "students" ? "학생 검색 (2글자 이상)" : "대상자 내 검색"}
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              allowClear
+              className="clinic-input-filled"
             />
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {selected.length > 0 ? "선택 인원으로 설정됨" : "명 (학생 없이 클리닉만 생성 시)"}
-            </span>
+            <div
+              className="clinic-action-row py-2"
+              onClick={toggleAll}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && toggleAll()}
+            >
+              <Checkbox checked={allChecked} onChange={toggleAll} onClick={(e) => e.stopPropagation()}>
+                전체 선택
+              </Checkbox>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto border border-[var(--color-border-divider)] rounded-[var(--radius-md)] p-2 space-y-1 bg-[var(--color-bg-surface-soft)] max-h-[140px]">
+              {rows.map((r: any) => {
+                const key = mode === "targets" ? r.enrollment_id : r.id;
+                const label = mode === "targets" ? r.student_name : r.name;
+                return (
+                  <label
+                    key={key}
+                    className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-[var(--radius-sm)] hover:bg-[var(--color-bg-surface-hover)] cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(key)}
+                      onChange={(e) => {
+                        setSelected((prev) =>
+                          e.target.checked ? [...prev, key] : prev.filter((id) => id !== key)
+                        );
+                      }}
+                    />
+                    <span className="flex-1 truncate font-medium text-[var(--color-text-primary)]">{label}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
-          <Input.TextArea
-            rows={2}
-            placeholder="메모 (선택)"
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            className="mt-3"
-          />
-        </section>
+        </div>
 
-        <section className="modal-form-group">
-          <label className="modal-section-label">대상자 선택</label>
-          <Segmented
-            options={[
-              { label: "예약 대상자", value: "targets" },
-              { label: "전체 학생", value: "students" },
-            ]}
-            value={mode}
-            onChange={(v) => {
-              setMode(v as any);
-              setKeyword("");
-              setSelected([]);
-            }}
-          />
-          <Input
-            placeholder={
-              mode === "students"
-                ? "학생 검색 (2글자 이상)"
-                : "대상자 내 검색"
-            }
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            allowClear
-            className="mt-3"
-          />
-          <div
-            className="clinic-action-row mt-3"
-            onClick={() => toggleAll()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && toggleAll()}
-          >
-            <Checkbox checked={allChecked} onChange={toggleAll} onClick={(e) => e.stopPropagation()}>
-              전체 선택
-            </Checkbox>
-          </div>
-          <div className="max-h-[280px] overflow-auto border border-[var(--color-border-divider)] rounded-xl mt-3 p-2 space-y-1 bg-[var(--color-bg-surface-soft)]">
-            {rows.map((r: any) => {
-              const key =
-                mode === "targets" ? r.enrollment_id : r.id;
-              const label =
-                mode === "targets" ? r.student_name : r.name;
-              return (
-                <label
-                  key={key}
-                  className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg hover:bg-[var(--color-bg-surface-hover)] cursor-pointer border border-transparent hover:border-[var(--color-border-divider)] transition-colors"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(key)}
-                    onChange={(e) => {
-                      setSelected((prev) =>
-                        e.target.checked
-                          ? [...prev, key]
-                          : prev.filter((id) => id !== key)
-                      );
-                    }}
-                  />
-                  <span className="flex-1 font-medium text-[var(--color-text-primary)]">{label}</span>
-                </label>
-              );
-            })}
-          </div>
+        <div className="pt-3 mt-auto border-t border-[var(--color-border-divider)]">
           <Button
-            type="primary"
-            block
-            size="large"
+            type="button"
+            intent="primary"
+            size="lg"
             loading={createSessionM.isPending}
             onClick={submit}
-            className="mt-4 !rounded-xl !font-semibold !h-11"
+            className="w-full"
           >
             {selected.length > 0
               ? `선택 ${selected.length}명 클리닉 생성`
               : `클리닉만 생성 (정원 ${maxParticipants}명)`}
           </Button>
-        </section>
+        </div>
       </div>
     </div>
   );
