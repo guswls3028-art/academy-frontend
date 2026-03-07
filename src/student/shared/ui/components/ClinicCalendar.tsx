@@ -1,18 +1,29 @@
 /**
  * 클리닉 예약 달력 컴포넌트
  * - 날짜 선택 가능
- * - 예약 상태별 색상 표시 (노란색: pending, 초록색: 승인)
- * - 이미 생성된 클리닉 일정만 표시 (availableDates는 API 세션 기준)
+ * - 날짜별 정원 상태 색상: 초록=여유, 노랑=일부 참, 빨강=다 찼음 (dateCapacityStatus 기준)
+ * - 내 예약 있으면 점 표시 (bookings)
  */
 import { useState, useMemo } from "react";
 import { formatYmd, todayYmd } from "@/student/shared/utils/date";
 import type { ClinicBookingRequest } from "@/student/domains/clinic/api/clinicBooking.api";
+
+/** 날짜별 정원 상태: 풀면(여유)=초록, 차면=노랑, 다차면=빨강 */
+export type DateCapacityStatus = "green" | "yellow" | "red";
+
+const CAPACITY_COLORS: Record<DateCapacityStatus, string> = {
+  green: "#22c55e",
+  yellow: "#fbbf24",
+  red: "#ef4444",
+};
 
 type Props = {
   selectedDate: string | null; // YYYY-MM-DD
   onDateSelect: (date: string) => void;
   bookings: ClinicBookingRequest[];
   availableDates: string[]; // YYYY-MM-DD 형식의 예약 가능한 날짜 목록
+  /** 날짜별 정원 상태 (스펙: 풀면 초록, 차면 노랑, 다차면 빨강). 있으면 셀 배경에 사용 */
+  dateCapacityStatus?: Record<string, DateCapacityStatus>;
   minDate?: string; // YYYY-MM-DD
   maxDate?: string; // YYYY-MM-DD
 };
@@ -22,6 +33,7 @@ export default function ClinicCalendar({
   onDateSelect,
   bookings,
   availableDates,
+  dateCapacityStatus,
   minDate,
   maxDate,
 }: Props) {
@@ -102,7 +114,11 @@ export default function ClinicCalendar({
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
 
-  const getDateStatusColor = (booking?: ClinicBookingRequest) => {
+  const getDateStatusColor = (dateStr: string, booking?: ClinicBookingRequest) => {
+    // 1) 정원 상태 우선: dateCapacityStatus가 있으면 해당 날짜 색상 사용
+    const capacityStatus = dateCapacityStatus?.[dateStr];
+    if (capacityStatus) return CAPACITY_COLORS[capacityStatus];
+    // 2) 없으면 기존: 내 예약 상태로 색상 (하위 호환)
     if (!booking) return null;
     if (booking.status === "booked" || booking.status === "approved") {
       return "#22c55e"; // 초록색 (승인됨)
@@ -191,7 +207,7 @@ export default function ClinicCalendar({
         const d = String(day.date.getDate()).padStart(2, "0");
         const dateStr = `${y}-${m}-${d}`;
         const isSelected = selectedDate === dateStr;
-          const statusColor = getDateStatusColor(day.booking);
+          const statusColor = getDateStatusColor(dateStr, day.booking);
           const isClickable = day.isSelectable;
 
           return (
@@ -273,28 +289,56 @@ export default function ClinicCalendar({
         })}
       </div>
 
-      {/* 범례 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "var(--stu-space-4)",
-          marginTop: "var(--stu-space-4)",
-          paddingTop: "var(--stu-space-4)",
-          borderTop: "1px solid var(--stu-border)",
-          fontSize: 12,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 16, height: 16, borderRadius: 4, background: "#fbbf24" }} />
-          <span className="stu-muted">승인 대기</span>
+      {/* 범례: 정원 상태 (dateCapacityStatus 사용 시) */}
+      {dateCapacityStatus && Object.keys(dateCapacityStatus).length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "var(--stu-space-4)",
+            marginTop: "var(--stu-space-4)",
+            paddingTop: "var(--stu-space-4)",
+            borderTop: "1px solid var(--stu-border)",
+            fontSize: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: CAPACITY_COLORS.green }} />
+            <span className="stu-muted">정원 여유</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: CAPACITY_COLORS.yellow }} />
+            <span className="stu-muted">일부 참</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: CAPACITY_COLORS.red }} />
+            <span className="stu-muted">정원 마감</span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 16, height: 16, borderRadius: 4, background: "#22c55e" }} />
-          <span className="stu-muted">승인됨</span>
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "var(--stu-space-4)",
+            marginTop: "var(--stu-space-4)",
+            paddingTop: "var(--stu-space-4)",
+            borderTop: "1px solid var(--stu-border)",
+            fontSize: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: "#fbbf24" }} />
+            <span className="stu-muted">승인 대기</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: "#22c55e" }} />
+            <span className="stu-muted">승인됨</span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

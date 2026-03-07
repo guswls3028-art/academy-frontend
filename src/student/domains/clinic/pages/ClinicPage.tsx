@@ -173,6 +173,27 @@ export default function ClinicPage() {
     return Array.from(dates);
   }, [sessions, myRequests]);
 
+  // 날짜별 정원 상태 (스펙: 풀면=초록, 차면=노랑, 다차면=빨강) — 선생앱과 동일 규칙
+  const dateCapacityStatus = useMemo(() => {
+    const byDate = new Map<string, typeof sessions>();
+    sessions.forEach((s) => {
+      if (!byDate.has(s.date)) byDate.set(s.date, []);
+      byDate.get(s.date)!.push(s);
+    });
+    const result: Record<string, "green" | "yellow" | "red"> = {};
+    byDate.forEach((sessList, dateStr) => {
+      if (sessList.length === 0) return;
+      const maxList = sessList.map((s) => s.max_participants ?? 0);
+      const bookedList = sessList.map((s) => s.booked_count ?? 0);
+      const allFull = maxList.every((max, i) => max > 0 && bookedList[i] >= max);
+      const anyFull = maxList.some((max, i) => max > 0 && bookedList[i] >= max);
+      if (allFull) result[dateStr] = "red";
+      else if (anyFull) result[dateStr] = "yellow";
+      else result[dateStr] = "green";
+    });
+    return result;
+  }, [sessions]);
+
   // 선택한 날짜의 예약 정보
   const selectedDateBooking = useMemo(() => {
     if (!selectedDate) return null;
@@ -262,6 +283,7 @@ export default function ClinicPage() {
           onDateSelect={handleDateSelect}
           bookings={myRequests}
           availableDates={availableDates}
+          dateCapacityStatus={dateCapacityStatus}
         />
 
         {/* 선택한 날짜의 예약 필드 */}

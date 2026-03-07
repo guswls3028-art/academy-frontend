@@ -165,7 +165,7 @@ export default function ClinicHomePage() {
                 type="checkbox"
                 checked={autoApproved}
                 onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
-                disabled={updateAutoApprovedM.isPending || settingsQ.isError}
+                disabled={updateAutoApprovedM.isPending}
                 className="rounded border-[var(--color-border-divider)]"
                 aria-describedby={settingsQ.isError ? "clinic-auto-approve-error" : undefined}
               />
