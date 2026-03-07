@@ -196,9 +196,9 @@ export default function ClinicCreatePanel({
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
         <div className="modal-scroll-body modal-scroll-body--compact grid gap-4 flex-1 min-h-0 w-full max-w-full box-border">
-          {/* 1행: 날짜 — 세로 단일 행 */}
+          {/* 1행: 날짜 — 세로 단일 행 (차시 추가 모달과 동일 DatePicker·달력 팝업) */}
           {!hideDatePicker && (
-            <div className="min-w-0">
+            <div className="min-w-0 shared-date-picker-wrap">
               <label className="modal-section-label">날짜</label>
               <DatePicker
                 value={selectedDate.format("YYYY-MM-DD")}
@@ -209,7 +209,7 @@ export default function ClinicCreatePanel({
           )}
 
           {/* 2행: 시작 · 종료 시간 — 차시 추가 모달과 동일 SSOT(TimeRangeInput + 원통 스크롤) */}
-          <div className="min-w-0">
+          <div className="min-w-0 shared-time-range-wrap">
             <label className="modal-section-label">시작 · 종료 시간</label>
             <TimeRangeInput
               value={timeRange}
