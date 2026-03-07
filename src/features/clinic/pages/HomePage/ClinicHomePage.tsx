@@ -1,5 +1,7 @@
 // PATH: src/features/clinic/pages/HomePage/ClinicHomePage.tsx
 // 클리닉 홈 — 오늘 일정 리스트, 예약대상자 리스트, 예약신청자 리스트 + 자동 승인 설정
+/** 배포 확인용: 서버에서 자동 승인 체크 반영 여부 확인 시 이 값을 올리면 새 번들이 배포된 것임 */
+const CLINIC_SETTINGS_UI_VERSION = "2025-03-07.2";
 
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -89,7 +91,7 @@ export default function ClinicHomePage() {
   });
 
   return (
-    <div className="clinic-page clinic-home">
+    <div className="clinic-page clinic-home" data-clinic-settings-version={CLINIC_SETTINGS_UI_VERSION}>
       <div className="clinic-toolbar">
         <DatePicker value={date} onChange={setDate} placeholder="날짜" />
       </div>
