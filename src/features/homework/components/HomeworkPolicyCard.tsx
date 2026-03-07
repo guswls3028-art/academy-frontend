@@ -67,7 +67,7 @@ export default function HomeworkPolicyCard({
 
   if (!policy) {
     return (
-      <div className="rounded border bg-[var(--bg-surface-soft)] p-3 text-sm text-[var(--text-muted)]">
+      <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] p-3 text-sm text-[var(--color-text-muted)]">
         ⚠️ 이 세션의 과제 정책이 아직 없습니다.
         <div className="mt-1 text-xs">
           - 정책 생성은 백엔드에서만 가능합니다.
@@ -80,7 +80,7 @@ export default function HomeworkPolicyCard({
     <div className="space-y-4">
       {/* 커트라인 기준 */}
       <div className="space-y-2">
-        <div className="text-sm font-medium text-[var(--text-secondary)]">
+        <div className="text-sm font-medium text-[var(--color-text-secondary)]">
           커트라인 기준
         </div>
 
@@ -94,11 +94,12 @@ export default function HomeworkPolicyCard({
               setCutlineValue((prev) => clampCutline(prev, nextMode));
             }}
             className={[
-              "rounded border px-3 py-2 text-sm",
+              "rounded-lg border px-3 py-2 text-sm transition-colors",
+              "border-[var(--color-border-divider)]",
               mode === "PERCENT"
-                ? "border-[var(--color-primary)] bg-[var(--bg-surface-soft)] font-semibold text-[var(--color-primary)]"
-                : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]",
-              !canEdit ? "opacity-50" : "",
+                ? "border-[var(--color-brand-primary)] bg-[var(--color-bg-surface-hover)] font-semibold text-[var(--color-brand-primary)]"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]",
+              !canEdit ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
             ].join(" ")}
           >
             퍼센트 (%)
@@ -113,18 +114,19 @@ export default function HomeworkPolicyCard({
               setCutlineValue((prev) => clampCutline(prev, nextMode));
             }}
             className={[
-              "rounded border px-3 py-2 text-sm",
+              "rounded-lg border px-3 py-2 text-sm transition-colors",
+              "border-[var(--color-border-divider)]",
               mode === "COUNT"
-                ? "border-[var(--color-primary)] bg-[var(--bg-surface-soft)] font-semibold text-[var(--color-primary)]"
-                : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-soft)]",
-              !canEdit ? "opacity-50" : "",
+                ? "border-[var(--color-brand-primary)] bg-[var(--color-bg-surface-hover)] font-semibold text-[var(--color-brand-primary)]"
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]",
+              !canEdit ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
             ].join(" ")}
           >
             문항 수
           </button>
         </div>
 
-        <div className="text-xs text-[var(--text-muted)]">
+        <div className="text-xs text-[var(--color-text-muted)]">
           {helperText}
         </div>
       </div>
@@ -132,7 +134,7 @@ export default function HomeworkPolicyCard({
       {/* 값 설정 */}
       <div className="grid grid-cols-2 gap-3">
         <label className="text-sm">
-          <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+          <div className="mb-1 text-xs font-medium text-[var(--color-text-secondary)]">
             커트라인 값
           </div>
 
@@ -141,7 +143,7 @@ export default function HomeworkPolicyCard({
               type="number"
               min={0}
               max={mode === "PERCENT" ? 100 : undefined}
-              className="w-full rounded border px-3 py-2 text-sm bg-[var(--bg-app)]"
+              className="w-full rounded-lg border border-[var(--color-border-divider)] px-3 py-2 text-sm bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
               value={Number.isFinite(cutlineValue) ? cutlineValue : 0}
               onChange={(e) =>
                 setCutlineValue(
@@ -150,14 +152,14 @@ export default function HomeworkPolicyCard({
               }
               disabled={!canEdit}
             />
-            <span className="text-xs text-[var(--text-muted)]">
+            <span className="text-xs text-[var(--color-text-muted)]">
               {mode === "PERCENT" ? "%" : "문항"}
             </span>
           </div>
         </label>
 
         <label className="text-sm">
-          <div className="mb-1 text-xs font-medium text-[var(--text-secondary)]">
+          <div className="mb-1 text-xs font-medium text-[var(--color-text-secondary)]">
             반올림 단위
           </div>
 
@@ -166,27 +168,29 @@ export default function HomeworkPolicyCard({
               type="number"
               min={1}
               max={50}
-              className="w-full rounded border px-3 py-2 text-sm bg-[var(--bg-app)]"
+              className="w-full rounded-lg border border-[var(--color-border-divider)] px-3 py-2 text-sm bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
               value={Number.isFinite(roundUnit) ? roundUnit : 5}
               onChange={(e) =>
                 setRoundUnit(Math.max(1, Number(e.target.value)))
               }
               disabled={!canEdit || mode !== "PERCENT"}
             />
-            <span className="text-xs text-[var(--text-muted)]">%</span>
+            <span className="text-xs text-[var(--color-text-muted)]">%</span>
           </div>
         </label>
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-2">
-        <div className="text-xs text-[var(--text-muted)]">
+        <div className="text-xs text-[var(--color-text-muted)]">
           ※ 판정은 서버 결과만 표시
         </div>
 
         <button
           type="button"
-          className="btn disabled:opacity-50"
+          className="ds-button disabled:opacity-50"
+          data-intent="primary"
+          data-size="sm"
           disabled={!canEdit || !dirty}
           onClick={() => {
             onPatch({

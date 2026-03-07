@@ -41,29 +41,29 @@ export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }
 
   return (
     <section className="space-y-3">
-      <div className="rounded border bg-[var(--bg-surface)]">
-        <div className="border-b px-4 py-3">
-          <div className="text-sm font-semibold text-[var(--text-primary)]">
+      <div className="ds-panel-card">
+        <div className="ds-panel-card__header px-4 py-3">
+          <div className="text-sm font-semibold text-[var(--color-text-primary)]">
             과제 설정
           </div>
-          <div className="text-xs text-[var(--text-muted)]">
+          <div className="text-xs text-[var(--color-text-muted)] mt-0.5">
             커트라인 기준(%/문항 수) · 반올림 단위 설정
           </div>
         </div>
 
         <div className="p-4 space-y-3">
           {!safeSessionId && (
-            <div className="rounded border bg-[var(--bg-surface-soft)] p-3 text-sm text-[var(--text-muted)]">
+            <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] p-3 text-sm text-[var(--color-text-muted)]">
               ⚠️ sessionId가 없어 과제 정책을 조회할 수 없습니다.
             </div>
           )}
 
           {safeSessionId > 0 && isLoading && (
-            <div className="text-sm text-[var(--text-muted)]">정책 불러오는 중...</div>
+            <div className="text-sm text-[var(--color-text-muted)]">정책 불러오는 중...</div>
           )}
 
           {safeSessionId > 0 && isError && (
-            <div className="text-sm text-red-600">정책 조회 실패</div>
+            <div className="text-sm text-[var(--color-danger)]">정책 조회 실패</div>
           )}
 
           {safeSessionId > 0 && !isLoading && !isError && (
