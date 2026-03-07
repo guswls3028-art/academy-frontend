@@ -127,10 +127,6 @@ function ClinicIdcardColorSettings() {
     updateMutation.mutate({ colors: localColors });
   };
 
-  const handleSave = () => {
-    updateMutation.mutate({ colors: localColors });
-  };
-
   /** 팔레트에서 서로 다른 3색 랜덤 선택 */
   const handleAutoAssign = () => {
     const palette = [
