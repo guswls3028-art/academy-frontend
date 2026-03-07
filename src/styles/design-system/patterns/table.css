@@ -386,7 +386,23 @@ table.ds-table {
   border-radius: var(--radius-sm, 4px);
 }
 
-/* ========== 성적 테이블 행 교차 배경 (엑셀 가시성, flat과 동일 토큰 --color-primary) ========== */
+/* 성적 테이블 행 교차 배경 (엑셀 가시성, flat과 동일 토큰 --color-primary) ========== */
+/* 편집 모드 점수 셀(contenteditable) — 리스트 마커·가상 요소 제거(동그라미/고정 0 방지) */
+.ds-scores-table .ds-scores-cell-editable {
+  list-style: none;
+}
+.ds-scores-table .ds-scores-cell-editable::before,
+.ds-scores-table .ds-scores-cell-editable::after {
+  display: none !important;
+  content: none !important;
+}
+/* 포커스 시 인풋 같은 동그라미/타원 링 제거 — 엑셀처럼 텍스트만 보이게 */
+.ds-scores-table .ds-scores-cell-editable:focus,
+.ds-scores-table .ds-scores-cell-editable:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .ds-scores-table tbody tr.ds-scores-table-row--alt {
   background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
 }

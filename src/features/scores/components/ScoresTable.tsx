@@ -170,17 +170,29 @@ export default function ScoresTable({
     });
   }, [rows, homeworkOptions]);
 
+  /** contenteditable 셀 포커스 시 전체 선택 — 엑셀처럼 입력하면 기존 값이 바로 대체되도록 */
+  const selectAllScoreCell = useCallback((el: HTMLElement | null) => {
+    if (!el) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+    sel.removeAllRanges();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    sel.addRange(range);
+  }, []);
+
   useEffect(() => {
     if (!focusHomeworkCell || !onFocusHomeworkDone) return;
     const key = `${focusHomeworkCell.enrollmentId}-${focusHomeworkCell.homeworkId}`;
     const el = homeworkInputRefs.current[key];
     if (el) {
       el.focus();
+      selectAllScoreCell(el);
       onFocusHomeworkDone();
     } else {
       onFocusHomeworkDone();
     }
-  }, [focusHomeworkCell, onFocusHomeworkDone]);
+  }, [focusHomeworkCell, onFocusHomeworkDone, selectAllScoreCell]);
 
   const columns = useMemo((): ScoreColumnDef[] => {
     const list: ScoreColumnDef[] = [
@@ -569,7 +581,12 @@ export default function ScoresTable({
                                 }}
                                 contentEditable
                                 suppressContentEditableWarning
-                                className="font-medium text-right tabular-nums text-sm text-[var(--color-text-primary)] outline-none inline-block w-full min-w-0 [list-style:none] [&::before]:content-none [&::after]:content-none"
+                                className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm text-[var(--color-text-primary)] outline-none inline-block w-full min-w-0"
+                                style={{ listStyle: "none" }}
+                                onFocus={(e) => {
+                                  const el = e.currentTarget;
+                                  requestAnimationFrame(() => selectAllScoreCell(el));
+                                }}
                                 onBlur={async () => {
                                   const key = `${row.enrollment_id}-${hw.homework_id}`;
                                   const el = homeworkInputRefs.current[key];
