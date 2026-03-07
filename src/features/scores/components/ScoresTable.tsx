@@ -100,6 +100,10 @@ type Props = {
 
   focusHomeworkCell?: { enrollmentId: number; homeworkId: number } | null;
   onFocusHomeworkDone?: () => void;
+
+  /** 일괄 작업용 행 선택 (캡처: 18명을 대상으로 성적 일괄 변경 등) */
+  selectedEnrollmentIds?: number[];
+  onSelectionChange?: (enrollmentIds: number[]) => void;
 };
 
 export default function ScoresTable({
@@ -116,6 +120,8 @@ export default function ScoresTable({
   onEditRowChange,
   focusHomeworkCell,
   onFocusHomeworkDone,
+  selectedEnrollmentIds = [],
+  onSelectionChange,
 }: Props) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -186,6 +192,11 @@ export default function ScoresTable({
     [editableKeys, editRowState]
   );
 
+  const selectedSet = useMemo(() => new Set(selectedEnrollmentIds), [selectedEnrollmentIds]);
+  const allSelected =
+    rows.length > 0 &&
+    rows.every((r) => selectedSet.has(r.enrollment_id));
+
   const focusHomeworkInput = (enrollmentId: number, homeworkId: number) => {
     homeworkInputRefs.current[`${enrollmentId}-${homeworkId}`]?.focus();
   };
@@ -238,7 +249,68 @@ export default function ScoresTable({
             </th>
           ))}
         </tr>
-        {/* 헤더 행 */}
+        {/* 시험/과제명 행 — 캡처처럼 실제 시험명·과제명을 상단에 표시 */}
+        <tr className="border-b border-[var(--border-divider)]">
+          <th scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
+            {onSelectionChange ? (
+              <label className="inline-flex items-center gap-1 cursor-pointer text-xs text-[var(--color-text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      onSelectionChange(rows.map((r) => r.enrollment_id));
+                    } else {
+                      onSelectionChange([]);
+                    }
+                  }}
+                  className="cursor-pointer"
+                  aria-label="전체 선택"
+                />
+                선택
+              </label>
+            ) : (
+              " "
+            )}
+          </th>
+          <th scope="col" style={{ width: TABLE_COL.name }}>
+            이름
+          </th>
+          <th scope="col" style={{ width: TABLE_COL.statusBadge }}>
+            출석
+          </th>
+          {examOptions.map((ex) => (
+            <th
+              key={`name-exam-${ex.exam_id}`}
+              scope="col"
+              colSpan={4}
+              className="text-left font-semibold text-[var(--color-text-primary)] truncate"
+              style={{ maxWidth: COL_SCORE * 4 }}
+              title={ex.title}
+            >
+              {ex.title}
+            </th>
+          ))}
+          {homeworkOptions.map((hw) => (
+            <th
+              key={`name-hw-${hw.homework_id}`}
+              scope="col"
+              colSpan={2}
+              className="text-left font-semibold text-[var(--color-text-primary)] truncate"
+              style={{ maxWidth: (COL_SCORE + COL_NARROW) }}
+              title={hw.title}
+            >
+              {hw.title}
+            </th>
+          ))}
+          <th scope="col" style={{ width: TABLE_COL.statusBadge + 20 }}>
+            총괄 클리닉 대상
+          </th>
+          <th scope="col" style={{ width: COL_REASON }}>
+            대상 사유
+          </th>
+        </tr>
+        {/* 서브 헤더: 주관식/객관식/합산/합불, 점수/합불 */}
         <tr>
           <th scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
             {" "}
@@ -251,13 +323,13 @@ export default function ScoresTable({
           </th>
           {examOptions.map((ex) => (
             <Fragment key={ex.exam_id}>
-              <th scope="col" style={{ width: COL_SCORE }} title={ex.title}>
+              <th scope="col" style={{ width: COL_SCORE }} title={`${ex.title} 주관식`}>
                 주관식
               </th>
-              <th scope="col" style={{ width: COL_SCORE }} title={ex.title}>
+              <th scope="col" style={{ width: COL_SCORE }} title={`${ex.title} 객관식`}>
                 객관식
               </th>
-              <th scope="col" style={{ width: COL_SCORE }} title={ex.title}>
+              <th scope="col" style={{ width: COL_SCORE }} title={`${ex.title} 합산`}>
                 합산
               </th>
               <th scope="col" style={{ width: COL_NARROW }} title={`${ex.title} 합불`}>
@@ -267,7 +339,7 @@ export default function ScoresTable({
           ))}
           {homeworkOptions.map((hw) => (
             <Fragment key={hw.homework_id}>
-              <th scope="col" style={{ width: COL_SCORE }} title={hw.title}>
+              <th scope="col" style={{ width: COL_SCORE }} title={`${hw.title} 점수`}>
                 점수
               </th>
               <th scope="col" style={{ width: COL_NARROW }} title={`${hw.title} 합불`}>
@@ -304,8 +376,29 @@ export default function ScoresTable({
                   selected ? "ds-row-selected" : ""
                 }`}
               >
-                <td className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
-                  <span className="w-4 inline-block" />
+                <td
+                  className="ds-checkbox-cell"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {onSelectionChange ? (
+                    <input
+                      type="checkbox"
+                      checked={selectedSet.has(row.enrollment_id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        if (e.target.checked) {
+                          onSelectionChange([...selectedEnrollmentIds, row.enrollment_id]);
+                        } else {
+                          onSelectionChange(selectedEnrollmentIds.filter((id) => id !== row.enrollment_id));
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`${row.student_name} 선택`}
+                      className="cursor-pointer"
+                    />
+                  ) : (
+                    <span className="w-4 inline-block" />
+                  )}
                 </td>
 
                 <td
