@@ -6,6 +6,7 @@ import Header from "./Header";
 import AppLayoutMobile from "./AppLayoutMobile";
 import { AdminLayoutProvider } from "./AdminLayoutContext";
 import { TeacherViewProvider } from "./TeacherViewContext";
+import { WorkboxProvider } from "./WorkboxContext";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProgramProvider } from "@/shared/program";
@@ -22,9 +23,12 @@ function AppLayoutContent() {
     <>
       {isMobile ? (
         <AdminLayoutProvider>
-          <AppLayoutMobile />
+          <WorkboxProvider>
+            <AppLayoutMobile />
+          </WorkboxProvider>
         </AdminLayoutProvider>
       ) : (
+    <WorkboxProvider>
     <div
       data-app="admin"
       style={{
@@ -97,6 +101,7 @@ function AppLayoutContent() {
       </div>
       <AsyncStatusBar />
     </div>
+    </WorkboxProvider>
       )}
     </>
   );
