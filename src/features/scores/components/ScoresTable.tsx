@@ -1,13 +1,14 @@
 // PATH: src/features/scores/components/ScoresTable.tsx
 /**
  * 성적 탭 메인 테이블 — 동적 컬럼 구조
+ * 디자인 SSOT: 학생(students) 도메인과 동일 — DomainTable + ds-table--flat
  *
- * 컬럼: 체크박스 | 이름 | 출석 | {시험1} | {시험2} | ... | {과제1} | {과제2} | ... | 클리닉
+ * 컬럼: 체크박스 | 이름 | 출석 | {시험1} | ... | {과제1} | ... | 클리닉
  * - 시험/과제: 점수 + 합불 뱃지 + 직접 입력
  * - 커트라인 전수 기반 합불, 하나라도 불합 → 클리닉 대상자
  */
 
-import { useMemo, useRef, Fragment, useEffect } from "react";
+import { useMemo, useRef, useEffect, Fragment } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
@@ -16,7 +17,7 @@ import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import HomeworkQuickInput from "./HomeworkQuickInput";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { TABLE_COL } from "@/shared/ui/domain";
+import { DomainTable, TABLE_COL } from "@/shared/ui/domain";
 import AttendanceStatusBadge, {
   type AttendanceStatus,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
@@ -138,313 +139,289 @@ export default function ScoresTable({
     return [...examCols, ...hwCols];
   }, [examOptions, homeworkOptions]);
 
-  const gridTemplateColumns = useMemo(() => {
-    const fixed = `${TABLE_COL.checkbox}px ${TABLE_COL.name}px ${TABLE_COL.statusBadge}px`;
-    const dynamic = dynamicCols.map(() => `${COL_SCORE}px`).join(" ");
-    const clinic = `${TABLE_COL.statusBadge}px`;
-    return `${fixed} ${dynamic} ${clinic}`;
-  }, [dynamicCols]);
+  const tableWidth = useMemo(
+    () =>
+      TABLE_COL.checkbox +
+      TABLE_COL.name +
+      TABLE_COL.statusBadge +
+      dynamicCols.length * COL_SCORE +
+      TABLE_COL.statusBadge,
+    [dynamicCols.length]
+  );
 
-  const thBase =
-    "px-2 py-3 text-xs font-semibold text-[var(--text-secondary)] tracking-tight truncate";
-  const tdBase = "px-2 py-2 text-sm text-[var(--text-primary)]";
+  const colWidths = useMemo(() => {
+    const fixed = [TABLE_COL.checkbox, TABLE_COL.name, TABLE_COL.statusBadge];
+    const dynamic = dynamicCols.map(() => COL_SCORE);
+    const clinic = TABLE_COL.statusBadge;
+    return [...fixed, ...dynamic, clinic];
+  }, [dynamicCols]);
 
   const focusHomeworkInput = (enrollmentId: number, homeworkId: number) => {
     homeworkInputRefs.current[`${enrollmentId}-${homeworkId}`]?.focus();
   };
 
   return (
-    <div
-      className="ds-table-wrap overflow-x-auto"
-      style={{
-        borderRadius: "var(--radius-lg)",
-        border: "1px solid var(--color-border-divider)",
-        background: "var(--color-bg-surface)",
-        overflow: "hidden",
-      }}
-      tabIndex={0}
+    <DomainTable
+      tableClassName="ds-table--flat ds-table--center"
+      tableStyle={{ tableLayout: "fixed", width: tableWidth }}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns,
-          minWidth: "max-content",
-        }}
-      >
-        {/* HEADER */}
-        <div
-          className={`${thBase} border-b border-[var(--color-border-divider)]`}
-          style={{
-            background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
-          }}
-        >
-          {" "}
-        </div>
-        <div
-          className={`${thBase} border-b border-[var(--color-border-divider)]`}
-          style={{
-            background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
-          }}
-        >
-          이름
-        </div>
-        <div
-          className={`${thBase} border-b border-[var(--color-border-divider)]`}
-          style={{
-            background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
-          }}
-        >
-          출석
-        </div>
-        {dynamicCols.map((col) => (
-          <div
-            key={`${col.type}-${col.id}`}
-            className={`${thBase} border-b border-[var(--color-border-divider)]`}
-            style={{
-              background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
-              writingMode: "horizontal-tb",
-            }}
-            title={col.title}
-          >
-            {col.title}
-          </div>
+      <colgroup>
+        {colWidths.map((w, i) => (
+          <col key={i} style={{ width: w }} />
         ))}
-        <div
-          className={`${thBase} border-b border-[var(--color-border-divider)]`}
-          style={{
-            background: "color-mix(in srgb, var(--color-primary) 4%, transparent)",
-          }}
-        >
-          클리닉
-        </div>
-      </div>
+      </colgroup>
 
-      {/* BODY */}
-      {rows.map((row) => {
-        const selected = selectedEnrollmentId === row.enrollment_id;
-        const clinicTarget = isClinicTarget(row);
-
-        return (
-          <Fragment key={row.enrollment_id}>
-            <div
-              className={[
-                "border-b border-[var(--color-border-divider)] transition-colors",
-                selected
-                  ? "bg-[color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))]"
-                  : "hover:bg-[var(--bg-surface-soft)]",
-              ].join(" ")}
-              style={{
-                display: "grid",
-                gridTemplateColumns,
-                minWidth: "max-content",
-              }}
+      <thead>
+        <tr>
+          <th scope="col" style={{ width: TABLE_COL.checkbox }} className="ds-checkbox-cell">
+            {" "}
+          </th>
+          <th scope="col" style={{ width: TABLE_COL.name }}>
+            이름
+          </th>
+          <th scope="col" style={{ width: TABLE_COL.statusBadge }}>
+            출석
+          </th>
+          {dynamicCols.map((col) => (
+            <th
+              key={`${col.type}-${col.id}`}
+              scope="col"
+              style={{ width: COL_SCORE }}
+              title={col.title}
+              className="text-left"
             >
-              {/* 체크박스 (placeholder) */}
-              <div
-                className={`${tdBase} flex items-center`}
+              {col.title}
+            </th>
+          ))}
+          <th scope="col" style={{ width: TABLE_COL.statusBadge }}>
+            클리닉
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {rows.map((row) => {
+          const selected = selectedEnrollmentId === row.enrollment_id;
+          const clinicTarget = isClinicTarget(row);
+          const showExpand = selected && selectedExamId != null && selectedHomeworkId == null && row.enrollment_id === selectedEnrollmentId;
+
+          return (
+            <Fragment key={row.enrollment_id}>
+              <tr
                 onClick={() => onSelectRow(row)}
+                tabIndex={0}
+                role="button"
+                className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${
+                  selected ? "ds-row-selected" : ""
+                }`}
               >
-                <span className="w-4" />
-              </div>
-
-              {/* 이름 */}
-              <div
-                className={`${tdBase} font-semibold min-w-0 cursor-pointer`}
-                onClick={() => onSelectRow(row)}
-              >
-                <StudentNameWithLectureChip
-                  name={row.student_name ?? ""}
-                  profilePhotoUrl={row.profile_photo_url ?? undefined}
-                  avatarSize={24}
-                  lectures={
-                    row.lecture_title
-                      ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
-                      : undefined
-                  }
-                  chipSize={14}
-                />
-              </div>
-
-              {/* 출석 */}
-              <div
-                className={`${tdBase} flex items-center cursor-pointer`}
-                onClick={() => onSelectRow(row)}
-              >
-                {(() => {
-                  const status = attendanceMap[row.enrollment_id];
-                  if (!status) return <span className="text-[var(--text-muted)]">-</span>;
-                  return (
-                    <AttendanceStatusBadge
-                      status={status as AttendanceStatus}
-                      variant="2ch"
-                    />
-                  );
-                })()}
-              </div>
-
-              {/* 시험 컬럼들 */}
-              {examOptions.map((ex) => {
-                const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
-                const block = entry?.block;
-                const isSelected =
-                  selected &&
-                  selectedExamId === ex.exam_id &&
-                  selectedHomeworkId == null;
-                const hasScore = block?.score != null && !block?.is_locked;
-                const scoreText =
-                  block?.score == null
-                    ? "-"
-                    : block?.max_score != null && block.max_score > 0
-                      ? `${Math.round(block.score)}/${Math.round(block.max_score)}`
-                      : `${Math.round(block!.score)}점`;
-
-                return (
-                  <div
-                    key={`exam-${ex.exam_id}`}
-                    className={`${tdBase} flex flex-col gap-1 cursor-pointer min-w-0 ${
-                      isSelected
-                        ? "ring-1 ring-[var(--color-primary)] rounded"
-                        : ""
-                    }`}
-                    style={{ padding: 6 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectCell(row, "exam", ex.exam_id);
-                    }}
-                  >
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="font-medium">{scoreText}</span>
-                      <PassFailBadge passed={block?.passed} />
-                    </div>
-                    <ProgressBadge
-                      hasScore={!!hasScore}
-                      isLocked={block?.is_locked}
-                    />
-                  </div>
-                );
-              })}
-
-              {/* 과제 컬럼들 */}
-              {homeworkOptions.map((hw) => {
-                const entry =
-                  row.homeworks?.find((h) => h.homework_id === hw.homework_id) ??
-                  null;
-                const block = entry?.block;
-                const isSelected =
-                  selected && selectedHomeworkId === hw.homework_id;
-                const hwStatus = getHomeworkStatus({
-                  score: block?.score,
-                  metaStatus: block?.meta?.status ?? null,
-                });
-
-                return (
-                  <div
-                    key={`hw-${hw.homework_id}`}
-                    className={`${tdBase} flex flex-col gap-1 min-w-0 ${
-                      isSelected
-                        ? "ring-1 ring-[var(--color-primary)] rounded"
-                        : ""
-                    }`}
-                    style={{ padding: 6 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectCell(row, "homework", hw.homework_id);
-                    }}
-                  >
-                    <div
-                      className="flex items-center gap-2 flex-wrap"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {entry ? (
-                        <>
-                          <HomeworkQuickInput
-                            ref={(el) => {
-                              homeworkInputRefs.current[
-                                `${row.enrollment_id}-${hw.homework_id}`
-                              ] = el;
-                            }}
-                            defaultValue={block?.score ?? null}
-                            maxScore={block?.max_score ?? null}
-                            onSubmitScore={async (score) => {
-                              await patchHomeworkQuick({
-                                sessionId,
-                                enrollmentId: row.enrollment_id,
-                                homeworkId: hw.homework_id,
-                                score,
-                              });
-                              qc.invalidateQueries({
-                                queryKey: ["session-scores", sessionId],
-                              });
-                            }}
-                            onMarkNotSubmitted={async () => {
-                              await patchHomeworkQuick({
-                                sessionId,
-                                enrollmentId: row.enrollment_id,
-                                homeworkId: hw.homework_id,
-                                score: null,
-                                metaStatus: "NOT_SUBMITTED",
-                              });
-                              qc.invalidateQueries({
-                                queryKey: ["session-scores", sessionId],
-                              });
-                            }}
-                          />
-                          <PassFailBadge passed={block?.passed} />
-                        </>
-                      ) : (
-                        <span className="text-[var(--text-muted)]">-</span>
-                      )}
-                    </div>
-                    {entry && (
-                      <ProgressBadge
-                        hasScore={hwStatus === "SCORED" || hwStatus === "ZERO"}
-                        isLocked={block?.is_locked}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* 클리닉 */}
-              <div
-                className={`${tdBase} flex items-center cursor-pointer`}
-                onClick={() => onSelectRow(row)}
-              >
-                {clinicTarget ? (
-                  <span
-                    className="ds-status-badge"
-                    data-tone="danger"
-                    title="하나라도 불합으로 클리닉 대상"
-                  >
-                    대상
-                  </span>
-                ) : (
-                  <span className="text-[var(--text-muted)]">-</span>
-                )}
-              </div>
-            </div>
-
-            {/* 시험 문항별 주관식 입력 확장행 (클릭 시 해당 시험의 문항별 수기 입력) */}
-            {selected &&
-              selectedExamId != null &&
-              row.enrollment_id === selectedEnrollmentId && (
-                <div
-                  className="border-b border-[var(--color-border-divider)]"
-                  style={{
-                    background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
-                    padding: "var(--space-4)",
-                  }}
+                <td
+                  className="ds-checkbox-cell"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <InlineExamItemsRow
-                    examId={selectedExamId}
-                    enrollmentId={row.enrollment_id}
-                    variant="block"
+                  <span className="w-4 inline-block" />
+                </td>
+
+                <td
+                  className="font-semibold min-w-0 text-[var(--color-text-primary)]"
+                  onClick={() => onSelectRow(row)}
+                >
+                  <StudentNameWithLectureChip
+                    name={row.student_name ?? ""}
+                    profilePhotoUrl={row.profile_photo_url ?? undefined}
+                    avatarSize={24}
+                    lectures={
+                      row.lecture_title
+                        ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
+                        : undefined
+                    }
+                    chipSize={14}
                   />
-                </div>
+                </td>
+
+                <td
+                  className="text-left"
+                  onClick={() => onSelectRow(row)}
+                >
+                  {(() => {
+                    const status = attendanceMap[row.enrollment_id];
+                    if (!status) return <span className="text-[var(--text-muted)]">-</span>;
+                    return (
+                      <AttendanceStatusBadge
+                        status={status as AttendanceStatus}
+                        variant="2ch"
+                      />
+                    );
+                  })()}
+                </td>
+
+                {examOptions.map((ex) => {
+                  const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
+                  const block = entry?.block;
+                  const isSelected =
+                    selected &&
+                    selectedExamId === ex.exam_id &&
+                    selectedHomeworkId == null;
+                  const hasScore = block?.score != null && !block?.is_locked;
+                  const scoreText =
+                    block?.score == null
+                      ? "-"
+                      : block?.max_score != null && block.max_score > 0
+                        ? `${Math.round(block.score)}/${Math.round(block.max_score)}`
+                        : `${Math.round(block!.score)}점`;
+
+                  return (
+                    <td
+                      key={`exam-${ex.exam_id}`}
+                      className={`min-w-0 text-left align-top ${
+                        isSelected
+                          ? "ring-1 ring-[var(--color-primary)] rounded"
+                          : ""
+                      }`}
+                      style={{ padding: 6 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectCell(row, "exam", ex.exam_id);
+                      }}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="font-medium">{scoreText}</span>
+                          <PassFailBadge passed={block?.passed} />
+                        </div>
+                        <ProgressBadge
+                          hasScore={!!hasScore}
+                          isLocked={block?.is_locked}
+                        />
+                      </div>
+                    </td>
+                  );
+                })}
+
+                {homeworkOptions.map((hw) => {
+                  const entry =
+                    row.homeworks?.find((h) => h.homework_id === hw.homework_id) ??
+                    null;
+                  const block = entry?.block;
+                  const isSelected =
+                    selected && selectedHomeworkId === hw.homework_id;
+                  const hwStatus = getHomeworkStatus({
+                    score: block?.score,
+                    metaStatus: block?.meta?.status ?? null,
+                  });
+
+                  return (
+                    <td
+                      key={`hw-${hw.homework_id}`}
+                      className={`min-w-0 text-left align-top ${
+                        isSelected
+                          ? "ring-1 ring-[var(--color-primary)] rounded"
+                          : ""
+                      }`}
+                      style={{ padding: 6 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectCell(row, "homework", hw.homework_id);
+                      }}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <div
+                          className="flex items-center gap-2 flex-wrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {entry ? (
+                            <>
+                              <HomeworkQuickInput
+                                ref={(el) => {
+                                  homeworkInputRefs.current[
+                                    `${row.enrollment_id}-${hw.homework_id}`
+                                  ] = el;
+                                }}
+                                defaultValue={block?.score ?? null}
+                                maxScore={block?.max_score ?? null}
+                                onSubmitScore={async (score) => {
+                                  await patchHomeworkQuick({
+                                    sessionId,
+                                    enrollmentId: row.enrollment_id,
+                                    homeworkId: hw.homework_id,
+                                    score,
+                                  });
+                                  qc.invalidateQueries({
+                                    queryKey: ["session-scores", sessionId],
+                                  });
+                                }}
+                                onMarkNotSubmitted={async () => {
+                                  await patchHomeworkQuick({
+                                    sessionId,
+                                    enrollmentId: row.enrollment_id,
+                                    homeworkId: hw.homework_id,
+                                    score: null,
+                                    metaStatus: "NOT_SUBMITTED",
+                                  });
+                                  qc.invalidateQueries({
+                                    queryKey: ["session-scores", sessionId],
+                                  });
+                                }}
+                              />
+                              <PassFailBadge passed={block?.passed} />
+                            </>
+                          ) : (
+                            <span className="text-[var(--text-muted)]">-</span>
+                          )}
+                        </div>
+                        {entry && (
+                          <ProgressBadge
+                            hasScore={hwStatus === "SCORED" || hwStatus === "ZERO"}
+                            isLocked={block?.is_locked}
+                          />
+                        )}
+                      </div>
+                    </td>
+                  );
+                })}
+
+                <td
+                  className="text-left"
+                  onClick={() => onSelectRow(row)}
+                >
+                  {clinicTarget ? (
+                    <span
+                      className="ds-status-badge"
+                      data-tone="danger"
+                      title="하나라도 불합으로 클리닉 대상"
+                    >
+                      대상
+                    </span>
+                  ) : (
+                    <span className="text-[var(--text-muted)]">-</span>
+                  )}
+                </td>
+              </tr>
+
+              {showExpand && (
+                <tr key={`${row.enrollment_id}-expand`}>
+                  <td
+                    colSpan={colWidths.length}
+                    className="!p-0 border-b border-[var(--color-border-divider)]"
+                    style={{
+                      background: "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
+                      padding: "var(--space-4)",
+                    }}
+                  >
+                    <div className="p-4">
+                      <InlineExamItemsRow
+                        examId={selectedExamId}
+                        enrollmentId={row.enrollment_id}
+                        variant="block"
+                      />
+                    </div>
+                  </td>
+                </tr>
               )}
-          </Fragment>
-        );
-      })}
-    </div>
+            </Fragment>
+          );
+        })}
+      </tbody>
+    </DomainTable>
   );
 }
