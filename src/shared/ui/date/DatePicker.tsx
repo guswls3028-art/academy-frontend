@@ -78,14 +78,18 @@ export default function DatePicker({
     if (!open) return;
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target)) {
-        const popup = document.querySelector(".shared-date-picker-dropdown--portaled");
-        if (!popup?.contains(target)) setOpen(false);
+      if (openBelow) {
+        if (containerRef.current && !containerRef.current.contains(target)) setOpen(false);
+      } else {
+        if (containerRef.current && !containerRef.current.contains(target)) {
+          const popup = document.querySelector(".shared-date-picker-dropdown--portaled");
+          if (!popup?.contains(target)) setOpen(false);
+        }
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  }, [open, openBelow]);
 
   const start = viewMonth.startOf("month");
   const end = viewMonth.endOf("month");
@@ -106,6 +110,68 @@ export default function DatePicker({
 
   const displayText = value ? dayjs(value).format("YYYY년 MM월 DD일") : placeholder;
 
+  const dropdownContent = (
+    <>
+      <div className="shared-date-picker-dropdown__ds">
+        <div className="shared-date-picker-header">
+          <button
+            type="button"
+            className="shared-date-picker-nav"
+            onClick={() => setViewMonth(prevMonth)}
+            aria-label="이전 달"
+          >
+            ‹
+          </button>
+          <span className="shared-date-picker-title" aria-live="polite">
+            {viewMonth.format("YYYY년 MM월")}
+          </span>
+          <button
+            type="button"
+            className="shared-date-picker-nav"
+            onClick={() => setViewMonth(nextMonth)}
+            aria-label="다음 달"
+          >
+            ›
+          </button>
+        </div>
+        <div className="shared-date-picker-weekdays">
+          {WEEKDAYS.map((w) => (
+            <span key={w} className="shared-date-picker-weekday">
+              {w}
+            </span>
+          ))}
+        </div>
+        <div
+          className="shared-date-picker-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            gap: 4,
+          }}
+        >
+          {cells.map((d, i) => {
+            if (d === null) return <div key={`empty-${i}`} />;
+            const cellDate = viewMonth.date(d);
+            const valueStr = toValue(cellDate);
+            const isSelected = selected && toValue(selected) === valueStr;
+            const isToday = toValue(today) === valueStr;
+            return (
+              <button
+                key={valueStr}
+                type="button"
+                className={`shared-date-picker-cell ${isSelected ? "shared-date-picker-cell-selected" : ""} ${isToday ? "shared-date-picker-cell-today" : ""}`}
+                onClick={() => handleSelect(d)}
+                style={{ width: CELL_SIZE, height: CELL_SIZE }}
+              >
+                {d}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div ref={containerRef} className="shared-date-picker" style={{ position: "relative" }}>
       <button
@@ -123,9 +189,20 @@ export default function DatePicker({
         <span className={value ? "" : "shared-date-picker-placeholder"}>{displayText}</span>
       </button>
 
-      {open && dropdownStyle && ReactDOM.createPortal(
+      {/* openBelow: 포털 안 씀 — 트리거 바로 아래 인라인으로 열어서 "섹션 추가" 느낌 제거 */}
+      {open && openBelow && (
         <div
-          className={`shared-date-picker-dropdown shared-date-picker-dropdown--portaled ${openBelow ? "shared-date-picker-dropdown--open-below" : ""}`}
+          className="shared-date-picker-dropdown shared-date-picker-dropdown--inline-below"
+          role="dialog"
+          aria-label="날짜 선택"
+        >
+          {dropdownContent}
+        </div>
+      )}
+
+      {open && !openBelow && dropdownStyle && ReactDOM.createPortal(
+        <div
+          className="shared-date-picker-dropdown shared-date-picker-dropdown--portaled"
           role="dialog"
           aria-label="날짜 선택"
           style={{
@@ -139,66 +216,7 @@ export default function DatePicker({
               : { bottom: dropdownStyle.bottom, left: dropdownStyle.left }),
           }}
         >
-          {/* 달력 본체 전역 디자인 격리: 열리는 위치와 관계없이 동일한 토큰 사용 */}
-          <div className="shared-date-picker-dropdown__ds">
-          <div className="shared-date-picker-header">
-            <button
-              type="button"
-              className="shared-date-picker-nav"
-              onClick={() => setViewMonth(prevMonth)}
-              aria-label="이전 달"
-            >
-              ‹
-            </button>
-            <span className="shared-date-picker-title" aria-live="polite">
-              {viewMonth.format("YYYY년 MM월")}
-            </span>
-            <button
-              type="button"
-              className="shared-date-picker-nav"
-              onClick={() => setViewMonth(nextMonth)}
-              aria-label="다음 달"
-            >
-              ›
-            </button>
-          </div>
-
-          <div className="shared-date-picker-weekdays">
-            {WEEKDAYS.map((w) => (
-              <span key={w} className="shared-date-picker-weekday">
-                {w}
-              </span>
-            ))}
-          </div>
-
-          <div
-            className="shared-date-picker-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(7, 1fr)",
-              gap: 4,
-            }}
-          >
-            {cells.map((d, i) => {
-              if (d === null) return <div key={`empty-${i}`} />;
-              const cellDate = viewMonth.date(d);
-              const valueStr = toValue(cellDate);
-              const isSelected = selected && toValue(selected) === valueStr;
-              const isToday = toValue(today) === valueStr;
-              return (
-                <button
-                  key={valueStr}
-                  type="button"
-                  className={`shared-date-picker-cell ${isSelected ? "shared-date-picker-cell-selected" : ""} ${isToday ? "shared-date-picker-cell-today" : ""}`}
-                  onClick={() => handleSelect(d)}
-                  style={{ width: CELL_SIZE, height: CELL_SIZE }}
-                >
-                  {d}
-                </button>
-              );
-            })}
-          </div>
-          </div>
+          {dropdownContent}
         </div>,
         document.body
       )}
