@@ -1,5 +1,5 @@
 // PATH: src/features/clinic/components/ClinicDaySchedulePanel.tsx
-// 당일 클리닉 일정 — 섹션형 SSOT (세션 + 참가자)
+// 당일 클리닉 일정 — 섹션형 SSOT (세션 + 참가자), 세션별 상태 색상(🟢🟡🔴)
 
 import type { ClinicSessionTreeNode } from "../api/clinicSessions.api";
 import { ClinicParticipant } from "../api/clinicParticipants.api";
@@ -8,6 +8,33 @@ function formatTime(s: string | undefined) {
   if (!s) return "—";
   const part = s.slice(0, 5);
   return part || "—";
+}
+
+/** 세션 상태: 정상 | 예약 거의 찼음 | 마감 */
+type SlotStatus = "normal" | "almost" | "full";
+
+function getSessionStatus(s: ClinicSessionTreeNode): SlotStatus {
+  const max = s.max_participants;
+  if (max == null || max <= 0) return "normal";
+  const booked = s.booked_count ?? 0;
+  if (booked >= max) return "full";
+  if (booked >= Math.ceil(max * 0.8)) return "almost";
+  return "normal";
+}
+
+function getSlotStatus(sessions: ClinicSessionTreeNode[]): SlotStatus {
+  if (!sessions.length) return "normal";
+  let status: SlotStatus = "normal";
+  for (const s of sessions) {
+    const st = getSessionStatus(s);
+    if (st === "full") return "full";
+    if (st === "almost") status = "almost";
+  }
+  return status;
+}
+
+function cx(...xs: Array<string | false | null | undefined>) {
+  return xs.filter(Boolean).join(" ");
 }
 
 function EmptyCalendarIcon({ className }: { className?: string }) {
