@@ -127,14 +127,23 @@ function ClinicIdcardColorSettings() {
     updateMutation.mutate({ colors: localColors });
   };
 
-  const presetPalettes: Array<{ name: string; colors: [string, string, string] }> = [
-    { name: "빨강-파랑-초록", colors: ["#ef4444", "#3b82f6", "#22c55e"] },
-    { name: "주황-보라-핑크", colors: ["#f97316", "#a855f7", "#ec4899"] },
-    { name: "청록-노랑-주황", colors: ["#06b6d4", "#eab308", "#f97316"] },
-    { name: "보라-핑크-빨강", colors: ["#9333ea", "#ec4899", "#ef4444"] },
-    { name: "초록-청록-파랑", colors: ["#22c55e", "#06b6d4", "#3b82f6"] },
-    { name: "노랑-주황-빨강", colors: ["#eab308", "#f97316", "#ef4444"] },
-  ];
+  const handleSave = () => {
+    updateMutation.mutate({ colors: localColors });
+  };
+
+  /** 팔레트에서 서로 다른 3색 랜덤 선택 */
+  const handleAutoAssign = () => {
+    const palette = [
+      "#ef4444", "#3b82f6", "#22c55e", "#f97316", "#a855f7", "#ec4899",
+      "#eab308", "#06b6d4", "#84cc16", "#f43f5e", "#6366f1", "#14b8a6",
+    ];
+    const indices: number[] = [];
+    while (indices.length < 3) {
+      const i = Math.floor(Math.random() * palette.length);
+      if (!indices.includes(i)) indices.push(i);
+    }
+    setLocalColors([palette[indices[0]], palette[indices[1]], palette[indices[2]]]);
+  };
 
   const [colorSelectModalOpen, setColorSelectModalOpen] = useState(false);
   const [selectingColorIndex, setSelectingColorIndex] = useState<number | null>(null);
@@ -143,10 +152,6 @@ function ClinicIdcardColorSettings() {
     const newColors: [string, string, string] = [...localColors] as [string, string, string];
     newColors[index] = color;
     setLocalColors(newColors);
-  };
-
-  const handlePresetSelect = (colors: [string, string, string]) => {
-    setLocalColors(colors);
   };
 
   const handleOpenColorModal = (index: number) => {
@@ -160,10 +165,6 @@ function ClinicIdcardColorSettings() {
     }
     setColorSelectModalOpen(false);
     setSelectingColorIndex(null);
-  };
-
-  const handleSave = () => {
-    updateMutation.mutate(localColors);
   };
 
   return (
@@ -229,9 +230,19 @@ function ClinicIdcardColorSettings() {
             />
           </div>
 
-          {/* 색상 3개 선택 버튼 */}
+          {/* 색상 3개 선택 + 자동 부여 */}
           <div className="space-y-3">
-            <div className="text-xs font-semibold text-[var(--text-muted)]">색상 선택 (3개)</div>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-xs font-semibold text-[var(--text-muted)]">색상 선택 (3개)</div>
+              <Button
+                intent="secondary"
+                size="small"
+                onClick={handleAutoAssign}
+                className="shrink-0"
+              >
+                자동 부여
+              </Button>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               {[0, 1, 2].map((index) => (
                 <button
@@ -250,30 +261,6 @@ function ClinicIdcardColorSettings() {
                     {localColors[index]}
                   </div>
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 프리셋 팔레트 */}
-          <div className="space-y-2">
-            <div className="text-xs font-semibold text-[var(--text-muted)]">빠른 선택</div>
-            <div className="grid grid-cols-3 gap-2">
-              {presetPalettes.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handlePresetSelect(preset.colors)}
-                  className="group relative h-16 rounded-lg border-2 border-[var(--border-divider)] overflow-hidden hover:border-[var(--color-primary)] transition-colors"
-                  style={{
-                    background: `linear-gradient(135deg, ${preset.colors[0]} 0%, ${preset.colors[1]} 50%, ${preset.colors[2]} 100%)`,
-                  }}
-                  title={preset.name}
-                >
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                  <div className="absolute bottom-1 left-1 right-1 text-[10px] font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                    {preset.name}
-                  </div>
                 </button>
               ))}
             </div>
