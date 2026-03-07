@@ -1,42 +1,90 @@
 /* PATH: src/features/clinic/clinic.css
-   클리닉 도메인 — 프리미엄 SaaS 영역 구분 (토큰 기반) */
+ * 클리닉 도메인 — 섹션형 SSOT (patterns/section.css, panel.css, kpi.css)
+ * 토큰만 사용. 시각적 위계로 기능 직관 파악. */
 
-/* 카드 영역: 선·깊이로 구분 (12테마 공통) */
-.clinic-card {
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--color-border-divider-strong);
-  background: var(--color-bg-surface);
-  box-shadow: var(--elevation-2);
-  overflow: hidden;
+@import "@/styles/design-system/patterns/section.css";
+@import "@/styles/design-system/patterns/panel.css";
+@import "@/styles/design-system/patterns/kpi.css";
+
+/* ========== 레이아웃 ========== */
+.clinic-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
 }
 
-.clinic-card__header {
-  padding: var(--space-5) var(--space-6);
-  border-bottom: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface-soft));
+.clinic-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
 }
 
-.clinic-card__body {
-  padding: var(--space-6);
-}
-
-/* 주간 일정 요일 셀 */
+/* 주간 일정 요일 셀 — 클릭 가능, 숫자 우선 */
 .clinic-day-cell {
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface-soft);
   padding: var(--space-4);
-  transition: background-color var(--motion-base) var(--ease-out);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
 }
 
 .clinic-day-cell:hover {
   background: var(--color-bg-surface-hover);
 }
 
-/* KPI/숫자 강조 블록 */
-.clinic-kpi-block {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-divider);
+.clinic-day-cell--today {
+  border-color: var(--color-primary);
+  border-width: 2px;
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+}
+
+/* 일정 타임블록 — 숫자 강조 */
+.clinic-time-block {
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
   background: var(--color-bg-surface-soft);
-  padding: var(--space-4);
+  border: 1px solid var(--color-border-divider);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.clinic-time-block--alert {
+  color: var(--color-error);
+}
+
+/* 패널 래퍼 (panel.css 확장) */
+.clinic-panel {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+  overflow: hidden;
+}
+
+.clinic-panel__header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+}
+
+.clinic-panel__body {
+  padding: var(--space-6);
+}
+
+.clinic-panel__title {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.clinic-panel__meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
 }
