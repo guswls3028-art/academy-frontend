@@ -2,6 +2,7 @@
 // [ 오전 | 24h롤러 ] — 우측 24h 48슬롯 롤링, 좌측 오전/오후 시각+클릭(같은 시각 AM↔PM ±12h).
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import "@/styles/design-system/components/TimeScrollPopover.css";
 
 const ROW_HEIGHT = 48;
@@ -259,16 +260,16 @@ export function TimeScrollPopover({
   const rect = anchorEl.getBoundingClientRect();
   const isPM = isAfternoon(selectedIdx);
 
-  return (
+  const popoverContent = (
     <div
       ref={popoverRef}
-      className="time-picker"
+      className="time-picker time-picker--portaled"
       style={{
         position: "fixed",
         left: rect.left,
         bottom: window.innerHeight - rect.top + 8,
         width: Math.max(rect.width, 260),
-        zIndex: 1100,
+        zIndex: 1200,
       }}
       role="listbox"
       aria-label="시간 선택"
@@ -323,4 +324,6 @@ export function TimeScrollPopover({
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(popoverContent, document.body);
 }

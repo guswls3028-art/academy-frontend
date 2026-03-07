@@ -133,3 +133,8 @@
   outline: 2px solid var(--color-brand-primary, var(--color-primary));
   outline-offset: -2px;
 }
+
+/* body 포털 시 배경/테마 보장 (클리닉·모달 동일) */
+.time-picker--portaled {
+  background-color: var(--color-bg-surface, #ffffff) !important;
+}
