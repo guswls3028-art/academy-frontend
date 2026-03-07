@@ -199,6 +199,15 @@ export default function StudentVideoPlayer({
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (fullscreenFallbackRef.current) {
+        document.body.style.overflow = "";
+        document.body.style.touchAction = "";
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (hideControlsTimerRef.current) {
       clearTimeout(hideControlsTimerRef.current);
       hideControlsTimerRef.current = null;
@@ -293,32 +302,79 @@ export default function StudentVideoPlayer({
       document.fullscreenElement ||
       (document as any).webkitFullscreenElement ||
       (document as any).mozFullScreenElement;
+    const inFallback = fullscreenFallbackRef.current;
+
+    const enterFallback = () => {
+      fullscreenFallbackRef.current = true;
+      setIsFullscreen(true);
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+      setShowControls(true);
+      ctrl?.queueFullscreenEvent(true);
+    };
+
+    const exitFallback = () => {
+      fullscreenFallbackRef.current = false;
+      setIsFullscreen(false);
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+      ctrl?.queueFullscreenEvent(false);
+    };
 
     try {
-      if (!isFs) {
-        ctrl?.queueFullscreenEvent(true);
-        if (wrap?.requestFullscreen) {
-          wrap.requestFullscreen();
+      if (isFs || isFullscreen) {
+        ctrl?.queueFullscreenEvent(false);
+        if (inFallback) {
+          exitFallback();
           return;
+        }
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+        return;
+      }
+
+      ctrl?.queueFullscreenEvent(true);
+
+      const tryNative = () => {
+        if (wrap?.requestFullscreen) {
+          wrap.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
+          return true;
         }
         if ((wrap as any)?.webkitRequestFullscreen) {
           (wrap as any).webkitRequestFullscreen();
-          return;
+          return true;
         }
         if (vid?.requestFullscreen) {
-          vid.requestFullscreen();
-          return;
+          vid.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
+          return true;
         }
         if ((vid as any)?.webkitRequestFullscreen) {
           (vid as any).webkitRequestFullscreen();
+          return true;
         }
-      } else {
-        ctrl?.queueFullscreenEvent(false);
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+        if ((vid as any)?.webkitEnterFullscreen) {
+          (vid as any).webkitEnterFullscreen();
+          return true;
+        }
+        return false;
+      };
+
+      if (!tryNative()) {
+        enterFallback();
+        return;
       }
-    } catch {}
-  }, []);
+
+      setTimeout(() => {
+        const nowFs =
+          document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement;
+        if (!nowFs) enterFallback();
+      }, 200);
+    } catch {
+      enterFallback();
+    }
+  }, [isFullscreen]);
 
   const onStageTouchEndLongPress = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -602,7 +658,11 @@ export default function StudentVideoPlayer({
                       />
                     </div>
                     <IconButton icon={theater ? "shrink" : "theater"} label={theater ? "기본 보기" : "극장 모드"} onClick={() => setTheater((v) => !v)} />
-                    <IconButton icon="fullscreen" label="전체화면" onPointerDown={() => requestFullscreen()} />
+                    <IconButton
+                      icon={isFullscreen ? "shrink" : "fullscreen"}
+                      label={isFullscreen ? "전체화면 종료" : "전체화면"}
+                      onPointerDown={() => requestFullscreen()}
+                    />
                   </div>
                 </div>
 

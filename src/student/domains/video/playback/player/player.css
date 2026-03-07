@@ -127,12 +127,45 @@
   transition: opacity 0.2s ease;
 }
 
-/* 전체화면 시 safe-area (노치·홈 인디케이터) */
+/* 전체화면 시 safe-area (노치·홈 인디케이터) + 모바일 폴백(뷰포트 채우기) */
+.svpPlayerWrap--fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100dvh !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.svpPlayerWrap--fullscreen .svpVideoStage {
+  flex: 1 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.svpPlayerWrap--fullscreen .svpVideo {
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  aspect-ratio: unset !important;
+}
+
 .svpPlayerWrap--fullscreen .svpControls {
+  flex-shrink: 0;
   padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
 .svpPlayerWrap--fullscreen .svpTopBar {
+  flex-shrink: 0;
   padding-top: max(14px, env(safe-area-inset-top));
 }
 
