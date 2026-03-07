@@ -1,0 +1,9 @@
+/* 강의 추가 모달 — 폼 전체 폰트 굵기, 블록 중첩 최소화 */
+.lecture-create-modal-form .ds-input,
+.lecture-create-modal-form .ds-textarea,
+.lecture-create-modal-form .shared-time-range-trigger,
+.lecture-create-modal-form .shared-time-range-label,
+.lecture-create-modal-form .shared-time-range-btn,
+.lecture-create-modal-form .shared-date-picker-trigger {
+  font-weight: 600;
+}
