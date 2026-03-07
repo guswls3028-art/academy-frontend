@@ -1,8 +1,10 @@
 // PATH: src/features/scores/components/ScoresTable.tsx
 /**
- * 성적 탭 메인 테이블 — 동적 컬럼 구조
- * - 읽기 기본 / 편집 모드 토글 시에만 점수 입력 가능 (실수 방지)
- * - 컬럼: 선택 | 이름 | 출석 | [시험별: 실제 시험명] | [과제별: 실제 과제명] | 총괄 클리닉 대상 | 대상 사유
+ * 성적 탭 메인 테이블 — 동적 컬럼 구조 (SSOT·UX 설계 문서 준수)
+ * - 기본 Read-only, Edit Mode 시에만 입력
+ * - 3행 헤더: Row1 그룹 | Row2 시험명/과제명 | Row3 점수/합불
+ * - 시험/과제 컬럼: exam.title, homework.title 기반 1:1, 서브컬럼 score / pass_fail
+ * - 디자인 토큰만 사용, DomainTable 기반
  */
 
 import { useMemo, useRef, useEffect, Fragment } from "react";
@@ -14,21 +16,24 @@ import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import HomeworkQuickInput from "./HomeworkQuickInput";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge, {
   type AttendanceStatus,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
 
-const COL_NARROW = 64;   // 합불 뱃지 — 가독성
-const COL_SCORE = 84;   // 점수 입력 셀 — 여유
-const COL_REASON = 180; // 대상 사유 — "총괄 클리닉 대상 사유" 가시성
+/** 컬럼 기본 너비 — 설계 문서 12️⃣ */
+const COL_EDIT = 80;
+const COL_NAME = 160;
+const COL_ATTENDANCE = 80;
+const COL_SCORE = 84;
+const COL_PASS = 64;
 const COL_CLINIC_TARGET = 80;
-const COL_SELECT = TABLE_COL.checkbox;
+const COL_REASON = 180;
 
-/** 시험 컬럼 블록 배경 — 약한 구분 (3%) */
+/** 시험 블록 배경 — 9️⃣ 3% */
 const BG_EXAM = "color-mix(in srgb, var(--color-brand-primary) 3%, var(--color-bg-surface))";
-/** 과제 컬럼 블록 배경 — 약한 구분 (3%) */
+/** 과제 블록 배경 — 9️⃣ 3% */
 const BG_HOMEWORK = "color-mix(in srgb, var(--color-text-secondary) 3%, var(--color-bg-surface))";
 
 /** 합불 뱃지 — 시험/과제 컬럼용 완성형 */
@@ -69,7 +74,7 @@ export type ScoreColumnDef =
       type: "exam";
       examId: number;
       title: string;
-      sub: "subj" | "obj" | "total" | "pass";
+      sub: "score" | "pass";
       key: string;
       width: number;
       editable: boolean;
@@ -144,21 +149,19 @@ export default function ScoresTable({
 
   const columns = useMemo((): ScoreColumnDef[] => {
     const list: ScoreColumnDef[] = [
-      { type: "name", key: "name", width: TABLE_COL.name, editable: false },
-      { type: "attendance", key: "attendance", width: TABLE_COL.statusBadge, editable: false },
+      { type: "name", key: "name", width: COL_NAME, editable: false },
+      { type: "attendance", key: "attendance", width: COL_ATTENDANCE, editable: false },
     ];
     examOptions.forEach((e) => {
       list.push(
-        { type: "exam", examId: e.exam_id, title: e.title, sub: "subj", key: `exam_${e.exam_id}_subj`, width: COL_SCORE, editable: true },
-        { type: "exam", examId: e.exam_id, title: e.title, sub: "obj", key: `exam_${e.exam_id}_obj`, width: COL_SCORE, editable: true },
-        { type: "exam", examId: e.exam_id, title: e.title, sub: "total", key: `exam_${e.exam_id}_total`, width: COL_SCORE, editable: true },
-        { type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_NARROW, editable: false }
+        { type: "exam", examId: e.exam_id, title: e.title, sub: "score", key: `exam_${e.exam_id}_score`, width: COL_SCORE, editable: true },
+        { type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false }
       );
     });
     homeworkOptions.forEach((h) => {
       list.push(
         { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: true },
-        { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "pass", key: `hw_${h.homework_id}_pass`, width: COL_NARROW, editable: false }
+        { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "pass", key: `hw_${h.homework_id}_pass`, width: COL_PASS, editable: false }
       );
     });
     list.push(
@@ -170,7 +173,7 @@ export default function ScoresTable({
 
   const columnDefs = useMemo((): TableColumnDef[] => {
     return [
-      { key: "select", label: "선택", defaultWidth: COL_SELECT, minWidth: 40, maxWidth: 80 },
+      { key: "select", label: "선택", defaultWidth: COL_EDIT, minWidth: 40, maxWidth: 120 },
       ...columns.map((c) => ({
         key: c.key,
         label: c.key,
@@ -185,7 +188,7 @@ export default function ScoresTable({
 
   const tableCols = useMemo(() => {
     return [
-      columnWidths.select ?? COL_SELECT,
+      columnWidths.select ?? COL_EDIT,
       ...columns.map((c) => columnWidths[c.key] ?? c.width),
     ];
   }, [columns, columnWidths]);
@@ -216,15 +219,15 @@ export default function ScoresTable({
       </colgroup>
 
       <thead>
-        {/* 1행: 선택( rowSpan=2 ) | 이름 | 출석 | 시험명들 | 과제명들 | 클리닉 | 사유 */}
+        {/* Row1: 수정/선택 | 이름 | 출석 | 시험 그룹 | 과제 그룹 | 클리닉 (설계 3️⃣) */}
         <tr className="bg-[var(--color-bg-surface-soft)] border-b-2 border-[var(--color-border-divider)]">
           <ResizableTh
             columnKey="select"
-            width={columnWidths.select ?? COL_SELECT}
+            width={columnWidths.select ?? COL_EDIT}
             minWidth={40}
-            maxWidth={80}
+            maxWidth={120}
             onWidthChange={setColumnWidth}
-            rowSpan={2}
+            rowSpan={3}
             noWrap
             className="ds-checkbox-cell align-top py-2.5 px-2 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
           >
@@ -249,18 +252,33 @@ export default function ScoresTable({
               <span className="text-xs text-[var(--color-text-muted)]">선택</span>
             )}
           </ResizableTh>
-          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
+          <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 border-l-2 border-[var(--color-border-divider)]">
             이름
           </th>
-          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
+          <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
             출석
           </th>
+          <th scope="col" colSpan={examOptions.length * 2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3" style={{ backgroundColor: BG_EXAM }}>
+            시험
+          </th>
+          <th scope="col" colSpan={homeworkOptions.length * 2} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3" style={{ backgroundColor: BG_HOMEWORK }}>
+            과제
+          </th>
+          <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
+            총괄 클리닉 대상
+          </th>
+          <th scope="col" rowSpan={3} className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0">
+            대상 사유
+          </th>
+        </tr>
+        {/* Row2: 시험명들(colSpan=2) | 과제명들(colSpan=2) — 실제 exam.title / homework.title */}
+        <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
           {examOptions.map((ex) => (
             <th
               key={`name-exam-${ex.exam_id}`}
               scope="col"
-              colSpan={4}
-              className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 truncate"
+              colSpan={2}
+              className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
               style={{ backgroundColor: BG_EXAM }}
               title={ex.title}
             >
@@ -272,60 +290,68 @@ export default function ScoresTable({
               key={`name-hw-${hw.homework_id}`}
               scope="col"
               colSpan={2}
-              className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 truncate"
+              className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
               style={{ backgroundColor: BG_HOMEWORK }}
               title={hw.title}
             >
               {hw.title}
             </th>
           ))}
-          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3">
-            총괄 클리닉 대상
-          </th>
-          <th scope="col" className="text-left font-semibold text-[var(--color-text-primary)] py-2.5 px-3 min-w-0">
-            대상 사유
-          </th>
         </tr>
-        {/* 2행: 서브 헤더 — 주관식/객관식/합산/합불, 점수/합불 */}
+        {/* Row3: 점수 | 합불 반복 — ResizableTh per column */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 border-l-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
-            이름
-          </th>
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 bg-[var(--color-bg-surface)]">
-            출석
-          </th>
           {examOptions.map((ex) => (
             <Fragment key={ex.exam_id}>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_EXAM }} title={`${ex.title} 주관식`}>
-                주관식
-              </th>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_EXAM }} title={`${ex.title} 객관식`}>
-                객관식
-              </th>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_EXAM }} title={`${ex.title} 합산`}>
-                합산
-              </th>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_EXAM }} title={`${ex.title} 합불`}>
+              <ResizableTh
+                columnKey={`exam_${ex.exam_id}_score`}
+                width={columnWidths[`exam_${ex.exam_id}_score`] ?? COL_SCORE}
+                minWidth={48}
+                maxWidth={200}
+                onWidthChange={setColumnWidth}
+                className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                style={{ backgroundColor: BG_EXAM }}
+              >
+                점수
+              </ResizableTh>
+              <ResizableTh
+                columnKey={`exam_${ex.exam_id}_pass`}
+                width={columnWidths[`exam_${ex.exam_id}_pass`] ?? COL_PASS}
+                minWidth={48}
+                maxWidth={100}
+                onWidthChange={setColumnWidth}
+                className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                style={{ backgroundColor: BG_EXAM }}
+              >
                 합불
-              </th>
+              </ResizableTh>
             </Fragment>
           ))}
           {homeworkOptions.map((hw) => (
             <Fragment key={hw.homework_id}>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_HOMEWORK }} title={`${hw.title} 점수`}>
+              <ResizableTh
+                columnKey={`hw_${hw.homework_id}_score`}
+                width={columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE}
+                minWidth={48}
+                maxWidth={200}
+                onWidthChange={setColumnWidth}
+                className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                style={{ backgroundColor: BG_HOMEWORK }}
+              >
                 점수
-              </th>
-              <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3" style={{ backgroundColor: BG_HOMEWORK }} title={`${hw.title} 합불`}>
+              </ResizableTh>
+              <ResizableTh
+                columnKey={`hw_${hw.homework_id}_pass`}
+                width={columnWidths[`hw_${hw.homework_id}_pass`] ?? COL_PASS}
+                minWidth={48}
+                maxWidth={100}
+                onWidthChange={setColumnWidth}
+                className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                style={{ backgroundColor: BG_HOMEWORK }}
+              >
                 합불
-              </th>
+              </ResizableTh>
             </Fragment>
           ))}
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 bg-[var(--color-bg-surface)]">
-            총괄 클리닉 대상
-          </th>
-          <th scope="col" className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3 bg-[var(--color-bg-surface)]">
-            대상 사유
-          </th>
         </tr>
       </thead>
 
@@ -345,9 +371,7 @@ export default function ScoresTable({
                 onClick={() => onSelectRow(row)}
                 tabIndex={0}
                 role="button"
-                className={`cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40 ${
-                  selected ? "ds-row-selected" : ""
-                }`}
+                className={`cursor-pointer focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-[var(--color-brand-primary)] min-h-[40px] max-h-[44px] ${selected ? "ds-row-selected" : ""} hover:bg-[var(--color-bg-surface-hover)]`}
               >
                 <td
                   className="ds-checkbox-cell align-middle py-2.5 px-3 border-r-2 border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]"
@@ -378,17 +402,28 @@ export default function ScoresTable({
                   className={`font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)] ${clinicTarget ? "ds-table-cell-name--clinic-target" : ""}`}
                   onClick={() => onSelectRow(row)}
                 >
-                  <StudentNameWithLectureChip
-                    name={row.student_name ?? ""}
-                    profilePhotoUrl={row.profile_photo_url ?? undefined}
-                    avatarSize={24}
-                    lectures={
-                      row.lecture_title
-                        ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
-                        : undefined
-                    }
-                    chipSize={14}
-                  />
+                  <span className="inline-flex items-center gap-2 flex-wrap">
+                    <StudentNameWithLectureChip
+                      name={row.student_name ?? ""}
+                      profilePhotoUrl={row.profile_photo_url ?? undefined}
+                      avatarSize={24}
+                      lectures={
+                        row.lecture_title
+                          ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
+                          : undefined
+                      }
+                      chipSize={14}
+                    />
+                    {clinicTarget && (
+                      <span
+                        className="ds-status-badge px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide"
+                        data-tone="danger"
+                        title="클리닉 대상"
+                      >
+                        CLINIC
+                      </span>
+                    )}
+                  </span>
                 </td>
 
                 <td className="text-left py-2.5 px-3 align-middle" onClick={() => onSelectRow(row)}>
@@ -405,7 +440,7 @@ export default function ScoresTable({
                   })()}
                 </td>
 
-                {/* 시험: 주관식 | 객관식 | 합산 | 합불 — 가로 배치. API에 주관/객관 없으면 합산만 표시 */}
+                {/* 시험: 점수 | 합불 — 4️⃣ exam_{id}_score, exam_{id}_pass */}
                 {examOptions.map((ex) => {
                   const entry =
                     row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
@@ -424,27 +459,7 @@ export default function ScoresTable({
                   return (
                     <Fragment key={ex.exam_id}>
                       <td
-                        className="min-w-0 text-left align-middle py-2.5 px-3 text-[var(--color-text-muted)]"
-                        style={{ backgroundColor: BG_EXAM }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectCell(row, "exam", ex.exam_id);
-                        }}
-                      >
-                        -
-                      </td>
-                      <td
-                        className="min-w-0 text-left align-middle py-2.5 px-3 text-[var(--color-text-muted)]"
-                        style={{ backgroundColor: BG_EXAM }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectCell(row, "exam", ex.exam_id);
-                        }}
-                      >
-                        -
-                      </td>
-                      <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ring-2 ring-[var(--color-brand-primary)] ring-inset rounded-md" : ""}`}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         style={{ backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM }}
                         onClick={(e) => {
                           e.stopPropagation();
