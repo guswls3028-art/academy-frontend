@@ -367,7 +367,8 @@ export async function fetchCommunityQuestions(
   const isQnaPost = (p: PostEntity) =>
     qnaBlockTypeId != null ? p.block_type === qnaBlockTypeId : (p.block_type_label || "").toLowerCase().includes("qna");
 
-  if (!params) {
+  // 관리자 "전체" 범위: admin API로 전체 QnA 목록 조회 (페이지네이션 500)
+  if (!params || params.scope === "all") {
     const { results } = await fetchAdminPosts({
       blockTypeId: qnaBlockTypeId ?? undefined,
       pageSize: 500,
