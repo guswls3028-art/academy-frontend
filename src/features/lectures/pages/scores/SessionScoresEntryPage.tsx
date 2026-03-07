@@ -2,16 +2,20 @@
 /**
  * SessionScoresEntryPage — 성적 탭 (엑셀형 작업 플레이스)
  * - DomainListToolbar + 테이블, Tab/화살표 셀 이동, 편집 모드에서만 셀 편집
+ * - 학생 체크박스 선택 시 메시지 발송·수업결과 발송·성적일괄변경·엑셀 다운로드 (students 도메인 참고)
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 
 import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
+import type { SessionScoreRow } from "@/features/scores/api/sessionScores";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
+import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
   onOpenEnrollModal?: () => void;
@@ -20,7 +24,7 @@ type Props = {
 
 async function fetchSessionScores(sessionId: number) {
   const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`);
-  return res.data as { meta: unknown; rows: { enrollment_id: number; student_name: string }[] };
+  return res.data as { meta: unknown; rows: SessionScoreRow[] };
 }
 
 export default function SessionScoresEntryPage(_props: Props) {
@@ -29,6 +33,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const { openSendMessageModal } = useSendMessageModal();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["session-scores", numericSessionId],
@@ -37,6 +42,72 @@ export default function SessionScoresEntryPage(_props: Props) {
   });
 
   const totalCount = data?.rows?.length ?? 0;
+  const selectedStudentIds = useMemo(() => {
+    const rows = data?.rows ?? [];
+    return rows
+      .filter((r) => selectedEnrollmentIds.includes(r.enrollment_id))
+      .map((r) => r.student_id)
+      .filter((id): id is number => id != null && Number.isFinite(id));
+  }, [data?.rows, selectedEnrollmentIds]);
+
+  const selectionBar =
+    selectedEnrollmentIds.length > 0 ? (
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2 pl-1">
+          <span
+            className="text-[13px] font-semibold"
+            style={{
+              color: "var(--color-brand-primary)",
+            }}
+          >
+            {selectedEnrollmentIds.length}명 선택됨
+          </span>
+          <span className="text-[var(--color-border-divider)]">|</span>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => setSelectedEnrollmentIds([])}
+            disabled={selectedEnrollmentIds.length === 0}
+          >
+            선택 해제
+          </Button>
+          <span className="text-[var(--color-border-divider)]">|</span>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() =>
+              openSendMessageModal({
+                studentIds: selectedStudentIds,
+                recipientLabel: `선택한 수강생 ${selectedEnrollmentIds.length}명`,
+              })
+            }
+          >
+            메시지 발송
+          </Button>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => feedback.info("수업결과 발송 기능 준비 중입니다.")}
+          >
+            수업결과 발송
+          </Button>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => feedback.info("성적 일괄 변경 기능 준비 중입니다.")}
+          >
+            성적 일괄 변경
+          </Button>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}
+          >
+            엑셀 다운로드
+          </Button>
+        </div>
+      </div>
+    ) : null;
 
   if (!Number.isFinite(numericSessionId)) {
     return (
@@ -75,7 +146,7 @@ export default function SessionScoresEntryPage(_props: Props) {
         }
         filterSlot={null}
         primaryAction={primaryAction}
-        belowSlot={null}
+        belowSlot={selectionBar}
       />
 
       {isEditMode && (

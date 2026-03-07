@@ -41,6 +41,7 @@ export type SessionScoreHomeworkEntry = {
 
 export type SessionScoreRow = {
   enrollment_id: number;
+  student_id?: number | null;
   student_name: string;
 
   // 시험 1:N
