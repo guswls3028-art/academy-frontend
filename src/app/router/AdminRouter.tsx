@@ -1,87 +1,114 @@
 // PATH: src/app/router/AdminRouter.tsx
+// 선생앱(관리자) 라우터 — 라우트별 lazy 로딩으로 첫 진입·탭 전환 시 청크 분리
 
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AppLayout, DomainLayout } from "@/shared/ui/layout";
 import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
-
-/* ================= Dashboard ================= */
-import DashboardPage from "@/features/dashboard/pages/DashboardPage";
-
-/* ================= Students ================= */
-import StudentsLayout from "@/features/students/StudentsLayout";
-import StudentsHomePage from "@/features/students/pages/StudentsHomePage";
-import StudentsRequestsPage from "@/features/students/pages/StudentsRequestsPage";
-import StudentsDetailOverlay from "@/features/students/overlays/StudentsDetailOverlay";
-
-/* ================= Lectures ================= */
-import LecturesLayout from "@/features/lectures/layout/LecturesLayout";
-import LecturesPage from "@/features/lectures/pages/lectures/LecturesPage";
-import LectureLayout from "@/features/lectures/layout/LectureLayout";
-import LectureStudentsPage from "@/features/lectures/pages/lectures/LectureStudentsPage";
-import LectureReportPage from "@/features/lectures/pages/lectures/LectureReportPage";
-import LectureSessionsPage from "@/features/lectures/pages/sessions/LectureSessionsPage";
 import { RedirectToCommunityMaterials, RedirectToCommunityNotice } from "@/features/community/RedirectToCommunity";
-import LectureDdayPage from "@/features/lectures/pages/ddays/LectureDdayPage";
-import LectureAttendanceMatrixPage from "@/features/lectures/pages/attendance/LectureAttendanceMatrixPage";
 
-/* ================= Sessions ================= */
-import SessionLayout from "@/features/sessions/layout/SessionLayout";
-import SessionDetailPage from "@/features/sessions/pages/SessionDetailPage";
+function AdminRouteFallback() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 200,
+        color: "var(--color-text-secondary)",
+        fontSize: 14,
+      }}
+    >
+      불러오는 중…
+    </div>
+  );
+}
 
-/* ================= Video ================= */
-import VideoDetailPage from "@/features/videos/pages/VideoDetailPage";
+/* ================= Lazy: Dashboard ================= */
+const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPage"));
 
-/* ================= Community ================= */
-import CommunityPage from "@/features/community/pages/CommunityPage";
-import QnaInboxPage from "@/features/community/pages/QnaInboxPage";
-import MaterialsBoardPage from "@/features/community/pages/MaterialsBoardPage";
-import CommunityAdminPage from "@/features/community/pages/CommunityAdminPage";
-import CommunitySettingsPage from "@/features/community/pages/CommunitySettingsPage";
+/* ================= Lazy: Students ================= */
+const StudentsLayout = lazy(() => import("@/features/students/StudentsLayout"));
+const StudentsHomePage = lazy(() => import("@/features/students/pages/StudentsHomePage"));
+const StudentsRequestsPage = lazy(() => import("@/features/students/pages/StudentsRequestsPage"));
+const StudentsDetailOverlay = lazy(() => import("@/features/students/overlays/StudentsDetailOverlay"));
+
+/* ================= Lazy: Lectures ================= */
+const LecturesLayout = lazy(() => import("@/features/lectures/layout/LecturesLayout"));
+const LecturesPage = lazy(() => import("@/features/lectures/pages/lectures/LecturesPage"));
+const LectureLayout = lazy(() => import("@/features/lectures/layout/LectureLayout"));
+const LectureStudentsPage = lazy(() => import("@/features/lectures/pages/lectures/LectureStudentsPage"));
+const LectureReportPage = lazy(() => import("@/features/lectures/pages/lectures/LectureReportPage"));
+const LectureSessionsPage = lazy(() => import("@/features/lectures/pages/sessions/LectureSessionsPage"));
+const LectureDdayPage = lazy(() => import("@/features/lectures/pages/ddays/LectureDdayPage"));
+const LectureAttendanceMatrixPage = lazy(() => import("@/features/lectures/pages/attendance/LectureAttendanceMatrixPage"));
+
+/* ================= Lazy: Sessions ================= */
+const SessionLayout = lazy(() => import("@/features/sessions/layout/SessionLayout"));
+const SessionDetailPage = lazy(() => import("@/features/sessions/pages/SessionDetailPage"));
+
+/* ================= Lazy: Video ================= */
+const VideoDetailPage = lazy(() => import("@/features/videos/pages/VideoDetailPage"));
+
+/* ================= Lazy: Community ================= */
+const CommunityPage = lazy(() => import("@/features/community/pages/CommunityPage"));
+const QnaInboxPage = lazy(() => import("@/features/community/pages/QnaInboxPage"));
+const MaterialsBoardPage = lazy(() => import("@/features/community/pages/MaterialsBoardPage"));
+const CommunityAdminPage = lazy(() => import("@/features/community/pages/CommunityAdminPage"));
+const CommunitySettingsPage = lazy(() => import("@/features/community/pages/CommunitySettingsPage"));
+
+/* ================= Lazy: Clinic ================= */
+const ClinicRoutes = lazy(() => import("@/features/clinic/ClinicRoutes"));
+
+/* ================= Lazy: Profile ================= */
+const ProfileLayout = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileLayout }));
+const ProfileAccountPage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileAccountPage }));
+const ProfileAttendancePage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileAttendancePage }));
+const ProfileExpensePage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileExpensePage }));
+
+/* ================= Lazy: Staff ================= */
+const StaffRoutes = lazy(() => import("@/features/staff/StaffRoutes"));
+
+/* ================= Lazy: Materials ================= */
+const MaterialsRoutes = lazy(() => import("@/features/materials").then((m) => ({ default: m.MaterialsRoutes }));
+
+/* ================= Lazy: Storage ================= */
+const StorageRoutes = lazy(() => import("@/features/storage/StorageRoutes"));
+
+/* ================= Lazy: Messages ================= */
+const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) => ({ default: m.MessageRoutes }));
+
+/* ================= Lazy: Settings ================= */
+const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
+const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
+
+/* ================= Lazy: Exams / Results / Videos ================= */
+const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
+const ResultsExplorerPage = lazy(() => import("@/features/results/pages/ResultsExplorerPage"));
+const VideoExplorerPage = lazy(() => import("@/features/videos/pages/VideoExplorerPage"));
+
+/* ================= Lazy: Placeholder ================= */
+const CounselPage = lazy(() => import("@/features/counseling/pages/CounselPage"));
 
 function QnaReadRedirect() {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={id ? `/admin/community/qna?id=${id}` : "/admin/community/qna"} replace />;
 }
 
-/* ================= Clinic ================= */
-import ClinicRoutes from "@/features/clinic/ClinicRoutes";
-
-/* ================= Profile ================= */
-import {
-  ProfileLayout,
-  ProfileAccountPage,
-  ProfileAttendancePage,
-  ProfileExpensePage,
-} from "@/features/profile";
-
-/* ================= Staff ================= */
-import StaffRoutes from "@/features/staff/StaffRoutes";
-
-/* ================= Materials ================= */
-import { MaterialsRoutes } from "@/features/materials";
-
-/* ================= Storage ================= */
-import StorageRoutes from "@/features/storage/StorageRoutes";
-
-/* ================= Messages ================= */
-import { MessageRoutes } from "@/features/messages/routes";
-
-/* ================= Settings (시스템 설정 · 내 계정 통합) ================= */
-import SettingsLayout from "@/features/settings/SettingsLayout";
-import SettingsPage from "@/features/settings/pages/SettingsPage";
-
-/* ================= Exams / Results / Videos (Admin Root) ================= */
-import ExamExplorerPage from "@/features/exams/pages/ExamExplorerPage";
-import ResultsExplorerPage from "@/features/results/pages/ResultsExplorerPage";
-import VideoExplorerPage from "@/features/videos/pages/VideoExplorerPage";
-
-/* ================= Placeholder (DomainLayout 적용) ================= */
-import CounselPage from "@/features/counseling/pages/CounselPage";
 const NoticePage = () => (
   <DomainLayout title="공지" description="전체 공지 관리">
     <div className="p-6">공지 페이지</div>
   </DomainLayout>
 );
+
+function wrapLazy(Component: React.LazyExoticComponent<React.ComponentType<any>>) {
+  return (
+    <Suspense fallback={<AdminRouteFallback />}>
+      <Component />
+    </Suspense>
+  );
+}
+
 export default function AdminRouter() {
   return (
     <Routes>
