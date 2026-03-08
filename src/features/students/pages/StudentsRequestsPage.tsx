@@ -16,6 +16,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import "@/styles/design-system/modal.css";
 import "@/styles/design-system/ds/card-modal-style.css";
+import "./StudentsRequestsPage.css";
 
 function formatDate(s: string | null) {
   if (!s) return "-";
@@ -63,14 +64,14 @@ function RequestDetailModal({
     { label: "구분", value: isHigh ? "고등" : "중등" },
     { label: "학교", value: request.highSchool || request.middleSchool || null },
     { label: "학년", value: request.grade != null ? `${request.grade}학년` : null },
-    ...(isHigh ? ([{ label: "반", value: request.highSchoolClass || null }] as const) : []),
-    ...(isHigh ? ([{ label: "계열", value: request.major || null }] as const) : []),
+    ...(isHigh ? [{ label: "반", value: request.highSchoolClass || null }] : []),
+    ...(isHigh ? [{ label: "계열", value: request.major || null }] : []),
     { label: "주소", value: request.address || null },
-    ...(isHigh ? ([{ label: "출신 중학교", value: request.originMiddleSchool || null }] as const) : []),
+    ...(isHigh ? [{ label: "출신 중학교", value: request.originMiddleSchool || null }] : []),
     { label: "성별", value: request.gender || null },
     { label: "메모", value: request.memo || null },
     { label: "신청일시", value: formatDate(request.createdAt) },
-  ].map((r) => ({ label: r.label, value: r.value }));
+  ];
 
   return (
     <Modal
@@ -141,13 +142,17 @@ export default function StudentsRequestsPage() {
 
   const approveMutation = useMutation({
     mutationFn: (id: number) => approveRegistrationRequest(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
       qc.invalidateQueries({ queryKey: ["students"] });
       qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
       setDetailOpen(false);
       setDetailRequest(null);
-      setSelectedIds((prev) => new Set([...prev].filter((id) => !pendingList.find((r) => r.id === id))));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       feedback.success("승인되었습니다. 학생이 등록되었습니다.");
     },
     onError: (e: Error) => {

@@ -1,0 +1,178 @@
+/* PATH: src/features/students/pages/StudentsRequestsPage.css
+   가입 신청 탭 — 섹션형·카드 그리드, 디자인 시스템 토큰 사용 */
+
+.students-requests-page {
+  background: var(--color-bg-page, var(--color-bg-surface));
+  min-height: 100%;
+}
+
+.students-requests-section__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border-divider);
+  margin-bottom: var(--space-6);
+}
+
+.students-requests-section__title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.students-requests-section__meta {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 4px 0 0 0;
+  line-height: 1.4;
+}
+
+.students-requests-section__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.students-requests-section__auto-approve {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.students-requests-section__auto-approve-label {
+  font-weight: 500;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.students-requests-card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+  overflow: hidden;
+}
+
+.students-requests-card {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  min-height: 56px;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.students-requests-card:last-child {
+  border-bottom: none;
+}
+
+.students-requests-card:hover {
+  background: var(--color-bg-surface-hover, var(--color-surface-hover));
+}
+
+.students-requests-card--header {
+  cursor: default;
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.students-requests-card--header:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+
+.students-requests-card__check {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.students-requests-card__main {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(120px, 1.2fr) minmax(100px, 0.9fr);
+  gap: var(--space-4);
+  align-items: center;
+  min-width: 0;
+}
+
+.students-requests-card__name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.students-requests-card__school {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.students-requests-card__date {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.students-requests-card__action {
+  flex-shrink: 0;
+}
+
+.students-request-detail__list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.students-request-detail__row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+  margin: 0;
+}
+
+.students-request-detail__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.students-request-detail__value {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  margin: 0;
+  word-break: break-word;
+}
