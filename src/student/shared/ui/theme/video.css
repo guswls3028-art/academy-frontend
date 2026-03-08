@@ -266,3 +266,13 @@
 [data-app="student"][data-video-page="true"] .stu-cta-link:hover {
   color: #fff !important;
 }
+
+/* 플레이어 로딩 스켈레톤 (base.css stuShimmer 재사용, 인라인 style/키프레임 제거) */
+.stu-skel--media {
+  height: 520px;
+  border-radius: 14px;
+  border: 1px solid #eee;
+  background: linear-gradient(90deg, #f3f3f3, #fafafa, #f3f3f3);
+  background-size: 200% 100%;
+  animation: stuShimmer 1.05s ease-in-out infinite;
+}

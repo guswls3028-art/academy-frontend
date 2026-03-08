@@ -280,23 +280,7 @@ export default function VideoPlayerPage() {
         </div>
       {loading ? (
         <div style={{ padding: 8 }}>
-          <div
-            style={{
-              height: 520,
-              borderRadius: 14,
-              border: "1px solid #eee",
-              background:
-                "linear-gradient(90deg, #f3f3f3, #fafafa, #f3f3f3)",
-              backgroundSize: "200% 100%",
-              animation: "mediaShimmer 1.1s ease-in-out infinite",
-            }}
-          />
-          <style>{`
-            @keyframes mediaShimmer {
-              0% { background-position: 200% 0; }
-              100% { background-position: -200% 0; }
-            }
-          `}</style>
+          <div className="stu-skel stu-skel--media" />
         </div>
       ) : loadError ? (
         <EmptyState

@@ -52,7 +52,7 @@ export default function ClinicIDCardPage() {
 
   if (isLoading) {
     return (
-      <div className="idcard-page idcard-page--black">
+      <div className="idcard-page idcard-page--loading-state">
         <div className="idcard-page__loading">불러오는 중…</div>
       </div>
     );

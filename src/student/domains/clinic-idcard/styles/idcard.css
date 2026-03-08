@@ -27,6 +27,12 @@ body {
   animation: idcard-background-flow 8s ease infinite;
 }
 
+/* 로딩 중에는 배경 애니메이션 비활성화 (모바일 부담 감소) */
+.idcard-page.idcard-page--loading-state {
+  background: #000;
+  animation: none;
+}
+
 .idcard-page__loading,
 .idcard-page__error {
   display: flex;

@@ -1,13 +1,13 @@
 /**
  * 상단 바 — 좌: 로고·타이틀 고정(박철과학 등) / 우: 학생 이름
+ * 로고는 테넌트별 동적 import로 필요한 리소스만 로드 (모바일 초기 번들 경량화)
  */
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
-import CommonLogo from "@/features/auth/pages/logos/commonlogo.png";
 
 type Props = { tenantCode: string | null };
 
@@ -21,6 +21,21 @@ export default function StudentTopBar({ tenantCode }: Props) {
   const currentTenantCode = getTenantCodeForApiRequest();
   const isTchulTheme = currentTenantCode != null && currentTenantCode === "tchul";
   const isCommonTheme = currentTenantCode != null && ["hakwonplus", "limglish", "ymath", "9999", "common"].includes(String(currentTenantCode));
+
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (isTchulTheme) {
+      import("@/features/auth/pages/logos/TchulLogoIcon.png").then((m) => setLogoSrc(m.default));
+    } else if (branding.useCommonLogo) {
+      import("@/features/auth/pages/logos/commonlogo.png").then((m) => setLogoSrc(m.default));
+    } else if (branding.logoUrl) {
+      setLogoSrc(branding.logoUrl);
+    } else {
+      setLogoSrc(null);
+    }
+  }, [isTchulTheme, branding.useCommonLogo, branding.logoUrl]);
+
+  const showLogoSrc = logoSrc != null && (isTchulTheme || branding.useCommonLogo || branding.logoUrl);
 
   return (
     <div
@@ -46,43 +61,18 @@ export default function StudentTopBar({ tenantCode }: Props) {
         }}
         aria-label="홈"
       >
-        {isTchulTheme ? (
+        {showLogoSrc ? (
           <img
-            src={TchulLogoIcon}
+            src={logoSrc}
             alt=""
             className="stu-topbar__logo"
             style={{
               height: 32,
-              width: 32,
+              width: isTchulTheme ? 32 : "auto",
+              maxWidth: isTchulTheme ? 32 : 120,
               objectFit: "contain",
               display: "block",
               flexShrink: 0,
-            }}
-          />
-        ) : branding.useCommonLogo ? (
-          <img
-            src={CommonLogo}
-            alt=""
-            className="stu-topbar__logo"
-            style={{
-              height: 32,
-              width: "auto",
-              maxWidth: 120,
-              objectFit: "contain",
-              display: "block",
-              flexShrink: 0,
-            }}
-          />
-        ) : branding.logoUrl ? (
-          <img
-            src={branding.logoUrl}
-            alt=""
-            style={{
-              height: 32,
-              width: "auto",
-              maxWidth: 120,
-              objectFit: "contain",
-              display: "block",
             }}
           />
         ) : (

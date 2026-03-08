@@ -56,9 +56,8 @@ export default function NotificationsPage() {
   if (isLoading) {
     return (
       <StudentPageShell title="알림">
-        <div style={{ padding: "var(--stu-space-4) 0" }}>
-          <div className="stu-skel" style={{ height: 60, borderRadius: "var(--stu-radius-md)", marginBottom: 12 }} />
-          <div className="stu-skel" style={{ height: 60, borderRadius: "var(--stu-radius-md)" }} />
+        <div className="stu-muted" style={{ padding: "var(--stu-space-4) 0" }}>
+          불러오는 중…
         </div>
       </StudentPageShell>
     );
