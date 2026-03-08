@@ -185,6 +185,22 @@ export default function DashboardPage() {
           </Link>
         </div>
       </section>
+
+      {/* 본부 진입게이트 정보 (학원명·전화) */}
+      {dashboard?.tenant_info && (dashboard.tenant_info.name || dashboard.tenant_info.phone || dashboard.tenant_info.headquarters_phone) && (
+        <section style={{ marginTop: "var(--stu-space-8)", paddingTop: "var(--stu-space-4)", borderTop: "1px solid var(--stu-border)" }}>
+          <div className="stu-muted" style={{ fontSize: 12, marginBottom: 6 }}>본부</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{dashboard.tenant_info.name || "학원"}</div>
+          {(dashboard.tenant_info.headquarters_phone || dashboard.tenant_info.phone) && (
+            <a
+              href={`tel:${(dashboard.tenant_info.headquarters_phone || dashboard.tenant_info.phone).replace(/\D/g, "")}`}
+              style={{ fontSize: 13, color: "var(--stu-primary)", textDecoration: "none", marginTop: 4, display: "inline-block" }}
+            >
+              {dashboard.tenant_info.headquarters_phone || dashboard.tenant_info.phone}
+            </a>
+          )}
+        </section>
+      )}
     </div>
   );
 }

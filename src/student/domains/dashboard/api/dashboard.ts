@@ -18,6 +18,11 @@ export type StudentDashboardBadges = {
 
 export type StudentDashboardResponse = {
   badges: StudentDashboardBadges;
+  tenant_info?: {
+    name: string;
+    phone: string;
+    headquarters_phone: string;
+  } | null;
 };
 
 export async function fetchStudentDashboard(): Promise<StudentDashboardResponse> {
@@ -29,5 +34,13 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
       typeof data.badges === "object" && data.badges
         ? data.badges
         : {},
+    tenant_info:
+      data.tenant_info && typeof data.tenant_info === "object"
+        ? {
+            name: String(data.tenant_info.name ?? ""),
+            phone: String(data.tenant_info.phone ?? ""),
+            headquarters_phone: String(data.tenant_info.headquarters_phone ?? ""),
+          }
+        : null,
   };
 }
