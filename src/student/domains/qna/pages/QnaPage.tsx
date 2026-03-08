@@ -439,7 +439,25 @@ function QuestionFormPage({
       setFiles([]);
       onSuccess();
     },
+    onError: (err: unknown) => {
+      // 백엔드 400 profile_required 시 프로필 재조회해 재시도 가능하게
+      const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
+      if (code === "profile_required") {
+        qc.invalidateQueries({ queryKey: ["student", "me"] });
+      }
+    },
   });
+
+  const createErrorMessage =
+    createMut.error != null
+      ? (() => {
+          const e = createMut.error as { response?: { data?: { detail?: string; code?: string } }; message?: string };
+          if (e?.response?.data?.detail && typeof e.response.data.detail === "string") {
+            return e.response.data.detail;
+          }
+          return e instanceof Error ? e.message : "전송에 실패했습니다.";
+        })()
+      : null;
 
   const canSubmit =
     !blockTypesLoading &&
@@ -505,7 +523,7 @@ function QuestionFormPage({
             등록된 질문 유형이 없습니다. 관리자에게 문의해 주세요.
           </div>
         )}
-        {createMut.isError && (
+        {createMut.isError && createErrorMessage && (
           <div
             role="alert"
             style={{
@@ -518,7 +536,7 @@ function QuestionFormPage({
               fontWeight: 600,
             }}
           >
-            {createMut.error instanceof Error ? createMut.error.message : "전송에 실패했습니다."}
+            {createErrorMessage}
           </div>
         )}
         <label style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
