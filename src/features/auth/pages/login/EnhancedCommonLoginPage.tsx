@@ -9,6 +9,7 @@ import {
   requestPasswordFindCode,
   verifyPasswordFindCode,
 } from "@/features/students/api/students";
+import { formatPhoneWithFixed010, parsePhoneInputFixed010 } from "@/shared/utils/phoneInput";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
 import {
@@ -118,7 +119,7 @@ export default function EnhancedCommonLoginPage() {
     }
     const parentPhone = signupForm.parentPhone.replace(/\D/g, "");
     if (parentPhone.length !== 11 || !parentPhone.startsWith("010")) {
-      setSignupError("학부모 전화번호를 010XXXXXXXX 11자리로 입력해 주세요.");
+      setSignupError("학부모 전화번호를 010 뒤 8자리로 입력해 주세요.");
       return;
     }
     setSignupPending(true);
@@ -179,7 +180,7 @@ export default function EnhancedCommonLoginPage() {
       return;
     }
     if (phone.length !== 11 || !phone.startsWith("010")) {
-      setPwFindError("전화번호를 010XXXXXXXX 11자리로 입력해 주세요.");
+      setPwFindError("전화번호를 010 뒤 8자리로 입력해 주세요.");
       return;
     }
     setPwFindError("");
@@ -344,15 +345,19 @@ export default function EnhancedCommonLoginPage() {
                 />
                 <input
                   className={`${styles.input} ${styles.inputRequired}`}
-                  placeholder="학부모 전화번호 (010XXXXXXXX) *"
-                  value={signupForm.parentPhone}
-                  onChange={(e) => setSignupForm((f) => ({ ...f, parentPhone: e.target.value }))}
+                  placeholder="학부모 전화번호 (010 고정, 뒤 8자리) *"
+                  value={formatPhoneWithFixed010(signupForm.parentPhone)}
+                  onChange={(e) =>
+                    setSignupForm((f) => ({ ...f, parentPhone: parsePhoneInputFixed010(e.target.value) }))
+                  }
                 />
                 <input
                   className={`${styles.input} ${styles.inputRequired}`}
-                  placeholder="학생 전화번호 (010XXXXXXXX, 선택)"
-                  value={signupForm.phone}
-                  onChange={(e) => setSignupForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="학생 전화번호 (010 고정, 뒤 8자리, 선택)"
+                  value={formatPhoneWithFixed010(signupForm.phone)}
+                  onChange={(e) =>
+                    setSignupForm((f) => ({ ...f, phone: parsePhoneInputFixed010(e.target.value) }))
+                  }
                 />
                 <div className={styles.signupSchoolChoice}>
                   <button
@@ -462,9 +467,9 @@ export default function EnhancedCommonLoginPage() {
                 />
                 <input
                   className={styles.input}
-                  placeholder="전화번호 (010XXXXXXXX) *"
-                  value={pwFindPhone}
-                  onChange={(e) => setPwFindPhone(e.target.value)}
+                  placeholder="전화번호 (010 고정, 뒤 8자리) *"
+                  value={formatPhoneWithFixed010(pwFindPhone)}
+                  onChange={(e) => setPwFindPhone(parsePhoneInputFixed010(e.target.value))}
                 />
                 {pwFindError && <div className={styles.error}>{pwFindError}</div>}
                 <div className={styles.overlayActions}>

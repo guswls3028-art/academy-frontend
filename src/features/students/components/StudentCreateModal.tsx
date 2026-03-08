@@ -130,11 +130,12 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     if (!String(form.initialPassword || "").trim()) return "초기 비밀번호를 입력해 주세요.";
 
     const parent = String(form.parentPhone || "").trim();
-    if (!parent) return "학부모 전화번호를 입력해 주세요.";
-    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+    if (!parent || parent.length !== 11) return "학부모 전화번호를 입력해 주세요. (010 뒤 8자리)";
+    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010 뒤 8자리 숫자여야 합니다.";
 
     const phone = String(form.studentPhone || "").trim();
-    if (phone && !/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+    if (phone.length > 0 && phone.length < 11) return "학생 전화는 비우거나 010 뒤 8자리를 입력해 주세요.";
+    if (phone.length === 11 && !/^010\d{8}$/.test(phone)) return "학생 전화번호는 010 뒤 8자리 숫자여야 합니다.";
 
     return null;
   }
@@ -152,7 +153,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     try {
       const student = await createStudent({
         ...form,
-        noPhone: !String(form.studentPhone || "").trim(),
+        noPhone: !String(form.studentPhone || "").trim() || String(form.studentPhone || "").trim().length < 11,
         sendWelcomeMessage,
       });
       const loginId = (student?.psNumber ?? form.psNumber?.trim()) || "(자동 부여됨)";
@@ -406,8 +407,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             <span className="modal-section-label">선택 입력</span>
             <div className="modal-form-row modal-form-row--1-auto">
               <input
-                placeholder="학생 전화 (없으면 부모 전화로 OMR)"
-                value={formatPhoneForInput(form.studentPhone ?? "")}
+                placeholder="학생 전화 (010 고정, 뒤 8자리, 없으면 부모 전화로 OMR)"
+                value={formatPhoneWithFixed010(form.studentPhone ?? "")}
                 onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
                 className="ds-input"
                 disabled={busy}

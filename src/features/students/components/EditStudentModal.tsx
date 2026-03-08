@@ -5,9 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import {
-  formatPhoneForInput,
+  formatPhoneWithFixed010,
   formatIdentifierForInput,
-  parsePhoneInput,
+  parsePhoneInputFixed010,
   parseIdentifierInput,
 } from "@/shared/utils/phoneInput";
 import { updateStudent } from "../api/students";
@@ -128,7 +128,7 @@ export default function EditStudentModal({
   }
 
   function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
-    const raw = parsePhoneInput(value);
+    const raw = parsePhoneInputFixed010(value);
     setForm((p) => ({ ...p, [name]: raw }));
     if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   }
@@ -150,13 +150,13 @@ export default function EditStudentModal({
       if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
     } else {
       const phone = String(form.studentPhone || "").trim();
-      if (!phone) return "필수 입력입니다.";
-      if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+      if (!phone || phone.length < 11) return "학생 전화(010 뒤 8자리)를 입력해 주세요.";
+      if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010 뒤 8자리 숫자여야 합니다.";
     }
 
     const parent = String(form.parentPhone || "").trim();
-    if (!parent) return "필수 입력입니다.";
-    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010XXXXXXXX 형식이어야 합니다.";
+    if (!parent || parent.length !== 11) return "학부모 전화(010 뒤 8자리)를 입력해 주세요.";
+    if (!/^010\d{8}$/.test(parent)) return "학부모 전화번호는 010 뒤 8자리 숫자여야 합니다.";
 
     return null;
   }
@@ -233,8 +233,8 @@ export default function EditStudentModal({
               disabled={busy}
             />
             <input
-              placeholder="학부모 전화 (010-XXXX-XXXX)"
-              value={formatPhoneForInput(form.parentPhone ?? "")}
+              placeholder="학부모 전화 (010 고정, 뒤 8자리)"
+              value={formatPhoneWithFixed010(form.parentPhone ?? "")}
               onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
               className="ds-input"
               data-required="true"
@@ -260,8 +260,8 @@ export default function EditStudentModal({
                 />
               ) : (
                 <input
-                  placeholder="학생 전화 (010-XXXX-XXXX)"
-                  value={formatPhoneForInput(form.studentPhone ?? "")}
+                  placeholder="학생 전화 (010 고정, 뒤 8자리)"
+                  value={formatPhoneWithFixed010(form.studentPhone ?? "")}
                   onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
                   className="ds-input"
                   data-required="true"
