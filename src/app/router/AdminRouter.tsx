@@ -114,103 +114,106 @@ export default function AdminRouter() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="dashboard" element={wrapLazy(DashboardPage)} />
 
         {/* ================= Students (SSOT) ================= */}
-        <Route path="students" element={
-          <SendMessageModalProvider>
-            <StudentsLayout />
-          </SendMessageModalProvider>
-        }>
+        <Route
+          path="students"
+          element={
+            <SendMessageModalProvider>
+              {wrapLazy(StudentsLayout)}
+            </SendMessageModalProvider>
+          }
+        >
           <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<StudentsHomePage />} />
-          <Route path="requests" element={<StudentsRequestsPage />} />
-          <Route path="deleted" element={<StudentsHomePage />} />
+          <Route path="home" element={wrapLazy(StudentsHomePage)} />
+          <Route path="requests" element={wrapLazy(StudentsRequestsPage)} />
+          <Route path="deleted" element={wrapLazy(StudentsHomePage)} />
         </Route>
 
         {/* 학생 상세 (Overlay / Layout 밖) */}
-        <Route path="students/:studentId" element={<StudentsDetailOverlay />} />
+        <Route path="students/:studentId" element={wrapLazy(StudentsDetailOverlay)} />
 
         {/* ================= Lectures (SSOT 동일 구조) ================= */}
-        <Route path="lectures" element={<LecturesLayout />}>
-          <Route index element={<LecturesPage />} />
-          <Route path="past" element={<LecturesPage tab="past" />} />
+        <Route path="lectures" element={wrapLazy(LecturesLayout)}>
+          <Route index element={wrapLazy(LecturesPage)} />
+          <Route path="past" element={<Suspense fallback={<AdminRouteFallback />}><LecturesPage tab="past" /></Suspense>} />
         </Route>
 
         {/* 강의 상세 */}
-        <Route path="lectures/:lectureId" element={<LectureLayout />}>
-          <Route index element={<LectureStudentsPage />} />
+        <Route path="lectures/:lectureId" element={wrapLazy(LectureLayout)}>
+          <Route index element={wrapLazy(LectureStudentsPage)} />
           <Route path="materials" element={<RedirectToCommunityMaterials />} />
           <Route path="board" element={<RedirectToCommunityNotice />} />
-          <Route path="ddays" element={<LectureDdayPage />} />
-          <Route path="attendance" element={<LectureAttendanceMatrixPage />} />
-          <Route path="report" element={<LectureReportPage />} />
-          <Route path="sessions" element={<LectureSessionsPage />} />
+          <Route path="ddays" element={wrapLazy(LectureDdayPage)} />
+          <Route path="attendance" element={wrapLazy(LectureAttendanceMatrixPage)} />
+          <Route path="report" element={wrapLazy(LectureReportPage)} />
+          <Route path="sessions" element={wrapLazy(LectureSessionsPage)} />
         </Route>
 
         {/* ================= Sessions ================= */}
         <Route
           path="lectures/:lectureId/sessions/:sessionId/*"
-          element={<SessionLayout />}
+          element={wrapLazy(SessionLayout)}
         >
-          <Route index element={<SessionDetailPage />} />
-          <Route path="attendance" element={<SessionDetailPage />} />
-          <Route path="scores" element={<SessionDetailPage />} />
-          <Route path="exams" element={<SessionDetailPage />} />
-          <Route path="assignments" element={<SessionDetailPage />} />
-          <Route path="videos" element={<SessionDetailPage />} />
-          <Route path="videos/:videoId" element={<VideoDetailPage />} />
+          <Route index element={wrapLazy(SessionDetailPage)} />
+          <Route path="attendance" element={wrapLazy(SessionDetailPage)} />
+          <Route path="scores" element={wrapLazy(SessionDetailPage)} />
+          <Route path="exams" element={wrapLazy(SessionDetailPage)} />
+          <Route path="assignments" element={wrapLazy(SessionDetailPage)} />
+          <Route path="videos" element={wrapLazy(SessionDetailPage)} />
+          <Route path="videos/:videoId" element={wrapLazy(VideoDetailPage)} />
         </Route>
 
         {/* ================= Materials ================= */}
-        <Route path="materials/*" element={<MaterialsRoutes />} />
+        <Route path="materials/*" element={wrapLazy(MaterialsRoutes)} />
 
         {/* ================= Storage (저장소 통합) ================= */}
-        <Route path="storage/*" element={<StorageRoutes />} />
+        <Route path="storage/*" element={wrapLazy(StorageRoutes)} />
 
         {/* ================= Clinic ================= */}
-        <Route path="clinic/*" element={<ClinicRoutes />} />
+        <Route path="clinic/*" element={wrapLazy(ClinicRoutes)} />
 
         {/* ================= Exams ================= */}
-        <Route path="exams" element={<ExamExplorerPage />} />
+        <Route path="exams" element={wrapLazy(ExamExplorerPage)} />
 
         {/* ================= Results ================= */}
-        <Route path="results" element={<ResultsExplorerPage />} />
+        <Route path="results" element={wrapLazy(ResultsExplorerPage)} />
 
         {/* ================= Videos (Admin Root) ================= */}
-        <Route path="videos" element={<VideoExplorerPage />} />
+        <Route path="videos" element={wrapLazy(VideoExplorerPage)} />
 
-        <Route path="counsel" element={<CounselPage />} />
+        <Route path="counsel" element={wrapLazy(CounselPage)} />
         <Route path="notice" element={<NoticePage />} />
-        <Route path="message/*" element={<MessageRoutes />} />
+        <Route path="message/*" element={wrapLazy(MessageRoutes)} />
 
         {/* ================= Community ================= */}
-        <Route path="community" element={<CommunityPage />}>
+        <Route path="community" element={wrapLazy(CommunityPage)}>
           <Route index element={<Navigate to="admin" replace />} />
           <Route path="notice" element={<Navigate to="/admin/community/admin?tab=notice" replace />} />
-          <Route path="qna" element={<QnaInboxPage />} />
+          <Route path="qna" element={wrapLazy(QnaInboxPage)} />
           <Route path="qna/read/:id" element={<QnaReadRedirect />} />
-          <Route path="materials" element={<MaterialsBoardPage />} />
-          <Route path="admin" element={<CommunityAdminPage />} />
-          <Route path="settings" element={<CommunitySettingsPage />} />
+          <Route path="materials" element={wrapLazy(MaterialsBoardPage)} />
+          <Route path="admin" element={wrapLazy(CommunityAdminPage)} />
+          <Route path="settings" element={wrapLazy(CommunitySettingsPage)} />
         </Route>
 
         {/* ================= Staff ================= */}
-        <Route path="staff/*" element={<StaffRoutes />} />
+        <Route path="staff/*" element={wrapLazy(StaffRoutes)} />
 
         {/* ================= 설정 (내 정보 · 테마 탭) ================= */}
-        <Route path="settings" element={<SettingsLayout />}>
+        <Route path="settings" element={wrapLazy(SettingsLayout)}>
           <Route index element={<Navigate to="account" replace />} />
-          <Route path="account" element={<ProfileAccountPage />} />
-          <Route path="system" element={<SettingsPage />} />
+          <Route path="account" element={wrapLazy(ProfileAccountPage)} />
+          <Route path="system" element={wrapLazy(SettingsPage)} />
         </Route>
 
         {/* ================= Profile (근태 · 지출 — 내 계정은 설정 탭으로) ================= */}
-        <Route path="profile" element={<ProfileLayout />}>
+        <Route path="profile" element={wrapLazy(ProfileLayout)}>
           <Route index element={<Navigate to="attendance" replace />} />
           <Route path="account" element={<Navigate to="/admin/settings/account" replace />} />
-          <Route path="attendance" element={<ProfileAttendancePage />} />
-          <Route path="expense" element={<ProfileExpensePage />} />
+          <Route path="attendance" element={wrapLazy(ProfileAttendancePage)} />
+          <Route path="expense" element={wrapLazy(ProfileExpensePage)} />
         </Route>
       </Route>
     </Routes>
