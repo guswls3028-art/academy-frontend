@@ -508,6 +508,7 @@ export async function approveRegistrationRequest(id: number): Promise<ClientStud
 /** 로그인 전: 학생 가입 신청 제출 (AllowAny, TenantResolved) */
 export async function submitRegistrationRequest(form: {
   name: string;
+  username?: string;
   initialPassword: string;
   parentPhone: string;
   phone?: string;
@@ -524,6 +525,7 @@ export async function submitRegistrationRequest(form: {
 }): Promise<ClientRegistrationRequest> {
   const payload: Record<string, unknown> = {
     name: String(form.name ?? "").trim(),
+    username: String(form.username ?? "").trim() || "",
     initial_password: String(form.initialPassword ?? "").trim(),
     parent_phone: normalizePhone(String(form.parentPhone)),
     school_type: form.schoolType ?? "HIGH",

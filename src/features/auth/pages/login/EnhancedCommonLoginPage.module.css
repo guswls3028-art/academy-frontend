@@ -127,6 +127,51 @@
   box-shadow: 0 0 0 3px var(--auth-focus);
 }
 
+/* 필수 필드처럼 보이는 인풋 (회원가입 모달) */
+.inputRequired {
+  border-width: 2px;
+  border-color: var(--auth-accent);
+  box-shadow: 0 0 0 1px var(--auth-accent);
+}
+.inputRequired::placeholder {
+  color: var(--auth-text-muted);
+}
+.inputRequired:hover {
+  border-color: var(--auth-accent);
+}
+.inputRequired:focus {
+  border-color: var(--auth-accent);
+  box-shadow: 0 0 0 3px var(--auth-focus);
+}
+
+/* 고등/중등 선택 버튼 (회원가입 — 학생생성모달처럼 클릭 선택) */
+.signupSchoolChoice {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.875rem;
+}
+.signupSchoolBtn {
+  flex: 1;
+  padding: 0.875rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--auth-text-muted);
+  background: var(--auth-surface);
+  border: 2px solid var(--auth-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.signupSchoolBtn:hover {
+  border-color: var(--auth-border-hover);
+  color: var(--auth-text);
+}
+.signupSchoolBtn.isSelected {
+  border-color: var(--auth-accent);
+  background: var(--auth-focus);
+  color: var(--auth-accent);
+}
+
 .form .btnPrimary {
   display: block;
   width: 100%;

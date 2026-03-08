@@ -70,6 +70,7 @@ export default function EnhancedCommonLoginPage() {
 
   const [signupForm, setSignupForm] = useState({
     name: "",
+    username: "",
     initialPassword: "",
     parentPhone: "",
     phone: "",
@@ -124,6 +125,7 @@ export default function EnhancedCommonLoginPage() {
     try {
       await submitRegistrationRequest({
         name: signupForm.name.trim(),
+        username: signupForm.username.trim() || undefined,
         initialPassword: signupForm.initialPassword,
         parentPhone: parentPhone,
         phone: signupForm.phone.replace(/\D/g, "").length === 11 ? signupForm.phone.replace(/\D/g, "") : undefined,
@@ -144,6 +146,7 @@ export default function EnhancedCommonLoginPage() {
         setSignupSuccess(false);
         setSignupForm({
           name: "",
+          username: "",
           initialPassword: "",
           parentPhone: "",
           phone: "",
@@ -320,38 +323,55 @@ export default function EnhancedCommonLoginPage() {
             ) : (
               <form onSubmit={onSubmitSignup}>
                 <input
-                  className={styles.input}
+                  className={`${styles.input} ${styles.inputRequired}`}
                   placeholder="이름 *"
                   value={signupForm.name}
                   onChange={(e) => setSignupForm((f) => ({ ...f, name: e.target.value }))}
                 />
                 <input
-                  className={styles.input}
+                  className={`${styles.input} ${styles.inputRequired}`}
+                  placeholder="아이디 (로그인용, 선택)"
+                  value={signupForm.username}
+                  onChange={(e) => setSignupForm((f) => ({ ...f, username: e.target.value }))}
+                  autoComplete="username"
+                />
+                <input
+                  className={`${styles.input} ${styles.inputRequired}`}
                   type="password"
-                  placeholder="초기 비밀번호 (4자 이상) *"
+                  placeholder="비밀번호 (4자 이상) *"
                   value={signupForm.initialPassword}
                   onChange={(e) => setSignupForm((f) => ({ ...f, initialPassword: e.target.value }))}
                 />
                 <input
-                  className={styles.input}
+                  className={`${styles.input} ${styles.inputRequired}`}
                   placeholder="학부모 전화번호 (010XXXXXXXX) *"
                   value={signupForm.parentPhone}
                   onChange={(e) => setSignupForm((f) => ({ ...f, parentPhone: e.target.value }))}
                 />
                 <input
-                  className={styles.input}
-                  placeholder="학생 전화번호 (선택)"
+                  className={`${styles.input} ${styles.inputRequired}`}
+                  placeholder="학생 전화번호 (010XXXXXXXX, 선택)"
                   value={signupForm.phone}
                   onChange={(e) => setSignupForm((f) => ({ ...f, phone: e.target.value }))}
                 />
-                <select
-                  className={styles.input}
-                  value={signupForm.schoolType}
-                  onChange={(e) => setSignupForm((f) => ({ ...f, schoolType: e.target.value as "HIGH" | "MIDDLE" }))}
-                >
-                  <option value="HIGH">고등</option>
-                  <option value="MIDDLE">중등</option>
-                </select>
+                <div className={styles.signupSchoolChoice}>
+                  <button
+                    type="button"
+                    className={`${styles.signupSchoolBtn} ${signupForm.schoolType === "HIGH" ? styles.isSelected : ""}`}
+                    aria-pressed={signupForm.schoolType === "HIGH"}
+                    onClick={() => setSignupForm((f) => ({ ...f, schoolType: "HIGH" }))}
+                  >
+                    고등학교
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.signupSchoolBtn} ${signupForm.schoolType === "MIDDLE" ? styles.isSelected : ""}`}
+                    aria-pressed={signupForm.schoolType === "MIDDLE"}
+                    onClick={() => setSignupForm((f) => ({ ...f, schoolType: "MIDDLE" }))}
+                  >
+                    중학교
+                  </button>
+                </div>
                 {signupForm.schoolType === "HIGH" ? (
                   <>
                     <input
