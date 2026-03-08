@@ -505,6 +505,34 @@ export async function approveRegistrationRequest(id: number): Promise<ClientStud
   return mapStudent(res.data);
 }
 
+/** 스태프: 가입 신청 일괄 승인 */
+export async function bulkApproveRegistrationRequests(
+  ids: number[]
+): Promise<{ approved: number; failed: Array<{ id: number; detail: string }> }> {
+  const res = await api.post("/students/registration_requests/bulk_approve/", { ids });
+  return res.data as { approved: number; failed: Array<{ id: number; detail: string }> };
+}
+
+export type RegistrationRequestSettings = { auto_approve: boolean };
+
+/** 스태프: 가입 신청 설정 조회 (자동 승인 여부) */
+export async function fetchRegistrationRequestSettings(): Promise<RegistrationRequestSettings> {
+  const res = await api.get("/students/registration_requests/settings/");
+  return {
+    auto_approve: !!res.data?.auto_approve,
+  };
+}
+
+/** 스태프: 가입 신청 설정 수정 (자동 승인) */
+export async function updateRegistrationRequestSettings(
+  payload: { auto_approve: boolean }
+): Promise<RegistrationRequestSettings> {
+  const res = await api.patch("/students/registration_requests/settings/", payload);
+  return {
+    auto_approve: !!res.data?.auto_approve,
+  };
+}
+
 /** 로그인 전: 학생 가입 신청 제출 (AllowAny, TenantResolved) */
 export async function submitRegistrationRequest(form: {
   name: string;
