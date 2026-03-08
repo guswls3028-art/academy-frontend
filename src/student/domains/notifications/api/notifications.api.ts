@@ -14,23 +14,29 @@ export type NotificationCounts = {
   total: number; // 전체 알림 수
 };
 
+export type FetchNotificationCountsOptions = {
+  /** 캐시된 프로필(id만 사용). 전달 시 알림 카운트 내부에서 프로필 API 호출 생략 */
+  profile?: { id: number } | null;
+};
+
 /**
  * 알림 카운트 조회
- * 각 도메인별로 읽지 않은 알림 수를 집계
- * 
- * 최적화:
- * - 병렬 API 호출로 성능 개선
- * - 에러 발생 시 해당 도메인만 0으로 처리
- * - 학생 프로필을 먼저 조회하여 QnA 필터링에 사용
+ * - 알림 숫자만 필요하므로 QnA는 pageSize 50으로 경량 조회
+ * - profile 전달 시 프로필 API 중복 호출 방지
  */
-export async function fetchNotificationCounts(): Promise<NotificationCounts> {
+export async function fetchNotificationCounts(
+  options?: FetchNotificationCountsOptions
+): Promise<NotificationCounts> {
   const now = Date.now();
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
 
   try {
     const [clinicBookings, myQnaQuestions] = await Promise.allSettled([
       fetchMyClinicBookingRequests(),
-      fetchMyQnaQuestions(), // 내 질문만 반환 (실데이터)
+      fetchMyQnaQuestions({
+        profile: options?.profile ?? undefined,
+        pageSize: 50, // 카운트용 경량 조회 (7일 내 답변 건수만 필요)
+      }),
     ]);
 
     // 클리닉: 승인된 예약 중 최근 7일 이내 상태 변경된 것
