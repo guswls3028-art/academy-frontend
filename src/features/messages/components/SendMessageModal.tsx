@@ -1,5 +1,6 @@
 // PATH: src/features/messages/components/SendMessageModal.tsx
 // 공용 메시지 발송 모달 — 직접 입력 또는 기존 템플릿 불러와서 발송
+// 수신자(학부모/학생), 발송 유형(SMS/알림톡) 다중 선택 가능. 템플릿 수정 모달과 비슷한 큰 레이아웃.
 
 import { useState, useEffect } from "react";
 import { Input } from "antd";
@@ -16,6 +17,7 @@ import {
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import type { MessageTemplateCategory } from "../api/messages.api";
+import "../styles/templateEditor.css";
 
 export type SendMessageModalOpenOptions = {
   studentIds: number[];
@@ -43,8 +45,12 @@ export default function SendMessageModal({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  const [sendTo, setSendTo] = useState<SendToType>("parent");
-  const [messageMode, setMessageMode] = useState<MessageMode>("sms");
+  /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개) */
+  const [sendToParent, setSendToParent] = useState(true);
+  const [sendToStudent, setSendToStudent] = useState(false);
+  /** 발송 유형: SMS·알림톡 둘 다 선택 가능 (최소 1개). 선택한 각각에 대해 API 호출 */
+  const [useSms, setUseSms] = useState(true);
+  const [useAlimtalk, setUseAlimtalk] = useState(false);
   const [sending, setSending] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
   const { data: messagingInfo } = useMessagingInfo();
@@ -52,7 +58,17 @@ export default function SendMessageModal({
 
   const studentIds = initialStudentIds;
   const hasRecipients = studentIds.length > 0;
-  const canSend = hasRecipients && body.trim().length > 0;
+  const sendToTargets: SendToType[] = [];
+  if (sendToParent) sendToTargets.push("parent");
+  if (sendToStudent) sendToTargets.push("student");
+  const messageModes: MessageMode[] = [];
+  if (useSms && smsAllowed) messageModes.push("sms");
+  if (useAlimtalk) messageModes.push("alimtalk");
+  const canSend =
+    hasRecipients &&
+    body.trim().length > 0 &&
+    sendToTargets.length > 0 &&
+    messageModes.length > 0;
 
   useEffect(() => {
     if (open) {
@@ -60,16 +76,19 @@ export default function SendMessageModal({
       setBody("");
       setSelectedTemplateId(null);
       setContentMode("free");
-      setSendTo("parent");
-      setMessageMode("sms");
+      setSendToParent(true);
+      setSendToStudent(false);
+      setUseSms(true);
+      setUseAlimtalk(false);
     }
   }, [open]);
 
   useEffect(() => {
-    if (open && !smsAllowed && (messageMode === "sms" || messageMode === "both")) {
-      setMessageMode("alimtalk");
+    if (open && !smsAllowed && useSms) {
+      setUseSms(false);
+      if (!useAlimtalk) setUseAlimtalk(true);
     }
-  }, [open, smsAllowed, messageMode]);
+  }, [open, smsAllowed, useSms, useAlimtalk]);
 
   useEffect(() => {
     if (!open) return;
@@ -97,19 +116,32 @@ export default function SendMessageModal({
     if (!canSend) return;
     setSending(true);
     try {
-      // 항상 현재 입력(직접 입력 또는 템플릿 불러온 뒤 수정한 내용)으로 발송
-      const payload: Parameters<typeof sendMessage>[0] = {
-        student_ids: studentIds,
-        send_to: sendTo,
-        message_mode: messageMode,
-        raw_body: body.trim(),
-      };
-      if (subject.trim()) payload.raw_subject = subject.trim();
-      if (selectedTemplateId) payload.template_id = selectedTemplateId;
-      const res = await sendMessage(payload);
-      feedback.success(res.detail || `${res.enqueued}건 발송 예정입니다.`);
-      if (res.skipped_no_phone > 0) {
-        feedback.info(`전화번호 없음으로 ${res.skipped_no_phone}명 제외되었습니다.`);
+      let totalEnqueued = 0;
+      let totalSkipped = 0;
+      for (const sendTo of sendToTargets) {
+        for (const messageMode of messageModes) {
+          const payload: Parameters<typeof sendMessage>[0] = {
+            student_ids: studentIds,
+            send_to: sendTo,
+            message_mode: messageMode,
+            raw_body: body.trim(),
+          };
+          if (subject.trim()) payload.raw_subject = subject.trim();
+          if (selectedTemplateId) payload.template_id = selectedTemplateId;
+          const res = await sendMessage(payload);
+          totalEnqueued += res.enqueued ?? 0;
+          totalSkipped += res.skipped_no_phone ?? 0;
+        }
+      }
+      const sendToLabel =
+        sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
+      const modeLabel =
+        messageModes.length === 2 ? "SMS·알림톡" : messageModes[0] === "sms" ? "SMS" : "알림톡";
+      feedback.success(
+        `${sendToLabel} ${modeLabel} 발송 예정 ${totalEnqueued}건입니다.`
+      );
+      if (totalSkipped > 0) {
+        feedback.info(`전화번호 없음으로 ${totalSkipped}건 제외되었습니다.`);
       }
       onClose();
     } catch (e: unknown) {
@@ -129,35 +161,42 @@ export default function SendMessageModal({
     recipientLabel ?? (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음");
 
   return (
-    <AdminModal open={open} onClose={onClose} width={640}>
+    <AdminModal open={open} onClose={onClose} width={1000}>
       <ModalHeader title="메시지 발송" />
       <ModalBody>
-        <div className="flex flex-col gap-4">
-          {/* 수신자 */}
+        <div className="flex flex-col gap-5" style={{ minHeight: 420 }}>
+          {/* 수신자: 학부모·학생 둘 다 선택 가능 */}
           <section>
-            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-1">수신자</div>
+            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">수신자</div>
             {hasRecipients ? (
-              <p className="text-sm text-[var(--color-text-muted)]">
-                {label} · 발송 대상:{" "}
-                <label className="inline-flex items-center gap-2 mr-4">
+              <p className="text-sm text-[var(--color-text-muted)] mb-2">
+                {label}
+              </p>
+            ) : null}
+            {hasRecipients ? (
+              <div className="flex flex-wrap items-center gap-6">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
                   <input
-                    type="radio"
-                    name="sendTo"
-                    checked={sendTo === "parent"}
-                    onChange={() => setSendTo("parent")}
+                    type="checkbox"
+                    checked={sendToParent}
+                    onChange={(e) => setSendToParent(e.target.checked)}
                   />
                   학부모
                 </label>
-                <label className="inline-flex items-center gap-2">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
                   <input
-                    type="radio"
-                    name="sendTo"
-                    checked={sendTo === "student"}
-                    onChange={() => setSendTo("student")}
+                    type="checkbox"
+                    checked={sendToStudent}
+                    onChange={(e) => setSendToStudent(e.target.checked)}
                   />
                   학생
                 </label>
-              </p>
+                {sendToTargets.length === 0 && (
+                  <span className="text-xs text-[var(--color-status-warning)]">
+                    학부모 또는 학생 중 최소 1개를 선택하세요.
+                  </span>
+                )}
+              </div>
             ) : (
               <p className="text-sm text-[var(--color-status-warning)]">
                 학생·강의·출결 페이지에서 수신자를 선택한 뒤 메시지 발송 버튼을 눌러 주세요.
@@ -165,48 +204,45 @@ export default function SendMessageModal({
             )}
           </section>
 
-          {/* 발송 유형: SMS만 / 알림톡만 / 알림톡→SMS 폴백 */}
+          {/* 발송 유형: SMS·알림톡 둘 다 선택 가능 */}
           <section>
             <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">발송 유형</div>
-            <div className="flex flex-wrap gap-4">
-              <label className={`inline-flex items-center gap-2 ${smsAllowed ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
+            <div className="flex flex-wrap items-center gap-6">
+              <label
+                className={
+                  smsAllowed ? "inline-flex items-center gap-2 cursor-pointer" : "inline-flex items-center gap-2 cursor-not-allowed opacity-60"
+                }
+              >
                 <input
-                  type="radio"
-                  name="messageMode"
-                  checked={messageMode === "sms"}
-                  onChange={() => setMessageMode("sms")}
+                  type="checkbox"
+                  checked={useSms}
+                  onChange={(e) => setUseSms(e.target.checked)}
                   disabled={!smsAllowed}
                 />
-                <span>SMS만</span>
+                <span>SMS 발송</span>
               </label>
               <label className="inline-flex items-center gap-2 cursor-pointer">
                 <input
-                  type="radio"
-                  name="messageMode"
-                  checked={messageMode === "alimtalk"}
-                  onChange={() => setMessageMode("alimtalk")}
+                  type="checkbox"
+                  checked={useAlimtalk}
+                  onChange={(e) => setUseAlimtalk(e.target.checked)}
                 />
-                <span>알림톡만</span>
+                <span>알림톡 발송</span>
               </label>
-              <label className={`inline-flex items-center gap-2 ${smsAllowed ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
-                <input
-                  type="radio"
-                  name="messageMode"
-                  checked={messageMode === "both"}
-                  onChange={() => setMessageMode("both")}
-                  disabled={!smsAllowed}
-                />
-                <span>알림톡→SMS 폴백</span>
-              </label>
+              {messageModes.length === 0 && (
+                <span className="text-xs text-[var(--color-status-warning)]">
+                  SMS 또는 알림톡 중 최소 1개를 선택하세요.
+                </span>
+              )}
             </div>
             {!smsAllowed && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
                 문자(SMS)는 내 테넌트 전용 정책으로 이 학원에서는 사용할 수 없습니다.
               </p>
             )}
-            {messageMode !== "sms" && smsAllowed && (
+            {(useAlimtalk || useSms) && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                알림톡/폴백은 검수 승인된 템플릿이 필요합니다. 아래에서 템플릿을 선택하세요.
+                둘 다 선택하면 동일 내용을 SMS와 알림톡 각각 발송합니다. 알림톡은 검수 승인된 템플릿이 필요합니다.
               </p>
             )}
           </section>
@@ -275,16 +311,16 @@ export default function SendMessageModal({
                 className="w-full"
               />
             </div>
-            <div>
+            <div className="flex-1 min-h-0 flex flex-col">
               <label className="block text-xs text-[var(--color-text-muted)] mb-1">본문</label>
               <Input.TextArea
                 placeholder="내용을 입력하거나 위에서 템플릿을 선택하세요. #{student_name_2}, #{student_name_3}, #{site_link} 등 변수는 발송 시 자동 치환됩니다."
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                rows={8}
+                rows={14}
                 disabled={sending}
-                className="w-full"
-                style={{ resize: "vertical" }}
+                className="template-editor__textarea w-full p-3"
+                style={{ resize: "vertical", minHeight: 280 }}
               />
             </div>
           </section>

@@ -142,8 +142,8 @@ export default function StudentsHomePage() {
           <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
             엑셀 다운로드
           </Button>
-          <Button intent="secondary" size="sm" onClick={() => feedback.info("시급 태그 추가 기능 준비 중입니다.")}>
-            시급 태그 추가
+          <Button intent="secondary" size="sm" onClick={() => feedback.info("태그 추가 기능 준비 중입니다.")}>
+            태그 추가
           </Button>
           <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
             비밀번호 변경
