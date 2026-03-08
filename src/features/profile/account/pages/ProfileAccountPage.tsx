@@ -10,6 +10,7 @@ import useAuth from "@/features/auth/hooks/useAuth";
 import ProfileInfoCard from "../components/ProfileInfoCard";
 import ChangePasswordModal from "../components/ChangePasswordModal";
 import SenderNumberCard from "../components/SenderNumberCard";
+import TenantInfoCard from "../components/TenantInfoCard";
 
 import { EmptyState, Panel } from "@/shared/ui/ds";
 
@@ -99,6 +100,7 @@ export default function ProfileAccountPage() {
           onPasswordClick={() => setPwOpen(true)}
           onLogout={clearAuth}
         />
+        <TenantInfoCard canEdit={meQ.data?.tenantRole === "owner"} />
         <SenderNumberCard />
       </div>
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />

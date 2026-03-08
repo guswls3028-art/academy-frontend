@@ -11,6 +11,7 @@ export type Me = {
   phone?: string | null;
   is_staff: boolean;
   is_superuser?: boolean;
+  tenantRole?: string | null;
 };
 
 /** Me → 직책 (직원관리·헤더·설정 등 사용자 정보 표시 시 StaffRoleAvatar용) */
@@ -45,6 +46,23 @@ export async function changePassword(payload: {
 }) {
   const { data } = await api.post("/core/profile/change-password/", payload);
   return data as { message?: string };
+}
+
+/** 소속 학원(테넌트) 정보 — 설정 > 내 정보에서 본부 전화 등 표시/수정 */
+export type TenantInfo = {
+  name: string;
+  phone: string;
+  headquarters_phone: string;
+};
+
+export async function fetchTenantInfo(): Promise<TenantInfo> {
+  const { data } = await api.get<TenantInfo>("/core/tenant-info/");
+  return data;
+}
+
+export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "phone" | "headquarters_phone">>): Promise<TenantInfo> {
+  const { data } = await api.patch<TenantInfo>("/core/tenant-info/", payload);
+  return data;
 }
 
 /* =====================
