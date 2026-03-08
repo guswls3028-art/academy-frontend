@@ -64,6 +64,26 @@
   border: 0;
 }
 
+/* 선택 툴바 — 학생 홈 탭과 동일 패턴 (DS 토큰) */
+.students-requests-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-4);
+}
+
+.students-requests-toolbar__count {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.students-requests-toolbar__sep {
+  color: var(--color-border-divider);
+  font-size: 13px;
+  user-select: none;
+}
+
 /* 전체 선택 */
 .students-requests-select-all {
   padding: var(--space-2) 0 var(--space-3);
@@ -76,6 +96,27 @@
 
 .students-requests-select-all__label {
   font-weight: 500;
+}
+
+/* 리스트 컬럼 헤더 (섹션형 — 카드 아님) */
+.students-requests-list-header {
+  display: grid;
+  grid-template-columns: 44px minmax(80px, 1fr) minmax(100px, 1.2fr) minmax(100px, 1.2fr) auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-2) var(--space-5);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-divider);
+  margin-bottom: var(--space-2);
+}
+
+.students-requests-list-header__name,
+.students-requests-list-header__phone {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 섹션형 목록 — 항목별 구분된 블록 */
@@ -116,12 +157,14 @@
   flex-shrink: 0;
 }
 
-.students-requests-section-item__info {
+/* 이름 · 학부모 전화 · 본인 전화 3열 */
+.students-requests-section-item__cells {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) minmax(100px, 1.2fr) minmax(100px, 1.2fr);
+  gap: var(--space-4);
+  align-items: center;
 }
 
 .students-requests-section-item__name {
@@ -129,15 +172,23 @@
   font-size: 15px;
   color: var(--color-text-primary);
   letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .students-requests-section-item__phone {
   font-size: 13px;
   color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.students-requests-section-item__action {
+.students-requests-section-item__actions {
   flex-shrink: 0;
+  display: flex;
+  gap: var(--space-2);
 }
 
 /* 상세 모달 내 정의 리스트 (modal-body 안) */

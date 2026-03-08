@@ -1,5 +1,5 @@
 // PATH: src/features/students/pages/StudentsRequestsPage.tsx
-// 선생용: 학생 가입 신청 목록 — 섹션형 UI(이름·전화번호만), 상세 팝업(프로젝트 모달 패턴), 체크박스·일괄 승인·자동승인
+// 선생용: 가입 신청 — 섹션형(이름·학부모전화·본인전화), 리스트 내 승인/거절, 체크박스·전체승인/전체거절·자동승인, 상세 모달(DS)
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +7,9 @@ import { Checkbox, Switch } from "antd";
 import {
   fetchRegistrationRequests,
   approveRegistrationRequest,
+  rejectRegistrationRequest,
   bulkApproveRegistrationRequests,
+  bulkRejectRegistrationRequests,
   fetchRegistrationRequestSettings,
   updateRegistrationRequestSettings,
   type ClientRegistrationRequest,
@@ -43,11 +45,14 @@ function schoolLabel(r: ClientRegistrationRequest) {
   return `${school}${grade}`.trim() || "-";
 }
 
-/** 목록용: 표시할 전화번호 (학생 전화 우선, 없으면 학부모 전화) */
-function displayPhone(r: ClientRegistrationRequest): string {
-  if (r.phone && r.phone.trim()) return r.phone.trim();
-  if (r.parentPhone && r.parentPhone.trim()) return r.parentPhone.trim();
-  return "-";
+/** 목록용: 학부모 전화 */
+function parentPhone(r: ClientRegistrationRequest): string {
+  return (r.parentPhone && r.parentPhone.trim()) ? r.parentPhone.trim() : "-";
+}
+
+/** 목록용: 본인(학생) 전화 */
+function studentPhone(r: ClientRegistrationRequest): string {
+  return (r.phone && r.phone.trim()) ? r.phone.trim() : "-";
 }
 
 /** 신청 상세 모달 */
@@ -56,13 +61,17 @@ function RequestDetailModal({
   open,
   onClose,
   onApprove,
+  onReject,
   approving,
+  rejecting,
 }: {
   request: ClientRegistrationRequest | null;
   open: boolean;
   onClose: () => void;
   onApprove: () => void;
+  onReject: () => void;
   approving: boolean;
+  rejecting: boolean;
 }) {
   if (!request) return null;
 
@@ -107,14 +116,24 @@ function RequestDetailModal({
           </Button>
         }
         right={
-          <Button
-            intent="primary"
-            size="md"
-            onClick={onApprove}
-            disabled={approving}
-          >
-            {approving ? "처리 중..." : "승인"}
-          </Button>
+          <>
+            <Button
+              intent="danger"
+              size="md"
+              onClick={onReject}
+              disabled={rejecting || approving}
+            >
+              {rejecting ? "처리 중..." : "거절"}
+            </Button>
+            <Button
+              intent="primary"
+              size="md"
+              onClick={onApprove}
+              disabled={approving || rejecting}
+            >
+              {approving ? "처리 중..." : "승인"}
+            </Button>
+          </>
         }
       />
     </AdminModal>
@@ -177,6 +196,38 @@ export default function StudentsRequestsPage() {
     },
   });
 
+  const rejectMutation = useMutation({
+    mutationFn: (id: number) => rejectRegistrationRequest(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      setDetailOpen(false);
+      setDetailRequest(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      feedback.success("거절되었습니다.");
+    },
+    onError: (e: Error) => {
+      feedback.error(e.message || "거절 처리에 실패했습니다.");
+    },
+  });
+
+  const bulkRejectMutation = useMutation({
+    mutationFn: (ids: number[]) => bulkRejectRegistrationRequests(ids),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+      setSelectedIds(new Set());
+      if (res.rejected > 0) feedback.success(`${res.rejected}건 거절되었습니다.`);
+    },
+    onError: (e: Error) => {
+      feedback.error(e.message || "일괄 거절에 실패했습니다.");
+    },
+  });
+
   const updateAutoApproveM = useMutation({
     mutationFn: (on: boolean) => updateRegistrationRequestSettings({ auto_approve: on }),
     onSuccess: (res) => {
@@ -220,6 +271,12 @@ export default function StudentsRequestsPage() {
     bulkApproveMutation.mutate(selectedList.map((r) => r.id));
   };
 
+  const handleBulkReject = () => {
+    if (selectedList.length === 0) return;
+    if (!window.confirm(`선택한 ${selectedList.length}건을 거절하시겠습니까?`)) return;
+    bulkRejectMutation.mutate(selectedList.map((r) => r.id));
+  };
+
   if (isLoading) {
     return (
       <div className="students-requests-page" style={{ padding: "var(--space-6)" }}>
@@ -254,19 +311,47 @@ export default function StudentsRequestsPage() {
                   {autoApproved ? "활성화됨. 새 가입 신청이 즉시 승인됩니다." : "비활성화됨. 선생님이 직접 승인해야 합니다."}
                 </span>
               </label>
-              {selectedList.length > 0 && (
-                <Button
-                  intent="primary"
-                  size="md"
-                  onClick={handleBulkApprove}
-                  disabled={bulkApproveMutation.isPending}
-                >
-                  {bulkApproveMutation.isPending ? "처리 중..." : `선택 승인 (${selectedList.length}건)`}
-                </Button>
-              )}
             </div>
           </div>
         </section>
+
+        {/* 선택 툴바 — 학생 홈 탭과 동일 UX (선택 시에만 표시) */}
+        {pendingList.length > 0 && selectedIds.size > 0 && (
+          <div className="students-requests-toolbar">
+            <span
+              className="students-requests-toolbar__count"
+              style={{ color: "var(--color-primary)" }}
+            >
+              {selectedIds.size}건 선택됨
+            </span>
+            <span className="students-requests-toolbar__sep" aria-hidden>|</span>
+            <Button
+              intent="secondary"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+              disabled={selectedIds.size === 0}
+            >
+              선택 해제
+            </Button>
+            <span className="students-requests-toolbar__sep" aria-hidden>|</span>
+            <Button
+              intent="primary"
+              size="sm"
+              disabled={bulkApproveMutation.isPending}
+              onClick={handleBulkApprove}
+            >
+              {bulkApproveMutation.isPending ? "승인 중…" : "선택 승인"}
+            </Button>
+            <Button
+              intent="danger"
+              size="sm"
+              disabled={bulkRejectMutation.isPending}
+              onClick={handleBulkReject}
+            >
+              {bulkRejectMutation.isPending ? "거절 중…" : "선택 거절"}
+            </Button>
+          </div>
+        )}
 
         {pendingList.length === 0 ? (
           <div className="students-requests-section__body" style={{ paddingTop: "var(--space-8)" }}>
@@ -288,6 +373,12 @@ export default function StudentsRequestsPage() {
               </Checkbox>
             </div>
 
+            <div className="students-requests-list-header">
+              <span className="students-requests-list-header__name">이름</span>
+              <span className="students-requests-list-header__phone">학부모 전화</span>
+              <span className="students-requests-list-header__phone">본인 전화</span>
+            </div>
+
             <ul className="students-requests-section-list">
               {pendingList.map((r) => (
                 <li key={r.id} className="students-requests-section-item">
@@ -304,20 +395,33 @@ export default function StudentsRequestsPage() {
                         onChange={(e) => toggleOne(r.id, e.target.checked)}
                       />
                     </div>
-                    <div className="students-requests-section-item__info">
+                    <div className="students-requests-section-item__cells">
                       <span className="students-requests-section-item__name">{r.name}</span>
-                      <span className="students-requests-section-item__phone">{displayPhone(r)}</span>
+                      <span className="students-requests-section-item__phone">{parentPhone(r)}</span>
+                      <span className="students-requests-section-item__phone">{studentPhone(r)}</span>
                     </div>
-                    <div className="students-requests-section-item__action">
+                    <div className="students-requests-section-item__actions">
                       <Button
                         size="sm"
                         intent="primary"
+                        disabled={approveMutation.isPending && approveMutation.variables === r.id}
                         onClick={(e) => {
                           e.stopPropagation();
-                          openDetail(r);
+                          approveMutation.mutate(r.id);
                         }}
                       >
-                        상세
+                        {approveMutation.isPending && approveMutation.variables === r.id ? "처리 중…" : "승인"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        intent="danger"
+                        disabled={rejectMutation.isPending && rejectMutation.variables === r.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          rejectMutation.mutate(r.id);
+                        }}
+                      >
+                        {rejectMutation.isPending && rejectMutation.variables === r.id ? "처리 중…" : "거절"}
                       </Button>
                     </div>
                   </div>
@@ -333,7 +437,9 @@ export default function StudentsRequestsPage() {
         open={detailOpen}
         onClose={() => { setDetailOpen(false); setDetailRequest(null); }}
         onApprove={() => detailRequest && approveMutation.mutate(detailRequest.id)}
+        onReject={() => detailRequest && rejectMutation.mutate(detailRequest.id)}
         approving={approveMutation.isPending && detailRequest != null && approveMutation.variables === detailRequest.id}
+        rejecting={rejectMutation.isPending && detailRequest != null && rejectMutation.variables === detailRequest.id}
       />
     </div>
   );
