@@ -316,127 +316,195 @@ export default function EnhancedCommonLoginPage() {
         <div className={styles.overlay} onClick={closeSignupModal}>
           <div className={styles.overlayCard} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.overlayTitle}>학생 회원가입</h2>
-            <p style={{ fontSize: "0.875rem", color: "var(--auth-text-muted)", marginBottom: "1rem" }}>
+            <p className={styles.overlaySubtitle}>
               필수 정보를 입력하시면 선생님 승인 후 로그인할 수 있습니다.
             </p>
             {signupSuccess ? (
               <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>신청이 완료되었습니다. 승인 후 로그인해 주세요.</p>
             ) : (
               <form onSubmit={onSubmitSignup}>
-                <input
-                  className={`${styles.input} ${styles.inputRequired}`}
-                  placeholder="이름 *"
-                  value={signupForm.name}
-                  onChange={(e) => setSignupForm((f) => ({ ...f, name: e.target.value }))}
-                />
-                <input
-                  className={`${styles.input} ${styles.inputRequired}`}
-                  placeholder="아이디 (로그인용, 선택)"
-                  value={signupForm.username}
-                  onChange={(e) => setSignupForm((f) => ({ ...f, username: e.target.value }))}
-                  autoComplete="username"
-                />
-                <input
-                  className={`${styles.input} ${styles.inputRequired}`}
-                  type="password"
-                  placeholder="비밀번호 (4자 이상) *"
-                  value={signupForm.initialPassword}
-                  onChange={(e) => setSignupForm((f) => ({ ...f, initialPassword: e.target.value }))}
-                />
-                <PhoneInput010Blocks
-                  value={signupForm.parentPhone}
-                  onChange={(v) => setSignupForm((f) => ({ ...f, parentPhone: v }))}
-                  className={styles.phoneBlocksWrap}
-                  inputClassName={`${styles.input} ${styles.inputRequired}`}
-                  data-invalid={signupForm.parentPhone.replace(/\D/g, "").length !== 11 && signupForm.parentPhone.length > 0}
-                  aria-label="학부모 전화번호"
-                />
-                <PhoneInput010Blocks
-                  value={signupForm.phone}
-                  onChange={(v) => setSignupForm((f) => ({ ...f, phone: v }))}
-                  className={styles.phoneBlocksWrap}
-                  inputClassName={`${styles.input} ${styles.inputRequired}`}
-                  aria-label="학생 전화번호"
-                />
-                <div className={styles.signupSchoolChoice}>
-                  <button
-                    type="button"
-                    className={`${styles.signupSchoolBtn} ${signupForm.schoolType === "HIGH" ? styles.isSelected : ""}`}
-                    aria-pressed={signupForm.schoolType === "HIGH"}
-                    onClick={() => setSignupForm((f) => ({ ...f, schoolType: "HIGH" }))}
-                  >
-                    고등학교
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.signupSchoolBtn} ${signupForm.schoolType === "MIDDLE" ? styles.isSelected : ""}`}
-                    aria-pressed={signupForm.schoolType === "MIDDLE"}
-                    onClick={() => setSignupForm((f) => ({ ...f, schoolType: "MIDDLE" }))}
-                  >
-                    중학교
-                  </button>
-                </div>
-                {signupForm.schoolType === "HIGH" ? (
-                  <>
+                {/* 기본 정보 */}
+                <section className={styles.signupSection} aria-labelledby="signup-basic">
+                  <h3 id="signup-basic" className={styles.signupSectionTitle}>기본 정보</h3>
+                  <div className={styles.signupInputRow}>
+                    <label htmlFor="signup-name" className={styles.signupInputLabel}>
+                      이름 <span className={styles.signupRequired}>*</span>
+                    </label>
                     <input
-                      className={styles.input}
-                      placeholder="고등학교명 (선택)"
-                      value={signupForm.highSchool}
-                      onChange={(e) => setSignupForm((f) => ({ ...f, highSchool: e.target.value }))}
+                      id="signup-name"
+                      className={styles.signupInput}
+                      placeholder="홍길동"
+                      value={signupForm.name}
+                      onChange={(e) => setSignupForm((f) => ({ ...f, name: e.target.value }))}
+                      aria-required
                     />
+                  </div>
+                  <div className={styles.signupInputRow}>
+                    <label htmlFor="signup-username" className={styles.signupInputLabel}>
+                      아이디 (희망 로그인 ID)
+                    </label>
                     <input
-                      className={styles.input}
-                      placeholder="학년 (선택)"
-                      value={signupForm.grade}
-                      onChange={(e) => setSignupForm((f) => ({ ...f, grade: e.target.value }))}
+                      id="signup-username"
+                      className={styles.signupInput}
+                      placeholder="영문·숫자 조합"
+                      value={signupForm.username}
+                      onChange={(e) => setSignupForm((f) => ({ ...f, username: e.target.value }))}
+                      autoComplete="username"
                     />
+                  </div>
+                  <div className={styles.signupInputRow}>
+                    <label htmlFor="signup-pw" className={styles.signupInputLabel}>
+                      비밀번호 <span className={styles.signupRequired}>*</span>
+                    </label>
                     <input
-                      className={styles.input}
-                      placeholder="반 (선택)"
-                      value={signupForm.highSchoolClass}
-                      onChange={(e) => setSignupForm((f) => ({ ...f, highSchoolClass: e.target.value }))}
+                      id="signup-pw"
+                      className={styles.signupInput}
+                      type="password"
+                      placeholder="4자리 이상"
+                      value={signupForm.initialPassword}
+                      onChange={(e) => setSignupForm((f) => ({ ...f, initialPassword: e.target.value }))}
+                      aria-required
                     />
-                    <input
-                      className={styles.input}
-                      placeholder="계열/과 (선택)"
-                      value={signupForm.major}
-                      onChange={(e) => setSignupForm((f) => ({ ...f, major: e.target.value }))}
+                    <span className={styles.signupInputLabel} style={{ marginTop: 4, marginBottom: 0 }}>숫자 또는 영문 사용 가능</span>
+                  </div>
+                </section>
+
+                {/* 연락처 */}
+                <section className={styles.signupSection} aria-labelledby="signup-contact">
+                  <h3 id="signup-contact" className={styles.signupSectionTitle}>연락처</h3>
+                  <div className={styles.signupPhoneRow}>
+                    <span className={styles.signupInputLabel}>휴대전화</span>
+                    <PhoneInput010Blocks
+                      value={signupForm.phone}
+                      onChange={(v) => setSignupForm((f) => ({ ...f, phone: v }))}
+                      blockClassName={styles.signupPhoneBlock}
+                      inputClassName={styles.signupPhoneBlockInput}
+                      aria-label="휴대전화"
                     />
+                  </div>
+                  <div className={styles.signupPhoneRow}>
+                    <span className={styles.signupInputLabel}>학부모 연락처</span>
+                    <PhoneInput010Blocks
+                      value={signupForm.parentPhone}
+                      onChange={(v) => setSignupForm((f) => ({ ...f, parentPhone: v }))}
+                      blockClassName={styles.signupPhoneBlock}
+                      inputClassName={styles.signupPhoneBlockInput}
+                      data-invalid={signupForm.parentPhone.replace(/\D/g, "").length !== 11 && signupForm.parentPhone.length > 0}
+                      aria-label="학부모 연락처"
+                    />
+                  </div>
+                </section>
+
+                {/* 학교 정보 */}
+                <section className={styles.signupSection} aria-labelledby="signup-school">
+                  <h3 id="signup-school" className={styles.signupSectionTitle}>학교 정보</h3>
+                  <div className={styles.signupSegmentWrap} role="group" aria-label="학교 유형">
+                    <button
+                      type="button"
+                      className={`${styles.signupSegmentBtn} ${signupForm.schoolType === "HIGH" ? styles.isSelected : ""}`}
+                      aria-pressed={signupForm.schoolType === "HIGH"}
+                      onClick={() => setSignupForm((f) => ({ ...f, schoolType: "HIGH" }))}
+                    >
+                      고등학교
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.signupSegmentBtn} ${signupForm.schoolType === "MIDDLE" ? styles.isSelected : ""}`}
+                      aria-pressed={signupForm.schoolType === "MIDDLE"}
+                      onClick={() => setSignupForm((f) => ({ ...f, schoolType: "MIDDLE" }))}
+                    >
+                      중학교
+                    </button>
+                  </div>
+                  {signupForm.schoolType === "HIGH" ? (
+                    <div className={styles.signupGrid2}>
+                      <div className={styles.signupGrid2Full}>
+                        <label htmlFor="signup-high" className={styles.signupInputLabel}>고등학교명</label>
+                        <input
+                          id="signup-high"
+                          className={styles.signupInput}
+                          placeholder="선택"
+                          value={signupForm.highSchool}
+                          onChange={(e) => setSignupForm((f) => ({ ...f, highSchool: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="signup-grade" className={styles.signupInputLabel}>학년</label>
+                        <input
+                          id="signup-grade"
+                          className={styles.signupInput}
+                          placeholder="선택"
+                          value={signupForm.grade}
+                          onChange={(e) => setSignupForm((f) => ({ ...f, grade: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="signup-class" className={styles.signupInputLabel}>반</label>
+                        <input
+                          id="signup-class"
+                          className={styles.signupInput}
+                          placeholder="선택"
+                          value={signupForm.highSchoolClass}
+                          onChange={(e) => setSignupForm((f) => ({ ...f, highSchoolClass: e.target.value }))}
+                        />
+                      </div>
+                      <div className={styles.signupGrid2Full}>
+                        <label htmlFor="signup-major" className={styles.signupInputLabel}>계열</label>
+                        <input
+                          id="signup-major"
+                          className={styles.signupInput}
+                          placeholder="선택"
+                          value={signupForm.major}
+                          onChange={(e) => setSignupForm((f) => ({ ...f, major: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.signupInputRow}>
+                      <label htmlFor="signup-middle" className={styles.signupInputLabel}>중학교명</label>
+                      <input
+                        id="signup-middle"
+                        className={styles.signupInput}
+                        placeholder="선택"
+                        value={signupForm.middleSchool}
+                        onChange={(e) => setSignupForm((f) => ({ ...f, middleSchool: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </section>
+
+                {/* 추가 정보 */}
+                <section className={styles.signupSection} aria-labelledby="signup-extra">
+                  <h3 id="signup-extra" className={styles.signupSectionTitle}>추가 정보</h3>
+                  <div className={styles.signupInputRow}>
+                    <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교</label>
                     <input
-                      className={styles.input}
-                      placeholder="출신중학교 (선택)"
+                      id="signup-origin"
+                      className={styles.signupInput}
+                      placeholder="선택"
                       value={signupForm.originMiddleSchool}
                       onChange={(e) => setSignupForm((f) => ({ ...f, originMiddleSchool: e.target.value }))}
                     />
-                  </>
-                ) : (
-                  <input
-                    className={styles.input}
-                    placeholder="중학교명 (선택)"
-                    value={signupForm.middleSchool}
-                    onChange={(e) => setSignupForm((f) => ({ ...f, middleSchool: e.target.value }))}
-                  />
-                )}
-                <input
-                  className={styles.input}
-                  placeholder="주소 (선택)"
-                  value={signupForm.address}
-                  onChange={(e) => setSignupForm((f) => ({ ...f, address: e.target.value }))}
-                />
-                <textarea
-                  className={styles.input}
-                  placeholder="메모 (선택)"
-                  value={signupForm.memo}
-                  onChange={(e) => setSignupForm((f) => ({ ...f, memo: e.target.value }))}
-                  rows={2}
-                  style={{ resize: "vertical", minHeight: "2.5rem" }}
-                />
+                  </div>
+                  <div className={styles.signupInputRow}>
+                    <label htmlFor="signup-address" className={styles.signupInputLabel}>주소</label>
+                    <input
+                      id="signup-address"
+                      className={styles.signupInput}
+                      placeholder="선택"
+                      value={signupForm.address}
+                      onChange={(e) => setSignupForm((f) => ({ ...f, address: e.target.value }))}
+                    />
+                  </div>
+                </section>
+
+                <div className={styles.signupSectionDivider} aria-hidden />
                 {signupError && <div className={styles.error}>{signupError}</div>}
-                <div className={styles.overlayActions}>
-                  <button type="button" className={styles.btnSecondary} onClick={closeSignupModal}>
+                <div className={styles.signupActions}>
+                  <button type="button" className={styles.signupBtnCancel} onClick={closeSignupModal}>
                     취소
                   </button>
-                  <button type="submit" className={styles.btnPrimary} disabled={signupPending}>
+                  <button type="submit" className={styles.signupBtnSubmit} disabled={signupPending}>
                     {signupPending ? "제출 중..." : "가입 신청"}
                   </button>
                 </div>
