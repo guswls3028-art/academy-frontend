@@ -20,6 +20,10 @@ export interface TenantMessagingInfo {
   is_active: boolean;
   /** 건당 발송 단가 (학원별 책정) */
   base_price: string;
+  /** 문자(SMS) 발송 허용 여부 (OWNER_TENANT_ID 전용 정책). API 응답 기준만 사용 */
+  sms_allowed?: boolean;
+  /** 알림톡 채널 출처: 시스템 기본 채널 vs 학원 자체 연동 채널 */
+  channel_source?: "system_default" | "tenant_override";
 }
 
 export interface NotificationLogItem {

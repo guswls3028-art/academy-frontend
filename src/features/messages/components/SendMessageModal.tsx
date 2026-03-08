@@ -13,6 +13,7 @@ import {
   type MessageMode,
   type SendToType,
 } from "../api/messages.api";
+import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
 import type { MessageTemplateCategory } from "../api/messages.api";
 
@@ -46,6 +47,8 @@ export default function SendMessageModal({
   const [messageMode, setMessageMode] = useState<MessageMode>("sms");
   const [sending, setSending] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
+  const { data: messagingInfo } = useMessagingInfo();
+  const smsAllowed = messagingInfo?.sms_allowed ?? true;
 
   const studentIds = initialStudentIds;
   const hasRecipients = studentIds.length > 0;
@@ -61,6 +64,12 @@ export default function SendMessageModal({
       setMessageMode("sms");
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open && !smsAllowed && (messageMode === "sms" || messageMode === "both")) {
+      setMessageMode("alimtalk");
+    }
+  }, [open, smsAllowed, messageMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -160,12 +169,13 @@ export default function SendMessageModal({
           <section>
             <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">발송 유형</div>
             <div className="flex flex-wrap gap-4">
-              <label className="inline-flex items-center gap-2 cursor-pointer">
+              <label className={`inline-flex items-center gap-2 ${smsAllowed ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
                 <input
                   type="radio"
                   name="messageMode"
                   checked={messageMode === "sms"}
                   onChange={() => setMessageMode("sms")}
+                  disabled={!smsAllowed}
                 />
                 <span>SMS만</span>
               </label>
@@ -178,17 +188,23 @@ export default function SendMessageModal({
                 />
                 <span>알림톡만</span>
               </label>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
+              <label className={`inline-flex items-center gap-2 ${smsAllowed ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
                 <input
                   type="radio"
                   name="messageMode"
                   checked={messageMode === "both"}
                   onChange={() => setMessageMode("both")}
+                  disabled={!smsAllowed}
                 />
                 <span>알림톡→SMS 폴백</span>
               </label>
             </div>
-            {messageMode !== "sms" && (
+            {!smsAllowed && (
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                문자(SMS)는 내 테넌트 전용 정책으로 이 학원에서는 사용할 수 없습니다.
+              </p>
+            )}
+            {messageMode !== "sms" && smsAllowed && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
                 알림톡/폴백은 검수 승인된 템플릿이 필요합니다. 아래에서 템플릿을 선택하세요.
               </p>

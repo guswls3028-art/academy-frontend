@@ -13,6 +13,7 @@ import {
   AUTO_SEND_TRIGGER_LABELS,
   type MessageTemplateItem,
 } from "../api/messages.api";
+import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { Button, Panel } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
@@ -23,13 +24,19 @@ function TriggerRow({
   templates,
   onUpdate,
   saving,
+  smsAllowed,
 }: {
   config: AutoSendConfigItem;
   templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>) => void;
   saving: boolean;
+  smsAllowed: boolean;
 }) {
   const approvedTemplates = templates.filter((t) => t.solapi_status === "APPROVED");
+  const effectiveMode =
+    !smsAllowed && (config.message_mode === "sms" || config.message_mode === "both")
+      ? "alimtalk"
+      : config.message_mode;
 
   return (
     <div
@@ -73,16 +80,16 @@ function TriggerRow({
       </select>
       <select
         className="ds-input text-sm"
-        value={config.message_mode}
+        value={effectiveMode}
         onChange={(e) =>
           onUpdate({ ...config, message_mode: e.target.value as AutoSendConfigItem["message_mode"] })
         }
         disabled={saving}
         style={{ minWidth: 140 }}
       >
-        <option value="sms">SMS만</option>
+        <option value="sms" disabled={!smsAllowed}>SMS만</option>
         <option value="alimtalk">알림톡만</option>
-        <option value="both">알림톡→SMS 폴백</option>
+        <option value="both" disabled={!smsAllowed}>알림톡→SMS 폴백</option>
       </select>
       {config.template_name && (
         <span className="text-xs text-[var(--color-text-muted)] truncate max-w-[120px]">

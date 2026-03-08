@@ -19,6 +19,8 @@ const MOCK_INFO: TenantMessagingInfo = {
   credit_balance: "0",
   is_active: false,
   base_price: "8.5",
+  sms_allowed: false,
+  channel_source: "system_default",
 };
 
 export function useMessagingInfo() {

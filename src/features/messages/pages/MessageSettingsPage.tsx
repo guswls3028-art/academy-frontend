@@ -26,6 +26,28 @@ export default function MessageSettingsPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* 메시징 상태 요약 (API 정책 응답 기준) */}
+      <Panel variant="primary" title="메시징 상태" description="현재 이 학원의 알림톡·문자 발송 정책 상태입니다.">
+        <div className="flex flex-col gap-3 text-sm">
+          <div>
+            <span className="text-[var(--color-text-muted)]">알림톡 발신 채널: </span>
+            <span className="font-medium text-[var(--color-text-primary)]">
+              {info?.channel_source === "tenant_override" ? "자체 채널 사용 중" : "기본 채널 사용 중"}
+            </span>
+          </div>
+          <div>
+            <span className="text-[var(--color-text-muted)]">문자(SMS) 사용: </span>
+            {info?.sms_allowed ? (
+              <span className="font-medium text-[var(--color-text-primary)]">사용 가능</span>
+            ) : (
+              <span className="text-[var(--color-text-secondary)]">
+                문자(SMS)는 내 테넌트 전용 정책으로 현재 이 학원에서는 사용할 수 없습니다.
+              </span>
+            )}
+          </div>
+        </div>
+      </Panel>
+
       {/* 카카오 알림톡 연동 */}
       <Panel variant="primary" title="카카오 알림톡 연동" description="학원별 PFID를 설정하면 알림톡 발송이 가능합니다.">
         <div className="flex flex-col gap-4">
