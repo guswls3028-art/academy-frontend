@@ -28,15 +28,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   // 정적 파일은 그대로 ASSETS에 위임
   if (STATIC_EXT.test(pathname)) {
     const res = await context.env.ASSETS.fetch(context.request);
-    // 404인데 HTML이 오면 브라우저가 "expected JS but got HTML" MIME 오류를 냄 → 빈 본문 + 올바른 Content-Type으로 404 반환
-    if (res.status === 404) {
-      const ct = res.headers.get("Content-Type") ?? "";
-      if (ct.includes("text/html")) {
-        return new Response("/* 404 Not Found */", {
-          status: 404,
-          headers: { "Content-Type": contentTypeForPath(pathname) },
-        });
-      }
+    const ct = res.headers.get("Content-Type") ?? "";
+    // 404이거나 200인데 HTML(SPA 폴백)이 오면 → MIME 오류 방지로 404 + 올바른 Content-Type 반환
+    if (ct.includes("text/html")) {
+      return new Response("/* 404 Not Found */", {
+        status: 404,
+        headers: { "Content-Type": contentTypeForPath(pathname) },
+      });
     }
     return res;
   }
