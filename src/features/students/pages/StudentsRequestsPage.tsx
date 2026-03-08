@@ -38,6 +38,7 @@ export default function StudentsRequestsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["students", "registration_requests"] });
       qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
       feedback.success("승인되었습니다. 학생이 등록되었습니다.");
     },
     onError: (e: Error) => {

@@ -10,6 +10,7 @@ import DashboardPage from "@/features/dashboard/pages/DashboardPage";
 /* ================= Students ================= */
 import StudentsLayout from "@/features/students/StudentsLayout";
 import StudentsHomePage from "@/features/students/pages/StudentsHomePage";
+import StudentsRequestsPage from "@/features/students/pages/StudentsRequestsPage";
 import StudentsDetailOverlay from "@/features/students/overlays/StudentsDetailOverlay";
 
 /* ================= Lectures ================= */
@@ -96,6 +97,7 @@ export default function AdminRouter() {
         }>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={<StudentsHomePage />} />
+          <Route path="requests" element={<StudentsRequestsPage />} />
           <Route path="deleted" element={<StudentsHomePage />} />
         </Route>
 

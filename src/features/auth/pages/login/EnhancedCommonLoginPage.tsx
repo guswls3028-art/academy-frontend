@@ -1,6 +1,6 @@
 // PATH: src/features/auth/pages/login/EnhancedCommonLoginPage.tsx
 // 테넌트 1, 3, 4, 9999 전용 — 로고 크기, 타이포그래피, 클릭 시 입력폼 (2번 제외)
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
@@ -142,27 +142,6 @@ export default function EnhancedCommonLoginPage() {
         memo: signupForm.memo.trim() || undefined,
       });
       setSignupSuccess(true);
-      setTimeout(() => {
-        setShowSignupModal(false);
-        setSignupSuccess(false);
-        setSignupForm({
-          name: "",
-          username: "",
-          initialPassword: "",
-          parentPhone: "",
-          phone: "",
-          schoolType: "HIGH",
-          highSchool: "",
-          middleSchool: "",
-          highSchoolClass: "",
-          major: "",
-          grade: "",
-          gender: "",
-          address: "",
-          originMiddleSchool: "",
-          memo: "",
-        });
-      }, 1500);
     } catch (err: unknown) {
       const res = err && typeof err === "object" && "response" in err
         ? (err as { response?: { data?: Record<string, unknown>; status?: number } }).response
@@ -265,6 +244,19 @@ export default function EnhancedCommonLoginPage() {
     }
   }
 
+  // 회원가입 모달: ESC로만 닫기 (외부 클릭으로는 닫지 않음)
+  useEffect(() => {
+    if (!showSignupModal) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeSignupModal();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showSignupModal, signupPending]);
+
   function closePwFindModal() {
     if (!pwFindPending) {
       setShowPwFindModal(false);
@@ -344,16 +336,47 @@ export default function EnhancedCommonLoginPage() {
         )}
       </div>
 
-      {/* 회원가입 모달 */}
+      {/* 회원가입 모달 — 외부 클릭으로 닫히지 않음, ESC 또는 취소/확인 버튼으로만 닫기 */}
       {showSignupModal && (
-        <div className={styles.overlay} onClick={closeSignupModal}>
+        <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="signup-modal-title">
           <div className={styles.overlayCard} onClick={(e) => e.stopPropagation()}>
-            <h2 className={styles.overlayTitle}>학생 회원가입</h2>
+            <h2 id="signup-modal-title" className={styles.overlayTitle}>학생 회원가입</h2>
             <p className={styles.overlaySubtitle}>
               필수 정보를 입력하시면 선생님 승인 후 로그인할 수 있습니다.
             </p>
             {signupSuccess ? (
-              <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>신청이 완료되었습니다. 승인 후 로그인해 주세요.</p>
+              <>
+                <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>신청이 완료되었습니다. 승인 후 로그인해 주세요.</p>
+                <div className={styles.signupActions} style={{ marginTop: 20 }}>
+                  <button
+                    type="button"
+                    className={styles.signupBtnSubmit}
+                    onClick={() => {
+                      setShowSignupModal(false);
+                      setSignupSuccess(false);
+                      setSignupForm({
+                        name: "",
+                        username: "",
+                        initialPassword: "",
+                        parentPhone: "",
+                        phone: "",
+                        schoolType: "HIGH",
+                        highSchool: "",
+                        middleSchool: "",
+                        highSchoolClass: "",
+                        major: "",
+                        grade: "",
+                        gender: "",
+                        address: "",
+                        originMiddleSchool: "",
+                        memo: "",
+                      });
+                    }}
+                  >
+                    확인
+                  </button>
+                </div>
+              </>
             ) : (
               <form onSubmit={onSubmitSignup}>
                 {/* 기본 정보 */}
