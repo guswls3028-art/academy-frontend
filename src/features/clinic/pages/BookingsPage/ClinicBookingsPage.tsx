@@ -1,13 +1,16 @@
 // PATH: src/features/clinic/pages/BookingsPage/ClinicBookingsPage.tsx
-// 예약대상자 — 2열(대상자 | 클리닉 생성)
+// 예약대상자 — 예약 신청(승인 대기) + 2열(대상자 | 클리닉 생성)
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import dayjs from "dayjs";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClinicTargetTable from "../../components/bookings/ClinicTargetTable";
 import ClinicCreatePanel from "../../components/ClinicCreatePanel";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
+import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
+import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 
 function useQueryParam(name: string) {
   const loc = useLocation();
@@ -18,6 +21,7 @@ function useQueryParam(name: string) {
 }
 
 export default function ClinicBookingsPage() {
+  const qc = useQueryClient();
   const focus = useQueryParam("focus");
   const today = dayjs().format("YYYY-MM-DD");
   const [selected, setSelected] = useState<number[]>([]);
@@ -34,6 +38,18 @@ export default function ClinicBookingsPage() {
   const weekP = useClinicParticipants({
     session_date_from: wk.from,
     session_date_to: wk.to,
+  });
+  const pendingQ = useClinicParticipants({ status: "pending" });
+
+  const pendingList: ClinicParticipant[] = pendingQ.listQ.data ?? [];
+
+  const patchStatusM = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: "booked" | "rejected" }) =>
+      patchClinicParticipantStatus(id, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clinic-participants"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
+    },
   });
 
   const bookedEnrollmentIds = useMemo(() => {
