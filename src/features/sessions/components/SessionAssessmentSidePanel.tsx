@@ -97,6 +97,9 @@ export default function SessionAssessmentSidePanel({
   const invalidateExams = () =>
     qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
 
+  const invalidateSessionScores = () =>
+    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+
   const invalidateHomeworks = () =>
     qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
 
@@ -194,6 +197,7 @@ export default function SessionAssessmentSidePanel({
         lectureId={lectureId}
         onCreated={(id) => {
           invalidateExams();
+          invalidateSessionScores();
           feedback.success("시험이 생성되었습니다.");
           onSelectExam(id);
         }}
