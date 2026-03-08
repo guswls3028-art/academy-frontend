@@ -420,11 +420,14 @@ function QuestionFormPage({
       }
       hadFilesOnSubmitRef.current = files.length > 0;
       const me = qc.getQueryData<{ id: number }>(["student", "me"]) ?? profile;
+      if (me?.id == null) {
+        throw new Error("로그인 정보를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+      }
       return createPost({
         block_type: effectiveBlockTypeId,
         title: title.trim(),
         content: content.trim(),
-        created_by: me?.id ?? undefined,
+        created_by: me.id,
         node_ids: [],
       });
     },
@@ -442,7 +445,8 @@ function QuestionFormPage({
     !blockTypesLoading &&
     title.trim().length > 0 &&
     content.trim().length > 0 &&
-    effectiveBlockTypeId != null;
+    effectiveBlockTypeId != null &&
+    (profile != null || qc.getQueryData<{ id: number }>(["student", "me"]) != null);
 
   const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const chosen = Array.from(e.target.files || []);
@@ -623,9 +627,11 @@ function QuestionFormPage({
               ? "보내는 중…"
               : !effectiveBlockTypeId
                 ? "질문 유형을 불러올 수 없습니다."
-                : !title.trim() || !content.trim()
-                  ? "제목과 내용을 입력해 주세요."
-                  : undefined
+                : profile == null && qc.getQueryData(["student", "me"]) == null
+                  ? "로그인 정보를 불러오는 중입니다."
+                  : !title.trim() || !content.trim()
+                    ? "제목과 내용을 입력해 주세요."
+                    : undefined
           }
           onClick={handleSubmit}
           onPointerDown={(e) => {
