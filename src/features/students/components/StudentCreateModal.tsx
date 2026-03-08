@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
 import {
-  formatPhoneForInput,
-  parsePhoneInput,
+  formatPhoneWithFixed010,
+  parsePhoneInputFixed010,
 } from "@/shared/utils/phoneInput";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents } from "../api/students";
@@ -120,7 +120,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   }
 
   function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
-    const raw = parsePhoneInput(value);
+    const raw = parsePhoneInputFixed010(value);
     setForm((p) => ({ ...p, [name]: raw }));
   }
 
@@ -388,8 +388,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               disabled={busy}
             />
             <input
-              placeholder="학부모 전화 (010-XXXX-XXXX)"
-              value={formatPhoneForInput(form.parentPhone ?? "")}
+              placeholder="학부모 전화 (010 고정, 뒤 8자리)"
+              value={formatPhoneWithFixed010(form.parentPhone ?? "")}
               onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
               className="ds-input"
               data-required="true"
