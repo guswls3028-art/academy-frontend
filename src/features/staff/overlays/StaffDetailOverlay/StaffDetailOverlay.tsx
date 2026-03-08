@@ -82,6 +82,7 @@ function staffAvatarRole(
 export default function StaffDetailOverlay() {
   const { staffId } = useParams();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const sid = Number(staffId);
   const [tab, setTab] = useState("summary");
   const [editOpen, setEditOpen] = useState(false);
@@ -207,7 +208,12 @@ export default function StaffDetailOverlay() {
                     {staff.is_active ? "활성" : "비활성"}
                   </button>
                   {canManage && (
-                    <Button type="button" intent="primary" size="sm">
+                    <Button
+                      type="button"
+                      intent="primary"
+                      size="sm"
+                      onClick={() => setEditOpen(true)}
+                    >
                       수정
                     </Button>
                   )}
@@ -406,6 +412,21 @@ export default function StaffDetailOverlay() {
           </div>
         </div>
       </div>
+
+      {editOpen &&
+        createPortal(
+          <StaffEditModal
+            open={true}
+            staff={staff}
+            onClose={() => setEditOpen(false)}
+            onSuccess={() => {
+              setEditOpen(false);
+              qc.invalidateQueries({ queryKey: ["staff", sid] });
+              qc.invalidateQueries({ queryKey: ["staffs"] });
+            }}
+          />,
+          document.body
+        )}
     </>
   );
 }
