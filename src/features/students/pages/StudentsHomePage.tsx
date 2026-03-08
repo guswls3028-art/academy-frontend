@@ -21,6 +21,7 @@ import StudentFilterModal from "../components/StudentFilterModal";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 
 export default function StudentsHomePage() {
@@ -218,7 +219,8 @@ export default function StudentsHomePage() {
                 qc.invalidateQueries({ queryKey: ["students"] });
                 feedback.success(`${deleted}명 영구 삭제되었습니다.`);
               } catch (e: unknown) {
-                feedback.error(e instanceof Error ? e.message : "삭제 중 오류가 발생했습니다.");
+                const msg = getApiErrorMessage(e, "삭제 중 오류가 발생했습니다.");
+                feedback.error(msg);
               } finally {
                 setDeleting(false);
               }
