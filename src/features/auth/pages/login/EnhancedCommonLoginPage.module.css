@@ -312,6 +312,29 @@
 .signupInputRow {
   margin-bottom: 12px;
 }
+
+/* 이름 + 성별 한 줄 (학생생성 모달처럼) */
+.signupNameGenderRow {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+.signupNameGenderRow .signupInputRow {
+  margin-bottom: 0;
+}
+.signupNameGenderRow .signupInputRow:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.signupNameGenderRow .signupInputRow:last-child {
+  flex: 0 0 auto;
+  width: 120px;
+}
+.signupNameGenderRow .signupSegmentWrap {
+  margin-bottom: 0;
+}
+
 .signupInputLabel {
   display: block;
   font-size: 12px;

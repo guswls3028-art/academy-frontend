@@ -514,32 +514,57 @@ export default function EnhancedCommonLoginPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className={styles.signupInputRow}>
-                      <label htmlFor="signup-middle" className={styles.signupInputLabel}>중학교명</label>
-                      <input
-                        id="signup-middle"
-                        className={styles.signupInput}
-                        placeholder="선택"
-                        value={signupForm.middleSchool}
-                        onChange={(e) => setSignupForm((f) => ({ ...f, middleSchool: e.target.value }))}
-                      />
+                    /* 중학교: 고등과 동일 레이아웃에서 계열·출신중학교만 제외 (중학교명, 학년, 반) */
+                    <div className={styles.signupGrid2}>
+                      <div className={styles.signupGrid2Full}>
+                        <label htmlFor="signup-middle" className={styles.signupInputLabel}>중학교명</label>
+                        <input
+                          id="signup-middle"
+                          className={styles.signupInput}
+                          placeholder="선택"
+                          value={signupForm.middleSchool}
+                          onChange={(e) => setSignupForm((f) => ({ ...f, middleSchool: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="signup-grade-middle" className={styles.signupInputLabel}>학년</label>
+                        <input
+                          id="signup-grade-middle"
+                          className={styles.signupInput}
+                          placeholder="선택"
+                          value={signupForm.grade}
+                          onChange={(e) => setSignupForm((f) => ({ ...f, grade: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="signup-class-middle" className={styles.signupInputLabel}>반</label>
+                        <input
+                          id="signup-class-middle"
+                          className={styles.signupInput}
+                          placeholder="선택"
+                          value={signupForm.highSchoolClass}
+                          onChange={(e) => setSignupForm((f) => ({ ...f, highSchoolClass: e.target.value }))}
+                        />
+                      </div>
                     </div>
                   )}
                 </section>
 
-                {/* 추가 정보 */}
+                {/* 추가 정보 — 고등일 때만 출신중학교 표시, 주소는 항상 */}
                 <section className={styles.signupSection} aria-labelledby="signup-extra">
                   <h3 id="signup-extra" className={styles.signupSectionTitle}>추가 정보</h3>
-                  <div className={styles.signupInputRow}>
-                    <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교</label>
-                    <input
-                      id="signup-origin"
-                      className={styles.signupInput}
-                      placeholder="선택"
-                      value={signupForm.originMiddleSchool}
-                      onChange={(e) => setSignupForm((f) => ({ ...f, originMiddleSchool: e.target.value }))}
-                    />
-                  </div>
+                  {signupForm.schoolType === "HIGH" && (
+                    <div className={styles.signupInputRow}>
+                      <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교</label>
+                      <input
+                        id="signup-origin"
+                        className={styles.signupInput}
+                        placeholder="선택"
+                        value={signupForm.originMiddleSchool}
+                        onChange={(e) => setSignupForm((f) => ({ ...f, originMiddleSchool: e.target.value }))}
+                      />
+                    </div>
+                  )}
                   <div className={styles.signupInputRow}>
                     <label htmlFor="signup-address" className={styles.signupInputLabel}>주소</label>
                     <input
