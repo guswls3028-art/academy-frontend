@@ -4,6 +4,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   fetchStaffDetail,
@@ -27,6 +28,7 @@ import StaffExpensesTab from "./StaffExpensesTab";
 import StaffPayrollHistoryTab from "./StaffPayrollHistoryTab";
 import StaffReportTab from "./StaffReportTab";
 import StaffSettingsTab from "./StaffSettingsTab";
+import StaffEditModal from "../../components/StaffEditModal";
 
 function StaffManagerToggle({
   staffId,
@@ -82,6 +84,7 @@ export default function StaffDetailOverlay() {
   const navigate = useNavigate();
   const sid = Number(staffId);
   const [tab, setTab] = useState("summary");
+  const [editOpen, setEditOpen] = useState(false);
   const onClose = () => navigate(-1);
 
   const { y, m, from, to } = getThisMonthRange();
