@@ -164,12 +164,11 @@ export default function EnhancedCommonLoginPage() {
         });
       }, 1500);
     } catch (err: unknown) {
-      const msg =
-        err && typeof err === "object" && "response" in err
-          ? (err as { response?: { data?: { detail?: string; error?: string } } }).response?.data?.detail ||
-            (err as { response?: { data?: { detail?: string; error?: string } } }).response?.data?.error
-          : null;
-      setSignupError(msg || (err instanceof Error ? err.message : "제출에 실패했습니다."));
+      const res = err && typeof err === "object" && "response" in err
+        ? (err as { response?: { data?: { detail?: string; error?: string } } }).response?.data
+        : null;
+      const msg = res?.error || res?.detail || (err instanceof Error ? err.message : "제출에 실패했습니다.");
+      setSignupError(msg);
     } finally {
       setSignupPending(false);
     }
