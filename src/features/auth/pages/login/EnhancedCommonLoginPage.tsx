@@ -109,6 +109,7 @@ export default function EnhancedCommonLoginPage() {
     e.preventDefault();
     if (signupPending) return;
     setSignupError("");
+    // 회원가입 시 모든 필드 필수 (계열 제외) — Limglish 등 운영 요구
     if (!signupForm.name.trim()) {
       setSignupError("이름을 입력해 주세요.");
       return;
@@ -122,6 +123,44 @@ export default function EnhancedCommonLoginPage() {
       setSignupError("학부모 전화번호를 010 뒤 8자리로 입력해 주세요.");
       return;
     }
+    const phone = signupForm.phone.replace(/\D/g, "");
+    if (phone.length !== 11 || !phone.startsWith("010")) {
+      setSignupError("휴대전화를 010 뒤 8자리로 입력해 주세요.");
+      return;
+    }
+    if (!signupForm.gender.trim()) {
+      setSignupError("성별을 선택해 주세요.");
+      return;
+    }
+    if (signupForm.schoolType === "HIGH") {
+      if (!signupForm.highSchool.trim()) {
+        setSignupError("고등학교명을 입력해 주세요.");
+        return;
+      }
+      if (!signupForm.originMiddleSchool.trim()) {
+        setSignupError("출신중학교를 입력해 주세요.");
+        return;
+      }
+    } else {
+      if (!signupForm.middleSchool.trim()) {
+        setSignupError("중학교명을 입력해 주세요.");
+        return;
+      }
+    }
+    if (!signupForm.highSchoolClass.trim()) {
+      setSignupError("반을 입력해 주세요.");
+      return;
+    }
+    const gradeNum = signupForm.grade.trim() ? Number(signupForm.grade) : NaN;
+    if (!signupForm.grade.trim() || isNaN(gradeNum) || gradeNum < 1 || gradeNum > 3) {
+      setSignupError("학년을 입력해 주세요. (1~3)");
+      return;
+    }
+    if (!signupForm.address.trim()) {
+      setSignupError("주소를 입력해 주세요.");
+      return;
+    }
+
     setSignupPending(true);
     try {
       await submitRegistrationRequest({
@@ -129,15 +168,15 @@ export default function EnhancedCommonLoginPage() {
         username: signupForm.username.trim() || undefined,
         initialPassword: signupForm.initialPassword,
         parentPhone: parentPhone,
-        phone: signupForm.phone.replace(/\D/g, "").length === 11 ? signupForm.phone.replace(/\D/g, "") : undefined,
+        phone,
         schoolType: signupForm.schoolType,
         highSchool: signupForm.highSchool.trim() || undefined,
         middleSchool: signupForm.middleSchool.trim() || undefined,
-        highSchoolClass: signupForm.highSchoolClass.trim() || undefined,
+        highSchoolClass: signupForm.highSchoolClass.trim(),
         major: signupForm.major.trim() || undefined,
-        grade: signupForm.grade ? Number(signupForm.grade) : undefined,
-        gender: signupForm.gender.trim() || undefined,
-        address: signupForm.address.trim() || undefined,
+        grade: gradeNum,
+        gender: signupForm.gender.trim(),
+        address: signupForm.address.trim(),
         originMiddleSchool: signupForm.originMiddleSchool.trim() || undefined,
         memo: signupForm.memo.trim() || undefined,
       });
@@ -397,7 +436,7 @@ export default function EnhancedCommonLoginPage() {
                       />
                     </div>
                     <div className={styles.signupInputRow}>
-                      <span className={styles.signupInputLabel}>성별</span>
+                      <span className={styles.signupInputLabel}>성별 <span className={styles.signupRequired}>*</span></span>
                       <div className={styles.signupSegmentWrap} role="group" aria-label="성별">
                         {[
                           { key: "M", label: "남" },
@@ -450,7 +489,7 @@ export default function EnhancedCommonLoginPage() {
                 <section className={styles.signupSection} aria-labelledby="signup-contact">
                   <h3 id="signup-contact" className={styles.signupSectionTitle}>연락처</h3>
                   <div className={styles.signupPhoneRow}>
-                    <span className={styles.signupInputLabel}>휴대전화</span>
+                    <span className={styles.signupInputLabel}>휴대전화 <span className={styles.signupRequired}>*</span></span>
                     <PhoneInput010Blocks
                       value={signupForm.phone}
                       onChange={(v) => setSignupForm((f) => ({ ...f, phone: v }))}
@@ -460,7 +499,7 @@ export default function EnhancedCommonLoginPage() {
                     />
                   </div>
                   <div className={styles.signupPhoneRow}>
-                    <span className={styles.signupInputLabel}>학부모 연락처</span>
+                    <span className={styles.signupInputLabel}>학부모 연락처 <span className={styles.signupRequired}>*</span></span>
                     <PhoneInput010Blocks
                       value={signupForm.parentPhone}
                       onChange={(v) => setSignupForm((f) => ({ ...f, parentPhone: v }))}
@@ -496,7 +535,7 @@ export default function EnhancedCommonLoginPage() {
                   {signupForm.schoolType === "HIGH" ? (
                     <div className={styles.signupGrid2}>
                       <div className={styles.signupGrid2Full}>
-                        <label htmlFor="signup-high" className={styles.signupInputLabel}>고등학교명</label>
+                        <label htmlFor="signup-high" className={styles.signupInputLabel}>고등학교명 <span className={styles.signupRequired}>*</span></label>
                         <input
                           id="signup-high"
                           className={styles.signupInput}
@@ -506,7 +545,7 @@ export default function EnhancedCommonLoginPage() {
                         />
                       </div>
                       <div>
-                        <label htmlFor="signup-grade" className={styles.signupInputLabel}>학년</label>
+                        <label htmlFor="signup-grade" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
                         <input
                           id="signup-grade"
                           className={styles.signupInput}
@@ -516,7 +555,7 @@ export default function EnhancedCommonLoginPage() {
                         />
                       </div>
                       <div>
-                        <label htmlFor="signup-class" className={styles.signupInputLabel}>반</label>
+                        <label htmlFor="signup-class" className={styles.signupInputLabel}>반 <span className={styles.signupRequired}>*</span></label>
                         <input
                           id="signup-class"
                           className={styles.signupInput}
@@ -540,7 +579,7 @@ export default function EnhancedCommonLoginPage() {
                     /* 중학교: 고등과 동일 레이아웃에서 계열·출신중학교만 제외 (중학교명, 학년, 반) */
                     <div className={styles.signupGrid2}>
                       <div className={styles.signupGrid2Full}>
-                        <label htmlFor="signup-middle" className={styles.signupInputLabel}>중학교명</label>
+                        <label htmlFor="signup-middle" className={styles.signupInputLabel}>중학교명 <span className={styles.signupRequired}>*</span></label>
                         <input
                           id="signup-middle"
                           className={styles.signupInput}
@@ -550,7 +589,7 @@ export default function EnhancedCommonLoginPage() {
                         />
                       </div>
                       <div>
-                        <label htmlFor="signup-grade-middle" className={styles.signupInputLabel}>학년</label>
+                        <label htmlFor="signup-grade-middle" className={styles.signupInputLabel}>학년 <span className={styles.signupRequired}>*</span></label>
                         <input
                           id="signup-grade-middle"
                           className={styles.signupInput}
@@ -560,7 +599,7 @@ export default function EnhancedCommonLoginPage() {
                         />
                       </div>
                       <div>
-                        <label htmlFor="signup-class-middle" className={styles.signupInputLabel}>반</label>
+                        <label htmlFor="signup-class-middle" className={styles.signupInputLabel}>반 <span className={styles.signupRequired}>*</span></label>
                         <input
                           id="signup-class-middle"
                           className={styles.signupInput}
@@ -578,7 +617,7 @@ export default function EnhancedCommonLoginPage() {
                   <h3 id="signup-extra" className={styles.signupSectionTitle}>추가 정보</h3>
                   {signupForm.schoolType === "HIGH" && (
                     <div className={styles.signupInputRow}>
-                      <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교</label>
+                      <label htmlFor="signup-origin" className={styles.signupInputLabel}>출신중학교 <span className={styles.signupRequired}>*</span></label>
                       <input
                         id="signup-origin"
                         className={styles.signupInput}
@@ -589,7 +628,7 @@ export default function EnhancedCommonLoginPage() {
                     </div>
                   )}
                   <div className={styles.signupInputRow}>
-                    <label htmlFor="signup-address" className={styles.signupInputLabel}>주소</label>
+                    <label htmlFor="signup-address" className={styles.signupInputLabel}>주소 <span className={styles.signupRequired}>*</span></label>
                     <input
                       id="signup-address"
                       className={styles.signupInput}
