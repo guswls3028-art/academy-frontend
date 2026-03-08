@@ -163,8 +163,13 @@ export default function EnhancedCommonLoginPage() {
           memo: "",
         });
       }, 1500);
-    } catch (err) {
-      setSignupError(err instanceof Error ? err.message : "제출에 실패했습니다.");
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "response" in err
+          ? (err as { response?: { data?: { detail?: string; error?: string } } }).response?.data?.detail ||
+            (err as { response?: { data?: { detail?: string; error?: string } } }).response?.data?.error
+          : null;
+      setSignupError(msg || (err instanceof Error ? err.message : "제출에 실패했습니다."));
     } finally {
       setSignupPending(false);
     }
