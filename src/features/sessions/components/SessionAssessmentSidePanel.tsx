@@ -127,6 +127,7 @@ export default function SessionAssessmentSidePanel({
     await deleteSessionHomework(id);
     if (homeworkId === id) clearQuery("homeworkId");
     invalidateHomeworks();
+    invalidateSessionScores();
   };
 
   return (
@@ -209,6 +210,7 @@ export default function SessionAssessmentSidePanel({
         sessionId={sessionId}
         onCreated={(id) => {
           invalidateHomeworks();
+          invalidateSessionScores();
           onSelectHomework(id);
         }}
       />
