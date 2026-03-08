@@ -198,8 +198,6 @@ export interface SendMessageResponse {
   detail: string;
   enqueued: number;
   skipped_no_phone: number;
-  /** 테스트용 화이트리스트 설정 시 해당 번호 외 스킵 건수 */
-  skipped_whitelist?: number;
 }
 
 export async function sendMessage(payload: SendMessagePayload): Promise<SendMessageResponse> {

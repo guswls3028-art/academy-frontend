@@ -118,7 +118,6 @@ export default function SendMessageModal({
     try {
       let totalEnqueued = 0;
       let totalSkipped = 0;
-      let totalWhitelistSkipped = 0;
       for (const sendTo of sendToTargets) {
         for (const messageMode of messageModes) {
           const payload: Parameters<typeof sendMessage>[0] = {
@@ -132,7 +131,6 @@ export default function SendMessageModal({
           const res = await sendMessage(payload);
           totalEnqueued += res.enqueued ?? 0;
           totalSkipped += res.skipped_no_phone ?? 0;
-          totalWhitelistSkipped += res.skipped_whitelist ?? 0;
         }
       }
       const sendToLabel =
@@ -144,9 +142,6 @@ export default function SendMessageModal({
       );
       if (totalSkipped > 0) {
         feedback.info(`전화번호 없음으로 ${totalSkipped}건 제외되었습니다.`);
-      }
-      if (totalWhitelistSkipped > 0) {
-        feedback.info(`테스트용 수신 제한으로 ${totalWhitelistSkipped}건 제외되었습니다.`);
       }
       onClose();
     } catch (e: unknown) {
