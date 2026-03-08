@@ -917,6 +917,20 @@ a {
   animation: stuShimmer 1.05s ease-in-out infinite;
 }
 
+/* 영상 탭 등 검정 배경용: 투명해 보이지 않도록 어두운 카드형 스켈레톤 */
+[data-video-page="true"] .stu-skel--dark,
+.stu-skel--dark {
+  background: linear-gradient(
+    90deg,
+    rgba(26, 26, 26, 0.95),
+    rgba(45, 45, 45, 0.95),
+    rgba(26, 26, 26, 0.95)
+  );
+  background-size: 200% 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
 @keyframes stuShimmer {
   0% {
     background-position: 200% 0;

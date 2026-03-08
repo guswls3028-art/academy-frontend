@@ -3,7 +3,7 @@
  * 전체공개영상(맨위) + 강의별 코스 카드
  */
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { fetchVideoMe, fetchStudentSessionVideos } from "../api/video";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import CourseCard from "../components/CourseCard";
@@ -99,6 +99,7 @@ export default function VideoHomePage() {
     queryKey: ["student-video-me"],
     queryFn: fetchVideoMe,
     staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   // 전체공개영상: 내용물이 있던 없던 항상 카드 표시
@@ -109,11 +110,11 @@ export default function VideoHomePage() {
   const hasLectures = (videoMe?.lectures?.length ?? 0) > 0;
   const hasAny = shouldShowPublicCard || hasLectures;
 
-  if (isLoading) {
+  if (isLoading && videoMe == null) {
     return (
       <div className="video-page-content" style={{ padding: "var(--stu-space-4)" }}>
-        <div className="stu-skel" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
-        <div className="stu-skel" style={{ height: 200, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel stu-skel--dark" style={{ height: 200, borderRadius: "var(--stu-radius-lg)" }} />
+        <div className="stu-skel stu-skel--dark" style={{ height: 200, marginTop: 16, borderRadius: "var(--stu-radius-lg)" }} />
       </div>
     );
   }
