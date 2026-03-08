@@ -34,10 +34,10 @@ export default function QnaPage() {
     }
   }, [location.pathname, location.state, navigate]);
 
-  // 내 질문 목록 조회
+  // 내 질문 목록 조회 (최대 50건으로 제한 — 모바일 초기 렌더 부담 감소)
   const { data: questions = [], isLoading: questionsLoading, refetch: refetchQuestions } = useQuery({
     queryKey: ["student", "qna", "questions"],
-    queryFn: fetchMyQnaQuestions,
+    queryFn: () => fetchMyQnaQuestions({ pageSize: 50 }),
   });
 
   // 선택한 질문 상세 조회

@@ -28,7 +28,7 @@ export default function NotificationsPage() {
 
   const { data: myQnaQuestions = [], isLoading: qnaLoading } = useQuery({
     queryKey: ["student", "qna", "questions"],
-    queryFn: fetchMyQnaQuestions,
+    queryFn: () => fetchMyQnaQuestions({ pageSize: 50 }),
     staleTime: 30000,
   });
 

@@ -6,12 +6,11 @@ import { fetchPosts, fetchPost, type PostEntity } from "@/features/community/api
 /**
  * 학생이 볼 수 있는 모든 공지 목록 조회
  * block_type_label에 "공지" 또는 "notice"가 포함된 게시물만 필터링
+ * - pageSize 50으로 제한하여 한 번에 과도한 렌더 방지 (모바일 성능)
  */
 export async function fetchNotices(): Promise<PostEntity[]> {
   try {
-    // 전체 게시물 조회 (학생 앱에서는 tenant 전체 공지)
-    // nodeId를 null로 전달하면 전체 공지 조회
-    const allPosts = await fetchPosts({ nodeId: null });
+    const allPosts = await fetchPosts({ nodeId: null, pageSize: 50 });
     
     // block_type_label에 "공지" 또는 "notice"가 포함된 것만 필터링
     const notices = allPosts.filter((post) => {
