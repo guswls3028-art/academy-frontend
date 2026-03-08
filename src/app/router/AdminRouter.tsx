@@ -61,22 +61,22 @@ const CommunitySettingsPage = lazy(() => import("@/features/community/pages/Comm
 const ClinicRoutes = lazy(() => import("@/features/clinic/ClinicRoutes"));
 
 /* ================= Lazy: Profile ================= */
-const ProfileLayout = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileLayout }));
-const ProfileAccountPage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileAccountPage }));
-const ProfileAttendancePage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileAttendancePage }));
-const ProfileExpensePage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileExpensePage }));
+const ProfileLayout = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileLayout })));
+const ProfileAccountPage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileAccountPage })));
+const ProfileAttendancePage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileAttendancePage })));
+const ProfileExpensePage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileExpensePage })));
 
 /* ================= Lazy: Staff ================= */
 const StaffRoutes = lazy(() => import("@/features/staff/StaffRoutes"));
 
 /* ================= Lazy: Materials ================= */
-const MaterialsRoutes = lazy(() => import("@/features/materials").then((m) => ({ default: m.MaterialsRoutes }));
+const MaterialsRoutes = lazy(() => import("@/features/materials").then((m) => ({ default: m.MaterialsRoutes })));
 
 /* ================= Lazy: Storage ================= */
 const StorageRoutes = lazy(() => import("@/features/storage/StorageRoutes"));
 
 /* ================= Lazy: Messages ================= */
-const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) => ({ default: m.MessageRoutes }));
+const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) => ({ default: m.MessageRoutes })));
 
 /* ================= Lazy: Settings ================= */
 const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
