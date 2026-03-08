@@ -81,9 +81,7 @@ export function PhoneInput010Blocks({
       const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
       if (pasted.length >= 4) {
         e.preventDefault();
-        const rest = pasted.slice(0, 8);
-        setRaw(first4, rest.length >= 4 ? rest.slice(0, 4) : first4);
-        if (rest.length >= 4) secondInputRef.current?.focus();
+        setRaw(first4, pasted.slice(0, 4));
       }
     },
     [first4, setRaw]
@@ -107,9 +105,9 @@ export function PhoneInput010Blocks({
           minWidth: "3.5rem",
           fontSize: "0.9375rem",
           fontWeight: 600,
-          color: "var(--color-text-muted, #666)",
-          background: "var(--color-bg-surface-soft, #f5f5f5)",
-          border: "1px solid var(--color-border-divider, #e0e0e0)",
+          color: "var(--auth-text-muted, var(--color-text-muted, #666))",
+          background: "var(--auth-surface, var(--color-bg-surface-soft, #f5f5f5))",
+          border: "1px solid var(--auth-border, var(--color-border-divider, #e0e0e0))",
           borderRadius: "12px",
           userSelect: "none",
         }}
@@ -136,9 +134,19 @@ export function PhoneInput010Blocks({
           textAlign: "center",
           padding: "0.875rem 0.5rem",
           fontSize: "0.9375rem",
-          border: invalid ? "2px solid var(--color-status-danger, #ef4444)" : "1px solid var(--color-border-divider, #e0e0e0)",
+          border: invalid ? "2px solid var(--auth-error, var(--color-status-danger, #ef4444))" : "1px solid var(--auth-border, var(--color-border-divider, #e0e0e0))",
           borderRadius: "12px",
           outline: "none",
+          background: "var(--auth-surface, var(--color-bg-surface, #fff))",
+          color: "var(--auth-text, var(--color-text-primary, #111))",
+        }}
+        onFocus={(e) => {
+          e.target.style.borderColor = "var(--auth-accent, var(--color-primary, #2563eb))";
+          e.target.style.boxShadow = "0 0 0 3px var(--auth-focus, rgba(37, 99, 235, 0.2))";
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = invalid ? "var(--auth-error, var(--color-status-danger, #ef4444))" : "var(--auth-border, var(--color-border-divider, #e0e0e0))";
+          e.target.style.boxShadow = "none";
         }}
         aria-label={ariaLabel ? `${ariaLabel} 앞 4자리` : "전화번호 앞 4자리"}
       />
@@ -162,9 +170,19 @@ export function PhoneInput010Blocks({
           textAlign: "center",
           padding: "0.875rem 0.5rem",
           fontSize: "0.9375rem",
-          border: invalid ? "2px solid var(--color-status-danger, #ef4444)" : "1px solid var(--color-border-divider, #e0e0e0)",
+          border: invalid ? "2px solid var(--auth-error, var(--color-status-danger, #ef4444))" : "1px solid var(--auth-border, var(--color-border-divider, #e0e0e0))",
           borderRadius: "12px",
           outline: "none",
+          background: "var(--auth-surface, var(--color-bg-surface, #fff))",
+          color: "var(--auth-text, var(--color-text-primary, #111))",
+        }}
+        onFocus={(e) => {
+          e.target.style.borderColor = "var(--auth-accent, var(--color-primary, #2563eb))";
+          e.target.style.boxShadow = "0 0 0 3px var(--auth-focus, rgba(37, 99, 235, 0.2))";
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = invalid ? "var(--auth-error, var(--color-status-danger, #ef4444))" : "var(--auth-border, var(--color-border-divider, #e0e0e0))";
+          e.target.style.boxShadow = "none";
         }}
         aria-label={ariaLabel ? `${ariaLabel} 뒤 4자리` : "전화번호 뒤 4자리"}
       />

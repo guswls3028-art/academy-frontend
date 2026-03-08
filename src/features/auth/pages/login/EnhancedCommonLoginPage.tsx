@@ -9,7 +9,7 @@ import {
   requestPasswordFindCode,
   verifyPasswordFindCode,
 } from "@/features/students/api/students";
-import { formatPhoneWithFixed010, parsePhoneInputFixed010 } from "@/shared/utils/phoneInput";
+import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
 import {
@@ -343,21 +343,20 @@ export default function EnhancedCommonLoginPage() {
                   value={signupForm.initialPassword}
                   onChange={(e) => setSignupForm((f) => ({ ...f, initialPassword: e.target.value }))}
                 />
-                <input
-                  className={`${styles.input} ${styles.inputRequired}`}
-                  placeholder="학부모 전화번호 (010 고정, 뒤 8자리) *"
-                  value={formatPhoneWithFixed010(signupForm.parentPhone)}
-                  onChange={(e) =>
-                    setSignupForm((f) => ({ ...f, parentPhone: parsePhoneInputFixed010(e.target.value) }))
-                  }
+                <PhoneInput010Blocks
+                  value={signupForm.parentPhone}
+                  onChange={(v) => setSignupForm((f) => ({ ...f, parentPhone: v }))}
+                  className={styles.phoneBlocksWrap}
+                  inputClassName={`${styles.input} ${styles.inputRequired}`}
+                  data-invalid={signupForm.parentPhone.replace(/\D/g, "").length !== 11 && signupForm.parentPhone.length > 0}
+                  aria-label="학부모 전화번호"
                 />
-                <input
-                  className={`${styles.input} ${styles.inputRequired}`}
-                  placeholder="학생 전화번호 (010 고정, 뒤 8자리, 선택)"
-                  value={formatPhoneWithFixed010(signupForm.phone)}
-                  onChange={(e) =>
-                    setSignupForm((f) => ({ ...f, phone: parsePhoneInputFixed010(e.target.value) }))
-                  }
+                <PhoneInput010Blocks
+                  value={signupForm.phone}
+                  onChange={(v) => setSignupForm((f) => ({ ...f, phone: v }))}
+                  className={styles.phoneBlocksWrap}
+                  inputClassName={`${styles.input} ${styles.inputRequired}`}
+                  aria-label="학생 전화번호"
                 />
                 <div className={styles.signupSchoolChoice}>
                   <button
@@ -465,11 +464,12 @@ export default function EnhancedCommonLoginPage() {
                   value={pwFindName}
                   onChange={(e) => setPwFindName(e.target.value)}
                 />
-                <input
-                  className={styles.input}
-                  placeholder="전화번호 (010 고정, 뒤 8자리) *"
-                  value={formatPhoneWithFixed010(pwFindPhone)}
-                  onChange={(e) => setPwFindPhone(parsePhoneInputFixed010(e.target.value))}
+                <PhoneInput010Blocks
+                  value={pwFindPhone}
+                  onChange={setPwFindPhone}
+                  className={styles.phoneBlocksWrap}
+                  inputClassName={styles.input}
+                  aria-label="전화번호"
                 />
                 {pwFindError && <div className={styles.error}>{pwFindError}</div>}
                 <div className={styles.overlayActions}>

@@ -144,6 +144,11 @@
   box-shadow: 0 0 0 3px var(--auth-focus);
 }
 
+/* 전화번호 010 블록 레이아웃 (회원가입/비밀번호찾기) */
+.phoneBlocksWrap {
+  margin-bottom: 0.875rem;
+}
+
 /* 고등/중등 선택 버튼 (회원가입 — 학생생성모달처럼 클릭 선택) */
 .signupSchoolChoice {
   display: flex;

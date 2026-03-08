@@ -4,10 +4,7 @@
 import { useEffect, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
-import {
-  formatPhoneWithFixed010,
-  parsePhoneInputFixed010,
-} from "@/shared/utils/phoneInput";
+import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents } from "../api/students";
 import { downloadStudentExcelTemplate } from "../excel/studentExcel";
@@ -117,11 +114,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       }
       return next;
     });
-  }
-
-  function handlePhoneChange(name: "studentPhone" | "parentPhone", value: string) {
-    const raw = parsePhoneInputFixed010(value);
-    setForm((p) => ({ ...p, [name]: raw }));
   }
 
   function validate(): string | null {
@@ -388,17 +380,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
               disabled={busy}
             />
-            <input
-              placeholder="학부모 전화 (010 고정, 뒤 8자리)"
-              value={formatPhoneWithFixed010(form.parentPhone ?? "")}
-              onChange={(e) => handlePhoneChange("parentPhone", e.target.value)}
-              className="ds-input"
-              data-required="true"
-              data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
+            <PhoneInput010Blocks
+              value={form.parentPhone ?? ""}
+              onChange={(v) => setForm((p) => ({ ...p, parentPhone: v }))}
               disabled={busy}
-              maxLength={13}
-              inputMode="numeric"
-              pattern="[0-9\-]*"
+              inputClassName="ds-input"
+              data-invalid={String(form.parentPhone ?? "").trim().length > 0 && String(form.parentPhone ?? "").trim().length !== 11}
+              aria-label="학부모 전화"
             />
           </div>
 
@@ -406,15 +394,12 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           <div className="modal-form-group modal-form-group--neutral">
             <span className="modal-section-label">선택 입력</span>
             <div className="modal-form-row modal-form-row--1-auto">
-              <input
-                placeholder="학생 전화 (010 고정, 뒤 8자리, 없으면 부모 전화로 OMR)"
-                value={formatPhoneWithFixed010(form.studentPhone ?? "")}
-                onChange={(e) => handlePhoneChange("studentPhone", e.target.value)}
-                className="ds-input"
+              <PhoneInput010Blocks
+                value={form.studentPhone ?? ""}
+                onChange={(v) => setForm((p) => ({ ...p, studentPhone: v }))}
                 disabled={busy}
-                maxLength={13}
-                inputMode="numeric"
-                pattern="[0-9\-]*"
+                inputClassName="ds-input"
+                aria-label="학생 전화"
               />
               <div className="modal-actions-inline" style={{ height: 36 }}>
                 {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
