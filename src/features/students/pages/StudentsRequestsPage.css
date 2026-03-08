@@ -1,5 +1,5 @@
 /* PATH: src/features/students/pages/StudentsRequestsPage.css
-   가입 신청 탭 — 섹션형·카드 그리드, 디자인 시스템 토큰 사용 */
+   가입 신청 탭 — 섹션형 목록(이름·전화번호만), 디자인 시스템 토큰 */
 
 .students-requests-page {
   background: var(--color-bg-page, var(--color-bg-surface));
@@ -64,95 +64,88 @@
   border: 0;
 }
 
-.students-requests-card-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
-  box-shadow: var(--elevation-1);
-  overflow: hidden;
+/* 전체 선택 */
+.students-requests-select-all {
+  padding: var(--space-2) 0 var(--space-3);
 }
 
-.students-requests-card {
-  display: grid;
-  grid-template-columns: 44px 1fr auto;
+.students-requests-select-all .ant-checkbox-wrapper {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.students-requests-select-all__label {
+  font-weight: 500;
+}
+
+/* 섹션형 목록 — 항목별 구분된 블록 */
+.students-requests-section-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.students-requests-section-item {
+  margin: 0;
+  padding: 0;
+}
+
+.students-requests-section-item__inner {
+  display: flex;
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-5);
-  min-height: 56px;
-  border-bottom: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-0);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.students-requests-card:last-child {
-  border-bottom: none;
-}
-
-.students-requests-card:hover {
+.students-requests-section-item__inner:hover {
   background: var(--color-bg-surface-hover, var(--color-surface-hover));
+  border-color: color-mix(in srgb, var(--color-brand-primary) 20%, var(--color-border-divider));
+  box-shadow: var(--elevation-1);
 }
 
-.students-requests-card--header {
-  cursor: default;
-  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.students-requests-card--header:hover {
-  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
-}
-
-.students-requests-card__check {
-  display: flex;
-  align-items: center;
+.students-requests-section-item__check {
   flex-shrink: 0;
 }
 
-.students-requests-card__main {
-  display: grid;
-  grid-template-columns: minmax(100px, 1fr) minmax(120px, 1.2fr) minmax(100px, 0.9fr);
-  gap: var(--space-4);
-  align-items: center;
+.students-requests-section-item__info {
+  flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.students-requests-card__name {
+.students-requests-section-item__name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  letter-spacing: -0.02em;
 }
 
-.students-requests-card__school {
+.students-requests-section-item__phone {
   font-size: 13px;
   color: var(--color-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.students-requests-card__date {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.students-requests-card__action {
+.students-requests-section-item__action {
   flex-shrink: 0;
 }
 
+/* 상세 모달 내 정의 리스트 (modal-body 안) */
 .students-request-detail__list {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .students-request-detail__row {

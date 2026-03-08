@@ -1,9 +1,9 @@
 // PATH: src/features/students/pages/StudentsRequestsPage.tsx
-// 선생용: 학생 가입 신청 목록 — 섹션형 카드 UI, 상세 팝업, 체크박스·일괄 승인·자동승인 토글
+// 선생용: 학생 가입 신청 목록 — 섹션형 UI(이름·전화번호만), 상세 팝업(프로젝트 모달 패턴), 체크박스·일괄 승인·자동승인
 
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Modal, Checkbox, Switch } from "antd";
+import { Checkbox, Switch } from "antd";
 import {
   fetchRegistrationRequests,
   approveRegistrationRequest,
@@ -14,8 +14,11 @@ import {
 } from "../api/students";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import AdminModal from "@/shared/ui/modal/AdminModal";
+import ModalHeader from "@/shared/ui/modal/ModalHeader";
+import ModalBody from "@/shared/ui/modal/ModalBody";
+import ModalFooter from "@/shared/ui/modal/ModalFooter";
 import "@/styles/design-system/modal.css";
-import "@/styles/design-system/ds/card-modal-style.css";
 import "./StudentsRequestsPage.css";
 
 function formatDate(s: string | null) {
@@ -38,6 +41,13 @@ function schoolLabel(r: ClientRegistrationRequest) {
   const school = r.highSchool || r.middleSchool || "-";
   const grade = r.grade != null ? ` ${r.grade}학년` : "";
   return `${school}${grade}`.trim() || "-";
+}
+
+/** 목록용: 표시할 전화번호 (학생 전화 우선, 없으면 학부모 전화) */
+function displayPhone(r: ClientRegistrationRequest): string {
+  if (r.phone && r.phone.trim()) return r.phone.trim();
+  if (r.parentPhone && r.parentPhone.trim()) return r.parentPhone.trim();
+  return "-";
 }
 
 /** 신청 상세 모달 */
@@ -74,39 +84,29 @@ function RequestDetailModal({
   ];
 
   return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={480}
-      className="admin-modal"
-      destroyOnClose
-      centered
-    >
-      <div className="ds-card-modal">
-        <div className="ds-card-modal__header">
-          <div className="ds-card-modal__accent" />
-          <div className="ds-card-modal__header-inner">
-            <div className="ds-card-modal__header-text">
-              <h3 className="ds-card-modal__header-title">가입 신청 상세</h3>
-              <p className="ds-card-modal__header-description">{request.name} · {schoolLabel(request)}</p>
+    <AdminModal open={open} onClose={onClose} type="action" width={480}>
+      <ModalHeader
+        type="action"
+        title="가입 신청 상세"
+        description={`${request.name} · ${schoolLabel(request)}`}
+      />
+      <ModalBody>
+        <dl className="students-request-detail__list">
+          {rows.map(({ label, value }) => (
+            <div key={label} className="students-request-detail__row">
+              <dt className="students-request-detail__label">{label}</dt>
+              <dd className="students-request-detail__value">{value ?? "-"}</dd>
             </div>
-          </div>
-        </div>
-        <div className="ds-card-modal__body">
-          <dl className="students-request-detail__list">
-            {rows.map(({ label, value }) => (
-              <div key={label} className="students-request-detail__row">
-                <dt className="students-request-detail__label">{label}</dt>
-                <dd className="students-request-detail__value">{value ?? "-"}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div className="ds-card-modal__footer">
+          ))}
+        </dl>
+      </ModalBody>
+      <ModalFooter
+        left={
           <Button intent="secondary" size="md" onClick={onClose}>
             닫기
           </Button>
+        }
+        right={
           <Button
             intent="primary"
             size="md"
@@ -115,9 +115,9 @@ function RequestDetailModal({
           >
             {approving ? "처리 중..." : "승인"}
           </Button>
-        </div>
-      </div>
-    </Modal>
+        }
+      />
+    </AdminModal>
   );
 }
 
@@ -276,57 +276,54 @@ export default function StudentsRequestsPage() {
             />
           </div>
         ) : (
-          <div className="students-requests-section__body students-requests-card-grid">
-            <div className="students-requests-card students-requests-card--header">
-              <div className="students-requests-card__check">
-                <Checkbox
-                  checked={allSelected}
-                  indeterminate={selectedIds.size > 0 && !allSelected}
-                  onChange={(e) => toggleAll(e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-              <div className="students-requests-card__main">
-                <span className="students-requests-card__name">이름</span>
-                <span className="students-requests-card__school">학교 / 학년</span>
-                <span className="students-requests-card__date">신청일시</span>
-              </div>
+          <div className="students-requests-section__body">
+            {/* 전체 선택 */}
+            <div className="students-requests-select-all">
+              <Checkbox
+                checked={allSelected}
+                indeterminate={selectedIds.size > 0 && !allSelected}
+                onChange={(e) => toggleAll(e.target.checked)}
+              >
+                <span className="students-requests-select-all__label">전체 선택</span>
+              </Checkbox>
             </div>
 
-            {pendingList.map((r) => (
-              <div
-                key={r.id}
-                role="button"
-                tabIndex={0}
-                className="students-requests-card"
-                onClick={() => openDetail(r)}
-                onKeyDown={(e) => e.key === "Enter" && openDetail(r)}
-              >
-                <div className="students-requests-card__check" onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={selectedIds.has(r.id)}
-                    onChange={(e) => toggleOne(r.id, e.target.checked)}
-                  />
-                </div>
-                <div className="students-requests-card__main">
-                  <span className="students-requests-card__name">{r.name}</span>
-                  <span className="students-requests-card__school">{schoolLabel(r)}</span>
-                  <span className="students-requests-card__date">{formatDate(r.createdAt)}</span>
-                </div>
-                <div className="students-requests-card__action">
-                  <Button
-                    size="sm"
-                    intent="primary"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openDetail(r);
-                    }}
+            <ul className="students-requests-section-list">
+              {pendingList.map((r) => (
+                <li key={r.id} className="students-requests-section-item">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className="students-requests-section-item__inner"
+                    onClick={() => openDetail(r)}
+                    onKeyDown={(e) => e.key === "Enter" && openDetail(r)}
                   >
-                    상세
-                  </Button>
-                </div>
-              </div>
-            ))}
+                    <div className="students-requests-section-item__check" onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.has(r.id)}
+                        onChange={(e) => toggleOne(r.id, e.target.checked)}
+                      />
+                    </div>
+                    <div className="students-requests-section-item__info">
+                      <span className="students-requests-section-item__name">{r.name}</span>
+                      <span className="students-requests-section-item__phone">{displayPhone(r)}</span>
+                    </div>
+                    <div className="students-requests-section-item__action">
+                      <Button
+                        size="sm"
+                        intent="primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDetail(r);
+                        }}
+                      >
+                        상세
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

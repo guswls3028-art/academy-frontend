@@ -513,6 +513,20 @@ export async function bulkApproveRegistrationRequests(
   return res.data as { approved: number; failed: Array<{ id: number; detail: string }> };
 }
 
+/** 스태프: 가입 신청 거절 */
+export async function rejectRegistrationRequest(id: number): Promise<{ status: string; id: number }> {
+  const res = await api.post(`/students/registration_requests/${id}/reject/`);
+  return res.data as { status: string; id: number };
+}
+
+/** 스태프: 가입 신청 일괄 거절 */
+export async function bulkRejectRegistrationRequests(
+  ids: number[]
+): Promise<{ rejected: number }> {
+  const res = await api.post("/students/registration_requests/bulk_reject/", { ids });
+  return res.data as { rejected: number };
+}
+
 export type RegistrationRequestSettings = { auto_approve: boolean };
 
 /** 스태프: 가입 신청 설정 조회 (자동 승인 여부) */
