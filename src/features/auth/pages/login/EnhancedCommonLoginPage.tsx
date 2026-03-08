@@ -165,9 +165,38 @@ export default function EnhancedCommonLoginPage() {
       }, 1500);
     } catch (err: unknown) {
       const res = err && typeof err === "object" && "response" in err
-        ? (err as { response?: { data?: { detail?: string; error?: string } } }).response?.data
+        ? (err as { response?: { data?: Record<string, unknown>; status?: number } }).response
         : null;
-      const msg = res?.error || res?.detail || (err instanceof Error ? err.message : "제출에 실패했습니다.");
+      const data = res?.data as Record<string, unknown> | undefined;
+      const status = res?.status;
+
+      let msg: string;
+      if (data && typeof data === "object") {
+        if (typeof data.detail === "string") {
+          msg = data.detail;
+        } else if (typeof data.error === "string") {
+          msg = data.error;
+        } else if (Array.isArray(data.detail)) {
+          msg = (data.detail as string[]).join(". ");
+        } else if (data.detail && typeof data.detail === "object") {
+          const parts: string[] = [];
+          for (const [k, v] of Object.entries(data.detail)) {
+            const s = Array.isArray(v) ? v.join(", ") : String(v);
+            parts.push(s ? `${k}: ${s}` : k);
+          }
+          msg = parts.join(". ");
+        } else {
+          const parts: string[] = [];
+          for (const [k, v] of Object.entries(data)) {
+            if (k === "detail" || k === "error") continue;
+            const s = Array.isArray(v) ? (v as string[]).join(", ") : String(v);
+            if (s) parts.push(`${k}: ${s}`);
+          }
+          msg = parts.length ? parts.join(". ") : (status === 400 ? "입력값을 확인해 주세요." : "제출에 실패했습니다.");
+        }
+      } else {
+        msg = err instanceof Error ? err.message : "제출에 실패했습니다.";
+      }
       setSignupError(msg);
     } finally {
       setSignupPending(false);
@@ -330,18 +359,39 @@ export default function EnhancedCommonLoginPage() {
                 {/* 기본 정보 */}
                 <section className={styles.signupSection} aria-labelledby="signup-basic">
                   <h3 id="signup-basic" className={styles.signupSectionTitle}>기본 정보</h3>
-                  <div className={styles.signupInputRow}>
-                    <label htmlFor="signup-name" className={styles.signupInputLabel}>
-                      이름 <span className={styles.signupRequired}>*</span>
-                    </label>
-                    <input
-                      id="signup-name"
-                      className={styles.signupInput}
-                      placeholder="홍길동"
-                      value={signupForm.name}
-                      onChange={(e) => setSignupForm((f) => ({ ...f, name: e.target.value }))}
-                      aria-required
-                    />
+                  <div className={styles.signupNameGenderRow}>
+                    <div className={styles.signupInputRow}>
+                      <label htmlFor="signup-name" className={styles.signupInputLabel}>
+                        이름 <span className={styles.signupRequired}>*</span>
+                      </label>
+                      <input
+                        id="signup-name"
+                        className={styles.signupInput}
+                        placeholder="홍길동"
+                        value={signupForm.name}
+                        onChange={(e) => setSignupForm((f) => ({ ...f, name: e.target.value }))}
+                        aria-required
+                      />
+                    </div>
+                    <div className={styles.signupInputRow}>
+                      <span className={styles.signupInputLabel}>성별</span>
+                      <div className={styles.signupSegmentWrap} role="group" aria-label="성별">
+                        {[
+                          { key: "M", label: "남" },
+                          { key: "F", label: "여" },
+                        ].map((g) => (
+                          <button
+                            key={g.key}
+                            type="button"
+                            className={`${styles.signupSegmentBtn} ${signupForm.gender === g.key ? styles.isSelected : ""}`}
+                            aria-pressed={signupForm.gender === g.key}
+                            onClick={() => setSignupForm((f) => ({ ...f, gender: g.key }))}
+                          >
+                            {g.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <div className={styles.signupInputRow}>
                     <label htmlFor="signup-username" className={styles.signupInputLabel}>
