@@ -185,7 +185,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       navigate("/admin/students/home");
     } else if (jobType === "messaging") {
       // 메시지 페이지로 이동
-      navigate("/admin/messages");
+      navigate("/admin/message");
     } else {
       // 기타 작업은 대시보드로 이동
       navigate("/admin/dashboard");
