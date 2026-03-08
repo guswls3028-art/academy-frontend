@@ -102,6 +102,9 @@ function TriggerRow({
 
 export default function MessageAutoSendPage() {
   const qc = useQueryClient();
+  const { data: messagingInfo } = useMessagingInfo();
+  const smsAllowed = messagingInfo?.sms_allowed ?? true;
+
   const { data: configs = [], isLoading } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: fetchAutoSendConfigs,
@@ -139,7 +142,14 @@ export default function MessageAutoSendPage() {
       c.trigger === updated.trigger ? { ...c, ...updated } : c
     );
     setLocalConfigs(next);
-    updateMut.mutate(next);
+    const toSend = smsAllowed
+      ? next
+      : next.map((c) =>
+          c.message_mode === "sms" || c.message_mode === "both"
+            ? { ...c, message_mode: "alimtalk" as const }
+            : c
+        );
+    updateMut.mutate(toSend);
   };
 
   if (isLoading) {
@@ -159,6 +169,11 @@ export default function MessageAutoSendPage() {
         title="자동발송"
         description="특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다. 트리거별로 템플릿과 발송 방식을 선택하세요."
       >
+        {!smsAllowed && (
+          <p className="text-xs text-[var(--color-text-muted)] mb-3">
+            문자(SMS)는 내 테넌트 전용 정책으로 이 학원에서는 사용할 수 없습니다. SMS만·알림톡→SMS 폴백은 선택할 수 없습니다.
+          </p>
+        )}
         <div className="divide-y divide-[var(--color-border-divider)]">
           {localConfigs.map((config) => (
             <TriggerRow
@@ -167,6 +182,7 @@ export default function MessageAutoSendPage() {
               templates={templates}
               onUpdate={handleUpdate}
               saving={updateMut.isPending}
+              smsAllowed={smsAllowed}
             />
           ))}
         </div>
