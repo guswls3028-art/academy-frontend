@@ -219,15 +219,19 @@ export default function DashboardPage() {
         </DashboardWidget>
       </div>
 
-      <ChargeCreditsModal
-        open={chargeModalOpen}
-        onClose={() => setChargeModalOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <ChargeCreditsModal
+          open={chargeModalOpen}
+          onClose={() => setChargeModalOpen(false)}
+        />
+      </Suspense>
 
-      <ClinicPasscardModal
-        open={clinicPasscardModalOpen}
-        onClose={() => setClinicPasscardModalOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <ClinicPasscardModal
+          open={clinicPasscardModalOpen}
+          onClose={() => setClinicPasscardModalOpen(false)}
+        />
+      </Suspense>
     </DomainLayout>
   );
 }
