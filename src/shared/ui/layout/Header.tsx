@@ -12,6 +12,7 @@ import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
 import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
 import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
+import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
@@ -217,13 +218,9 @@ export default function Header() {
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
   const hasCompletedOnly = pendingCount === 0 && displayTasks.length > 0;
 
-  const handleWorkboxClick = () => {
-    if (hasCompletedOnly) {
-      asyncStatusStore.clearCompleted();
-      workbox?.setWorkboxOpen(true);
-    } else {
-      workbox?.toggleWorkbox();
-    }
+  const handleWorkboxOpenChange = (open: boolean) => {
+    if (open && hasCompletedOnly) asyncStatusStore.clearCompleted();
+    workbox?.setWorkboxOpen(open);
   };
   const { counts: adminCounts, items: adminNotificationItems } = useAdminNotificationCounts();
   const unreadCount = adminCounts.total;
@@ -408,26 +405,39 @@ export default function Header() {
           )}
 
           {workbox && (
-            <Button
-              intent="secondary"
-              size="lg"
-              iconOnly
-              className={`app-header__iconBtn app-header__workboxBtn ${hasCompletedOnly ? "app-header__workboxBtn--done" : ""}`}
-              onClick={handleWorkboxClick}
-              aria-label={workbox.workboxOpen ? "작업박스 닫기" : "작업박스 열기"}
-              title={workbox.workboxOpen ? "작업박스 닫기" : "진행 상황"}
-              leftIcon={
-                hasCompletedOnly ? (
-                  <IconCheck />
-                ) : pendingCount > 0 ? (
-                  <Badge count={pendingCount} size="small" offset={[-2, 2]}>
-                    <IconWorkbox />
-                  </Badge>
-                ) : (
-                  <IconWorkbox />
-                )
-              }
-            />
+            <Dropdown
+              open={workbox.workboxOpen}
+              onOpenChange={handleWorkboxOpenChange}
+              trigger={["click"]}
+              placement="bottomRight"
+              popupRender={() => (
+                <div className="app-header__alarmDropdown alarm-panel--workbox-style">
+                  <WorkboxPanelContent onClose={() => workbox.setWorkboxOpen(false)} />
+                </div>
+              )}
+            >
+              <span>
+                <Button
+                  intent="secondary"
+                  size="lg"
+                  iconOnly
+                  className={`app-header__iconBtn app-header__workboxBtn ${hasCompletedOnly ? "app-header__workboxBtn--done" : ""}`}
+                  aria-label={workbox.workboxOpen ? "작업박스 닫기" : "작업박스 열기"}
+                  title={workbox.workboxOpen ? "작업박스 닫기" : "진행 상황"}
+                  leftIcon={
+                    hasCompletedOnly ? (
+                      <IconCheck />
+                    ) : pendingCount > 0 ? (
+                      <Badge count={pendingCount} size="small" offset={[-2, 2]}>
+                        <IconWorkbox />
+                      </Badge>
+                    ) : (
+                      <IconWorkbox />
+                    )
+                  }
+                />
+              </span>
+            </Dropdown>
           )}
 
           <Dropdown

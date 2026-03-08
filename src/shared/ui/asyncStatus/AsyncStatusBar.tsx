@@ -469,6 +469,13 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
       .catch(() => {});
   }, []);
 
+  const hydratedRef = useRef(false);
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    doHydrate();
+  }, [doHydrate]);
+
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(() => {
     if (refreshing) return;
@@ -538,7 +545,6 @@ export default function AsyncStatusBar() {
   const setExpanded = isAnchorMode ? workbox.setWorkboxOpen : setExpandedLocal;
 
   const prevPendingCountRef = useRef(0);
-  const hydratedRef = useRef(false);
 
   // Tenant isolation: only show tasks for current tenant. Purge others and log.
   const displayTasks = tasks.filter(
