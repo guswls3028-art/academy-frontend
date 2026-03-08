@@ -65,6 +65,9 @@ function pollExcelJob(
         const finalPercent = typeof percent === "number" ? percent : (encodingStep ? Math.round((encodingStep.index - 1) / encodingStep.total * 100 + (encodingStep.percent / encodingStep.total)) : undefined);
         if (finalPercent !== undefined || encodingStep) {
           asyncStatusStore.updateProgress(taskId, finalPercent ?? 0, undefined, encodingStep);
+        } else {
+          // ✅ RUNNING인데 아직 progress 미도착: 0%로 표시해 "대기 중" 대신 진행 중으로 표기 (video batch와 동일)
+          asyncStatusStore.updateProgress(taskId, 0, undefined, null);
         }
       }
       

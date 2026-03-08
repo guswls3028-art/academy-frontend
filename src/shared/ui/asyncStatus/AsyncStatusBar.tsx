@@ -277,6 +277,9 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
             {task.status === "pending" && progressNum == null && (
               <span className="async-status-bar__item-waiting">대기 중</span>
             )}
+            {task.status === "pending" && progressNum !== null && progressNum < 100 && progressNum >= 0 && (
+              <span className="async-status-bar__item-running">진행 중</span>
+            )}
           </div>
           {task.error && <div className="async-status-bar__item-error">{task.error}</div>}
         </div>
