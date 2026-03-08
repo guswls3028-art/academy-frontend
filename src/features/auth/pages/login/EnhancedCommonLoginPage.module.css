@@ -215,11 +215,13 @@
   color: var(--auth-text);
 }
 
-/* 모달 오버레이 (학생앱 SSOT 디자인) */
+/* 모달 오버레이 — 프리미엄 (backdrop blur) */
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -229,21 +231,226 @@
 
 .overlayCard {
   width: 100%;
-  max-width: 28rem;
+  max-width: 420px;
   max-height: 90vh;
   overflow-y: auto;
-  background: var(--auth-bg);
-  color: var(--auth-text);
+  background: #FFFFFF;
+  color: #111827;
   border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  padding: 28px;
+  border: 1px solid #EEF1F4;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
 }
 
 .overlayTitle {
   font-size: 1.25rem;
   font-weight: 700;
-  margin: 0 0 1rem;
-  color: var(--auth-text);
+  margin: 0 0 4px;
+  color: var(--auth-text, #111827);
+}
+
+.overlaySubtitle {
+  font-size: 0.8125rem;
+  color: #6B7280;
+  margin: 0 0 20px;
+}
+
+/* 회원가입 섹션 그룹 */
+.signupSection {
+  margin-top: 20px;
+}
+.signupSection:first-of-type {
+  margin-top: 0;
+}
+
+.signupSectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6B7280;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+
+.signupSectionDivider {
+  height: 1px;
+  background: #E5E7EB;
+  margin: 20px 0 0;
+}
+
+/* 회원가입 인풋 (프리미엄) */
+.signupInput {
+  display: block;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  margin-bottom: 12px;
+  font-size: 0.9375rem;
+  color: #111827;
+  background: #FAFBFC;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.signupInput::placeholder {
+  color: #9CA3AF;
+}
+.signupInput:hover {
+  border-color: #D1D5DB;
+}
+.signupInput:focus {
+  border-color: #4F7FFF;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(79, 127, 255, 0.15);
+}
+
+.signupInputRow {
+  margin-bottom: 12px;
+}
+.signupInputLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B7280;
+  margin-bottom: 6px;
+}
+
+/* 전화번호 블록 래퍼 (라벨 포함) */
+.signupPhoneRow {
+  margin-bottom: 12px;
+}
+
+/* 전화번호 블록 래퍼 (라벨 포함) */
+.signupPhoneRow {
+  margin-bottom: 12px;
+}
+.signupPhoneBlock {
+  height: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  background: #FAFBFC;
+  border: 1px solid #E5E7EB;
+  font-size: 0.9375rem;
+  padding: 0 12px;
+}
+.signupPhoneBlockInput {
+  height: 40px !important;
+  min-height: 40px !important;
+  border-radius: 8px !important;
+  background: #FAFBFC !important;
+  border: 1px solid #E5E7EB !important;
+  font-size: 0.9375rem !important;
+  padding: 0 12px !important;
+}
+.signupPhoneBlockInput:focus {
+  border-color: #4F7FFF !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 0 0 3px rgba(79, 127, 255, 0.15) !important;
+}
+
+/* 2열 그리드 (학교 정보) */
+.signupGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.signupGrid2Full {
+  grid-column: 1 / -1;
+}
+
+/* 학교 유형 세그먼트 컨트롤 */
+.signupSegmentWrap {
+  background: #F3F4F6;
+  border-radius: 8px;
+  padding: 4px;
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+}
+.signupSegmentBtn {
+  flex: 1;
+  height: 36px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6B7280;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border 0.2s ease;
+}
+.signupSegmentBtn:hover {
+  color: #374151;
+}
+.signupSegmentBtn.isSelected {
+  background: #FFFFFF;
+  border: 1px solid #4F7FFF;
+  color: #4F7FFF;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* CTA 버튼 영역 */
+.signupActions {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #E5E7EB;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.signupBtnCancel {
+  height: 42px;
+  padding: 0 20px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  background: #F3F4F6;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.signupBtnCancel:hover {
+  background: #E5E7EB;
+  color: #111827;
+}
+.signupBtnSubmit {
+  height: 42px;
+  padding: 0 24px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #2563EB, #10B981);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.25);
+  transition: filter 0.2s ease, box-shadow 0.2s ease;
+}
+.signupBtnSubmit:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+}
+.signupBtnSubmit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* 필수 표시 */
+.signupRequired {
+  color: #EF4444;
+  margin-left: 2px;
+}
+
+/* textarea */
+.signupTextarea {
+  composes: signupInput;
+  height: auto;
+  min-height: 72px;
+  padding: 10px 12px;
+  resize: vertical;
 }
 
 .overlayActions {
