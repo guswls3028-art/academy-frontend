@@ -223,6 +223,8 @@ export interface AutoSendConfigItem {
   template_solapi_status: string;
   enabled: boolean;
   message_mode: MessageMode;
+  /** N분 전 발송 (null = 이벤트 시점). 사용자 설정 가능. */
+  minutes_before: number | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -245,6 +247,7 @@ export async function updateAutoSendConfigs(configs: Partial<AutoSendConfigItem>
     template_id: c.template,
     enabled: c.enabled,
     message_mode: c.message_mode,
+    minutes_before: c.minutes_before ?? undefined,
   }));
   const res = await api.patch<AutoSendConfigItem[]>(`${PREFIX}/auto-send/`, {
     configs: payload,

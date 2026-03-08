@@ -78,6 +78,24 @@ function TriggerRow({
           </option>
         ))}
       </select>
+      <span className="text-sm text-[var(--color-text-muted)] shrink-0">N분 전</span>
+      <input
+        type="number"
+        min={0}
+        step={5}
+        placeholder="—"
+        className="ds-input text-sm w-20"
+        value={config.minutes_before ?? ""}
+        onChange={(e) => {
+          const v = e.target.value;
+          onUpdate({
+            ...config,
+            minutes_before: v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
+          });
+        }}
+        disabled={saving}
+        aria-label="발송 시점 (분 전)"
+      />
       <select
         className="ds-input text-sm"
         value={effectiveMode}
@@ -195,7 +213,7 @@ export default function MessageAutoSendPage() {
         <div className="font-semibold text-[var(--color-text-primary)] mb-2">트리거 안내</div>
         <ul className="space-y-1 list-disc list-inside">
           <li><strong>가입 완료</strong>: 학생 가입 시 발송 (학부모 선택 시 학부모에게도 발송)</li>
-          <li><strong>클리닉 알림</strong>: 클리닉 세션 알림 발송</li>
+          <li><strong>클리닉 알림</strong>: 클리닉 세션 알림 발송. &quot;N분 전&quot;에 숫자를 넣으면 해당 시간 전에 발송하도록 설정할 수 있습니다 (스케줄러 연동 시 사용).</li>
           <li><strong>클리닉 예약 생성</strong>: 클리닉 예약 시 발송 (추후 지원)</li>
           <li><strong>클리닉 예약 변경</strong>: 클리닉 예약 변경 시 발송 (추후 지원)</li>
         </ul>
