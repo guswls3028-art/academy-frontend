@@ -419,6 +419,113 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   );
 }
 
+/** 헤더 알림과 동일한 드롭다운에서 쓸 진행 상황 패널 내용 (알림과 같은 위치·애니메이션) */
+export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
+  const tasks = useAsyncStatus();
+  const currentTenantKey = getTenantCodeForApiRequest() ?? "";
+  const displayTasks = tasks.filter((t) => (t.tenantScope ?? "") === currentTenantKey);
+  const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
+
+  useEffect(() => {
+    const wrong = tasks.filter((t) => (t.tenantScope ?? "") !== currentTenantKey);
+    wrong.forEach((t) => {
+      workboxTenantMismatch({
+        taskId: t.id,
+        taskTenantScope: t.tenantScope ?? null,
+        currentTenantKey,
+      });
+      asyncStatusStore.removeTask(t.id);
+    });
+  }, [currentTenantKey, tasks]);
+
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (pendingCount === 0) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [pendingCount]);
+
+  const doHydrate = useCallback(() => {
+    const tenant = getTenantCodeForApiRequest() ?? "";
+    if (tenant === "9999") return Promise.resolve();
+    return fetchInProgressVideos()
+      .then((videos) => {
+        const existing = new Set(
+          asyncStatusStore
+            .getState()
+            .filter(
+              (t) =>
+                t.meta?.jobType === "video_processing" &&
+                (t.tenantScope ?? "") === tenant
+            )
+            .map((t) => t.id)
+        );
+        videos.forEach((v) => {
+          const id = String(v.id);
+          if (existing.has(id)) return;
+          asyncStatusStore.addWorkerJob(v.title || `영상 ${id}`, id, "video_processing");
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    if (refreshing) return;
+    setRefreshing(true);
+    doHydrate()
+      .then(() => feedback.success("진행 상황 목록을 새로고침했습니다."))
+      .finally(() => setRefreshing(false));
+  }, [doHydrate, refreshing]);
+
+  return (
+    <>
+      <div className="async-status-bar__header">
+        <span>진행 상황</span>
+        <div className="async-status-bar__header-actions">
+          <button
+            type="button"
+            className="async-status-bar__header-btn"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="새로고침"
+            aria-label="새로고침"
+          >
+            <RefreshCw size={18} className={refreshing ? "async-status-bar__refresh-spin" : ""} />
+          </button>
+          <button
+            type="button"
+            className="async-status-bar__header-btn"
+            onClick={() => asyncStatusStore.clearCompleted()}
+            title="완료된 항목 지우기"
+            aria-label="완료된 항목 지우기"
+          >
+            <TrashIcon size={18} />
+          </button>
+          <button
+            type="button"
+            className="async-status-bar__header-btn"
+            onClick={onClose}
+            title="접기"
+            aria-label="접기"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 15l-6-6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div className="async-status-bar__list">
+        {displayTasks.length === 0 ? (
+          <div className="async-status-bar__empty">진행 중인 항목이 없습니다.</div>
+        ) : (
+          displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} />)
+        )}
+      </div>
+    </>
+  );
+}
+
 export default function AsyncStatusBar() {
   const queryClient = useQueryClient();
   const tasks = useAsyncStatus();
@@ -459,54 +566,13 @@ export default function AsyncStatusBar() {
     return () => clearInterval(id);
   }, [pendingCount]);
 
-  const doHydrate = useCallback(() => {
-    const tenant = getTenantCodeForApiRequest() ?? "";
-    if (tenant === "9999") return Promise.resolve();
-
-    return fetchInProgressVideos()
-      .then((videos) => {
-        const existing = new Set(
-          asyncStatusStore
-            .getState()
-            .filter(
-              (t) =>
-                t.meta?.jobType === "video_processing" &&
-                (t.tenantScope ?? "") === tenant
-            )
-            .map((t) => t.id)
-        );
-        videos.forEach((v) => {
-          const id = String(v.id);
-          if (existing.has(id)) return;
-          asyncStatusStore.addWorkerJob(v.title || `영상 ${id}`, id, "video_processing");
-        });
-      })
-      .catch(() => {});
-  }, []);
-
-  // 새로고침 후에도 진행 중인 영상 처리를 진행 상황 패널에 복원 (태넌트별)
-  useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
-    doHydrate();
-  }, [doHydrate]);
-
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = useCallback(() => {
-    if (refreshing) return;
-    setRefreshing(true);
-    doHydrate()
-      .then(() => feedback.success("진행 상황 목록을 새로고침했습니다."))
-      .finally(() => setRefreshing(false));
-  }, [doHydrate, refreshing]);
-
   // 새 작업이 추가되면 진행 상황 패널 자동 펼치기
   useEffect(() => {
     if (pendingCount > prevPendingCountRef.current && pendingCount > 0) {
       setExpanded(true);
     }
     prevPendingCountRef.current = pendingCount;
-  }, [pendingCount]);
+  }, [pendingCount, setExpanded]);
 
   const workerTasks = tasks.filter((t) => t.meta?.jobId);
   useWorkerJobPoller(tasks, {
@@ -556,51 +622,12 @@ export default function AsyncStatusBar() {
       </button>
       )}
 
-      {/* 펼쳤을 때: 목록 패널 (앵커 모드면 우상단 고정) */}
+      {/* 펼쳤을 때: 목록 패널 (앵커 모드가 아닐 때만 여기서 렌더, 앵커 모드는 Header 드롭다운에서 렌더) */}
+      {!isAnchorMode && (
       <div className="async-status-bar__panel">
-        <div className="async-status-bar__header">
-          <span>진행 상황</span>
-          <div className="async-status-bar__header-actions">
-            <button
-              type="button"
-              className="async-status-bar__header-btn"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              title="새로고침"
-              aria-label="새로고침"
-            >
-              <RefreshCw size={18} className={refreshing ? "async-status-bar__refresh-spin" : ""} />
-            </button>
-            <button
-              type="button"
-              className="async-status-bar__header-btn"
-              onClick={() => asyncStatusStore.clearCompleted()}
-              title="완료된 항목 지우기"
-              aria-label="완료된 항목 지우기"
-            >
-              <TrashIcon size={18} />
-            </button>
-            <button
-              type="button"
-              className="async-status-bar__header-btn"
-              onClick={() => setExpanded(false)}
-              title="접기"
-              aria-label="접기"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 15l-6-6-6 6" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div className="async-status-bar__list">
-          {displayTasks.length === 0 ? (
-            <div className="async-status-bar__empty">진행 중인 항목이 없습니다.</div>
-          ) : (
-            displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} />)
-          )}
-        </div>
+        <WorkboxPanelContent onClose={() => setExpanded(false)} />
       </div>
+      )}
     </div>
   );
 }
