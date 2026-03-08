@@ -1,5 +1,5 @@
 // PATH: src/features/clinic/pages/BookingsPage/ClinicBookingsPage.tsx
-// 예약대상자 — 예약 신청(승인 대기) + 2열(대상자 | 클리닉 생성)
+// 예약대상자 — 3단 패널(예약신청자 | 예약대상자 | 클리닉생성). 운영 탭과 동일 레이아웃.
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
@@ -78,53 +78,60 @@ export default function ClinicBookingsPage() {
 
   return (
     <div className="clinic-page">
-      {/* 알림 "클리닉 예약 신청 N건" 클릭 시 이 페이지로 오므로, 승인 대기 목록을 상단에 표시 */}
-      {pendingList.length > 0 && (
-        <div className="clinic-panel mb-6 border border-[var(--color-border-divider)] rounded-lg overflow-hidden bg-[var(--color-bg-surface)]">
-          <div className="px-5 py-3 border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]">
-            <h2 className="clinic-panel__title text-base font-semibold">예약 신청 (승인 대기) {pendingList.length}건</h2>
+      <div className="clinic-three-panel">
+        {/* 1단: 예약신청자 (승인 대기) */}
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[320px]">
+          <div className="clinic-panel h-full border border-[var(--color-border-divider)] rounded-lg overflow-hidden bg-[var(--color-bg-surface)] flex flex-col">
+            <div className="px-5 py-3 border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] shrink-0">
+              <h2 className="clinic-panel__title text-base font-semibold">예약 신청 (승인 대기) {pendingList.length}건</h2>
+            </div>
+            <ul className="divide-y divide-[var(--color-border-divider)] flex-1 min-h-0 overflow-auto">
+              {pendingList.length === 0 ? (
+                <li className="px-5 py-6 text-sm text-[var(--color-text-muted)] text-center">대기 중인 신청이 없습니다.</li>
+              ) : (
+                pendingList.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between gap-3 px-5 py-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-[var(--color-text-primary)] truncate">{p.student_name}</div>
+                      <div className="text-xs text-[var(--color-text-muted)]">
+                        {p.session_date ?? "-"} {p.session_start_time?.slice(0, 5) ?? ""} · {p.session_location ?? "-"}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
+                        disabled={patchStatusM.isPending}
+                        className="text-xs font-semibold px-3 py-1.5 rounded bg-[var(--color-success)] text-white hover:opacity-90"
+                      >
+                        승인
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
+                        disabled={patchStatusM.isPending}
+                        className="text-xs font-semibold px-3 py-1.5 rounded bg-[var(--color-error)] text-white hover:opacity-90"
+                      >
+                        거절
+                      </button>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
           </div>
-          <ul className="divide-y divide-[var(--color-border-divider)] max-h-[280px] overflow-auto">
-            {pendingList.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between gap-3 px-5 py-3"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium text-[var(--color-text-primary)] truncate">{p.student_name}</div>
-                  <div className="text-xs text-[var(--color-text-muted)]">
-                    {p.session_date ?? "-"} {p.session_start_time?.slice(0, 5) ?? ""} · {p.session_location ?? "-"}
-                  </div>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
-                    disabled={patchStatusM.isPending}
-                    className="text-xs font-semibold px-3 py-1.5 rounded bg-[var(--color-success)] text-white hover:opacity-90"
-                  >
-                    승인
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
-                    disabled={patchStatusM.isPending}
-                    className="text-xs font-semibold px-3 py-1.5 rounded bg-[var(--color-error)] text-white hover:opacity-90"
-                  >
-                    거절
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
         </div>
-      )}
 
-      <div className="clinic-two-panel">
-        <div className="clinic-two-panel__cell clinic-two-panel__cell--fixed w-full lg:w-[360px]">
+        {/* 2단: 예약대상자 */}
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[360px]">
           <ClinicTargetTable selected={selected} onChangeSelected={setSelected} />
         </div>
-        <div className="clinic-two-panel__cell clinic-two-panel__cell--fill">
+
+        {/* 3단: 클리닉생성 */}
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fill">
           <ClinicCreatePanel
             defaultMode="targets"
             selectedTargetEnrollmentIds={selected}
