@@ -30,7 +30,7 @@ export async function fetchAdminNotificationCounts(): Promise<AdminNotificationC
         const types = await fetchBlockTypes();
         const qnaType = types.find((t) => (t.code || "").toLowerCase() === "qna");
         const posts = qnaType
-          ? (await fetchAdminPosts({ blockTypeId: qnaType.id, pageSize: 500 })).results
+          ? (await fetchAdminPosts({ blockTypeId: qnaType.id, pageSize: 100 })).results
           : [];
         return posts.filter((p) => (p.replies_count ?? 0) === 0).length;
       })().catch(() => 0),

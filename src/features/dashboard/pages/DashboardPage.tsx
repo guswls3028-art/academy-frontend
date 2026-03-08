@@ -1,15 +1,14 @@
 /**
  * PATH: src/features/dashboard/pages/DashboardPage.tsx
  * Dashboard — 학원 운영 현황 · 섹션형 레이아웃 (SSOT: patterns/section.css)
+ * 모달은 클릭 시에만 로드 (초기 청크 경량화)
  */
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import ClinicPasscardModal from "@/features/clinic/components/ClinicPasscardModal";
 import { fetchCommunityQuestions } from "@/features/community/api/community.api";
 import { fetchExams } from "@/features/exams/api/exams";
 import { fetchLectures } from "@/features/lectures/api/sessions";
-import ChargeCreditsModal from "@/features/messages/components/ChargeCreditsModal";
 import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
 import { fetchStudents } from "@/features/students/api/students";
 import { Button } from "@/shared/ui/ds";
@@ -17,6 +16,9 @@ import { DomainLayout } from "@/shared/ui/layout";
 import ClinicRemoconIcon from "../components/ClinicRemoconIcon";
 import DashboardShortcutWidget from "../components/DashboardShortcutWidget";
 import DashboardWidget from "../components/DashboardWidget";
+
+const ClinicPasscardModal = lazy(() => import("@/features/clinic/components/ClinicPasscardModal"));
+const ChargeCreditsModal = lazy(() => import("@/features/messages/components/ChargeCreditsModal"));
 
 export default function DashboardPage() {
   const navigate = useNavigate();
