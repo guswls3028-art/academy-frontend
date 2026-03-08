@@ -12,7 +12,7 @@ REM 이 배치 파일이 있는 폴더(scripts)의 상위 = 프로젝트 루트 
 cd /d "%~dp0.."
 if errorlevel 1 (
   echo [오류] 프로젝트 폴더로 이동할 수 없습니다.
-  echo 바로가기가 academyfront\scripts\run-local-frontend.bat 을 가리키는지 확인하세요.
+  echo 바로가기가 frontend\scripts\run-local-frontend.bat 을 가리키는지 확인하세요.
   pause
   exit /b 1
 )
