@@ -1,6 +1,8 @@
 /**
  * 전화번호 입력: [010 고정 블록] [4자리] [4자리]
- * 4자리 채워지면 자동으로 다음 인풋으로 포커스 이동
+ * 표기는 4+4칸이지만 한 개의 8자리 필드처럼 동작:
+ * - 연속으로 8자리 입력 시 앞 4자리 채운 뒤 뒤 4자리로 자연스럽게 이어짐
+ * - 두 번째 칸에서 백스페이스 시 뒤 4자리 비어 있으면 앞 4자리 마지막 한 글자 삭제 후 첫 칸으로 포커스
  */
 import { useRef, useCallback } from "react";
 
@@ -35,6 +37,7 @@ export function PhoneInput010Blocks({
   "data-invalid": dataInvalid,
   "aria-label": ariaLabel,
 }: Props) {
+  const firstInputRef = useRef<HTMLInputElement>(null);
   const secondInputRef = useRef<HTMLInputElement>(null);
   const { first4, last4 } = getParts(value);
 
@@ -49,9 +52,13 @@ export function PhoneInput010Blocks({
 
   const handleFirstChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-      setRaw(v, last4);
-      if (v.length === 4) secondInputRef.current?.focus();
+      const v = e.target.value.replace(/\D/g, "").slice(0, 8);
+      if (v.length <= 4) {
+        setRaw(v, last4);
+      } else {
+        setRaw(v.slice(0, 4), v.slice(4, 8));
+        secondInputRef.current?.focus();
+      }
     },
     [last4, setRaw]
   );
@@ -67,24 +74,38 @@ export function PhoneInput010Blocks({
   const handleFirstPaste = useCallback(
     (e: React.ClipboardEvent<HTMLInputElement>) => {
       const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
-      if (pasted.length >= 8) {
+      if (pasted.length > 4) {
         e.preventDefault();
-        onChange("010" + pasted.slice(0, 8));
+        setRaw(pasted.slice(0, 4), pasted.slice(4, 8));
         secondInputRef.current?.focus();
       }
     },
-    [onChange]
+    [setRaw]
   );
 
   const handleLastPaste = useCallback(
     (e: React.ClipboardEvent<HTMLInputElement>) => {
-      const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
-      if (pasted.length >= 4) {
+      const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
+      if (pasted.length >= 8) {
+        e.preventDefault();
+        setRaw(pasted.slice(0, 4), pasted.slice(4, 8));
+      } else if (pasted.length >= 4) {
         e.preventDefault();
         setRaw(first4, pasted.slice(0, 4));
       }
     },
     [first4, setRaw]
+  );
+
+  const handleSecondKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Backspace" && last4 === "" && first4.length > 0) {
+        e.preventDefault();
+        setRaw(first4.slice(0, -1), "");
+        firstInputRef.current?.focus();
+      }
+    },
+    [first4, last4, setRaw]
   );
 
   const invalid = dataInvalid === true || dataInvalid === "true";
@@ -116,10 +137,11 @@ export function PhoneInput010Blocks({
         010
       </div>
       <input
+        ref={firstInputRef}
         type="text"
         inputMode="numeric"
         autoComplete="tel-national"
-        maxLength={4}
+        maxLength={8}
         placeholder="0000"
         value={first4}
         onChange={handleFirstChange}
@@ -159,6 +181,7 @@ export function PhoneInput010Blocks({
         placeholder="0000"
         value={last4}
         onChange={handleLastChange}
+        onKeyDown={handleSecondKeyDown}
         onPaste={handleLastPaste}
         disabled={disabled}
         className={inputClassName}
