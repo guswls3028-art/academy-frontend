@@ -1,12 +1,23 @@
 // Cloudflare Pages Function: tchul.com 등 테넌트 도메인 접속 시
 // HTML 문서의 <title> / og:title / og:description 을 브랜드명으로 치환.
 // 카카오톡 등 크롤러는 JS를 실행하지 않으므로, 서버에서 내려줄 때부터 올바른 값이 필요함.
+//
+// 배포: index.html과 /assets/* 청크는 반드시 동일 빌드에서 함께 업로드되어야 함.
+// 청크 해시가 바뀌면 이전 빌드의 index.html이 이전 청크를 요청해 404 → HTML 반환 시 MIME 오류 발생.
 
 interface Env {
   ASSETS: Fetcher;
 }
 
 const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest)(\?.*)?$/i;
+
+/** 정적 요청 404 시 HTML 대신 적절한 Content-Type으로 응답 (MIME type 오류 방지) */
+function contentTypeForPath(pathname: string): string {
+  if (/\.(js|mjs)(\?.*)?$/i.test(pathname)) return "application/javascript; charset=utf-8";
+  if (/\.css(\?.*)?$/i.test(pathname)) return "text/css; charset=utf-8";
+  if (/\.json(\?.*)?$/i.test(pathname)) return "application/json";
+  return "application/octet-stream";
+}
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
@@ -16,7 +27,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   // 정적 파일은 그대로 ASSETS에 위임
   if (STATIC_EXT.test(pathname)) {
-    return context.env.ASSETS.fetch(context.request);
+    const res = await context.env.ASSETS.fetch(context.request);
+    // 404인데 HTML이 오면 브라우저가 "expected JS but got HTML" MIME 오류를 냄 → 빈 본문 + 올바른 Content-Type으로 404 반환
+    if (res.status === 404) {
+      const ct = res.headers.get("Content-Type") ?? "";
+      if (ct.includes("text/html")) {
+        return new Response("/* 404 Not Found */", {
+          status: 404,
+          headers: { "Content-Type": contentTypeForPath(pathname) },
+        });
+      }
+    }
+    return res;
   }
 
   // HTML 문서 요청이 아니면 그대로 위임
