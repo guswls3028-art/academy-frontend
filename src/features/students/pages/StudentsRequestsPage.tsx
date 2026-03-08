@@ -395,11 +395,9 @@ export default function StudentsRequestsPage() {
                         onChange={(e) => toggleOne(r.id, e.target.checked)}
                       />
                     </div>
-                    <div className="students-requests-section-item__cells">
-                      <span className="students-requests-section-item__name">{r.name}</span>
-                      <span className="students-requests-section-item__phone">{parentPhone(r)}</span>
-                      <span className="students-requests-section-item__phone">{studentPhone(r)}</span>
-                    </div>
+                    <span className="students-requests-section-item__name">{r.name}</span>
+                    <span className="students-requests-section-item__phone">{parentPhone(r)}</span>
+                    <span className="students-requests-section-item__phone">{studentPhone(r)}</span>
                     <div className="students-requests-section-item__actions">
                       <Button
                         size="sm"

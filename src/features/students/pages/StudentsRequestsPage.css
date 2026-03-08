@@ -135,9 +135,10 @@
 }
 
 .students-requests-section-item__inner {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 44px minmax(80px, 1fr) minmax(100px, 1.2fr) minmax(100px, 1.2fr) auto;
   gap: var(--space-4);
+  align-items: center;
   padding: var(--space-4) var(--space-5);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-divider);
@@ -155,16 +156,6 @@
 
 .students-requests-section-item__check {
   flex-shrink: 0;
-}
-
-/* 이름 · 학부모 전화 · 본인 전화 3열 */
-.students-requests-section-item__cells {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(80px, 1fr) minmax(100px, 1.2fr) minmax(100px, 1.2fr);
-  gap: var(--space-4);
-  align-items: center;
 }
 
 .students-requests-section-item__name {
