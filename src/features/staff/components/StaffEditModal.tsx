@@ -1,6 +1,6 @@
 // PATH: src/features/staff/components/StaffEditModal.tsx
-// 직원 수정 모달 — 전역 디자인 시스템(AdminModal + ModalHeader/Body/Footer) 적용
-// 학생 도메인 EditStudentModal과 동일한 구조·클래스 사용
+// 직원 수정 모달 — 전역 디자인 시스템(AdminModal + ModalHeader/Body/Footer) 적용.
+// 학생 도메인 EditStudentModal과 동일한 구조·클래스 사용.
 
 import { useEffect, useState } from "react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
