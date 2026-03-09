@@ -144,7 +144,7 @@ type Props = {
   onSelectRow: (row: SessionScoreRow) => void;
 
   focusCell?: ({ enrollmentId: number } & (
-    | { type: "exam"; examId: number; sub: "total" | "objective"; questionId?: undefined }
+    | { type: "exam"; examId: number; sub: "total" | "objective" | "subjective"; questionId?: undefined }
     | { type: "exam"; examId: number; sub: "item"; questionId: number }
     | { type: "homework"; homeworkId: number }
   )) | null;
@@ -188,6 +188,7 @@ export default function ScoresTable({
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examObjectiveInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const examSubjectiveInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examItemInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   /** ESC 복원용 — 포커스 진입 시점의 값 */
   const scoreValueOnFocusRef = useRef<Record<string, string>>({});
@@ -259,6 +260,16 @@ export default function ScoresTable({
       if (focusCell.sub === "objective") {
         const key = `${focusCell.enrollmentId}-${focusCell.examId}-objective`;
         const el = examObjectiveInputRefs.current[key];
+        if (el) {
+          el.focus();
+          selectAllScoreCell(el);
+        }
+        onFocusDone();
+        return;
+      }
+      if (focusCell.sub === "subjective") {
+        const key = `${focusCell.enrollmentId}-${focusCell.examId}-subjective`;
+        const el = examSubjectiveInputRefs.current[key];
         if (el) {
           el.focus();
           selectAllScoreCell(el);
@@ -615,7 +626,7 @@ export default function ScoresTable({
                           selectedCell.enrollmentId === row.enrollment_id &&
                           selectedCell.type === "exam" &&
                           selectedCell.examId === ex.exam_id &&
-                          (col.sub === "total" ? selectedCell.sub === "total" : col.sub === "objective" ? selectedCell.sub === "objective" : col.sub === "item" && col.questionId != null ? selectedCell.sub === "item" && selectedCell.questionId === col.questionId : false);
+                          (col.sub === "total" ? selectedCell.sub === "total" : col.sub === "objective" ? selectedCell.sub === "objective" : col.sub === "subjective" ? selectedCell.sub === "subjective" : col.sub === "item" && col.questionId != null ? selectedCell.sub === "item" && selectedCell.questionId === col.questionId : false);
                         const bg = rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM };
 
                         if (col.sub === "pass") {
@@ -741,9 +752,61 @@ export default function ScoresTable({
 
                         if (col.sub === "subjective") {
                           const subScore = block?.subjective_score ?? null;
+                          const scoreText = subScore != null ? String(Math.round(subScore)) : "-";
+                          const canEdit = col.editable && !block?.is_locked;
+                          const objScore = block?.objective_score ?? 0;
                           return (
-                            <td key={col.key} className="min-w-0 text-left align-middle py-2.5 px-3" style={bg}>
-                              <span className="font-medium text-[var(--color-text-primary)]">{subScore != null ? String(Math.round(subScore)) : "-"}</span>
+                            <td
+                              key={col.key}
+                              className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              style={bg}
+                              onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
+                            >
+                              {canEdit ? (
+                                <span
+                                  ref={(el) => {
+                                    const k = `${row.enrollment_id}-${ex.exam_id}-subjective`;
+                                    examSubjectiveInputRefs.current[k] = el;
+                                    if (el && el !== document.activeElement) el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+                                  }}
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0"
+                                  onFocus={(e) => {
+                                    const el = e.currentTarget;
+                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] = subScore != null ? String(Math.round(subScore)) : "";
+                                    requestAnimationFrame(() => selectAllScoreCell(el));
+                                  }}
+                                  onBlur={async () => {
+                                    const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
+                                    if (!el) return;
+                                    const raw = firstLine(el.innerText);
+                                    const parsed = parseScoreInput(raw, 100);
+                                    if (parsed != null && validateScore(parsed, 100)) {
+                                      const newTotal = (typeof objScore === "number" ? objScore : 0) + parsed;
+                                      await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: newTotal, maxScore: 100 });
+                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    } else if (raw !== "") el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+                                  }}
+                                  onKeyDown={async (e) => {
+                                    const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
+                                      if (parsed != null && validateScore(parsed, 100)) {
+                                        const newTotal = (typeof objScore === "number" ? objScore : 0) + parsed;
+                                        await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: newTotal, maxScore: 100 });
+                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      }
+                                      onRequestMoveDown?.();
+                                    } else if (e.key === "Tab") { e.preventDefault(); if (e.shiftKey) onRequestMovePrev?.(); else onRequestMoveNext?.(); }
+                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
+                                    else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
+                                  }}
+                                />
+                              ) : (
+                                <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
+                              )}
                             </td>
                           );
                         }

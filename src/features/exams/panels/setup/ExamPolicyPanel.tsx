@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminExam } from "../../hooks/useAdminExam";
-import { saveExamAsTemplate, updateAdminExam } from "../../api/adminExam";
+import { updateAdminExam } from "../../api/adminExam";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
@@ -44,17 +44,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     },
     onError: (e: any) => {
       feedback.error(e?.response?.data?.detail ?? "저장에 실패했습니다.");
-    },
-  });
-
-  const saveAsTemplateMut = useMutation({
-    mutationFn: () => saveExamAsTemplate(examId),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
-      feedback.success("템플릿으로 저장했습니다.");
-    },
-    onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "템플릿 저장에 실패했습니다.");
     },
   });
 
