@@ -236,20 +236,40 @@ export default function AnswerKeyRegisterModal({
             <div className="answer-key-two-panels">
               {/* 좌측: 선택형 — 제목 버튼 클릭 시 문항 수 변경 */}
               <div className="answer-key-panel answer-key-panel--choice">
-                <button
-                  type="button"
-                  className="answer-key-section-btn"
-                  onClick={() => {
-                    setChoiceEditorOpen((v) => !v);
-                    if (essayEditorOpen) setEssayEditorOpen(false);
-                  }}
-                  aria-expanded={choiceEditorOpen}
-                >
-                  <span className="answer-key-section-btn__title">선택형 ({choiceTotalScore}점)</span>
-                  <span className="answer-key-section-badge" aria-label="문항 수">
-                    {choiceQuestions.length}문항
-                  </span>
-                </button>
+                <div className="answer-key-section-header">
+                  <button
+                    type="button"
+                    className="answer-key-section-btn"
+                    onClick={() => {
+                      setChoiceEditorOpen((v) => !v);
+                      if (essayEditorOpen) setEssayEditorOpen(false);
+                    }}
+                    aria-expanded={choiceEditorOpen}
+                  >
+                    <span className="answer-key-section-btn__title">선택형 ({choiceTotalScore}점)</span>
+                    <span className="answer-key-section-badge" aria-label="문항 수">
+                      {choiceQuestions.length}문항
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="answer-key-section-reset-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDraft((prev) => {
+                        const next = { ...prev };
+                        choiceQuestions.forEach((q) => {
+                          next[String(q.id)] = "";
+                        });
+                        return next;
+                      });
+                    }}
+                    aria-label="선택형 답안 초기화"
+                    title="선택형 답안 모두 비우기"
+                  >
+                    <ResetIcon />
+                  </button>
+                </div>
                 {choiceEditorOpen && (
                   <div className="answer-key-inline-editor">
                     <label className="answer-key-field">
