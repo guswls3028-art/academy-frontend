@@ -8,6 +8,8 @@ export type DomainTab = {
   locked?: boolean;
   /** true면 path와 완전 일치할 때만 active */
   exact?: boolean;
+  /** 여러 경로 중 하나면 active (path보다 우선) */
+  activePaths?: string[];
 };
 
 const LOCKED_TAB_CLASS =
