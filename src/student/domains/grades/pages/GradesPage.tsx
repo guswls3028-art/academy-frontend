@@ -8,6 +8,7 @@ import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { useMyGradesSummary } from "../hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades";
 import { IconExam, IconChevronRight, IconClipboard } from "@/student/shared/ui/icons/Icons";
+import GradeRow from "../components/GradeRow";
 
 function formatScore(total: number, max: number): string {
   if (max <= 0) return `${total}점`;
@@ -82,35 +83,16 @@ export default function GradesPage() {
                     key={e.exam_id}
                     to={`/student/exams/${e.exam_id}/result`}
                     className="stu-panel stu-panel--pressable stu-panel--accent"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--stu-space-4)",
-                      textDecoration: "none",
-                      color: "inherit",
-                    }}
+                    style={{ textDecoration: "none", color: "inherit" }}
                   >
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        background: "var(--stu-surface-soft)",
-                        display: "grid",
-                        placeItems: "center",
-                      }}
-                    >
-                      <IconExam style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{e.title}</div>
-                      <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
-                        {e.lecture_title && `${e.lecture_title} · `}
-                        {formatScore(e.total_score, e.max_score)}
-                        {e.is_pass ? " · 합격" : " · 불합격"}
-                      </div>
-                    </div>
-                    <IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)" }} />
+                    <GradeRow
+                      icon={<IconExam style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />}
+                      title={e.title}
+                      subtitle={e.lecture_title}
+                      score={formatScore(e.total_score, e.max_score)}
+                      passed={e.is_pass}
+                      trailingIcon={<IconChevronRight style={{ width: 20, height: 20, color: "var(--stu-text-muted)" }} />}
+                    />
                   </Link>
                 ))}
               </div>
@@ -143,34 +125,14 @@ export default function GradesPage() {
                   <div
                     key={`${h.homework_id}-${h.lecture_title ?? ""}-${idx}`}
                     className="stu-panel stu-panel--accent"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "var(--stu-space-4)",
-                    }}
                   >
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        background: "var(--stu-surface-soft)",
-                        display: "grid",
-                        placeItems: "center",
-                      }}
-                    >
-                      <IconClipboard style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{h.title}</div>
-                      <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
-                        {h.lecture_title && `${h.lecture_title} · `}
-                        {h.max_score != null
-                          ? `${h.score}/${h.max_score}점`
-                          : `${h.score}점`}
-                        {h.passed ? " · 합격" : ""}
-                      </div>
-                    </div>
+                    <GradeRow
+                      icon={<IconClipboard style={{ width: 22, height: 22, color: "var(--stu-primary)" }} />}
+                      title={h.title}
+                      subtitle={h.lecture_title}
+                      score={h.max_score != null ? `${h.score}/${h.max_score}점` : `${h.score}점`}
+                      passed={h.passed ? true : undefined}
+                    />
                   </div>
                 ))}
               </div>
