@@ -13,10 +13,7 @@ export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
   return (
     <div className="space-y-3">
       <div>
-        <div className="text-sm font-semibold">일괄 작업</div>
-        <div className="text-xs text-muted">
-          재채점 실행 및 OMR / 제출 데이터 관리
-        </div>
+        <div className="text-sm font-semibold">OMR 업로드</div>
       </div>
 
       <div className="surface p-4 space-y-4">
@@ -31,12 +28,7 @@ export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
           {recalc.isPending ? "재채점 중..." : "재채점 실행"}
         </Button>
 
-        <div className="surface-muted p-3">
-          <div className="mb-2 text-xs font-semibold text-muted">
-            OMR / 제출 데이터 업로드
-          </div>
-          <AdminOmrBatchUploadBox examId={examId} />
-        </div>
+        <AdminOmrBatchUploadBox examId={examId} />
       </div>
     </div>
   );
