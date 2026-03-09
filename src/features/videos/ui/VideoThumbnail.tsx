@@ -242,6 +242,23 @@ export default function VideoThumbnail({
           ↺ 썸네일 새로고침
         </Button>
       )}
+
+      {/* 인코딩 완료(READY): 썸네일 좌상단에 시청가능 뱃지 — 인코딩 중 카드와 동일한 위치감 */}
+      {status === "READY" && !showProgressOverlay && (
+        <div
+          className="video-thumbnail-ready-badge"
+          style={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            zIndex: 2,
+          }}
+        >
+          <span className="ds-status-badge" data-tone="success">
+            시청가능
+          </span>
+        </div>
+      )}
     </div>
   );
 }

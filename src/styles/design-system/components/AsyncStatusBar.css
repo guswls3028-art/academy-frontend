@@ -534,6 +534,11 @@
   50% { opacity: 0.85; transform: scale(0.95); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
 }
 
+/* 인코딩 완료(READY) 시청가능 뱃지 — 썸네일 위 가독성 */
+.video-thumbnail-ready-badge .ds-status-badge {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
 .video-thumbnail-encoding-overlay__pct-center {
   position: absolute;
   top: 50%;
