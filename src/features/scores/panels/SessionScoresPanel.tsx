@@ -19,12 +19,14 @@ type Props = {
   search?: string;
   /** 편집 모드일 때만 점수 셀 입력 가능 */
   isEditMode?: boolean;
+  /** 시험 점수 입력 모드 */
+  examScoreInputMode?: "TOTAL" | "SUBJECTIVE";
   /** 일괄 작업용 행 선택. 부모에서 관리 시 전달 */
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 };
 
-export default function SessionScoresPanel({ sessionId, search = "", isEditMode = false, selectedEnrollmentIds = [], onSelectionChange }: Props) {
+export default function SessionScoresPanel({ sessionId, search = "", isEditMode = false, examScoreInputMode = "TOTAL", selectedEnrollmentIds = [], onSelectionChange }: Props) {
   const [focusHomeworkCell, setFocusHomeworkCell] = useState<{
     enrollmentId: number;
     homeworkId: number;
@@ -254,9 +256,21 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
     // 편집 모드 진입 시에만 첫 점수 셀 자동 포커스
     const justEntered = !prevEditModeRef.current;
     prevEditModeRef.current = true;
-    if (justEntered && rows.length > 0 && homeworkCols.length > 0) {
+    if (justEntered && rows.length > 0) {
       const firstRow = rows[0];
+      const firstExam = examCols[0];
       const firstHw = homeworkCols[0];
+      const preferExam = examScoreInputMode === "TOTAL" && examCols.length > 0;
+      if (firstRow && preferExam && firstExam) {
+        const timer = setTimeout(() => {
+          setSelected(firstRow);
+          setActiveColumn("exam");
+          setCurrentExamId(firstExam.exam_id);
+          setCurrentHomeworkId(firstHw?.homework_id ?? null);
+          setFocusHomeworkCell(null);
+        }, 0);
+        return () => clearTimeout(timer);
+      }
       if (firstRow && firstHw) {
         const timer = setTimeout(() => {
           setSelected(firstRow);
@@ -268,7 +282,7 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
         return () => clearTimeout(timer);
       }
     }
-  }, [isEditMode, rows, homeworkCols, examCols]);
+  }, [isEditMode, rows, homeworkCols, examCols, examScoreInputMode]);
 
   useEffect(() => {
     if (!rows.length) {
@@ -339,6 +353,8 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
           sessionId={sessionId}
           attendanceMap={attendanceMap}
           isEditMode={isEditMode}
+          activeColumn={activeColumn}
+          examScoreInputMode={examScoreInputMode}
           selectedEnrollmentId={selected?.enrollment_id ?? null}
           selectedExamId={currentExamId}
           selectedHomeworkId={currentHomeworkId}
