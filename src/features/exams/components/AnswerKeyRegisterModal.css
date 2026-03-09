@@ -156,6 +156,16 @@
   gap: var(--space-1);
 }
 
+.answer-key-field--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+.answer-key-field--checkbox input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
 .answer-key-field__label {
   font-size: 12px;
   font-weight: 600;

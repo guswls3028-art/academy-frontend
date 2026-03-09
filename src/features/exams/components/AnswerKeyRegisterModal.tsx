@@ -251,6 +251,15 @@ export default function AnswerKeyRegisterModal({
                         style={{ width: 80 }}
                       />
                     </label>
+                    <label className="answer-key-field answer-key-field--checkbox">
+                      <input
+                        type="checkbox"
+                        checked={choiceNoDefaultScore}
+                        onChange={(e) => setChoiceNoDefaultScore(e.target.checked)}
+                        className="ds-input"
+                      />
+                      <span className="answer-key-field__label">기본점수 미사용</span>
+                    </label>
                     <Button
                       type="button"
                       intent="primary"
@@ -336,6 +345,15 @@ export default function AnswerKeyRegisterModal({
                         className="ds-input"
                         style={{ width: 80 }}
                       />
+                    </label>
+                    <label className="answer-key-field answer-key-field--checkbox">
+                      <input
+                        type="checkbox"
+                        checked={essayNoDefaultScore}
+                        onChange={(e) => setEssayNoDefaultScore(e.target.checked)}
+                        className="ds-input"
+                      />
+                      <span className="answer-key-field__label">기본점수 미사용</span>
                     </label>
                     <Button
                       type="button"
