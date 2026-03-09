@@ -12,7 +12,8 @@
 .modal-body:has(> .answer-key-panel) > .answer-key-panel {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* 모달 헤더 내 탭 (답안 등록 | 이미지 등록) */
