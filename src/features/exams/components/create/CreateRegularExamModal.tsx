@@ -3,7 +3,7 @@
 // 시험 생성 모달 — 과제와 동일: 제목만 입력 후 생성. 템플릿·세부 설정은 시험 설정에서.
 // ------------------------------------------------------------
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -33,6 +33,7 @@ export default function CreateRegularExamModal({
   const [templates, setTemplates] = useState<TemplateWithUsage[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [keyword, setKeyword] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +44,7 @@ export default function CreateRegularExamModal({
     setTemplates([]);
     setTemplatesLoading(false);
     setSelectedTemplateId(null);
+    setKeyword("");
   }, [open]);
 
   useEffect(() => {
@@ -137,6 +139,23 @@ export default function CreateRegularExamModal({
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
 
+  const filteredTemplates = useMemo(() => {
+    const k = keyword.trim().toLowerCase();
+    const base = [...templates];
+    base.sort((a, b) => {
+      const ad = a.last_used_date ?? "";
+      const bd = b.last_used_date ?? "";
+      if (ad !== bd) return bd.localeCompare(ad);
+      return (a.title ?? "").localeCompare(b.title ?? "");
+    });
+    if (!k) return base;
+    return base.filter((t) => {
+      const tTitle = (t.title ?? "").toLowerCase();
+      const tSub = (t.subject ?? "").toLowerCase();
+      return tTitle.includes(k) || tSub.includes(k);
+    });
+  }, [templates, keyword]);
+
   const headerTitle =
     stage === "choose" ? (
       "시험 생성"
@@ -208,11 +227,12 @@ export default function CreateRegularExamModal({
                   selected={false}
                   showCheck
                   title="불러오기"
-                  desc="템플릿을 선택해 이 차시에 적용합니다."
+                  desc="다른 강의의 시험을 불러옵니다."
                   onClick={() => {
                     setError(null);
                     setTitle("");
                     setSelectedTemplateId(null);
+                    setKeyword("");
                     setStage("import");
                   }}
                 />
@@ -225,17 +245,28 @@ export default function CreateRegularExamModal({
               <label className="modal-section-label">템플릿 선택</label>
 
               <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-3 space-y-2">
+                <input
+                  className="ds-input"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="제목/과목 검색"
+                  aria-label="템플릿 검색"
+                />
+
                 {templatesLoading && (
                   <div className="text-sm text-[var(--text-muted)]">불러오는 중…</div>
                 )}
-                {!templatesLoading && templates.length === 0 && (
+                {!templatesLoading && filteredTemplates.length === 0 && (
                   <div className="text-sm text-[var(--text-muted)]">사용 가능한 템플릿이 없습니다.</div>
                 )}
 
-                {!templatesLoading && templates.length > 0 && (
+                {!templatesLoading && filteredTemplates.length > 0 && (
                   <div className="grid gap-2">
-                    {templates.map((t) => {
+                    {filteredTemplates.map((t) => {
                       const active = t.id === selectedTemplateId;
+                      const lectures = [...(t.used_lectures ?? [])].sort((a, b) =>
+                        String(b.last_used_date ?? "").localeCompare(String(a.last_used_date ?? ""))
+                      );
                       return (
                         <button
                           key={t.id}
@@ -258,22 +289,38 @@ export default function CreateRegularExamModal({
                               <div className="mt-0.5 text-xs text-[var(--text-muted)]">
                                 {t.subject ? `과목: ${t.subject}` : "과목: -"}
                               </div>
+                              {!!t.last_used_date && (
+                                <div className="mt-0.5 text-xs text-[var(--text-muted)]">
+                                  최근 사용: {t.last_used_date}
+                                </div>
+                              )}
                             </div>
                             <div className="shrink-0 text-xs text-[var(--text-muted)]">
                               template #{t.id}
                             </div>
                           </div>
 
-                          {t.used_lectures?.length > 0 && (
+                          {lectures.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1.5">
-                              {t.used_lectures.slice(0, 6).map((lec) => (
-                                <span key={lec.lecture_id} className="ds-badge">
-                                  {lec.lecture_title}
+                              {lectures.slice(0, 6).map((lec) => (
+                                <span
+                                  key={lec.lecture_id}
+                                  className="ds-badge"
+                                  style={
+                                    lec.color
+                                      ? ({
+                                          ["--badge-bg" as any]: `color-mix(in srgb, ${lec.color} 18%, var(--bg-surface-soft))`,
+                                          ["--badge-text" as any]: "var(--text-primary)",
+                                        } as React.CSSProperties)
+                                      : undefined
+                                  }
+                                >
+                                  {(lec.chip_label ? `${lec.chip_label} ` : "") + lec.lecture_title}
                                 </span>
                               ))}
-                              {t.used_lectures.length > 6 && (
+                              {lectures.length > 6 && (
                                 <span className="ds-badge">
-                                  +{t.used_lectures.length - 6}
+                                  +{lectures.length - 6}
                                 </span>
                               )}
                             </div>
