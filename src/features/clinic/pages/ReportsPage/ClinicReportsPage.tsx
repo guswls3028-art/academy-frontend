@@ -204,14 +204,19 @@ export default function ClinicReportsPage() {
                       {items.slice(0, 3).map((s) => (
                         <div
                           key={s.id}
-                          className="text-[11px] rounded-md px-2 py-1 font-semibold border border-[color-mix(in_srgb,var(--color-brand-primary)_20%,var(--color-border-divider))] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]"
+                          className="text-[11px] rounded-md px-2 py-1.5 font-medium border border-[color-mix(in_srgb,var(--color-brand-primary)_20%,var(--color-border-divider))] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] space-y-0.5"
                         >
-                          {startTimeHHMM(s.start_time)}
-                          {s.location ? (
-                            <span className="ml-1 text-[var(--color-text-muted)] font-medium">
-                              · {s.location}
-                            </span>
-                          ) : null}
+                          <div className="font-semibold">
+                            {startTimeHHMM(s.start_time) || "—"}
+                          </div>
+                          <div className="text-[var(--color-text-muted)]">
+                            {s.location?.trim() || "장소 미지정"}
+                          </div>
+                          <div className="text-[var(--color-text-secondary)]">
+                            {typeof s.participant_count === "number"
+                              ? `${s.participant_count}명`
+                              : "0명"}
+                          </div>
                         </div>
                       ))}
                       {items.length > 3 && (
