@@ -13,7 +13,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useLocation, useSearchParams, Navigate } from "react-router-dom";
+import { useLocation, useSearchParams, Navigate, useNavigate } from "react-router-dom";
 
 import api from "@/shared/api/axios";
 
@@ -31,6 +31,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 
 import SessionAssessmentSidePanel
   from "../components/SessionAssessmentSidePanel";
+import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 
 /* ================= 기존 페이지 재사용 ================= */
 import SessionAttendancePage from "@/features/lectures/pages/attendance/SessionAttendancePage";
@@ -57,6 +58,7 @@ async function fetchSession(id: number) {
 
 export default function SessionDetailPage() {
   const { lectureId, sessionId } = useLectureParams();
+  const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
@@ -208,7 +210,15 @@ export default function SessionDetailPage() {
 
           {activeTab === "exams" &&
             (examId ? (
-              <AdminExamDetail examId={examId} mode="operate" />
+              <div className="flex flex-col">
+                <AdminExamDetail examId={examId} mode="operate" />
+                <AssessmentDeleteBar
+                  type="exam"
+                  id={examId}
+                  sessionId={sId}
+                  onDeleted={() => navigate(`${basePath}/exams`)}
+                />
+              </div>
             ) : (
               <SessionExamOpsBoard
                 lectureId={lecId}
@@ -226,7 +236,15 @@ export default function SessionDetailPage() {
 
           {activeTab === "assignments" &&
             (homeworkId ? (
-              <SessionAssessmentWorkspace mode="homework" />
+              <div className="flex flex-col">
+                <SessionAssessmentWorkspace mode="homework" />
+                <AssessmentDeleteBar
+                  type="homework"
+                  id={homeworkId}
+                  sessionId={sId}
+                  onDeleted={() => navigate(`${basePath}/assignments`)}
+                />
+              </div>
             ) : (
               <SessionHomeworkOpsBoard
                 lectureId={lecId}

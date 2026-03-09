@@ -672,3 +672,49 @@
   /* 전역 input.css inset 유지, 모달 배경 대비만 살짝 */
   background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-modal-bg));
 }
+
+/* ========== 모달 내 전화번호 입력 (회원가입 모달과 동일 — 010 블록 덜 짜치게) ========== */
+.modal-phone-row {
+  margin-bottom: var(--space-3);
+}
+.modal-phone-row:last-child {
+  margin-bottom: 0;
+}
+.modal-phone-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+.modal-phone-desc {
+  display: block;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-2);
+  line-height: 1.4;
+}
+.modal-phone-block {
+  height: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  background: #FAFBFC;
+  border: 1px solid var(--color-border-divider, #E5E7EB);
+  font-size: 0.9375rem;
+  padding: 0 12px;
+  color: var(--color-text-primary);
+}
+.modal-phone-block-input {
+  height: 40px !important;
+  min-height: 40px !important;
+  border-radius: 8px !important;
+  background: #FAFBFC !important;
+  border: 1px solid var(--color-border-divider, #E5E7EB) !important;
+  font-size: 0.9375rem !important;
+  padding: 0 12px !important;
+}
+.modal-phone-block-input:focus {
+  border-color: var(--color-primary, #4F7FFF) !important;
+  background: #FFFFFF !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #4F7FFF) 20%, transparent) !important;
+}
