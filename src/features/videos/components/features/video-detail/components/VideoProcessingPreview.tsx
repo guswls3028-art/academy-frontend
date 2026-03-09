@@ -48,7 +48,7 @@ export default function VideoProcessingPreview({
 
       {onRetry && (
         <Button
-          variant="outline"
+          intent="secondary"
           size="sm"
           className="mt-4"
           onClick={onRetry}
