@@ -233,6 +233,14 @@
   padding-left: 11px;
 }
 
+.staff-area .staff-list-item.staff-list-item--compact {
+  padding: 12px 14px;
+}
+
+.staff-area .staff-list-item.staff-list-item--inactive .staff-list-item__name {
+  color: var(--color-text-muted);
+}
+
 .staff-area .staff-list-item .staff-list-item__name {
   font-size: 0.875rem;
   font-weight: 600;

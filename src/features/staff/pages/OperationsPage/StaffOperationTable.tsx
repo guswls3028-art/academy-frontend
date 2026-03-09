@@ -1,22 +1,15 @@
 // PATH: src/features/staff/pages/OperationsPage/StaffOperationTable.tsx
-// Design: docs/DESIGN_SSOT.md — Premium staff list for attendance/operations
-// 직원 선택: 아바타·이름·직위·급여유형. staff-area 리스트 스타일.
+// Design: docs/DESIGN_SSOT.md — Staff list: avatar + name only. Detail is in workspace header/tabs.
 
 import { useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
 import { useStaffs } from "../../hooks/useStaffs";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Staff } from "../../api/staff.api";
-import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
 import { EmptyState } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
-}
-
-function payLabel(v: Staff["pay_type"]) {
-  return v === "HOURLY" ? "시급" : "월급";
 }
 
 /** basePath: 해당 탭 경로 (attendance | expenses | month-lock 등) */
@@ -53,34 +46,6 @@ export default function StaffOperationTable({
 
   const active = filtered.filter((s) => s.is_active);
   const inactive = filtered.filter((s) => !s.is_active);
-
-  const range = useMemo(() => {
-    if (year == null || month == null) return null;
-    const from = `${year}-${String(month).padStart(2, "0")}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const to = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    return { from, to };
-  }, [year, month]);
-
-  const summaryQueries = useQueries({
-    queries: (range ? filtered : []).map((s) => ({
-      queryKey: ["staff-summary", s.id, range!.from, range!.to],
-      queryFn: () => fetchStaffSummaryByRange(s.id, range!.from, range!.to),
-      enabled: !!range,
-    })),
-  });
-  const summaryByStaffId = useMemo(() => {
-    const map = new Map<number, { work_hours: number; total_amount: number }>();
-    summaryQueries.forEach((q, i) => {
-      const staff = filtered[i];
-      if (staff && q.data)
-        map.set(staff.id, {
-          work_hours: Number(q.data.work_hours) || 0,
-          total_amount: Number(q.data.total_amount) || 0,
-        });
-    });
-    return map;
-  }, [summaryQueries, filtered]);
 
   const pick = (id: number) => {
     const next = new URLSearchParams(params);
@@ -133,7 +98,6 @@ export default function StaffOperationTable({
                 staff={s}
                 selected={s.id === selectedStaffId}
                 onClick={() => pick(s.id)}
-                monthlySummary={summaryByStaffId.get(s.id)}
               />
             ))}
           </Section>
@@ -145,7 +109,6 @@ export default function StaffOperationTable({
                 staff={s}
                 selected={s.id === selectedStaffId}
                 onClick={() => pick(s.id)}
-                monthlySummary={summaryByStaffId.get(s.id)}
               />
             ))}
           </Section>
@@ -190,58 +153,25 @@ function Row({
   staff,
   selected,
   onClick,
-  monthlySummary,
 }: {
   staff: Staff;
   selected: boolean;
   onClick: () => void;
-  monthlySummary?: { work_hours: number; total_amount: number };
 }) {
-  const wageTagSummary = (() => {
-    const list = staff.staff_work_types ?? [];
-    if (list.length === 0) return null;
-    const first = list[0];
-    const wt = first.work_type;
-    const rate = first.effective_hourly_wage ?? wt?.base_hourly_wage;
-    if (rate == null) return wt?.name ?? null;
-    const man = (rate / 10000).toFixed(1);
-    return `${wt?.name ?? ""} ${man}만`;
-  })();
-
   return (
     <button
       type="button"
       onClick={onClick}
       className={cx(
-        "staff-list-item flex flex-col items-stretch",
-        selected && "staff-list-item--selected"
+        "staff-list-item staff-list-item--compact flex items-center gap-3 min-w-0",
+        selected && "staff-list-item--selected",
+        !staff.is_active && "staff-list-item--inactive"
       )}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <StaffRoleAvatar role={staff.role} size={20} className="shrink-0 text-[var(--color-text-secondary)]" />
-        <span className="staff-list-item__name flex-1 truncate">{staff.name}</span>
-        <span className="staff-list-item__meta flex-shrink-0">
-          {!staff.is_active && (
-            <span className="ds-status-badge shrink-0" data-status="inactive" aria-hidden>비활성</span>
-          )}
-          <span className="ds-status-badge ds-status-badge--action shrink-0" data-tone={staff.role === "TEACHER" ? "primary" : "neutral"}>
-            {staff.role === "TEACHER" ? "강사" : "조교"}
-          </span>
-          <span className="ds-status-badge shrink-0" data-tone="neutral">
-            {payLabel(staff.pay_type)}
-          </span>
-          {wageTagSummary && (
-            <span className="staff-wage-badge staff-wage-badge--dark shrink-0 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: (staff.staff_work_types?.[0]?.work_type?.color) || "#6b7280" }}>
-              {wageTagSummary}
-            </span>
-          )}
-        </span>
-      </div>
-      {monthlySummary != null && (
-        <div className="text-[11px] text-[var(--color-text-muted)] mt-1 pl-7">
-          이번달 {monthlySummary.work_hours.toFixed(1)}h · 예상 {monthlySummary.total_amount.toLocaleString()}원
-        </div>
-      )}
+      <StaffRoleAvatar role={staff.role} size={32} className="shrink-0 text-[var(--color-text-secondary)]" />
+      <span className="staff-list-item__name flex-1 truncate text-left font-medium text-[var(--color-text-primary)]">
+        {staff.name}
+      </span>
     </button>
   );
 }
