@@ -55,6 +55,36 @@ export default function SessionScoresEntryPage(_props: Props) {
     setHomeworkEdit(true);
   };
 
+  /** 합산 선택 시: 객관식/주관식과 동시 선택 불가. 이미 객관식/주관식이 켜져 있으면 확인 후 전환 */
+  const handleExamEditTotalChange = (checked: boolean) => {
+    if (!checked) {
+      setExamEditTotal(false);
+      return;
+    }
+    if (examEditObjective || examEditSubjective) {
+      const ok = window.confirm(
+        "객관식, 주관식 점수는 모두 제거됩니다. 합산 방식으로 점수를 입력하시겠습니까?"
+      );
+      if (!ok) return;
+    }
+    setExamEditTotal(true);
+    setExamEditObjective(false);
+    setExamEditSubjective(false);
+  };
+
+  /** 객관식/주관식 선택 시 합산 해제(합산과 동시 선택 불가) */
+  const handleExamEditObjectiveChange = (checked: boolean) => {
+    setExamEditObjective(checked);
+    if (checked) setExamEditTotal(false);
+  };
+  const handleExamEditSubjectiveChange = (checked: boolean) => {
+    setExamEditSubjective(checked);
+    if (checked) setExamEditTotal(false);
+  };
+
+  const isSumOnly = examEditTotal;
+  const isBreakdownMode = examEditObjective || examEditSubjective;
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["session-scores", numericSessionId],
     queryFn: () => fetchSessionScores(numericSessionId),
@@ -200,48 +230,53 @@ export default function SessionScoresEntryPage(_props: Props) {
             <span className="text-[var(--color-border-divider)]">|</span>
             <div className="flex items-center gap-3">
               <span className="text-[var(--color-text-secondary)] font-semibold">시험</span>
-              <label id="exam-edit-objective-label" className="inline-flex items-center gap-1.5 cursor-pointer">
+              <label id="exam-edit-objective-label" className={`inline-flex items-center gap-1.5 ${isSumOnly ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                 <input
                   id="exam-edit-objective"
                   type="checkbox"
                   checked={examEditObjective}
-                  onChange={(e) => setExamEditObjective(e.target.checked)}
+                  onChange={(e) => handleExamEditObjectiveChange(e.target.checked)}
                   onClick={(e) => e.stopPropagation()}
-                  className="cursor-pointer"
+                  disabled={isSumOnly}
+                  className="cursor-pointer disabled:cursor-not-allowed"
                   aria-label="객관식 셀 쓰기"
                 />
                 <span className="text-[var(--color-text-primary)]">객관식</span>
               </label>
-              <label id="exam-edit-subjective-label" className="inline-flex items-center gap-1.5 cursor-pointer">
+              <label id="exam-edit-subjective-label" className={`inline-flex items-center gap-1.5 ${isSumOnly ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                 <input
                   id="exam-edit-subjective"
                   type="checkbox"
                   checked={examEditSubjective}
-                  onChange={(e) => setExamEditSubjective(e.target.checked)}
+                  onChange={(e) => handleExamEditSubjectiveChange(e.target.checked)}
                   onClick={(e) => e.stopPropagation()}
-                  className="cursor-pointer"
+                  disabled={isSumOnly}
+                  className="cursor-pointer disabled:cursor-not-allowed"
                   aria-label="주관식 셀 쓰기"
                 />
                 <span
                   className="text-[var(--color-text-primary)] select-none"
                   onClick={(e) => {
+                    if (isSumOnly) return;
                     e.preventDefault();
                     e.stopPropagation();
                     setExamEditSubjective((s) => !s);
+                    setExamEditTotal(false);
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
                 >
                   주관식
                 </span>
               </label>
-              <label id="exam-edit-total-label" className="inline-flex items-center gap-1.5 cursor-pointer">
+              <label id="exam-edit-total-label" className={`inline-flex items-center gap-1.5 ${isBreakdownMode ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
                 <input
                   id="exam-edit-total"
                   type="checkbox"
                   checked={examEditTotal}
-                  onChange={(e) => setExamEditTotal(e.target.checked)}
+                  onChange={(e) => handleExamEditTotalChange(e.target.checked)}
                   onClick={(e) => e.stopPropagation()}
-                  className="cursor-pointer"
+                  disabled={isBreakdownMode}
+                  className="cursor-pointer disabled:cursor-not-allowed"
                   aria-label="합산 셀 쓰기"
                 />
                 <span className="text-[var(--color-text-primary)]">합산</span>
