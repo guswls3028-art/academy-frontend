@@ -27,17 +27,17 @@ export default function ClinicTargetTable({
     rows.length > 0 && rows.every((r) => selected.includes(r.enrollment_id));
 
   return (
-    <div className="clinic-panel overflow-hidden">
+    <div className="clinic-panel overflow-hidden flex flex-col min-h-0">
       <div className="clinic-panel__header">
         <h2 className="clinic-panel__title">예약 대상자</h2>
         <Input
           placeholder="이름·ID 검색"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="mt-3 bg-[var(--color-bg-surface)] border-[var(--color-border-divider)]"
+          className="mt-3 bg-[var(--color-bg-surface)] border-[var(--color-border-divider)] rounded-lg"
         />
       </div>
-      <div className="px-5 py-3 flex items-center justify-between text-xs border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]">
+      <div className="px-5 py-3 flex items-center justify-between text-xs border-t border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] shrink-0">
         <Checkbox
           checked={allChecked}
           onChange={() =>
@@ -50,7 +50,7 @@ export default function ClinicTargetTable({
           {selected.length}명
         </span>
       </div>
-      <div className="max-h-[560px] overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto">
         {rows.map((r) => (
           <label
             key={r.enrollment_id}

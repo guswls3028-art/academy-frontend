@@ -1,5 +1,5 @@
 // PATH: src/features/clinic/pages/ReportsPage/ClinicReportsPage.tsx
-// 리포트 — 섹션형 SSOT, 월 단위·자세히/간략 전환
+// 리포트 — 섹션형 SSOT, 월 단위 캘린더 (자세히/간략 전환 제거, 월 표시 우측 중앙)
 
 import { useMemo, useState } from "react";
 import dayjs from "dayjs";
@@ -59,8 +59,6 @@ export default function ClinicReportsPage() {
     year: today.year(),
     month: today.month() + 1,
   }));
-  const [mode, setMode] = useState<"detail" | "compact">("detail");
-  const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
 
   function moveMonth(diff: number) {
     const d = dayjs(`${ym.year}-${String(ym.month).padStart(2, "0")}-01`).add(
@@ -68,7 +66,6 @@ export default function ClinicReportsPage() {
       "month"
     );
     setYm({ year: d.year(), month: d.month() + 1 });
-    setCollapsedDays({});
   }
 
   const range = useMemo(
@@ -137,21 +134,6 @@ export default function ClinicReportsPage() {
       items: sessionsByDate[date] ?? [],
     }));
   }, [sessionsByDate]);
-
-  const hasAny = sessions.length > 0;
-  const toggleDay = (date: string) => {
-    setCollapsedDays((prev) => ({ ...prev, [date]: !prev[date] }));
-  };
-  const expandAll = () => {
-    const next: Record<string, boolean> = {};
-    compactDays.forEach((d) => (next[d.date] = false));
-    setCollapsedDays(next);
-  };
-  const collapseAll = () => {
-    const next: Record<string, boolean> = {};
-    compactDays.forEach((d) => (next[d.date] = true));
-    setCollapsedDays(next);
-  };
 
   return (
     <div className="clinic-page space-y-0">

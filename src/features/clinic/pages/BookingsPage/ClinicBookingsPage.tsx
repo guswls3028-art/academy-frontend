@@ -1,5 +1,5 @@
 // PATH: src/features/clinic/pages/BookingsPage/ClinicBookingsPage.tsx
-// 예약대상자 — 3단 패널(예약신청자 | 예약대상자 | 클리닉생성). 운영 탭과 동일 레이아웃.
+// 예약대상자 — 3단 패널(예약신청자 | 예약대상자 | 클리닉생성). 운영 탭·클리닉 생성과 동일 패널 디자인.
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
@@ -42,6 +42,7 @@ export default function ClinicBookingsPage() {
   const pendingQ = useClinicParticipants({ status: "pending" });
 
   const pendingList: ClinicParticipant[] = pendingQ.listQ.data ?? [];
+  const hasPending = pendingList.length > 0;
 
   const patchStatusM = useMutation({
     mutationFn: ({ id, status }: { id: number; status: "booked" | "rejected" }) =>
@@ -79,49 +80,56 @@ export default function ClinicBookingsPage() {
   return (
     <div className="clinic-page">
       <div className="clinic-three-panel">
-        {/* 1단: 예약신청자 (승인 대기) */}
-        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[320px]">
-          <div className="clinic-panel h-full border border-[var(--color-border-divider)] rounded-lg overflow-hidden bg-[var(--color-bg-surface)] flex flex-col">
-            <div className="px-5 py-3 border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] shrink-0">
-              <h2 className="clinic-panel__title text-base font-semibold">예약 신청 (승인 대기) {pendingList.length}건</h2>
+        {/* 1단: 예약 신청 (승인 대기) — 비었을 땐 예약대상자처럼 좁게 */}
+        <div
+          className={`clinic-three-panel__cell clinic-three-panel__cell--fixed w-full ${hasPending ? "lg:w-[320px]" : "lg:w-[280px]"}`}
+        >
+          <div className="clinic-panel h-full flex flex-col overflow-hidden">
+            <div className="clinic-panel__header">
+              <h2 className="clinic-panel__title">예약 신청 (승인 대기)</h2>
+              <p className="clinic-panel__meta">{pendingList.length}건</p>
             </div>
-            <ul className="divide-y divide-[var(--color-border-divider)] flex-1 min-h-0 overflow-auto">
-              {pendingList.length === 0 ? (
-                <li className="px-5 py-6 text-sm text-[var(--color-text-muted)] text-center">대기 중인 신청이 없습니다.</li>
+            <div className="flex-1 min-h-0 overflow-auto border-t border-[var(--color-border-divider)]">
+              {pendingQ.listQ.isLoading ? (
+                <div className="ds-section__empty py-10">불러오는 중…</div>
+              ) : pendingList.length === 0 ? (
+                <div className="ds-section__empty py-10">대기 중인 신청이 없습니다.</div>
               ) : (
-                pendingList.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium text-[var(--color-text-primary)] truncate">{p.student_name}</div>
-                      <div className="text-xs text-[var(--color-text-muted)]">
-                        {p.session_date ?? "-"} {p.session_start_time?.slice(0, 5) ?? ""} · {p.session_location ?? "-"}
+                <ul className="divide-y divide-[var(--color-border-divider)]">
+                  {pendingList.map((p) => (
+                    <li
+                      key={p.id}
+                      className="ds-section__item flex items-center justify-between gap-3 px-5 py-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="ds-section__item-label truncate">{p.student_name}</div>
+                        <div className="ds-section__item-meta">
+                          {p.session_date ?? "-"} {p.session_start_time?.slice(0, 5) ?? ""} · {p.session_location ?? "-"}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
-                        disabled={patchStatusM.isPending}
-                        className="text-xs font-semibold px-3 py-1.5 rounded bg-[var(--color-success)] text-white hover:opacity-90"
-                      >
-                        승인
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
-                        disabled={patchStatusM.isPending}
-                        className="text-xs font-semibold px-3 py-1.5 rounded bg-[var(--color-error)] text-white hover:opacity-90"
-                      >
-                        거절
-                      </button>
-                    </div>
-                  </li>
-                ))
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
+                          disabled={patchStatusM.isPending}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-md bg-[var(--color-success)] text-white hover:opacity-90 transition-opacity"
+                        >
+                          승인
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
+                          disabled={patchStatusM.isPending}
+                          className="text-xs font-semibold px-3 py-1.5 rounded-md bg-[var(--color-error)] text-white hover:opacity-90 transition-opacity"
+                        >
+                          거절
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
-            </ul>
+            </div>
           </div>
         </div>
 
