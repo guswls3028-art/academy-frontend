@@ -21,15 +21,14 @@ import { downloadStudentsExcel, type StudentExportRow } from "../excel/studentEx
 import StudentsTable, { getStudentsTableColumnsDef } from "../components/StudentsTable";
 import StudentCreateModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
+import TagAddModal from "../components/TagAddModal";
+import PasswordResetModal from "../components/PasswordResetModal";
 
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
-import { useQuery } from "@tanstack/react-query";
-import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
-import { MODAL_WIDTH } from "@/shared/ui/modal";
 
 export default function StudentsHomePage() {
   const navigate = useNavigate();
