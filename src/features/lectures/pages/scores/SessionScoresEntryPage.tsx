@@ -55,7 +55,7 @@ export default function SessionScoresEntryPage(_props: Props) {
     setHomeworkEdit(true);
   };
 
-  /** 합산 선택 시: 객관식/주관식과 동시 선택 불가. 이미 객관식/주관식이 켜져 있으면 확인 후 전환 */
+  /** 합산 선택 시: 이미 객관식/주관식이 켜져 있으면 경고 후 전환. 합산 버튼은 항상 클릭 가능 */
   const handleSelectTotal = () => {
     if (examEditTotal) {
       setExamEditTotal(false);
@@ -63,7 +63,7 @@ export default function SessionScoresEntryPage(_props: Props) {
     }
     if (examEditObjective || examEditSubjective) {
       const ok = window.confirm(
-        "객관식, 주관식 점수는 모두 제거됩니다. 합산 방식으로 점수를 입력하시겠습니까?"
+        "합산점수로 입력시 객관식 점수와 주관식 점수는 제거됩니다. 합산점수로 입력하시겠습니까?"
       );
       if (!ok) return;
     }
@@ -72,21 +72,30 @@ export default function SessionScoresEntryPage(_props: Props) {
     setExamEditSubjective(false);
   };
 
-  /** 객관식/주관식 선택 시 합산 해제 */
+  /** 객관식/주관식 선택 시: 합산이 켜져 있으면 경고 후 전환. 객관식/주관식 버튼은 항상 클릭 가능 */
   const handleSelectObjective = () => {
-    if (examEditTotal) return;
+    if (examEditTotal) {
+      const ok = window.confirm(
+        "합산 입력이 해제됩니다. 객관식 방식으로 입력하시겠습니까?"
+      );
+      if (!ok) return;
+      setExamEditTotal(false);
+    }
     setExamEditObjective((v) => !v);
     setExamEditTotal(false);
   };
   const handleSelectSubjective = () => {
-    if (examEditTotal) return;
+    if (examEditTotal) {
+      const ok = window.confirm(
+        "합산 입력이 해제됩니다. 주관식 방식으로 입력하시겠습니까?"
+      );
+      if (!ok) return;
+      setExamEditTotal(false);
+    }
     setExamEditSubjective((v) => !v);
     setExamEditTotal(false);
   };
   const handleSelectHomework = () => setHomeworkEdit((v) => !v);
-
-  const isSumOnly = examEditTotal;
-  const isBreakdownMode = examEditObjective || examEditSubjective;
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["session-scores", numericSessionId],
@@ -254,13 +263,10 @@ export default function SessionScoresEntryPage(_props: Props) {
                 <button
                   type="button"
                   onClick={handleSelectTotal}
-                  disabled={isBreakdownMode}
                   className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
-                    isBreakdownMode
-                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
-                      : examEditTotal
-                        ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                        : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                    examEditTotal
+                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   합산
@@ -268,13 +274,10 @@ export default function SessionScoresEntryPage(_props: Props) {
                 <button
                   type="button"
                   onClick={handleSelectObjective}
-                  disabled={isSumOnly}
                   className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
-                    isSumOnly
-                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
-                      : examEditObjective
-                        ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                        : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                    examEditObjective
+                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   객관식
@@ -282,13 +285,10 @@ export default function SessionScoresEntryPage(_props: Props) {
                 <button
                   type="button"
                   onClick={handleSelectSubjective}
-                  disabled={isSumOnly}
                   className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
-                    isSumOnly
-                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
-                      : examEditSubjective
-                        ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                        : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                    examEditSubjective
+                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   주관식
