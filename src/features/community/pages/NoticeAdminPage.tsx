@@ -78,7 +78,7 @@ export default function NoticeAdminPage() {
     enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
 
-  const { data: blockTypes = [] } = useQuery({
+  const { data: blockTypes = [], isError: blockTypesError, refetch: refetchBlockTypes } = useQuery({
     queryKey: ["community-block-types"],
     queryFn: () => fetchBlockTypes(),
   });
@@ -362,6 +362,15 @@ export default function NoticeAdminPage() {
                 className="w-full"
               >
                 + 공지 추가하기
+              </Button>
+            ) : blockTypesError ? (
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => refetchBlockTypes()}
+                className="w-full"
+              >
+                공지 추가하기 (재시도)
               </Button>
             ) : (
               <Button intent="primary" size="sm" className="w-full" disabled>
