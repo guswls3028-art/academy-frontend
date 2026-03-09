@@ -58,7 +58,7 @@ export default function ClinicTodaySummary({
       </div>
       <div className="clinic-home__body">
         <div className="ds-section__kpi-list flex flex-wrap gap-4 mb-4">
-          <KPI label="총 인원" value={rows.length} />
+          <KPI label="총원" value={rows.length} />
           <KPI label="예약" value={booked} />
           <KPI
             label="불참"
