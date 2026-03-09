@@ -354,9 +354,17 @@ export default function AnswerKeyRegisterModal({
                         });
                         return next;
                       });
+                      setScoreDraft((prev) => {
+                        const next = { ...prev };
+                        choiceQuestions.forEach((q) => {
+                          next[q.id] = 0;
+                        });
+                        return next;
+                      });
+                      feedback.info("선택형 답안·배점이 초기화되었습니다. (문항 수 설정은 유지)");
                     }}
-                    aria-label="선택형 답안 초기화"
-                    title="선택형 답안 모두 비우기"
+                    aria-label="선택형 셋팅 초기화 (배점 포함, 문항 수 제외)"
+                    title="선택형 답안·배점 초기화 (문항 수는 그대로)"
                   >
                     <ResetIcon />
                   </button>
@@ -429,31 +437,6 @@ export default function AnswerKeyRegisterModal({
                   >
                     적용
                   </Button>
-                  <button
-                    type="button"
-                    className="answer-key-section-reset-btn answer-key-section-reset-btn--refresh"
-                    onClick={() => {
-                      setDraft((prev) => {
-                        const next = { ...prev };
-                        choiceQuestions.forEach((q) => {
-                          next[String(q.id)] = "";
-                        });
-                        return next;
-                      });
-                      setScoreDraft((prev) => {
-                        const next = { ...prev };
-                        choiceQuestions.forEach((q) => {
-                          next[q.id] = 0;
-                        });
-                        return next;
-                      });
-                      feedback.info("선택형 답안·배점이 초기화되었습니다.");
-                    }}
-                    aria-label="선택형 초기화 (답안·배점)"
-                    title="선택형 답안·배점 전부 초기화"
-                  >
-                    <RefreshIcon />
-                  </button>
                 </div>
                 <ul className="answer-key-list answer-key-list--choice-scroll">
                   {choiceQuestions.map((q, index) => (
@@ -508,6 +491,32 @@ export default function AnswerKeyRegisterModal({
                       {essayQuestions.length}문항
                     </span>
                   </div>
+                  <button
+                    type="button"
+                    className="answer-key-section-reset-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDraft((prev) => {
+                        const next = { ...prev };
+                        essayQuestions.forEach((q) => {
+                          next[String(q.id)] = "";
+                        });
+                        return next;
+                      });
+                      setScoreDraft((prev) => {
+                        const next = { ...prev };
+                        essayQuestions.forEach((q) => {
+                          next[q.id] = 0;
+                        });
+                        return next;
+                      });
+                      feedback.info("서술형 답안·배점이 초기화되었습니다. (문항 수 설정은 유지)");
+                    }}
+                    aria-label="서술형 셋팅 초기화 (배점 포함, 문항 수 제외)"
+                    title="서술형 답안·배점 초기화 (문항 수는 그대로)"
+                  >
+                    <ResetIcon />
+                  </button>
                 </div>
                 <div className="answer-key-inline-editor">
                   <label className="answer-key-field">
@@ -577,31 +586,6 @@ export default function AnswerKeyRegisterModal({
                   >
                     적용
                   </Button>
-                  <button
-                    type="button"
-                    className="answer-key-section-reset-btn answer-key-section-reset-btn--refresh"
-                    onClick={() => {
-                      setDraft((prev) => {
-                        const next = { ...prev };
-                        essayQuestions.forEach((q) => {
-                          next[String(q.id)] = "";
-                        });
-                        return next;
-                      });
-                      setScoreDraft((prev) => {
-                        const next = { ...prev };
-                        essayQuestions.forEach((q) => {
-                          next[q.id] = 0;
-                        });
-                        return next;
-                      });
-                      feedback.info("서술형 답안·배점이 초기화되었습니다.");
-                    }}
-                    aria-label="서술형 초기화 (답안·배점)"
-                    title="서술형 답안·배점 전부 초기화"
-                  >
-                    <RefreshIcon />
-                  </button>
                 </div>
                 <ul className="answer-key-list answer-key-list--essay-scroll">
                   {essayQuestions.map((q, index) => (
