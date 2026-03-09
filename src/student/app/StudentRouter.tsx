@@ -26,6 +26,8 @@ const SubmitScorePage = lazy(() => import("@/student/domains/submit/pages/Submit
 const SubmitAssignmentPage = lazy(() => import("@/student/domains/submit/pages/SubmitAssignmentPage"));
 
 const GradesPage = lazy(() => import("@/student/domains/grades/pages/GradesPage"));
+const GradeListPage = lazy(() => import("@/student/domains/grades/pages/GradeListPage"));
+const GradeDetailPage = lazy(() => import("@/student/domains/grades/pages/GradeDetailPage"));
 const MorePage = lazy(() => import("@/student/domains/more/pages/MorePage"));
 const ProfilePage = lazy(() => import("@/student/domains/profile/pages/ProfilePage"));
 const QnaPage = lazy(() => import("@/student/domains/qna/pages/QnaPage"));
@@ -83,6 +85,8 @@ export default function StudentRouter() {
         <Route path="exams/:examId/result" element={<ExamResultPage />} />
 
         <Route path="grades" element={<GradesPage />} />
+        <Route path="grades/all" element={<GradeListPage />} />
+        <Route path="grades/exams/:examId" element={<GradeDetailPage />} />
         <Route path="more" element={<MorePage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<StudentSettingsPage />} />

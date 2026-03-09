@@ -15,6 +15,8 @@ import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useSessionDetail } from "@/student/domains/sessions/hooks/useStudentSessions";
 import { formatYmd } from "@/student/shared/utils/date";
+import SessionExamAction from "../components/SessionExamAction";
+import SessionAssignmentAction from "../components/SessionAssignmentAction";
 
 export default function SessionDetailPage() {
   const { sessionId } = useParams();
@@ -60,20 +62,11 @@ export default function SessionDetailPage() {
         </ActionCard>
 
         <ActionCard title="시험/평가" desc="시험 목록 또는 해당 시험으로 이동합니다.">
-          {/* ✅ 백엔드가 exam_ids 내려주는 경우: 직접 링크 */}
-          {Array.isArray(data.exam_ids) && data.exam_ids.length > 0 ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {data.exam_ids.map((eid) => (
-                <Link key={eid} to={`/student/exams/${eid}`} className="stu-cta-link">
-                  시험 #{eid}
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <Link to="/student/exams" className="stu-cta-link">
-              시험 목록 보기
-            </Link>
-          )}
+          <SessionExamAction examIds={data.exam_ids} />
+        </ActionCard>
+
+        <ActionCard title="과제 제출" desc="과제를 제출합니다.">
+          <SessionAssignmentAction sessionId={data.id} />
         </ActionCard>
 
         <ActionCard title="성적" desc="결과 요약 화면으로 이동합니다.">
