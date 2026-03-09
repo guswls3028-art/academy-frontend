@@ -37,7 +37,6 @@ import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 import SessionAttendancePage from "@/features/lectures/pages/attendance/SessionAttendancePage";
 import SessionScoresEntryPage from "@/features/lectures/pages/scores/SessionScoresEntryPage";
 import SessionAssessmentWorkspace from "@/features/sessions/components/SessionAssessmentWorkspace";
-import AdminExamDetail from "@/features/exams/components/AdminExamDetail";
 
 type SessionTab =
   | "attendance"
@@ -202,7 +201,7 @@ export default function SessionDetailPage() {
           {activeTab === "exams" &&
             (examId ? (
               <div className="flex flex-col">
-                <AdminExamDetail examId={examId} mode="operate" sessionId={sId} />
+                <SessionAssessmentWorkspace mode="exam" />
                 <AssessmentDeleteBar
                   type="exam"
                   id={examId}
