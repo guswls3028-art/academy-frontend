@@ -57,11 +57,6 @@ export default function ClinicSettingsPage() {
 
   return (
     <div className="clinic-page space-y-0">
-      <Section
-        title="설정"
-        description="정책·기준은 서버 단일진실로 관리됩니다."
-      />
-
       <ClinicIdcardColorSettings />
       <ClinicRemoteControl />
 
