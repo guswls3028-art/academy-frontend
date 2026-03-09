@@ -19,6 +19,8 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 
 const QUERY_KEY = ["messaging", "auto-send"] as const;
 
+const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
+
 const TRIGGER_DESCRIPTIONS: Record<AutoSendTrigger, string> = {
   student_signup: "학생이 가입 완료하면 자동 발송합니다. 학부모 정보가 있으면 학부모에게도 발송합니다.",
   clinic_reminder: "클리닉 세션 N분 전에 자동으로 알림을 발송합니다. 스케줄러 연동 시 사용됩니다.",
@@ -290,7 +292,7 @@ export default function MessageAutoSendPage() {
   const { data: messagingInfo } = useMessagingInfo();
   const smsAllowed = messagingInfo?.sms_allowed ?? true;
 
-  const { data: configs = [], isLoading } = useQuery({
+  const { data: configs = EMPTY_CONFIGS, isLoading } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: fetchAutoSendConfigs,
     staleTime: 30 * 1000,
