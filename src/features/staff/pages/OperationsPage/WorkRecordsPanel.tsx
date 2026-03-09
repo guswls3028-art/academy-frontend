@@ -54,7 +54,7 @@ export default function WorkRecordsPanel() {
             {locked && <LockBadge state="LOCKED" />}
           </h2>
           <p className="staff-section-card__desc">
-            {range.from} ~ {range.to} · 근무시간·금액은 서버에서 자동 계산됩니다.
+            {range.from} ~ {range.to}
           </p>
         </div>
         <div className="shrink-0">
@@ -78,7 +78,6 @@ export default function WorkRecordsPanel() {
         {rows.length === 0 ? (
           <div className="staff-section-card__empty">
             <div className="staff-section-title">기록 없음</div>
-            <p className="staff-helper mt-2">근무 기록을 추가하면 이곳에 리스트가 표시됩니다.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -131,10 +130,6 @@ export default function WorkRecordsPanel() {
         )}
 
         {!locked && <CreateWorkRecordModal open={open} onClose={() => setOpen(false)} />}
-      </div>
-
-      <div className="staff-section-card__footer">
-        마감된 월은 서버에서 변경을 거부합니다(400). 프론트는 UX로만 차단합니다.
       </div>
     </section>
   );

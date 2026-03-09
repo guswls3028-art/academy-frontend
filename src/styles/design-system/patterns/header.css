@@ -180,12 +180,29 @@
 }
 
 [data-app="admin"] .app-header__searchWrap {
-  width: min(720px, 100%);
+  width: min(380px, 100%);
 }
 
+/* 검색 인풋 가시성·질감 강화 */
 [data-app="admin"] .app-header__searchInput {
   border-radius: 999px !important;
-  height: 40px !important;
+  height: 38px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--color-text-primary) !important;
+  background: var(--color-bg-surface) !important;
+  border: 1px solid var(--color-border-divider) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-app="admin"] .app-header__searchInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+[data-app="admin"] .app-header__searchInput:hover,
+[data-app="admin"] .app-header__searchInput:focus {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border-divider)) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 15%, transparent) !important;
 }
 
 [data-app="admin"] .app-header__credit {

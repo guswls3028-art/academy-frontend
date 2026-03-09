@@ -34,10 +34,9 @@ function DailyWorkDetailSection({
       <section className="staff-area staff-section-card">
         <div className="staff-section-card__header">
           <h2 className="staff-section-card__title">선택 날짜 근무 상세</h2>
-          <p className="staff-section-card__desc">우측 달력에서 날짜를 선택하면 해당 일의 근무 내역이 표시됩니다.</p>
         </div>
         <div className="staff-section-card__body">
-          <p className="staff-helper">날짜를 선택해 주세요.</p>
+          <p className="staff-helper">달력에서 날짜를 선택하세요.</p>
         </div>
       </section>
     );
@@ -53,7 +52,7 @@ function DailyWorkDetailSection({
       </div>
       <div className="staff-section-card__body">
         {dayRecords.length === 0 ? (
-          <p className="staff-helper">해당 일자에 등록된 근무 기록이 없습니다.</p>
+          <p className="staff-helper">해당 날짜에 근무 기록이 없습니다.</p>
         ) : (
           <div className="space-y-3">
             {dayRecords.map((r) => (

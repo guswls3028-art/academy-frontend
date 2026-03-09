@@ -7,9 +7,10 @@
   --control-md: 32px;
   --control-lg: 40px;
 
-  /* sidebar */
-  --sidebar-width: 260px;
-  --sidebar-width-collapsed: 76px;
+  /* sidebar — 넓이 2/3 수준(260→172), 접었을 때 아이콘 전용 */
+  --sidebar-width: var(--sidebar-width-expanded);
+  --sidebar-width-expanded: 172px;
+  --sidebar-width-collapsed: 56px;
 
   /* panel */
   --panel-header: 56px;

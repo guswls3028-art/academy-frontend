@@ -31,7 +31,7 @@ function applySidebarLayout(collapsed: boolean) {
   root.setAttribute("data-sidebar", collapsed ? "collapsed" : "expanded");
   root.style.setProperty(
     "--sidebar-width",
-    collapsed ? "var(--sidebar-width-collapsed)" : "260px"
+    collapsed ? "var(--sidebar-width-collapsed)" : "var(--sidebar-width-expanded)"
   );
 }
 

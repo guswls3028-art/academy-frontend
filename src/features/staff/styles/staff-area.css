@@ -256,35 +256,36 @@
   margin-top: 1px;
 }
 
-/* 우측 패널용 컴팩트 달력 */
+/* 우측 패널용 컴팩트 달력 — 칸에 맞게 확대 */
 .staff-area .staff-calendar-wrap--compact {
-  max-width: 200px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
 }
 
 .staff-area .staff-calendar-wrap--compact .staff-calendar--compact {
-  gap: 1px;
-  font-size: 0.6875rem;
+  gap: 3px;
+  font-size: 0.8125rem;
 }
 
 .staff-area .staff-calendar--compact .staff-calendar__head {
-  padding: 4px 2px;
-  font-size: 0.65rem;
+  padding: 6px 4px;
+  font-size: 0.75rem;
 }
 
 .staff-area .staff-calendar--compact .staff-calendar__cell {
-  min-height: 0;
+  min-height: 28px;
   aspect-ratio: 1;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .staff-area .staff-calendar--compact .staff-calendar__cell .day-num {
-  font-size: 0.7rem;
+  font-size: 0.8125rem;
   line-height: 1;
 }
 
 .staff-area .staff-calendar--compact .staff-calendar__cell .hours {
-  font-size: 0.5rem;
+  font-size: 0.625rem;
   margin-top: 0;
 }
 
