@@ -44,7 +44,8 @@ const LectureAttendanceMatrixPage = lazy(() => import("@/features/lectures/pages
 
 /* ================= Lazy: Sessions ================= */
 const SessionLayout = lazy(() => import("@/features/sessions/layout/SessionLayout"));
-const SessionDetailPage = lazy(() => import("@/features/sessions/pages/SessionDetailPage"));
+// SessionDetailPage: 동적 import 시 청크 fetch 실패(#310) 방지를 위해 정적 import
+import SessionDetailPage from "@/features/sessions/pages/SessionDetailPage";
 
 /* ================= Lazy: Video ================= */
 const VideoDetailPage = lazy(() => import("@/features/videos/pages/VideoDetailPage"));

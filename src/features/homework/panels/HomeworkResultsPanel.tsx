@@ -1,13 +1,14 @@
 // PATH: src/features/homework/panels/HomeworkResultsPanel.tsx
 /**
- * HomeworkResultsPanel — 과제 결과 운영 (시험 결과와 대칭)
- * - 상단 요약 바: 대상 / 제출 / 미제출 / 채점완료 / 클리닉 대상
- * - 학생별 상태 테이블: 이름, 제출여부, 점수, 합불, 클리닉, 잠금
- * - 데이터: session scores API에서 해당 과제 블록만 필터
+ * HomeworkResultsPanel — 과제 결과 (시험 채점·결과 탭과 쌍둥이 구조)
+ * - 채점결과: KPI 카드, 커트라인(퍼센트/문항수), 요약
+ * - 통계: 과제는 문항별 정답률 없음 → 제출/채점 요약
+ * - 학생별 결과: 테이블 + 선택 시 우측 상세
  */
 
 import { useMemo, useState } from "react";
 import { useAdminHomework } from "../hooks/useAdminHomework";
+import { useHomeworkPolicy } from "../hooks/useHomeworkPolicy";
 import { EmptyState } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/features/scores/api/sessionScores";
 import { useQuery } from "@tanstack/react-query";
@@ -25,10 +26,20 @@ type HomeworkResultRow = {
   lock_reason?: string | null;
 };
 
+function KpiCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{label}</div>
+      <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{value}</div>
+    </div>
+  );
+}
+
 export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: number }) {
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const { data: homework, isLoading: hwLoading } = useAdminHomework(homeworkId);
   const sessionId = useMemo(() => Number(homework?.session_id) || 0, [homework?.session_id]);
+  const { data: policy } = useHomeworkPolicy(sessionId);
 
   const { data: scoresData, isLoading: scoresLoading } = useQuery({
     queryKey: ["session-scores", sessionId],
@@ -37,10 +48,12 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   });
 
   const { rows, summary } = useMemo(() => {
-    if (!scoresData?.rows || !homeworkId) return { rows: [] as HomeworkResultRow[], summary: { assigned: 0, notSubmitted: 0, graded: 0, clinic: 0 } };
+    if (!scoresData?.rows || !homeworkId) return { rows: [] as HomeworkResultRow[], summary: { assigned: 0, notSubmitted: 0, graded: 0, passCount: 0, failCount: 0, clinic: 0 } };
     const rows: HomeworkResultRow[] = [];
     let notSubmitted = 0;
     let graded = 0;
+    let passCount = 0;
+    let failCount = 0;
     let clinic = 0;
 
     for (const row of scoresData.rows) {
@@ -53,6 +66,8 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
       });
       if (status === "NOT_SUBMITTED") notSubmitted++;
       if (status === "SCORED" || status === "ZERO") graded++;
+      if (hw.block?.passed === true) passCount++;
+      if (hw.block?.passed === false) failCount++;
       if (hw.block?.clinic_required) clinic++;
 
       rows.push({
@@ -74,6 +89,8 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
         assigned: rows.length,
         notSubmitted,
         graded,
+        passCount,
+        failCount,
         clinic,
       },
     };
@@ -83,6 +100,28 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
     () => (selectedEnrollmentId != null ? rows.find((r) => r.enrollment_id === selectedEnrollmentId) : null),
     [rows, selectedEnrollmentId],
   );
+
+  const scoresForHistogram = useMemo(
+    () =>
+      rows
+        .map((r) => r.score != null && r.max_score != null && r.max_score > 0 ? (r.score / r.max_score) * 100 : null)
+        .filter((s): s is number => typeof s === "number" && Number.isFinite(s)),
+    [rows]
+  );
+  const histogram = useMemo(() => {
+    const BUCKETS = [
+      { label: "0-20", min: 0, max: 20 },
+      { label: "21-40", min: 21, max: 40 },
+      { label: "41-60", min: 41, max: 60 },
+      { label: "61-80", min: 61, max: 80 },
+      { label: "81-100", min: 81, max: 100 },
+    ];
+    return BUCKETS.map((b) => ({
+      ...b,
+      count: scoresForHistogram.filter((s) => s >= b.min && s <= b.max).length,
+    }));
+  }, [scoresForHistogram]);
+  const maxHist = Math.max(1, ...histogram.map((h) => h.count));
 
   if (!Number.isFinite(homeworkId) || homeworkId <= 0) {
     return <EmptyState scope="panel" tone="error" title="과제 ID가 올바르지 않습니다." />;
@@ -100,152 +139,202 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
     return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
   }
 
-  return (
-    <div className="flex gap-4">
-      <div className="min-w-0 flex-1 space-y-6">
-      {/* 상단 요약 바 */}
-      <section className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4">
-        <div className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">과제 결과 요약</div>
-        <div className="flex flex-wrap gap-4 text-sm">
-          <span className="text-[var(--color-text-muted)]">대상 <b className="text-[var(--color-text-primary)]">{summary.assigned}</b>명</span>
-          <span className="text-[var(--color-text-muted)]">미제출 <b className="text-[var(--color-text-primary)]">{summary.notSubmitted}</b>명</span>
-          <span className="text-[var(--color-text-muted)]">채점완료 <b className="text-[var(--color-text-primary)]">{summary.graded}</b>명</span>
-          <span className="text-[var(--color-text-muted)]">클리닉 대상 <b className="text-[var(--color-text-primary)]">{summary.clinic}</b>명</span>
-        </div>
-      </section>
+  const cutlineMode = policy?.cutline_mode ?? "PERCENT";
+  const cutlineValue = policy?.cutline_value ?? 80;
+  const cutlineLabel = cutlineMode === "COUNT" ? `최소 ${cutlineValue}문항(점)` : `커트라인 ${cutlineValue}%`;
+  const hasData = summary.assigned > 0;
 
-      {/* 학생별 상태 테이블 */}
-      <section className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] overflow-hidden">
-        <div className="border-b border-[var(--color-border-divider)] px-4 py-3">
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">학생별 상태</div>
-          <div className="text-xs text-[var(--color-text-muted)]">대상 여부, 제출 여부, 점수, 합불, 클리닉, 잠금</div>
+  return (
+    <div className="space-y-6">
+      {/* ========== 채점결과 섹션 (시험과 동일 디자인) ========== */}
+      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
+        <div>
+          <div className="text-lg font-semibold">채점결과</div>
+          <div className="text-xs text-muted">과제 제출·채점 기준 요약입니다. 커트라인은 기본설정에서 퍼센트 또는 문항 수로 설정할 수 있습니다.</div>
         </div>
-        {rows.length === 0 ? (
-          <div className="p-6 text-center text-sm text-[var(--color-text-muted)]">
+
+        {!hasData ? (
+          <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
             이 과제에 연결된 대상자가 없거나 성적 데이터가 없습니다. 성적 탭에서 대상자를 확인하세요.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]">
-                  <th className="px-3 py-2 text-left font-medium text-[var(--color-text-secondary)]">이름</th>
-                  <th className="px-3 py-2 text-left font-medium text-[var(--color-text-secondary)]">상태</th>
-                  <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">점수</th>
-                  <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">합불</th>
-                  <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">클리닉</th>
-                  <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">잠금</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr
-                    key={r.enrollment_id}
-                    className={`border-b border-[var(--color-border-divider)] cursor-pointer ${selectedEnrollmentId === r.enrollment_id ? "bg-[var(--color-bg-surface-soft)]" : "hover:bg-[var(--color-bg-surface-soft)]/60"}`}
-                    onClick={() => setSelectedEnrollmentId((prev) => (prev === r.enrollment_id ? null : r.enrollment_id))}
-                  >
-                    <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">{r.student_name}</td>
-                    <td className="px-3 py-2">
-                      <span
-                        className="inline-flex rounded px-2 py-0.5 text-xs font-medium"
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">
+              <KpiCard label="대상" value={`${summary.assigned}명`} />
+              <KpiCard label="미제출" value={`${summary.notSubmitted}명`} />
+              <KpiCard label="채점완료" value={`${summary.graded}명`} />
+              <KpiCard label="합격" value={`${summary.passCount}명`} />
+              <KpiCard label="불합격" value={`${summary.failCount}명`} />
+              <KpiCard label="클리닉 대상" value={`${summary.clinic}명`} />
+            </div>
+
+            <div className="text-xs text-muted">
+              커트라인: <strong className="text-[var(--color-text-primary)]">{cutlineLabel}</strong>
+              {summary.graded > 0 && (
+                <> (합격 {summary.passCount}명 / 불합격 {summary.failCount}명)</>
+              )}
+            </div>
+
+            {scoresForHistogram.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-[var(--color-text-primary)]">점수 분포 (%)</div>
+                <div className="flex items-end gap-1 rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] p-3">
+                  {histogram.map((h) => (
+                    <div key={h.label} className="flex flex-1 flex-col items-center gap-1" title={`${h.label}: ${h.count}명`}>
+                      <div
+                        className="w-full min-h-[4px] rounded-t"
                         style={{
-                          background: r.status === "NOT_SUBMITTED" ? "var(--color-danger-subtle, #fef2f2)" : "var(--color-bg-surface-soft)",
-                          color: r.status === "NOT_SUBMITTED" ? "var(--color-danger, #b91c1c)" : "var(--color-text-primary)",
+                          height: maxHist > 0 ? `${(h.count / maxHist) * 80}px` : 0,
+                          background: "var(--color-primary)",
                         }}
-                      >
-                        {homeworkStatusLabel(r.status)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-center text-[var(--color-text-primary)]">
-                      {r.score != null ? `${r.score}${r.max_score != null ? ` / ${r.max_score}` : ""}` : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {r.passed == null ? "—" : (
-                        <span className={r.passed ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>
-                          {r.passed ? "합격" : "불합"}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {r.clinic_required ? (
-                        <span className="text-[var(--color-warning)] font-medium">대상</span>
-                      ) : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {r.is_locked ? (
-                        <span className="text-xs text-[var(--color-text-muted)]" title={r.lock_reason ?? ""}>잠금</span>
-                      ) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      />
+                      <span className="text-[10px] text-[var(--color-text-muted)]">{h.label}</span>
+                      <span className="text-xs font-medium">{h.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
 
-      <p className="text-xs text-[var(--color-text-muted)]">
-        점수 입력·미제출 처리·잠금은 <b>세션 &gt; 성적</b> 탭에서 진행하세요.
-      </p>
-      </div>
+      {/* ========== 통계 (과제는 문항별 정답률 없음) ========== */}
+      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
+        <div>
+          <div className="text-lg font-semibold">통계</div>
+          <div className="text-xs text-muted">제출·채점 현황 요약입니다. 과제는 문항별 정답률 통계가 없습니다.</div>
+        </div>
+        <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
+          제출률 {summary.assigned > 0 ? ((summary.assigned - summary.notSubmitted) / summary.assigned * 100).toFixed(1) : 0}% · 채점완료 {summary.graded}명
+        </div>
+      </section>
 
-      {/* 우측 상세 패널 — 선택 학생 요약 */}
-      {selectedRow && (
-        <aside className="w-72 shrink-0 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4">
-          <div className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">선택 학생 상세</div>
-          <dl className="space-y-2 text-sm">
-            <div>
-              <dt className="text-[var(--color-text-muted)]">이름</dt>
-              <dd className="font-medium text-[var(--color-text-primary)]">{selectedRow.student_name}</dd>
-            </div>
-            <div>
-              <dt className="text-[var(--color-text-muted)]">상태</dt>
-              <dd>
-                <span
-                  className="inline-flex rounded px-2 py-0.5 text-xs font-medium"
-                  style={{
-                    background: selectedRow.status === "NOT_SUBMITTED" ? "var(--color-danger-subtle, #fef2f2)" : "var(--color-bg-surface-soft)",
-                    color: selectedRow.status === "NOT_SUBMITTED" ? "var(--color-danger, #b91c1c)" : "var(--color-text-primary)",
-                  }}
-                >
-                  {homeworkStatusLabel(selectedRow.status)}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[var(--color-text-muted)]">점수</dt>
-              <dd className="text-[var(--color-text-primary)]">
-                {selectedRow.score != null ? `${selectedRow.score}${selectedRow.max_score != null ? ` / ${selectedRow.max_score}` : ""}` : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[var(--color-text-muted)]">합불</dt>
-              <dd>
-                {selectedRow.passed == null ? "—" : (
-                  <span className={selectedRow.passed ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>
-                    {selectedRow.passed ? "합격" : "불합"}
-                  </span>
+      {/* ========== 학생별 결과 ========== */}
+      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
+        <div>
+          <div className="text-lg font-semibold">학생별 결과</div>
+          <div className="text-xs text-muted">학생을 선택하면 우측에 상세를 볼 수 있습니다. 점수 입력·미제출 처리·잠금은 세션 &gt; 성적 탭에서 진행하세요.</div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            {rows.length === 0 ? (
+              <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
+                이 과제에 연결된 대상자가 없거나 성적 데이터가 없습니다.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded border border-[var(--border-divider)]">
+                <table className="w-full min-w-[520px] text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)]">
+                      <th className="px-3 py-2 text-left font-medium text-[var(--color-text-secondary)]">이름</th>
+                      <th className="px-3 py-2 text-left font-medium text-[var(--color-text-secondary)]">상태</th>
+                      <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">점수</th>
+                      <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">합불</th>
+                      <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">클리닉</th>
+                      <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">잠금</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr
+                        key={r.enrollment_id}
+                        className={`border-b border-[var(--color-border-divider)] cursor-pointer ${selectedEnrollmentId === r.enrollment_id ? "bg-[var(--color-bg-surface-soft)]" : "hover:bg-[var(--color-bg-surface-soft)]/60"}`}
+                        onClick={() => setSelectedEnrollmentId((prev) => (prev === r.enrollment_id ? null : r.enrollment_id))}
+                      >
+                        <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">{r.student_name}</td>
+                        <td className="px-3 py-2">
+                          <span
+                            className="inline-flex rounded px-2 py-0.5 text-xs font-medium"
+                            style={{
+                              background: r.status === "NOT_SUBMITTED" ? "var(--color-danger-subtle, #fef2f2)" : "var(--color-bg-surface-soft)",
+                              color: r.status === "NOT_SUBMITTED" ? "var(--color-danger, #b91c1c)" : "var(--color-text-primary)",
+                            }}
+                          >
+                            {homeworkStatusLabel(r.status)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center text-[var(--color-text-primary)]">
+                          {r.score != null ? `${r.score}${r.max_score != null ? ` / ${r.max_score}` : ""}` : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {r.passed == null ? "—" : (
+                            <span className={r.passed ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>
+                              {r.passed ? "합격" : "불합"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {r.clinic_required ? <span className="text-[var(--color-warning)] font-medium">대상</span> : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {r.is_locked ? <span className="text-xs text-[var(--color-text-muted)]" title={r.lock_reason ?? ""}>잠금</span> : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {selectedRow && (
+            <aside className="w-72 shrink-0 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4">
+              <div className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">선택 학생 상세</div>
+              <dl className="space-y-2 text-sm">
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">이름</dt>
+                  <dd className="font-medium text-[var(--color-text-primary)]">{selectedRow.student_name}</dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">상태</dt>
+                  <dd>
+                    <span
+                      className="inline-flex rounded px-2 py-0.5 text-xs font-medium"
+                      style={{
+                        background: selectedRow.status === "NOT_SUBMITTED" ? "var(--color-danger-subtle, #fef2f2)" : "var(--color-bg-surface-soft)",
+                        color: selectedRow.status === "NOT_SUBMITTED" ? "var(--color-danger, #b91c1c)" : "var(--color-text-primary)",
+                      }}
+                    >
+                      {homeworkStatusLabel(selectedRow.status)}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">점수</dt>
+                  <dd className="text-[var(--color-text-primary)]">
+                    {selectedRow.score != null ? `${selectedRow.score}${selectedRow.max_score != null ? ` / ${selectedRow.max_score}` : ""}` : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-[var(--color-text-muted)]">합불</dt>
+                  <dd>
+                    {selectedRow.passed == null ? "—" : (
+                      <span className={selectedRow.passed ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>
+                        {selectedRow.passed ? "합격" : "불합"}
+                      </span>
+                    )}
+                  </dd>
+                </div>
+                {selectedRow.clinic_required && (
+                  <div>
+                    <dt className="text-[var(--color-text-muted)]">클리닉</dt>
+                    <dd className="text-[var(--color-warning)] font-medium">대상</dd>
+                  </div>
                 )}
-              </dd>
-            </div>
-            {selectedRow.clinic_required && (
-              <div>
-                <dt className="text-[var(--color-text-muted)]">클리닉</dt>
-                <dd className="text-[var(--color-warning)] font-medium">대상</dd>
-              </div>
-            )}
-            {selectedRow.is_locked && (
-              <div>
-                <dt className="text-[var(--color-text-muted)]">잠금</dt>
-                <dd className="text-xs text-[var(--color-text-muted)]">{selectedRow.lock_reason || "잠금됨"}</dd>
-              </div>
-            )}
-          </dl>
-          <p className="mt-4 text-xs text-[var(--color-text-muted)]">
-            상세 입력은 세션 &gt; 성적 탭에서 진행하세요.
-          </p>
-        </aside>
-      )}
+                {selectedRow.is_locked && (
+                  <div>
+                    <dt className="text-[var(--color-text-muted)]">잠금</dt>
+                    <dd className="text-xs text-[var(--color-text-muted)]">{selectedRow.lock_reason || "잠금됨"}</dd>
+                  </div>
+                )}
+              </dl>
+              <p className="mt-4 text-xs text-[var(--color-text-muted)]">상세 입력은 세션 &gt; 성적 탭에서 진행하세요.</p>
+            </aside>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
