@@ -385,6 +385,9 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                   />
                   <InfoRow label="성별" value={student.gender} />
                   <InfoRow label="학교" value={student.school} />
+                  {student.schoolType === "HIGH" && (
+                    <InfoRow label="출신중학교" value={student.originMiddleSchool} />
+                  )}
                   <InfoRow
                     label="학년"
                     value={student.grade ? `${student.grade}학년` : "-"}
