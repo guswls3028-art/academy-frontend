@@ -446,6 +446,7 @@ export default function NoticeAdminPage() {
             qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
             qc.invalidateQueries({ queryKey: ["community-board-posts"] });
             qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+            feedback.success("공지가 등록되었습니다.");
             setShowCreate(false);
           }}
         />

@@ -9,6 +9,7 @@ import {
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
 import { useModalKeyboard } from "@/shared/ui/modal";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export type NoticeScope = "all" | "lecture" | "session";
 
@@ -49,7 +50,7 @@ export function NoticeAdminCreateModal({
     }
     if (scope === "session" && effectiveLectureId != null && sessionId != null) {
       const n = scopeNodes.find(
-        (x) => x.lecture === effectiveLectureId && x.session === sessionId
+        (x) => x.lecture === effectiveLectureId && Number(x.session) === sessionId
       );
       return n ? [n.id] : [];
     }
@@ -80,7 +81,10 @@ export function NoticeAdminCreateModal({
       });
       onSuccess();
     } catch (e) {
-      console.error(e);
+      const err = e as { response?: { data?: { detail?: string } }; message?: string };
+      const message =
+        err?.response?.data?.detail ?? err?.message ?? "공지 등록에 실패했습니다.";
+      feedback.error(message);
       setIsSubmitting(false);
     }
   };
@@ -117,6 +121,22 @@ export function NoticeAdminCreateModal({
         <h3 id="notice-admin-create-title" style={{ marginBottom: 16, fontSize: 18, fontWeight: 700 }}>
           공지 작성
         </h3>
+
+        {(scope === "lecture" || scope === "session") && exposureNodeIds.length === 0 && (
+          <p
+            role="alert"
+            style={{
+              marginBottom: 12,
+              padding: 10,
+              fontSize: 13,
+              color: "var(--color-text-secondary)",
+              background: "var(--color-bg-muted)",
+              borderRadius: "var(--radius-md)",
+            }}
+          >
+            노출 범위를 찾을 수 없습니다. 좌측 트리에서 강의/차시를 다시 선택해 주세요.
+          </p>
+        )}
 
         {scope === "all" && (
           <div style={{ marginBottom: 12 }}>

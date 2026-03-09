@@ -78,7 +78,7 @@ export function resolveNodeIdFromScope(
   }
   if (params.scope === "session" && params.lectureId != null && params.sessionId != null) {
     const n = nodes.find(
-      (x) => x.lecture === params.lectureId && x.session === params.sessionId
+      (x) => x.lecture === params.lectureId && Number(x.session) === params.sessionId
     );
     return n?.id ?? null;
   }

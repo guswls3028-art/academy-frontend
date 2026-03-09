@@ -302,7 +302,7 @@ function ColorSelectModal({
   }, [currentColor]);
 
   return (
-    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.mediumModal}>
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.mediumModal} onEnterConfirm={() => onSelect(customColor)}>
       <ModalHeader title="색상 선택" onClose={onClose} />
       <ModalBody>
         <div className="p-5 space-y-4">
