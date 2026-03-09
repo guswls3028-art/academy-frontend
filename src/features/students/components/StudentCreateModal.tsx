@@ -1,9 +1,10 @@
 // PATH: src/features/students/components/StudentCreateModal.tsx
-// 엑셀 일괄 등록: 워커 전담 (파일 업로드 → excel_parsing job → 폴링). 프론트 파싱/청크 제거.
+// 차시생성 모달처럼 초기 선택(1명만 등록 / 엑셀로 업로드) 후 해당 폼 표시. 엑셀 일괄 등록은 워커 전담.
 
 import { useEffect, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
-import { Button, Tabs } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
+import { SessionBlockView } from "@/shared/ui/session-block/SessionBlockView";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents } from "../api/students";
@@ -24,8 +25,10 @@ const TAB_ITEMS = [
   { key: "excel", label: "엑셀로 업로드" },
 ];
 
+type RegisterMode = "choice" | "single" | "excel";
+
 export default function StudentCreateModal({ open, onClose, onSuccess, onBulkProgress }: Props) {
-  const [activeTab, setActiveTab] = useState("single");
+  const [mode, setMode] = useState<RegisterMode>("choice");
   const [busy, setBusy] = useState(false);
   const [excelBulkPassword, setExcelBulkPassword] = useState("");
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
@@ -57,11 +60,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
       const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && activeTab === "single") {
+      if (e.key === "Enter" && !isTextarea && mode === "single") {
         e.preventDefault();
         handleSubmit();
       }
-      if (e.key === "Enter" && !isTextarea && activeTab === "excel" && selectedExcelFile) {
+      if (e.key === "Enter" && !isTextarea && mode === "excel" && selectedExcelFile) {
         e.preventDefault();
         handleExcelRegister();
       }
@@ -69,11 +72,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, form, busy, activeTab, selectedExcelFile]);
+  }, [open, onClose, form, busy, mode, selectedExcelFile]);
 
   useEffect(() => {
     if (!open) return;
-    setActiveTab("single");
+    setMode("choice");
     setBusy(false);
     onBulkProgress?.(null);
     setExcelBulkPassword("");
@@ -282,24 +285,45 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       <ModalHeader
         type="action"
         title="학생 등록"
-        description={activeTab === "single" ? undefined : "엑셀 파일로 학생을 일괄 등록합니다"}
+        description={mode === "choice" ? undefined : mode === "single" ? "학생 한 명을 수동으로 등록합니다" : "엑셀 파일로 학생을 일괄 등록합니다"}
       />
 
-      <div className="modal-tabs-area">
-        <Tabs value={activeTab} items={TAB_ITEMS} onChange={setActiveTab} />
-        <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginTop: "var(--space-3)", marginBottom: 0, cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={Boolean(sendWelcomeMessage)}
-            onChange={(e) => setSendWelcomeMessage(e.target.checked)}
-            disabled={busy}
-          />
-          등록완료 후 학부모, 학생에게 가입성공 메세지 일괄발송
-        </label>
-      </div>
+      {mode === "choice" ? (
+        <ModalBody>
+          <div className="modal-scroll-body grid gap-6 w-full max-w-full box-border">
+            <div>
+              <div className="modal-section-label mb-3">등록 방식</div>
+              <div className="grid grid-cols-2 gap-5">
+                <SessionBlockView
+                  variant="n1"
+                  compact={false}
+                  selected={false}
+                  showCheck={false}
+                  title="1명만 등록"
+                  desc="학생 한 명 수동 등록"
+                  onClick={() => setMode("single")}
+                  ariaLabel="1명만 등록"
+                />
+                <SessionBlockView
+                  variant="supplement"
+                  compact={false}
+                  selected={false}
+                  showCheck={false}
+                  title="엑셀로 업로드"
+                  desc="엑셀 파일로 학생 일괄 등록"
+                  onClick={() => setMode("excel")}
+                  ariaLabel="엑셀로 업로드"
+                />
+              </div>
+            </div>
+          </div>
+        </ModalBody>
+      ) : null}
 
-      <ModalBody key={activeTab}>
-        {deletedStudentConflict ? (
+      {mode !== "choice" ? (
+        <>
+          <ModalBody key={mode}>
+            {deletedStudentConflict ? (
           <div className="modal-scroll-body modal-scroll-body--compact" style={{ padding: "var(--space-4)" }}>
             <div style={{ marginBottom: "var(--space-4)", fontSize: 15, fontWeight: 600, color: "var(--color-text-primary)" }}>
               삭제된 학생이 있습니다. 복원하시겠습니까?
@@ -345,8 +369,27 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               </Button>
             </div>
           </div>
-        ) : activeTab === "single" ? (
+        ) : mode === "single" ? (
         <div className="modal-scroll-body modal-scroll-body--compact">
+          <div style={{ marginBottom: "var(--space-3)" }}>
+            <button
+              type="button"
+              onClick={() => setMode("choice")}
+              className="modal-hint"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+            >
+              ← 등록 방식 변경
+            </button>
+          </div>
+          <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-3)", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={Boolean(sendWelcomeMessage)}
+              onChange={(e) => setSendWelcomeMessage(e.target.checked)}
+              disabled={busy}
+            />
+            등록완료 후 학부모, 학생에게 가입성공 메세지 일괄발송
+          </label>
           {/* 필수 입력 — 세션 모달과 동일 구조·입체감 */}
           <div className="modal-form-group">
             <span className="modal-section-label">필수 입력</span>
@@ -535,6 +578,16 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         </div>
         ) : (
         <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ marginBottom: "var(--space-3)" }}>
+            <button
+              type="button"
+              onClick={() => setMode("choice")}
+              className="modal-hint"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+            >
+              ← 등록 방식 변경
+            </button>
+          </div>
           <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
             <div>
               <label className="modal-section-label">초기 비밀번호 (일괄)</label>
@@ -573,26 +626,27 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         </div>
         )}
       </ModalBody>
+      ) : null}
 
       <ModalFooter
         left={
-          activeTab === "single" ? null : (
+          mode === "choice" ? null : mode === "excel" ? (
             <span className="modal-hint" style={{ marginBottom: 0 }}>
               {selectedExcelFile ? "초기 비밀번호 입력 후 등록" : "엑셀 파일 선택 후 등록"}
             </span>
-          )
+          ) : null
         }
         right={
           <>
             <Button intent="secondary" onClick={onClose} disabled={busy}>
               취소
             </Button>
-            {activeTab === "single" && (
+            {mode === "single" && (
               <Button intent="primary" onClick={handleSubmit} disabled={busy}>
                 {busy ? "등록 중…" : "등록"}
               </Button>
             )}
-            {activeTab === "excel" && selectedExcelFile && (
+            {mode === "excel" && selectedExcelFile && (
               <Button intent="primary" onClick={handleExcelRegister} disabled={busy}>
                 {busy ? "등록 중…" : "등록"}
               </Button>

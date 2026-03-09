@@ -40,16 +40,13 @@ import SessionAssessmentWorkspace from "@/features/sessions/components/SessionAs
 import SessionExamOpsBoard from "@/features/sessions/components/SessionExamOpsBoard";
 import SessionHomeworkOpsBoard from "@/features/sessions/components/SessionHomeworkOpsBoard";
 import AdminExamDetail from "@/features/exams/components/AdminExamDetail";
-import SessionOverviewRoute from "@/features/sessions/routes/SessionOverviewRoute";
 
 type SessionTab =
-  | "overview"
   | "attendance"
   | "scores"
   | "exams"
   | "assignments"
-  | "videos"
-  | "materials";
+  | "videos";
 
 async function fetchSession(id: number) {
   const res = await api.get(`/lectures/sessions/${id}/`);
@@ -81,13 +78,11 @@ export default function SessionDetailPage() {
   const activeTab = useMemo((): SessionTab => {
     const p = location.pathname;
     const isIndex = p === basePath || p === basePath + "/";
-    if (isIndex) return "overview";
+    if (isIndex) return "attendance";
     if (p.includes("/scores")) return "scores";
     if (p.includes("/exams")) return "exams";
     if (p.includes("/assignments")) return "assignments";
     if (p.includes("/videos")) return "videos";
-    if (p.includes("/materials")) return "materials";
-    if (p.includes("/overview")) return "overview";
     if (p.includes("/attendance")) return "attendance";
     return "attendance";
   }, [location.pathname, basePath]);
@@ -166,7 +161,7 @@ export default function SessionDetailPage() {
 
   const isIndexPath = location.pathname === basePath || location.pathname === basePath + "/";
   if (isIndexPath) {
-    return <Navigate to={`${basePath}/overview`} replace />;
+    return <Navigate to={`${basePath}/attendance`} replace />;
   }
 
   if (!session) {
@@ -179,8 +174,6 @@ export default function SessionDetailPage() {
 
   return (
     <>
-      {activeTab === "overview" && <SessionOverviewRoute />}
-
       {/* 차시블럭: 출결탭에서만 노출 */}
       {activeTab === "attendance" && (
         <SessionBlock lectureId={lecId} currentSessionId={sId} />
@@ -255,10 +248,6 @@ export default function SessionDetailPage() {
 
           {activeTab === "videos" && (
             <SessionVideosTab sessionId={sId} />
-          )}
-
-          {activeTab === "materials" && (
-            <div>자료 UI 예정</div>
           )}
         </div>
       </div>
