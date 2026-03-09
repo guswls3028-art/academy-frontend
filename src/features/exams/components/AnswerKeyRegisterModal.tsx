@@ -28,6 +28,18 @@ type Props = {
 
 const CHOICES = ["1", "2", "3", "4", "5"];
 
+/** 총점을 문항 수만큼 정수로 균등 분배. 나누어떨어지지 않으면 낮은 점수가 앞문항부터 (예: 80점 17문항 → 4점×5문항, 5점×12문항) */
+function distributeTotalToScores(total: number, count: number): number[] {
+  if (count <= 0) return [];
+  const base = Math.floor(total / count);
+  const remainder = total - base * count;
+  const lowCount = count - remainder;
+  const result: number[] = [];
+  for (let i = 0; i < lowCount; i++) result.push(base);
+  for (let i = 0; i < remainder; i++) result.push(base + 1);
+  return result;
+}
+
 function normalizeAnswers(input: Record<string, string>) {
   const out: Record<string, string> = {};
   Object.entries(input || {}).forEach(([k, v]) => {
@@ -67,11 +79,14 @@ export default function AnswerKeyRegisterModal({
   const [choiceCount, setChoiceCount] = useState<number | "">("");
   const [choiceCountInput, setChoiceCountInput] = useState<number | "">("");
   const [choiceScore, setChoiceScore] = useState<number | "">(5);
-  const [choiceNoDefaultScore, setChoiceNoDefaultScore] = useState(false);
+  /** 자동점수 부여 ON이면 총점 입력 후 정수 분배. 기본값 OFF */
+  const [choiceAutoScore, setChoiceAutoScore] = useState(false);
+  const [choiceTotalInput, setChoiceTotalInput] = useState<number | "">("");
   const [essayCount, setEssayCount] = useState<number | "">("");
   const [essayCountInput, setEssayCountInput] = useState<number | "">("");
   const [essayScore, setEssayScore] = useState<number | "">(5);
-  const [essayNoDefaultScore, setEssayNoDefaultScore] = useState(false);
+  const [essayAutoScore, setEssayAutoScore] = useState(false);
+  const [essayTotalInput, setEssayTotalInput] = useState<number | "">("");
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saveBusy, setSaveBusy] = useState(false);
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
@@ -79,9 +94,9 @@ export default function AnswerKeyRegisterModal({
   /** 선택형/서술형 제목 클릭 시 문항 수·기본점수 편집 영역 표시 */
   const [choiceEditorOpen, setChoiceEditorOpen] = useState(false);
   const [essayEditorOpen, setEssayEditorOpen] = useState(false);
-  /** 이미지 등록 탭: 문항별 해설 — 해설 텍스트 또는 해설 이미지 URL(객체 URL) */
+  /** 이미지 등록 탭: 문항별 해설 — 해설 텍스트, 문제 이미지 URL, 해설 이미지 URL(객체 URL) */
   const [explanationDraft, setExplanationDraft] = useState<
-    Record<number, { text: string; imageUrl: string | null }>
+    Record<number, { text: string; problemImageUrl: string | null; imageUrl: string | null }>
   >({});
 
   const choiceBubbleRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -157,15 +172,13 @@ export default function AnswerKeyRegisterModal({
             ? Math.max(0, Number(essayCount) || 0)
             : Math.max(0, total - (Number(choiceCount) || 0));
       }
-      const cs = choiceNoDefaultScore ? 0 : (Number(choiceScore) || 5);
-      const es = essayNoDefaultScore ? 0 : (Number(essayScore) || 5);
       if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
       return initExamQuestions({
         examId,
         choice_count: cc,
-        choice_score: cs,
+        choice_score: 0,
         essay_count: ec,
-        essay_score: es,
+        essay_score: 0,
       });
     },
     onSuccess: async (result) => {
@@ -181,16 +194,44 @@ export default function AnswerKeyRegisterModal({
       setChoiceCount(appliedCc);
       setEssayCount(appliedEc);
       qc.setQueryData(["exam-questions", examId], list);
-      setScoreDraft((prev) => {
-        const next = { ...prev };
-        list.forEach((q: ExamQuestion) => {
-          next[q.id] = q.score ?? 0;
+      const sorted = [...list].sort((a: ExamQuestion, b: ExamQuestion) => a.number - b.number);
+      const choiceList = sorted.slice(0, appliedCc);
+      const essayList = sorted.slice(appliedCc, appliedCc + appliedEc);
+
+      const nextScoreDraft: Record<number, number> = {};
+      if (choiceAutoScore && Number.isFinite(Number(choiceTotalInput)) && choiceTotalInput !== "") {
+        const total = Math.max(0, Number(choiceTotalInput));
+        const scores = distributeTotalToScores(total, choiceList.length);
+        choiceList.forEach((q: ExamQuestion, i: number) => {
+          nextScoreDraft[q.id] = scores[i] ?? 0;
         });
-        return next;
-      });
+      } else {
+        choiceList.forEach((q: ExamQuestion) => {
+          nextScoreDraft[q.id] = 0;
+        });
+      }
+      if (essayAutoScore && Number.isFinite(Number(essayTotalInput)) && essayTotalInput !== "") {
+        const total = Math.max(0, Number(essayTotalInput));
+        const scores = distributeTotalToScores(total, essayList.length);
+        essayList.forEach((q: ExamQuestion, i: number) => {
+          nextScoreDraft[q.id] = scores[i] ?? 0;
+        });
+      } else {
+        essayList.forEach((q: ExamQuestion) => {
+          nextScoreDraft[q.id] = nextScoreDraft[q.id] ?? 0;
+        });
+      }
+      setScoreDraft((prev) => ({ ...prev, ...nextScoreDraft }));
+      for (const q of sorted) {
+        const score = nextScoreDraft[q.id];
+        if (score !== undefined && Number.isFinite(score)) {
+          await patchQuestionScore({ questionId: q.id, score });
+        }
+      }
       setChoiceEditorOpen(false);
       setEssayEditorOpen(false);
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
+      await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
       feedback.success("적용되었습니다.");
     },
     onError: (e: any) => {
