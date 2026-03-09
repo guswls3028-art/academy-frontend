@@ -529,20 +529,36 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               </button>
             </Dropdown>
           </div>
-          {/* 필수 입력 — 세션 모달과 동일 구조·입체감 */}
+          {/* 첫 블록: 이름(우측에 성별) · 로그인 아이디 · 초기 비밀번호 · 학부모 전화 */}
           <div className="modal-form-group">
-            <span className="modal-section-label">필수 입력</span>
-            <input
-              name="name"
-              placeholder="이름"
-              value={form.name ?? ""}
-              onChange={handleChange}
-              className="ds-input"
-              data-required="true"
-              data-invalid={!String(form.name || "").trim() ? "true" : "false"}
-              disabled={busy}
-              autoFocus
-            />
+            <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "center", gap: "var(--space-3)" }}>
+              <input
+                name="name"
+                placeholder="이름"
+                value={form.name ?? ""}
+                onChange={handleChange}
+                className="ds-input"
+                style={{ flex: 1 }}
+                data-required="true"
+                data-invalid={!String(form.name || "").trim() ? "true" : "false"}
+                disabled={busy}
+                autoFocus
+              />
+              <div className="modal-actions-inline" style={{ height: 36 }}>
+                {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
+                  <button
+                    key={g.key}
+                    type="button"
+                    className={`student-gender-btn student-gender-btn--${g.key === "M" ? "m" : "f"}${form.gender === g.key ? " is-selected" : ""}`}
+                    aria-pressed={form.gender === g.key}
+                    onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
+                    disabled={busy}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <input
               name="psNumber"
               placeholder="로그인 아이디 (PS 번호, 선택·미입력 시 자동 부여)"
@@ -577,9 +593,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </div>
           </div>
 
-          {/* 선택 입력 — 강조색 없음, 입체감만 유지 */}
+          {/* 선택 입력 블록 — 섹션 라벨 없음 */}
           <div className="modal-form-group modal-form-group--neutral">
-            <span className="modal-section-label">선택 입력</span>
             <div className="modal-phone-row">
               <span className="modal-phone-label">학생 전화번호 (선택)</span>
               <span className="modal-phone-desc">비우면 학부모 번호로 OMR 식별 등에 사용됩니다.</span>
@@ -591,22 +606,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 inputClassName="modal-phone-block-input"
                 aria-label="학생 전화"
               />
-            </div>
-            <div className="modal-form-row modal-form-row--1-auto">
-              <div className="modal-actions-inline" style={{ height: 36 }}>
-                {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
-                  <button
-                    key={g.key}
-                    type="button"
-                    className={`student-gender-btn student-gender-btn--${g.key === "M" ? "m" : "f"}${form.gender === g.key ? " is-selected" : ""}`}
-                    aria-pressed={form.gender === g.key}
-                    onClick={() => setForm((p) => ({ ...p, gender: g.key }))}
-                    disabled={busy}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </div>
             </div>
             <div className="modal-form-row modal-form-row--1-auto-auto">
               <input
@@ -690,7 +689,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             />
             <textarea
               name="memo"
-              rows={2}
+              rows={1}
               placeholder="메모"
               value={form.memo ?? ""}
               onChange={handleChange}
@@ -699,21 +698,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             />
           </div>
 
-          <div className="modal-form-row modal-form-row--1-auto">
-            <span className="modal-hint modal-hint--block" style={{ marginBottom: 0 }}>
-              등록 후 상세에서 태그/메모/상태를 관리할 수 있습니다.
-            </span>
-            <button
-              type="button"
-              className="ds-status-badge"
-              data-status={form.active ? "active" : "inactive"}
-              aria-pressed={form.active}
-              onClick={() => setForm((p) => ({ ...p, active: !p.active }))}
-              disabled={busy}
-            >
-              {form.active ? "활성" : "비활성"}
-            </button>
-          </div>
         </div>
         ) : (
         <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
