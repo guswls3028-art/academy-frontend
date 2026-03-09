@@ -328,7 +328,7 @@ function ItemRow({
         }}
         className="px-2 text-xs text-[var(--color-error)]"
       >
-        ✕
+        {"\u00D7"}
       </Button>
     </div>
   );
