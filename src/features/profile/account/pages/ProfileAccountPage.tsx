@@ -1,5 +1,5 @@
 // PATH: src/features/profile/account/pages/ProfileAccountPage.tsx
-// 설정 > 내 정보 — 명함 스타일, 수정 모달, 비밀번호/로그아웃 최하단
+// 설정 > 내 정보 — 섹션형 프리미엄 SaaS 레이아웃
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import ChangePasswordModal from "../components/ChangePasswordModal";
 import SenderNumberCard from "../components/SenderNumberCard";
 import TenantInfoCard from "../components/TenantInfoCard";
 
-import { EmptyState, Panel } from "@/shared/ui/ds";
+import styles from "./ProfileAccountPage.module.css";
 
 export default function ProfileAccountPage() {
   const qc = useQueryClient();
@@ -61,30 +61,17 @@ export default function ProfileAccountPage() {
 
   if (meQ.isLoading) {
     return (
-      <Panel variant="primary" title="내 정보" description="불러오는 중…">
-        <div
-          className="flex items-center justify-center rounded-xl py-12"
-          style={{
-            background: "var(--color-bg-surface-soft)",
-            border: "1px dashed var(--color-border-divider)",
-          }}
-        >
-          <span
-            className="font-medium"
-            style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}
-          >
-            불러오는 중…
-          </span>
-        </div>
-      </Panel>
+      <div className={styles.root}>
+        <div className={styles.loading}>불러오는 중…</div>
+      </div>
     );
   }
 
   if (meQ.isError) {
     return (
-      <Panel variant="primary" title="내 정보">
-        <EmptyState scope="panel" title="내 정보를 불러올 수 없습니다" />
-      </Panel>
+      <div className={styles.root}>
+        <div className={styles.error}>내 정보를 불러올 수 없습니다</div>
+      </div>
     );
   }
 
@@ -92,16 +79,33 @@ export default function ProfileAccountPage() {
 
   return (
     <>
-      <div className="flex flex-col gap-6 items-start">
-        <ProfileInfoCard
-          me={meQ.data}
-          onSave={save}
-          saving={updateMut.isPending}
-          onPasswordClick={() => setPwOpen(true)}
-          onLogout={clearAuth}
-        />
-        <TenantInfoCard canEdit={meQ.data?.tenantRole === "owner"} />
-        <SenderNumberCard />
+      <div className={styles.root} data-page="account">
+        <section className={styles.section} aria-labelledby="account-profile-heading">
+          <p id="account-profile-heading" className={styles.sectionEyebrow}>계정</p>
+          <div className={styles.sectionContent}>
+            <ProfileInfoCard
+              me={meQ.data}
+              onSave={save}
+              saving={updateMut.isPending}
+              onPasswordClick={() => setPwOpen(true)}
+              onLogout={clearAuth}
+            />
+          </div>
+        </section>
+
+        <section className={styles.section} aria-labelledby="account-tenant-heading">
+          <p id="account-tenant-heading" className={styles.sectionEyebrow}>학원</p>
+          <div className={styles.sectionContent}>
+            <TenantInfoCard canEdit={meQ.data?.tenantRole === "owner"} />
+          </div>
+        </section>
+
+        <section className={styles.section} aria-labelledby="account-sender-heading">
+          <p id="account-sender-heading" className={styles.sectionEyebrow}>메시지</p>
+          <div className={styles.sectionContent}>
+            <SenderNumberCard />
+          </div>
+        </section>
       </div>
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
     </>
