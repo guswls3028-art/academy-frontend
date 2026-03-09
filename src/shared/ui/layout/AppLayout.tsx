@@ -55,11 +55,9 @@ function AppLayoutContent() {
             position: "sticky",
             top: 0,
             zIndex: 80,
+            height: "var(--panel-header)",
             minHeight: "var(--panel-header)",
-            background:
-              "color-mix(in srgb, var(--layout-header-bg) 92%, transparent)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
+            background: "var(--layout-header-bg)",
             isolation: "isolate",
           }}
         >

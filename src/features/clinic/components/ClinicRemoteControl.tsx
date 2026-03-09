@@ -103,14 +103,18 @@ function ColorSelectModal({ open, onClose, onSelect, currentColor }: ColorSelect
           </div>
         </div>
       </ModalBody>
-      <ModalFooter>
-        <Button intent="secondary" onClick={onClose}>
-          취소
-        </Button>
-        <Button intent="primary" onClick={handleSelect}>
-          적용
-        </Button>
-      </ModalFooter>
+      <ModalFooter
+        right={
+          <>
+            <Button intent="secondary" onClick={onClose}>
+              취소
+            </Button>
+            <Button intent="primary" onClick={handleSelect}>
+              저장
+            </Button>
+          </>
+        }
+      />
     </AdminModal>
   );
 }
