@@ -730,7 +730,8 @@ export default function ScoresTable({
                         }}
                       >
                         <span className="inline-flex items-center gap-2 flex-wrap">
-                          {canEditScore ? (
+                          {block ? (
+                            canEditScore ? (
                               <span
                                 ref={(el) => {
                                   const key = `${row.enrollment_id}-${hw.homework_id}`;
@@ -894,7 +895,7 @@ export default function ScoresTable({
                                 {block?.score != null ? String(block.score) : "-"}
                               </span>
                             )
-                          : (
+                          ) : (
                             <span className="text-[var(--color-text-muted)]">-</span>
                           )}
                         </span>
