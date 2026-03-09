@@ -4,6 +4,15 @@
  */
 export type ExamStatus = "draft" | "open" | "grading" | "completed";
 
+/** 과제와 동일. 운영 보드에서만 사용. 사용자에는 설정 중/진행 중/마감으로만 노출 */
+export type ExamPhaseStatus = "DRAFT" | "OPEN" | "CLOSED";
+
+export const EXAM_PHASE_LABEL: Record<ExamPhaseStatus, string> = {
+  DRAFT: "설정 중",
+  OPEN: "진행 중",
+  CLOSED: "마감",
+};
+
 export function getExamStatus(
   openAt: string | null,
   closeAt: string | null

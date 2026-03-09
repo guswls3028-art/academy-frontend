@@ -5,6 +5,8 @@ import api from "@/shared/api/axios";
 export type SessionExamRow = {
   exam_id: number;
   title: string;
+  /** 과제와 동일: DRAFT=설정 중, OPEN=진행 중, CLOSED=마감 */
+  status: "DRAFT" | "OPEN" | "CLOSED";
   open_at: string | null;
   close_at: string | null;
   allow_retake: boolean;

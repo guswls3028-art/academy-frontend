@@ -1,13 +1,14 @@
 /**
  * 시험 Kanban 카드 — 플랫, 호버 시 액션 노출
+ * status: DRAFT/OPEN/CLOSED(운영 보드) 또는 draft/open/grading/completed(기존)
  */
 import type { ExamStatus } from "../../utils/examStatus";
-import { ExamStatusBadge } from "./StatusBadge";
+import { ExamStatusBadge, HomeworkStatusBadge } from "./StatusBadge";
 
 export type ExamCardData = {
   id: number;
   title: string;
-  status: ExamStatus;
+  status: ExamStatus | "DRAFT" | "OPEN" | "CLOSED";
   enrolled: number;
   attempted: number;
   submitted: number;
@@ -35,7 +36,8 @@ function formatDate(s: string | null | undefined) {
 
 export default function ExamKanbanCard({ exam, onClick, isUrgent }: Props) {
   const hasUngraded = exam.submitted > exam.graded;
-  const urgent = isUrgent ?? (exam.status === "grading" && hasUngraded);
+  const isPhaseStatus = exam.status === "DRAFT" || exam.status === "OPEN" || exam.status === "CLOSED";
+  const urgent = isUrgent ?? (!isPhaseStatus && exam.status === "grading" && hasUngraded);
 
   return (
     <div
@@ -54,7 +56,11 @@ export default function ExamKanbanCard({ exam, onClick, isUrgent }: Props) {
         <span className="font-medium text-[var(--color-text-primary)] line-clamp-2">
           {exam.title}
         </span>
-        <ExamStatusBadge status={exam.status} className="flex-shrink-0" />
+        {isPhaseStatus ? (
+          <HomeworkStatusBadge status={exam.status} className="flex-shrink-0" />
+        ) : (
+          <ExamStatusBadge status={exam.status as ExamStatus} className="flex-shrink-0" />
+        )}
       </div>
 
       <div className="mt-2 space-y-1 text-xs text-[var(--color-text-muted)]">
