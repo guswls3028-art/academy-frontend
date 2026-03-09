@@ -912,7 +912,11 @@ function ImageCell({
       <label className="answer-key-explanation-cell__placeholder">
         <input type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
         <span className="answer-key-explanation-cell__placeholder-text">{label}</span>
-        <span className="answer-key-explanation-cell__placeholder-hint">클릭 후 Ctrl+V 또는 클릭하여 업로드</span>
+        <span className="answer-key-explanation-cell__placeholder-hint">
+          클릭 후 Ctrl+V 또는
+          <br />
+          클릭하여 업로드
+        </span>
       </label>
     </div>
   );

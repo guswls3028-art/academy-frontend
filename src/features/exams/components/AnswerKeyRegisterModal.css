@@ -546,6 +546,17 @@
   min-height: 80px;
 }
 
+/* 이미지 등록 탭 3열: 문제/해설 이미지·해설 텍스트 셀 높이 맞춤 */
+.answer-key-explanation-table__td--explanation-text .answer-key-explanation-cell {
+  min-height: 120px;
+}
+
+.answer-key-explanation-cell__textarea {
+  min-height: 120px;
+  resize: vertical;
+  flex: 1;
+}
+
 .answer-key-explanation-cell__num {
   font-weight: 600;
   color: var(--color-text-primary);
@@ -595,17 +606,16 @@
 
 .answer-key-explanation-cell__placeholder-hint {
   font-size: 11px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .answer-key-explanation-cell__image-wrap {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-.answer-key-explanation-cell__textarea {
-  min-height: 72px;
-  resize: vertical;
 }
 
 .answer-key-explanation-cell__upload {
