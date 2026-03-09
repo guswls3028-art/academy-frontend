@@ -154,11 +154,11 @@ export default function SendMessageModal({
     try {
       let totalEnqueued = 0;
       let totalSkipped = 0;
-      for (const sendTo of sendToTargets) {
+      if (isStaffMode) {
         for (const messageMode of messageModes) {
           const payload: Parameters<typeof sendMessage>[0] = {
-            student_ids: studentIds,
-            send_to: sendTo,
+            staff_ids: staffIds,
+            send_to: "staff",
             message_mode: messageMode,
             raw_body: body.trim(),
           };
@@ -168,9 +168,26 @@ export default function SendMessageModal({
           totalEnqueued += res.enqueued ?? 0;
           totalSkipped += res.skipped_no_phone ?? 0;
         }
+      } else {
+        for (const sendTo of sendToTargets) {
+          for (const messageMode of messageModes) {
+            const payload: Parameters<typeof sendMessage>[0] = {
+              student_ids: studentIds,
+              send_to: sendTo,
+              message_mode: messageMode,
+              raw_body: body.trim(),
+            };
+            if (subject.trim()) payload.raw_subject = subject.trim();
+            if (selectedTemplateId) payload.template_id = selectedTemplateId;
+            const res = await sendMessage(payload);
+            totalEnqueued += res.enqueued ?? 0;
+            totalSkipped += res.skipped_no_phone ?? 0;
+          }
+        }
       }
-      const sendToLabel =
-        sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
+      const sendToLabel = isStaffMode
+        ? "직원"
+        : sendToTargets.length === 2 ? "학부모·학생" : sendToTargets[0] === "parent" ? "학부모" : "학생";
       const modeLabel =
         messageModes.length === 2 ? "SMS·알림톡" : messageModes[0] === "sms" ? "SMS" : "알림톡";
       feedback.success(
@@ -194,48 +211,55 @@ export default function SendMessageModal({
   if (!open) return null;
 
   const label =
-    recipientLabel ?? (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음");
+    recipientLabel ??
+    (isStaffMode
+      ? (hasRecipients ? `선택한 직원 ${staffIds.length}명` : "수신자 없음")
+      : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음"));
 
   return (
     <AdminModal open={open} onClose={onClose} width={1000} onEnterConfirm={handleSend}>
       <ModalHeader title="메시지 발송" />
       <ModalBody>
         <div className="flex flex-col gap-5" style={{ minHeight: 420 }}>
-          {/* 수신자: 학부모·학생 둘 다 선택 가능 */}
+          {/* 수신자: 직원 모드면 직원 N명만 표시, 아니면 학부모·학생 선택 */}
           <section>
             <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">수신자</div>
-            {hasRecipients ? (
-              <p className="text-sm text-[var(--color-text-muted)] mb-2">
+            {isStaffMode ? (
+              <p className="text-sm text-[var(--color-text-muted)]">
                 {label}
               </p>
-            ) : null}
-            {hasRecipients ? (
-              <div className="flex flex-wrap items-center gap-6">
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sendToParent}
-                    onChange={(e) => setSendToParent(e.target.checked)}
-                  />
-                  학부모
-                </label>
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sendToStudent}
-                    onChange={(e) => setSendToStudent(e.target.checked)}
-                  />
-                  학생
-                </label>
-                {sendToTargets.length === 0 && (
-                  <span className="text-xs text-[var(--color-status-warning)]">
-                    학부모 또는 학생 중 최소 1개를 선택하세요.
-                  </span>
-                )}
-              </div>
+            ) : hasRecipients ? (
+              <>
+                <p className="text-sm text-[var(--color-text-muted)] mb-2">
+                  {label}
+                </p>
+                <div className="flex flex-wrap items-center gap-6">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendToParent}
+                      onChange={(e) => setSendToParent(e.target.checked)}
+                    />
+                    학부모
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sendToStudent}
+                      onChange={(e) => setSendToStudent(e.target.checked)}
+                    />
+                    학생
+                  </label>
+                  {sendToTargets.length === 0 && (
+                    <span className="text-xs text-[var(--color-status-warning)]">
+                      학부모 또는 학생 중 최소 1개를 선택하세요.
+                    </span>
+                  )}
+                </div>
+              </>
             ) : (
               <p className="text-sm text-[var(--color-status-warning)]">
-                학생·강의·출결 페이지에서 수신자를 선택한 뒤 메시지 발송 버튼을 눌러 주세요.
+                학생·강의·출결·직원 페이지에서 수신자를 선택한 뒤 메시지 발송 버튼을 눌러 주세요.
               </p>
             )}
           </section>
