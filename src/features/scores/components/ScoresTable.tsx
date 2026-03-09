@@ -238,6 +238,36 @@ export default function ScoresTable({
     [qc, sessionId]
   );
 
+  /** 과제 점수/미제출 저장 + 무효화, 실패 시 feedback */
+  const saveHomework = useCallback(
+    async (params: {
+      enrollmentId: number;
+      homeworkId: number;
+      score: number | null;
+      metaStatus?: "NOT_SUBMITTED" | null;
+    }) => {
+      try {
+        await patchHomeworkQuick({
+          sessionId,
+          enrollmentId: params.enrollmentId,
+          homeworkId: params.homeworkId,
+          score: params.score,
+          metaStatus: params.metaStatus ?? undefined,
+        });
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+        return true;
+      } catch {
+        feedback.error(
+          params.metaStatus === "NOT_SUBMITTED"
+            ? "과제 미제출 저장에 실패했습니다."
+            : "과제 점수 저장에 실패했습니다."
+        );
+        return false;
+      }
+    },
+    [qc, sessionId]
+  );
+
   const examOptions = meta?.exams ?? [];
   const homeworkOptions = meta?.homeworks ?? [];
 
@@ -1007,24 +1037,20 @@ export default function ScoresTable({
                                 if (!el) return;
                                 const raw = el.innerText.trim();
                                 if (raw === "미제출") {
-                                  await patchHomeworkQuick({
-                                    sessionId,
+                                  await saveHomework({
                                     enrollmentId: row.enrollment_id,
                                     homeworkId: hw.homework_id,
                                     score: null,
                                     metaStatus: "NOT_SUBMITTED",
                                   });
-                                  qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                   return;
                                 }
                                 if (raw === "") {
-                                  await patchHomeworkQuick({
-                                    sessionId,
+                                  await saveHomework({
                                     enrollmentId: row.enrollment_id,
                                     homeworkId: hw.homework_id,
                                     score: null,
                                   });
-                                  qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                   return;
                                 }
                                 const parsed = parseScoreInput(raw, block?.max_score ?? null);
@@ -1033,13 +1059,11 @@ export default function ScoresTable({
                                     el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                     return;
                                   }
-                                  await patchHomeworkQuick({
-                                    sessionId,
+                                  await saveHomework({
                                     enrollmentId: row.enrollment_id,
                                     homeworkId: hw.homework_id,
                                     score: parsed,
                                   });
-                                  qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                 } else {
                                   el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                 }
@@ -1062,19 +1086,12 @@ export default function ScoresTable({
                                   const rawToSave = targetEl?.innerText?.trim() ?? "";
                                   if (rawToSave === "" || rawToSave === "미제출") {
                                     if (rawToSave === "미제출") {
-                                      try {
-                                        await patchHomeworkQuick({
-                                          sessionId,
-                                          enrollmentId: row.enrollment_id,
-                                          homeworkId: hw.homework_id,
-                                          score: null,
-                                          metaStatus: "NOT_SUBMITTED",
-                                        });
-                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-                                      } catch (err) {
-                                        feedback.error("과제 미제출 저장에 실패했습니다.");
-                                        return;
-                                      }
+                                      await saveHomework({
+                                        enrollmentId: row.enrollment_id,
+                                        homeworkId: hw.homework_id,
+                                        score: null,
+                                        metaStatus: "NOT_SUBMITTED",
+                                      });
                                     }
                                     if (e.shiftKey) onRequestMovePrev?.();
                                     else onRequestMoveNext?.();
@@ -1082,18 +1099,11 @@ export default function ScoresTable({
                                   }
                                   const parsed = parseScoreInput(rawToSave, block?.max_score ?? null);
                                   if (parsed != null && validateScore(parsed, block?.max_score)) {
-                                    try {
-                                      await patchHomeworkQuick({
-                                        sessionId,
-                                        enrollmentId: row.enrollment_id,
-                                        homeworkId: hw.homework_id,
-                                        score: parsed,
-                                      });
-                                      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-                                    } catch (err) {
-                                      feedback.error("과제 점수 저장에 실패했습니다.");
-                                      return;
-                                    }
+                                    await saveHomework({
+                                      enrollmentId: row.enrollment_id,
+                                      homeworkId: hw.homework_id,
+                                      score: parsed,
+                                    });
                                   }
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
@@ -1106,27 +1116,23 @@ export default function ScoresTable({
                                     return;
                                   }
                                   if (raw === "/") {
-                                    await patchHomeworkQuick({
-                                      sessionId,
+                                    const ok = await saveHomework({
                                       enrollmentId: row.enrollment_id,
                                       homeworkId: hw.homework_id,
                                       score: null,
                                       metaStatus: "NOT_SUBMITTED",
                                     });
-                                    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-                                    if (el) el.innerText = "미제출";
+                                    if (ok && el) el.innerText = "미제출";
                                     onRequestMoveDown?.();
                                     return;
                                   }
                                   if (raw === "미제출") {
-                                    await patchHomeworkQuick({
-                                      sessionId,
+                                    await saveHomework({
                                       enrollmentId: row.enrollment_id,
                                       homeworkId: hw.homework_id,
                                       score: null,
                                       metaStatus: "NOT_SUBMITTED",
                                     });
-                                    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                     onRequestMoveDown?.();
                                     return;
                                   }
@@ -1136,13 +1142,11 @@ export default function ScoresTable({
                                       if (el) el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                       return;
                                     }
-                                    await patchHomeworkQuick({
-                                      sessionId,
+                                    await saveHomework({
                                       enrollmentId: row.enrollment_id,
                                       homeworkId: hw.homework_id,
                                       score: parsed,
                                     });
-                                    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                   }
                                   onRequestMoveDown?.();
                                   return;
