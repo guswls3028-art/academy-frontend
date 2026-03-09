@@ -103,7 +103,7 @@ export default function QnaReadPage() {
         <header className="ds-section__header">
           <h1 className="ds-section__title">{post.title}</h1>
           <p className="ds-section__description">
-            {post.created_by_display ?? "—"} (학생) ·{" "}
+            {post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "—")} (학생) ·{" "}
             {new Date(post.created_at).toLocaleString("ko-KR", {
               year: "numeric",
               month: "long",
@@ -147,7 +147,7 @@ export default function QnaReadPage() {
             <div className="ds-section__kpi-row">
               <span className="ds-section__kpi-label">이름</span>
               <span className="ds-section__kpi-value">
-                {post.created_by_display ?? "—"}
+                {post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "—")}
               </span>
             </div>
             <div className="ds-section__kpi-row">
@@ -205,13 +205,13 @@ export default function QnaReadPage() {
         </section>
       )}
 
-      {/* 답변 섹션 */}
-      <AnswerSection postId={postId} />
+      {/* 답변 섹션 — 삭제된 학생 질문에는 추가 답변 비활성화 */}
+      <AnswerSection postId={postId} allowReply={!post.created_by_deleted} />
     </div>
   );
 }
 
-function AnswerSection({ postId }: { postId: number }) {
+function AnswerSection({ postId, allowReply = true }: { postId: number; allowReply?: boolean }) {
   const qc = useQueryClient();
   const { data: replies = [], isLoading } = useQuery({
     queryKey: ["post-replies", postId],
@@ -229,8 +229,10 @@ function AnswerSection({ postId }: { postId: number }) {
           <p className="ds-section__empty">불러오는 중…</p>
         ) : firstReply ? (
           <AnswerBlock postId={postId} answer={firstReply} />
-        ) : (
+        ) : allowReply ? (
           <AnswerForm postId={postId} onSuccess={() => qc.invalidateQueries({ queryKey: ["post-replies", postId] })} />
+        ) : (
+          <p className="ds-section__empty">삭제된 학생의 질문에는 추가 답변을 등록할 수 없습니다.</p>
         )}
       </div>
     </section>

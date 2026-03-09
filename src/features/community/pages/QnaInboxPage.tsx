@@ -589,7 +589,7 @@ function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
   );
 }
 
-function Composer({ postId }: { postId: number }) {
+function Composer({ postId, allowReply = true }: { postId: number; allowReply?: boolean }) {
   const [content, setContent] = useState("");
   const qc = useQueryClient();
   const createMut = useMutation({
@@ -615,6 +615,7 @@ function Composer({ postId }: { postId: number }) {
 
   return (
     <div className="qna-inbox__composer">
+      {allowReply ? (
       <div className="qna-inbox__composer-inner">
         <textarea
           value={content}
@@ -637,6 +638,11 @@ function Composer({ postId }: { postId: number }) {
           </Button>
         </div>
       </div>
+      ) : (
+        <p className="qna-inbox__empty-desc" style={{ margin: 0 }}>
+          삭제된 학생의 질문에는 추가 답변을 등록할 수 없습니다.
+        </p>
+      )}
     </div>
   );
 }
