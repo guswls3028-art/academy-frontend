@@ -16,15 +16,16 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
   const { data: exam, isLoading } = useAdminExam(examId);
 
-  const [passScore, setPassScore] = useState(0);
-  const [savedScore, setSavedScore] = useState(0);
+  const [passScore, setPassScore] = useState<number | "">("");
+  const [savedScore, setSavedScore] = useState<number | "">("");
   const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
     if (!exam) return;
-    const ps = Number(exam.pass_score ?? 0);
-    setPassScore(ps);
-    setSavedScore(ps);
+    const ps = Number(exam.pass_score);
+    const value = Number.isFinite(ps) && ps > 0 ? ps : "";
+    setPassScore(value);
+    setSavedScore(value);
     setIsActive(Boolean(exam.is_active));
   }, [exam?.id]);
 
@@ -32,6 +33,8 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     () => passScore !== savedScore,
     [passScore, savedScore]
   );
+
+  const numericPassScore = typeof passScore === "number" ? passScore : 0;
 
   const patchMut = useMutation({
     mutationFn: (payload: {
@@ -53,7 +56,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
 
   const savePassScore = async () => {
     await patchMut.mutateAsync({
-      pass_score: passScore,
+      pass_score: numericPassScore,
       is_active: isActive,
     });
     setSavedScore(passScore);
@@ -63,7 +66,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     const next = !isActive;
     setIsActive(next);
     await patchMut.mutateAsync({
-      pass_score: passScore,
+      pass_score: numericPassScore,
       is_active: next,
     });
   };
@@ -83,8 +86,12 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           <input
             type="number"
             min={0}
-            value={passScore}
-            onChange={(e) => setPassScore(Number(e.target.value))}
+            value={passScore === "" ? "" : passScore}
+            onChange={(e) => {
+              const v = e.target.value;
+              setPassScore(v === "" ? "" : Number(e.target.value));
+            }}
+            placeholder="입력"
             className="w-[180px] rounded border px-3 py-2 text-4xl font-bold"
             disabled={patchMut.isPending}
           />

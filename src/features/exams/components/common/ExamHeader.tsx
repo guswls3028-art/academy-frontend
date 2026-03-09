@@ -47,10 +47,6 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">{exam.title}</h2>
-          <div className="text-xs text-muted">
-            {exam.exam_type === "template" ? "템플릿" : "운영"} ·{" "}
-            {exam.subject || "과목 미지정"}
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -84,10 +80,6 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
           {exam.description}
         </div>
       )}
-
-      <div className="text-xs text-muted">
-        ※ 성적 입력 · 채점 · 판정은 <b>세션 &gt; 성적</b> 도메인이 단일진실입니다.
-      </div>
     </div>
   );
 }

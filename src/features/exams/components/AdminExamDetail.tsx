@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { useAdminExam } from "../hooks/useAdminExam";
 
 import ExamTabs from "./common/ExamTabs";
@@ -18,8 +17,6 @@ type Props = {
 };
 
 export default function AdminExamDetail({ examId, mode = "design" }: Props) {
-  const navigate = useNavigate();
-  const { lectureId, sessionId } = useParams<{ lectureId?: string; sessionId?: string }>();
   const { data: exam, isLoading } = useAdminExam(examId);
   const [tab, setTab] = useState<"setup" | "assets" | "submissions" | "results">(
     "setup"
@@ -28,24 +25,8 @@ export default function AdminExamDetail({ examId, mode = "design" }: Props) {
   if (isLoading) return <div>Loading...</div>;
   if (!exam) return <div>시험 없음</div>;
 
-  const backToOpsUrl =
-    lectureId && sessionId
-      ? `/admin/lectures/${lectureId}/sessions/${sessionId}/exams`
-      : null;
-
   return (
     <div className="space-y-6">
-      {mode === "operate" && backToOpsUrl && (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(backToOpsUrl)}
-            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-          >
-            ← 목록
-          </button>
-        </div>
-      )}
       <ExamHeader exam={exam} />
 
       <ExamTabs
