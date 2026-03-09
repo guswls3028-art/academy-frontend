@@ -149,14 +149,7 @@ export default function EnrollmentManageModal({
 
   return (
     <AdminModal open={true} onClose={safeClose} type="action" width={840}>
-      <ModalHeader
-        type="action"
-        title={title}
-        description={
-          description ??
-          "이 시험에 포함할 학생을 선택 후 저장하세요."
-        }
-      />
+      <ModalHeader type="action" title={title} description={description} />
 
       <ModalBody>
         <div
@@ -230,19 +223,6 @@ export default function EnrollmentManageModal({
                 {error}
               </div>
             )}
-
-            <div
-              className="rounded-lg border px-3 py-2 text-[12px] text-[var(--color-text-muted)]"
-              style={{
-                borderColor: "var(--color-border-divider)",
-                background: "var(--color-bg-surface-soft)",
-              }}
-            >
-              ⚠{" "}
-              {readOnly
-                ? "조회 전용 화면입니다."
-                : "저장을 눌러야 서버에 실제 반영됩니다."}
-            </div>
 
             <div
               className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
@@ -456,17 +436,6 @@ export default function EnrollmentManageModal({
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span className="text-[12px] text-[var(--color-text-muted)]">
-            {readOnly
-              ? "조회 전용"
-              : saving
-                ? "저장 중… 잠시만 기다려주세요."
-                : dirty
-                  ? "변경사항이 있습니다. 저장하면 확정됩니다."
-                  : "변경사항 없음"}
-          </span>
-        }
         right={
           <>
             <Button

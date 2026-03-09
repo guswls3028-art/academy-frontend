@@ -524,6 +524,74 @@
   gap: var(--space-3);
 }
 
+/* ========== 패널 내 섹션 — 위계 구분 (프리미엄 SaaS) ========== */
+.clinic-section {
+  padding-bottom: var(--space-6);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.clinic-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.clinic-section__header {
+  margin-bottom: var(--space-4);
+}
+
+.clinic-section__title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+/* 운영 일정 패널 — 시간대별 섹션 카드형 위계 (구조 변경 없음) */
+.ds-card-modal .clinic-schedule-slot.clinic-section {
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+  border-bottom: none;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.ds-card-modal .clinic-schedule-slot.clinic-section:last-child {
+  margin-bottom: 0;
+}
+
+.ds-card-modal .clinic-schedule-slot.clinic-section .clinic-section__header {
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider) 60%, transparent);
+}
+
+.ds-card-modal .clinic-schedule-slot.clinic-section .clinic-section__title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  text-transform: none;
+}
+
+.ds-card-modal .clinic-schedule-slot.clinic-section .clinic-section__meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* 상태별 왼쪽 액센트 유지, 카드 내부 패딩 보정 */
+.ds-card-modal .clinic-schedule-slot.clinic-section.clinic-schedule-slot--status-normal,
+.ds-card-modal .clinic-schedule-slot.clinic-section.clinic-schedule-slot--status-almost,
+.ds-card-modal .clinic-schedule-slot.clinic-section.clinic-schedule-slot--status-full {
+  padding-left: calc(var(--space-5) + 6px);
+}
+
 /* ========== 패널 — 모달 SSOT(ds-card-modal)와 동일 셸 톤 ========== */
 /* 단독 .clinic-panel 사용처(설정/리포트 등): card-modal과 동일한 border/shadow/radius */
 .clinic-panel {

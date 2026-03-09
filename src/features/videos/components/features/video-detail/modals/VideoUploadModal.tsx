@@ -19,6 +19,7 @@ function UploadIcon({ className, size = 22 }: { className?: string; size?: numbe
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className={className}
       width={size}
       height={size}
       aria-hidden
