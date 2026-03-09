@@ -93,12 +93,14 @@ export default function ProfileAccountPage() {
           </div>
         </section>
 
-        <section className={styles.section} aria-labelledby="account-tenant-heading">
-          <p id="account-tenant-heading" className={styles.sectionEyebrow}>학원</p>
-          <div className={styles.sectionContent}>
-            <TenantInfoCard canEdit={meQ.data?.tenantRole === "owner"} />
-          </div>
-        </section>
+        {meQ.data?.tenantRole === "owner" && (
+          <section className={styles.section} aria-labelledby="account-tenant-heading">
+            <p id="account-tenant-heading" className={styles.sectionEyebrow}>학원</p>
+            <div className={styles.sectionContent}>
+              <TenantInfoCard canEdit={true} />
+            </div>
+          </section>
+        )}
 
         <section className={styles.section} aria-labelledby="account-sender-heading">
           <p id="account-sender-heading" className={styles.sectionEyebrow}>메시지</p>

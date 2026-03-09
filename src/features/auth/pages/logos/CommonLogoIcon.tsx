@@ -1,6 +1,6 @@
 /**
  * 공통 학원 로고 (2번 테넌트 제외) — SVG 인라인, 배경 없음
- * 졸업모자 + 열린 책. 로그인·학생 상단바에서 사용.
+ * 별 + 졸업모자(3D 입체). 로그인·학생 상단바·관리자 헤더에서 사용.
  */
 type Props = {
   width?: number | string;
@@ -28,33 +28,48 @@ export default function CommonLogoIcon({
       fill="none"
       aria-hidden={ariaHidden}
     >
-      {/* 열린 책 — 왼쪽 페이지 */}
+      {/* 배경 원형 */}
+      <circle cx="20" cy="20" r="18.5" fill="currentColor" opacity="0.07" />
+
+      {/* 별 (5각형) — 상단 */}
       <path
-        d="M20 14v18l-9.5-1.2V15.2L20 14Z"
+        d="M20 2 L21 4.6 L23.8 4.8 L21.6 6.5 L22.4 9.2 L20 7.7 L17.6 9.2 L18.4 6.5 L16.2 4.8 L19 4.6 Z"
         fill="currentColor"
-        opacity="0.88"
+        opacity="0.92"
       />
-      {/* 열린 책 — 오른쪽 페이지 */}
-      <path
-        d="M20 14v18l9.5-1.2V15.2L20 14Z"
-        fill="currentColor"
-        opacity="0.72"
-      />
+
       {/* 졸업모자 판 (마름모) */}
       <path
-        d="M20 12 10 16.5v1.2l10-4.2 10 4.2v-1.2L20 12Z"
+        d="M20 12 L33 18 L20 24 L7 18 Z"
         fill="currentColor"
-        opacity="0.98"
+        opacity="0.95"
       />
-      {/* 모자 술 (실 + 장식) */}
+
+      {/* 졸업모자 3D 오른쪽 면 */}
       <path
-        d="M20 12 21 8.5"
-        stroke="currentColor"
-        strokeWidth="1"
-        strokeLinecap="round"
-        opacity="0.9"
+        d="M20 24 L33 18 L33 25.5 Q33 30 20 33 Z"
+        fill="currentColor"
+        opacity="0.55"
       />
-      <circle cx="21" cy="8" r="1.4" fill="currentColor" opacity="0.98" />
+
+      {/* 졸업모자 3D 왼쪽 면 */}
+      <path
+        d="M20 24 L7 18 L7 25.5 Q7 30 20 33 Z"
+        fill="currentColor"
+        opacity="0.38"
+      />
+
+      {/* 모자 술 — 실 */}
+      <path
+        d="M33 18 V28"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.85"
+      />
+
+      {/* 모자 술 — 장식 */}
+      <circle cx="33" cy="30.5" r="2" fill="currentColor" opacity="0.85" />
     </svg>
   );
 }

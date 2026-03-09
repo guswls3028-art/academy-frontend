@@ -23,6 +23,7 @@ import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { resolveTenantCode } from "@/shared/tenant";
 import { getTenantIdFromCode } from "@/shared/tenant";
 import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon.png";
+import CommonLogoIcon from "@/features/auth/pages/logos/CommonLogoIcon";
 
 function IconMenu() {
   return (
@@ -346,7 +347,10 @@ export default function Header() {
               {logoUrl ? (
                 <img src={logoUrl} alt="logo" />
               ) : (
-                <span style={{ width: 8, height: 8, borderRadius: 999 }} />
+                <CommonLogoIcon
+                  height={24}
+                  style={{ color: "var(--color-primary)" }}
+                />
               )}
             </span>
             <span className="app-header__brandName">{academyName}</span>
