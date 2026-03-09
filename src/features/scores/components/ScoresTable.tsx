@@ -560,7 +560,7 @@ export default function ScoresTable({
                   const isSelected =
                     selected &&
                     selectedExamId === ex.exam_id &&
-                    selectedHomeworkId == null;
+                    activeColumn === "exam";
                   const scoreText =
                     block?.score == null
                       ? "-"
