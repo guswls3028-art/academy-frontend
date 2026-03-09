@@ -1,8 +1,6 @@
 /**
- * 과제 Kanban 카드 — 플랫, 호버 시 액션
+ * 과제 Kanban 카드 — 제목만 표시 (상태 문구 없음)
  */
-import { HomeworkStatusBadge } from "./StatusBadge";
-
 export type HomeworkCardData = {
   id: number;
   title: string;
@@ -27,7 +25,6 @@ export default function HomeworkKanbanCard({ homework, onClick }: Props) {
         <span className="font-medium text-[var(--color-text-primary)] line-clamp-2">
           {homework.title}
         </span>
-        <HomeworkStatusBadge status={homework.status} className="flex-shrink-0" />
       </div>
       <div className="mt-3 opacity-0 transition-opacity group-hover:opacity-100">
         <span className="rounded border border-[var(--color-border-divider)] px-2 py-1 text-xs">

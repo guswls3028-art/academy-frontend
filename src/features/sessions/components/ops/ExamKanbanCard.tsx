@@ -3,7 +3,7 @@
  * status: DRAFT/OPEN/CLOSED(운영 보드) 또는 draft/open/grading/completed(기존)
  */
 import type { ExamStatus } from "../../utils/examStatus";
-import { ExamStatusBadge, HomeworkStatusBadge } from "./StatusBadge";
+import { ExamStatusBadge } from "./StatusBadge";
 
 export type ExamCardData = {
   id: number;
@@ -56,9 +56,7 @@ export default function ExamKanbanCard({ exam, onClick, isUrgent }: Props) {
         <span className="font-medium text-[var(--color-text-primary)] line-clamp-2">
           {exam.title}
         </span>
-        {isPhaseStatus ? (
-          <HomeworkStatusBadge status={exam.status} className="flex-shrink-0" />
-        ) : (
+        {!isPhaseStatus && (
           <ExamStatusBadge status={exam.status as ExamStatus} className="flex-shrink-0" />
         )}
       </div>

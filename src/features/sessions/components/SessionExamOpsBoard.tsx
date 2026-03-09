@@ -7,10 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
 import type { SessionExamRow } from "@/features/results/api/adminSessionExams";
-import { EXAM_PHASE_LABEL, type ExamPhaseStatus } from "../utils/examStatus";
+import { type ExamPhaseStatus } from "../utils/examStatus";
 import type { ExamCardData } from "./ops/ExamKanbanCard";
 import { Button } from "@/shared/ui/ds";
-import KPICard from "./ops/KPICard";
 import ExamKanbanCard from "./ops/ExamKanbanCard";
 
 const STATUS_ORDER: ExamPhaseStatus[] = ["DRAFT", "OPEN", "CLOSED"];
@@ -126,21 +125,12 @@ export default function SessionExamOpsBoard({ lectureId, sessionId, onAddExam }:
       )}
       {!hasNoExams && (
         <>
-          <div className="grid grid-cols-3 gap-3">
-            <KPICard label="설정 중" value={stats.draft} color="gray" />
-            <KPICard label="진행 중" value={stats.open} color="blue" />
-            <KPICard label="마감" value={stats.closed} color="green" />
-          </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {STATUS_ORDER.map((status) => (
               <div
                 key={status}
                 className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3"
               >
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
-                  {EXAM_PHASE_LABEL[status]}
-                </div>
                 <div className="space-y-2">
                   {byStatus[status].length === 0 ? (
                     <div className="rounded border border-dashed border-[var(--color-border-divider)] py-6 text-center text-xs text-[var(--color-text-muted)]">
