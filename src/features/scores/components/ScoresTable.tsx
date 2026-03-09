@@ -695,7 +695,12 @@ export default function ScoresTable({
                                   }}
                                   onKeyDown={async (e) => {
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
-                                    if (e.key === "Enter") {
+                                    if (e.key === "Escape") {
+                                      e.preventDefault();
+                                      const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] ?? "";
+                                      if (el) el.innerText = prev;
+                                      el?.blur();
+                                    } else if (e.key === "Enter") {
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
@@ -712,7 +717,9 @@ export default function ScoresTable({
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
-                                    } else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
+                                    } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
+                                    else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
+                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
                                     else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
                                   }}
                                 />
@@ -760,9 +767,14 @@ export default function ScoresTable({
                                     } else if (raw !== "") el.innerText = objScore != null ? String(Math.round(objScore)) : "";
                                   }}
                                   onKeyDown={async (e) => {
-                                    if (e.key === "Enter") {
+                                    const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
+                                    if (e.key === "Escape") {
                                       e.preventDefault();
-                                      const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
+                                      const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] ?? "";
+                                      if (el) el.innerText = prev;
+                                      el?.blur();
+                                    } else if (e.key === "Enter") {
+                                      e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
                                         await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
@@ -771,7 +783,6 @@ export default function ScoresTable({
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault();
-                                      const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
                                         await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
@@ -779,7 +790,10 @@ export default function ScoresTable({
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
-                                    }
+                                    } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
+                                    else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
+                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
+                                    else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
                                   }}
                                 />
                               ) : (
