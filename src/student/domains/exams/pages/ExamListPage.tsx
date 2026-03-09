@@ -64,7 +64,7 @@ export default function ExamListPage() {
       {isLoading && <div>불러오는 중…</div>}
       {isError && <EmptyState title="시험 목록 오류" />}
 
-      {items.length === 0 && (
+      {!isLoading && !isError && items.length === 0 && (
         <EmptyState title="시험이 없습니다." />
       )}
 

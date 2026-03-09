@@ -51,7 +51,6 @@ export default function ExamResultPage() {
   return (
     <StudentPageShell
       title="시험 결과"
-      description={`exam_id: ${r.exam_id} · attempt_id: ${r.attempt_id}`}
       actions={
         <Link to={`/student/exams/${safeId}`} style={linkBtn}>
           시험으로
@@ -82,13 +81,11 @@ export default function ExamResultPage() {
             </span>
           </div>
 
-          <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
-            submitted_at: {r.submitted_at ?? "-"}
-          </div>
-
-          <div style={{ marginTop: 8, fontSize: 13, color: "#666" }}>
-            can_retake: <b>{String(r.can_retake)}</b>
-          </div>
+          {r.submitted_at && (
+            <div className="stu-muted" style={{ marginTop: 8, fontSize: 13 }}>
+              제출일: {new Date(r.submitted_at).toLocaleDateString("ko-KR")}
+            </div>
+          )}
         </div>
 
         {/* ===== Items ===== */}
