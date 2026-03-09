@@ -3,7 +3,7 @@
  * PATH: src/features/lectures/pages/attendance/attendance-ui.css
  * ============================================================================ */
 
-/* ---- 팝오버 등장: scale + opacity + 약간의 translate ---- */
+/* ---- 팝오버 등장: scale + opacity (위치는 translateY(-100%) 유지) ---- */
 .attendance-popover {
   animation: attendance-popover-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   transform-origin: left bottom;

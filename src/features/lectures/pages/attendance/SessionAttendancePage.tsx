@@ -391,7 +391,7 @@ export default function SessionAttendancePage({
         return createPortal(
           <div
             ref={statusRowPopoverRef}
-            className="fixed flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-lg z-[9999]"
+            className="attendance-popover fixed flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-lg z-[9999]"
             style={{
               left: statusRowPopoverAnchor.left,
               top: statusRowPopoverAnchor.top,
@@ -408,6 +408,11 @@ export default function SessionAttendancePage({
                 <button
                   key={code}
                   type="button"
+                  className="attendance-popover-item cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
+                  style={{
+                    opacity: active ? 1 : 0.85,
+                    boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
+                  }}
                   onClick={() => {
                     if (active) {
                       setOpenStatusRowAttId(null);
@@ -419,11 +424,6 @@ export default function SessionAttendancePage({
                     setOpenStatusRowAttId(null);
                     setStatusRowPopoverAnchor(null);
                     statusRowTriggerRef.current = null;
-                  }}
-                  className="cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)] focus-visible:ring-offset-1"
-                  style={{
-                    opacity: active ? 1 : 0.85,
-                    boxShadow: active ? "0 0 0 2px var(--color-primary)" : undefined,
                   }}
                 >
                   <AttendanceStatusBadge status={code} variant="2ch" />
@@ -562,7 +562,7 @@ export default function SessionAttendancePage({
                         aria-label={`${att.name ?? ""} 출결 상태 변경`}
                         aria-expanded={openStatusRowAttId === att.id}
                       >
-                        <AttendanceStatusBadge status={att.status} variant="2ch" />
+                        <AttendanceStatusBadge status={att.status} variant="2ch" selected />
                       </button>
                     </td>
                     <td className="text-[14px] leading-6 text-[var(--color-text-secondary)] truncate align-middle" style={{ width: columnWidths.parent_phone ?? col.parentPhone }}>
