@@ -5,7 +5,6 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AppLayout, DomainLayout } from "@/shared/ui/layout";
 import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
-import { RedirectToCommunityMaterials, RedirectToCommunityNotice } from "@/features/community/RedirectToCommunity";
 
 function AdminRouteFallback() {
   return (
@@ -142,14 +141,9 @@ export default function AdminRouter() {
           <Route path="past" element={<Suspense fallback={<AdminRouteFallback />}><LecturesPage tab="past" /></Suspense>} />
         </Route>
 
-        {/* 강의 상세 */}
+        {/* 강의 상세 — 수강생만 표시 (탭 제거) */}
         <Route path="lectures/:lectureId" element={wrapLazy(LectureLayout)}>
           <Route index element={wrapLazy(LectureStudentsPage)} />
-          <Route path="materials" element={<RedirectToCommunityMaterials />} />
-          <Route path="board" element={<RedirectToCommunityNotice />} />
-          <Route path="ddays" element={wrapLazy(LectureDdayPage)} />
-          <Route path="attendance" element={wrapLazy(LectureAttendanceMatrixPage)} />
-          <Route path="report" element={wrapLazy(LectureReportPage)} />
           <Route path="sessions" element={wrapLazy(LectureSessionsPage)} />
         </Route>
 
