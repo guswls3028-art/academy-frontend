@@ -253,6 +253,15 @@ export async function updatePostNodes(postId: number, nodeIds: number[]): Promis
   return res.data as PostEntity;
 }
 
+/** 게시물 제목/내용 수정 — PATCH /community/posts/:id/ */
+export async function updatePost(
+  postId: number,
+  data: { title?: string; content?: string }
+): Promise<PostEntity> {
+  const res = await api.patch(`${PREFIX}/posts/${postId}/`, data);
+  return res.data as PostEntity;
+}
+
 // ----------------------------------------
 // 하위 호환용 별칭 (기존 페이지 점진 전환)
 // ----------------------------------------

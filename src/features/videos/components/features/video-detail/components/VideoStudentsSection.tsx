@@ -41,8 +41,8 @@ export default function VideoStudentsSection({
 
       <StudentWatchPanel
         students={students}
-        selectedEnrollmentId={null}
-        onSelectPreviewStudent={() => {}}
+        selectedEnrollmentId={selectedEnrollmentId ?? null}
+        onSelectPreviewStudent={onSelectPreviewStudent ?? (() => {})}
         onOpenPermission={onOpenPermission}
       />
 

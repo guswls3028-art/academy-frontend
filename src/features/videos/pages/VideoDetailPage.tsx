@@ -36,6 +36,7 @@ export default function VideoDetailPage() {
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [permissionTab, setPermissionTab] = useState<TabKey>("permission");
   const [memo, setMemo] = useState("");
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const qc = useQueryClient();
   const navigate = useNavigate();
 
@@ -88,7 +89,13 @@ export default function VideoDetailPage() {
   });
 
   if (isLoading || !data?.video) {
-    return <div className="text-sm text-[var(--color-text-muted)]">로딩중…</div>;
+    return (
+      <div className="space-y-4 p-4 animate-pulse">
+        <div className="h-6 w-48 rounded" style={{ background: "var(--color-bg-surface-soft)" }} />
+        <div className="h-4 w-72 rounded" style={{ background: "var(--color-bg-surface-soft)" }} />
+        <div className="h-[320px] rounded-lg" style={{ background: "var(--color-bg-surface-soft)" }} />
+      </div>
+    );
   }
 
   const video = data.video;
@@ -140,7 +147,7 @@ export default function VideoDetailPage() {
                 to={`/admin/lectures/${lectureId}/sessions/${sessionId}`}
                 className={styles.header.primaryDropdown}
               >
-                출석 화면으로
+                ← 세션으로
               </Link>
             </div>
           </>
@@ -151,6 +158,7 @@ export default function VideoDetailPage() {
               <div className={styles.section.header}>영상 미리보기</div>
               <div className={styles.section.body}>
                 <VideoPreviewSection
+                  videoId={videoId}
                   previewMode={previewMode}
                   setPreviewMode={setPreviewMode}
                   hlsSrc={video.hls_url}
@@ -162,6 +170,7 @@ export default function VideoDetailPage() {
                       : undefined
                   }
                   isRetrying={retryMutation.isPending}
+                  selectedEnrollmentId={selectedEnrollmentId}
                 />
               </div>
             </section>
@@ -197,6 +206,11 @@ export default function VideoDetailPage() {
                 onOpenPermission={() => openModal("permission")}
                 onOpenAchievement={() => openModal("achievement")}
                 onOpenLog={() => openModal("log")}
+                selectedEnrollmentId={selectedEnrollmentId}
+                onSelectPreviewStudent={(id) => {
+                  setSelectedEnrollmentId(id);
+                  setPreviewMode("student");
+                }}
               />
             </div>
           </section>
@@ -212,7 +226,7 @@ export default function VideoDetailPage() {
             <div className={styles.bottom.row}>
               <span className={styles.bottom.label}>통계</span>
               <span>
-                평균 만족도 {total > 0 ? `${(avgProgress * 100).toFixed(1)}%` : "—"} / 100% 완료 {completed100}명 / 90% 완료 {completed90}명
+                평균 진도율 {total > 0 ? `${(avgProgress * 100).toFixed(1)}%` : "—"} / 100% 완료 {completed100}명 / 90% 완료 {completed90}명
               </span>
             </div>
           </>

@@ -232,7 +232,7 @@ export function NoticeCreateModal({
   templates: PostTemplate[];
   onClose: () => void;
   onSuccess: () => void;
-  /** 공지사항 탭에서 열 때 "notice" 전달 → 학생앱 공지와 동일 유형으로 생성 */
+  /** 공지사항 탭에서 열 때 "notice" 전달 → 유형을 공지로 고정 */
   defaultBlockTypeCode?: string;
 }) {
   const resolvedDefaultId =
@@ -246,6 +246,13 @@ export function NoticeCreateModal({
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const qc = useQueryClient();
+
+  // 공지 탭에서 열었을 때 유형을 공지로 확실히 맞춤 (blockTypes 로딩 후 한 번만)
+  React.useEffect(() => {
+    if (defaultBlockTypeCode != null && resolvedDefaultId != null) {
+      setBlockTypeId(resolvedDefaultId);
+    }
+  }, [defaultBlockTypeCode, resolvedDefaultId]);
 
   const loadTemplate = (t: PostTemplate) => {
     setTitle(t.title ?? "");

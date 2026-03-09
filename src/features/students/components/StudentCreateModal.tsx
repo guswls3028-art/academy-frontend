@@ -174,15 +174,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     },
   });
 
-  function handleSelectSignupTemplate(templateId: number | null) {
-    const configs: Partial<AutoSendConfigItem>[] = autoSendConfigs.map((c) =>
-      c.trigger === "student_signup"
-        ? { ...c, template: templateId, enabled: templateId != null }
-        : c
-    );
-    updateAutoSendMut.mutate(configs);
-  }
-
   function nextMessageMode(current: MessageMode, toggle: "sms" | "alimtalk"): MessageMode {
     const sms = current === "sms" || current === "both";
     const alim = current === "alimtalk" || current === "both";
@@ -597,7 +588,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </Dropdown>
             <button
               type="button"
-              onClick={() => setSendWelcomeMessage((v) => !v)}
+              onClick={(e) => { e.stopPropagation(); setSendWelcomeMessage((v) => !v); }}
               disabled={busy}
               aria-pressed={sendWelcomeMessage}
               style={{
@@ -819,25 +810,38 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                   onClick={(e) => e.stopPropagation()}
                 >
                   <span className="modal-section-label">메시지 자동발송</span>
-                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", cursor: "pointer", marginBottom: "var(--space-2)" }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(sendWelcomeMessage)}
-                      onChange={(e) => setSendWelcomeMessage(e.target.checked)}
-                      disabled={busy}
-                    />
-                    <span className="text-sm text-[var(--color-text-secondary)]">
-                      등록 완료 시 학부모·학생에게 가입 성공 메시지 발송
+                  <div style={{ marginBottom: "var(--space-2)" }}>
+                    <span className="modal-phone-label" style={{ marginBottom: "var(--space-1)", display: "block" }}>발송 유형</span>
+                    <div className="modal-actions-inline" style={{ flexWrap: "wrap", gap: "var(--space-1)" }}>
+                      <button
+                        type="button"
+                        className={`ds-choice-btn ds-choice-btn--primary${(localSignupMessageMode === "sms" || localSignupMessageMode === "both") ? " is-selected" : ""}`}
+                        onClick={() => handleSetSignupMessageMode("sms")}
+                        disabled={updateAutoSendMut.isPending}
+                      >
+                        메시지
+                      </button>
+                      <button
+                        type="button"
+                        className={`ds-choice-btn ds-choice-btn--primary${(localSignupMessageMode === "alimtalk" || localSignupMessageMode === "both") ? " is-selected" : ""}`}
+                        onClick={() => handleSetSignupMessageMode("alimtalk")}
+                        disabled={updateAutoSendMut.isPending}
+                      >
+                        알림톡
+                      </button>
+                    </div>
+                    <span className="modal-hint" style={{ display: "block", marginTop: "var(--space-1)" }}>
+                      메시지만 선택 시 문자만, 알림톡만 선택 시 알림톡만, 둘 다 선택 시 둘 다 발송
                     </span>
-                  </label>
+                  </div>
                   <div style={{ marginBottom: "var(--space-2)" }}>
                     <span className="modal-phone-label" style={{ marginBottom: "var(--space-1)" }}>발송할 템플릿</span>
                     <select
                       className="ds-input w-full"
-                      value={signupConfig?.template ?? ""}
+                      value={localSignupTemplateId ?? ""}
                       onChange={(e) => {
                         const v = e.target.value;
-                        handleSelectSignupTemplate(v ? Number(v) : null);
+                        handleSelectSignupTemplateFromDropdown(v ? Number(v) : null);
                       }}
                       disabled={updateAutoSendMut.isPending}
                     >
@@ -849,30 +853,6 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div style={{ marginBottom: "var(--space-2)" }}>
-                    <span className="modal-phone-label" style={{ marginBottom: "var(--space-1)", display: "block" }}>발송 유형</span>
-                    <div className="modal-actions-inline" style={{ flexWrap: "wrap", gap: "var(--space-1)" }}>
-                      <button
-                        type="button"
-                        className={`ds-choice-btn ds-choice-btn--primary${(signupConfig?.message_mode === "sms" || signupConfig?.message_mode === "both") ? " is-selected" : ""}`}
-                        onClick={() => handleSetSignupMessageMode("sms")}
-                        disabled={updateAutoSendMut.isPending}
-                      >
-                        메시지
-                      </button>
-                      <button
-                        type="button"
-                        className={`ds-choice-btn ds-choice-btn--primary${(signupConfig?.message_mode === "alimtalk" || signupConfig?.message_mode === "both") ? " is-selected" : ""}`}
-                        onClick={() => handleSetSignupMessageMode("alimtalk")}
-                        disabled={updateAutoSendMut.isPending}
-                      >
-                        알림톡
-                      </button>
-                    </div>
-                    <span className="modal-hint" style={{ display: "block", marginTop: "var(--space-1)" }}>
-                      메시지만 선택 시 문자만, 알림톡만 선택 시 알림톡만, 둘 다 선택 시 둘 다 발송
-                    </span>
                   </div>
                   <Button
                     intent="secondary"
@@ -902,6 +882,25 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                 메시지 자동발송 {signupConfig?.template_name ? `· ${signupConfig.template_name}` : ""} ▾
               </button>
             </Dropdown>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setSendWelcomeMessage((v) => !v); }}
+              disabled={busy}
+              aria-pressed={sendWelcomeMessage}
+              style={{
+                padding: "var(--space-1) var(--space-3)",
+                borderRadius: "var(--radius-md)",
+                fontWeight: 700,
+                fontSize: 13,
+                border: "1px solid transparent",
+                cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.6 : 1,
+                background: sendWelcomeMessage ? "var(--color-status-success, #10b981)" : "var(--color-bg-surface-soft)",
+                color: sendWelcomeMessage ? "#fff" : "var(--color-text-muted)",
+              }}
+            >
+              {sendWelcomeMessage ? "ON" : "OFF"}
+            </button>
           </div>
           <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
             <div>
