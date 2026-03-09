@@ -64,7 +64,7 @@ export default function AdminModal({
           backgroundColor: isConfirm ? "rgba(0,0,0,0.58)" : "rgba(0,0,0,0.42)",
         },
       }}
-      className={`admin-modal admin-modal--${type}`}
+      className={className ? `admin-modal admin-modal--${type} ${className}` : `admin-modal admin-modal--${type}`}
     >
       <div
         className="admin-modal__inner"

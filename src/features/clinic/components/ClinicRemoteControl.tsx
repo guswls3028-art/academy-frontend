@@ -173,7 +173,7 @@ export default function ClinicRemoteControl() {
       <div className="clinic-panel overflow-hidden">
         <div className="clinic-panel__header flex items-center justify-between">
           <div>
-            <h2 className="clinic-panel__title">클리닉 리모컨</h2>
+            <h2 className="clinic-panel__title">클리닉 패스카드</h2>
             <p className="clinic-panel__meta">선택 즉시 학생 화면 반영</p>
           </div>
           <span className="px-2 py-1 bg-[var(--color-brand-primary)] text-[var(--color-text-inverse)] text-xs font-semibold rounded-md">

@@ -1456,3 +1456,13 @@ details[open] > .clinic-tree__summary {
 .clinic-time-block--alert {
   color: var(--color-error);
 }
+
+/* ========== 클리닉 패스카드 모달 — 대시보드 오버레이, 모바일 대비 반응형 ========== */
+.clinic-passcard-modal.ant-modal {
+  max-width: 95vw;
+}
+
+.clinic-passcard-modal .ant-modal-content {
+  width: min(720px, 95vw) !important;
+  max-width: 95vw;
+}
