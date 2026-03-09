@@ -57,6 +57,8 @@ export default function AdminHomeworkDetail({
     title: data.title,
     status: data.status,
     session_id: data.session_id,
+    homework_type: data.homework_type,
+    template_homework_id: data.template_homework_id,
   };
 
   const showOperateSetup =

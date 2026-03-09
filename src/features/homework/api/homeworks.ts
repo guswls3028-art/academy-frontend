@@ -44,16 +44,19 @@ export async function fetchHomeworks(params?: { session_id?: number }) {
 
 /**
  * ✅ POST /homeworks/
- * - 상태는 서버 기본값(DRAFT) 사용. 사용자가 DRAFT/OPEN/CLOSED를 선택하지 않음.
+ * - 상태는 서버 기본값(DRAFT) 사용.
+ * - template_homework_id 있으면 해당 템플릿을 불러와 이 차시에 적용.
  */
 export async function createHomework(payload: {
   session_id: number;
   title: string;
+  template_homework_id?: number;
 }) {
   const res = await api.post("/homeworks/", {
     session_id: payload.session_id,
     session: payload.session_id,
     title: payload.title,
+    ...(payload.template_homework_id != null ? { template_homework_id: payload.template_homework_id } : {}),
   });
 
   return res.data;
