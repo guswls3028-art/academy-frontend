@@ -521,10 +521,6 @@ export default function AnswerKeyRegisterModal({
 
           {activeTab === "image" && (
             <div className="answer-key-image-tab">
-              <h3 className="answer-key-section__title">문제 해설</h3>
-              <p className="answer-key-image-tab__desc">
-                문항별 문제 이미지와 해설(이미지 또는 텍스트)을 등록합니다.
-              </p>
               {sortedQuestions.length === 0 ? (
                 <div className="answer-key-empty">
                   먼저 &quot;답안 등록&quot; 탭에서 문항 수를 입력하고 문항 반영을 해주세요.
@@ -534,8 +530,9 @@ export default function AnswerKeyRegisterModal({
                   <table className="answer-key-explanation-table">
                     <thead>
                       <tr>
-                        <th className="answer-key-explanation-table__th--problem">문제</th>
-                        <th className="answer-key-explanation-table__th--explanation">해설</th>
+                        <th className="answer-key-explanation-table__th--problem">문제 이미지</th>
+                        <th className="answer-key-explanation-table__th--explanation">해설 이미지</th>
+                        <th className="answer-key-explanation-table__th--explanation-text">해설 텍스트</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -801,20 +798,22 @@ function ExplanationRow({
               </Button>
             </div>
           ) : (
-            <>
-              <textarea
-                value={explanation.text}
-                onChange={(e) => onChange({ ...explanation, text: e.target.value })}
-                placeholder="해설 텍스트 또는 이미지 업로드"
-                className="ds-input ds-textarea answer-key-explanation-cell__textarea"
-                rows={3}
-              />
-              <label className="answer-key-explanation-cell__upload">
-                <input type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
-                <span>이미지 업로드</span>
-              </label>
-            </>
+            <label className="answer-key-explanation-cell__upload">
+              <input type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
+              <span>이미지 업로드</span>
+            </label>
           )}
+        </div>
+      </td>
+      <td className="answer-key-explanation-table__td--explanation-text">
+        <div className="answer-key-explanation-cell answer-key-explanation-cell--explanation">
+          <textarea
+            value={explanation.text}
+            onChange={(e) => onChange({ ...explanation, text: e.target.value })}
+            placeholder="해설 텍스트 입력"
+            className="ds-input ds-textarea answer-key-explanation-cell__textarea"
+            rows={3}
+          />
         </div>
       </td>
     </tr>
