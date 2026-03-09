@@ -7,7 +7,7 @@ import api from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
 import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
 import type { SessionExamRow } from "@/features/results/api/adminSessionExams";
-import { saveExamAsTemplate, updateAdminExam } from "@/features/exams/api/adminExam";
+import { updateAdminExam } from "@/features/exams/api/adminExam";
 import { updateAdminHomework } from "@/features/homework/api/adminHomework";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -166,12 +166,6 @@ export default function SessionAssessmentSidePanel({
   const handleExamProgress = async (id: number) => {
     setExamBusy({ id, action: "start" });
     try {
-      try {
-        // regular 시험이면서 template이 없으면 생성 + 연결 (best-effort)
-        await saveExamAsTemplate(id);
-      } catch {
-        // 이미 템플릿이 있거나 템플릿 시험이면 무시
-      }
       await updateAdminExam(id, { status: "OPEN" });
       qc.invalidateQueries({ queryKey: ["admin-exam", id] });
       invalidateExams();
@@ -189,11 +183,6 @@ export default function SessionAssessmentSidePanel({
     setExamBusy({ id, action: "end" });
     try {
       await updateAdminExam(id, { status: "CLOSED" });
-      try {
-        await saveExamAsTemplate(id);
-      } catch {
-        // ignore
-      }
       qc.invalidateQueries({ queryKey: ["admin-exam", id] });
       invalidateExams();
       invalidateExamsSummary();
