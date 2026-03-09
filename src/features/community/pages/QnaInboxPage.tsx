@@ -29,6 +29,46 @@ import "@/features/community/qna-inbox.css";
 type FilterKind = "all" | "pending" | "resolved";
 const SNIPPET_LEN = 72;
 
+/* ── Avatar helpers ─────────────────────────────── */
+function getInitials(name: string): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2);
+  return parts[0][0] + parts[parts.length - 1][0];
+}
+
+function getAvatarSlot(name: string): number {
+  return [...(name ?? "")].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 5;
+}
+
+function QnaAvatar({
+  name,
+  role = "student",
+  size = 32,
+}: {
+  name: string;
+  role?: "student" | "teacher";
+  size?: number;
+}) {
+  const style = size !== 32 ? { width: size, height: size, fontSize: size * 0.34 } : undefined;
+  if (role === "teacher") {
+    return (
+      <div className="qna-inbox__avatar qna-inbox__avatar--teacher" style={style}>
+        {getInitials(name)}
+      </div>
+    );
+  }
+  return (
+    <div
+      className="qna-inbox__avatar"
+      data-slot={getAvatarSlot(name)}
+      style={style}
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
 export default function QnaInboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIdParam = searchParams.get("id");
@@ -240,23 +280,37 @@ function QuestionCard({
     return `${Math.floor(diff / 1440)}일 전`;
   })();
 
+  const statusClass = question.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending";
+  const statusLabel = question.is_answered ? "답변 완료" : "답변 대기";
+
   return (
     <button
       type="button"
       onClick={onClick}
       className={`qna-inbox__card ${isActive ? "qna-inbox__card--active" : ""} ${isUnread ? "qna-inbox__card--unread" : ""}`}
     >
-      <div className="qna-inbox__card-title">{question.title}</div>
-      {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
-      <div className="qna-inbox__card-meta">
-        <span>{question.student_name ?? "—"}</span>
-        <span>·</span>
-        <span>{timeAgo}</span>
-        <span
-          className={`qna-inbox__status ${question.is_answered ? "qna-inbox__status--resolved" : "qna-inbox__status--pending"}`}
-        >
-          {question.is_answered ? "해결됨" : "답변대기"}
-        </span>
+      <div className="qna-inbox__card-top">
+        <div className="qna-inbox__card-avatar-wrap">
+          <QnaAvatar name={question.student_name ?? "?"} role="student" size={30} />
+        </div>
+        <div className="qna-inbox__card-body">
+          <div className="qna-inbox__card-title-row">
+            <div className="qna-inbox__card-title">{question.title}</div>
+            <span className={`qna-inbox__status ${statusClass}`}>{statusLabel}</span>
+          </div>
+          {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
+          <div className="qna-inbox__card-meta">
+            <span>{question.student_name ?? "—"}</span>
+            <span className="qna-inbox__card-meta-dot" />
+            <span>{timeAgo}</span>
+            {question.lecture_title && (
+              <>
+                <span className="qna-inbox__card-meta-dot" />
+                <span>{question.lecture_title}</span>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </button>
   );
@@ -317,32 +371,41 @@ function ThreadView({
   return (
     <>
       <header className="qna-inbox__thread-header">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="qna-inbox__thread-title-row">
+          <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">{post.title}</h1>
-            <p className="qna-inbox__thread-meta">
-              {post.created_by_display ?? "—"} · {lectureLabel} ·{" "}
-              {new Date(post.created_at).toLocaleString("ko-KR", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-              {post.replies_count != null && post.replies_count > 0 && (
+            <div className="qna-inbox__thread-meta">
+              <span>{post.created_by_display ?? "—"}</span>
+              <span className="qna-inbox__thread-meta-dot" />
+              <span>{lectureLabel}</span>
+              <span className="qna-inbox__thread-meta-dot" />
+              <span>
+                {new Date(post.created_at).toLocaleString("ko-KR", {
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              {post.replies_count != null && post.replies_count > 0 ? (
                 <>
-                  {" · "}
-                  <span className="qna-inbox__status qna-inbox__status--resolved">해결됨</span>
+                  <span className="qna-inbox__thread-meta-dot" />
+                  <span className="qna-inbox__status qna-inbox__status--resolved">답변 완료</span>
+                </>
+              ) : (
+                <>
+                  <span className="qna-inbox__thread-meta-dot" />
+                  <span className="qna-inbox__status qna-inbox__status--pending">답변 대기</span>
                 </>
               )}
-            </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="qna-inbox__thread-actions">
             <Button intent="ghost" size="sm" onClick={onClose}>
               목록
             </Button>
             <Button
-              intent="secondary"
+              intent="danger"
               size="sm"
               onClick={() => window.confirm("이 질문을 삭제할까요?") && deletePostMut.mutate()}
               disabled={deletePostMut.isPending}
@@ -354,25 +417,43 @@ function ThreadView({
       </header>
 
       <div className="qna-inbox__student-panel">
-        <div className="qna-inbox__student-panel-title">학생 정보</div>
-        <div className="qna-inbox__student-name">{post.created_by_display ?? "—"}</div>
-        <div className="qna-inbox__student-course">수강 강의 · {lectureLabel}</div>
+        <QnaAvatar name={post.created_by_display ?? "?"} role="student" size={28} />
+        <div className="qna-inbox__student-info">
+          <div className="qna-inbox__student-panel-label">학생</div>
+          <div className="qna-inbox__student-name">{post.created_by_display ?? "—"}</div>
+          <div className="qna-inbox__student-course">{lectureLabel}</div>
+        </div>
         {questionHistory.length > 0 && (
-          <div className="qna-inbox__student-history">이전 질문 {questionHistory.length}개</div>
+          <div className="qna-inbox__student-history">이전 질문 {questionHistory.length}건</div>
         )}
       </div>
 
       <div className="qna-inbox__thread-body">
-        <div className="qna-inbox__message">
-          <div className="qna-inbox__message-header">
-            <span className="qna-inbox__message-author">{post.created_by_display ?? "학생"}</span>
-            <span className="qna-inbox__message-date">
-              {new Date(post.created_at).toLocaleString("ko-KR")}
-            </span>
-            <span className="qna-inbox__message-badge">학생</span>
+        {/* Student question */}
+        <div className="qna-inbox__message-row">
+          <QnaAvatar name={post.created_by_display ?? "?"} role="student" />
+          <div className="qna-inbox__message-bubble">
+            <div className="qna-inbox__message-meta">
+              <span className="qna-inbox__message-author">{post.created_by_display ?? "학생"}</span>
+              <span className="qna-inbox__message-badge">학생</span>
+              <span className="qna-inbox__message-date">
+                {new Date(post.created_at).toLocaleString("ko-KR", {
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </div>
+            <div className="qna-inbox__message-body">{post.content}</div>
           </div>
-          <div className="qna-inbox__message-body">{post.content}</div>
         </div>
+
+        {post.replies_count != null && post.replies_count > 0 && (
+          <div className="qna-inbox__thread-sep">
+            <span className="qna-inbox__thread-sep-label">선생님 답변</span>
+          </div>
+        )}
 
         <AnswerThread postId={postId} />
 
@@ -451,56 +532,59 @@ function ReplyBlock({ postId, answer }: { postId: number; answer: Answer }) {
     },
   });
 
+  const teacherName = answer.created_by_display ?? "선생님";
+
   return (
-    <div className="qna-inbox__message qna-inbox__message--teacher">
-      <div className="qna-inbox__message-header">
-        <span className="qna-inbox__message-author">{answer.created_by_display ?? "선생님"}</span>
-        <span className="qna-inbox__message-date">
-          {new Date(answer.created_at).toLocaleString("ko-KR", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
-        <span className="qna-inbox__message-badge">👨‍🏫 Teacher</span>
-      </div>
-      {editing ? (
-        <div>
-          <textarea
-            className="ds-input w-full min-h-[100px]"
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            rows={4}
-          />
-          <div className="flex gap-2 mt-2">
-            <Button size="sm" intent="primary" onClick={() => updateMut.mutate()} disabled={updateMut.isPending}>
-              저장
-            </Button>
-            <Button size="sm" intent="secondary" onClick={() => setEditing(false)}>
-              취소
-            </Button>
-          </div>
+    <div className="qna-inbox__message-row qna-inbox__message-row--teacher">
+      <QnaAvatar name={teacherName} role="teacher" />
+      <div className="qna-inbox__message-bubble">
+        <div className="qna-inbox__message-meta">
+          <span className="qna-inbox__message-author">{teacherName}</span>
+          <span className="qna-inbox__message-badge">선생님</span>
+          <span className="qna-inbox__message-date">
+            {new Date(answer.created_at).toLocaleString("ko-KR", {
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
         </div>
-      ) : (
-        <>
-          <div className="qna-inbox__message-body">{answer.content}</div>
-          <div className="flex gap-2 mt-3">
-            <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>
-              수정
-            </Button>
-            <Button
-              size="sm"
-              intent="ghost"
-              onClick={() => window.confirm("이 답변을 삭제할까요?") && deleteMut.mutate()}
-              disabled={deleteMut.isPending}
-            >
-              삭제
-            </Button>
+        {editing ? (
+          <div className="qna-inbox__edit-form">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              rows={4}
+            />
+            <div className="qna-inbox__edit-actions">
+              <Button size="sm" intent="primary" onClick={() => updateMut.mutate()} disabled={updateMut.isPending}>
+                저장
+              </Button>
+              <Button size="sm" intent="secondary" onClick={() => setEditing(false)}>
+                취소
+              </Button>
+            </div>
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            <div className="qna-inbox__message-body">{answer.content}</div>
+            <div className="qna-inbox__message-actions">
+              <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>
+                수정
+              </Button>
+              <Button
+                size="sm"
+                intent="ghost"
+                onClick={() => window.confirm("이 답변을 삭제할까요?") && deleteMut.mutate()}
+                disabled={deleteMut.isPending}
+              >
+                삭제
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
