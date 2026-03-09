@@ -1,13 +1,13 @@
 /* PATH: src/features/settings/components/SettingsSection.module.css
- * 설정 섹션 공용 스타일 — 프리미엄 SaaS 스타일 (Stripe/Linear 계열)
+ * 설정 섹션 공용 스타일 — 프리미엄 SaaS (Stripe/Linear 스타일)
  */
 
 /* ── Page wrapper ── */
 .page {
-  max-width: 640px;
+  max-width: 600px;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 44px;
 }
 
 /* ── Section ── */
@@ -17,42 +17,43 @@
 }
 
 .sectionHeader {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .sectionTitle {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  letter-spacing: -0.015em;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
   margin: 0 0 4px;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .sectionDescription {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--color-text-muted);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 /* ── Rows container ── */
 .rows {
   border: 1px solid var(--color-border-divider);
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   background: var(--color-bg-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 /* ── Row ── */
 .row {
   display: grid;
-  grid-template-columns: 160px 1fr auto;
+  grid-template-columns: 140px 1fr auto;
   align-items: center;
   gap: 12px;
-  padding: 14px 20px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--color-border-divider);
-  min-height: 52px;
   transition: background 0.1s ease;
 }
 
@@ -66,14 +67,14 @@
 
 .rowLabel {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--color-text-secondary);
   flex-shrink: 0;
 }
 
 .rowValue {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 400;
   color: var(--color-text-primary);
   min-width: 0;
   overflow: hidden;
@@ -83,7 +84,6 @@
 
 .rowValueMuted {
   color: var(--color-text-muted);
-  font-style: italic;
 }
 
 .rowActions {
@@ -96,12 +96,12 @@
 /* ── Edit mode row ── */
 .rowEdit {
   display: grid;
-  grid-template-columns: 160px 1fr;
+  grid-template-columns: 140px 1fr;
   align-items: start;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-primary) 2.5%, var(--color-bg-surface));
 }
 
 .rowEdit:last-child {
@@ -111,51 +111,52 @@
 .rowEditRight {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
 .rowEditInputs {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .rowEditActions {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-top: 2px;
 }
 
 /* ── Avatar row ── */
 .avatarRow {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 18px 20px;
+  gap: 14px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--color-border-divider);
 }
 
 .avatarCircle {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
 }
 
 .avatarInfo {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .avatarName {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--color-text-primary);
   letter-spacing: -0.01em;
   line-height: 1.3;
@@ -168,29 +169,31 @@
 }
 
 .avatarRole {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 500;
   color: var(--color-primary);
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   border-radius: 999px;
   padding: 2px 8px;
+  letter-spacing: 0.01em;
 }
 
 /* ── Readonly badge ── */
 .readonlyBadge {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--color-text-muted);
   background: var(--color-bg-surface-soft);
   border: 1px solid var(--color-border-divider);
-  border-radius: 5px;
+  border-radius: 4px;
   padding: 2px 7px;
+  letter-spacing: 0.01em;
 }
 
 /* ── Edit button ── */
 .editBtn {
-  font-size: 12.5px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 400;
   color: var(--color-text-muted);
   background: transparent;
   border: 1px solid var(--color-border-divider);
@@ -200,67 +203,33 @@
   transition: all 0.12s ease;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
 .editBtn:hover {
   background: var(--color-bg-surface-hover);
   color: var(--color-text-primary);
-  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border-divider));
-}
-
-/* ── Status message ── */
-.statusSuccess {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-success);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.statusError {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-error);
-}
-
-/* ── Loading ── */
-.loadingBox {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 180px;
-  border: 1px dashed var(--color-border-divider);
-  border-radius: 12px;
-  color: var(--color-text-muted);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-/* ── Divider ── */
-.divider {
-  border: none;
-  border-top: 1px solid var(--color-border-divider);
-  margin: 0;
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-border-divider));
 }
 
 /* ── Field label (inside edit) ── */
 .fieldLabel {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--color-text-muted);
-  margin: 0 0 4px;
+  margin: 0 0 5px;
+  letter-spacing: 0.01em;
 }
 
-/* ── Danger zone ── */
+/* ── Danger zone row ── */
 .dangerRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 20px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--color-border-divider);
 }
 
@@ -275,12 +244,48 @@
 }
 
 .dangerRowTitle {
-  font-size: 13.5px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
   color: var(--color-text-primary);
 }
 
 .dangerRowDesc {
   font-size: 12px;
   color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+/* ── Status ── */
+.statusSuccess {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-success);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.statusError {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-error);
+}
+
+/* ── Loading ── */
+.loadingBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border: 1px dashed var(--color-border-divider);
+  border-radius: 10px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* ── Divider ── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--color-border-divider);
+  margin: 0;
 }

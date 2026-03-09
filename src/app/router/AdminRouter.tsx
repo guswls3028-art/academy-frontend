@@ -206,7 +206,7 @@ export default function AdminRouter() {
           <Route path="organization" element={wrapLazy(OrganizationSettingsPage)} />
           <Route path="messaging" element={wrapLazy(MessagingSettingsPage)} />
           <Route path="appearance" element={wrapLazy(AppearancePage)} />
-          <Route path="security" element={wrapLazy(SecuritySettingsPage)} />
+          <Route path="security" element={<Navigate to="/admin/settings/profile" replace />} />
           {/* 하위 호환 리디렉트 */}
           <Route path="account" element={<Navigate to="/admin/settings/profile" replace />} />
           <Route path="system" element={<Navigate to="/admin/settings/appearance" replace />} />
