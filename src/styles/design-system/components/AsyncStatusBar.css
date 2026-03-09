@@ -407,7 +407,7 @@
   color: var(--color-text-secondary, #4b5563);
 }
 
-/* 첫 줄: [상태뱃지] [유형뱃지] 파일이름 남은시간 */
+/* 첫 줄: [상태뱃지] [유형아이콘] 파일이름 남은시간 — 뱃지는 전역 ds-status-badge 준수 */
 .async-status-bar__item-top {
   display: flex;
   align-items: center;
@@ -416,11 +416,10 @@
   min-width: 0;
 }
 
+/* 전역 ds-status-badge 사용; 레이아웃만 보정 (패딩/폰트는 status.css SSOT 따름) */
 .async-status-bar__status-badge {
   flex-shrink: 0;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
+  align-self: center;
 }
 
 /* 작업 유형 아이콘: 동영상, 엑셀, OMR, 메시지 */

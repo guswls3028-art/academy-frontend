@@ -149,7 +149,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const canRetry =
     task.meta?.jobType === "video_processing" &&
     task.meta?.jobId &&
-    (task.status === "error" || task.status === "success");
+    task.status === "error";
   const canCancel = task.status === "pending" && task.meta?.jobId;
   const [retrying, setRetrying] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -330,7 +330,8 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               )}
             </>
           )}
-          {/* ✅ 완료/실패 작업: 재시도 버튼 직접 노출 (한 번 클릭으로 재시도) */}
+          {/* ✅ 완료(success) 작업: 목록에서만 제거(휴지통만). 재시도 노출 안 함 */}
+          {/* ✅ 실패(error) 작업: 재시도 + 목록에서 제거 */}
           {canRetry && (
             <>
               <button
