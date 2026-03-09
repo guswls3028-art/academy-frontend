@@ -59,9 +59,11 @@ export default function AnswerKeyRegisterModal({
   const answerKey = (answerKeyList?.data ?? [])[0] ?? null;
 
   const [choiceCount, setChoiceCount] = useState<number | "">("");
+  const [choiceCountInput, setChoiceCountInput] = useState<number | "">("");
   const [choiceScore, setChoiceScore] = useState<number | "">(5);
   const [choiceNoDefaultScore, setChoiceNoDefaultScore] = useState(false);
   const [essayCount, setEssayCount] = useState<number | "">("");
+  const [essayCountInput, setEssayCountInput] = useState<number | "">("");
   const [essayScore, setEssayScore] = useState<number | "">(5);
   const [essayNoDefaultScore, setEssayNoDefaultScore] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -129,16 +131,20 @@ export default function AnswerKeyRegisterModal({
   }, [questionIdsKey, sortedQuestions.length]);
 
   const initMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (overrides?: { choiceCount?: number | ""; essayCount?: number | "" }) => {
       const total = questions.length;
       const cc =
-        choiceCount !== ""
-          ? Math.max(0, Number(choiceCount) || 0)
-          : Math.max(0, total - (Number(essayCount) || 0));
+        overrides?.choiceCount !== undefined
+          ? (overrides.choiceCount === "" ? Math.max(0, total - (Number(essayCount) || 0)) : Math.max(0, Number(overrides.choiceCount) || 0))
+          : choiceCount !== ""
+            ? Math.max(0, Number(choiceCount) || 0)
+            : Math.max(0, total - (Number(essayCount) || 0));
       const ec =
-        essayCount !== ""
-          ? Math.max(0, Number(essayCount) || 0)
-          : Math.max(0, total - (Number(choiceCount) || 0));
+        overrides?.essayCount !== undefined
+          ? (overrides.essayCount === "" ? Math.max(0, total - (Number(choiceCount) || 0)) : Math.max(0, Number(overrides.essayCount) || 0))
+          : essayCount !== ""
+            ? Math.max(0, Number(essayCount) || 0)
+            : Math.max(0, total - (Number(choiceCount) || 0));
       const cs = choiceNoDefaultScore ? 0 : (Number(choiceScore) || 5);
       const es = essayNoDefaultScore ? 0 : (Number(essayScore) || 5);
       if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
