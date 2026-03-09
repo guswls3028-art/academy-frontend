@@ -37,7 +37,7 @@ export default function AdminModal({
       width={width}
       centered
       destroyOnHidden
-      maskClosable={!isConfirm}
+      mask={{ closable: !isConfirm }}
       closable={!isConfirm}
       keyboard={!isConfirm}
       styles={{
