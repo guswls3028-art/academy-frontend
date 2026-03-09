@@ -35,6 +35,7 @@ const NotificationsPage = lazy(() => import("@/student/domains/notifications/pag
 const ClinicIDCardPage = lazy(() => import("@/student/domains/clinic-idcard/pages/ClinicIDCardPage"));
 const ClinicPage = lazy(() => import("@/student/domains/clinic/pages/ClinicPage"));
 const AttendancePage = lazy(() => import("@/student/domains/attendance/pages/AttendancePage"));
+const StudentSettingsPage = lazy(() => import("@/student/domains/settings/pages/StudentSettingsPage"));
 
 /** Suspense fallback: 로딩 중 표시 (가벼운 UI로 첫 페인트 빠르게) */
 function StudentRouteFallback() {
@@ -84,6 +85,7 @@ export default function StudentRouter() {
         <Route path="grades" element={<GradesPage />} />
         <Route path="more" element={<MorePage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="settings" element={<StudentSettingsPage />} />
         <Route path="qna" element={<QnaPage />} />
         <Route path="notices" element={<NoticesPage />} />
         <Route path="notices/:id" element={<NoticeDetailPage />} />

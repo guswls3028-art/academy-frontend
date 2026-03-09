@@ -166,7 +166,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
         trigger={["click"]}
         placement="bottomRight"
         dropdownRender={() => profileDropdownContent}
-        dropdownClassName="stu-topbar__profileDropdownOverlay"
+        classNames={{ root: "stu-topbar__profileDropdownOverlay" }}
       >
         <button
           type="button"

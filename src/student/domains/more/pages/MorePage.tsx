@@ -12,6 +12,7 @@ import {
   IconGrade,
   IconLogout,
   IconClinic,
+  IconSettings,
 } from "@/student/shared/ui/icons/Icons";
 import type { ReactNode } from "react";
 
@@ -56,6 +57,7 @@ const FULL_NAV: { category: string; items: { label: string; to: string; icon: Re
     items: [
       { label: "출결 현황", to: "/student/attendance", icon: <IconClipboard style={{ width: 22, height: 22, flexShrink: 0 }} /> },
       { label: "프로필", to: "/student/profile", icon: <IconUser style={{ width: 22, height: 22, flexShrink: 0 }} /> },
+      { label: "설정", to: "/student/settings", icon: <IconSettings style={{ width: 22, height: 22, flexShrink: 0 }} /> },
     ],
   },
 ];
