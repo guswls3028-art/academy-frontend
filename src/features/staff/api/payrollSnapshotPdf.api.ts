@@ -7,7 +7,7 @@ export async function exportPayrollSnapshotPDF(params: {
   month: number;
 }) {
   const res = await api.get(
-    "/staffs/export-pdf/",
+    "/staffs/payroll-snapshots/export-pdf/",
     {
       params,
       responseType: "blob",

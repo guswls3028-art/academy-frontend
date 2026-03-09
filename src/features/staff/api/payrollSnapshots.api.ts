@@ -41,14 +41,14 @@ export async function fetchPayrollSnapshots(params: {
 }
 
 /**
- * POST /staffs/export-excel/ → job_id → 폴링 → download_url 다운로드
+ * POST /staffs/payroll-snapshots/export-excel/ → job_id → 폴링 → download_url 다운로드
  */
 export async function exportPayrollSnapshotExcel(params: {
   year: number;
   month: number;
 }): Promise<void> {
   const res = await api.post<{ job_id: string; status: string }>(
-    "/staffs/export-excel/",
+    "/staffs/payroll-snapshots/export-excel/",
     params
   );
   const jobId = res.data?.job_id;
