@@ -89,7 +89,7 @@ export default function AnswerKeyRegisterModal({
 
   const getScore = (q: ExamQuestion) => scoreDraft[q.id] ?? q.score ?? 0;
   const totalScore = useMemo(
-    () => sortedQuestions.reduce((sum, q) => sum + getScore(q), 0),
+    () => sortedQuestions.reduce((sum, q) => sum + (scoreDraft[q.id] ?? q.score ?? 0), 0),
     [sortedQuestions, scoreDraft]
   );
   const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0);
@@ -101,6 +101,7 @@ export default function AnswerKeyRegisterModal({
   }, [answerKey?.id]);
 
   /** 문항 목록 로드 시 점수 드래프트 동기화 */
+  const questionIdsKey = sortedQuestions.map((q) => q.id).join(",");
   useEffect(() => {
     if (sortedQuestions.length === 0) return;
     setScoreDraft((prev) => {
@@ -110,7 +111,7 @@ export default function AnswerKeyRegisterModal({
       });
       return next;
     });
-  }, [sortedQuestions.map((q) => q.id).join(","), sortedQuestions.length]);
+  }, [questionIdsKey, sortedQuestions.length]);
 
   const initMut = useMutation({
     mutationFn: async () => {
@@ -304,6 +305,16 @@ export default function AnswerKeyRegisterModal({
                       onChange={(value) =>
                         setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
                       }
+                      score={getScore(q)}
+                      onScoreChange={(delta) =>
+                        setScoreDraft((prev) => ({
+                          ...prev,
+                          [q.id]: Math.max(0, (prev[q.id] ?? q.score ?? 0) + delta),
+                        }))
+                      }
+                      onScoreReset={() =>
+                        setScoreDraft((prev) => ({ ...prev, [q.id]: 0 }))
+                      }
                       showDividerAfter={(index + 1) % 5 === 0 && index < choiceQuestions.length - 1}
                     />
                   ))}
@@ -328,6 +339,16 @@ export default function AnswerKeyRegisterModal({
                       draft={draft[String(q.id)] ?? ""}
                       onChange={(value) =>
                         setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
+                      }
+                      score={getScore(q)}
+                      onScoreChange={(delta) =>
+                        setScoreDraft((prev) => ({
+                          ...prev,
+                          [q.id]: Math.max(0, (prev[q.id] ?? q.score ?? 0) + delta),
+                        }))
+                      }
+                      onScoreReset={() =>
+                        setScoreDraft((prev) => ({ ...prev, [q.id]: 0 }))
                       }
                       showDividerAfter={(index + 1) % 5 === 0 && index < essayQuestions.length - 1}
                     />
@@ -379,9 +400,7 @@ export default function AnswerKeyRegisterModal({
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span className="answer-key-footer-hint">기본점수 0 점</span>
-        }
+        left={null}
         right={
           <>
             <Button intent="secondary" onClick={onClose}>
@@ -416,11 +435,17 @@ function ChoiceRow({
   question,
   draft,
   onChange,
+  score,
+  onScoreChange,
+  onScoreReset,
   showDividerAfter = false,
 }: {
   question: ExamQuestion;
   draft: string;
   onChange: (value: string) => void;
+  score: number;
+  onScoreChange: (delta: number) => void;
+  onScoreReset: () => void;
   showDividerAfter?: boolean;
 }) {
   return (
@@ -446,11 +471,27 @@ function ChoiceRow({
           </label>
         ))}
       </div>
-      <div className="answer-key-row__score">{question.score} 점</div>
-      <Button type="button" intent="ghost" size="sm" className="answer-key-row__exception">
-        + 예외
-      </Button>
+      <div className="answer-key-row__score-ctrl">
+        <span className="answer-key-row__score-val">{score}점</span>
+        <div className="answer-key-row__score-btns">
+          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(1)}>+1</button>
+          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(2)}>+2</button>
+          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(5)}>+5</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--reset" onClick={onScoreReset} aria-label="점수 초기화">
+            <ResetIcon />
+          </button>
+        </div>
+      </div>
     </li>
+  );
+}
+
+function ResetIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
   );
 }
 
@@ -458,11 +499,17 @@ function EssayRow({
   question,
   draft,
   onChange,
+  score,
+  onScoreChange,
+  onScoreReset,
   showDividerAfter = false,
 }: {
   question: ExamQuestion;
   draft: string;
   onChange: (value: string) => void;
+  score: number;
+  onScoreChange: (delta: number) => void;
+  onScoreReset: () => void;
   showDividerAfter?: boolean;
 }) {
   return (
@@ -477,7 +524,17 @@ function EssayRow({
           className="ds-input answer-key-row__input"
         />
       </div>
-      <div className="answer-key-row__score">{question.score} 점</div>
+      <div className="answer-key-row__score-ctrl">
+        <span className="answer-key-row__score-val">{score}점</span>
+        <div className="answer-key-row__score-btns">
+          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(1)}>+1</button>
+          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(2)}>+2</button>
+          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(5)}>+5</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--reset" onClick={onScoreReset} aria-label="점수 초기화">
+            <ResetIcon />
+          </button>
+        </div>
+      </div>
     </li>
   );
 }
