@@ -566,9 +566,11 @@
 }
 
 .answer-key-explanation-cell__textarea {
+  height: 120px;
   min-height: 120px;
   resize: vertical;
   flex: 1;
+  box-sizing: border-box;
 }
 
 .answer-key-explanation-cell__num {
@@ -591,8 +593,11 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
+  height: 120px;
   min-height: 120px;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 2px dashed var(--color-border-divider);
   border-radius: var(--radius-md);
   background: var(--color-bg-surface-soft);
@@ -606,11 +611,14 @@
   background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
 }
 .answer-key-explanation-cell__placeholder-wrap {
+  height: 120px;
   min-height: 120px;
   display: flex;
 }
 .answer-key-explanation-cell__placeholder-wrap .answer-key-explanation-cell__placeholder {
   flex: 1;
+  min-width: 0;
+  height: 100%;
   min-height: 120px;
 }
 
@@ -624,6 +632,7 @@
   text-align: center;
   white-space: normal;
   word-break: keep-all;
+  max-width: 100%;
 }
 
 .answer-key-explanation-cell__image-wrap {

@@ -82,12 +82,12 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
             <Button
               type="button"
               intent="secondary"
-              size="md"
+              size="xl"
               onClick={() => setTemplateModalOpen(true)}
               disabled={saveAsTemplateMut.isPending}
               className="flex items-center gap-2"
             >
-              <FiSave className="shrink-0" size={18} aria-hidden />
+              <FiSave className="shrink-0" size={22} aria-hidden />
               템플릿으로 저장
             </Button>
           )}
@@ -96,14 +96,14 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
               <Button
                 type="button"
                 intent="secondary"
-                size="md"
+                size="xl"
                 onClick={() => setTemplateDropdownOpen((v) => !v)}
                 className="flex items-center gap-2"
                 aria-expanded={templateDropdownOpen}
                 aria-haspopup="true"
               >
                 템플릿으로 저장됨
-                <FiChevronDown className="shrink-0" size={16} aria-hidden />
+                <FiChevronDown className="shrink-0" size={20} aria-hidden />
               </Button>
               {templateDropdownOpen && (
                 <div
@@ -141,10 +141,10 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
             <Button
               type="button"
               intent={isOpen ? "secondary" : "primary"}
-              size="lg"
+              size="xl"
               onClick={() => statusMut.mutate(isOpen ? "CLOSED" : "OPEN")}
               disabled={statusMut.isPending}
-              className="min-w-[100px]"
+              className="min-w-[140px]"
             >
               {isOpen ? "마감" : "진행"}
             </Button>
@@ -154,7 +154,7 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
 
       {canSaveAsTemplate && (
         <p className="text-sm text-[var(--text-muted)]">
-          시험 템플릿으로 저장 시 다른 강의에서 동일한 시험을 응시할 수 있습니다.
+          시험을 템플릿으로 저장하면 다른 강의에서 동일 시험을 불러와 사용할 수 있고, 서로 다른 강의의 통계를 합산해 볼 수 있습니다.
         </p>
       )}
 
@@ -182,7 +182,7 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
             </label>
             <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
               템플릿으로 저장하면 다른 강의·차시에서도 동일한 시험을 불러와 응시할 수 있습니다.
-              시험 문항, 정답, 커트라인 등이 그대로 복사됩니다. 템플릿으로 저장하시겠습니까?
+              시험 문항, 정답, 커트라인 등이 그대로 복사되며, 여러 강의의 통계를 합산해 볼 수 있습니다. 템플릿으로 저장하시겠습니까?
             </p>
           </div>
         </ModalBody>
@@ -190,11 +190,12 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
           left={null}
           right={
             <>
-              <Button intent="secondary" onClick={() => setTemplateModalOpen(false)}>
+              <Button intent="secondary" size="xl" onClick={() => setTemplateModalOpen(false)}>
                 취소
               </Button>
               <Button
                 intent="primary"
+                size="xl"
                 onClick={handleTemplateSaveConfirm}
                 disabled={saveAsTemplateMut.isPending}
                 loading={saveAsTemplateMut.isPending}
