@@ -59,11 +59,15 @@ export interface PostEntity {
 }
 
 // ----------------------------------------
-// Scope nodes (강의/차시 트리 → node_id 도출용)
+// Scope nodes (강의/차시 트리 → node_id 도출용). 페이지네이션(results) 지원
 // ----------------------------------------
 export async function fetchScopeNodes(): Promise<ScopeNodeMinimal[]> {
-  const res = await api.get(`${PREFIX}/scope-nodes/`);
-  return Array.isArray(res.data) ? res.data : [];
+  const res = await api.get(`${PREFIX}/scope-nodes/`, { params: { page_size: 500 } });
+  const data = res.data;
+  if (data != null && Array.isArray((data as { results?: ScopeNodeMinimal[] }).results)) {
+    return (data as { results: ScopeNodeMinimal[] }).results;
+  }
+  return Array.isArray(data) ? data : [];
 }
 
 /** scope + lectureId/sessionId에 해당하는 단일 node_id. 없으면 null */
