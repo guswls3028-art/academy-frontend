@@ -1,13 +1,55 @@
 // PATH: src/features/videos/components/features/video-detail/modals/VideoUploadModal.tsx
-// 영상 추가 모달 — students 도메인 기준 모달 SSOT (AdminModal + ModalHeader/Body/Footer)
+// 영상 추가 모달 — 강의·차시·영상. 5개 슬롯 가로 배치, 엑셀 업로드 존 디자인·감성 동일, 병렬 업로드 및 제목 - 1 ~ - 5 자동 부여
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { initVideoUpload, uploadFileToR2AndComplete } from "@/features/videos/utils/videoUpload";
 import "./VideoUploadModal.css";
+
+function UploadIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width={size}
+      height={size}
+      aria-hidden
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ size = 32 }: { size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width={size}
+      height={size}
+      aria-hidden
+      style={{ color: "var(--color-status-success, #10b981)" }}
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
 
 function ChevronLeftIcon() {
   return (
@@ -24,20 +66,23 @@ function ChevronRightIcon() {
   );
 }
 
+const SLOT_COUNT = 5;
+const VIDEO_ACCEPT = "video/*";
+
 type Props = {
   sessionId: number;
   isOpen: boolean;
   onClose: () => void;
 };
 
-
 export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) {
   const qc = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const [title, setTitle] = useState("");
+  const [baseTitle, setBaseTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<(File | null)[]>(() => Array(SLOT_COUNT).fill(null));
+  const [dragoverIndex, setDragoverIndex] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const [showWatermark, setShowWatermark] = useState(true);
@@ -46,188 +91,242 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
 
   useEffect(() => {
     if (!isOpen) return;
-    setTitle("");
+    setBaseTitle("");
     setDescription("");
-    setFiles([]);
+    setFiles(Array(SLOT_COUNT).fill(null));
+    setDragoverIndex(null);
     setShowWatermark(true);
     setAllowSkip(false);
     setMaxSpeed(1);
     setIsUploading(false);
   }, [isOpen]);
 
-  const canSubmit = useMemo(() => {
-    return Number.isFinite(sessionId) && sessionId > 0 && files.length > 0 && title.trim().length > 0;
-  }, [sessionId, files.length, title]);
+  const filledCount = useMemo(() => files.filter(Boolean).length, [files]);
+  const canSubmit = useMemo(
+    () => Number.isFinite(sessionId) && sessionId > 0 && filledCount > 0 && baseTitle.trim().length > 0,
+    [sessionId, filledCount, baseTitle]
+  );
 
-  if (!isOpen) return null;
+  const setFileAt = useCallback((index: number, file: File | null) => {
+    setFiles((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
+  }, []);
 
-  const pickFile = () => fileInputRef.current?.click();
+  const pickFile = useCallback((index: number) => {
+    inputRefs.current[index]?.click();
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, index: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragoverIndex(null);
+      if (isUploading) return;
+      const list = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+      const video = list.find((f) => f.type.startsWith("video/"));
+      if (video) setFileAt(index, video);
+    },
+    [isUploading, setFileAt]
+  );
+
+  const handleFileChange = useCallback(
+    (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+      const list = e.target.files ? Array.from(e.target.files) : [];
+      const video = list.find((f) => f.type.startsWith("video/"));
+      setFileAt(index, video || null);
+      e.target.value = "";
+    },
+    [setFileAt]
+  );
 
   const handleUpload = async () => {
-    if (files.length === 0) return;
-    setIsUploading(true);
+    const items: { file: File; title: string }[] = [];
+    for (let i = 0; i < SLOT_COUNT; i++) {
+      const file = files[i];
+      if (!file) continue;
+      items.push({ file, title: `${baseTitle.trim()} - ${i + 1}` });
+    }
+    if (items.length === 0) return;
 
+    setIsUploading(true);
     const initResults: { init: Awaited<ReturnType<typeof initVideoUpload>>; file: File }[] = [];
     const initErrors: string[] = [];
 
-    // 1) 각 파일 init 먼저 (DB에 영상 row 생성)
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fileTitle = files.length === 1 ? title.trim() : `${title.trim()} ${i + 1}`;
-
-      try {
-        const init = await initVideoUpload({
-          sessionId,
-          file,
-          title: fileTitle,
-          description,
-          showWatermark,
-          allowSkip,
-          maxSpeed,
-        });
-        initResults.push({ init, file });
-      } catch (error) {
-        const err = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
-        let msg =
-          err?.response?.data?.detail ||
-          err?.message ||
-          "업로드에 실패했습니다.";
-        if (err?.response?.status === 403 && !err?.response?.data?.detail) {
-          msg = "권한이 없습니다. 관리자 또는 스태프 계정으로 로그인했는지 확인하세요.";
+    try {
+      for (const { file, title } of items) {
+        try {
+          const init = await initVideoUpload({
+            sessionId,
+            file,
+            title,
+            description,
+            showWatermark,
+            allowSkip,
+            maxSpeed,
+          });
+          initResults.push({ init, file });
+        } catch (error) {
+          const err = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+          const msg =
+            err?.response?.data?.detail ||
+            err?.message ||
+            "업로드에 실패했습니다.";
+          if (err?.response?.status === 403 && !err?.response?.data?.detail) {
+            initErrors.push(`${file.name}: 권한이 없습니다.`);
+          } else {
+            initErrors.push(`${file.name}: ${msg}`);
+          }
         }
-        initErrors.push(`${file.name}: ${msg}`);
       }
-    }
 
-    // 2) 목록 갱신 후 모달 닫기 → 화면에 바로 표시
-    if (initResults.length > 0) {
-      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
-    }
-    onClose();
-    setIsUploading(false);
-
-    if (initErrors.length > 0) {
-      feedback.error(initErrors.join(" / "));
-    }
-
-    // 3) R2 업로드 + complete는 백그라운드에서 진행
-    const results = await Promise.allSettled(
-      initResults.map(({ init, file }) => uploadFileToR2AndComplete(init, file))
-    );
-
-    const successCount = results.filter((r) => r.status === "fulfilled").length;
-    const r2Errors: string[] = [];
-    results.forEach((r, idx) => {
-      if (r.status === "rejected") {
-        r2Errors.push(`${initResults[idx].file.name}: ${(r.reason as Error)?.message || "업로드 실패"}`);
+      if (initResults.length > 0) {
+        qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
       }
-    });
+      onClose();
 
-    if (successCount > 0) {
-      feedback.success(
-        r2Errors.length > 0
-          ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 처리는 우하단 진행 상황에서 확인하세요.`
-          : `${successCount}개 업로드 완료. 처리는 우하단 진행 상황에서 이어서 진행됩니다.`
+      if (initErrors.length > 0) {
+        feedback.error(initErrors.join(" / "));
+      }
+
+      const results = await Promise.allSettled(
+        initResults.map(({ init, file }) => uploadFileToR2AndComplete(init, file))
       );
-      qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
-    }
-    if (r2Errors.length > 0) {
-      feedback.error(r2Errors.join(" / "));
+      const successCount = results.filter((r) => r.status === "fulfilled").length;
+      const r2Errors: string[] = [];
+      results.forEach((r, idx) => {
+        if (r.status === "rejected") {
+          r2Errors.push(`${initResults[idx].file.name}: ${(r.reason as Error)?.message || "업로드 실패"}`);
+        }
+      });
+
+      if (successCount > 0) {
+        feedback.success(
+          r2Errors.length > 0
+            ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 우하단 진행 상황에서 확인하세요.`
+            : `${successCount}개 업로드 완료. 처리는 우하단에서 이어서 진행됩니다.`
+        );
+        qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
+      }
+      if (r2Errors.length > 0) {
+        feedback.error(r2Errors.join(" / "));
+      }
+    } finally {
+      setIsUploading(false);
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <AdminModal open={isOpen} onClose={onClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={handleUpload}>
+    <AdminModal open={isOpen} onClose={onClose} type="action" width={MODAL_WIDTH.lg} onEnterConfirm={canSubmit && !isUploading ? handleUpload : undefined}>
       <ModalHeader
         type="action"
         title="영상 추가"
-        description="파일 업로드 및 재생 정책을 설정합니다."
+        description="파일 업로드 및 재생 정책을 설정합니다. 최대 5개까지 동시 업로드 가능합니다."
       />
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact video-upload-modal__body">
-          {/* 제목 — 묶음 단위. 다중 업로드 시 "제목 1", "제목 2" 형태로 자동 부여 */}
+          {/* 제목 — 슬롯별로 "제목 - 1", "제목 - 2" … 자동 부여 */}
           <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
             <input
               className="ds-input"
-              placeholder="제목 (예: 수학의 정석 — 여러 파일 시 제목 1, 2, 3... 자동)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목 (예: 언남고 1학기 중간 과학 1강) — 아래 슬롯 순서대로 - 1, - 2, … 가 붙습니다"
+              value={baseTitle}
+              onChange={(e) => setBaseTitle(e.target.value)}
               autoFocus
             />
           </div>
 
-          {/* 파일 — 드롭존만, 다중 선택 가능 */}
-          <div className="modal-form-group video-upload-modal__row video-upload-modal__row--input-only">
-            <div
-              className="video-upload-modal__dropzone video-upload-modal__dropzone--compact"
-              onClick={pickFile}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  pickFile();
-                }
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const items = e.dataTransfer?.files;
-                if (items?.length) {
-                  setFiles((prev) => [...prev, ...Array.from(items)].filter((f) => f.type.startsWith("video/")));
-                }
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              aria-label="동영상 파일 선택 (다중 선택 가능)"
-            >
-              {files.length > 0 ? (
-                <span className="video-upload-modal__filename">
-                  {files.length === 1
-                    ? files[0].name
-                    : `${files.length}개 파일 선택됨${files.length <= 3 ? ` (${files.map((f) => f.name).join(", ")})` : ""}`}
-                  <button
-                    type="button"
-                    className="video-upload-modal__clear-files"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFiles([]);
+          {/* 5개 가로 슬롯 — 엑셀 업로드 존과 동일 디자인(modal.css .excel-upload-zone) */}
+          <div className="modal-form-group video-upload-modal__row">
+            <span className="modal-section-label video-upload-modal__slots-label">
+              파일: 클릭 또는 드래그 (mp4 등, 슬롯당 1개, 최대 5개)
+            </span>
+            <div className="video-upload-modal__slots">
+              {Array.from({ length: SLOT_COUNT }, (_, i) => (
+                <div key={i} className="video-upload-modal__slot">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className={`excel-upload-zone video-upload-modal__zone ${files[i] ? "excel-upload-zone--filled" : ""} ${dragoverIndex === i ? "excel-upload-zone--dragover" : ""}`}
+                    onClick={() => {
+                      if (files[i]) return;
+                      if (!isUploading) pickFile(i);
                     }}
-                    aria-label="선택 해제"
+                    onKeyDown={(e) => {
+                      if (files[i]) return;
+                      if ((e.key === "Enter" || e.key === " ") && !isUploading) {
+                        e.preventDefault();
+                        pickFile(i);
+                      }
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!isUploading && !files[i]) setDragoverIndex(i);
+                    }}
+                    onDragLeave={() => setDragoverIndex(null)}
+                    onDrop={(e) => handleDrop(e, i)}
+                    aria-label={`영상 ${i + 1} 슬롯`}
                   >
-                    선택 해제
-                  </button>
-                </span>
-              ) : (
-                <span className="video-upload-modal__prompt">파일: 클릭 또는 드래그하여 업로드 (mp4 등, 다중 선택 가능)</span>
-              )}
+                    <input
+                      ref={(el) => { inputRefs.current[i] = el; }}
+                      type="file"
+                      accept={VIDEO_ACCEPT}
+                      className="hidden"
+                      onChange={(e) => handleFileChange(i, e)}
+                    />
+                    {files[i] ? (
+                      <div className="excel-upload-zone__filled">
+                        <CheckCircleIcon size={36} />
+                        <span className="excel-upload-zone__filled-filename">{files[i]!.name}</span>
+                        <button
+                          type="button"
+                          className="excel-upload-zone__filled-clear"
+                          onClick={(e) => { e.stopPropagation(); setFileAt(i, null); }}
+                          disabled={isUploading}
+                        >
+                          파일 변경
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="excel-upload-zone__head">
+                          <UploadIcon size={18} />
+                          <span className="excel-upload-zone__title">Video</span>
+                        </div>
+                        <div className="excel-upload-zone__drag-label">Drag or Click</div>
+                        <div className="excel-upload-zone__upload">
+                          <UploadIcon size={14} />
+                          <span className="excel-upload-zone__upload-label">업로드</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="video-upload-modal__slot-title" title={baseTitle.trim() ? `${baseTitle.trim()} - ${i + 1}` : undefined}>
+                    {baseTitle.trim() ? `${baseTitle.trim()} - ${i + 1}` : `— ${i + 1} —`}
+                  </div>
+                </div>
+              ))}
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept="video/*"
-              multiple
-              onChange={(e) => {
-                const list = e.target.files ? Array.from(e.target.files) : [];
-                setFiles((prev) => (list.length > 0 ? [...prev, ...list] : prev));
-                e.target.value = "";
-              }}
-            />
           </div>
 
-          {/* 설명 — textarea만, placeholder로 안내, 크기·위치 고정 */}
+          {/* 설명 */}
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row video-upload-modal__row--input-only video-upload-modal__desc-wrap">
             <textarea
               className="ds-textarea video-upload-modal__desc"
               placeholder="설명 (선택)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={3}
+              rows={2}
             />
           </div>
 
-          {/* 재생 정책 — 워터마크 · 건너뛰기 · 배속 가로 1줄, 배속은 올림/내림 버튼 밖으로 */}
+          {/* 재생 정책 */}
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
             <div className="video-upload-modal__policy-row">
               <label className="video-upload-modal__policy-item">
@@ -304,7 +403,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               disabled={!canSubmit || isUploading}
               loading={isUploading}
             >
-              {isUploading ? "업로드 중…" : "업로드"}
+              {isUploading ? "업로드 중…" : `업로드 (${filledCount}개)`}
             </Button>
           </>
         }

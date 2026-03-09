@@ -456,6 +456,17 @@ export default function EnrollmentManageModal({
       </ModalBody>
 
       <ModalFooter
+        left={
+          <span className="text-[12px] text-[var(--color-text-muted)]">
+            {readOnly
+              ? "조회 전용"
+              : saving
+                ? "저장 중… 잠시만 기다려주세요."
+                : dirty
+                  ? "변경사항이 있습니다. 저장하면 확정됩니다."
+                  : "변경사항 없음"}
+          </span>
+        }
         right={
           <>
             <Button
