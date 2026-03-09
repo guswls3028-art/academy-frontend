@@ -73,7 +73,7 @@ export function AnswerKeyEditor({ examId, createExamId, disabled }: Props) {
         setAnswerKey(created.data);
         setMsg("저장 완료");
       } else {
-        const updated = await updateAnswerKey(answerKey.id, { answers: normalized });
+        const updated = await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: normalized });
         setAnswerKey(updated.data);
         setMsg("저장 완료");
       }
