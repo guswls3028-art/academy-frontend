@@ -1,5 +1,5 @@
 // PATH: src/features/settings/pages/AppearancePage.tsx
-// 설정 > 테마 — 그룹 헤더 + 인터페이스 밀도 옵션 포함 프리미엄 UI
+// 설정 > 테마 — 그룹 헤더 프리미엄 UI (인터페이스 밀도 옵션 제거)
 
 import { useEffect, useMemo, useState } from "react";
 import { FiSun, FiMoon, FiStar } from "react-icons/fi";
@@ -11,25 +11,6 @@ import ThemeCard from "../components/ThemeCard";
 import "@/styles/design-system/colors/preview-theme.css";
 import "@/styles/design-system/colors/preview-scope.css";
 import s from "../components/SettingsSection.module.css";
-
-// ── Density ─────────────────────────────────────────────────────────────────
-const DENSITY_KEY = "hakwonplus:density";
-type Density = "comfortable" | "compact";
-
-function loadDensity(): Density {
-  try {
-    const v = localStorage.getItem(DENSITY_KEY);
-    if (v === "compact" || v === "comfortable") return v;
-  } catch {}
-  return "comfortable";
-}
-
-function applyDensity(d: Density) {
-  document.documentElement.setAttribute("data-density", d);
-  try {
-    localStorage.setItem(DENSITY_KEY, d);
-  } catch {}
-}
 
 // ── Theme group config ───────────────────────────────────────────────────────
 type GroupConfig = {
@@ -112,73 +93,6 @@ function ThemeGroupSection({
   );
 }
 
-// ── Density selector ─────────────────────────────────────────────────────────
-const DENSITY_OPTIONS: { value: Density; label: string; desc: string }[] = [
-  { value: "comfortable", label: "편안하게", desc: "기본 여백 · 여유있는 레이아웃" },
-  { value: "compact", label: "컴팩트", desc: "좁은 여백 · 더 많은 정보" },
-];
-
-function DensitySelector({
-  current,
-  onChange,
-}: {
-  current: Density;
-  onChange: (d: Density) => void;
-}) {
-  return (
-    <div style={{ display: "flex", gap: 10 }}>
-      {DENSITY_OPTIONS.map((opt) => {
-        const isSelected = opt.value === current;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            style={{
-              flex: 1,
-              padding: "14px 16px",
-              borderRadius: 10,
-              border: isSelected
-                ? "2px solid var(--color-border-focus)"
-                : "1px solid var(--color-border-divider)",
-              background: isSelected
-                ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))"
-                : "var(--color-bg-surface)",
-              cursor: "pointer",
-              textAlign: "left",
-              transition: "all 0.15s ease",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 13.5,
-                fontWeight: isSelected ? 700 : 500,
-                color: isSelected
-                  ? "var(--color-primary)"
-                  : "var(--color-text-primary)",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {opt.label}
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                color: "var(--color-text-muted)",
-              }}
-            >
-              {opt.desc}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function AppearancePage() {
   const initialTheme: ThemeKey = useMemo(() => {
@@ -188,16 +102,10 @@ export default function AppearancePage() {
   }, []);
 
   const [currentTheme, setCurrentTheme] = useState<ThemeKey>(initialTheme);
-  const [density, setDensity] = useState<Density>(loadDensity);
 
   useEffect(() => {
     applyThemeToDom(currentTheme);
   }, [currentTheme]);
-
-  const handleDensity = (d: Density) => {
-    setDensity(d);
-    applyDensity(d);
-  };
 
   const groups: GroupConfig[] = useMemo(
     () => [
@@ -251,15 +159,6 @@ export default function AppearancePage() {
             onSelect={handleSelect}
           />
         ))}
-      </section>
-
-      {/* Density */}
-      <section className={s.section}>
-        <div className={s.sectionHeader}>
-          <h2 className={s.sectionTitle} style={{ fontSize: 14 }}>인터페이스 밀도</h2>
-          <p className={s.sectionDescription}>화면 여백과 레이아웃 밀도를 설정합니다.</p>
-        </div>
-        <DensitySelector current={density} onChange={handleDensity} />
       </section>
     </div>
   );
