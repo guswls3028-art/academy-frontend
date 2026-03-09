@@ -44,18 +44,16 @@ export async function fetchHomeworks(params?: { session_id?: number }) {
 
 /**
  * ✅ POST /homeworks/
- * - payload는 backend 편차 흡수 위해 session_id + session 둘 다 보냄
+ * - 상태는 서버 기본값(DRAFT) 사용. 사용자가 DRAFT/OPEN/CLOSED를 선택하지 않음.
  */
 export async function createHomework(payload: {
   session_id: number;
   title: string;
-  status?: "DRAFT" | "OPEN" | "CLOSED";
 }) {
   const res = await api.post("/homeworks/", {
     session_id: payload.session_id,
-    session: payload.session_id, // ✅ 호환용 (backend가 session 필드만 받는 경우)
+    session: payload.session_id,
     title: payload.title,
-    status: payload.status ?? "DRAFT",
   });
 
   return res.data;

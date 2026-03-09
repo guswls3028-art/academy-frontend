@@ -3,7 +3,7 @@
 // CreateHomeworkModal — 전역 모달 SSOT(AdminModal + Header/Body/Footer) 적용
 // ------------------------------------------------------------
 // 책임: 과제 생성 UI, 생성 성공 시 onCreated(newId) 호출
-// 백엔드 편차: session_id / session 둘 다 전송
+// 상태(DRAFT/OPEN/CLOSED)는 사용자 노출 없음. 생성 시 항상 백엔드 기본값(DRAFT).
 // ------------------------------------------------------------
 
 import { useEffect, useState } from "react";
@@ -20,8 +20,6 @@ type Props = {
   onCreated: (newId: number) => void;
 };
 
-type HomeworkStatus = "DRAFT" | "OPEN" | "CLOSED";
-
 export default function CreateHomeworkModal({
   open,
   onClose,
@@ -29,13 +27,9 @@ export default function CreateHomeworkModal({
   onCreated,
 }: Props) {
   const [title, setTitle] = useState("");
-  const [status, setStatus] = useState<HomeworkStatus>("DRAFT");
 
   useEffect(() => {
-    if (open) {
-      setTitle("");
-      setStatus("DRAFT");
-    }
+    if (open) setTitle("");
   }, [open]);
 
   const m = useMutation({
@@ -43,7 +37,6 @@ export default function CreateHomeworkModal({
       const res = await createHomework({
         session_id: sessionId,
         title: title.trim(),
-        status,
       });
       return res;
     },
@@ -95,7 +88,7 @@ export default function CreateHomeworkModal({
       <ModalHeader
         type="action"
         title="과제 생성"
-        description="이 차시에 배포할 과제 제목과 상태를 입력하세요."
+        description="이 차시에 배포할 과제 제목을 입력하세요. 생성 후 설정 탭에서 기본 설정을 하고 진행하기를 누르면 배포됩니다."
       />
 
       <ModalBody>
@@ -110,17 +103,6 @@ export default function CreateHomeworkModal({
               autoFocus
               aria-label="과제 제목"
             />
-            <label className="modal-section-label">상태</label>
-            <select
-              className="ds-select"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as HomeworkStatus)}
-              aria-label="과제 상태"
-            >
-              <option value="DRAFT">DRAFT</option>
-              <option value="OPEN">OPEN</option>
-              <option value="CLOSED">CLOSED</option>
-            </select>
             <p className="modal-hint modal-hint--block">session_id: {sessionId}</p>
           </div>
         </div>
