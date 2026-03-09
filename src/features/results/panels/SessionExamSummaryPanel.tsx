@@ -49,89 +49,55 @@ export default function SessionExamSummaryPanel({
   });
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-gray-500">
-        성적 요약 불러오는 중...
-      </div>
-    );
+    return <EmptyState scope="panel" tone="loading" title="성적 요약 불러오는 중…" />;
   }
 
   if (isError || !data) {
-    return (
-      <div className="text-sm text-red-600">
-        성적 요약 실패
-      </div>
-    );
+    return <EmptyState scope="panel" tone="error" title="성적 요약를 불러오지 못했습니다." />;
   }
 
   if (!data.exams || data.exams.length === 0) {
-    return (
-      <div className="text-sm text-gray-500">
-        성적 데이터가 없습니다.
-      </div>
-    );
+    return <EmptyState scope="panel" tone="empty" title="성적 데이터가 없습니다." />;
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-semibold">
-        시험별 성적 요약
-      </h3>
+    <div className="space-y-3">
+      <div className="text-sm font-semibold text-[var(--color-text-primary)]">시험별 성적 요약</div>
 
-      <table className="w-full border text-sm">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="border px-2 py-1 text-left">시험</th>
-            <th className="border px-2 py-1">응시</th>
-            <th className="border px-2 py-1">평균</th>
-            <th className="border px-2 py-1">최저</th>
-            <th className="border px-2 py-1">최고</th>
-            <th className="border px-2 py-1">합격률</th>
-            <th className="border px-2 py-1">클리닉</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {data.exams.map((row) => {
-            const isActive = row.exam_id === activeExamId;
-
-            return (
-              <tr
-                key={row.exam_id}
-                className={isActive ? "bg-blue-50" : ""}
-              >
-                <td className="border px-2 py-1 font-medium">
-                  {row.title}
-                </td>
-
-                <td className="border px-2 py-1 text-center">
-                  {row.participant_count}
-                </td>
-
-                <td className="border px-2 py-1 text-center">
-                  {row.avg_score.toFixed(1)}
-                </td>
-
-                <td className="border px-2 py-1 text-center">
-                  {row.min_score}
-                </td>
-
-                <td className="border px-2 py-1 text-center">
-                  {row.max_score}
-                </td>
-
-                <td className="border px-2 py-1 text-center">
-                  {(row.pass_rate * 100).toFixed(1)}%
-                </td>
-
-                <td className="border px-2 py-1 text-center">
-                  {row.clinic_count}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="ds-table-wrap">
+        <table className="ds-table w-full">
+          <thead>
+            <tr>
+              <th style={{ textAlign: "left" }}>시험</th>
+              <th>응시</th>
+              <th>평균</th>
+              <th>최저</th>
+              <th>최고</th>
+              <th>합격률</th>
+              <th>클리닉</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.exams.map((row) => {
+              const isActive = row.exam_id === activeExamId;
+              return (
+                <tr
+                  key={row.exam_id}
+                  style={isActive ? { background: "color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface))" } : undefined}
+                >
+                  <td style={{ textAlign: "left", fontWeight: 600 }}>{row.title}</td>
+                  <td>{row.participant_count}</td>
+                  <td>{row.avg_score.toFixed(1)}</td>
+                  <td>{row.min_score}</td>
+                  <td>{row.max_score}</td>
+                  <td>{(row.pass_rate * 100).toFixed(1)}%</td>
+                  <td>{row.clinic_count}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
