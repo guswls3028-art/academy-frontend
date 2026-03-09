@@ -54,7 +54,7 @@ function parseScoreInput(input: string, maxScore?: number | null): number | null
 function validateScore(value: number, maxScore?: number | null): boolean {
   const max = maxScore != null && Number(maxScore) > 0 ? Number(maxScore) : 100;
   if (value < 0 || value > max) {
-    alert(`점수는 0 ~ ${max} 사이로 입력해 주세요.`);
+    feedback.error(`점수는 0 ~ ${max} 사이로 입력해 주세요.`);
     return false;
   }
   return true;
