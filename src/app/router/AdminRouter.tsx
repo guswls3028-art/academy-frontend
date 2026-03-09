@@ -4,7 +4,6 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AppLayout, DomainLayout } from "@/shared/ui/layout";
-import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
 
 function AdminRouteFallback() {
   return (
@@ -119,14 +118,7 @@ export default function AdminRouter() {
         <Route path="dashboard" element={wrapLazy(DashboardPage)} />
 
         {/* ================= Students (SSOT) ================= */}
-        <Route
-          path="students"
-          element={
-            <SendMessageModalProvider>
-              {wrapLazy(StudentsLayout)}
-            </SendMessageModalProvider>
-          }
-        >
+        <Route path="students" element={wrapLazy(StudentsLayout)}>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={wrapLazy(StudentsHomePage)} />
           <Route path="requests" element={wrapLazy(StudentsRequestsPage)} />
