@@ -1,9 +1,10 @@
 /* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. 모달 한눈에 보이게, 주관식 영역 내 스크롤. */
 
-/* 본문 여백 축소 → 선택형·주관식 영역을 더 넓게. 문항 수 늘어나도 모달 높이 고정, 내부 스크롤만 */
+/* 본문 여백 축소 → 선택형·주관식 영역을 더 넓게. 문항 수 늘어나도 모달 높이 고정, 내부 스크롤만. 16문항+ 기준 크기 고정으로 이미지 등록 탭 전환 시에도 동일 크기 유지 */
 .modal-body:has(> .answer-key-panel) {
   padding: var(--space-2) var(--space-3);
   max-height: 90vh;
+  min-height: min(90vh, 720px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -547,11 +548,26 @@
   justify-content: center;
   gap: var(--space-1);
   min-height: 120px;
+  width: 100%;
   border: 2px dashed var(--color-border-divider);
   border-radius: var(--radius-md);
   background: var(--color-bg-surface-soft);
   color: var(--color-text-muted);
   font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.answer-key-explanation-cell__placeholder:hover {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+.answer-key-explanation-cell__placeholder-wrap {
+  min-height: 120px;
+  display: flex;
+}
+.answer-key-explanation-cell__placeholder-wrap .answer-key-explanation-cell__placeholder {
+  flex: 1;
+  min-height: 120px;
 }
 
 .answer-key-explanation-cell__placeholder-text {

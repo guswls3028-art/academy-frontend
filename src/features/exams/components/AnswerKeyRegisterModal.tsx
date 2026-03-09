@@ -596,7 +596,7 @@ export default function AnswerKeyRegisterModal({
                         <ExplanationRow
                           key={q.id}
                           question={q}
-                          explanation={explanationDraft[q.id] ?? { text: "", imageUrl: null }}
+                          explanation={explanationDraft[q.id] ?? { text: "", problemImageUrl: null, imageUrl: null }}
                           onChange={(next) =>
                             setExplanationDraft((prev) => ({ ...prev, [q.id]: next }))
                           }
@@ -834,8 +834,6 @@ function ImageCell({
   onImageChange: (url: string) => void;
   onClear: () => void;
 }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
   const handlePaste = (e: React.ClipboardEvent) => {
     const file = e.clipboardData?.files?.[0];
     if (!file?.type.startsWith("image/")) return;
@@ -850,17 +848,10 @@ function ImageCell({
     e.target.value = "";
   };
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    el.addEventListener("paste", handlePaste as any);
-    return () => el.removeEventListener("paste", handlePaste as any);
-  }, [onImageChange]);
-
   if (imageUrl) {
     return (
-      <div className="answer-key-explanation-cell answer-key-explanation-cell--image">
-        <div className="answer-key-explanation-cell__image-wrap" ref={containerRef} onPaste={handlePaste}>
+      <div className="answer-key-explanation-cell answer-key-explanation-cell--image" onPaste={handlePaste}>
+        <div className="answer-key-explanation-cell__image-wrap">
           <img src={imageUrl} alt={label} className="answer-key-explanation-cell__img" />
           <Button type="button" intent="ghost" size="sm" onClick={onClear}>
             변경
@@ -871,11 +862,7 @@ function ImageCell({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="answer-key-explanation-cell answer-key-explanation-cell__placeholder-wrap"
-      onPaste={handlePaste}
-    >
+    <div className="answer-key-explanation-cell answer-key-explanation-cell__placeholder-wrap" onPaste={handlePaste}>
       <label className="answer-key-explanation-cell__placeholder">
         <input type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
         <span className="answer-key-explanation-cell__placeholder-text">{label}</span>
@@ -895,53 +882,31 @@ function ExplanationRow({
   onChange: (next: ExplanationState) => void;
 }) {
   const label = typeof question.number === "number" ? String(question.number) : `S${question.number}`;
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    onChange({ ...explanation, imageUrl: url });
-    e.target.value = "";
-  };
-  const clearImage = () => onChange({ ...explanation, imageUrl: null });
+  const problemUrl = explanation.problemImageUrl ?? question.image ?? null;
+  const explanationUrl = explanation.imageUrl;
 
   return (
     <tr className="answer-key-explanation-row">
       <td className="answer-key-explanation-table__td--problem">
         <div className="answer-key-explanation-cell answer-key-explanation-cell--problem">
           <span className="answer-key-explanation-cell__num">{label}</span>
-          {question.image ? (
-            <img
-              src={question.image}
-              alt={`문제 ${label}`}
-              className="answer-key-explanation-cell__img"
-            />
-          ) : (
-            <div className="answer-key-explanation-cell__placeholder">
-              <span className="answer-key-explanation-cell__placeholder-text">문제 이미지</span>
-              <span className="answer-key-explanation-cell__placeholder-hint">클릭 후 Ctrl+V</span>
-            </div>
-          )}
+          <ImageCell
+            label="문제 이미지"
+            imageUrl={problemUrl}
+            onImageChange={(url) => onChange({ ...explanation, problemImageUrl: url })}
+            onClear={() => onChange({ ...explanation, problemImageUrl: null })}
+          />
         </div>
       </td>
       <td className="answer-key-explanation-table__td--explanation">
         <div className="answer-key-explanation-cell answer-key-explanation-cell--explanation">
-          {explanation.imageUrl ? (
-            <div className="answer-key-explanation-cell__image-wrap">
-              <img
-                src={explanation.imageUrl}
-                alt={`해설 ${label}`}
-                className="answer-key-explanation-cell__img"
-              />
-              <Button type="button" intent="ghost" size="sm" onClick={clearImage}>
-                변경
-              </Button>
-            </div>
-          ) : (
-            <label className="answer-key-explanation-cell__upload">
-              <input type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
-              <span>이미지 업로드</span>
-            </label>
-          )}
+          <span className="answer-key-explanation-cell__num">{label}</span>
+          <ImageCell
+            label="해설 이미지"
+            imageUrl={explanationUrl}
+            onImageChange={(url) => onChange({ ...explanation, imageUrl: url })}
+            onClear={() => onChange({ ...explanation, imageUrl: null })}
+          />
         </div>
       </td>
       <td className="answer-key-explanation-table__td--explanation-text">
