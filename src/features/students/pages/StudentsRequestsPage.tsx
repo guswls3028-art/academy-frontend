@@ -315,43 +315,41 @@ export default function StudentsRequestsPage() {
           </div>
         </section>
 
-        {/* 선택 툴바 — 학생 홈 탭과 동일 UX (선택 시에만 표시) */}
-        {pendingList.length > 0 && selectedIds.size > 0 && (
-          <div className="students-requests-toolbar">
-            <span
-              className="students-requests-toolbar__count"
-              style={{ color: "var(--color-primary)" }}
-            >
-              {selectedIds.size}건 선택됨
-            </span>
-            <span className="students-requests-toolbar__sep" aria-hidden>|</span>
-            <Button
-              intent="secondary"
-              size="sm"
-              onClick={() => setSelectedIds(new Set())}
-              disabled={selectedIds.size === 0}
-            >
-              선택 해제
-            </Button>
-            <span className="students-requests-toolbar__sep" aria-hidden>|</span>
-            <Button
-              intent="primary"
-              size="sm"
-              disabled={bulkApproveMutation.isPending}
-              onClick={handleBulkApprove}
-            >
-              {bulkApproveMutation.isPending ? "승인 중…" : "선택 승인"}
-            </Button>
-            <Button
-              intent="danger"
-              size="sm"
-              disabled={bulkRejectMutation.isPending}
-              onClick={handleBulkReject}
-            >
-              {bulkRejectMutation.isPending ? "거절 중…" : "선택 거절"}
-            </Button>
-          </div>
-        )}
+        {/* 선택 툴바 — 홈과 동일하게 상시 노출, 선택 시 버튼 활성화 */}
+        <div className="students-requests-toolbar">
+          <span
+            className="students-requests-toolbar__count"
+            style={{ color: selectedIds.size > 0 ? "var(--color-primary)" : "var(--color-text-muted)" }}
+          >
+            {selectedIds.size}건 선택됨
+          </span>
+          <span className="students-requests-toolbar__sep" aria-hidden>|</span>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => setSelectedIds(new Set())}
+            disabled={selectedIds.size === 0}
+          >
+            선택 해제
+          </Button>
+          <span className="students-requests-toolbar__sep" aria-hidden>|</span>
+          <Button
+            intent="primary"
+            size="sm"
+            disabled={selectedIds.size === 0 || bulkApproveMutation.isPending}
+            onClick={handleBulkApprove}
+          >
+            {bulkApproveMutation.isPending ? "승인 중…" : "선택 승인"}
+          </Button>
+          <Button
+            intent="danger"
+            size="sm"
+            disabled={selectedIds.size === 0 || bulkRejectMutation.isPending}
+            onClick={handleBulkReject}
+          >
+            {bulkRejectMutation.isPending ? "거절 중…" : "선택 거절"}
+          </Button>
+        </div>
 
         {pendingList.length === 0 ? (
           <div className="students-requests-section__body" style={{ paddingTop: "var(--space-8)" }}>
