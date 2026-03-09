@@ -84,6 +84,10 @@ const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) =
 const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
 const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
 
+/* ================= Lazy: Exams / Results ================= */
+const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
+const ResultsExplorerPage = lazy(() => import("@/features/results/pages/ResultsExplorerPage"));
+
 /* ================= Lazy: Videos (Admin Root) ================= */
 const VideoExplorerPage = lazy(() => import("@/features/videos/pages/VideoExplorerPage"));
 import VideoIdToSessionRedirect from "@/features/videos/pages/VideoIdToSessionRedirect";
