@@ -141,7 +141,7 @@ export function HeaderCenterStaffClock() {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [current?.status, current?.date, current?.started_at, current?.break_minutes, (current as { break_started_at?: string })?.break_started_at]);
+  }, [current]);
 
   const isWorking = current?.status === "WORKING" || current?.status === "BREAK";
   const isOnBreak = (current as WorkCurrentStatus)?.status === "BREAK";
