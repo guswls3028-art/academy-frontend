@@ -295,7 +295,7 @@ export default function AnswerKeyRegisterModal({
         right={
           <>
             <Button intent="secondary" onClick={onClose}>
-              취소
+              {hasQuestions ? "취소" : "닫기"}
             </Button>
             {hasQuestions && (
               <Button
@@ -305,11 +305,6 @@ export default function AnswerKeyRegisterModal({
                 loading={saveBusy}
               >
                 저장 (총 {Math.round(totalScore)}점)
-              </Button>
-            )}
-            {!hasQuestions && (
-              <Button intent="secondary" onClick={onClose}>
-                닫기
               </Button>
             )}
           </>
