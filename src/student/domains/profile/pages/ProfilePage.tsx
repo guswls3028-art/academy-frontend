@@ -175,9 +175,26 @@ export default function ProfilePage() {
 
   return (
     <StudentPageShell title="내 정보">
+      {profile.isParentReadOnly && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: "var(--stu-space-4)",
+            padding: "var(--stu-space-3)",
+            background: "var(--stu-surface-soft)",
+            border: "1px solid var(--stu-border)",
+            borderRadius: "var(--stu-radius)",
+            fontSize: 14,
+            color: "var(--stu-text-muted)",
+          }}
+        >
+          학부모 계정은 읽기 전용입니다. 프로필·아이디·비밀번호 수정은 학생 계정으로 로그인 후 이용해 주세요.
+        </div>
+      )}
       {/* 기본 정보 — 선생앱 학생 필드 스펙(이름, 로그인 아이디, 학부모/학생 전화, 성별, 주소) */}
       <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
         <div style={{ position: "relative", paddingRight: 36 }}>
+          {!profile.isParentReadOnly && (
           <button
             type="button"
             className="stu-btn stu-btn--ghost stu-btn--sm"
@@ -192,11 +209,12 @@ export default function ProfilePage() {
           >
             <IconPencil style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
           </button>
+          )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>이름</div>
-              {editing ? (
+              {editing && !profile.isParentReadOnly ? (
                 <div style={{ display: "flex", gap: "var(--stu-space-2)", alignItems: "center" }}>
                   <input
                     type="text"
@@ -219,7 +237,7 @@ export default function ProfilePage() {
 
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학부모 전화번호</div>
-              {editing ? (
+              {editing && !profile.isParentReadOnly ? (
                 <PhoneInput010Blocks
                   value={editParentPhone}
                   onChange={(v) => setEditParentPhone(v)}
@@ -234,7 +252,7 @@ export default function ProfilePage() {
 
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학생 전화번호</div>
-              {editing ? (
+              {editing && !profile.isParentReadOnly ? (
                 <PhoneInput010Blocks
                   value={editPhone}
                   onChange={(v) => setEditPhone(v)}
@@ -250,7 +268,7 @@ export default function ProfilePage() {
 
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>성별</div>
-              {editing ? (
+              {editing && !profile.isParentReadOnly ? (
                 <div style={{ display: "flex", gap: "var(--stu-space-2)" }}>
                   {[
                     { key: "M", label: "남" },
@@ -275,7 +293,7 @@ export default function ProfilePage() {
             {/* 학교 정보 — 회원가입 모달과 동일 */}
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학교 유형</div>
-              {editing ? (
+              {editing && !profile.isParentReadOnly ? (
                 <div style={{ display: "flex", gap: "var(--stu-space-2)" }}>
                   {[
                     { key: "HIGH" as const, label: "고등" },
@@ -303,7 +321,7 @@ export default function ProfilePage() {
               <>
                 <div>
                   <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>고등학교명</div>
-                  {editing ? (
+                  {editing && !profile.isParentReadOnly ? (
                     <input
                       type="text"
                       value={editHighSchool}
@@ -318,7 +336,7 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>출신중학교</div>
-                  {editing ? (
+                  {editing && !profile.isParentReadOnly ? (
                     <input
                       type="text"
                       value={editOriginMiddleSchool}
@@ -336,7 +354,7 @@ export default function ProfilePage() {
             {editSchoolType === "MIDDLE" && (
               <div>
                 <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>중학교명</div>
-                {editing ? (
+                {editing && !profile.isParentReadOnly ? (
                   <input
                     type="text"
                     value={editMiddleSchool}
@@ -354,7 +372,7 @@ export default function ProfilePage() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--stu-space-4)" }}>
               <div style={{ minWidth: 80 }}>
                 <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학년</div>
-                {editing ? (
+                {editing && !profile.isParentReadOnly ? (
                   <input
                     type="text"
                     inputMode="numeric"
@@ -370,7 +388,7 @@ export default function ProfilePage() {
               </div>
               <div style={{ minWidth: 80 }}>
                 <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>반</div>
-                {editing ? (
+                {editing && !profile.isParentReadOnly ? (
                   <input
                     type="text"
                     value={editHighSchoolClass}
@@ -386,7 +404,7 @@ export default function ProfilePage() {
               {editSchoolType === "HIGH" && (
                 <div style={{ minWidth: 120 }}>
                   <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>계열</div>
-                  {editing ? (
+                  {editing && !profile.isParentReadOnly ? (
                     <input
                       type="text"
                       value={editMajor}
@@ -404,7 +422,7 @@ export default function ProfilePage() {
 
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>주소</div>
-              {editing ? (
+              {editing && !profile.isParentReadOnly ? (
                 <input
                   type="text"
                   value={editAddress}
@@ -420,7 +438,7 @@ export default function ProfilePage() {
 
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>메모</div>
-              {editing ? (
+              {editing && !profile.isParentReadOnly ? (
                 <textarea
                   value={editMemo}
                   onChange={(e) => setEditMemo(e.target.value)}
@@ -433,7 +451,7 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {editing && (
+            {editing && !profile.isParentReadOnly && (
               <div style={{ display: "flex", gap: "var(--stu-space-2)", marginTop: "var(--stu-space-2)" }}>
                 <button
                   type="button"
@@ -456,7 +474,8 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 아이디 변경 */}
+      {/* 아이디 변경 — 학부모는 숨김 */}
+      {!profile.isParentReadOnly && (
       <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>아이디 변경</div>
         {!showUsernameForm ? (
@@ -500,8 +519,10 @@ export default function ProfilePage() {
           </form>
         )}
       </div>
+      )}
 
-      {/* 비밀번호 변경 */}
+      {/* 비밀번호 변경 — 학부모는 숨김 */}
+      {!profile.isParentReadOnly && (
       <div className="stu-section stu-section--nested">
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>비밀번호 변경</div>
         {!showPasswordForm ? (
@@ -559,6 +580,7 @@ export default function ProfilePage() {
           </form>
         )}
       </div>
+      )}
     </StudentPageShell>
   );
 }

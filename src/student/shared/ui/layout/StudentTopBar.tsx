@@ -14,12 +14,14 @@ import "@/student/shared/ui/theme/student-topbar.css";
 
 type Props = { tenantCode: string | null };
 
-function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_url?: string | null } }) {
-  const name = profile?.name?.trim() || "학생";
-  const initial = name.slice(0, 1).toUpperCase();
+function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_url?: string | null; displayName?: string | null; isParentReadOnly?: boolean } }) {
+  const displayLabel = profile?.isParentReadOnly && profile?.displayName
+    ? profile.displayName
+    : (profile?.name?.trim() || "학생");
+  const initial = displayLabel.slice(0, 1).toUpperCase();
   const photoUrl = profile?.profile_photo_url;
 
-  if (photoUrl) {
+  if (photoUrl && !profile?.isParentReadOnly) {
     return (
       <img
         src={photoUrl}
@@ -196,7 +198,9 @@ export default function StudentTopBar({ tenantCode }: Props) {
               maxWidth: 100,
             }}
           >
-            {profile?.name || "학생"}
+            {profile?.isParentReadOnly && profile?.displayName
+              ? profile.displayName
+              : (profile?.name || "학생")}
           </span>
         </button>
       </Dropdown>

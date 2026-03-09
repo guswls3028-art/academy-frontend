@@ -74,7 +74,12 @@ export default function SubmitAssignmentPage() {
     >
       <div className="stu-section stu-section--nested" style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-4)" }}>
         {profileLoading && <div className="stu-muted">프로필 불러오는 중…</div>}
-        {!profileLoading && profile && !profile.ps_number && (
+        {!profileLoading && profile?.isParentReadOnly && (
+          <div role="alert" style={{ padding: "var(--stu-space-4)", background: "var(--stu-surface-soft)", border: "1px solid var(--stu-border)", borderRadius: "var(--stu-radius)", fontSize: 14, color: "var(--stu-text-muted)" }}>
+            학부모 계정은 과제를 제출할 수 없습니다. 자녀(학생) 계정으로 로그인해 주세요.
+          </div>
+        )}
+        {!profileLoading && profile && !profile.ps_number && !profile.isParentReadOnly && (
           <div role="alert" style={{ padding: "var(--stu-space-3)", background: "var(--stu-surface)", border: "1px solid var(--stu-border)", borderRadius: "var(--stu-radius)", fontSize: 14 }}>
             제출 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요.
           </div>
@@ -96,6 +101,8 @@ export default function SubmitAssignmentPage() {
           onChange={onFileChange}
           style={{ display: "none" }}
         />
+        {!profile?.isParentReadOnly && (
+        <>
         <button
           type="button"
           className="stu-btn stu-btn--secondary"
