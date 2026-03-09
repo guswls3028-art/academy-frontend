@@ -12,6 +12,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { updateAdminExam } from "../../api/adminExam";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
@@ -44,6 +45,10 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     }) => updateAdminExam(examId, payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
+      feedback.success("저장되었습니다.");
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "저장에 실패했습니다.");
     },
   });
 
@@ -56,11 +61,15 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   }
 
   const savePassScore = async () => {
-    await patchMut.mutateAsync({
-      pass_score: numericPassScore,
-      is_active: isActive,
-    });
-    setSavedScore(passScore);
+    try {
+      await patchMut.mutateAsync({
+        pass_score: numericPassScore,
+        is_active: isActive,
+      });
+      setSavedScore(passScore);
+    } catch {
+      // onError에서 이미 feedback 처리
+    }
   };
 
   const toggleActive = async () => {
@@ -87,10 +96,17 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           <input
             type="number"
             min={0}
+            step={1}
             value={passScore === "" ? "" : passScore}
             onChange={(e) => {
               const v = e.target.value;
               setPassScore(v === "" ? "" : Number(e.target.value));
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (isDirty && !patchMut.isPending)) {
+                e.preventDefault();
+                savePassScore();
+              }
             }}
             placeholder="입력"
             className="w-[180px] rounded border px-3 py-2 text-4xl font-bold"
