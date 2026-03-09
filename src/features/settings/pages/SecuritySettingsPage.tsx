@@ -105,7 +105,8 @@ function PasswordChangeForm({
         {error && (
           <div
             style={{
-              fontSize: 12,
+              fontSize: 13,
+              fontWeight: 600,
               color: "var(--color-error)",
               background: "color-mix(in srgb, var(--color-error) 10%, var(--color-bg-surface))",
               border: "1px solid color-mix(in srgb, var(--color-error) 25%, var(--color-border-divider))",

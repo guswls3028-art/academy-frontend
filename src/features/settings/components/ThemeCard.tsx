@@ -67,8 +67,8 @@ export default function ThemeCard({
       <div style={{ display: "flex", alignItems: "center", gap: 6, paddingInline: 1 }}>
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 500,
+            fontSize: 14,
+            fontWeight: 600,
             color: "var(--color-text-primary)",
             minWidth: 0,
             overflow: "hidden",
@@ -83,8 +83,8 @@ export default function ThemeCard({
         {selected && (
           <span
             style={{
-              fontSize: 10,
-              fontWeight: 600,
+              fontSize: 12,
+              fontWeight: 700,
               color: "var(--color-text-inverse)",
               background: "var(--color-brand-primary)",
               borderRadius: 999,

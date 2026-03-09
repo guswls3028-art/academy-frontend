@@ -113,7 +113,7 @@ export default function ThemeOverlay({ onClose }: Props) {
             <div style={{ fontSize: 18, fontWeight: 900, color: "var(--color-text-primary)" }}>
               테마
             </div>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "var(--color-text-muted)" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-muted)" }}>
               테마는 서버 설정이 단일 진실이며, UI는 즉시 반영 후 저장합니다.
             </div>
           </div>

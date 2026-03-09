@@ -54,8 +54,8 @@ function ThemeGroupSection({
         />
         <span
           style={{
-            fontSize: 12,
-            fontWeight: 600,
+            fontSize: 14,
+            fontWeight: 700,
             color: "var(--color-text-secondary)",
             letterSpacing: "0.02em",
           }}
@@ -64,7 +64,8 @@ function ThemeGroupSection({
         </span>
         <span
           style={{
-            fontSize: 12,
+            fontSize: 14,
+            fontWeight: 500,
             color: "var(--color-text-muted)",
           }}
         >

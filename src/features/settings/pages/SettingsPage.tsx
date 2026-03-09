@@ -62,8 +62,8 @@ export default function SettingsPage() {
               </div>
               <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 800,
+                  fontSize: 14,
+                  fontWeight: 700,
                   color: "var(--color-text-muted)",
                 }}
               >
