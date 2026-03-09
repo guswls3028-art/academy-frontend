@@ -9,10 +9,12 @@ import { StaffHomeTable } from "./StaffHomeTable";
 import { useStaffs } from "../../hooks/useStaffs";
 import StaffCreateModal from "./StaffCreateModal";
 import WorkTypeCreateModal from "./WorkTypeCreateModal";
+import AddWorkTypeBulkModal from "./AddWorkTypeBulkModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
 import { deleteStaff } from "../../api/staff.api";
 import { exportPayrollSnapshotExcel } from "../../api/payrollSnapshots.api";
+import { downloadStaffExcel } from "../../excel/staffExcel";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -45,10 +47,17 @@ export default function HomePage() {
   })();
   const [openCreate, setOpenCreate] = useState(false);
   const [openWorkType, setOpenWorkType] = useState(false);
+  const [openAddWorkTypeBulk, setOpenAddWorkTypeBulk] = useState(false);
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+
+  /** 선택된 직원 ID만 (원장 sentinel 제외) */
+  const selectedStaffIds = useMemo(
+    () => selectedIds.filter((id) => id > 0),
+    [selectedIds]
+  );
 
   const canManage = !!meQ.data?.is_payroll_manager;
 
@@ -82,7 +91,20 @@ export default function HomePage() {
         선택 해제
       </Button>
       <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => openSendMessageModal({ studentIds: [] })}>
+      <Button
+        intent="secondary"
+        size="sm"
+        onClick={() => {
+          if (selectedStaffIds.length === 0) {
+            feedback.info("직원을 선택한 뒤 메시지 발송을 눌러 주세요.");
+            return;
+          }
+          openSendMessageModal({
+            staffIds: selectedStaffIds,
+            recipientLabel: `선택한 직원 ${selectedStaffIds.length}명`,
+          });
+        }}
+      >
         메시지 발송
       </Button>
       <Button
@@ -92,12 +114,18 @@ export default function HomePage() {
         onClick={async () => {
           setExportingExcel(true);
           try {
-            const now = new Date();
-            await exportPayrollSnapshotExcel({
-              year: now.getFullYear(),
-              month: now.getMonth() + 1,
-            });
-            feedback.success("엑셀 다운로드가 시작되었습니다.");
+            if (selectedStaffIds.length > 0) {
+              const selectedRows = rows.filter((r) => selectedIds.includes(r.id));
+              downloadStaffExcel(selectedRows, `직원목록_${selectedRows.length}명.xlsx`);
+              feedback.success("엑셀 다운로드가 완료되었습니다.");
+            } else {
+              const now = new Date();
+              await exportPayrollSnapshotExcel({
+                year: now.getFullYear(),
+                month: now.getMonth() + 1,
+              });
+              feedback.success("급여 스냅샷 엑셀 다운로드가 시작되었습니다.");
+            }
           } catch (e) {
             feedback.error(e instanceof Error ? e.message : "엑셀 다운로드에 실패했습니다.");
           } finally {
@@ -107,7 +135,17 @@ export default function HomePage() {
       >
         {exportingExcel ? "다운로드 중…" : "엑셀 다운로드"}
       </Button>
-      <Button intent="secondary" size="sm" onClick={() => feedback.info("시급 태그 추가 기능 준비 중입니다.")}>
+      <Button
+        intent="secondary"
+        size="sm"
+        onClick={() => {
+          if (selectedStaffIds.length === 0) {
+            feedback.info("직원을 선택한 뒤 시급 태그 추가를 눌러 주세요.");
+            return;
+          }
+          setOpenAddWorkTypeBulk(true);
+        }}
+      >
         시급 태그 추가
       </Button>
       <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
@@ -204,6 +242,11 @@ export default function HomePage() {
       <WorkTypeCreateModal
         open={openWorkType}
         onClose={() => setOpenWorkType(false)}
+      />
+      <AddWorkTypeBulkModal
+        open={openAddWorkTypeBulk}
+        onClose={() => setOpenAddWorkTypeBulk(false)}
+        staffIds={selectedStaffIds}
       />
     </div>
   );
