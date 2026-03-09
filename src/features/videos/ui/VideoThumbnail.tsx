@@ -6,6 +6,23 @@ import "@/styles/design-system/components/AsyncStatusBar.css";
 
 type VideoStatus = "READY" | "PROCESSING" | "FAILED" | "PENDING" | "UPLOADED";
 
+/** 서버 파일 없이 404 방지 — data URL placeholder */
+const PLACEHOLDER_VIDEO =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect fill="#e5e7eb" width="320" height="180"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-size="14" font-family="sans-serif">영상</text></svg>'
+  );
+const PLACEHOLDER_PROCESSING =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect fill="#1f2937" width="320" height="180"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#9ca3af" font-size="14" font-family="sans-serif">처리 중</text></svg>'
+  );
+const PLACEHOLDER_FAILED =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect fill="#374151" width="320" height="180"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#ef4444" font-size="14" font-family="sans-serif">실패</text></svg>'
+  );
+
 /** 우하단 진행 상황 패널과 동일한 스타일의 인코딩 단계 정보 */
 export interface EncodingStepInfo {
   index: number;
@@ -66,15 +83,15 @@ export default function VideoThumbnail({
     return CDN_BASE ? `${CDN_BASE}/${path}` : `/${path}`;
   };
 
-  let computedSrc = "/placeholder-video.png";
+  let computedSrc = PLACEHOLDER_VIDEO;
 
   const resolved = resolveThumbnailSrc();
   if (resolved) {
     computedSrc = resolved;
   } else if (status === "PROCESSING") {
-    computedSrc = "/placeholder-processing.png";
+    computedSrc = PLACEHOLDER_PROCESSING;
   } else if (status === "FAILED") {
-    computedSrc = "/placeholder-failed.png";
+    computedSrc = PLACEHOLDER_FAILED;
   }
 
   const [src, setSrc] = useState(computedSrc);
@@ -115,7 +132,7 @@ export default function VideoThumbnail({
         loading="lazy"
         decoding="async"
         onError={() => {
-          setSrc("/placeholder-video.png");
+          setSrc(PLACEHOLDER_VIDEO);
         }}
       />
 
