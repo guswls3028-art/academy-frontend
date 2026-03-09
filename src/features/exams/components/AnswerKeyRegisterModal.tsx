@@ -150,16 +150,16 @@ export default function AnswerKeyRegisterModal({
     },
     onSuccess: async (result) => {
       const list = result?.data ?? [];
-      const cc =
+      const appliedCc =
         choiceCount !== ""
           ? Math.max(0, Number(choiceCount) || 0)
           : Math.max(0, list.length - (Number(essayCount) || 0));
-      const ec =
+      const appliedEc =
         essayCount !== ""
           ? Math.max(0, Number(essayCount) || 0)
           : Math.max(0, list.length - (Number(choiceCount) || 0));
-      setChoiceCount(cc);
-      setEssayCount(ec);
+      setChoiceCount(appliedCc);
+      setEssayCount(appliedEc);
       qc.setQueryData(["exam-questions", examId], list);
       setScoreDraft((prev) => {
         const next = { ...prev };
@@ -243,7 +243,10 @@ export default function AnswerKeyRegisterModal({
                   }}
                   aria-expanded={choiceEditorOpen}
                 >
-                  선택형 ({choiceTotalScore}점) — {choiceQuestions.length}문항
+                  <span className="answer-key-section-btn__title">선택형 ({choiceTotalScore}점)</span>
+                  <span className="answer-key-section-badge" aria-label="문항 수">
+                    {choiceQuestions.length}문항
+                  </span>
                 </button>
                 {choiceEditorOpen && (
                   <div className="answer-key-inline-editor">
@@ -350,7 +353,10 @@ export default function AnswerKeyRegisterModal({
                   }}
                   aria-expanded={essayEditorOpen}
                 >
-                  서술형 ({essayTotalScore}점) — {essayQuestions.length}문항
+                  <span className="answer-key-section-btn__title">서술형 ({essayTotalScore}점)</span>
+                  <span className="answer-key-section-badge" aria-label="문항 수">
+                    {essayQuestions.length}문항
+                  </span>
                 </button>
                 {essayEditorOpen && (
                   <div className="answer-key-inline-editor">
