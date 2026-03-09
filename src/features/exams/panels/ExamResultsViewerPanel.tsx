@@ -11,7 +11,7 @@ import api from "@/shared/api/axios";
 import type { AdminExamSummary } from "@/features/results/types/results.types";
 import type { AdminExamResultRow } from "@/features/results/types/results.types";
 import type { QuestionStat } from "@/features/results/types/results.types";
-import { useAdminExam } from "../../hooks/useAdminExam";
+import { useAdminExam } from "../hooks/useAdminExam";
 import ExamResultsPanel from "@/features/results/panels/ExamResultsPanel";
 import { Button, EmptyState } from "@/shared/ui/ds";
 
