@@ -13,7 +13,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
+import { patchExamItemScore } from "../api/patchItemScore";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
+import ScoreInputCell from "./ScoreInputCell";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
@@ -123,13 +125,21 @@ type Props = {
 
   /** 편집 모드일 때만 점수 셀 입력 가능. 기본은 읽기 전용 */
   isEditMode?: boolean;
+  /** 시험 점수 입력 모드: 합산(한 칸 총점) | 주관식(문항별) */
+  examScoreInputMode?: "total" | "item";
 
   selectedEnrollmentId: number | null;
-  selectedCell?: ({ enrollmentId: number } & ({ type: "exam"; examId: number } | { type: "homework"; homeworkId: number })) | null;
-  onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number) => void;
+  selectedCell?: ({ enrollmentId: number } & (
+    | { type: "exam"; examId: number; questionId?: number }
+    | { type: "homework"; homeworkId: number }
+  )) | null;
+  onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionId?: number) => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
-  focusCell?: ({ enrollmentId: number } & ({ type: "exam"; examId: number } | { type: "homework"; homeworkId: number })) | null;
+  focusCell?: ({ enrollmentId: number } & (
+    | { type: "exam"; examId: number; questionId?: number }
+    | { type: "homework"; homeworkId: number }
+  )) | null;
   onFocusDone?: () => void;
 
   /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 */
@@ -148,6 +158,7 @@ export default function ScoresTable({
   sessionId,
   attendanceMap = {},
   isEditMode = false,
+  examScoreInputMode = "total",
   selectedEnrollmentId,
   selectedCell = null,
   onSelectCell,

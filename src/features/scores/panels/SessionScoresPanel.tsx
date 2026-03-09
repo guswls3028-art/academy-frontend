@@ -78,10 +78,17 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   const homeworkCols = meta?.homeworks ?? [];
   const editableCols = useMemo((): ScoreCellRef[] => {
     const list: ScoreCellRef[] = [];
-    examCols.forEach((e) => list.push({ type: "exam", examId: e.exam_id }));
+    if (examScoreInputMode === "item") {
+      examCols.forEach((e) => {
+        const questions = (e as { questions?: { question_id: number }[] }).questions ?? [];
+        questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, questionId: q.question_id }));
+      });
+    } else {
+      examCols.forEach((e) => list.push({ type: "exam", examId: e.exam_id }));
+    }
     homeworkCols.forEach((h) => list.push({ type: "homework", homeworkId: h.homework_id }));
     return list;
-  }, [examCols, homeworkCols]);
+  }, [examCols, homeworkCols, examScoreInputMode]);
 
   const rowIndex = useMemo(() => {
     if (selectedEnrollmentId == null) return 0;
@@ -244,6 +251,7 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
           sessionId={sessionId}
           attendanceMap={attendanceMap}
           isEditMode={isEditMode}
+          examScoreInputMode={examScoreInputMode}
           selectedEnrollmentId={selectedEnrollmentId}
           selectedCell={selectedEnrollmentId != null ? (() => {
             const col = editableCols[clampCol(selectedColIndex)];
@@ -256,17 +264,22 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
           onRequestMoveDown={onRequestMoveDown}
           onRequestMoveUp={onRequestMoveUp}
           onSelectCell={isEditMode
-            ? (row, type, id) => {
+            ? (row, type, id, questionId) => {
                 setSelectedEnrollmentId(row.enrollment_id);
+                const rIdx = rows.findIndex((r) => r.enrollment_id === row.enrollment_id);
                 if (type === "exam") {
-                  const idx = examCols.findIndex((e) => e.exam_id === id);
-                  if (idx >= 0) setSelectedColIndex(idx);
-                  focusAt(rows.findIndex((r) => r.enrollment_id === row.enrollment_id), idx >= 0 ? idx : 0);
+                  const cIdx = editableCols.findIndex(
+                    (c) => c.type === "exam" && c.examId === id && (questionId == null ? c.questionId == null : c.questionId === questionId)
+                  );
+                  const colIdx = cIdx >= 0 ? cIdx : 0;
+                  setSelectedColIndex(colIdx);
+                  focusAt(rIdx, colIdx);
                 } else {
                   const idx = homeworkCols.findIndex((h) => h.homework_id === id);
-                  const c = idx >= 0 ? examCols.length + idx : 0;
-                  setSelectedColIndex(c);
-                  focusAt(rows.findIndex((r) => r.enrollment_id === row.enrollment_id), c);
+                  const c = idx >= 0 ? editableCols.findIndex((c) => c.type === "homework" && c.homeworkId === id) : 0;
+                  const colIdx = c >= 0 ? c : 0;
+                  setSelectedColIndex(colIdx);
+                  focusAt(rIdx, colIdx);
                 }
               }
             : () => {}}
