@@ -1,0 +1,209 @@
+/* 성적 입력 페이지 — 편집할 항목 선택 · 시험 점수 표시 (DS 토큰 기반) */
+
+/* ── 편집할 항목 선택 카드 ── */
+.scores-edit-card {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.scores-edit-card__header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
+}
+
+.scores-edit-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.scores-edit-card__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: var(--space-1) 0 0 0;
+  line-height: 1.4;
+}
+
+.scores-edit-card__body {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.scores-edit-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scores-edit-section__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.scores-edit-segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* 세그먼트 토글 버튼 — DS button과 동일한 입체감·선택 링 */
+.scores-edit-segment__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-sm, 32px);
+  padding: 0 var(--space-4);
+  min-width: 80px;
+
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+
+  background: color-mix(in srgb, var(--color-border-divider) 10%, var(--color-bg-surface));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.scores-edit-segment__btn:hover {
+  background: color-mix(in srgb, var(--color-border-divider) 16%, var(--color-bg-surface));
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border-divider));
+}
+
+.scores-edit-segment__btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--color-brand-primary) 28%, var(--scale-Neutral0, #fff));
+  color: var(--color-text-primary);
+  border-color: var(--color-brand-primary);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
+.scores-edit-segment__btn[aria-pressed="true"]:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 35%, var(--scale-Neutral0, #fff));
+  border-color: var(--color-brand-primary);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+    inset 0 2px 6px rgba(255, 255, 255, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+.scores-edit-segment__btn:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+/* 빠른 선택용 넓은 버튼 */
+.scores-edit-segment__btn--wide {
+  min-width: 120px;
+}
+
+.scores-edit-card__hint {
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-border-divider);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-border-divider) 3%, var(--color-bg-surface));
+}
+
+.scores-edit-card__hint kbd {
+  padding: 2px var(--space-1);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* ── 시험 점수 표시 바 (읽기 모드) ── */
+.scores-display-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.scores-display-bar__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.scores-display-segment {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-bg-surface));
+  border: 1px solid var(--color-border-divider);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.scores-display-segment__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  min-width: 72px;
+
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.scores-display-segment__btn:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+}
+
+.scores-display-segment__btn[aria-pressed="true"] {
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.scores-display-segment__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}

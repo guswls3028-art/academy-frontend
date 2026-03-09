@@ -19,6 +19,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import "./SessionScoresEntryPage.css";
 
 type Props = {
   onOpenEnrollModal?: () => void;
@@ -183,7 +184,6 @@ export default function SessionScoresEntryPage(_props: Props) {
       intent="primary"
       size="sm"
       onClick={() => setIsEditMode((v) => !v)}
-      className={!isEditMode ? "!bg-[var(--color-brand-primary)] !text-white hover:!opacity-90" : undefined}
     >
       {isEditMode ? "편집 종료" : "편집 모드"}
     </Button>
@@ -210,143 +210,103 @@ export default function SessionScoresEntryPage(_props: Props) {
       />
 
       {isEditMode && (
-        <div
-          className="rounded-xl border text-sm"
-          style={{
-            background: "var(--color-bg-surface)",
-            borderColor: "var(--color-border-divider)",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-          }}
-        >
-          <div className="px-4 py-3 border-b" style={{ borderColor: "var(--color-border-divider)" }}>
-            <span className="font-semibold text-[var(--color-text-primary)]">편집할 항목 선택</span>
-            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+        <div className="scores-edit-card">
+          <div className="scores-edit-card__header">
+            <h2 className="scores-edit-card__title">편집할 항목 선택</h2>
+            <p className="scores-edit-card__desc">
               셀 쓰기를 허용할 시험·과제 항목을 블록을 눌러 선택하세요. 합산과 객관식/주관식은 동시에 선택할 수 없습니다.
             </p>
           </div>
-          <div className="p-4 flex flex-col gap-5">
-            {/* 프리셋 */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">빠른 선택</span>
-              <div className="flex flex-wrap gap-2">
+          <div className="scores-edit-card__body">
+            <div className="scores-edit-section">
+              <span className="scores-edit-section__label">빠른 선택</span>
+              <div className="scores-edit-segment">
                 <button
                   type="button"
                   onClick={setPresetTotalHw}
-                  className={`min-w-[100px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 ${
-                    examEditTotal && homeworkEdit && !examEditSubjective
-                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
-                  }`}
+                  className="scores-edit-segment__btn scores-edit-segment__btn--wide"
+                  aria-pressed={examEditTotal && homeworkEdit && !examEditSubjective}
                 >
                   합산 + 과제
                 </button>
                 <button
                   type="button"
                   onClick={setPresetSubjectiveHw}
-                  className={`min-w-[100px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 ${
-                    examEditSubjective && homeworkEdit && !examEditTotal
-                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
-                  }`}
+                  className="scores-edit-segment__btn scores-edit-segment__btn--wide"
+                  aria-pressed={examEditSubjective && homeworkEdit && !examEditTotal}
                 >
                   주관식 + 과제
                 </button>
               </div>
             </div>
 
-            {/* 시험: 합산 | 객관식 | 주관식 */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">시험</span>
-              <div className="flex flex-wrap gap-2">
+            <div className="scores-edit-section">
+              <span className="scores-edit-section__label">시험</span>
+              <div className="scores-edit-segment">
                 <button
                   type="button"
                   onClick={handleSelectTotal}
-                  className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
-                    examEditTotal
-                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
-                  }`}
+                  className="scores-edit-segment__btn"
+                  aria-pressed={examEditTotal}
                 >
                   합산
                 </button>
                 <button
                   type="button"
                   onClick={handleSelectObjective}
-                  className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
-                    examEditObjective
-                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
-                  }`}
+                  className="scores-edit-segment__btn"
+                  aria-pressed={examEditObjective}
                 >
                   객관식
                 </button>
                 <button
                   type="button"
                   onClick={handleSelectSubjective}
-                  className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
-                    examEditSubjective
-                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
-                  }`}
+                  className="scores-edit-segment__btn"
+                  aria-pressed={examEditSubjective}
                 >
                   주관식
                 </button>
               </div>
             </div>
 
-            {/* 과제 */}
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">과제</span>
-              <div className="flex flex-wrap gap-2">
+            <div className="scores-edit-section">
+              <span className="scores-edit-section__label">과제</span>
+              <div className="scores-edit-segment">
                 <button
                   type="button"
                   onClick={handleSelectHomework}
-                  className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
-                    homeworkEdit
-                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
-                  }`}
+                  className="scores-edit-segment__btn"
+                  aria-pressed={homeworkEdit}
                 >
                   과제
                 </button>
               </div>
             </div>
           </div>
-          <div className="px-4 py-2 border-t text-xs text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>
-            Tab / Enter / 방향키로 셀 이동 · 미제출: <kbd className="px-1.5 py-0.5 rounded bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)] font-mono">/</kbd> + Enter
+          <div className="scores-edit-card__hint">
+            Tab / Enter / 방향키로 셀 이동 · 미제출: <kbd>/</kbd> + Enter
           </div>
         </div>
       )}
 
       {!isEditMode && (
-        <div
-          className="rounded-lg border px-4 py-3 flex flex-wrap items-center gap-3"
-          style={{
-            background: "var(--color-bg-surface)",
-            borderColor: "var(--color-border-divider)",
-          }}
-        >
-          <span className="text-sm font-medium text-[var(--color-text-secondary)]">시험 점수 표시</span>
-          <div className="flex gap-2">
+        <div className="scores-display-bar">
+          <span className="scores-display-bar__label">시험 점수 표시</span>
+          <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
             <button
               type="button"
               onClick={() => setScoreDisplayMode("total")}
-              className={`min-w-[72px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all border-2 ${
-                scoreDisplayMode === "total"
-                  ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]"
-                  : "bg-transparent text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50"
-              }`}
+              className="scores-display-segment__btn"
+              aria-pressed={scoreDisplayMode === "total"}
             >
               합산
             </button>
             <button
               type="button"
               onClick={() => setScoreDisplayMode("breakdown")}
-              className={`min-w-[72px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all border-2 ${
-                scoreDisplayMode === "breakdown"
-                  ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]"
-                  : "bg-transparent text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50"
-              }`}
+              className="scores-display-segment__btn"
+              aria-pressed={scoreDisplayMode === "breakdown"}
             >
               객관식 + 주관식
             </button>
