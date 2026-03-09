@@ -1,5 +1,5 @@
 /* PATH: src/features/messages/components/TemplateExplorer.module.css
- * 저장소 도메인과 동일한 파일 탐색기형 레이아웃
+ * 템플릿 목록형 레이아웃 — 리스트 카드
  */
 
 .root {
@@ -19,7 +19,7 @@
   gap: var(--space-4);
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface));
 }
 
 .actions {
@@ -35,89 +35,185 @@
 }
 
 .tree {
-  width: 200px;
-  min-width: 200px;
+  width: 160px;
+  min-width: 160px;
   border-right: 1px solid var(--color-border-divider);
   overflow: auto;
 }
 
-.gridWrap {
+/* ── List area ── */
+.listWrap {
   flex: 1;
-  padding: var(--space-4);
   overflow: auto;
+  min-height: 200px;
 }
 
 .placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  color: var(--color-text-muted);
-  font-size: 13px;
+  padding: var(--space-4);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: var(--space-4);
-}
-
-.item {
+/* Skeleton loading */
+.loadingRows {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.skeletonRow {
+  height: 76px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-surface-soft) 25%,
+    color-mix(in srgb, var(--color-border-divider) 60%, var(--color-bg-surface-soft)) 50%,
+    var(--color-bg-surface-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Template list ── */
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.listItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  transition: background 0.12s;
+}
+
+.listItem:last-child {
+  border-bottom: none;
+}
+
+.listItem:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.listItemIcon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  padding: var(--space-4);
   border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
-  cursor: pointer;
-  font-size: 12px;
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-primary);
+  margin-top: 2px;
+}
+
+.listItemContent {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.listItemHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.listItemName {
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary);
-  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: -0.1px;
 }
 
-.item:hover {
-  background: var(--color-bg-surface-hover);
-  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+.listItemMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.itemSelected {
-  border-color: var(--color-brand-primary);
-  background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface));
-}
-
-.itemAdd {
-  border-style: dashed;
+.listItemDate {
+  font-size: 12px;
   color: var(--color-text-muted);
 }
 
-.itemAdd:hover {
-  color: var(--color-brand-primary);
-}
-
-.itemIcon {
-  flex-shrink: 0;
-  color: var(--color-primary);
-}
-
-.itemLabel {
-  text-align: center;
+.listItemPreview {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.itemMeta {
-  font-size: 10px;
+/* ── Actions column ── */
+.listItemActions {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Inline confirm state */
+.confirmBox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  animation: fadeIn 0.15s ease;
+}
+
+.confirmLabel {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Status & category badges ── */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.categoryBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
   font-weight: 500;
   color: var(--color-text-muted);
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
+  white-space: nowrap;
 }
 
-/* Breadcrumb (storage와 동일 스타일) */
+/* ── Breadcrumb (storage와 동일 스타일) ── */
 .breadcrumb {
   display: flex;
   align-items: center;
@@ -149,4 +245,17 @@
 .breadcrumbLink:hover {
   background: var(--color-bg-surface-hover);
   color: var(--color-brand-primary);
+}
+
+/* ── Legacy grid (unused but kept) ── */
+.gridWrap {
+  flex: 1;
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-4);
 }
