@@ -37,7 +37,6 @@ import AssessmentDeleteBar from "../components/AssessmentDeleteBar";
 import SessionAttendancePage from "@/features/lectures/pages/attendance/SessionAttendancePage";
 import SessionScoresEntryPage from "@/features/lectures/pages/scores/SessionScoresEntryPage";
 import SessionAssessmentWorkspace from "@/features/sessions/components/SessionAssessmentWorkspace";
-import SessionHomeworkOpsBoard from "@/features/sessions/components/SessionHomeworkOpsBoard";
 import AdminExamDetail from "@/features/exams/components/AdminExamDetail";
 
 type SessionTab =
@@ -241,11 +240,14 @@ export default function SessionDetailPage() {
                 />
               </div>
             ) : (
-              <SessionHomeworkOpsBoard
-                lectureId={lecId}
-                sessionId={sId}
-                onAddHomework={() => setOpenCreateHomework(true)}
-              />
+              <div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-8 text-center">
+                <p className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  좌측 패널에서 과제를 선택하세요
+                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  과제는 좌측 &quot;+ 추가&quot;로 생성할 수 있습니다.
+                </p>
+              </div>
             ))}
 
           {activeTab === "videos" && (
