@@ -3,12 +3,14 @@
  */
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dropdown } from "antd";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { logout } from "@/features/auth/api/auth";
+import { useAuthContext } from "@/features/auth/context/AuthContext";
+import { setParentStudentId, getParentStudentId } from "@/student/shared/api/parentStudentSelection";
 import CommonLogoIcon from "@/features/auth/pages/logos/CommonLogoIcon";
 import "@/student/shared/ui/theme/student-topbar.css";
 
@@ -41,10 +43,12 @@ function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_ur
 export default function StudentTopBar({ tenantCode }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
+  const { user } = useAuthContext();
   const isVideoPage = location.pathname.startsWith("/student/video");
   const branding = getStudentTenantBranding(tenantCode);
   const { data: profile } = useQuery({
-    queryKey: ["student", "me"],
+    queryKey: ["student", "me", getParentStudentId()],
     queryFn: fetchMyProfile,
   });
 
@@ -67,6 +71,31 @@ export default function StudentTopBar({ tenantCode }: Props) {
 
   const profileDropdownContent = (
     <div className="stu-topbar__profileDropdown">
+      {profile?.isParentReadOnly && (user?.linkedStudents?.length ?? 0) > 1 && (
+        <>
+          <div className="stu-topbar__profileDropdownLabel" style={{ padding: "8px 12px", fontSize: 12, color: "var(--stu-text-muted)", fontWeight: 600 }}>
+            자녀 선택
+          </div>
+          {(user?.linkedStudents ?? []).map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="stu-topbar__profileDropdownItem"
+              style={{ fontWeight: getParentStudentId() === s.id ? 700 : 400 }}
+              onClick={() => {
+                setParentStudentId(s.id);
+                setProfileOpen(false);
+                qc.invalidateQueries({ queryKey: ["student", "me"] });
+                qc.invalidateQueries({ queryKey: ["student"] });
+                navigate("/student/dashboard");
+              }}
+            >
+              {s.name}
+            </button>
+          ))}
+          <div className="stu-topbar__profileDropdownDivider" />
+        </>
+      )}
       <button
         type="button"
         className="stu-topbar__profileDropdownItem"

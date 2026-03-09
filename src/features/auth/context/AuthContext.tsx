@@ -31,6 +31,8 @@ export interface User {
   linkedStudentId?: number | null;
   /** 학부모일 때 연결된 학생 이름. 표시용 "{name} 학생 학부모님" */
   linkedStudentName?: string | null;
+  /** 학부모일 때 연결된 자녀 목록 (삭제되지 않은 학생만) */
+  linkedStudents?: { id: number; name: string }[] | null;
 }
 
 type AuthState = {

@@ -5,6 +5,8 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { useAuthContext } from "@/features/auth/context/AuthContext";
+import { initParentStudentId } from "@/student/shared/api/parentStudentSelection";
 import "../theme/tokens.css";
 import "../theme/tenants/index.css";
 import "../theme/video.css";
@@ -36,6 +38,14 @@ export default function StudentLayout() {
     }, 1500);
     return () => clearTimeout(t);
   }, []);
+
+  // 학부모 로그인 시 선택 자녀 ID 초기화 (linkedStudents 기준)
+  const { user } = useAuthContext();
+  useEffect(() => {
+    if (user?.tenantRole === "parent" && user?.linkedStudents?.length) {
+      initParentStudentId(user.linkedStudents.map((s) => s.id));
+    }
+  }, [user?.tenantRole, user?.linkedStudents]);
   
   // 영상 페이지 전체인지 확인 (영상 홈, 코스 상세, 세션 상세, 플레이어 모두 포함)
   const isVideoPage = location.pathname.startsWith("/student/video");
