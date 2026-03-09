@@ -601,23 +601,12 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </Button>
           </div>
 
-          <ExcelUploadZone onFileSelect={handleExcelFileSelect} disabled={busy} />
-
-          {selectedExcelFile && (
-            <div className="modal-form-group modal-form-group--row" style={{ justifyContent: "space-between" }}>
-              <span className="modal-section-label" style={{ marginBottom: 0 }}>
-                선택된 파일: {selectedExcelFile.name}
-              </span>
-              <Button
-                intent="ghost"
-                size="sm"
-                onClick={() => setSelectedExcelFile(null)}
-                disabled={busy}
-              >
-                취소
-              </Button>
-            </div>
-          )}
+          <ExcelUploadZone
+            onFileSelect={handleExcelFileSelect}
+            selectedFile={selectedExcelFile}
+            onClearFile={() => setSelectedExcelFile(null)}
+            disabled={busy}
+          />
         </div>
         )}
       </ModalBody>
