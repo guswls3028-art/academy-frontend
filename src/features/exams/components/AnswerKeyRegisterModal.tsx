@@ -66,6 +66,9 @@ export default function AnswerKeyRegisterModal({
   const [saveBusy, setSaveBusy] = useState(false);
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
   const [scoreDraft, setScoreDraft] = useState<Record<number, number>>({});
+  /** 선택형/서술형 제목 클릭 시 문항 수·기본점수 편집 영역 표시 */
+  const [choiceEditorOpen, setChoiceEditorOpen] = useState(false);
+  const [essayEditorOpen, setEssayEditorOpen] = useState(false);
   /** 이미지 등록 탭: 문항별 해설 — 해설 텍스트 또는 해설 이미지 URL(객체 URL) */
   const [explanationDraft, setExplanationDraft] = useState<
     Record<number, { text: string; imageUrl: string | null }>
@@ -138,6 +141,8 @@ export default function AnswerKeyRegisterModal({
         });
         return next;
       });
+      setChoiceEditorOpen(false);
+      setEssayEditorOpen(false);
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
       feedback.success("문항이 반영되었습니다.");
     },
@@ -286,11 +291,62 @@ export default function AnswerKeyRegisterModal({
                 </div>
               </div>
 
-              {/* 우측: 주관식 — 5문항 단위 구분선, 영역 내 스크롤 */}
+              {/* 우측: 서술형 — 제목 버튼 클릭 시 문항 수 변경 */}
               <div className="answer-key-panel answer-key-panel--essay">
-                <h3 className="answer-key-section__title">
+                <button
+                  type="button"
+                  className="answer-key-section-btn"
+                  onClick={() => {
+                    setEssayEditorOpen((v) => !v);
+                    if (choiceEditorOpen) setChoiceEditorOpen(false);
+                  }}
+                  aria-expanded={essayEditorOpen}
+                >
                   서술형 ({essayTotalScore}점) — {essayQuestions.length}문항
-                </h3>
+                </button>
+                {essayEditorOpen && (
+                  <div className="answer-key-inline-editor">
+                    <label className="answer-key-field">
+                      <span className="answer-key-field__label">문항 수</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={essayCount}
+                        onChange={(e) =>
+                          setEssayCount(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        placeholder="예: 1"
+                        className="ds-input"
+                        style={{ width: 100 }}
+                      />
+                    </label>
+                    <label className="answer-key-field">
+                      <span className="answer-key-field__label">기본 점수</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={essayScore}
+                        onChange={(e) =>
+                          setEssayScore(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        className="ds-input"
+                        style={{ width: 80 }}
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      intent="primary"
+                      size="sm"
+                      onClick={() => initMut.mutate()}
+                      disabled={initMut.isPending}
+                      loading={initMut.isPending}
+                    >
+                      문항 반영
+                    </Button>
+                  </div>
+                )}
                 <ul className="answer-key-list answer-key-list--essay-scroll">
                   {essayQuestions.map((q, index) => (
                     <EssayRow
@@ -316,7 +372,6 @@ export default function AnswerKeyRegisterModal({
                 </ul>
               </div>
             </div>
-          )}
             </>
           )}
 
