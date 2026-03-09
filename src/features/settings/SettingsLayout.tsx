@@ -1,22 +1,49 @@
 // PATH: src/features/settings/SettingsLayout.tsx
-// 설정: 내 정보 · 테마 탭 (students 도메인 디자인 기준)
+// Premium SaaS 설정 레이아웃 — 사이드바 네비게이션 + 콘텐츠 영역
 
-import { Outlet } from "react-router-dom";
-import { DomainLayout } from "@/shared/ui/layout";
+import { NavLink, Outlet } from "react-router-dom";
+import { FiUser, FiHome, FiMessageSquare, FiMonitor, FiShield } from "react-icons/fi";
+import styles from "./SettingsLayout.module.css";
 
-const SETTINGS_TABS = [
-  { key: "account", label: "내 정보", path: "/admin/settings/account" },
-  { key: "system", label: "테마", path: "/admin/settings/system" },
+type NavItem = {
+  key: string;
+  label: string;
+  icon: React.ElementType;
+  path: string;
+};
+
+const NAV: NavItem[] = [
+  { key: "profile", label: "프로필", icon: FiUser, path: "/admin/settings/profile" },
+  { key: "organization", label: "학원 정보", icon: FiHome, path: "/admin/settings/organization" },
+  { key: "messaging", label: "메시지", icon: FiMessageSquare, path: "/admin/settings/messaging" },
+  { key: "appearance", label: "테마", icon: FiMonitor, path: "/admin/settings/appearance" },
+  { key: "security", label: "보안", icon: FiShield, path: "/admin/settings/security" },
 ];
 
 export default function SettingsLayout() {
   return (
-    <DomainLayout
-      title="설정"
-      description="내 정보 · 테마"
-      tabs={SETTINGS_TABS}
-    >
-      <Outlet />
-    </DomainLayout>
+    <div className={styles.root}>
+      {/* ── Sidebar ── */}
+      <nav className={styles.sidebar} aria-label="설정 메뉴">
+        <p className={styles.sidebarLabel}>Settings</p>
+        {NAV.map(({ key, label, icon: Icon, path }) => (
+          <NavLink
+            key={key}
+            to={path}
+            className={({ isActive }) =>
+              `${styles.navItem}${isActive ? ` ${styles.navItemActive}` : ""}`
+            }
+          >
+            <Icon size={15} className={styles.navIcon} aria-hidden />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* ── Main content ── */}
+      <main className={styles.content}>
+        <Outlet />
+      </main>
+    </div>
   );
 }
