@@ -80,6 +80,23 @@ export default function SessionAssessmentSidePanel({
     enabled: !!sessionId,
   });
 
+  const { data: examsSummary } = useQuery({
+    queryKey: ["session-exams-summary", sessionId],
+    queryFn: async () => {
+      const res = await api.get(`/results/admin/sessions/${sessionId}/exams/summary/`);
+      return res.data as { exams?: { exam_id: number; participant_count: number; pass_count: number; fail_count: number }[] };
+    },
+    enabled: !!sessionId,
+  });
+
+  const examStatsById = useMemo(() => {
+    const map: Record<number, { participant_count: number; pass_count: number; fail_count: number }> = {};
+    (examsSummary?.exams ?? []).forEach((e) => {
+      map[e.exam_id] = { participant_count: e.participant_count, pass_count: e.pass_count, fail_count: e.fail_count };
+    });
+    return map;
+  }, [examsSummary]);
+
   const { data: homeworks = [], isLoading: hwLoading } = useQuery({
     queryKey: ["session-homeworks", sessionId],
     queryFn: async (): Promise<HomeworkItem[]> => {
@@ -167,13 +184,17 @@ export default function SessionAssessmentSidePanel({
           const active =
             examId != null &&
             Number(exam.exam_id) === examId;
+          const stats = examStatsById[Number(exam.exam_id)];
+          const statusLine = stats
+            ? `채점 ${stats.participant_count} / 합격 ${stats.pass_count} / 불합 ${stats.fail_count}`
+            : `exam_id: ${exam.exam_id}`;
 
           return (
             <ItemRow
               key={exam.exam_id}
               active={active}
               label={exam.title}
-              sub={`exam_id: ${exam.exam_id}`}
+              sub={statusLine}
               onClick={() => onSelectExam(Number(exam.exam_id))}
               onDelete={() => handleDeleteExam(Number(exam.exam_id))}
             />
@@ -190,13 +211,14 @@ export default function SessionAssessmentSidePanel({
 
         {homeworks.map((hw) => {
           const active = homeworkId === hw.id;
+          const sub = hw.status ? `상태: ${hw.status}` : "과제";
 
           return (
             <ItemRow
               key={hw.id}
               active={active}
               label={hw.title}
-              sub={hw.status ? `상태: ${hw.status}` : undefined}
+              sub={sub}
               onClick={() => onSelectHomework(hw.id)}
               onDelete={() => handleDeleteHomework(hw.id)}
             />

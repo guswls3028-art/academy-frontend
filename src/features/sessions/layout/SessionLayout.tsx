@@ -34,7 +34,7 @@ export default function SessionLayout() {
       base
         ? [
             { key: "overview", label: "개요", path: `${base}/overview`, exact: false },
-            { key: "attendance", label: "출결", path: base, exact: true },
+            { key: "attendance", label: "출결", path: `${base}/attendance`, exact: false },
             { key: "scores", label: "성적", path: `${base}/scores` },
             { key: "exams", label: "시험", path: `${base}/exams` },
             { key: "assignments", label: "과제", path: `${base}/assignments` },

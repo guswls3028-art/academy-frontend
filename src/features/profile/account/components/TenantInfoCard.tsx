@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { FiBuilding } from "react-icons/fi";
+import { FaBuilding } from "react-icons/fa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchTenantInfo, updateTenantInfo } from "../../api/profile.api";
 import { Button } from "@/shared/ui/ds";
@@ -55,7 +55,7 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
             style={{ color: "var(--color-brand-primary)" }}
             aria-hidden
           >
-            <FiBuilding size={16} strokeWidth={2} />
+            <FaBuilding size={16} />
           </div>
           <div className="ds-card-modal__header-text">
             <div className="ds-card-modal__header-title">소속 학원</div>

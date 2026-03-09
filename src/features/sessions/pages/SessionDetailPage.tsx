@@ -13,7 +13,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams, Navigate } from "react-router-dom";
 
 import api from "@/shared/api/axios";
 
@@ -96,6 +96,13 @@ export default function SessionDetailPage() {
     if (p.includes("/attendance")) return "attendance";
     return "attendance";
   }, [location.pathname, lecId, sId]);
+
+  // 차시 진입(index) 시 개요 탭으로 리다이렉트
+  const basePath = `/admin/lectures/${lecId}/sessions/${sId}`;
+  const isIndexPath = location.pathname === basePath || location.pathname === basePath + "/";
+  if (isIndexPath) {
+    return <Navigate to={`${basePath}/overview`} replace />;
+  }
 
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
