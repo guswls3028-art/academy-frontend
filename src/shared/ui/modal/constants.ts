@@ -11,8 +11,8 @@ export const MODAL_WIDTH = {
   default: MODAL_DEFAULT_WIDTH,
   form: 620,
   wide: 720,
-  /** 답안 등록·이미지 등록 탭 공용 — xwide보다 약간 줄여 두 탭 동일 크기 */
-  answerKey: 780,
+  /** 답안 등록·이미지 등록 탭 공용 — xwide보다 넓게(약 1.2배) */
+  answerKey: 936,
   xwide: 820,
   enroll: 920,
   board: 980,
