@@ -111,11 +111,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           </Button>
         </div>
 
-        <div className="text-xs text-[var(--text-muted)]">
-          • 합격/불합격 판정은 Results 도메인에서 자동 계산됩니다.<br />
-          • 시험 시작/종료 시점은 세션 일정과 연동됩니다.
-        </div>
-
         <div className="space-y-3">
           <div>
             <div className="text-sm font-semibold text-[var(--text-primary)]">답안 등록</div>

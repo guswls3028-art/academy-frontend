@@ -60,11 +60,6 @@ export default function HomeworkPolicyCard({
     return Math.max(0, v);
   };
 
-  const helperText = useMemo(() => {
-    if (mode === "COUNT") return "예: 40문항 이상 통과";
-    return `예: 70% (반올림 단위 ${roundUnit}% 적용)`;
-  }, [mode, roundUnit]);
-
   if (!policy) {
     return (
       <div className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)] p-3 text-sm text-[var(--color-text-muted)]">
@@ -115,10 +110,6 @@ export default function HomeworkPolicyCard({
           >
             문항 수
           </button>
-        </div>
-
-        <div className="text-xs text-[var(--color-text-muted)]">
-          {helperText}
         </div>
       </div>
 
@@ -172,11 +163,7 @@ export default function HomeworkPolicyCard({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-2">
-        <div className="text-xs text-[var(--color-text-muted)]">
-          ※ 판정은 서버 결과만 표시
-        </div>
-
+      <div className="flex justify-end pt-2">
         <button
           type="button"
           className="ds-button disabled:opacity-50"
