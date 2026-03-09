@@ -330,6 +330,46 @@ export default function MessageSettingsPage() {
         </div>
       )}
 
+      {/* 크레딧 충전 */}
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+        }}
+      >
+        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+          크레딧 충전
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          메시지 발송에 사용할 크레딧을 충전합니다. 현재 잔액:{" "}
+          <strong style={{ color: "var(--color-text-primary)" }}>{creditBalance}</strong>
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <FiPlusCircle size={16} style={{ color: "var(--color-primary)" }} aria-hidden />
+          <Input
+            placeholder="충전 금액 입력 (예: 10000)"
+            value={chargeAmount}
+            onChange={(e) => setChargeAmount(e.target.value.replace(/[^0-9]/g, ""))}
+            onPressEnter={handleCharge}
+            disabled={isCharging}
+            style={{ maxWidth: 200 }}
+            suffix="원"
+          />
+          <Button
+            intent="primary"
+            onClick={handleCharge}
+            disabled={!chargeAmount.trim() || isCharging}
+          >
+            {isCharging ? "충전 중…" : "충전 요청"}
+          </Button>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginTop: 8 }}>
+          충전 후 잔액은 자동으로 업데이트됩니다. 실제 결제는 운영자 확인 후 처리됩니다.
+        </p>
+      </div>
+
       {/* 연동 상태 */}
       <div
         style={{
