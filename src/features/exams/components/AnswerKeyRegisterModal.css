@@ -24,13 +24,13 @@
   gap: var(--space-2);
 }
 
-/* 좌우 2패널: 좌측 객관식 | 우측 주관식, 높이 제한 — 세로 확대 */
+/* 좌우 2패널: 좌측 객관식 | 우측 주관식, 높이 제한 — 세로 조금 더 길게 */
 .answer-key-two-panels {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
   align-items: stretch;
-  max-height: min(85vh, 760px);
+  max-height: min(90vh, 840px);
   min-height: 0;
   overflow: hidden;
 }
@@ -110,18 +110,18 @@
   flex-direction: column;
 }
 
-/* 선택형 리스트: 스크롤 없음(첫 페이지에 맞춤) 또는 필요 시 스크롤 — 세로 확대 */
+/* 선택형 리스트: 스크롤 없음(첫 페이지에 맞춤) 또는 필요 시 스크롤 — 세로 조금 더 */
 .answer-key-panel--choice .answer-key-list--choice-scroll {
   overflow-y: auto;
-  max-height: 520px;
+  max-height: 600px;
   min-height: 0;
 }
 
-/* 주관식 영역만 스크롤: 첫 페이지에 1~15번까지 보이게(~15행), 5문항 단위 구분선, 세로 확대 */
+/* 주관식 영역만 스크롤: 첫 페이지에 1~15번까지 보이게(~15행), 5문항 단위 구분선, 세로 조금 더 */
 .answer-key-panel--essay .answer-key-list--essay-scroll {
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: 520px;
+  max-height: 600px;
   min-height: 0;
   flex: 1;
 }
