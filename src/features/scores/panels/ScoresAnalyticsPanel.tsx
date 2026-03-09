@@ -9,6 +9,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
+import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { fetchSessionScoreSummary } from "@/features/sessions/api/sessionScoreSummary";
 import { Section, Panel } from "@/shared/ui/ds";
 
@@ -18,7 +19,7 @@ export default function ScoresAnalyticsPanel({
   sessionId: number;
 }) {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["session-score-summary", sessionId],
+    queryKey: scoresQueryKeys.sessionScoreSummary(sessionId),
     queryFn: () => fetchSessionScoreSummary(sessionId),
   });
 

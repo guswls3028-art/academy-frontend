@@ -802,8 +802,7 @@ export default function ScoresTable({
                                     const raw = firstLine(el.innerText);
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
-                                      await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                      await saveExamObjective(ex.exam_id, row.enrollment_id, parsed);
                                     } else if (raw !== "") el.innerText = objScore != null ? String(Math.round(objScore)) : "";
                                   }}
                                   onKeyDown={async (e) => {
@@ -817,16 +816,14 @@ export default function ScoresTable({
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
-                                        await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                        await saveExamObjective(ex.exam_id, row.enrollment_id, parsed);
                                       }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
-                                        await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                        await saveExamObjective(ex.exam_id, row.enrollment_id, parsed);
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
@@ -875,8 +872,7 @@ export default function ScoresTable({
                                     const raw = firstLine(el.innerText);
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
-                                      await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                      await saveExamSubjective(ex.exam_id, row.enrollment_id, parsed);
                                     } else if (raw !== "") el.innerText = subScore != null ? String(Math.round(subScore)) : "";
                                   }}
                                   onKeyDown={async (e) => {
@@ -890,16 +886,14 @@ export default function ScoresTable({
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
-                                        await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                        await saveExamSubjective(ex.exam_id, row.enrollment_id, parsed);
                                       }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
-                                        await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                        await saveExamSubjective(ex.exam_id, row.enrollment_id, parsed);
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
