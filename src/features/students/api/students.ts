@@ -621,6 +621,30 @@ export async function verifyPasswordFindCode(
   });
 }
 
+/** 비밀번호 재설정 발송 (학생: 이름+학생번호 → 학생 번호로, 학부모: 이름+학부모번호 → 학부모 번호로 임시 비밀번호 발송) */
+export async function sendPasswordReset(params: {
+  target: "student" | "parent";
+  student_name: string;
+  student_ps_number?: string;
+  parent_phone?: string;
+}): Promise<{ message: string }> {
+  const { target, student_name, student_ps_number, parent_phone } = params;
+  const body: Record<string, string> = {
+    target,
+    student_name: student_name.trim(),
+  };
+  if (target === "student" && student_ps_number != null) {
+    body.student_ps_number = String(student_ps_number).trim();
+  }
+  if (target === "parent" && parent_phone != null) {
+    body.parent_phone = normalizePhone(String(parent_phone));
+  }
+  const res = await api.post<{ message: string }>("/students/password_reset_send/", body, {
+    skipAuth: true as any,
+  });
+  return res.data;
+}
+
 /* ===============================
  * TAG
  * =============================== */
