@@ -56,11 +56,12 @@ export default function AnswerKeyRegisterModal({
     queryFn: () => fetchAnswerKeyByExam(examId),
     enabled: open && questions.length > 0,
   });
-  /** DRF list는 pagination 시 { results: [] }, 미사용 시 [] — 둘 다 지원 */
+  /** DRF list는 pagination 시 { results: [] }, 미사용 시 [] — response.data 기준으로 파싱 */
   const answerKey = useMemo(() => {
-    const raw = answerKeyList as unknown;
-    const list = Array.isArray(raw) ? raw : (raw && typeof raw === "object" && "results" in raw ? (raw as { results: AnswerKey[] }).results : (raw as { data?: AnswerKey[] })?.data) ?? [];
-    return list[0] ?? null;
+    const body = answerKeyList && typeof answerKeyList === "object" && "data" in answerKeyList ? (answerKeyList as { data: unknown }).data : answerKeyList;
+    const raw = body as unknown;
+    const list = Array.isArray(raw) ? raw : (raw && typeof raw === "object" && "results" in raw ? (raw as { results: AnswerKey[] }).results : []);
+    return (list as AnswerKey[])[0] ?? null;
   }, [answerKeyList]);
 
   const [choiceCount, setChoiceCount] = useState<number | "">("");
@@ -84,6 +85,7 @@ export default function AnswerKeyRegisterModal({
   >({});
 
   const choiceBubbleRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const essayInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const sortedQuestions = useMemo(
     () => [...questions].sort((a, b) => a.number - b.number),
@@ -516,6 +518,12 @@ export default function AnswerKeyRegisterModal({
                         setScoreDraft((prev) => ({ ...prev, [q.id]: 0 }))
                       }
                       showDividerAfter={false}
+                      inputRef={(el) => {
+                        if (essayInputRefs.current.length <= index) essayInputRefs.current.length = index + 1;
+                        essayInputRefs.current[index] = el;
+                      }}
+                      onMoveToNextRow={() => essayInputRefs.current[index + 1]?.focus()}
+                      onMoveToPreviousRow={() => essayInputRefs.current[index - 1]?.focus()}
                     />
                   ))}
                 </ul>
