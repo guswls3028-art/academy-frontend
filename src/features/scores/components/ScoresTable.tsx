@@ -290,7 +290,7 @@ export default function ScoresTable({
           if (questions.length > 0) {
             questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, questionId: q.question_id, title: e.title, sub: "item", key: `exam_${e.exam_id}_q_${q.question_id}`, width: COL_SCORE, editable: true }));
           } else {
-            list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: false });
+            list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: isEditMode });
           }
         }
         list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
