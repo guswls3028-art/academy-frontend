@@ -1,10 +1,13 @@
 // PATH: src/features/staff/pages/OperationsPage/WorkRecordsPanel.tsx
+// 월 전체 근무기록 — 섹션 카드 스타일 (staff-area)
+
 import { useState } from "react";
 import ActionButton from "../../components/ActionButton";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/WorkMonthContext";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
 import CreateWorkRecordModal from "./CreateWorkRecordModal";
+import "../../styles/staff-area.css";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -22,97 +25,88 @@ export default function WorkRecordsPanel() {
 
   if (listQ.isLoading) {
     return (
-      <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4">
-        <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
-      </div>
+      <section className="staff-area staff-section-card">
+        <div className="staff-section-card__body">
+          <p className="staff-helper">불러오는 중...</p>
+        </div>
+      </section>
     );
   }
 
   const rows = listQ.data ?? [];
 
   return (
-    <div
+    <section
       className={cx(
-        "rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)]",
+        "staff-area staff-section-card",
         "overflow-hidden"
       )}
     >
       <div
         className={cx(
-          "px-5 py-4 border-b border-[var(--border-divider)]",
-          locked ? "bg-[var(--color-danger-soft)]" : "bg-[var(--bg-surface-soft)]"
+          "staff-section-card__header flex flex-wrap items-center justify-between gap-4",
+          locked ? "bg-[color-mix(in_srgb,var(--color-danger)_8%,var(--color-bg-surface))]" : ""
         )}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="text-sm font-semibold">근무 기록</div>
-              {locked && <LockBadge state="LOCKED" />}
-              <span className="text-xs text-[var(--text-muted)]">
-                ({range.from} ~ {range.to})
-              </span>
-            </div>
-            <div className="text-[11px] text-[var(--text-muted)]">
-              * 근무시간·금액은 서버에서 자동 계산됩니다. (프론트 계산 금지)
-            </div>
-          </div>
-
-          <div className="shrink-0">
-            <ActionButton
-              variant="primary"
-              size="xs"
-              disabledReason={locked ? "마감된 월입니다." : ""}
-              onClick={() => setOpen(true)}
-            >
-              + 추가
-            </ActionButton>
-          </div>
+        <div>
+          <h2 className="staff-section-card__title flex items-center gap-2">
+            월 전체 근무 기록
+            {locked && <LockBadge state="LOCKED" />}
+          </h2>
+          <p className="staff-section-card__desc">
+            {range.from} ~ {range.to} · 근무시간·금액은 서버에서 자동 계산됩니다.
+          </p>
         </div>
-
+        <div className="shrink-0">
+          <ActionButton
+            variant="primary"
+            size="xs"
+            disabledReason={locked ? "마감된 월입니다." : ""}
+            onClick={() => setOpen(true)}
+          >
+            + 추가
+          </ActionButton>
+        </div>
         {locked && (
-          <div className="mt-2 text-xs text-[var(--color-danger)]">
+          <p className="staff-helper text-[var(--color-danger)] w-full mt-1">
             마감된 월입니다 · 생성/수정/삭제 불가
-          </div>
+          </p>
         )}
       </div>
 
-      <div className={cx("p-5", locked && "opacity-95")}>
+      <div className={cx("staff-section-card__body", locked && "opacity-95")}>
         {rows.length === 0 ? (
-          <div className="rounded-2xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-5">
-            <div className="text-sm font-semibold">기록 없음</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1">
-              근무 기록을 추가하면 이곳에 리스트가 표시됩니다.
-            </div>
+          <div className="staff-section-card__empty">
+            <div className="staff-section-title">기록 없음</div>
+            <p className="staff-helper mt-2">근무 기록을 추가하면 이곳에 리스트가 표시됩니다.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {rows.map((r) => (
               <div
                 key={r.id}
-                className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-3"
+                className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-4 py-3"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="font-semibold">
+                    <div className="staff-body font-semibold">
                       {r.date} · {r.work_type_name}
                     </div>
-                    <div className="text-xs text-[var(--text-muted)] mt-1">
+                    <div className="staff-helper mt-1">
                       {r.start_time} ~ {r.end_time}{" "}
                       {typeof r.break_minutes === "number" && r.break_minutes > 0
                         ? `· 휴게 ${r.break_minutes}분`
                         : ""}
                     </div>
                     {!!r.memo && (
-                      <div className="text-xs text-[var(--text-muted)] mt-1">
-                        메모: {r.memo}
-                      </div>
+                      <div className="staff-helper mt-1">메모: {r.memo}</div>
                     )}
                   </div>
 
                   <div className="shrink-0 flex items-center gap-3">
                     <div className="text-right">
-                      <div className="text-xs text-[var(--text-muted)]">금액</div>
-                      <div className="font-semibold">
+                      <div className="staff-helper">금액</div>
+                      <div className="staff-body font-semibold tabular-nums">
                         {r.amount?.toLocaleString() ?? "-"}원
                       </div>
                     </div>
@@ -139,11 +133,9 @@ export default function WorkRecordsPanel() {
         {!locked && <CreateWorkRecordModal open={open} onClose={() => setOpen(false)} />}
       </div>
 
-      <div className="px-5 pb-4">
-        <div className="text-[11px] text-[var(--text-muted)]">
-          * 마감된 월은 서버에서 변경을 거부합니다(400). 프론트는 UX로만 차단합니다.
-        </div>
+      <div className="staff-section-card__footer">
+        마감된 월은 서버에서 변경을 거부합니다(400). 프론트는 UX로만 차단합니다.
       </div>
-    </div>
+    </section>
   );
 }

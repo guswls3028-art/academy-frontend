@@ -16,7 +16,7 @@ function getThisMonth() {
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 }
 
-/** Selected-day detail block */
+/** 선택날짜 근무상세 — 섹션 카드 */
 function DailyWorkDetailSection({
   selectedDate,
   records,
@@ -31,14 +31,15 @@ function DailyWorkDetailSection({
 
   if (!selectedDate) {
     return (
-      <div className="staff-panel">
-        <div className="staff-panel__header">
-          <span className="staff-section-title">일자별 근무 상세</span>
+      <section className="staff-area staff-section-card">
+        <div className="staff-section-card__header">
+          <h2 className="staff-section-card__title">선택 날짜 근무 상세</h2>
+          <p className="staff-section-card__desc">우측 달력에서 날짜를 선택하면 해당 일의 근무 내역이 표시됩니다.</p>
         </div>
-        <div className="staff-panel__body">
-          <p className="staff-helper">캘린더에서 날짜를 선택하면 해당 일의 근무 내역이 표시됩니다.</p>
+        <div className="staff-section-card__body">
+          <p className="staff-helper">날짜를 선택해 주세요.</p>
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -46,11 +47,11 @@ function DailyWorkDetailSection({
   const dayLabel = `${selectedDate.slice(5, 7)}월 ${dayNum}일`;
 
   return (
-    <div className="staff-panel">
-      <div className="staff-panel__header">
-        <span className="staff-section-title">{dayLabel} 근무 상세</span>
+    <section className="staff-area staff-section-card">
+      <div className="staff-section-card__header">
+        <h2 className="staff-section-card__title">{dayLabel} 근무 상세</h2>
       </div>
-      <div className="staff-panel__body">
+      <div className="staff-section-card__body">
         {dayRecords.length === 0 ? (
           <p className="staff-helper">해당 일자에 등록된 근무 기록이 없습니다.</p>
         ) : (
@@ -58,10 +59,10 @@ function DailyWorkDetailSection({
             {dayRecords.map((r) => (
               <div
                 key={r.id}
-                className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3"
+                className="rounded-xl border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-border-divider)_6%,var(--color-bg-surface))] px-4 py-3"
               >
                 <div className="staff-label mb-1">{r.work_type_name}</div>
-                <div className="staff-body grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <div className="staff-body grid grid-cols-2 gap-x-4 gap-y-1">
                   <span>시작</span>
                   <span className="font-medium tabular-nums">{r.start_time}</span>
                   <span>종료</span>
@@ -85,7 +86,7 @@ function DailyWorkDetailSection({
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -101,27 +102,31 @@ function AttendanceTabContent() {
   const records = listQ.data ?? [];
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="staff-area flex flex-col gap-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* 중앙: 선택날짜 근무상세 + 월 전체 근무기록 */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="staff-panel">
-            <div className="staff-panel__header">
-              <span className="staff-section-title">월별 근무 현황</span>
+          <DailyWorkDetailSection selectedDate={selectedDate} records={records} />
+          <WorkRecordsPanel />
+        </div>
+        {/* 3번째 패널: 달력 + 요약 */}
+        <div className="space-y-6">
+          <section className="staff-section-card">
+            <div className="staff-section-card__header">
+              <h2 className="staff-section-card__title">달력</h2>
+              <p className="staff-section-card__desc">{year}년 {month}월</p>
             </div>
-            <div className="staff-panel__body">
+            <div className="staff-section-card__body flex justify-center">
               <AttendanceCalendar
                 year={year}
                 month={month}
                 records={records}
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
+                compact
               />
             </div>
-          </div>
-          <DailyWorkDetailSection selectedDate={selectedDate} records={records} />
-          <WorkRecordsPanel />
-        </div>
-        <div className="space-y-6">
+          </section>
           <PayrollSummaryCard />
         </div>
       </div>

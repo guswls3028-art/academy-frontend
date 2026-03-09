@@ -3,13 +3,13 @@
  * Typography: Inter, Pretendard. Strong hierarchy, compact tables, professional chips.
  */
 
-/* ---------- Typography ---------- */
+/* ---------- Typography (가시성 강화: 기본 크기 상향) ---------- */
 .staff-area {
   font-family: "Inter", "Pretendard", system-ui, -apple-system, sans-serif;
 }
 
 .staff-area .staff-page-title {
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-text-primary);
@@ -17,26 +17,26 @@
 }
 
 .staff-area .staff-section-title {
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   letter-spacing: 0.01em;
 }
 
 .staff-area .staff-label {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--color-text-muted);
 }
 
 .staff-area .staff-body {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   color: var(--color-text-primary);
   line-height: 1.45;
 }
 
 .staff-area .staff-helper {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--color-text-muted);
 }
 
@@ -70,7 +70,7 @@
 }
 
 .staff-area .staff-section-card__title {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--color-text-primary);
@@ -78,7 +78,7 @@
 }
 
 .staff-area .staff-section-card__desc {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--color-text-muted);
   line-height: 1.4;
 }
@@ -94,7 +94,7 @@
 .staff-area .staff-section-card__footer {
   padding: 12px 20px;
   background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--color-text-muted);
 }
 
@@ -151,7 +151,7 @@
 
 .staff-area .staff-payroll-card__title {
   padding: 12px 16px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border-divider);
@@ -159,15 +159,15 @@
 }
 
 .staff-area .staff-payroll-card__body {
-  padding: 16px;
+  padding: 18px;
 }
 
 .staff-area .staff-payroll-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0;
-  font-size: 0.8125rem;
+  padding: 10px 0;
+  font-size: 0.875rem;
 }
 
 .staff-area .staff-payroll-row:not(:last-child) {
@@ -185,7 +185,7 @@
 }
 
 .staff-area .staff-payroll-row.staff-payroll-row--total .value {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   color: var(--color-primary);
 }
 
@@ -327,7 +327,7 @@
 }
 
 .staff-area .staff-list-item .staff-list-item__name {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--color-text-primary);
   flex: 1;
@@ -363,14 +363,14 @@
 }
 
 .staff-area .staff-empty__title {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   margin-bottom: 4px;
 }
 
 .staff-area .staff-empty__desc {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--color-text-muted);
   max-width: 280px;
   line-height: 1.45;
