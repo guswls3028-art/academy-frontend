@@ -79,7 +79,7 @@ export default function NoticeAdminPage() {
   const [expandedLectureId, setExpandedLectureId] = useState<number | null>(null);
 
   /** 차시공지에서 선택한 강의의 차시 목록 */
-  const { data: sessionsOfLecture = [] } = useQuery<Session[]>({
+  const { data: sessionsOfLecture = [], isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["lecture-sessions", expandedLectureId],
     queryFn: () => fetchSessions(expandedLectureId!),
     enabled: folderTab === "session" && Number.isFinite(expandedLectureId ?? 0),
@@ -245,22 +245,28 @@ export default function NoticeAdminPage() {
                   </span>
                 </button>
                 {expandedLectureId === lec.id &&
-                  (sessionsOfLecture as Session[]).map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
-                      onClick={() => selectSession(lec.id, s.id)}
-                    >
-                      {s.title || `${s.order}차시`}
-                    </button>
+                  (sessionsLoading ? (
+                    <div className="notice-tree__sub-item notice-tree__sub-item--child" style={{ cursor: "wait", color: "var(--color-text-muted)" }}>
+                      불러오는 중…
+                    </div>
+                  ) : (
+                    (sessionsOfLecture as Session[]).map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
+                        onClick={() => selectSession(lec.id, s.id)}
+                      >
+                        {s.title || `${s.order}차시`}
+                      </button>
+                    ))
                   ))}
               </div>
             ))}
         </div>
       </nav>
 
-      {/* 우측: 공지 목록 + 상세 (QnA와 동일 레이아웃) */}
+      {/* 2번 영역: 공지 목록 (최상단 공지 추가하기 섹션 + 리스트) */}
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">공지사항</h2>
@@ -276,6 +282,18 @@ export default function NoticeAdminPage() {
           </div>
         </div>
         <div className="qna-inbox__list-body">
+          {canShowList && (
+            <div className="notice-tree__add-section">
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => setShowCreate(true)}
+                className="w-full"
+              >
+                + 공지 추가하기
+              </Button>
+            </div>
+          )}
           {!canShowList ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">
