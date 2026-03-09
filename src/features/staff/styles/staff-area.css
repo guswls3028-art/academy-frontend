@@ -1,0 +1,316 @@
+/* PATH: src/features/staff/styles/staff-area.css
+ * Premium Korean academy SaaS — staff management area
+ * Typography, panels, chips, payroll card, calendar, empty states
+ */
+
+/* ---------- Typography ---------- */
+.staff-area {
+  font-family: "Inter", "Pretendard", system-ui, -apple-system, sans-serif;
+}
+
+.staff-area .staff-page-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.staff-area .staff-section-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.staff-area .staff-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.staff-area .staff-body {
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  line-height: 1.45;
+}
+
+.staff-area .staff-helper {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Panels ---------- */
+.staff-area .staff-panel {
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.staff-area .staff-panel__header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
+}
+
+.staff-area .staff-panel__body {
+  padding: 18px;
+}
+
+/* ---------- Chips (metrics) ---------- */
+.staff-area .staff-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-border-divider) 8%, var(--color-bg-surface));
+  color: var(--color-text-secondary);
+  border: 1px solid transparent;
+}
+
+.staff-area .staff-chip--primary {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
+  color: var(--color-primary);
+}
+
+.staff-area .staff-chip--success {
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface));
+  color: var(--color-success);
+}
+
+/* ---------- Payroll summary card ---------- */
+.staff-area .staff-payroll-card {
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.staff-area .staff-payroll-card__title {
+  padding: 12px 16px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
+}
+
+.staff-area .staff-payroll-card__body {
+  padding: 16px;
+}
+
+.staff-area .staff-payroll-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 0.8125rem;
+}
+
+.staff-area .staff-payroll-row:not(:last-child) {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider) 50%, transparent);
+}
+
+.staff-area .staff-payroll-row .label {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.staff-area .staff-payroll-row .value {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.staff-area .staff-payroll-row.staff-payroll-row--total .value {
+  font-size: 0.9375rem;
+  color: var(--color-primary);
+}
+
+/* ---------- Calendar (month grid) ---------- */
+.staff-area .staff-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  font-size: 0.75rem;
+}
+
+.staff-area .staff-calendar__head {
+  padding: 6px 4px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.staff-area .staff-calendar__cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  min-height: 36px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.staff-area .staff-calendar__cell:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.staff-area .staff-calendar__cell.staff-calendar__cell--worked {
+  background: color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface));
+  color: var(--color-text-primary);
+}
+
+.staff-area .staff-calendar__cell.staff-calendar__cell--worked:hover {
+  background: color-mix(in srgb, var(--color-success) 22%, var(--color-bg-surface));
+}
+
+.staff-area .staff-calendar__cell.staff-calendar__cell--selected {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.staff-area .staff-calendar__cell.staff-calendar__cell--selected:hover {
+  background: color-mix(in srgb, var(--color-primary) 90%, #000);
+  color: #fff;
+}
+
+.staff-area .staff-calendar__cell.staff-calendar__cell--empty {
+  color: var(--color-text-disabled);
+}
+
+.staff-area .staff-calendar__cell .day-num {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.staff-area .staff-calendar__cell .hours {
+  font-size: 0.625rem;
+  font-weight: 600;
+  opacity: 0.9;
+  margin-top: 1px;
+}
+
+/* ---------- Staff list item (left panel) ---------- */
+.staff-area .staff-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  font-family: inherit;
+}
+
+.staff-area .staff-list-item:last-child {
+  border-bottom: 0;
+}
+
+.staff-area .staff-list-item:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.staff-area .staff-list-item.staff-list-item--selected {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface));
+  border-left: 3px solid var(--color-primary);
+  padding-left: 11px;
+}
+
+.staff-area .staff-list-item .staff-list-item__name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.staff-area .staff-list-item .staff-list-item__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ---------- Empty state ---------- */
+.staff-area .staff-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.staff-area .staff-empty__icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+  color: var(--color-text-muted);
+}
+
+.staff-area .staff-empty__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.staff-area .staff-empty__desc {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  max-width: 280px;
+  line-height: 1.45;
+}
+
+/* ---------- Toolbar grouping ---------- */
+.staff-area .staff-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.staff-area .staff-toolbar .staff-toolbar__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.staff-area .staff-toolbar .staff-toolbar__divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border-divider);
+}
+
+/* ---------- Wage tag badge (compact) ---------- */
+.staff-area .staff-wage-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.staff-area .staff-wage-badge--light {
+  color: #1a1a1a;
+}
+
+.staff-area .staff-wage-badge--dark {
+  color: #fff;
+}
