@@ -1,5 +1,17 @@
 /* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. 모달 한눈에 보이게, 주관식 영역 내 스크롤. */
 
+/* 모달 헤더 내 탭 (답안 등록 | 이미지 등록) */
+.answer-key-modal-header-tabs {
+  margin-top: 2px;
+}
+.answer-key-modal-header-tabs .ds-tabs {
+  gap: var(--space-2);
+}
+.answer-key-modal-header-tabs .ds-tab {
+  padding: var(--space-1) var(--space-3);
+  font-size: 13px;
+}
+
 .answer-key-panel {
   min-width: 0;
   display: flex;

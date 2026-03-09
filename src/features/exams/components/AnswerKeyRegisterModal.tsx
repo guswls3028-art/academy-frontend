@@ -185,20 +185,20 @@ export default function AnswerKeyRegisterModal({
     <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.wide}>
       <ModalHeader
         type="action"
-        title="답안 등록"
+        title={
+          <div className="answer-key-modal-header-tabs">
+            <Tabs
+              value={activeTab}
+              items={[
+                { key: "answer", label: "답안 등록" },
+                { key: "image", label: "이미지 등록" },
+              ]}
+              onChange={(key) => setActiveTab(key as "answer" | "image")}
+            />
+          </div>
+        }
         description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
       />
-
-      <div className="modal-tabs-area">
-        <Tabs
-          value={activeTab}
-          items={[
-            { key: "answer", label: "답안 등록" },
-            { key: "image", label: "이미지 등록" },
-          ]}
-          onChange={(key) => setActiveTab(key as "answer" | "image")}
-        />
-      </div>
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
