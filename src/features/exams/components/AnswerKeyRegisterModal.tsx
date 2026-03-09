@@ -218,7 +218,7 @@ export default function AnswerKeyRegisterModal({
         });
       } else {
         essayList.forEach((q: ExamQuestion) => {
-          nextScoreDraft[q.id] = nextScoreDraft[q.id] ?? 0;
+          nextScoreDraft[q.id] = 0;
         });
       }
       setScoreDraft((prev) => ({ ...prev, ...nextScoreDraft }));
@@ -353,41 +353,42 @@ export default function AnswerKeyRegisterModal({
                         style={{ width: 100 }}
                       />
                     </label>
-                    <label className="answer-key-field">
-                      <span className="answer-key-field__label">기본 점수</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        value={choiceScore}
-                        onChange={(e) =>
-                          setChoiceScore(e.target.value === "" ? "" : Number(e.target.value))
-                        }
-                        className="ds-input"
-                        style={{ width: 80 }}
-                        disabled={choiceNoDefaultScore}
-                        aria-readonly={choiceNoDefaultScore}
-                      />
-                    </label>
                     <div className="answer-key-field">
-                      <span className="answer-key-field__label">기본점수</span>
-                      <div className="answer-key-default-score-toggle" role="group" aria-label="기본점수 사용 여부">
+                      <span className="answer-key-field__label">자동점수 부여</span>
+                      <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
                         <button
                           type="button"
-                          className={`answer-key-toggle-btn ${!choiceNoDefaultScore ? "is-active" : ""}`}
-                          onClick={() => setChoiceNoDefaultScore(false)}
+                          className={`answer-key-toggle-btn ${choiceAutoScore ? "is-active" : ""}`}
+                          onClick={() => setChoiceAutoScore(true)}
                         >
                           사용
                         </button>
                         <button
                           type="button"
-                          className={`answer-key-toggle-btn ${choiceNoDefaultScore ? "is-active" : ""}`}
-                          onClick={() => setChoiceNoDefaultScore(true)}
+                          className={`answer-key-toggle-btn ${!choiceAutoScore ? "is-active" : ""}`}
+                          onClick={() => setChoiceAutoScore(false)}
                         >
                           미사용
                         </button>
                       </div>
                     </div>
+                    {choiceAutoScore && (
+                      <label className="answer-key-field">
+                        <span className="answer-key-field__label">총점</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={choiceTotalInput === "" ? "" : choiceTotalInput}
+                          onChange={(e) =>
+                            setChoiceTotalInput(e.target.value === "" ? "" : Number(e.target.value))
+                          }
+                          placeholder="예: 80"
+                          className="ds-input"
+                          style={{ width: 80 }}
+                        />
+                      </label>
+                    )}
                     <Button
                       type="button"
                       intent="primary"
@@ -488,41 +489,42 @@ export default function AnswerKeyRegisterModal({
                         style={{ width: 100 }}
                       />
                     </label>
-                    <label className="answer-key-field">
-                      <span className="answer-key-field__label">기본 점수</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.5}
-                        value={essayScore}
-                        onChange={(e) =>
-                          setEssayScore(e.target.value === "" ? "" : Number(e.target.value))
-                        }
-                        className="ds-input"
-                        style={{ width: 80 }}
-                        disabled={essayNoDefaultScore}
-                        aria-readonly={essayNoDefaultScore}
-                      />
-                    </label>
                     <div className="answer-key-field">
-                      <span className="answer-key-field__label">기본점수</span>
-                      <div className="answer-key-default-score-toggle" role="group" aria-label="기본점수 사용 여부">
+                      <span className="answer-key-field__label">자동점수 부여</span>
+                      <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
                         <button
                           type="button"
-                          className={`answer-key-toggle-btn ${!essayNoDefaultScore ? "is-active" : ""}`}
-                          onClick={() => setEssayNoDefaultScore(false)}
+                          className={`answer-key-toggle-btn ${essayAutoScore ? "is-active" : ""}`}
+                          onClick={() => setEssayAutoScore(true)}
                         >
                           사용
                         </button>
                         <button
                           type="button"
-                          className={`answer-key-toggle-btn ${essayNoDefaultScore ? "is-active" : ""}`}
-                          onClick={() => setEssayNoDefaultScore(true)}
+                          className={`answer-key-toggle-btn ${!essayAutoScore ? "is-active" : ""}`}
+                          onClick={() => setEssayAutoScore(false)}
                         >
                           미사용
                         </button>
                       </div>
                     </div>
+                    {essayAutoScore && (
+                      <label className="answer-key-field">
+                        <span className="answer-key-field__label">총점</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={essayTotalInput === "" ? "" : essayTotalInput}
+                          onChange={(e) =>
+                            setEssayTotalInput(e.target.value === "" ? "" : Number(e.target.value))
+                          }
+                          placeholder="예: 50"
+                          className="ds-input"
+                          style={{ width: 80 }}
+                        />
+                      </label>
+                    )}
                     <Button
                       type="button"
                       intent="primary"
@@ -818,7 +820,70 @@ function EssayRow({
   );
 }
 
-type ExplanationState = { text: string; imageUrl: string | null };
+type ExplanationState = { text: string; problemImageUrl: string | null; imageUrl: string | null };
+
+/** 문제 이미지·해설 이미지 공통 셀 — 붙여넣기(Ctrl+V) + 파일 업로드 동일 로직·디자인 */
+function ImageCell({
+  label,
+  imageUrl,
+  onImageChange,
+  onClear,
+}: {
+  label: string;
+  imageUrl: string | null;
+  onImageChange: (url: string) => void;
+  onClear: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const file = e.clipboardData?.files?.[0];
+    if (!file?.type.startsWith("image/")) return;
+    e.preventDefault();
+    onImageChange(URL.createObjectURL(file));
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    onImageChange(URL.createObjectURL(file));
+    e.target.value = "";
+  };
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener("paste", handlePaste as any);
+    return () => el.removeEventListener("paste", handlePaste as any);
+  }, [onImageChange]);
+
+  if (imageUrl) {
+    return (
+      <div className="answer-key-explanation-cell answer-key-explanation-cell--image">
+        <div className="answer-key-explanation-cell__image-wrap" ref={containerRef} onPaste={handlePaste}>
+          <img src={imageUrl} alt={label} className="answer-key-explanation-cell__img" />
+          <Button type="button" intent="ghost" size="sm" onClick={onClear}>
+            변경
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="answer-key-explanation-cell answer-key-explanation-cell__placeholder-wrap"
+      onPaste={handlePaste}
+    >
+      <label className="answer-key-explanation-cell__placeholder">
+        <input type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
+        <span className="answer-key-explanation-cell__placeholder-text">{label}</span>
+        <span className="answer-key-explanation-cell__placeholder-hint">클릭 후 Ctrl+V 또는 클릭하여 업로드</span>
+      </label>
+    </div>
+  );
+}
 
 function ExplanationRow({
   question,
