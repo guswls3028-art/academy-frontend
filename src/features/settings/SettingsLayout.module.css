@@ -21,14 +21,14 @@
 }
 
 .sidebarLabel {
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--color-text-muted);
   padding: 0 14px;
   margin: 0 0 8px;
-  opacity: 0.65;
+  opacity: 0.85;
 }
 
 .navItem {
@@ -38,8 +38,8 @@
   padding: 7px 10px;
   margin: 0 6px;
   border-radius: 7px;
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 500;
   color: var(--color-text-secondary);
   text-decoration: none;
   transition: background 0.1s ease, color 0.1s ease;
@@ -55,7 +55,7 @@
 .navItemActive {
   background: color-mix(in srgb, var(--color-primary) 9%, var(--color-bg-surface));
   color: var(--color-primary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .navItemActive:hover {

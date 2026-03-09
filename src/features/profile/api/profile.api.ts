@@ -49,10 +49,14 @@ export async function changePassword(payload: {
 }
 
 /** 소속 학원(테넌트) 정보 — 설정 > 내 정보에서 학원문의(학원명·전화) 표시/수정 */
+export type AcademyEntry = { name: string; phone: string };
+
 export type TenantInfo = {
   name: string;
   phone: string;
   headquarters_phone: string;
+  /** 소속 학원 목록 (여러 개 등록 가능). 비어 있으면 기존 name/headquarters_phone 단일 항목 */
+  academies: AcademyEntry[];
 };
 
 export async function fetchTenantInfo(): Promise<TenantInfo> {
@@ -60,7 +64,7 @@ export async function fetchTenantInfo(): Promise<TenantInfo> {
   return data;
 }
 
-export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone">>): Promise<TenantInfo> {
+export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone">> & { academies?: AcademyEntry[] }): Promise<TenantInfo> {
   const { data } = await api.patch<TenantInfo>("/core/tenant-info/", payload);
   return data;
 }

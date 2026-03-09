@@ -277,7 +277,7 @@ export default function ProfileSettingsPage() {
           {/* Account ID — readonly */}
           <div className={s.row}>
             <span className={s.rowLabel}>계정 ID</span>
-            <span className={s.rowValue} style={{ fontFamily: "monospace", fontSize: 13 }}>
+            <span className={s.rowValue} style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 600 }}>
               {displayId || "—"}
             </span>
             <div className={s.rowActions}>
