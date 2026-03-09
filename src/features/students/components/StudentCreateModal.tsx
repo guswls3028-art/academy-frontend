@@ -22,6 +22,7 @@ import {
   type AutoSendConfigItem,
   type AutoSendTrigger,
   type MessageTemplatePayload,
+  type MessageMode,
 } from "@/features/messages/api/messages.api";
 import TemplateEditModal from "@/features/messages/components/TemplateEditModal";
 
@@ -168,6 +169,31 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       c.trigger === "student_signup"
         ? { ...c, template: templateId, enabled: templateId != null }
         : c
+    );
+    updateAutoSendMut.mutate(configs);
+  }
+
+  function nextMessageMode(current: MessageMode, toggle: "sms" | "alimtalk"): MessageMode {
+    const sms = current === "sms" || current === "both";
+    const alim = current === "alimtalk" || current === "both";
+    if (toggle === "sms") {
+      const newSms = !sms;
+      if (newSms && alim) return "both";
+      if (newSms && !alim) return "sms";
+      return "alimtalk";
+    } else {
+      const newAlim = !alim;
+      if (sms && newAlim) return "both";
+      if (!sms && newAlim) return "alimtalk";
+      return "sms";
+    }
+  }
+
+  function handleSetSignupMessageMode(toggle: "sms" | "alimtalk") {
+    const current = signupConfig?.message_mode ?? "alimtalk";
+    const nextMode = nextMessageMode(current, toggle);
+    const configs: Partial<AutoSendConfigItem>[] = autoSendConfigs.map((c) =>
+      c.trigger === "student_signup" ? { ...c, message_mode: nextMode } : c
     );
     updateAutoSendMut.mutate(configs);
   }
