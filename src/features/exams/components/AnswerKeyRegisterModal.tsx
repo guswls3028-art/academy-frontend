@@ -56,7 +56,12 @@ export default function AnswerKeyRegisterModal({
     queryFn: () => fetchAnswerKeyByExam(examId),
     enabled: open && questions.length > 0,
   });
-  const answerKey = (answerKeyList?.data ?? [])[0] ?? null;
+  /** DRF list는 pagination 시 { results: [] }, 미사용 시 [] — 둘 다 지원 */
+  const answerKey = useMemo(() => {
+    const raw = answerKeyList as unknown;
+    const list = Array.isArray(raw) ? raw : (raw && typeof raw === "object" && "results" in raw ? (raw as { results: AnswerKey[] }).results : (raw as { data?: AnswerKey[] })?.data) ?? [];
+    return list[0] ?? null;
+  }, [answerKeyList]);
 
   const [choiceCount, setChoiceCount] = useState<number | "">("");
   const [choiceCountInput, setChoiceCountInput] = useState<number | "">("");
