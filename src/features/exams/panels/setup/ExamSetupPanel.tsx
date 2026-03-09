@@ -197,8 +197,8 @@
 import { useSearchParams } from "react-router-dom";
 import { useSessionParams } from "@/features/sessions/hooks/useSessionParams";
 import ExamPolicyPanel from "./ExamPolicyPanel";
+import ExamEnrollmentPanel from "./ExamEnrollmentPanel";
 import ExamBulkActionsPanel from "./ExamBulkActionsPanel";
-import BlockReason from "../../components/BlockReason";
 
 export default function ExamSetupPanel({ examId }: { examId: number }) {
   const { sessionId: sessionIdFromPath } = useSessionParams();
@@ -213,13 +213,7 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
   return (
     <div className="space-y-6">
       <ExamPolicyPanel examId={examId} />
-
-      {!hasSession && (
-        <BlockReason
-          title="세션 컨텍스트 필요"
-          description="대상자 관리 및 제출/결과는 session_id가 있을 때만 가능합니다."
-        />
-      )}
+      {hasSession && <ExamEnrollmentPanel examId={examId} />}
 
       <ExamBulkActionsPanel examId={examId} />
     </div>

@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import HomeworkEnrollmentManageModal from "@/features/homework/components/HomeworkEnrollmentManageModal";
 import type { EnrollmentRow } from "@/features/sessions/components/enrollment/types";
+import { Button } from "@/shared/ui/ds";
 
 import { QUERY_KEYS } from "@/features/homework/queryKeys";
 import { useAdminHomework } from "@/features/homework/hooks/useAdminHomework";
@@ -172,7 +173,7 @@ export default function HomeworkEnrollmentPanel({
 
         {hasHomework && (
           <>
-            <div className="flex items-center justify-between rounded border bg-[var(--bg-surface-soft)] px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-3 py-2">
               <div className="text-sm text-[var(--text-primary)]">
                 선택됨{" "}
                 <span className="font-semibold">
@@ -184,17 +185,20 @@ export default function HomeworkEnrollmentPanel({
                     (불러오기 실패)
                   </span>
                 )}
+                <span className="ml-2 text-xs text-[var(--text-muted)]">
+                  homework #{hid}
+                </span>
               </div>
-              <div className="text-xs text-[var(--text-muted)]">homework #{hid}</div>
-            </div>
 
-            <button
-              type="button"
-              className="rounded border border-[var(--border-divider)] px-3 py-2 text-sm hover:bg-[var(--bg-surface-soft)]"
-              onClick={() => setOpen(true)}
-            >
-              대상자 목록 보기 / 관리
-            </button>
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                onClick={() => setOpen(true)}
+              >
+                대상자 관리
+              </Button>
+            </div>
           </>
         )}
       </div>
