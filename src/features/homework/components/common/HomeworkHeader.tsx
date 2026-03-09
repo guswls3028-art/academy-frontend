@@ -52,7 +52,7 @@ export default function HomeworkHeader({ homework }: Props) {
   const statusTone = isOpen ? "success" : "neutral";
 
   return (
-    <div className="mb-6 space-y-2">
+    <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">

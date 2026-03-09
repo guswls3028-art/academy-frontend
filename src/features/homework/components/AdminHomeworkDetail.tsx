@@ -2,8 +2,9 @@
 /**
  * AdminHomeworkDetail
  *
- * ✅ 시험 UX 100% 복제
- * 탭: setup / assets / submissions / results
+ * ✅ 시험 AdminExamDetail과 동일한 탭 구조
+ * - design: 기본 설정 | 자산 | 제출 | 결과
+ * - operate(세션 컨텍스트): 운영 | 결과 (운영 탭에 기본설정+자산+제출 통합)
  *
  * 🚫 금지
  * - 점수 계산 ❌
@@ -23,13 +24,18 @@ import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
 import HomeworkSubmissionsPanel from "../panels/HomeworkSubmissionsPanel";
 import HomeworkResultsPanel from "../panels/HomeworkResultsPanel";
 
+export type HomeworkDetailMode = "design" | "operate";
+
 export default function AdminHomeworkDetail({
   homeworkId,
   sessionId: sessionIdFromRoute,
+  mode = "design",
 }: {
   homeworkId: number;
   /** URL의 sessionId (과제 정책 조회용, 있으면 과제 로드 전에도 사용) */
   sessionId?: number;
+  /** operate 시 2탭(운영|결과), design 시 4탭 — 시험과 동일 */
+  mode?: HomeworkDetailMode;
 }) {
   const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
   const { data, isLoading, isError } = useAdminHomework(homeworkId);
@@ -53,21 +59,48 @@ export default function AdminHomeworkDetail({
     session_id: data.session_id,
   };
 
+  const showOperateSetup =
+    mode === "operate" &&
+    (activeTab === "setup" || activeTab === "assets" || activeTab === "submissions");
+
   return (
     <div className="space-y-6">
       <HomeworkHeader homework={summary} />
-      <HomeworkTabs activeTab={activeTab} onChange={setActiveTab} />
+      <HomeworkTabs
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        mode={mode}
+      />
 
-      {activeTab === "setup" && (
+      {mode === "design" && activeTab === "setup" && (
         <HomeworkSetupPanel
           homeworkId={homeworkId}
           sessionIdFromRoute={sessionIdFromRoute}
           homeworkSessionId={data?.session_id}
         />
       )}
-      {activeTab === "assets" && <HomeworkAssetsPanel homeworkId={homeworkId} />}
-      {activeTab === "submissions" && <HomeworkSubmissionsPanel homeworkId={homeworkId} />}
-      {activeTab === "results" && <HomeworkResultsPanel homeworkId={homeworkId} />}
+      {mode === "design" && activeTab === "assets" && (
+        <HomeworkAssetsPanel homeworkId={homeworkId} />
+      )}
+      {mode === "design" && activeTab === "submissions" && (
+        <HomeworkSubmissionsPanel homeworkId={homeworkId} />
+      )}
+
+      {showOperateSetup && (
+        <div className="space-y-6">
+          <HomeworkSetupPanel
+            homeworkId={homeworkId}
+            sessionIdFromRoute={sessionIdFromRoute}
+            homeworkSessionId={data?.session_id}
+          />
+          <HomeworkAssetsPanel homeworkId={homeworkId} />
+          <HomeworkSubmissionsPanel homeworkId={homeworkId} />
+        </div>
+      )}
+
+      {(activeTab === "results") && (
+        <HomeworkResultsPanel homeworkId={homeworkId} />
+      )}
     </div>
   );
 }

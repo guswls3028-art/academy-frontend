@@ -57,9 +57,19 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
         </div>
       ) : (
         <>
-          {mode === "exam" && <AdminExamDetail examId={activeId} />}
+          {mode === "exam" && (
+            <AdminExamDetail
+              examId={activeId}
+              sessionId={sessionId}
+              mode={sessionId ? "operate" : "design"}
+            />
+          )}
           {mode === "homework" && (
-            <AdminHomeworkDetail homeworkId={activeId} sessionId={sessionId} />
+            <AdminHomeworkDetail
+              homeworkId={activeId}
+              sessionId={sessionId}
+              mode="operate"
+            />
           )}
         </>
       )}

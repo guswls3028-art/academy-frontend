@@ -14,6 +14,9 @@
 
 export type HomeworkCutlineMode = "PERCENT" | "COUNT";
 
+/** 시험 ExamTabKey와 동일한 구조: design 시 4탭, operate 시 setup | results */
+export type HomeworkTabKey = "setup" | "assets" | "submissions" | "results";
+
 export type HomeworkSummary = {
   id: number;
   title: string;
