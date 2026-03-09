@@ -606,24 +606,36 @@ function Composer({ postId }: { postId: number }) {
     },
   });
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && content.trim() && !createMut.isPending) {
+      e.preventDefault();
+      createMut.mutate();
+    }
+  };
+
   return (
     <div className="qna-inbox__composer">
-      <div className="qna-inbox__composer-label">답변 작성</div>
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="답변을 입력하세요…"
-        rows={4}
-      />
-      <div className="qna-inbox__composer-actions">
-        <Button
-          intent="primary"
-          size="sm"
-          onClick={() => createMut.mutate()}
-          disabled={!content.trim() || createMut.isPending}
-        >
-          {createMut.isPending ? "등록 중…" : "답변 등록"}
-        </Button>
+      <div className="qna-inbox__composer-inner">
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="학생에게 답변을 작성하세요…"
+          rows={3}
+        />
+        <div className="qna-inbox__composer-footer">
+          <span className="qna-inbox__composer-hint">
+            <kbd>⌘</kbd><kbd>Enter</kbd> 빠른 등록
+          </span>
+          <Button
+            intent="primary"
+            size="sm"
+            onClick={() => createMut.mutate()}
+            disabled={!content.trim() || createMut.isPending}
+          >
+            {createMut.isPending ? "등록 중…" : "답변 등록"}
+          </Button>
+        </div>
       </div>
     </div>
   );
