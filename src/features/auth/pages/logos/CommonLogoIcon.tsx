@@ -1,6 +1,6 @@
 /**
  * 공통 학원 로고 (2번 테넌트 제외) — SVG 인라인, 배경 없음
- * 열린 책 + 위쪽 잎. 로그인·학생 상단바에서 사용.
+ * 졸업모자 + 열린 책. 로그인·학생 상단바에서 사용.
  */
 type Props = {
   width?: number | string;
@@ -30,18 +30,31 @@ export default function CommonLogoIcon({
     >
       {/* 열린 책 — 왼쪽 페이지 */}
       <path
-        d="M20 12v20l-9-1.2V13.2L20 12Z"
+        d="M20 14v18l-9.5-1.2V15.2L20 14Z"
         fill="currentColor"
-        opacity="0.9"
+        opacity="0.88"
       />
       {/* 열린 책 — 오른쪽 페이지 */}
       <path
-        d="M20 12v20l9-1.2V13.2L20 12Z"
+        d="M20 14v18l9.5-1.2V15.2L20 14Z"
         fill="currentColor"
-        opacity="0.75"
+        opacity="0.72"
       />
-      {/* 책 위 잎 (성장·교육) */}
-      <ellipse cx="20" cy="9" rx="3" ry="4" fill="currentColor" opacity="0.95" />
+      {/* 졸업모자 판 (마름모) */}
+      <path
+        d="M20 12 10 16.5v1.2l10-4.2 10 4.2v-1.2L20 12Z"
+        fill="currentColor"
+        opacity="0.98"
+      />
+      {/* 모자 술 (실 + 장식) */}
+      <path
+        d="M20 12 21 8.5"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinecap="round"
+        opacity="0.9"
+      />
+      <circle cx="21" cy="8" r="1.4" fill="currentColor" opacity="0.98" />
     </svg>
   );
 }
