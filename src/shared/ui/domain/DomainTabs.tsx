@@ -44,11 +44,16 @@ export default function DomainTabs({
             key={tab.key}
             type="button"
             className={`ds-tab ${
-              tab.path != null &&
-              (tab.exact
-                ? pathname === tab.path || pathname === tab.path + "/"
-                : pathname === tab.path ||
-                  pathname.startsWith(tab.path + "/"))
+              (() => {
+                if (tab.activePaths?.length) {
+                  return tab.activePaths.some(
+                    (p) => pathname === p || pathname === p + "/" || pathname.startsWith(p + "/")
+                  );
+                }
+                if (tab.path == null) return false;
+                if (tab.exact) return pathname === tab.path || pathname === tab.path + "/";
+                return pathname === tab.path || pathname.startsWith(tab.path + "/");
+              })()
                 ? "is-active"
                 : ""
             }`}
