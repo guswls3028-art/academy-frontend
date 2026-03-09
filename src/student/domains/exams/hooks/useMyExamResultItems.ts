@@ -10,7 +10,7 @@ export function useMyExamResultItems(examId?: number) {
   const safeId = Number(examId);
 
   return useQuery({
-    queryKey: ["my-exam-result-items", safeId],
+    queryKey: ["student", "exams", "result", "items", safeId],
     queryFn: () => fetchMyExamResultItems(safeId),
     enabled: Number.isFinite(safeId),
   });

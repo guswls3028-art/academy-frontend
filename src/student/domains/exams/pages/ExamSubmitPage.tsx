@@ -23,7 +23,7 @@ export default function ExamSubmitPage() {
 
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
   const questionsQ = useQuery({
-    queryKey: ["student-exam-questions", safeId],
+    queryKey: ["student", "exams", "questions", safeId],
     queryFn: () => fetchStudentExamQuestions(safeId),
     enabled: Number.isFinite(safeId),
   });

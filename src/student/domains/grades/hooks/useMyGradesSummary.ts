@@ -5,7 +5,7 @@ import { fetchMyGradesSummary } from "@/student/domains/grades/api/grades";
 
 export function useMyGradesSummary() {
   return useQuery({
-    queryKey: ["student-grades-summary"],
+    queryKey: ["student", "grades", "summary"],
     queryFn: fetchMyGradesSummary,
   });
 }

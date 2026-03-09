@@ -73,7 +73,7 @@ export default function ExamResultPage() {
                 borderRadius: 999,
                 fontSize: 12,
                 fontWeight: 700,
-                background: r.is_pass ? "var(--stu-success-bg)" : "rgba(239,68,68,0.12)",
+                background: r.is_pass ? "var(--stu-success-bg)" : "var(--stu-danger-bg)",
                 color: r.is_pass ? "var(--stu-success-text)" : "var(--stu-danger)",
               }}
             >
