@@ -56,8 +56,8 @@ export default function SessionScoresEntryPage(_props: Props) {
   };
 
   /** 합산 선택 시: 객관식/주관식과 동시 선택 불가. 이미 객관식/주관식이 켜져 있으면 확인 후 전환 */
-  const handleExamEditTotalChange = (checked: boolean) => {
-    if (!checked) {
+  const handleSelectTotal = () => {
+    if (examEditTotal) {
       setExamEditTotal(false);
       return;
     }
@@ -72,15 +72,18 @@ export default function SessionScoresEntryPage(_props: Props) {
     setExamEditSubjective(false);
   };
 
-  /** 객관식/주관식 선택 시 합산 해제(합산과 동시 선택 불가) */
-  const handleExamEditObjectiveChange = (checked: boolean) => {
-    setExamEditObjective(checked);
-    if (checked) setExamEditTotal(false);
+  /** 객관식/주관식 선택 시 합산 해제 */
+  const handleSelectObjective = () => {
+    if (examEditTotal) return;
+    setExamEditObjective((v) => !v);
+    setExamEditTotal(false);
   };
-  const handleExamEditSubjectiveChange = (checked: boolean) => {
-    setExamEditSubjective(checked);
-    if (checked) setExamEditTotal(false);
+  const handleSelectSubjective = () => {
+    if (examEditTotal) return;
+    setExamEditSubjective((v) => !v);
+    setExamEditTotal(false);
   };
+  const handleSelectHomework = () => setHomeworkEdit((v) => !v);
 
   const isSumOnly = examEditTotal;
   const isBreakdownMode = examEditObjective || examEditSubjective;
@@ -201,121 +204,155 @@ export default function SessionScoresEntryPage(_props: Props) {
 
       {isEditMode && (
         <div
-          className="flex flex-col gap-2 px-4 py-3 rounded-lg text-sm font-medium"
+          className="rounded-xl border text-sm"
           style={{
-            background: "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))",
-            color: "var(--color-brand-primary)",
-            border: "1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider))",
+            background: "var(--color-bg-surface)",
+            borderColor: "var(--color-border-divider)",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
           }}
         >
-          <span aria-live="polite">편집 모드 — 셀 쓰기 대상 선택</span>
-          <div className="flex flex-wrap items-center gap-6 font-normal">
-            <div className="flex items-center gap-2">
-              <span className="text-[var(--color-text-secondary)] mr-1">프리셋:</span>
-              <button
-                type="button"
-                onClick={setPresetTotalHw}
-                className={`px-2 py-1 rounded text-xs font-medium border ${examEditTotal && homeworkEdit && !examEditSubjective ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]" : "bg-transparent border-[var(--color-border-divider)] text-[var(--color-text-primary)]"}`}
-              >
-                합산+과제
-              </button>
-              <button
-                type="button"
-                onClick={setPresetSubjectiveHw}
-                className={`px-2 py-1 rounded text-xs font-medium border ${examEditSubjective && homeworkEdit ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]" : "bg-transparent border-[var(--color-border-divider)] text-[var(--color-text-primary)]"}`}
-              >
-                주관식+과제
-              </button>
+          <div className="px-4 py-3 border-b" style={{ borderColor: "var(--color-border-divider)" }}>
+            <span className="font-semibold text-[var(--color-text-primary)]">편집할 항목 선택</span>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              셀 쓰기를 허용할 시험·과제 항목을 블록을 눌러 선택하세요. 합산과 객관식/주관식은 동시에 선택할 수 없습니다.
+            </p>
+          </div>
+          <div className="p-4 flex flex-col gap-5">
+            {/* 프리셋 */}
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">빠른 선택</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={setPresetTotalHw}
+                  className={`min-w-[100px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 ${
+                    examEditTotal && homeworkEdit && !examEditSubjective
+                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                      : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                  }`}
+                >
+                  합산 + 과제
+                </button>
+                <button
+                  type="button"
+                  onClick={setPresetSubjectiveHw}
+                  className={`min-w-[100px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 ${
+                    examEditSubjective && homeworkEdit && !examEditTotal
+                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                      : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                  }`}
+                >
+                  주관식 + 과제
+                </button>
+              </div>
             </div>
-            <span className="text-[var(--color-border-divider)]">|</span>
-            <div className="flex items-center gap-3">
-              <span className="text-[var(--color-text-secondary)] font-semibold">시험</span>
-              <label id="exam-edit-objective-label" className={`inline-flex items-center gap-1.5 ${isSumOnly ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
-                <input
-                  id="exam-edit-objective"
-                  type="checkbox"
-                  checked={examEditObjective}
-                  onChange={(e) => handleExamEditObjectiveChange(e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
+
+            {/* 시험: 합산 | 객관식 | 주관식 */}
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">시험</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleSelectTotal}
+                  disabled={isBreakdownMode}
+                  className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
+                    isBreakdownMode
+                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
+                      : examEditTotal
+                        ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                        : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                  }`}
+                >
+                  합산
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectObjective}
                   disabled={isSumOnly}
-                  className="cursor-pointer disabled:cursor-not-allowed"
-                  aria-label="객관식 셀 쓰기"
-                />
-                <span className="text-[var(--color-text-primary)]">객관식</span>
-              </label>
-              <label id="exam-edit-subjective-label" className={`inline-flex items-center gap-1.5 ${isSumOnly ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
-                <input
-                  id="exam-edit-subjective"
-                  type="checkbox"
-                  checked={examEditSubjective}
-                  onChange={(e) => handleExamEditSubjectiveChange(e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
+                  className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
+                    isSumOnly
+                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
+                      : examEditObjective
+                        ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                        : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                  }`}
+                >
+                  객관식
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSelectSubjective}
                   disabled={isSumOnly}
-                  className="cursor-pointer disabled:cursor-not-allowed"
-                  aria-label="주관식 셀 쓰기"
-                />
-                <span
-                  className="text-[var(--color-text-primary)] select-none"
-                  onClick={(e) => {
-                    if (isSumOnly) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setExamEditSubjective((s) => !s);
-                    setExamEditTotal(false);
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
+                  className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
+                    isSumOnly
+                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
+                      : examEditSubjective
+                        ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                        : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                  }`}
                 >
                   주관식
-                </span>
-              </label>
-              <label id="exam-edit-total-label" className={`inline-flex items-center gap-1.5 ${isBreakdownMode ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
-                <input
-                  id="exam-edit-total"
-                  type="checkbox"
-                  checked={examEditTotal}
-                  onChange={(e) => handleExamEditTotalChange(e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
-                  disabled={isBreakdownMode}
-                  className="cursor-pointer disabled:cursor-not-allowed"
-                  aria-label="합산 셀 쓰기"
-                />
-                <span className="text-[var(--color-text-primary)]">합산</span>
-              </label>
+                </button>
+              </div>
             </div>
-            <span className="text-[var(--color-border-divider)]">|</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[var(--color-text-secondary)] font-semibold">과제</span>
-              <label id="homework-edit-label" className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input
-                  id="homework-edit"
-                  type="checkbox"
-                  checked={homeworkEdit}
-                  onChange={(e) => setHomeworkEdit(e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="cursor-pointer"
-                  aria-label="과제 셀 쓰기"
-                />
-                <span className="text-[var(--color-text-primary)]">과제</span>
-              </label>
+
+            {/* 과제 */}
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">과제</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleSelectHomework}
+                  className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
+                    homeworkEdit
+                      ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
+                      : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                  }`}
+                >
+                  과제
+                </button>
+              </div>
             </div>
           </div>
-          <span className="text-[var(--color-text-muted)] text-xs">
-            엑셀과 동일 조작 · Tab/Enter/방향키 셀 이동 · 미제출: <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)]">/</kbd>+Enter
-          </span>
+          <div className="px-4 py-2 border-t text-xs text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>
+            Tab / Enter / 방향키로 셀 이동 · 미제출: <kbd className="px-1.5 py-0.5 rounded bg-[var(--color-bg-elevated)] border border-[var(--color-border-divider)] font-mono">/</kbd> + Enter
+          </div>
         </div>
       )}
 
       {!isEditMode && (
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-[var(--color-text-secondary)]">시험 점수 표시:</span>
-          <label className="inline-flex items-center gap-1.5 cursor-pointer">
-            <input type="radio" name="scoreDisplayMode" checked={scoreDisplayMode === "total"} onChange={() => setScoreDisplayMode("total")} className="cursor-pointer" />
-            <span>합산</span>
-          </label>
-          <label className="inline-flex items-center gap-1.5 cursor-pointer">
-            <input type="radio" name="scoreDisplayMode" checked={scoreDisplayMode === "breakdown"} onChange={() => setScoreDisplayMode("breakdown")} className="cursor-pointer" />
-            <span>객관식 + 주관식</span>
-          </label>
+        <div
+          className="rounded-lg border px-4 py-3 flex flex-wrap items-center gap-3"
+          style={{
+            background: "var(--color-bg-surface)",
+            borderColor: "var(--color-border-divider)",
+          }}
+        >
+          <span className="text-sm font-medium text-[var(--color-text-secondary)]">시험 점수 표시</span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setScoreDisplayMode("total")}
+              className={`min-w-[72px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all border-2 ${
+                scoreDisplayMode === "total"
+                  ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]"
+                  : "bg-transparent text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50"
+              }`}
+            >
+              합산
+            </button>
+            <button
+              type="button"
+              onClick={() => setScoreDisplayMode("breakdown")}
+              className={`min-w-[72px] px-3 py-1.5 rounded-lg text-sm font-medium transition-all border-2 ${
+                scoreDisplayMode === "breakdown"
+                  ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]"
+                  : "bg-transparent text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50"
+              }`}
+            >
+              객관식 + 주관식
+            </button>
+          </div>
         </div>
       )}
 
