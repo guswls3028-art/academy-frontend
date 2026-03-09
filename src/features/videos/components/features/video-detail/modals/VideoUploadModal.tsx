@@ -7,6 +7,7 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { initVideoUpload, uploadFileToR2AndComplete } from "@/features/videos/utils/videoUpload";
+import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import "./VideoUploadModal.css";
 
 function UploadIcon({ className, size = 22 }: { className?: string; size?: number }) {
@@ -387,7 +388,10 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
               </div>
             </div>
             <p className="modal-hint video-upload-modal__policy-hint">
-              출석형태가 영상(실제 출결뱃지)인 학생만 최초 1회 영향을 받습니다. 이후 기능 제한 없이 시청합니다.
+              <span className="video-upload-modal__policy-hint-badge" aria-hidden>
+                <AttendanceStatusBadge status="ONLINE" variant="2ch" />
+              </span>
+              출결 뱃지가 <strong>영상</strong>인 학생만 최초 1회 적용됩니다. 이후에는 제한 없이 시청할 수 있어요.
             </p>
           </div>
         </div>
