@@ -233,8 +233,9 @@ export default function NoticeAdminPage() {
         <div className="notice-tree__tabs">
           <button
             type="button"
-            className={`notice-tree__tab ${scope === "all" ? "notice-tree__tab--active" : ""}`}
+            className={`notice-tree__tab ${scope === "all" ? "notice-tree__tab--active notice-tree__tab--selected" : ""}`}
             onClick={selectAll}
+            aria-selected={scope === "all"}
           >
             <span className="notice-tree__tab-icon" aria-hidden>📋</span>
             <span className="notice-tree__tab-label">전체공지</span>

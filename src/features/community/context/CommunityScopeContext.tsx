@@ -24,7 +24,7 @@ export function CommunityScopeProvider({ children }: { children: ReactNode }) {
   const [lectureId, setLectureId] = useState<number | null>(null);
   const [sessionId, setSessionId] = useState<number | null>(null);
 
-  // URL 쿼리와 동기화 (강의 목록에서 바로가기 등으로 진입 시)
+  // URL 쿼리와 동기화 (트리 선택 시 페이지에서 setSearchParams 호출 → 여기서 반영)
   useEffect(() => {
     const scopeParam = searchParams.get("scope") as CommunityScope | null;
     const lid = searchParams.get("lectureId");
