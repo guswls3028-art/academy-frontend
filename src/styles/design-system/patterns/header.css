@@ -222,6 +222,10 @@
   z-index: 1;
 }
 
+[data-app="admin"] .app-header__searchWrap .ant-input-affix-wrapper.app-header__searchInput {
+  overflow: visible !important;
+}
+
 [data-app="admin"] .app-header__searchInput::placeholder {
   color: var(--color-text-muted);
 }
