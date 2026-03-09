@@ -14,7 +14,7 @@ import {
   type MessageTemplateItem,
 } from "../api/messages.api";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
-import { Button, Panel } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
 const QUERY_KEY = ["messaging", "auto-send"] as const;
@@ -336,7 +336,17 @@ export default function MessageAutoSendPage() {
 
   if (isLoading) {
     return (
-      <Panel variant="primary" title="자동발송">
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+        }}
+      >
+        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 10 }}>
+          자동발송
+        </div>
         <div
           style={{
             display: "flex",
@@ -359,17 +369,26 @@ export default function MessageAutoSendPage() {
             />
           ))}
         </div>
-      </Panel>
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-5">
-      <Panel
-        variant="primary"
-        title="자동발송"
-        description="특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다."
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+        }}
       >
+        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+          자동발송
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: "var(--space-4)" }}>
+          특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.
+        </p>
         {!smsAllowed && (
           <div
             style={{
@@ -416,7 +435,7 @@ export default function MessageAutoSendPage() {
             />
           ))}
         </div>
-      </Panel>
+      </div>
     </div>
   );
 }
