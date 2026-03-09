@@ -510,7 +510,7 @@ export default function AnswerKeyRegisterModal({
                       onScoreReset={() =>
                         setScoreDraft((prev) => ({ ...prev, [q.id]: 0 }))
                       }
-                      showDividerAfter={(index + 1) % 5 === 0 && index < essayQuestions.length - 1}
+                      showDividerAfter={false}
                     />
                   ))}
                 </ul>
