@@ -12,6 +12,8 @@ function normalizeExam(raw: any): Exam {
     exam_type: raw.exam_type,
 
     is_active: Boolean(raw.is_active),
+    status: (raw?.status ?? "DRAFT") as Exam["status"],
+
     allow_retake: Boolean(raw.allow_retake),
     max_attempts: Number(raw.max_attempts ?? 0),
 
@@ -49,6 +51,7 @@ export async function updateAdminExam(
     | "description"
     | "subject"
     | "is_active"
+    | "status"
     | "allow_retake"
     | "max_attempts"
     | "pass_score"

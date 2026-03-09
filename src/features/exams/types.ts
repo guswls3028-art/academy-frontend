@@ -1,5 +1,8 @@
 export type ExamType = "template" | "regular";
 
+/** 과제와 동일. 사용자에는 설정 중/진행 중/마감으로만 노출 */
+export type ExamStatus = "DRAFT" | "OPEN" | "CLOSED";
+
 export type ExamTabKey =
   | "setup"
   | "assets"
@@ -20,6 +23,9 @@ export type Exam = {
   exam_type: ExamType;
 
   is_active: boolean;
+  /** 과제와 동일: DRAFT=설정 중, OPEN=진행 중, CLOSED=마감 */
+  status: ExamStatus;
+
   allow_retake: boolean;
   max_attempts: number;
 
