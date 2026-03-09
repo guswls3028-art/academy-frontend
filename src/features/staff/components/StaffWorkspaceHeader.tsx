@@ -47,6 +47,7 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
   const gross = basePay + allowance;
   const tax = Math.floor(gross * TAX_RATE);
   const net = gross - tax;
+  const isLoading = summaryQ.isLoading;
 
   const goMonth = (delta: number) => {
     const d = new Date(year, month - 1 + delta);

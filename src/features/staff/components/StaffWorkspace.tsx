@@ -54,8 +54,13 @@ export function StaffWorkspace() {
       {/* RIGHT: Workspace */}
       <div className="staff-panel min-h-[420px] flex flex-col overflow-hidden">
         {staffId == null ? (
-          <div className="staff-empty flex-1 flex flex-col items-center justify-center py-16">
-            <User className="staff-empty__icon" strokeWidth={1.5} />
+          <div
+            className="staff-empty flex-1 flex flex-col items-center justify-center py-16"
+            role="status"
+            aria-live="polite"
+            aria-label="직원이 선택되지 않았습니다. 좌측 목록에서 직원을 선택하세요."
+          >
+            <User className="staff-empty__icon" strokeWidth={1.5} aria-hidden />
             <p className="staff-empty__title">직원이 선택되지 않았습니다</p>
             <p className="staff-empty__desc">좌측 목록에서 직원을 선택하면 근태·비용·급여를 조회·관리할 수 있습니다.</p>
           </div>
