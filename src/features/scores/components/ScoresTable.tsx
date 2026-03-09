@@ -843,7 +843,12 @@ export default function ScoresTable({
                                   }}
                                   onKeyDown={async (e) => {
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
-                                    if (e.key === "Enter") {
+                                    if (e.key === "Escape") {
+                                      e.preventDefault();
+                                      const prev = examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] ?? "";
+                                      if (el) el.innerText = prev;
+                                      el?.blur();
+                                    } else if (e.key === "Enter") {
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
@@ -862,7 +867,9 @@ export default function ScoresTable({
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
-                                    } else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
+                                    } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
+                                    else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
+                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
                                     else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
                                   }}
                                 />
