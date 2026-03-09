@@ -1,5 +1,5 @@
 // PATH: src/features/profile/account/components/TenantInfoCard.tsx
-// 설정 > 내 정보 — 소속 학원(본부 전화). 학생앱 "본부 진입게이트"에 노출되는 정보.
+// 설정 > 내 정보 — 소속 학원 등록(학원명·전화). 학생앱 "학원문의"에 노출.
 
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
@@ -24,13 +24,18 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
     onError: () => feedback.error("저장에 실패했습니다."),
   });
 
+  const [name, setName] = useState("");
   const [headquartersPhone, setHeadquartersPhone] = useState("");
   useEffect(() => {
+    setName(info?.name ?? "");
     setHeadquartersPhone(info?.headquarters_phone ?? "");
-  }, [info?.headquarters_phone]);
+  }, [info?.name, info?.headquarters_phone]);
 
   const handleSave = () => {
-    updateMut.mutate({ headquarters_phone: headquartersPhone.trim() });
+    updateMut.mutate({
+      name: name.trim(),
+      headquarters_phone: headquartersPhone.trim(),
+    });
   };
 
   if (isLoading || !info) {
@@ -58,9 +63,9 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
             <FaBuilding size={16} />
           </div>
           <div className="ds-card-modal__header-text">
-            <div className="ds-card-modal__header-title">소속 학원</div>
+            <div className="ds-card-modal__header-title">소속 학원 등록</div>
             <div className="ds-card-modal__header-description">
-              학생앱 홈 하단 "본부"에 표시되는 학원명·전화번호입니다. 메시지 연동은{" "}
+              학생앱 홈 하단 "학원문의"에 표시되는 학원명·전화번호입니다. 메시지 연동은{" "}
               <Link to="/admin/settings/messages" className="ds-link">
                 메시지 설정
               </Link>
@@ -71,25 +76,36 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
       </header>
 
       <div className="ds-card-modal__body">
-        <div className="space-y-2">
-          <div>
-            <span className="text-xs text-[var(--color-text-muted)]">학원명</span>
-            <div className="font-medium text-[var(--color-text-primary)]">{info.name || "—"}</div>
-          </div>
+        <div className="space-y-4">
           {canEdit ? (
-            <div>
-              <label className="text-xs text-[var(--color-text-muted)]">본부 전화번호</label>
-              <div className="flex flex-wrap items-center gap-2 mt-1">
+            <>
+              <div>
+                <label className="text-xs font-medium text-[var(--color-text-muted)]">학원명</label>
+                <input
+                  type="text"
+                  className="ds-input mt-1"
+                  placeholder="예: OO학원"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={updateMut.isPending}
+                  style={{ maxWidth: 280 }}
+                  aria-label="학원명"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[var(--color-text-muted)]">학원문의 전화번호</label>
                 <input
                   type="tel"
-                  className="ds-input"
+                  className="ds-input mt-1"
                   placeholder="예: 02-1234-5678"
                   value={headquartersPhone}
                   onChange={(e) => setHeadquartersPhone(e.target.value)}
                   disabled={updateMut.isPending}
                   style={{ maxWidth: 200 }}
-                  aria-label="본부 전화번호"
+                  aria-label="학원문의 전화번호"
                 />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
                   intent="primary"
@@ -100,18 +116,24 @@ export default function TenantInfoCard({ canEdit }: { canEdit: boolean }) {
                   {updateMut.isPending ? "저장 중…" : "저장"}
                 </Button>
               </div>
-            </div>
+            </>
           ) : (
-            displayPhone && (
+            <>
               <div>
-                <span className="text-xs text-[var(--color-text-muted)]">본부 전화</span>
-                <div className="font-medium">
-                  <a href={`tel:${displayPhone.replace(/\D/g, "")}`} className="ds-link">
-                    {displayPhone}
-                  </a>
-                </div>
+                <span className="text-xs font-medium text-[var(--color-text-muted)]">학원명</span>
+                <div className="font-medium text-[var(--color-text-primary)] mt-0.5">{info.name || "—"}</div>
               </div>
-            )
+              {displayPhone && (
+                <div>
+                  <span className="text-xs font-medium text-[var(--color-text-muted)]">학원문의 전화</span>
+                  <div className="font-medium mt-0.5">
+                    <a href={`tel:${displayPhone.replace(/\D/g, "")}`} className="ds-link">
+                      {displayPhone}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

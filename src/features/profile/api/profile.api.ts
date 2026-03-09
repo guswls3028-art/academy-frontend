@@ -48,7 +48,7 @@ export async function changePassword(payload: {
   return data as { message?: string };
 }
 
-/** 소속 학원(테넌트) 정보 — 설정 > 내 정보에서 본부 전화 등 표시/수정 */
+/** 소속 학원(테넌트) 정보 — 설정 > 내 정보에서 학원문의(학원명·전화) 표시/수정 */
 export type TenantInfo = {
   name: string;
   phone: string;
@@ -60,7 +60,7 @@ export async function fetchTenantInfo(): Promise<TenantInfo> {
   return data;
 }
 
-export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "phone" | "headquarters_phone">>): Promise<TenantInfo> {
+export async function updateTenantInfo(payload: Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone">>): Promise<TenantInfo> {
   const { data } = await api.patch<TenantInfo>("/core/tenant-info/", payload);
   return data;
 }
