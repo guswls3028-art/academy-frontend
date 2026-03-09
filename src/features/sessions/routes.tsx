@@ -5,6 +5,7 @@ import { RouteObject } from "react-router-dom";
 import SessionLayout from "./layout/SessionLayout";
 
 // 탭 라우트들
+import SessionOverviewRoute from "./routes/SessionOverviewRoute";
 import SessionAttendanceRoute from "./routes/SessionAttendanceRoute";
 import SessionExamsRoute from "./routes/SessionExamsRoute";
 import SessionScoresRoute from "./routes/SessionScoresRoute";
@@ -21,7 +22,8 @@ export const sessionRoutes: RouteObject[] = [
     path: "sessions/:sessionId",
     element: <SessionLayout />,
     children: [
-      { index: true, element: <SessionAttendanceRoute /> }, // 기본 진입 탭(원본 존중)
+      { index: true, element: <SessionOverviewRoute /> },
+      { path: "overview", element: <SessionOverviewRoute /> },
       { path: "attendance", element: <SessionAttendanceRoute /> },
       { path: "exams", element: <SessionExamsRoute /> },
       { path: "assignments", element: <SessionAssignmentsRoute /> },
