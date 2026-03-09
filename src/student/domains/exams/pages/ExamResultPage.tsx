@@ -11,6 +11,7 @@ import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useMyExamResult } from "@/student/domains/exams/hooks/useMyExamResult";
 import { useMyExamResultItems } from "@/student/domains/exams/hooks/useMyExamResultItems";
+import GradeBadge from "@/student/domains/grades/components/GradeBadge";
 
 export default function ExamResultPage() {
   const { examId } = useParams();
@@ -67,18 +68,7 @@ export default function ExamResultPage() {
               {r.total_score} / {r.max_score}
             </div>
 
-            <span
-              style={{
-                padding: "4px 8px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 700,
-                background: r.is_pass ? "var(--stu-success-bg)" : "var(--stu-danger-bg)",
-                color: r.is_pass ? "var(--stu-success-text)" : "var(--stu-danger)",
-              }}
-            >
-              {r.is_pass ? "합격" : "불합격"}
-            </span>
+            <GradeBadge passed={r.is_pass} />
           </div>
 
           {r.submitted_at && (
@@ -113,18 +103,7 @@ export default function ExamResultPage() {
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{it.question_number}번</span>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        background: it.is_correct ? "var(--stu-success-bg)" : "var(--stu-danger-bg)",
-                        color: it.is_correct ? "var(--stu-success-text)" : "var(--stu-danger)",
-                      }}
-                    >
-                      {it.is_correct ? "정답" : "오답"}
-                    </span>
+                    <GradeBadge passed={it.is_correct} label={{ pass: "정답", fail: "오답" }} />
                     <span className="stu-muted" style={{ fontSize: 12, marginLeft: "auto" }}>
                       {it.score} / {it.max_score}점
                     </span>
