@@ -96,6 +96,30 @@
   text-align: right;
 }
 
+/* 트리 노드별 공지 개수 뱃지 (숫자만 깔끔하게) */
+.notice-tree__count {
+  flex-shrink: 0;
+  min-width: 20px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.notice-tree__tab--active .notice-tree__count {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.notice-tree__sub-item--active .notice-tree__count {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
 /* 하위 트리: 강의목록 펼치면 강의명 → 차시 (위 탭과 동일 디자인) */
 .notice-tree__sub {
   flex: 1;

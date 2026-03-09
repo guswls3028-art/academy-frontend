@@ -219,6 +219,11 @@ export default function NoticeAdminPage() {
           >
             <span className="notice-tree__tab-icon" aria-hidden>📋</span>
             <span className="notice-tree__tab-label">전체공지</span>
+            {noticeCounts.totalNoticeCount > 0 && (
+              <span className="notice-tree__count" aria-label={`공지 ${noticeCounts.totalNoticeCount}건`}>
+                {noticeCounts.totalNoticeCount}
+              </span>
+            )}
             <span className="notice-tree__tab-chevron" aria-hidden />
           </button>
           <button
@@ -229,6 +234,11 @@ export default function NoticeAdminPage() {
           >
             <span className="notice-tree__tab-icon" aria-hidden>📁</span>
             <span className="notice-tree__tab-label">강의목록</span>
+            {noticeCounts.totalUnderScope > 0 && (
+              <span className="notice-tree__count" aria-label={`공지 ${noticeCounts.totalUnderScope}건`}>
+                {noticeCounts.totalUnderScope}
+              </span>
+            )}
             <span className="notice-tree__tab-chevron">
               {expandedParent ? "▼" : "▶"}
             </span>
@@ -254,6 +264,11 @@ export default function NoticeAdminPage() {
                     size={20}
                   />
                   <span className="notice-tree__sub-label">{lec.title || lec.name || `강의 ${lec.id}`}</span>
+                  {noticeCounts.countByLecture[lec.id] != null && noticeCounts.countByLecture[lec.id] > 0 && (
+                    <span className="notice-tree__count" aria-label={`공지 ${noticeCounts.countByLecture[lec.id]}건`}>
+                      {noticeCounts.countByLecture[lec.id]}
+                    </span>
+                  )}
                   <span className="notice-tree__sub-chevron-right" aria-hidden />
                 </button>
                 {expandedLectureId === lec.id && (
@@ -263,17 +278,29 @@ export default function NoticeAdminPage() {
                         불러오는 중…
                       </div>
                     ) : (
-                      (sessionsOfLecture as Session[]).map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
-                          onClick={() => selectSession(lec.id, s.id)}
-                        >
-                          <span className="notice-tree__sub-item-child-icon" aria-hidden>ㄴ</span>
-                          <span className="notice-tree__sub-label">{s.title || `${s.order}차시`}</span>
-                        </button>
-                      ))
+                      (sessionsOfLecture as Session[]).map((s) => {
+                        const sessionNodeId = scopeNodes.find(
+                          (n) => n.lecture === lec.id && n.session === s.id
+                        )?.id;
+                        const sessionCount =
+                          sessionNodeId != null ? noticeCounts.countByNodeId[sessionNodeId] ?? 0 : 0;
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
+                            onClick={() => selectSession(lec.id, s.id)}
+                          >
+                            <span className="notice-tree__sub-item-child-icon" aria-hidden>ㄴ</span>
+                            <span className="notice-tree__sub-label">{s.title || `${s.order}차시`}</span>
+                            {sessionCount > 0 && (
+                              <span className="notice-tree__count" aria-label={`공지 ${sessionCount}건`}>
+                                {sessionCount}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
                     )}
                   </div>
                 )}
@@ -379,6 +406,7 @@ export default function NoticeAdminPage() {
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
             qc.invalidateQueries({ queryKey: ["community-board-posts"] });
+            qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
             setShowCreate(false);
           }}
         />
@@ -468,6 +496,7 @@ function NoticeDetailView({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
       qc.invalidateQueries({ queryKey: ["community-board-posts"] });
+      qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
       feedback.success("공지가 삭제되었습니다.");
       onDeleted();
     },
@@ -481,6 +510,7 @@ function NoticeDetailView({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
+      qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
       feedback.success("노출 노드가 저장되었습니다.");
     },
     onError: (e: unknown) => {
