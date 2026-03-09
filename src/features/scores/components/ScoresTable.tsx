@@ -11,7 +11,6 @@ import { useMemo, useRef, useEffect, Fragment, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
-import InlineExamItemsRow from "./InlineExamItemsRow";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
@@ -55,6 +54,10 @@ function validateScore(value: number, maxScore?: number | null): boolean {
     return false;
   }
   return true;
+}
+
+function firstLine(text: string): string {
+  return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
 
 /** 합불 뱃지 — 시험/과제 컬럼용. 불(빨강)과 동일 디자인으로 합(초록) solid 배경 + 흰 글자 */
@@ -472,13 +475,6 @@ export default function ScoresTable({
           const selected = selectedEnrollmentId === row.enrollment_id;
           const rowChecked = selectedSet.has(row.enrollment_id);
           const { target: clinicTarget, reason: clinicReason } = getClinicReason(row);
-          const showExpand =
-            selected &&
-            isEditMode &&
-            examScoreInputMode === "SUBJECTIVE" &&
-            activeColumn === "exam" &&
-            selectedExamId != null &&
-            row.enrollment_id === selectedEnrollmentId;
           const isEvenRow = rowIndex % 2 === 1;
 
           return (
@@ -553,10 +549,8 @@ export default function ScoresTable({
                   const canEditTotal =
                     isEditMode &&
                     examScoreInputMode === "TOTAL" &&
-                    !!entry &&
                     !block?.is_locked &&
-                    block?.score != null &&
-                    block?.max_score != null;
+                    activeColumn === "exam";
                   const isSelected =
                     selected &&
                     selectedExamId === ex.exam_id &&
@@ -606,14 +600,14 @@ export default function ScoresTable({
                               const key = `${row.enrollment_id}-${ex.exam_id}`;
                               const el = examInputRefs.current[key];
                               if (!el) return;
-                              const raw = el.innerText.trim();
+                              const raw = firstLine(el.innerText);
                               if (raw === "") {
                                 el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                 return;
                               }
-                              const parsed = parseScoreInput(raw, block?.max_score ?? null);
+                              const parsed = parseScoreInput(raw, 100);
                               if (parsed != null) {
-                                if (!validateScore(parsed, block?.max_score)) {
+                                if (!validateScore(parsed, 100)) {
                                   el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                   return;
                                 }
@@ -621,7 +615,7 @@ export default function ScoresTable({
                                   examId: ex.exam_id,
                                   enrollmentId: row.enrollment_id,
                                   score: parsed,
-                                  maxScore: block?.max_score ?? null,
+                                  maxScore: 100,
                                 });
                                 qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                               } else {
@@ -648,9 +642,9 @@ export default function ScoresTable({
                               }
                               if (e.key === "Enter") {
                                 e.preventDefault();
-                                const parsed = parseScoreInput(raw, block?.max_score ?? null);
+                                const parsed = parseScoreInput(raw, 100);
                                 if (parsed != null) {
-                                  if (!validateScore(parsed, block?.max_score)) {
+                                  if (!validateScore(parsed, 100)) {
                                     if (el) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                     return;
                                   }
@@ -658,7 +652,7 @@ export default function ScoresTable({
                                     examId: ex.exam_id,
                                     enrollmentId: row.enrollment_id,
                                     score: parsed,
-                                    maxScore: block?.max_score ?? null,
+                                    maxScore: 100,
                                   });
                                   qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                 } else {
@@ -949,27 +943,6 @@ export default function ScoresTable({
                 </td>
               </tr>
 
-              {showExpand && (
-                <tr key={`${row.enrollment_id}-expand`}>
-                  <td
-                    colSpan={tableCols.length}
-                    className="!p-0 border-b border-[var(--color-border-divider)]"
-                    style={{
-                      background:
-                        "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))",
-                      padding: "var(--space-4)",
-                    }}
-                  >
-                    <div className="p-4">
-                      <InlineExamItemsRow
-                        examId={selectedExamId}
-                        enrollmentId={row.enrollment_id}
-                        variant="block"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              )}
             </Fragment>
           );
         })}

@@ -12,6 +12,7 @@ import {
 import { fetchAttendance } from "@/features/lectures/api/attendance";
 
 import ScoresTable from "../components/ScoresTable";
+import InlineExamItemsRow from "../components/InlineExamItemsRow";
 import { EmptyState } from "@/shared/ui/ds";
 
 type Props = {
@@ -387,6 +388,27 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
           onSelectionChange={onSelectionChange}
         />
       </div>
+
+      {isEditMode && examScoreInputMode === "SUBJECTIVE" && selected && currentExamId != null && (
+        <section
+          className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4"
+          style={{
+            boxShadow: "0 1px 3px rgba(0,0,0,.06)",
+          }}
+        >
+          <div className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">
+            주관식 점수 입력 (학생: {selected.student_name})
+          </div>
+          <div className="text-xs text-[var(--color-text-muted)] mb-3">
+            선택한 시험 문항 점수를 입력합니다. (테이블 행 높이는 변하지 않습니다)
+          </div>
+          <InlineExamItemsRow
+            examId={currentExamId}
+            enrollmentId={selected.enrollment_id}
+            variant="block"
+          />
+        </section>
+      )}
     </div>
   );
 }
