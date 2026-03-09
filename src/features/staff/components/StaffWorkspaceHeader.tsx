@@ -96,10 +96,21 @@ export function StaffWorkspaceHeader({ staffId, year, month }: Props) {
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <span className="staff-chip text-xs">총 {workHours.toFixed(1)}h</span>
-        <span className="staff-chip staff-chip--primary text-xs">기본급 {basePay.toLocaleString()}원</span>
-        <span className="staff-chip text-xs">수당 {allowance.toLocaleString()}원</span>
-        <span className="staff-chip staff-chip--success text-xs">예상 실지급 {net.toLocaleString()}원</span>
+        {isLoading ? (
+          <>
+            <span className="staff-chip text-xs opacity-60">총 —h</span>
+            <span className="staff-chip staff-chip--primary text-xs opacity-60">기본급 —</span>
+            <span className="staff-chip text-xs opacity-60">수당 —</span>
+            <span className="staff-chip staff-chip--success text-xs opacity-60">예상 실지급 —</span>
+          </>
+        ) : (
+          <>
+            <span className="staff-chip text-xs">총 {workHours.toFixed(1)}h</span>
+            <span className="staff-chip staff-chip--primary text-xs">기본급 {basePay.toLocaleString()}원</span>
+            <span className="staff-chip text-xs">수당 {allowance.toLocaleString()}원</span>
+            <span className="staff-chip staff-chip--success text-xs">예상 실지급 {net.toLocaleString()}원</span>
+          </>
+        )}
       </div>
     </div>
   );
