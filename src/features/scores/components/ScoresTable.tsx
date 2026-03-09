@@ -1231,14 +1231,8 @@ export default function ScoresTable({
                   onClick={() => onSelectRow(row)}
                 >
                   <span className="inline-flex items-center gap-1.5">
-                    {clinicTarget ? (
-                      <span
-                        className="ds-status-badge px-2 py-0.5 rounded-md text-xs font-medium"
-                        data-tone="danger"
-                        title="클리닉 대상"
-                      >
-                        대상
-                      </span>
+                    {row.clinic_required === true ? (
+                      <span className="text-[var(--color-text-secondary)] font-medium">대상</span>
                     ) : (
                       <span className="text-[var(--color-text-secondary)] font-medium">합격</span>
                     )}

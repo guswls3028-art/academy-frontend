@@ -58,6 +58,8 @@ export type SessionScoreRow = {
 
   updated_at: string;
 
+  /** 행 단위 클리닉 대상 여부(백엔드 ClinicLink). 판정 컬럼 "대상"|"합격" 표시용 */
+  clinic_required?: boolean;
   /** 클리닉 대상 + 해당 주차 클리닉 미수강 → 이름만 노란 형광펜. 수강 완료(ATTENDED) 시 false */
   name_highlight_clinic_target?: boolean;
 };
