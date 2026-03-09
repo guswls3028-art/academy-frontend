@@ -456,3 +456,45 @@ export function parseSessionEnrollExcel(file: File): Promise<SessionEnrollParsed
     reader.readAsBinaryString(file);
   });
 }
+
+/** 목록에서 선택한 학생 내보내기용 행 타입 */
+export interface StudentExportRow {
+  name: string;
+  parentPhone: string | null;
+  studentPhone: string | null;
+  school: string | null;
+  grade: number | null;
+  schoolClass: string | null;
+  major: string | null;
+  gender: string | null;
+  omrCode: string;
+  registeredAt: string | null;
+  tags: { name: string }[];
+}
+
+/** 선택한 학생 목록을 엑셀로 다운로드 */
+export function downloadStudentsExcel(rows: StudentExportRow[], filename = "학생목록.xlsx"): void {
+  const headers = ["이름", "학부모 전화", "학생 전화", "학교", "학년", "반", "계열", "성별", "식별코드", "등록일", "태그"];
+  const genderLabel = (g: string | null) => (g === "M" ? "남자" : g === "F" ? "여자" : g ?? "");
+  const data = [
+    headers,
+    ...rows.map((r) => [
+      r.name ?? "",
+      r.parentPhone ?? "",
+      r.studentPhone ?? "",
+      r.school ?? "",
+      r.grade != null ? `${r.grade}학년` : "",
+      r.schoolClass ?? "",
+      r.major ?? "",
+      genderLabel(r.gender),
+      r.omrCode ?? "",
+      r.registeredAt ?? "",
+      (r.tags ?? []).map((t) => t.name).join(", "),
+    ]),
+  ];
+  const sheet = XLSX.utils.aoa_to_sheet(data);
+  sheet["!cols"] = headers.map((_, i) => ({ wch: i === 0 ? 12 : i === 9 ? 18 : 14 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheet, "학생목록");
+  XLSX.writeFile(wb, filename);
+}

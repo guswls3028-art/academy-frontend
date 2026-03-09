@@ -20,7 +20,7 @@ import StudentFormModal from "../components/EditStudentModal";
 import TagCreateModal from "../components/TagCreateModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button, CloseButton } from "@/shared/ui/ds";
-import { formatPhone, formatStudentPhoneDisplay, formatOmrCode } from "@/shared/utils/formatPhone";
+import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 
 const TABS = [
   { key: "enroll", label: "수강 이력" },
@@ -383,7 +383,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
                     label="학생 전화"
                     value={formatStudentPhoneDisplay(student.studentPhone)}
                   />
-                  <InfoRow label="성별" value={student.gender} />
+                  <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />
                   <InfoRow label="학교" value={student.school} />
                   {student.schoolType === "HIGH" && (
                     <InfoRow label="출신중학교" value={student.originMiddleSchool} />

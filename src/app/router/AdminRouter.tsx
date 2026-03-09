@@ -28,7 +28,8 @@ const DashboardPage = lazy(() => import("@/features/dashboard/pages/DashboardPag
 /* ================= Lazy: Students ================= */
 const StudentsLayout = lazy(() => import("@/features/students/StudentsLayout"));
 const StudentsHomePage = lazy(() => import("@/features/students/pages/StudentsHomePage"));
-const StudentsRequestsPage = lazy(() => import("@/features/students/pages/StudentsRequestsPage"));
+// StudentsRequestsPage: 동적 import 시 청크 fetch 실패(404) 방지를 위해 정적 import (#310 동일 대응)
+import StudentsRequestsPage from "@/features/students/pages/StudentsRequestsPage";
 const StudentsDetailOverlay = lazy(() => import("@/features/students/overlays/StudentsDetailOverlay"));
 
 /* ================= Lazy: Lectures ================= */

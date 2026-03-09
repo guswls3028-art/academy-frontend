@@ -29,3 +29,10 @@ export function formatStudentPhoneDisplay(phone?: string | null): string {
   if (phone == null || String(phone).trim() === "") return "-";
   return formatPhone(phone);
 }
+
+/** 성별 표시 — M → 남자, F → 여자 */
+export function formatGenderDisplay(gender?: string | null): string {
+  if (gender === "M") return "남자";
+  if (gender === "F") return "여자";
+  return gender?.trim() ? String(gender) : "-";
+}
