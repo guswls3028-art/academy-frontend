@@ -42,7 +42,6 @@ export default function ClinicBookingsPage() {
   const pendingQ = useClinicParticipants({ status: "pending" });
 
   const pendingList: ClinicParticipant[] = pendingQ.listQ.data ?? [];
-  const hasPending = pendingList.length > 0;
 
   const patchStatusM = useMutation({
     mutationFn: ({ id, status }: { id: number; status: "booked" | "rejected" }) =>

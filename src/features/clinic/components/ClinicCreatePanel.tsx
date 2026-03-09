@@ -1,7 +1,7 @@
 // PATH: src/features/clinic/components/ClinicCreatePanel.tsx
 // 클리닉 생성 — 차시 추가 모달과 똑같은 DatePicker·TimeRangeInput만 사용 (같은 컴포넌트·같은 props, 직접선택 행 없음)
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Input, App, Popover } from "antd";
 import dayjs from "dayjs";
 import { Save, FolderOpen, Trash2 } from "lucide-react";
@@ -9,15 +9,12 @@ import { Save, FolderOpen, Trash2 } from "lucide-react";
 import { DatePicker } from "@/shared/ui/date";
 import { TimeRangeInput } from "@/shared/ui/time";
 import { Button } from "@/shared/ui/ds";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { fetchClinicSessionTree } from "../api/clinicSessions.api";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
 
 import api from "@/shared/api/axios";
-
-type TargetRow = { enrollment_id: number; student_name: string };
-type StudentRow = { id: number; name: string };
 
 const SAVED_LOCATIONS_KEY = "academy-clinic-saved-locations";
 
@@ -481,67 +478,25 @@ export default function ClinicCreatePanel({
             />
           </div>
 
-          {/* 대상자 선택 — 모달 SSOT */}
-          <div className="modal-form-group modal-form-group--compact flex flex-col gap-2 flex-1 min-h-0">
+          {/* 대상자 선택 — 모달로 분리 (수강대상등록 스타일) */}
+          <div className="modal-form-group modal-form-group--compact flex flex-col gap-2">
             <label className="modal-section-label">대상자 선택</label>
-            <div className="flex gap-2">
-              <button
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
                 type="button"
-                className={`ds-choice-btn ds-choice-btn--primary flex-1 ${mode === "targets" ? "is-selected" : ""}`}
-                onClick={() => { setMode("targets"); setKeyword(""); setSelected([]); }}
-                aria-pressed={mode === "targets"}
+                intent="secondary"
+                size="md"
+                onClick={() => setTargetModalOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={targetModalOpen}
               >
-                예약 대상자
-              </button>
-              <button
-                type="button"
-                className={`ds-choice-btn ds-choice-btn--primary flex-1 ${mode === "students" ? "is-selected" : ""}`}
-                onClick={() => { setMode("students"); setKeyword(""); setSelected([]); }}
-                aria-pressed={mode === "students"}
-              >
-                전체 학생
-              </button>
-            </div>
-            <Input
-              placeholder={mode === "students" ? "학생 검색 (2글자 이상)" : "대상자 내 검색"}
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              allowClear
-              className="clinic-input-filled"
-            />
-            <div
-              className="clinic-action-row py-2"
-              onClick={toggleAll}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === "Enter" && toggleAll()}
-            >
-              <Checkbox checked={allChecked} onChange={toggleAll} onClick={(e) => e.stopPropagation()}>
-                전체 선택
-              </Checkbox>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto border border-[var(--color-border-divider)] rounded-[var(--radius-md)] p-2 space-y-1 bg-[var(--color-bg-surface-soft)] max-h-[140px]">
-              {rows.map((r: any) => {
-                const key = mode === "targets" ? r.enrollment_id : r.id;
-                const label = mode === "targets" ? r.student_name : r.name;
-                return (
-                  <label
-                    key={key}
-                    className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-[var(--radius-sm)] hover:bg-[var(--color-bg-surface-hover)] cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(key)}
-                      onChange={(e) => {
-                        setSelected((prev) =>
-                          e.target.checked ? [...prev, key] : prev.filter((id) => id !== key)
-                        );
-                      }}
-                    />
-                    <span className="flex-1 truncate font-medium text-[var(--color-text-primary)]">{label}</span>
-                  </label>
-                );
-              })}
+                대상자 추가
+              </Button>
+              <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                {selected.length > 0
+                  ? `${mode === "targets" ? "예약 대상자" : "전체 학생"} ${selected.length}명 선택됨`
+                  : "선택한 대상 없음"}
+              </span>
             </div>
           </div>
         </div>
@@ -564,6 +519,14 @@ export default function ClinicCreatePanel({
           </Button>
         </div>
       </div>
+
+      <ClinicTargetSelectModal
+        open={targetModalOpen}
+        onClose={() => setTargetModalOpen(false)}
+        initialMode={mode}
+        initialSelectedIds={selected}
+        onConfirm={handleTargetModalConfirm}
+      />
     </div>
   );
 }
