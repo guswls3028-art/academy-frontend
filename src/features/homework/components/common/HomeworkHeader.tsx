@@ -1,9 +1,7 @@
 // PATH: src/features/homework/components/common/HomeworkHeader.tsx
 /**
  * HomeworkHeader
- * - DRAFT/OPEN/CLOSED는 사용자에게 노출하지 않음.
- * - 표시: 설정 중 / 진행 중 / 마감됨
- * - DRAFT → "진행하기" 버튼 (기본 설정 완료 후 배포), OPEN → "마감" 버튼
+ * - DRAFT/OPEN/CLOSED 문구 노출 없음. 진행하기/마감 버튼만 표시.
  */
 
 import { useState } from "react";
@@ -11,12 +9,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { HomeworkSummary } from "../../types";
 import { updateAdminHomework } from "../../api/adminHomework";
 import { Button } from "@/shared/ui/ds";
-
-const PHASE_LABEL: Record<string, string> = {
-  DRAFT: "설정 중",
-  OPEN: "진행 중",
-  CLOSED: "마감됨",
-};
 
 type Props = {
   homework: HomeworkSummary;
@@ -52,7 +44,6 @@ export default function HomeworkHeader({ homework }: Props) {
     }
   };
 
-  const phaseLabel = PHASE_LABEL[homework.status] ?? "설정 중";
   const isDraft = homework.status === "DRAFT";
   const isOpen = homework.status === "OPEN";
 
@@ -63,7 +54,6 @@ export default function HomeworkHeader({ homework }: Props) {
           {homework.title}
         </h2>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-[var(--text-secondary)]">{phaseLabel}</span>
           {isDraft && (
             <Button
               type="button"

@@ -9,15 +9,9 @@ import { fetchHomeworks } from "@/features/homework/api/homeworks";
 import type { HomeworkListItem } from "@/features/homework/api/homeworks";
 import type { HomeworkCardData } from "./ops/HomeworkKanbanCard";
 import { Button } from "@/shared/ui/ds";
-import KPICard from "./ops/KPICard";
 import HomeworkKanbanCard from "./ops/HomeworkKanbanCard";
 
 const HW_STATUS_ORDER = ["DRAFT", "OPEN", "CLOSED"] as const;
-const HW_LABEL: Record<string, string> = {
-  DRAFT: "설정 중",
-  OPEN: "진행 중",
-  CLOSED: "마감",
-};
 
 type Props = {
   lectureId: number;
@@ -126,21 +120,12 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
       )}
       {!hasNoHomeworks && (
         <>
-          <div className="grid grid-cols-3 gap-3">
-            <KPICard label="설정 중" value={stats.draft} color="gray" />
-            <KPICard label="진행 중" value={stats.open} color="blue" />
-            <KPICard label="마감" value={stats.closed} color="green" />
-          </div>
-
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {HW_STATUS_ORDER.map((status) => (
           <div
             key={status}
             className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3"
           >
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
-              {HW_LABEL[status]}
-            </div>
             <div className="space-y-2">
               {byStatus[status]?.length === 0 ? (
                 <div className="rounded border border-dashed border-[var(--color-border-divider)] py-6 text-center text-xs text-[var(--color-text-muted)]">
