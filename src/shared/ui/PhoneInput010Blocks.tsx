@@ -18,13 +18,17 @@ type Props = {
   "aria-label"?: string;
 };
 
+/**
+ * value는 "010" + (앞 4자리) + (뒤 4자리)로 저장되며, 앞/뒤가 4자리 미만일 수 있음.
+ * 복원 시: 뒤 4자리는 항상 마지막 4자리(부족하면 앞 0 패딩), 나머지는 앞 4자리.
+ * 예: "01010000" → tail "10000" → last4="0000", first4="1" (더블클릭 후 한 자 입력 시 깨짐 방지)
+ */
 function getParts(raw: string): { first4: string; last4: string } {
   const d = String(raw).replace(/\D/g, "");
-  const eight = d.startsWith("010") ? d.slice(3, 11) : d.slice(0, 8);
-  return {
-    first4: eight.slice(0, 4),
-    last4: eight.slice(4, 8),
-  };
+  const eight = d.startsWith("010") ? d.slice(3).slice(0, 8) : d.slice(0, 8);
+  const last4 = eight.slice(-4).padStart(4, "0");
+  const first4 = eight.slice(0, -4);
+  return { first4, last4 };
 }
 
 export function PhoneInput010Blocks({
