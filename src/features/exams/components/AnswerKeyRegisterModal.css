@@ -267,6 +267,17 @@
   color: var(--color-text-muted);
 }
 
+/* 총점 필드: 자동점수 미사용 시 회색 비활성 표시 */
+.answer-key-field--disabled .answer-key-field__label,
+.answer-key-field--disabled .ds-input {
+  opacity: 0.6;
+  color: var(--color-text-muted);
+}
+.answer-key-field--disabled .ds-input {
+  cursor: not-allowed;
+  background: var(--color-bg-surface-soft);
+}
+
 .answer-key-empty {
   padding: var(--space-4);
   border-radius: var(--radius-lg);

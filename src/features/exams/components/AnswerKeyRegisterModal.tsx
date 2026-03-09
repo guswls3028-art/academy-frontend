@@ -391,6 +391,23 @@ export default function AnswerKeyRegisterModal({
                       style={{ width: 100 }}
                     />
                   </label>
+                  <label className={`answer-key-field answer-key-field--total ${!choiceAutoScore ? "answer-key-field--disabled" : ""}`}>
+                    <span className="answer-key-field__label">총점</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={choiceTotalInput === "" ? "" : choiceTotalInput}
+                      onChange={(e) =>
+                        setChoiceTotalInput(e.target.value === "" ? "" : Number(e.target.value))
+                      }
+                      placeholder="예: 80"
+                      className="ds-input"
+                      style={{ width: 80 }}
+                      disabled={!choiceAutoScore}
+                      aria-readonly={!choiceAutoScore}
+                    />
+                  </label>
                   <div className="answer-key-field">
                     <span className="answer-key-field__label">자동점수 부여</span>
                     <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
@@ -410,23 +427,6 @@ export default function AnswerKeyRegisterModal({
                       </button>
                     </div>
                   </div>
-                  {choiceAutoScore && (
-                    <label className="answer-key-field">
-                      <span className="answer-key-field__label">총점</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={choiceTotalInput === "" ? "" : choiceTotalInput}
-                        onChange={(e) =>
-                          setChoiceTotalInput(e.target.value === "" ? "" : Number(e.target.value))
-                        }
-                        placeholder="예: 80"
-                        className="ds-input"
-                        style={{ width: 80 }}
-                      />
-                    </label>
-                  )}
                   <Button
                     type="button"
                     intent="primary"
@@ -540,6 +540,23 @@ export default function AnswerKeyRegisterModal({
                       style={{ width: 100 }}
                     />
                   </label>
+                  <label className={`answer-key-field answer-key-field--total ${!essayAutoScore ? "answer-key-field--disabled" : ""}`}>
+                    <span className="answer-key-field__label">총점</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={essayTotalInput === "" ? "" : essayTotalInput}
+                      onChange={(e) =>
+                        setEssayTotalInput(e.target.value === "" ? "" : Number(e.target.value))
+                      }
+                      placeholder="예: 50"
+                      className="ds-input"
+                      style={{ width: 80 }}
+                      disabled={!essayAutoScore}
+                      aria-readonly={!essayAutoScore}
+                    />
+                  </label>
                   <div className="answer-key-field">
                     <span className="answer-key-field__label">자동점수 부여</span>
                     <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
@@ -559,23 +576,6 @@ export default function AnswerKeyRegisterModal({
                       </button>
                     </div>
                   </div>
-                  {essayAutoScore && (
-                    <label className="answer-key-field">
-                      <span className="answer-key-field__label">총점</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={essayTotalInput === "" ? "" : essayTotalInput}
-                        onChange={(e) =>
-                          setEssayTotalInput(e.target.value === "" ? "" : Number(e.target.value))
-                        }
-                        placeholder="예: 50"
-                        className="ds-input"
-                        style={{ width: 80 }}
-                      />
-                    </label>
-                  )}
                   <Button
                     type="button"
                     intent="primary"
