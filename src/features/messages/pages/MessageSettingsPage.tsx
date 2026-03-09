@@ -10,9 +10,11 @@ import {
   FiMessageCircle,
   FiPhone,
   FiExternalLink,
+  FiPlusCircle,
 } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
-import { useMessagingInfo, useUpdateKakaoPfid } from "../hooks/useMessagingInfo";
+import { feedback } from "@/shared/ui/feedback/feedback";
+import { useMessagingInfo, useUpdateKakaoPfid, useChargeCredits } from "../hooks/useMessagingInfo";
 
 /** KPI용 상태 칩 (크레딧/발신번호/채널/서비스 상태) */
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
@@ -151,7 +153,9 @@ export default function MessageSettingsPage() {
   const navigate = useNavigate();
   const { data: info } = useMessagingInfo();
   const { mutate: updatePfid, isPending } = useUpdateKakaoPfid();
+  const { mutate: chargeCredits, isPending: isCharging } = useChargeCredits();
   const [pfid, setPfid] = useState("");
+  const [chargeAmount, setChargeAmount] = useState("");
 
   useEffect(() => {
     if (info?.kakao_pfid != null) setPfid(info.kakao_pfid);
@@ -161,6 +165,27 @@ export default function MessageSettingsPage() {
     const value = pfid.trim();
     if (!value) return;
     updatePfid(value);
+  };
+
+  const handleCharge = () => {
+    const amt = chargeAmount.replace(/,/g, "").trim();
+    if (!amt || isNaN(Number(amt)) || Number(amt) <= 0) {
+      feedback.error("올바른 충전 금액을 입력하세요.");
+      return;
+    }
+    chargeCredits(amt, {
+      onSuccess: () => {
+        feedback.success(`${Number(amt).toLocaleString()}원 충전 요청이 완료되었습니다.`);
+        setChargeAmount("");
+      },
+      onError: (err: unknown) => {
+        const msg =
+          err && typeof err === "object" && "response" in err
+            ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+            : null;
+        feedback.error(msg || "충전에 실패했습니다.");
+      },
+    });
   };
 
   const hasPfid = !!(info?.kakao_pfid);

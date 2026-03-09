@@ -1,7 +1,7 @@
 // PATH: src/features/messages/pages/MessageAutoSendPage.tsx
 // 자동발송 — 트리거별 카드형 설정 (가입 완료, 클리닉 알림 등)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiZap, FiInfo } from "react-icons/fi";
 import {
@@ -35,7 +35,7 @@ function TriggerCard({
 }: {
   config: AutoSendConfigItem;
   templates: MessageTemplateItem[];
-  onUpdate: (c: Partial<AutoSendConfigItem>) => void;
+  onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
   smsAllowed: boolean;
 }) {
@@ -219,11 +219,14 @@ function TriggerCard({
                 value={config.minutes_before ?? ""}
                 onChange={(e) => {
                   const v = e.target.value;
-                  onUpdate({
-                    ...config,
-                    minutes_before:
-                      v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
-                  });
+                  onUpdate(
+                    {
+                      ...config,
+                      minutes_before:
+                        v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
+                    },
+                    true
+                  );
                 }}
                 disabled={saving}
                 aria-label="발송 시점 (분 전)"
@@ -299,6 +302,7 @@ export default function MessageAutoSendPage() {
   });
 
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     setLocalConfigs(configs);
   }, [configs]);
@@ -319,7 +323,7 @@ export default function MessageAutoSendPage() {
     },
   });
 
-  const handleUpdate = (updated: Partial<AutoSendConfigItem>) => {
+  const handleUpdate = (updated: Partial<AutoSendConfigItem>, debounce = false) => {
     const next = localConfigs.map((c) =>
       c.trigger === updated.trigger ? { ...c, ...updated } : c
     );
@@ -331,7 +335,13 @@ export default function MessageAutoSendPage() {
             ? { ...c, message_mode: "alimtalk" as const }
             : c
         );
-    updateMut.mutate(toSend);
+    if (debounce) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => updateMut.mutate(toSend), 600);
+    } else {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      updateMut.mutate(toSend);
+    }
   };
 
   if (isLoading) {

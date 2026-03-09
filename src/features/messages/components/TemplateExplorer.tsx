@@ -20,7 +20,7 @@ import {
   type MessageTemplatePayload,
   type MessageTemplateCategory,
 } from "../api/messages.api";
-import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
+import { TEMPLATE_CATEGORY_LABELS, renderPreviewText } from "../constants/templateBlocks";
 import styles from "./TemplateExplorer.module.css";
 
 const QUERY_KEY = ["messaging", "templates"] as const;
@@ -240,7 +240,7 @@ export default function TemplateExplorer() {
                     </div>
                     {t.body && (
                       <p className={styles.listItemPreview}>
-                        {t.body.replace(/#{[^}]+}/g, "[변수]")}
+                        {renderPreviewText(t.body)}
                       </p>
                     )}
                   </div>
