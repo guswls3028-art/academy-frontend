@@ -43,6 +43,13 @@ export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?
     setLoading("close");
     try {
       await updateAdminExam(exam.id, { status: "CLOSED" });
+      if (isRegular && !exam.template_exam_id) {
+        try {
+          await saveExamAsTemplate(exam.id);
+        } catch {
+          // 이미 템플릿 있거나 무시
+        }
+      }
       invalidate();
     } finally {
       setLoading(null);
