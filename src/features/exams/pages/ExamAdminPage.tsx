@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchExams } from "../api/exams";
 import { DomainLayout } from "@/shared/ui/layout";
-import { DomainListToolbar, DomainTable, TABLE_COL, STATUS_ACTIVE_COLOR, STATUS_INACTIVE_COLOR, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
+import { DomainListToolbar, DomainTable, TABLE_COL, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
 
@@ -84,6 +84,21 @@ export default function ExamAdminPage() {
     queryFn: () => fetchExams(),
   });
 
+  // KPI counts derived from full list (not filtered)
+  const kpi = useMemo(() => {
+    const now = Date.now();
+    let active = 0;
+    let inactive = 0;
+    let ongoing = 0;
+    for (const e of list) {
+      if (e.is_active) active++; else inactive++;
+      const openAt = e.open_at ? new Date(e.open_at).getTime() : null;
+      const closeAt = e.close_at ? new Date(e.close_at).getTime() : null;
+      if (openAt != null && closeAt != null && openAt <= now && now <= closeAt) ongoing++;
+    }
+    return { total: list.length, active, inactive, ongoing };
+  }, [list]);
+
   // 클라이언트 검색: 시험명·과목
   const filtered = useMemo(() => {
     if (!search.trim()) return list;
@@ -135,6 +150,28 @@ export default function ExamAdminPage() {
       description="강의·차시 단위 시험을 한 화면에서 조회합니다. 시험 생성·관리는 각 강의 > 차시에서 진행하세요."
     >
       <div className="flex flex-col gap-4">
+        {/* KPI summary bar */}
+        {!isLoading && list.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">전체</div>
+              <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{kpi.total}</div>
+            </div>
+            <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">활성</div>
+              <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{kpi.active}</div>
+            </div>
+            <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">비활성</div>
+              <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{kpi.inactive}</div>
+            </div>
+            <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">진행중</div>
+              <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{kpi.ongoing}</div>
+            </div>
+          </div>
+        )}
+
         <DomainListToolbar
           totalLabel={isLoading ? "…" : `총 ${filtered.length}건`}
           searchSlot={
@@ -150,7 +187,7 @@ export default function ExamAdminPage() {
           }
           primaryAction={
             <Button intent="primary" onClick={() => navigate("/admin/lectures")}>
-              강의로 이동
+              강의에서 관리
             </Button>
           }
         />
@@ -195,27 +232,41 @@ export default function ExamAdminPage() {
               {sortedFiltered.map((e) => (
                 <tr
                   key={e.id}
-                  className="cursor-pointer hover:bg-[var(--color-bg-surface-hover)]"
+                  className="cursor-pointer transition-colors hover:bg-[var(--color-bg-surface-soft)] active:bg-[var(--color-bg-surface-soft)]"
+                  style={{ outline: "none" }}
+                  tabIndex={0}
                   onClick={() => navigate("/admin/lectures")}
+                  onKeyDown={(ev) => ev.key === "Enter" && navigate("/admin/lectures")}
                 >
                   <td className="font-semibold text-[var(--color-text-primary)] truncate" title={e.title}>
                     {e.title || "—"}
                   </td>
                   <td className="text-[var(--color-text-secondary)] truncate">{e.subject || "—"}</td>
-                  <td className="text-[var(--color-text-secondary)]">
-                    {e.exam_type === "template" ? "템플릿" : "일반"}
-                  </td>
-                  <td className="text-[var(--color-text-secondary)]">
-                    {e.allow_retake ? `최대 ${e.max_attempts}회` : "불가"}
-                  </td>
                   <td>
                     <span
+                      className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
                       style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: e.is_active ? STATUS_ACTIVE_COLOR : STATUS_INACTIVE_COLOR,
+                        background: e.exam_type === "template"
+                          ? "var(--color-bg-surface-soft)"
+                          : "transparent",
+                        border: "1px solid var(--color-border-divider)",
+                        color: "var(--color-text-secondary)",
                       }}
                     >
+                      {e.exam_type === "template" ? "템플릿" : "일반"}
+                    </span>
+                  </td>
+                  <td>
+                    {e.allow_retake ? (
+                      <span className="ds-status-badge" data-tone="primary">
+                        최대 {e.max_attempts}회
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[var(--color-text-muted)]">불가</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className="ds-status-badge" data-tone={e.is_active ? "success" : "neutral"}>
                       {e.is_active ? "활성" : "비활성"}
                     </span>
                   </td>

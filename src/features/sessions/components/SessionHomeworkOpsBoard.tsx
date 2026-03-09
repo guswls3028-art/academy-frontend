@@ -10,8 +10,15 @@ import type { HomeworkListItem } from "@/features/homework/api/homeworks";
 import type { HomeworkCardData } from "./ops/HomeworkKanbanCard";
 import { Button } from "@/shared/ui/ds";
 import HomeworkKanbanCard from "./ops/HomeworkKanbanCard";
+import KPICard from "./ops/KPICard";
 
 const HW_STATUS_ORDER = ["DRAFT", "OPEN", "CLOSED"] as const;
+
+const COLUMN_LABELS: Record<string, string> = {
+  DRAFT: "설정 중",
+  OPEN: "진행 중",
+  CLOSED: "마감",
+};
 
 type Props = {
   lectureId: number;
@@ -59,12 +66,12 @@ function useHomeworkStatsAndGroups(sessionId: number) {
     return map;
   }, [cards]);
 
-  return { stats, byStatus, isLoading };
+  return { stats, byStatus, isLoading, total: cards.length };
 }
 
 export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHomework }: Props) {
   const navigate = useNavigate();
-  const { stats, byStatus, isLoading } = useHomeworkStatsAndGroups(sessionId);
+  const { stats, byStatus, isLoading, total } = useHomeworkStatsAndGroups(sessionId);
 
   const basePath = `/admin/lectures/${lectureId}/sessions/${sessionId}/assignments`;
 
@@ -86,6 +93,7 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
@@ -103,10 +111,20 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
           </Button>
         )}
       </div>
+
+      {/* KPI stat row */}
+      {!hasNoHomeworks && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <KPICard label="전체" value={total} color="gray" />
+          <KPICard label="설정 중" value={stats.draft} color="gray" />
+          <KPICard label="진행 중" value={stats.open} color="blue" />
+          <KPICard label="마감" value={stats.closed} color="green" />
+        </div>
+      )}
+
+      {/* Empty state */}
       {hasNoHomeworks && onAddHomework && (
-        <div
-          className="rounded-xl border-2 border-dashed border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-8 text-center"
-        >
+        <div className="rounded-xl border-2 border-dashed border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-8 text-center">
           <p className="mb-2 text-sm font-medium text-[var(--color-text-secondary)]">
             이 차시에 연결된 과제가 없습니다
           </p>
@@ -118,33 +136,44 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
           </Button>
         </div>
       )}
+
+      {/* Kanban columns */}
       {!hasNoHomeworks && (
-        <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {HW_STATUS_ORDER.map((status) => (
-          <div
-            key={status}
-            className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3"
-          >
-            <div className="space-y-2">
-              {byStatus[status]?.length === 0 ? (
-                <div className="rounded border border-dashed border-[var(--color-border-divider)] py-6 text-center text-xs text-[var(--color-text-muted)]">
-                  없음
-                </div>
-              ) : (
-                (byStatus[status] ?? []).map((hw) => (
-                  <HomeworkKanbanCard
-                    key={hw.id}
-                    homework={hw}
-                    onClick={() => handleSelect(hw.id)}
-                  />
-                ))
-              )}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {HW_STATUS_ORDER.map((status) => (
+            <div
+              key={status}
+              className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] overflow-hidden"
+            >
+              {/* Column header */}
+              <div className="flex items-center justify-between border-b border-[var(--color-border-divider)] px-3 py-2">
+                <span className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+                  {COLUMN_LABELS[status]}
+                </span>
+                <span className="rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
+                  {byStatus[status]?.length ?? 0}
+                </span>
+              </div>
+
+              {/* Cards */}
+              <div className="space-y-2 p-3">
+                {byStatus[status]?.length === 0 ? (
+                  <div className="rounded border border-dashed border-[var(--color-border-divider)] py-6 text-center text-xs text-[var(--color-text-muted)]">
+                    없음
+                  </div>
+                ) : (
+                  (byStatus[status] ?? []).map((hw) => (
+                    <HomeworkKanbanCard
+                      key={hw.id}
+                      homework={hw}
+                      onClick={() => handleSelect(hw.id)}
+                    />
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-          </div>
-        </>
+          ))}
+        </div>
       )}
     </div>
   );
