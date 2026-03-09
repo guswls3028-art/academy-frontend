@@ -350,16 +350,22 @@ export default function NoticeAdminPage() {
             />
           </div>
         </div>
-        {canShowList && noticeTypeId != null && (
+        {canShowList && (
           <div className="notice-tree__add-section">
-            <Button
-              intent="primary"
-              size="sm"
-              onClick={() => setShowCreate(true)}
-              className="w-full"
-            >
-              + 공지 추가하기
-            </Button>
+            {noticeTypeId != null ? (
+              <Button
+                intent="primary"
+                size="sm"
+                onClick={() => setShowCreate(true)}
+                className="w-full"
+              >
+                + 공지 추가하기
+              </Button>
+            ) : (
+              <Button intent="primary" size="sm" className="w-full" disabled>
+                불러오는 중…
+              </Button>
+            )}
           </div>
         )}
         <div className="qna-inbox__list-body">
