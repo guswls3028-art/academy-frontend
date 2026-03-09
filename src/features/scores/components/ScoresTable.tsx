@@ -14,6 +14,7 @@ import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
+import { patchExamSubjectiveScoreQuick } from "../api/patchExamSubjectiveQuick";
 import { patchExamItemScore } from "../api/patchItemScore";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import ScoreInputCell from "./ScoreInputCell";
@@ -836,8 +837,7 @@ export default function ScoresTable({
                                     const raw = firstLine(el.innerText);
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
-                                      const newTotal = (typeof objScore === "number" ? objScore : 0) + parsed;
-                                      await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: newTotal, maxScore: 100 });
+                                      await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
                                       qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                     } else if (raw !== "") el.innerText = subScore != null ? String(Math.round(subScore)) : "";
                                   }}
@@ -852,8 +852,7 @@ export default function ScoresTable({
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
-                                        const newTotal = (typeof objScore === "number" ? objScore : 0) + parsed;
-                                        await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: newTotal, maxScore: 100 });
+                                        await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
                                         qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                       }
                                       onRequestMoveDown?.();
@@ -861,8 +860,7 @@ export default function ScoresTable({
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
-                                        const newTotal = (typeof objScore === "number" ? objScore : 0) + parsed;
-                                        await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: newTotal, maxScore: 100 });
+                                        await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
                                         qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
