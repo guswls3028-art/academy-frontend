@@ -63,6 +63,10 @@ export default function AnswerKeyRegisterModal({
   const [essayScore, setEssayScore] = useState<number | "">(5);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saveBusy, setSaveBusy] = useState(false);
+  /** 이미지 등록 탭: 문항별 해설 — 해설 텍스트 또는 해설 이미지 URL(객체 URL) */
+  const [explanationDraft, setExplanationDraft] = useState<
+    Record<number, { text: string; imageUrl: string | null }>
+  >({});
 
   const sortedQuestions = useMemo(
     () => [...questions].sort((a, b) => a.number - b.number),
@@ -154,7 +158,7 @@ export default function AnswerKeyRegisterModal({
           value={activeTab}
           items={[
             { key: "answer", label: "답안 등록" },
-            { key: "image", label: "이미지 등록", disabled: true },
+            { key: "image", label: "이미지 등록" },
           ]}
           onChange={(key) => setActiveTab(key as "answer" | "image")}
         />
@@ -162,6 +166,8 @@ export default function AnswerKeyRegisterModal({
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
+          {activeTab === "answer" && (
+            <>
           {/* 문항 구성 — 상단 통째 */}
           <div className="answer-key-section answer-key-section--full">
             <div className="ds-section__title">문항 구성</div>
@@ -296,6 +302,45 @@ export default function AnswerKeyRegisterModal({
                   ))}
                 </ul>
               </div>
+            </div>
+          )}
+            </>
+          )}
+
+          {activeTab === "image" && (
+            <div className="answer-key-image-tab">
+              <h3 className="answer-key-section__title">문제 해설</h3>
+              <p className="answer-key-image-tab__desc">
+                문항별 문제 이미지와 해설(이미지 또는 텍스트)을 등록합니다.
+              </p>
+              {sortedQuestions.length === 0 ? (
+                <div className="answer-key-empty">
+                  먼저 &quot;답안 등록&quot; 탭에서 문항 수를 입력하고 문항 반영을 해주세요.
+                </div>
+              ) : (
+                <div className="answer-key-explanation-table-wrap">
+                  <table className="answer-key-explanation-table">
+                    <thead>
+                      <tr>
+                        <th className="answer-key-explanation-table__th--problem">문제</th>
+                        <th className="answer-key-explanation-table__th--explanation">해설</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedQuestions.map((q) => (
+                        <ExplanationRow
+                          key={q.id}
+                          question={q}
+                          explanation={explanationDraft[q.id] ?? { text: "", imageUrl: null }}
+                          onChange={(next) =>
+                            setExplanationDraft((prev) => ({ ...prev, [q.id]: next }))
+                          }
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
