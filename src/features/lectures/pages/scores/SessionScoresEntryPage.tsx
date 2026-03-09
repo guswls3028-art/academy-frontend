@@ -13,7 +13,6 @@ import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
 import {
   fetchSessionScores,
   type SessionScoreRow,
-  type SessionScoresResponse,
 } from "@/features/scores/api/sessionScores";
 import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { Button, EmptyState } from "@/shared/ui/ds";

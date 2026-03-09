@@ -11,6 +11,7 @@ import { useMemo, useRef, useEffect, Fragment, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
+import { scoresQueryKeys } from "../api/queryKeys";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
@@ -691,7 +692,7 @@ export default function ScoresTable({
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
                                       await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
-                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                     } else if (raw !== "") el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                   }}
                                   onKeyDown={async (e) => {
@@ -706,7 +707,7 @@ export default function ScoresTable({
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
                                         await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
-                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                       }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
@@ -714,7 +715,7 @@ export default function ScoresTable({
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
                                         await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
-                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
@@ -764,7 +765,7 @@ export default function ScoresTable({
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
                                       await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                     } else if (raw !== "") el.innerText = objScore != null ? String(Math.round(objScore)) : "";
                                   }}
                                   onKeyDown={async (e) => {
@@ -779,7 +780,7 @@ export default function ScoresTable({
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
                                         await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                       }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
@@ -787,7 +788,7 @@ export default function ScoresTable({
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
                                         await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
@@ -837,7 +838,7 @@ export default function ScoresTable({
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
                                       await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                     } else if (raw !== "") el.innerText = subScore != null ? String(Math.round(subScore)) : "";
                                   }}
                                   onKeyDown={async (e) => {
@@ -852,7 +853,7 @@ export default function ScoresTable({
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
                                         await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                       }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
@@ -860,7 +861,7 @@ export default function ScoresTable({
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
                                         await patchExamSubjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
-                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
@@ -898,7 +899,7 @@ export default function ScoresTable({
                                   value={value}
                                   maxScore={maxScore}
                                   disabled={!!block?.is_locked}
-                                  onSaved={() => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] })}
+                                  onSaved={() => qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) })}
                                   inputRef={(el) => { examItemInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-${col.questionId}`] = el; }}
                                   onMovePrev={onRequestMovePrev}
                                   onMoveNext={onRequestMoveNext}
@@ -981,7 +982,7 @@ export default function ScoresTable({
                                     score: null,
                                     metaStatus: "NOT_SUBMITTED",
                                   });
-                                  qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                  qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                   return;
                                 }
                                 if (raw === "") {
@@ -991,7 +992,7 @@ export default function ScoresTable({
                                     homeworkId: hw.homework_id,
                                     score: null,
                                   });
-                                  qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                  qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                   return;
                                 }
                                 const parsed = parseScoreInput(raw, block?.max_score ?? null);
@@ -1006,7 +1007,7 @@ export default function ScoresTable({
                                     homeworkId: hw.homework_id,
                                     score: parsed,
                                   });
-                                  qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                  qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                 } else {
                                   el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                 }
@@ -1037,7 +1038,7 @@ export default function ScoresTable({
                                           score: null,
                                           metaStatus: "NOT_SUBMITTED",
                                         });
-                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                       } catch (err) {
                                         feedback.error("과제 미제출 저장에 실패했습니다.");
                                         return;
@@ -1056,7 +1057,7 @@ export default function ScoresTable({
                                         homeworkId: hw.homework_id,
                                         score: parsed,
                                       });
-                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                     } catch (err) {
                                       feedback.error("과제 점수 저장에 실패했습니다.");
                                       return;
@@ -1080,7 +1081,7 @@ export default function ScoresTable({
                                       score: null,
                                       metaStatus: "NOT_SUBMITTED",
                                     });
-                                    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                     if (el) el.innerText = "미제출";
                                     onRequestMoveDown?.();
                                     return;
@@ -1093,7 +1094,7 @@ export default function ScoresTable({
                                       score: null,
                                       metaStatus: "NOT_SUBMITTED",
                                     });
-                                    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                     onRequestMoveDown?.();
                                     return;
                                   }
@@ -1109,7 +1110,7 @@ export default function ScoresTable({
                                       homeworkId: hw.homework_id,
                                       score: parsed,
                                     });
-                                    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
                                   }
                                   onRequestMoveDown?.();
                                   return;

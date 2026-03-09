@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from "react";
 import { patchExamItemScore } from "../api/patchItemScore";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
   examId: number;
@@ -69,6 +70,7 @@ export default function ScoreInputCell({
       onSaved();
       return true;
     } catch {
+      feedback.error("문항 점수 저장에 실패했습니다.");
       setDraft(value == null ? "" : String(value));
       return false;
     } finally {

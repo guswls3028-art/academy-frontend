@@ -11,11 +11,14 @@
 import { useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchEditableExamItems } from "../api/fetchEditableExamItems";
+import { scoresQueryKeys } from "../api/queryKeys";
 import ScoreInputCell from "./ScoreInputCell";
 
 type Props = {
   examId: number;
   enrollmentId: number;
+  /** 있으면 해당 세션 성적만 무효화; 없으면 전체 session-scores 무효화 */
+  sessionId?: number;
   colSpan?: number;
   /** 'table' = tr/td (기존), 'block' = div만 (그리드 확장행용) */
   variant?: "table" | "block";
@@ -24,13 +27,14 @@ type Props = {
 export default function InlineExamItemsRow({
   examId,
   enrollmentId,
+  sessionId,
   colSpan = 1,
   variant = "table",
 }: Props) {
   const qc = useQueryClient();
 
   const { data: items, isLoading, isError } = useQuery({
-    queryKey: ["exam-items", examId, enrollmentId],
+    queryKey: scoresQueryKeys.examItems(examId, enrollmentId),
     queryFn: () => fetchEditableExamItems({ examId, enrollmentId }),
     enabled: Number.isFinite(examId) && examId > 0 && Number.isFinite(enrollmentId) && enrollmentId > 0,
   });
@@ -112,9 +116,13 @@ export default function InlineExamItemsRow({
                 onMoveNext={() => focusAt(Math.min(list.length - 1, i + 1))}
                 onSaved={() => {
                   qc.invalidateQueries({
-                    queryKey: ["exam-items", examId, enrollmentId],
+                    queryKey: scoresQueryKeys.examItems(examId, enrollmentId),
                   });
-                  qc.invalidateQueries({ queryKey: ["session-scores"] });
+                  qc.invalidateQueries({
+                    queryKey: sessionId != null
+                      ? scoresQueryKeys.sessionScores(sessionId)
+                      : ["session-scores"],
+                  });
                 }}
               />
               {disabled && (
