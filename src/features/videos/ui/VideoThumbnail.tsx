@@ -139,76 +139,92 @@ export default function VideoThumbnail({
         />
       )}
 
-      {/* 인코딩 중: 단색 배경 + 진행률 %를 화면 절반 이상 차지할 정도로 크게 표시 */}
+      {/* 인코딩 중: 썸네일 위 프리미엄 오버레이 — 하단 바 + 작은 % + 뱃지 */}
       {showProgressOverlay && (
-        <div
-          className="video-thumbnail-progress"
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "var(--color-bg-surface-soft, #1f2937)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            padding: 16,
-            borderRadius: "inherit",
-          }}
-        >
-          {/* 진행률 % — 카드 영역 대부분을 채우는 큰 글씨 (거의 화면 절반 이상) */}
-          <span
-            className="video-thumbnail-progress__pct"
+        <>
+          {/* 썸네일이 있으면 배경으로 보여주고, 없으면 어두운 배경만 */}
+          {resolved && (
+            <img
+              src={src}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-40"
+              aria-hidden
+            />
+          )}
+          <div
+            className="video-thumbnail-encoding-overlay"
             style={{
-              fontSize: "clamp(4rem, 28vmin, 140px)",
-              fontWeight: 700,
-              lineHeight: 1,
-              color: "var(--color-text-primary, #fff)",
-              textShadow: "0 2px 12px rgba(0,0,0,0.5)",
+              position: "absolute",
+              inset: 0,
+              background: resolved
+                ? "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.85) 100%)"
+                : "linear-gradient(180deg, #1f2937 0%, #111827 100%)",
+              borderRadius: "inherit",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-end",
+              padding: 0,
             }}
-            aria-hidden
           >
-            {progressNum != null ? `${progressNum}%` : "—"}
-          </span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary, rgba(255,255,255,0.9))" }}>
-            {isQueuedOrWaiting ? "대기 중" : "인코딩 중"}
-          </span>
-          {encodingStep && (
-            <div style={{ fontSize: 11, color: "var(--color-text-muted)", textAlign: "center" }}>
-              <span style={{ fontWeight: 600 }}>[{encodingStep.index}/{encodingStep.total}]</span>{" "}
-              {encodingStep.name} {encodingStep.percent}%
+            {/* 상단 왼쪽: 상태 뱃지 */}
+            <div className="video-thumbnail-encoding-overlay__badge">
+              <span className="video-thumbnail-encoding-overlay__badge-dot" />
+              {isQueuedOrWaiting ? "대기 중" : "인코딩 중"}
             </div>
-          )}
-          {encodingStep && (
-            <div className="async-status-bar__progress-row" style={{ width: "100%", maxWidth: 260 }}>
-              <div className="async-status-bar__progress">
-                <div
-                  className="async-status-bar__progress-fill"
-                  style={{ width: `${encodingStep.percent}%` }}
-                />
+
+            {/* 중앙: 퍼센트는 적당한 크기로 (과하지 않게) */}
+            <div className="video-thumbnail-encoding-overlay__pct-center">
+              {progressNum != null ? (
+                <span className="video-thumbnail-encoding-overlay__pct-num" aria-hidden>
+                  {progressNum}%
+                </span>
+              ) : (
+                <span className="video-thumbnail-encoding-overlay__pct-placeholder">—</span>
+              )}
+            </div>
+
+            {/* 하단: 단계 정보 + 프로그레스 바 한 블록 */}
+            <div className="video-thumbnail-encoding-overlay__footer">
+              <div className="video-thumbnail-encoding-overlay__meta">
+                {encodingStep ? (
+                  <span className="video-thumbnail-encoding-overlay__step">
+                    <span className="video-thumbnail-encoding-overlay__step-index">
+                      [{encodingStep.index}/{encodingStep.total}]
+                    </span>{" "}
+                    {encodingStep.name} {encodingStep.percent}%
+                  </span>
+                ) : progressNum != null && progressNum < 100 ? (
+                  <span className="video-thumbnail-encoding-overlay__step">전체 진행률</span>
+                ) : null}
+                {remainingLabel && (
+                  <span className="video-thumbnail-encoding-overlay__remaining">{remainingLabel}</span>
+                )}
+                {progressNum == null && !remainingLabel && !encodingStep && (
+                  <span className="video-thumbnail-encoding-overlay__remaining">
+                    {isQueuedOrWaiting ? "인코딩 대기 중…" : "계산 중…"}
+                  </span>
+                )}
               </div>
-              <span className="async-status-bar__progress-pct">{encodingStep.percent}%</span>
-            </div>
-          )}
-          {!encodingStep && progressNum != null && progressNum < 100 && (
-            <div className="async-status-bar__progress-row" style={{ width: "100%", maxWidth: 260 }}>
-              <div className="async-status-bar__progress">
-                <div
-                  className="async-status-bar__progress-fill"
-                  style={{ width: `${progressNum}%` }}
-                />
+              <div className="video-thumbnail-encoding-overlay__bar-wrap">
+                <div className="video-thumbnail-encoding-overlay__bar">
+                  <div
+                    className="video-thumbnail-encoding-overlay__bar-fill"
+                    style={{
+                      width: `${encodingStep ? encodingStep.percent : progressNum ?? 0}%`,
+                    }}
+                  />
+                </div>
+                <span className="video-thumbnail-encoding-overlay__bar-pct">
+                  {encodingStep != null
+                    ? `${encodingStep.percent}%`
+                    : progressNum != null
+                      ? `${progressNum}%`
+                      : "—"}
+                </span>
               </div>
             </div>
-          )}
-          {remainingLabel && (
-            <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{remainingLabel}</span>
-          )}
-          {progressNum == null && !remainingLabel && !encodingStep && (
-            <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-              {isQueuedOrWaiting ? "인코딩 대기 중…" : "진행률 계산 중…"}
-            </span>
-          )}
-        </div>
+          </div>
+        </>
       )}
 
       {resolved && !showProgressOverlay && (
