@@ -359,7 +359,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               </button>
             </>
           )}
-          {/* ✅ 완료된 작업: 삭제 버튼만 표시 */}
+          {/* ✅ 완료된 작업: 휴지통만 표시 (목록에서 제거, 파일 삭제 아님) */}
           {!canCancel && !canRetry && (
             <button
               type="button"
@@ -368,8 +368,8 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 e.stopPropagation();
                 asyncStatusStore.removeTask(task.id);
               }}
-              title="삭제"
-              aria-label="삭제"
+              title="목록에서 제거"
+              aria-label="목록에서 제거"
             >
               <TrashIcon size={14} />
             </button>
