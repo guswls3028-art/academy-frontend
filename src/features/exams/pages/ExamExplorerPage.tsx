@@ -56,9 +56,6 @@ export default function ExamExplorerPage() {
     enabled: Number.isFinite(selectedSessionId),
   });
 
-  const sessionsLoading = sessionQueries.some((q) => q.isLoading);
-  const isLoading = lecturesLoading || sessionsLoading;
-
   const selectedSession = useMemo(() => {
     if (!selectedSessionId) return null;
     for (const lec of lecturesWithSessions) {
@@ -68,65 +65,62 @@ export default function ExamExplorerPage() {
     return null;
   }, [lecturesWithSessions, selectedSessionId]);
 
-  const breadcrumbPath = useMemo(() => {
-    const path: { id: string | null; name: string }[] = [{ id: null, name: "시험" }];
-    if (selectedSession) {
-      path.push({ id: String(selectedSession.lecture.id), name: selectedSession.lecture.title || selectedSession.lecture.name || "강의" });
-      path.push({ id: String(selectedSession.session.id), name: `${selectedSession.session.order}차시` });
-    }
-    return path;
-  }, [selectedSession]);
-
-  const handleBreadcrumbSelect = (id: string | null) => {
-    if (!id) {
-      setSelectedSessionId(null);
-      return;
-    }
-    const num = Number(id);
-    const asSession = lecturesWithSessions.some((l) => l.sessions.some((s) => s.id === num));
-    if (asSession) {
-      setSelectedSessionId(num);
-    } else {
-      const lec = lecturesWithSessions.find((l) => l.id === num);
-      const firstSession = lec?.sessions?.[0];
-      setSelectedSessionId(firstSession ? firstSession.id : null);
-    }
-  };
-
   return (
     <DomainLayout
       title="시험"
-      description="강의·차시 단위 시험을 한 화면에서 조회합니다. 시험 생성·관리는 각 강의 > 차시에서 진행하세요."
+      description="강의·차시 단위 시험을 한 화면에서 조회합니다. 좌측에서 차시를 선택하면 해당 차시 시험 목록이 우측에 표시됩니다."
     >
-      <div className={styles.root}>
-        <div className={styles.toolbar}>
-          <Breadcrumb
-            path={breadcrumbPath.length > 1 ? breadcrumbPath : [{ id: null, name: "시험" }]}
-            onSelect={(id) => handleBreadcrumbSelect(id)}
-          />
-          <div className={styles.actions}>
-            <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
-              강의로 이동
-            </Button>
+      <div className="exam-explorer">
+        <aside className="exam-explorer__list">
+          <div className="exam-explorer__list-header">
+            <h2 className="exam-explorer__list-title">강의 · 차시</h2>
+            <div className="exam-explorer__search">
+              <input
+                type="search"
+                className="ds-input"
+                placeholder="강의명 · 차시 검색"
+                aria-label="검색"
+              />
+            </div>
           </div>
-        </div>
+          <div className="exam-explorer__list-body">
+            {lecturesLoading ? (
+              <div className="exam-explorer__empty">
+                <p className="exam-explorer__empty-title">불러오는 중…</p>
+              </div>
+            ) : lecturesWithSessions.length === 0 ? (
+              <div className="exam-explorer__empty">
+                <p className="exam-explorer__empty-title">강의가 없습니다</p>
+                <p className="exam-explorer__empty-desc">
+                  강의를 만든 뒤 차시를 추가하면 여기에 표시됩니다.
+                </p>
+              </div>
+            ) : (
+              <LectureSessionTree
+                lectures={lecturesWithSessions}
+                currentSessionId={selectedSessionId}
+                onSelectSession={setSelectedSessionId}
+              />
+            )}
+          </div>
+        </aside>
 
-        <div className={styles.body}>
-          <aside className={styles.tree}>
-            <LectureSessionTree
-              lectures={lecturesWithSessions}
-              currentSessionId={selectedSessionId}
-              onSelectSession={setSelectedSessionId}
-            />
-          </aside>
-
-          <div className={styles.gridWrap}>
-            {isLoading ? (
-              <div className={styles.placeholder}>불러오는 중…</div>
-            ) : !selectedSessionId ? (
-              <div className={styles.placeholder}>좌측에서 차시를 선택하세요</div>
+        <main className="exam-explorer__main">
+          <div className="exam-explorer__main-content">
+            {!selectedSessionId ? (
+              <div className="exam-explorer__empty">
+                <p className="exam-explorer__empty-title">차시를 선택하세요</p>
+                <p className="exam-explorer__empty-desc">
+                  왼쪽 목록에서 강의·차시를 선택하면 여기에 해당 차시의 시험 목록이 표시됩니다.
+                </p>
+                <p className="exam-explorer__keyboard-hint">
+                  시험 추가·관리는 강의 → 차시 → 시험 탭에서 진행하세요.
+                </p>
+              </div>
             ) : examsLoading ? (
-              <div className={styles.placeholder}>시험 목록 불러오는 중…</div>
+              <div className="exam-explorer__empty">
+                <p className="exam-explorer__empty-title">시험 목록 불러오는 중…</p>
+              </div>
             ) : exams.length === 0 ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
                 <EmptyState
@@ -152,52 +146,69 @@ export default function ExamExplorerPage() {
                 />
               </div>
             ) : (
-              <div className={styles.grid}>
-                {selectedSession && (
-                  <div
-                    className={styles.item + " " + styles.itemAdd}
-                    onClick={() =>
-                      navigate(
-                        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
-                      )
-                    }
-                    title="시험 추가/관리"
-                  >
-                    <FilePlus size={32} />
-                    <span>추가</span>
-                  </div>
-                )}
-                {exams.map((e) => (
-                  <div
-                    key={e.id}
-                    className={styles.item}
-                    onClick={() =>
-                      selectedSession &&
-                      navigate(
-                        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams?exam_id=${e.id}`
-                      )
-                    }
-                  >
-                    <FileText size={32} style={{ color: "var(--color-primary)" }} aria-hidden />
-                    <span className={styles.itemLabel} title={e.title}>
-                      {e.title || "—"}
-                    </span>
-                    <span className={styles.itemMeta}>{e.subject || "—"}</span>
-                    <span className={styles.itemMeta}>{formatDate(e.created_at)}</span>
-                    <span
-                      className={styles.itemMeta}
-                      style={{
-                        color: e.is_active ? "var(--color-success)" : "var(--color-text-muted)",
-                      }}
+              <>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--space-4)" }}>
+                  {selectedSession && (
+                    <Button
+                      intent="primary"
+                      size="sm"
+                      onClick={() =>
+                        navigate(
+                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
+                        )
+                      }
                     >
-                      {e.is_active ? "활성" : "비활성"}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                      강의로 이동 · 시험 관리
+                    </Button>
+                  )}
+                </div>
+                <div className={styles.grid}>
+                  {selectedSession && (
+                    <div
+                      className={styles.item + " " + styles.itemAdd}
+                      onClick={() =>
+                        navigate(
+                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams`
+                        )
+                      }
+                      title="시험 추가/관리"
+                    >
+                      <FilePlus size={32} />
+                      <span>추가</span>
+                    </div>
+                  )}
+                  {exams.map((e) => (
+                    <div
+                      key={e.id}
+                      className={styles.item}
+                      onClick={() =>
+                        selectedSession &&
+                        navigate(
+                          `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/exams?exam_id=${e.id}`
+                        )
+                      }
+                    >
+                      <FileText size={32} style={{ color: "var(--color-primary)" }} aria-hidden />
+                      <span className={styles.itemLabel} title={e.title}>
+                        {e.title || "—"}
+                      </span>
+                      <span className={styles.itemMeta}>{e.subject || "—"}</span>
+                      <span className={styles.itemMeta}>{formatDate(e.created_at)}</span>
+                      <span
+                        className={styles.itemMeta}
+                        style={{
+                          color: e.is_active ? "var(--color-success)" : "var(--color-text-muted)",
+                        }}
+                      >
+                        {e.is_active ? "활성" : "비활성"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
-        </div>
+        </main>
       </div>
     </DomainLayout>
   );
