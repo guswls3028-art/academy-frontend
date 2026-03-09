@@ -211,6 +211,7 @@ export default function Header() {
   }, [isOnDashboard, searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
+  const [createDropdownOpen, setCreateDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const workbox = useWorkbox();
   const tasks = useAsyncStatus();
@@ -316,12 +317,23 @@ export default function Header() {
       { key: "clinic", label: "클리닉 생성" },
     ],
     onClick: ({ key }: { key: string }) => {
+      setCreateDropdownOpen(false);
       if (key === "student") nav("/admin/students");
       if (key === "lecture") nav("/admin/lectures");
       if (key === "exam") nav("/admin/exams");
       if (key === "clinic") nav("/admin/clinic");
     },
   };
+
+  const createDropdownContent = (
+    <div className="app-header__profileDropdown">
+      <button type="button" className="app-header__profileDropdownItem" onClick={() => quickMenu.onClick({ key: "student" })}>학생 등록</button>
+      <button type="button" className="app-header__profileDropdownItem" onClick={() => quickMenu.onClick({ key: "lecture" })}>강의 생성</button>
+      <button type="button" className="app-header__profileDropdownItem" onClick={() => quickMenu.onClick({ key: "exam" })}>시험 생성</button>
+      <div className="app-header__profileDropdownDivider" />
+      <button type="button" className="app-header__profileDropdownItem" onClick={() => quickMenu.onClick({ key: "clinic" })}>클리닉 생성</button>
+    </div>
+  );
 
   return (
     <>
@@ -394,7 +406,14 @@ export default function Header() {
           )}
 
           {!isMobile && (
-          <Dropdown menu={quickMenu} trigger={["click"]} placement="bottomRight">
+          <Dropdown
+            open={createDropdownOpen}
+            onOpenChange={setCreateDropdownOpen}
+            trigger={["click"]}
+            placement="bottomRight"
+            classNames={{ root: "app-header__profileDropdownOverlay" }}
+            popupRender={() => createDropdownContent}
+          >
             <span>
               <Button
                 intent="secondary"
