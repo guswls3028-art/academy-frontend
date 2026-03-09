@@ -94,6 +94,7 @@ type Props = {
   hideDatePicker?: boolean;
   selectedTargetEnrollmentIds?: number[];
   onChangeSelectedTargetEnrollmentIds?: (ids: number[]) => void;
+  onDateChange?: (date: string) => void;
   onCreated?: (createdDate?: string) => void;
 };
 
@@ -103,6 +104,7 @@ export default function ClinicCreatePanel({
   hideDatePicker = false,
   selectedTargetEnrollmentIds,
   onChangeSelectedTargetEnrollmentIds,
+  onDateChange,
   onCreated,
 }: Props) {
   const { message } = App.useApp();
@@ -274,11 +276,6 @@ export default function ClinicCreatePanel({
       </div>
 
       <div className="ds-card-modal__body clinic-create-body flex-1 min-h-0 flex flex-col">
-        {isPastDate && (
-          <div className="mx-4 mt-3 px-3 py-2 rounded-lg bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)] text-sm text-[var(--color-text-muted)]">
-            지난 날짜는 조회만 가능합니다. 새 클리닉은 오늘 이후 날짜에만 생성할 수 있습니다.
-          </div>
-        )}
         <div className="modal-scroll-body modal-scroll-body--compact flex flex-col gap-5 flex-1 min-h-0 w-full max-w-full box-border">
           {/* 날짜 — 모달 SSOT: modal-form-group으로 영역 구분 */}
           {!hideDatePicker && (
@@ -287,7 +284,11 @@ export default function ClinicCreatePanel({
               <div className="flex flex-col gap-2">
                 <DatePicker
                   value={selectedDate.format("YYYY-MM-DD")}
-                  onChange={(s) => setSelectedDate(dayjs(s))}
+                  onChange={(s) => {
+                    const next = dayjs(s);
+                    setSelectedDate(next);
+                    onDateChange?.(next.format("YYYY-MM-DD"));
+                  }}
                   placeholder="날짜 선택"
                   minDate={todayISO()}
                   openBelow

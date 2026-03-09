@@ -101,6 +101,15 @@ export default function ClinicOperationsPage() {
 
   return (
     <div className="clinic-page">
+      {baseDate < todayISO() && (
+        <div
+          className="clinic-operations-warning-banner"
+          role="alert"
+          aria-live="polite"
+        >
+          지난 날짜는 조회만 가능합니다. 새 클리닉은 오늘 이후 날짜에만 생성할 수 있습니다.
+        </div>
+      )}
       <div className="clinic-three-panel">
         <aside className="clinic-three-panel__cell clinic-three-panel__cell--fixed hidden lg:block w-[320px]">
           <OperationsSessionTree
@@ -141,6 +150,11 @@ export default function ClinicOperationsPage() {
         <div className="clinic-three-panel__cell clinic-three-panel__cell--fill">
           <ClinicCreatePanel
             date={baseDate}
+            onDateChange={(d) => {
+              setBaseDate(d);
+              setMode("day");
+              setSelectedSessionId(null);
+            }}
             onCreated={(createdDate) => {
               if (createdDate) {
                 setBaseDate(createdDate);
