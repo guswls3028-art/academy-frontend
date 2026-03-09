@@ -8,9 +8,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { fetchQuestionsByExam } from "../../api/questionApi";
-import { initExamQuestions } from "../../api/questionInitApi";
-import { AnswerKeyEditor } from "../AnswerKeyEditor";
+import { fetchQuestionsByExam } from "../api/questionApi";
+import { initExamQuestions } from "../api/questionInitApi";
+import { AnswerKeyEditor } from "./AnswerKeyEditor";
 
 type Props = {
   open: boolean;
