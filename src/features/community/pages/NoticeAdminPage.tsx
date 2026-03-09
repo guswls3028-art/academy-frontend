@@ -9,13 +9,11 @@ import {
   fetchScopeNodes,
   fetchCommunityBoardPosts,
   fetchBlockTypes,
-  getNoticeBlockTypeId,
   fetchPost,
   updatePostNodes,
   updatePost,
   deletePost,
   fetchAllNoticePostsForCount,
-  fetchPostTemplates,
   type BoardPost,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
@@ -25,7 +23,7 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { NoticeCreateModal } from "./NoticeBoardPage";
+import { NoticeAdminCreateModal } from "../components/NoticeAdminCreateModal";
 import "@/features/community/qna-inbox.css";
 import "@/features/community/notice-tree.css";
 
@@ -80,21 +78,17 @@ export default function NoticeAdminPage() {
     enabled: Number.isFinite(expandedLectureId ?? 0),
   });
 
-  const { data: noticeBlockTypeId } = useQuery({
-    queryKey: ["community-notice-block-type-id"],
-    queryFn: () => getNoticeBlockTypeId(),
-  });
-
   const { data: blockTypes = [] } = useQuery({
     queryKey: ["community-block-types"],
     queryFn: () => fetchBlockTypes(),
   });
 
-  const { data: templates = [] } = useQuery({
-    queryKey: ["community-post-templates"],
-    queryFn: () => fetchPostTemplates(),
-    enabled: showCreate,
-  });
+  /** 공지 유형 ID — blockTypes 단일 소스에서 도출. 모달은 이 값이 있을 때만 열림 */
+  const noticeTypeId = useMemo(
+    () =>
+      blockTypes.find((b) => (b.code || "").toLowerCase() === "notice")?.id ?? null,
+    [blockTypes]
+  );
 
   /** 트리 노드별 공지 개수 집계용: 공지 전체 목록(매핑 포함) */
   const { data: allNoticePostsForCount = [] } = useQuery({
@@ -141,17 +135,18 @@ export default function NoticeAdminPage() {
       scope,
       effectiveLectureId,
       sessionId,
-      noticeBlockTypeId ?? "all",
+      noticeTypeId ?? "all",
     ],
     queryFn: () =>
       fetchCommunityBoardPosts({
         ...scopeParams,
-        categoryId: noticeBlockTypeId ?? undefined,
+        categoryId: noticeTypeId ?? undefined,
       }),
     enabled:
-      scope === "all" ||
-      (scope === "lecture" && effectiveLectureId != null) ||
-      (scope === "session" && sessionId != null),
+      (scope === "all" ||
+        (scope === "lecture" && effectiveLectureId != null) ||
+        (scope === "session" && sessionId != null)) &&
+      noticeTypeId != null,
   });
 
   const filtered = useMemo(() => {
@@ -328,7 +323,7 @@ export default function NoticeAdminPage() {
           </div>
         </div>
         <div className="qna-inbox__list-body">
-          {canShowList && (
+          {canShowList && noticeTypeId != null && (
             <div className="notice-tree__add-section">
               <Button
                 intent="primary"
@@ -395,17 +390,14 @@ export default function NoticeAdminPage() {
         )}
       </main>
 
-      {showCreate && (
-        <NoticeCreateModal
+      {showCreate && noticeTypeId != null && (
+        <NoticeAdminCreateModal
+          noticeTypeId={noticeTypeId}
           scope={scope}
           scopeNodes={scopeNodes}
           scopeParams={scopeParams}
           effectiveLectureId={effectiveLectureId ?? undefined}
           sessionId={sessionId ?? undefined}
-          blockTypes={blockTypes}
-          templates={templates}
-          defaultBlockTypeCode="notice"
-          defaultBlockTypeId={noticeBlockTypeId ?? undefined}
           onClose={() => setShowCreate(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
