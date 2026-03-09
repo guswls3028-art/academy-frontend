@@ -259,7 +259,7 @@ function QuestionItem({
 }
 
 /**
- * 질문 상세 페이지
+ * 질문 상세 페이지 (목록에서 선택된 질문)
  */
 function QuestionDetailPage({
   question,
@@ -269,20 +269,74 @@ function QuestionDetailPage({
   onBack: () => void;
 }) {
   const hasAnswerValue = hasAnswer(question);
-  
-  // 답변 목록 조회
   const { data: replies = [], isLoading: repliesLoading } = useQuery<Answer[]>({
     queryKey: ["student", "qna", "replies", question.id],
     queryFn: () => fetchPostReplies(question.id),
     enabled: hasAnswerValue,
   });
-
   return (
-    <StudentPageShell
-      title="질문 상세"
-      onBack={onBack}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
+    <StudentPageShell title="질문 상세" onBack={onBack}>
+      <QuestionDetailContent
+        question={question}
+        hasAnswerValue={hasAnswerValue}
+        replies={replies}
+        repliesLoading={repliesLoading}
+      />
+    </StudentPageShell>
+  );
+}
+
+/**
+ * ID로 질문 상세 조회 (알림 등 직접 진입 시)
+ */
+function QuestionDetailPageById({ questionId, onBack }: { questionId: number; onBack: () => void }) {
+  const { data: question, isLoading } = useQuery({
+    queryKey: ["student", "qna", "question", questionId],
+    queryFn: () => fetchQnaQuestionDetail(questionId),
+    enabled: Number.isFinite(questionId),
+  });
+  const hasAnswerValue = question != null && hasAnswer(question);
+  const { data: replies = [], isLoading: repliesLoading } = useQuery<Answer[]>({
+    queryKey: ["student", "qna", "replies", questionId],
+    queryFn: () => fetchPostReplies(questionId),
+    enabled: hasAnswerValue,
+  });
+
+  if (isLoading || !question) {
+    return (
+      <StudentPageShell title="질문 상세" onBack={onBack}>
+        <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-8)" }}>
+          {isLoading ? "불러오는 중…" : "질문을 찾을 수 없습니다."}
+        </div>
+      </StudentPageShell>
+    );
+  }
+  return (
+    <StudentPageShell title="질문 상세" onBack={onBack}>
+      <QuestionDetailContent
+        question={question}
+        hasAnswerValue={hasAnswerValue}
+        replies={replies}
+        repliesLoading={repliesLoading}
+      />
+    </StudentPageShell>
+  );
+}
+
+/** 상세 본문 — 선생앱과 동일 구조(제목·상태·내용 → 선생님 답변) */
+function QuestionDetailContent({
+  question,
+  hasAnswerValue,
+  replies,
+  repliesLoading,
+}: {
+  question: PostEntity;
+  hasAnswerValue: boolean;
+  replies: Answer[];
+  repliesLoading: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
         {/* 질문 정보 */}
         <div className="stu-section stu-section--nested">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--stu-space-4)" }}>
@@ -321,15 +375,15 @@ function QuestionDetailPage({
           </div>
         </div>
 
-        {/* 답변 영역 */}
+        {/* 답변 영역 — 선생앱과 동일: "선생님 답변" 구분 */}
         {hasAnswerValue ? (
           <div className="stu-section stu-section--nested">
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
-              답변 {replies.length > 0 ? `(${replies.length}개)` : question.replies_count ? `(${question.replies_count}개)` : ""}
+              선생님 답변 {replies.length > 0 ? `(${replies.length}개)` : question.replies_count ? `(${question.replies_count}개)` : ""}
             </div>
             {repliesLoading ? (
               <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-4)" }}>
-                답변을 불러오는 중...
+                답변을 불러오는 중…
               </div>
             ) : replies.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-3)" }}>
@@ -396,7 +450,6 @@ function QuestionDetailPage({
           </div>
         )}
       </div>
-    </StudentPageShell>
   );
 }
 
