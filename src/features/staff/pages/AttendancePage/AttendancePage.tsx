@@ -15,7 +15,6 @@ import { useStaffs } from "../../hooks/useStaffs";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
 import { Button } from "@/shared/ui/ds";
-import "../../styles/staff-area.css";
 
 function getThisMonth() {
   const d = new Date();

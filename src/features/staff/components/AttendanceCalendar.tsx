@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import type { WorkRecord } from "../api/workRecords.api";
-import "../../styles/staff-area.css";
+import "../styles/staff-area.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
