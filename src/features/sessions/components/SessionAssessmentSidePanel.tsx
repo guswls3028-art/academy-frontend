@@ -7,7 +7,6 @@ import api from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
 import { fetchAdminSessionExams } from "@/features/results/api/adminSessionExams";
 import type { SessionExamRow } from "@/features/results/api/adminSessionExams";
-import { updateAdminExam, saveExamAsTemplate } from "@/features/exams/api/adminExam";
 import { updateAdminHomework } from "@/features/homework/api/adminHomework";
 
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -129,7 +128,6 @@ export default function SessionAssessmentSidePanel({
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
-  const invalidateAdminExam = (id: number) => qc.invalidateQueries({ queryKey: ["admin-exam", id] });
 
   const onSelectExam = (id: number) => {
     navigate({ pathname: `${base}/exams`, search: `?examId=${id}` });
@@ -137,35 +135,6 @@ export default function SessionAssessmentSidePanel({
 
   const onSelectHomework = (id: number) => {
     navigate({ pathname: `${base}/assignments`, search: `?homeworkId=${id}` });
-  };
-
-  const handleExamProgress = async (row: SessionExamRow) => {
-    const id = Number(row.exam_id);
-    try {
-      try {
-        await saveExamAsTemplate(id);
-        invalidateExams();
-      } catch (_) {
-        // 이미 템플릿이 있으면 무시
-      }
-      await updateAdminExam(id, { status: "OPEN" });
-      invalidateExams();
-      invalidateAdminExam(id);
-      feedback.success("시험을 진행 중으로 변경했습니다.");
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "변경 실패");
-    }
-  };
-
-  const handleExamClose = async (row: SessionExamRow) => {
-    try {
-      await updateAdminExam(Number(row.exam_id), { status: "CLOSED" });
-      invalidateExams();
-      invalidateAdminExam(Number(row.exam_id));
-      feedback.success("시험을 마감했습니다.");
-    } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "변경 실패");
-    }
   };
 
   const handleHomeworkProgress = async (hw: HomeworkItem) => {
@@ -229,8 +198,6 @@ export default function SessionAssessmentSidePanel({
                   sub={statusLine}
                   status={exam.status}
                   onSelect={() => onSelectExam(Number(exam.exam_id))}
-                  onStart={(e) => { e.stopPropagation(); handleExamProgress(exam); }}
-                  onEnd={(e) => { e.stopPropagation(); handleExamClose(exam); }}
                 />
               );
             })}
@@ -304,19 +271,13 @@ function ExamItemRow({
   sub,
   status,
   onSelect,
-  onStart,
-  onEnd,
 }: {
   active: boolean;
   label: string;
   sub: string;
   status: SessionExamRow["status"];
   onSelect: () => void;
-  onStart: (e: React.MouseEvent) => void;
-  onEnd: (e: React.MouseEvent) => void;
 }) {
-  const isDraft = status === "DRAFT";
-  const isOpen = status === "OPEN";
   return (
     <div
       role="button"
@@ -335,18 +296,6 @@ function ExamItemRow({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
           {sub && <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{sub}</div>}
-        </div>
-        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          {isDraft && (
-            <Button type="button" size="sm" intent="primary" onClick={onStart} className="!py-1 !text-xs">
-              진행
-            </Button>
-          )}
-          {isOpen && (
-            <Button type="button" size="sm" intent="secondary" onClick={onEnd} className="!py-1 !text-xs">
-              마감
-            </Button>
-          )}
         </div>
       </div>
     </div>

@@ -65,7 +65,7 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
               onClick={handleProgress}
               disabled={!!loading}
             >
-              {loading === "progress" ? "처리 중…" : "진행하기"}
+              {loading === "progress" ? "처리 중…" : "진행"}
             </Button>
           )}
           {isRegular && isOpen && (
@@ -76,7 +76,7 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
               onClick={handleClose}
               disabled={!!loading}
             >
-              {loading === "close" ? "처리 중…" : "마감"}
+              {loading === "close" ? "처리 중…" : "종료"}
             </Button>
           )}
         </div>
