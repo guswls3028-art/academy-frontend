@@ -23,9 +23,13 @@ function payLabel(v: Staff["pay_type"]) {
 export default function StaffOperationTable({
   selectedStaffId,
   basePath = "operations",
+  year,
+  month,
 }: {
   selectedStaffId?: number;
   basePath?: "operations" | "attendance" | "expenses" | "month-lock" | "reports";
+  year?: number;
+  month?: number;
 }) {
   const { data, isLoading } = useStaffs();
   const navigate = useNavigate();
@@ -49,6 +53,34 @@ export default function StaffOperationTable({
 
   const active = filtered.filter((s) => s.is_active);
   const inactive = filtered.filter((s) => !s.is_active);
+
+  const range = useMemo(() => {
+    if (year == null || month == null) return null;
+    const from = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const to = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    return { from, to };
+  }, [year, month]);
+
+  const summaryQueries = useQueries({
+    queries: (range ? filtered : []).map((s) => ({
+      queryKey: ["staff-summary", s.id, range!.from, range!.to],
+      queryFn: () => fetchStaffSummaryByRange(s.id, range!.from, range!.to),
+      enabled: !!range,
+    })),
+  });
+  const summaryByStaffId = useMemo(() => {
+    const map = new Map<number, { work_hours: number; total_amount: number }>();
+    summaryQueries.forEach((q, i) => {
+      const staff = filtered[i];
+      if (staff && q.data)
+        map.set(staff.id, {
+          work_hours: Number(q.data.work_hours) || 0,
+          total_amount: Number(q.data.total_amount) || 0,
+        });
+    });
+    return map;
+  }, [summaryQueries, filtered]);
 
   const pick = (id: number) => {
     const next = new URLSearchParams(params);

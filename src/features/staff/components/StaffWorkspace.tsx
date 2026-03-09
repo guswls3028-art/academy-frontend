@@ -45,6 +45,8 @@ export function StaffWorkspace() {
           <StaffOperationTable
             selectedStaffId={staffId ?? undefined}
             basePath={basePath}
+            year={year}
+            month={month}
           />
         </div>
       </div>
