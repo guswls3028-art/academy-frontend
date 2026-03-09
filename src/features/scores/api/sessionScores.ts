@@ -60,7 +60,9 @@ export type SessionScoreRow = {
 
   /** 행 단위 클리닉 대상 여부(백엔드 ClinicLink). 판정 컬럼 "대상"|"합격" 표시용 */
   clinic_required?: boolean;
-  /** 클리닉 대상 + 해당 주차 클리닉 미수강 → 이름만 노란 형광펜. 수강 완료(ATTENDED) 시 false */
+  /** 클리닉 대상 + 해당 주차 클리닉 미수강 → 이름만 노란 형광펜. 수강 완료(ATTENDED) 시 false.
+   * 세션 성적 API에서 제공. 다른 세션 단위 학생 목록 API(출결/등록 등)에서도 동일 필드 제공 시
+   * StudentNameWithLectureChip에 clinicHighlight로 넘기면 전역 동일 스타일 적용 가능. */
   name_highlight_clinic_target?: boolean;
 };
 
