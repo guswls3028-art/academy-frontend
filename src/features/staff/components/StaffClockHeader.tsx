@@ -22,7 +22,7 @@ function formatElapsed(seconds: number): string {
 
 function parseStartedAt(dateStr: string, timeStr: string): number {
   const date = dateStr.trim();
-  const time = String(timeStr).trim();
+  const time = String(timeStr).trim().split(".")[0];
   const iso = time.length <= 5 ? `${date}T${time}:00` : `${date}T${time}`;
   return new Date(iso).getTime();
 }
