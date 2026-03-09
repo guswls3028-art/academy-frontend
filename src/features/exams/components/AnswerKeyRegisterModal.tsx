@@ -65,7 +65,14 @@ export default function AnswerKeyRegisterModal({
 
   const { data: answerKeyList } = useQuery({
     queryKey: ["answer-key", examId],
-    queryFn: () => fetchAnswerKeyByExam(examId),
+    queryFn: async () => {
+      try {
+        return await fetchAnswerKeyByExam(examId);
+      } catch (e: any) {
+        if (e?.response?.status === 404) return { data: [] };
+        throw e;
+      }
+    },
     enabled: open && questions.length > 0,
   });
   /** DRF list는 pagination 시 { results: [] }, 미사용 시 [] — response.data 기준으로 파싱 */
@@ -237,6 +244,38 @@ export default function AnswerKeyRegisterModal({
       feedback.error(e?.response?.data?.detail ?? "적용 실패");
     },
   });
+
+  /** 적용 클릭: 자동점수 ON이면 총점 필수 검증, 선택형만 설정 시 서술형 0으로 전달 */
+  const handleApply = (source: "choice" | "essay") => {
+    if (choiceAutoScore) {
+      const v = choiceTotalInput;
+      if (v === "" || v === undefined || !Number.isFinite(Number(v)) || Number(v) < 0) {
+        feedback.error("자동점수 부여(사용) 시 선택형 총점을 입력해 주세요.");
+        return;
+      }
+    }
+    if (essayAutoScore) {
+      const v = essayTotalInput;
+      if (v === "" || v === undefined || !Number.isFinite(Number(v)) || Number(v) < 0) {
+        feedback.error("자동점수 부여(사용) 시 서술형 총점을 입력해 주세요.");
+        return;
+      }
+    }
+    setChoiceCount(choiceCountInput);
+    setEssayCount(essayCountInput);
+    const choiceVal = choiceCountInput !== "" ? Number(choiceCountInput) : undefined;
+    const essayVal = essayCountInput !== "" ? Number(essayCountInput) : undefined;
+    let payload: { choiceCount: number | ""; essayCount: number | "" } = {
+      choiceCount: choiceCountInput,
+      essayCount: essayCountInput,
+    };
+    if (choiceVal !== undefined && essayCountInput === "") {
+      payload = { choiceCount: choiceCountInput, essayCount: 0 };
+    } else if (essayVal !== undefined && choiceCountInput === "") {
+      payload = { choiceCount: Math.max(0, questions.length - essayVal), essayCount: essayCountInput };
+    }
+    initMut.mutate(payload);
+  };
 
   const handleSave = async () => {
     setSaveBusy(true);
