@@ -52,7 +52,7 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
           type="button"
           intent="danger"
           size="md"
-          className="w-full !bg-[var(--color-error)] hover:!bg-[var(--color-error)]/90"
+          className="w-full !bg-[var(--color-error)] !text-white hover:!bg-[var(--color-error)]/90"
           onClick={() => setConfirmOpen(true)}
         >
           {label}
@@ -89,7 +89,7 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
                 size="sm"
                 onClick={handleDelete}
                 disabled={loading}
-                className="!bg-[var(--color-error)] hover:!bg-[var(--color-error)]/90"
+                className="!bg-[var(--color-error)] !text-white hover:!bg-[var(--color-error)]/90"
               >
                 {loading ? "처리 중…" : "삭제"}
               </Button>

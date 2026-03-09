@@ -1,7 +1,8 @@
 import type { Exam } from "../../types";
 
 /**
- * 시험 단계 (과제와 동일). DRAFT/OPEN/CLOSED 문구 노출 없음. 진행/종료 버튼만.
+ * 시험 헤더: 상태 배지만 표시.
+ * 진행/종료 조작은 좌측 리스트에서만 수행.
  */
 export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | null }) {
   const isDraft = exam.status === "DRAFT";

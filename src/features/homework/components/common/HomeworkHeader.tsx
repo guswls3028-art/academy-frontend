@@ -1,7 +1,8 @@
 // PATH: src/features/homework/components/common/HomeworkHeader.tsx
 /**
  * HomeworkHeader
- * - DRAFT/OPEN/CLOSED 문구 노출 없음. 진행하기/마감 버튼만 표시.
+ * - 상태 배지만 표시.
+ * - 진행/종료 조작은 좌측 리스트에서만 수행.
  */
 
 import type { HomeworkSummary } from "../../types";
