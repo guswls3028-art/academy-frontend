@@ -6,8 +6,7 @@ import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import {
   submitRegistrationRequest,
-  requestPasswordFindCode,
-  verifyPasswordFindCode,
+  sendPasswordReset,
 } from "@/features/students/api/students";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
@@ -60,11 +59,10 @@ export default function EnhancedCommonLoginPage() {
   const [signupError, setSignupError] = useState("");
   const [signupPending, setSignupPending] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
-  const [pwFindStep, setPwFindStep] = useState<1 | 2>(1);
+  const [pwFindTarget, setPwFindTarget] = useState<"student" | "parent">("student");
   const [pwFindName, setPwFindName] = useState("");
-  const [pwFindPhone, setPwFindPhone] = useState("");
-  const [pwFindCode, setPwFindCode] = useState("");
-  const [pwFindNewPassword, setPwFindNewPassword] = useState("");
+  const [pwFindPsNumber, setPwFindPsNumber] = useState("");
+  const [pwFindParentPhone, setPwFindParentPhone] = useState("");
   const [pwFindError, setPwFindError] = useState("");
   const [pwFindPending, setPwFindPending] = useState(false);
   const [pwFindSuccess, setPwFindSuccess] = useState(false);
@@ -221,55 +219,46 @@ export default function EnhancedCommonLoginPage() {
     }
   }
 
-  async function onPwFindRequestCode(e: React.FormEvent) {
+  async function onPwFindSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (pwFindPending || pwFindStep !== 1) return;
+    if (pwFindPending) return;
     const name = pwFindName.trim();
-    const phone = pwFindPhone.replace(/\D/g, "");
     if (!name) {
-      setPwFindError("이름을 입력해 주세요.");
+      setPwFindError("학생 이름을 입력해 주세요.");
       return;
     }
-    if (phone.length !== 11 || !phone.startsWith("010")) {
-      setPwFindError("전화번호를 010 뒤 8자리로 입력해 주세요.");
-      return;
+    if (pwFindTarget === "student") {
+      if (!pwFindPsNumber.trim()) {
+        setPwFindError("학생 번호를 입력해 주세요.");
+        return;
+      }
+    } else {
+      const phone = pwFindParentPhone.replace(/\D/g, "");
+      if (phone.length !== 11 || !phone.startsWith("010")) {
+        setPwFindError("학부모 전화번호를 010 뒤 8자리로 입력해 주세요.");
+        return;
+      }
     }
     setPwFindError("");
     setPwFindPending(true);
     try {
-      await requestPasswordFindCode(name, phone);
-      setPwFindStep(2);
-    } catch (err) {
-      setPwFindError(err instanceof Error ? err.message : "인증번호 요청에 실패했습니다.");
-    } finally {
-      setPwFindPending(false);
-    }
-  }
-
-  async function onPwFindVerify(e: React.FormEvent) {
-    e.preventDefault();
-    if (pwFindPending || pwFindStep !== 2) return;
-    const phone = pwFindPhone.replace(/\D/g, "");
-    if (pwFindCode.length !== 6 || pwFindNewPassword.length < 4) {
-      setPwFindError("인증번호 6자리와 새 비밀번호(4자 이상)를 입력해 주세요.");
-      return;
-    }
-    setPwFindError("");
-    setPwFindPending(true);
-    try {
-      await verifyPasswordFindCode(phone, pwFindCode, pwFindNewPassword);
+      await sendPasswordReset({
+        target: pwFindTarget,
+        student_name: name,
+        student_ps_number: pwFindTarget === "student" ? pwFindPsNumber.trim() : undefined,
+        parent_phone: pwFindTarget === "parent" ? pwFindParentPhone : undefined,
+      });
       setPwFindSuccess(true);
       setTimeout(() => {
         setShowPwFindModal(false);
-        setPwFindStep(1);
+        setPwFindTarget("student");
         setPwFindName("");
-        setPwFindPhone("");
-        setPwFindCode("");
-        setPwFindNewPassword("");
+        setPwFindPsNumber("");
+        setPwFindParentPhone("");
         setPwFindSuccess(false);
-      }, 1500);
+      }, 2000);
     } catch (err) {
-      setPwFindError(err instanceof Error ? err.message : "비밀번호 변경에 실패했습니다.");
+      setPwFindError(err instanceof Error ? err.message : "임시 비밀번호 발송에 실패했습니다.");
     } finally {
       setPwFindPending(false);
     }
@@ -299,7 +288,6 @@ export default function EnhancedCommonLoginPage() {
   function closePwFindModal() {
     if (!pwFindPending) {
       setShowPwFindModal(false);
-      setPwFindStep(1);
       setPwFindError("");
       setPwFindSuccess(false);
     }
@@ -661,64 +649,66 @@ export default function EnhancedCommonLoginPage() {
           <div className={styles.overlayCard} onClick={(e) => e.stopPropagation()}>
             <h2 className={styles.overlayTitle}>비밀번호 찾기</h2>
             {pwFindSuccess ? (
-              <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.</p>
-            ) : pwFindStep === 1 ? (
-              <form onSubmit={onPwFindRequestCode}>
-                <p style={{ fontSize: "0.875rem", color: "var(--auth-text-muted)", marginBottom: "1rem" }}>
-                  이름과 전화번호가 일치하면 문자로 인증번호를 보내드립니다.
-                </p>
-                <input
-                  className={styles.input}
-                  placeholder="이름 *"
-                  value={pwFindName}
-                  onChange={(e) => setPwFindName(e.target.value)}
-                />
-                <PhoneInput010Blocks
-                  value={pwFindPhone}
-                  onChange={setPwFindPhone}
-                  className={styles.phoneBlocksWrap}
-                  inputClassName={styles.input}
-                  aria-label="전화번호"
-                />
-                {pwFindError && <div className={styles.error}>{pwFindError}</div>}
-                <div className={styles.overlayActions}>
-                  <button type="button" className={styles.btnSecondary} onClick={closePwFindModal}>
-                    취소
-                  </button>
-                  <button type="submit" className={styles.btnPrimary} disabled={pwFindPending}>
-                    {pwFindPending ? "요청 중..." : "인증번호 받기"}
-                  </button>
-                </div>
-              </form>
+              <p style={{ color: "var(--auth-accent)", fontWeight: 600 }}>
+                임시 비밀번호가 발송되었습니다. 문자를 확인한 뒤 로그인해 주세요.
+              </p>
             ) : (
-              <form onSubmit={onPwFindVerify}>
+              <>
                 <p style={{ fontSize: "0.875rem", color: "var(--auth-text-muted)", marginBottom: "1rem" }}>
-                  문자로 받은 6자리 인증번호와 새 비밀번호를 입력하세요.
+                  대상을 선택한 뒤 정보를 입력하시면 임시 비밀번호를 문자로 보내드립니다.
                 </p>
-                <input
-                  className={styles.input}
-                  placeholder="인증번호 6자리 *"
-                  value={pwFindCode}
-                  onChange={(e) => setPwFindCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  maxLength={6}
-                />
-                <input
-                  className={styles.input}
-                  type="password"
-                  placeholder="새 비밀번호 (4자 이상) *"
-                  value={pwFindNewPassword}
-                  onChange={(e) => setPwFindNewPassword(e.target.value)}
-                />
-                {pwFindError && <div className={styles.error}>{pwFindError}</div>}
-                <div className={styles.overlayActions}>
-                  <button type="button" className={styles.btnSecondary} onClick={() => setPwFindStep(1)}>
-                    이전
+                <div className={styles.signupSegmentWrap} role="group" aria-label="대상 선택" style={{ marginBottom: "1rem" }}>
+                  <button
+                    type="button"
+                    className={`${styles.signupSegmentBtn} ${pwFindTarget === "student" ? styles.isSelected : ""}`}
+                    aria-pressed={pwFindTarget === "student"}
+                    onClick={() => setPwFindTarget("student")}
+                  >
+                    학생
                   </button>
-                  <button type="submit" className={styles.btnPrimary} disabled={pwFindPending}>
-                    {pwFindPending ? "변경 중..." : "비밀번호 변경"}
+                  <button
+                    type="button"
+                    className={`${styles.signupSegmentBtn} ${pwFindTarget === "parent" ? styles.isSelected : ""}`}
+                    aria-pressed={pwFindTarget === "parent"}
+                    onClick={() => setPwFindTarget("parent")}
+                  >
+                    학부모
                   </button>
                 </div>
-              </form>
+                <form onSubmit={onPwFindSubmit}>
+                  <input
+                    className={styles.input}
+                    placeholder="학생 이름 *"
+                    value={pwFindName}
+                    onChange={(e) => setPwFindName(e.target.value)}
+                  />
+                  {pwFindTarget === "student" ? (
+                    <input
+                      className={styles.input}
+                      placeholder="학생 번호 *"
+                      value={pwFindPsNumber}
+                      onChange={(e) => setPwFindPsNumber(e.target.value)}
+                    />
+                  ) : (
+                    <PhoneInput010Blocks
+                      value={pwFindParentPhone}
+                      onChange={setPwFindParentPhone}
+                      className={styles.phoneBlocksWrap}
+                      inputClassName={styles.input}
+                      aria-label="학부모 전화번호"
+                    />
+                  )}
+                  {pwFindError && <div className={styles.error}>{pwFindError}</div>}
+                  <div className={styles.overlayActions}>
+                    <button type="button" className={styles.btnSecondary} onClick={closePwFindModal}>
+                      취소
+                    </button>
+                    <button type="submit" className={styles.btnPrimary} disabled={pwFindPending}>
+                      {pwFindPending ? "발송 중..." : "임시 비밀번호 받기"}
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
           </div>
         </div>
