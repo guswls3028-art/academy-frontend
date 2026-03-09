@@ -25,6 +25,8 @@ export type TemplateEditModalProps = {
   defaultLocked?: boolean;
   onSubmit: (payload: MessageTemplatePayload) => void;
   isPending?: boolean;
+  /** 다른 모달 위에 띄울 때 더 높은 z-index (예: 학생 등록 모달 안에서 열 때) */
+  zIndex?: number;
 };
 
 type EditorTab = "message" | "alimtalk";
@@ -37,6 +39,7 @@ export default function TemplateEditModal({
   defaultLocked = false,
   onSubmit,
   isPending = false,
+  zIndex,
 }: TemplateEditModalProps) {
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
@@ -110,7 +113,7 @@ export default function TemplateEditModal({
     : "템플릿 추가";
 
   return (
-    <AdminModal open={open} onClose={onClose} width={1000}>
+    <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex}>
       <ModalHeader title={title} />
       <ModalBody>
         <div className="template-editor flex gap-5" style={{ minHeight: 420 }}>

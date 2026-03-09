@@ -16,6 +16,8 @@ type AdminModalProps = {
   onClose: () => void;
   type?: AdminModalType;
   width?: number;
+  /** 모달 위에 또 다른 모달을 띄울 때 상위 모달에 더 높은 값 지정 (기본 1000) */
+  zIndex?: number;
   children: React.ReactNode;
 };
 
@@ -24,6 +26,7 @@ export default function AdminModal({
   onClose,
   type = "action",
   width = MODAL_DEFAULT_WIDTH,
+  zIndex,
   children,
 }: AdminModalProps) {
   const isConfirm = type === "confirm";
@@ -37,6 +40,7 @@ export default function AdminModal({
       width={width}
       centered
       destroyOnHidden
+      zIndex={zIndex}
       mask={{ closable: !isConfirm }}
       closable={!isConfirm}
       keyboard={!isConfirm}
