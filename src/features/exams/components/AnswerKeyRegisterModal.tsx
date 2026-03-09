@@ -260,13 +260,13 @@ export default function AnswerKeyRegisterModal({
 
           {hasQuestions && (
             <div className="answer-key-two-panels">
-              {/* 좌측: 객관식 */}
+              {/* 좌측: 객관식 — 5문항 단위 구분선, 영역 내 스크롤 */}
               <div className="answer-key-panel answer-key-panel--choice">
                 <h3 className="answer-key-section__title">
                   선택형 ({choiceTotalScore}점) — {choiceQuestions.length}문항
                 </h3>
-                <ul className="answer-key-list">
-                  {choiceQuestions.map((q) => (
+                <ul className="answer-key-list answer-key-list--choice-scroll">
+                  {choiceQuestions.map((q, index) => (
                     <ChoiceRow
                       key={q.id}
                       question={q}
@@ -274,6 +274,7 @@ export default function AnswerKeyRegisterModal({
                       onChange={(value) =>
                         setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
                       }
+                      showDividerAfter={(index + 1) % 5 === 0 && index < choiceQuestions.length - 1}
                     />
                   ))}
                 </ul>
@@ -284,13 +285,13 @@ export default function AnswerKeyRegisterModal({
                 </div>
               </div>
 
-              {/* 우측: 주관식 */}
+              {/* 우측: 주관식 — 5문항 단위 구분선, 영역 내 스크롤 */}
               <div className="answer-key-panel answer-key-panel--essay">
                 <h3 className="answer-key-section__title">
                   서술형 ({essayTotalScore}점) — {essayQuestions.length}문항
                 </h3>
-                <ul className="answer-key-list">
-                  {essayQuestions.map((q) => (
+                <ul className="answer-key-list answer-key-list--essay-scroll">
+                  {essayQuestions.map((q, index) => (
                     <EssayRow
                       key={q.id}
                       question={q}
@@ -298,6 +299,7 @@ export default function AnswerKeyRegisterModal({
                       onChange={(value) =>
                         setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
                       }
+                      showDividerAfter={(index + 1) % 5 === 0 && index < essayQuestions.length - 1}
                     />
                   ))}
                 </ul>
@@ -384,13 +386,15 @@ function ChoiceRow({
   question,
   draft,
   onChange,
+  showDividerAfter = false,
 }: {
   question: ExamQuestion;
   draft: string;
   onChange: (value: string) => void;
+  showDividerAfter?: boolean;
 }) {
   return (
-    <li className="answer-key-row answer-key-row--choice">
+    <li className={`answer-key-row answer-key-row--choice ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
       <div className="answer-key-row__num">{question.number}</div>
       <div className="answer-key-row__bubbles">
         {CHOICES.map((c) => (
@@ -424,13 +428,15 @@ function EssayRow({
   question,
   draft,
   onChange,
+  showDividerAfter = false,
 }: {
   question: ExamQuestion;
   draft: string;
   onChange: (value: string) => void;
+  showDividerAfter?: boolean;
 }) {
   return (
-    <li className="answer-key-row answer-key-row--essay">
+    <li className={`answer-key-row answer-key-row--essay ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
       <div className="answer-key-row__num">{question.number}</div>
       <div className="answer-key-row__input-wrap">
         <input
