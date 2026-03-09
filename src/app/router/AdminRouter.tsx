@@ -153,7 +153,6 @@ export default function AdminRouter() {
           element={wrapLazy(SessionLayout)}
         >
           <Route index element={wrapLazy(SessionDetailPage)} />
-          <Route path="overview" element={wrapLazy(SessionDetailPage)} />
           <Route path="attendance" element={wrapLazy(SessionDetailPage)} />
           <Route path="scores" element={wrapLazy(SessionDetailPage)} />
           <Route path="exams" element={wrapLazy(SessionDetailPage)} />
