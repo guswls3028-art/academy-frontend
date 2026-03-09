@@ -46,21 +46,21 @@ function normalizePolicy(p: any): Policy {
 async function postHeartbeat(token: string) {
   if (token.startsWith("student-")) return;
   try {
-    await studentApi.post(`/api/v1/videos/playback/heartbeat/`, { token });
+    await studentApi.post(`/media/playback/heartbeat/`, { token });
   } catch {}
 }
 
 async function postRefresh(token: string) {
   if (token.startsWith("student-")) return;
   try {
-    await studentApi.post(`/api/v1/videos/playback/refresh/`, { token });
+    await studentApi.post(`/media/playback/refresh/`, { token });
   } catch {}
 }
 
 async function postEnd(token: string) {
   if (token.startsWith("student-")) return;
   try {
-    await studentApi.post(`/api/v1/videos/playback/end/`, { token });
+    await studentApi.post(`/media/playback/end/`, { token });
   } catch {}
 }
 
@@ -72,7 +72,7 @@ async function postEvents(
 ) {
   if (!events.length || token.startsWith("student-")) return;
   try {
-    await studentApi.post(`/api/v1/videos/playback/events/`, {
+    await studentApi.post(`/media/playback/events/`, {
       token,
       video_id: videoId,
       enrollment_id: enrollmentId,
