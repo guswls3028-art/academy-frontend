@@ -27,7 +27,7 @@ export default function ClinicSettingsPage() {
   if (meQ.isLoading) {
     return (
       <div className="clinic-page">
-        <Section title="설정" description="불러오는 중…" />
+        <Section title="패스카드" description="불러오는 중…" />
       </div>
     );
   }
@@ -36,7 +36,7 @@ export default function ClinicSettingsPage() {
     return (
       <div className="clinic-page">
         <Section
-          title="설정"
+          title="패스카드"
           description="권한 정보를 불러오지 못했습니다. 네트워크를 확인한 뒤 새로고침해 주세요."
         />
       </div>
@@ -48,7 +48,7 @@ export default function ClinicSettingsPage() {
       <div className="clinic-page">
         <Section
           title="권한 없음"
-          description="설정은 스태프(관리자)만 접근할 수 있습니다."
+          description="패스카드 설정은 스태프(관리자)만 접근할 수 있습니다."
         />
       </div>
     );
@@ -158,105 +158,104 @@ function ClinicIdcardColorSettings() {
 
   return (
     <>
-      <style>{`
-        @keyframes idcard-background-flow {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
-      <Section title="패스카드 배경 색상" description="위조 방지 · 수업 후 색상 변경">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
-            <div>
-              <p className="clinic-panel__title text-base">매일 자동 색상</p>
-              <p className="clinic-panel__meta">날짜마다 다른 3색 자동 적용</p>
+      <div className="clinic-panel overflow-hidden">
+        <div className="clinic-panel__header">
+          <h2 className="clinic-panel__title">클리닉 패스카드</h2>
+          <p className="clinic-panel__meta">위조 방지 · 수업 후 색상 변경</p>
+        </div>
+        <div className="clinic-panel__body">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
+              <div>
+                <p className="clinic-panel__title text-base">매일 자동 색상</p>
+                <p className="clinic-panel__meta">날짜마다 다른 3색 자동 적용</p>
+              </div>
+              <Switch
+                checked={useDailyRandom}
+                onChange={handleToggleDailyRandom}
+                disabled={updateMutation.isPending}
+              />
             </div>
-            <Switch
-              checked={useDailyRandom}
-              onChange={handleToggleDailyRandom}
-              disabled={updateMutation.isPending}
-            />
-          </div>
 
-          {useDailyRandom && (
+            {useDailyRandom && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-[var(--color-text-muted)]">오늘 미리보기</p>
+                <div
+                  className="w-full h-16 rounded-lg border-2 border-[var(--color-border-divider)] clinic-passcard-gradient-flow"
+                  style={{
+                    backgroundImage: `linear-gradient(135deg, ${(settings?.colors || localColors)[0]} 0%, ${(settings?.colors || localColors)[1]} 50%, ${(settings?.colors || localColors)[2]} 100%)`,
+                    backgroundSize: "200% 200%",
+                    animation: "idcard-background-flow 8s ease infinite",
+                  }}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-[var(--color-text-muted)]">오늘 미리보기</p>
+              <p className="text-xs font-semibold text-[var(--color-text-muted)]">
+                {useDailyRandom ? "수동 모드용 색상" : "현재 색상"}
+              </p>
               <div
-                className="h-24 rounded-lg border-2 border-[var(--color-border-divider)]"
+                className="w-full h-16 rounded-lg border-2 border-[var(--color-border-divider)] clinic-passcard-gradient-flow"
                 style={{
-                  backgroundImage: `linear-gradient(135deg, ${(settings?.colors || localColors)[0]} 0%, ${(settings?.colors || localColors)[1]} 50%, ${(settings?.colors || localColors)[2]} 100%)`,
+                  backgroundImage: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
                   backgroundSize: "200% 200%",
                   animation: "idcard-background-flow 8s ease infinite",
                 }}
               />
             </div>
-          )}
 
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-[var(--color-text-muted)]">
-              {useDailyRandom ? "수동 모드용 색상" : "현재 색상"}
-            </p>
-            <div
-              className="h-24 rounded-lg border-2 border-[var(--color-border-divider)]"
-              style={{
-                backgroundImage: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
-                backgroundSize: "200% 200%",
-                animation: "idcard-background-flow 8s ease infinite",
-              }}
-            />
-          </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs font-semibold text-[var(--color-text-muted)]">색상 3개</p>
+                <Button intent="secondary" size="small" onClick={handleAutoAssign} className="shrink-0">
+                  자동 부여
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[0, 1, 2].map((index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleOpenColorModal(index)}
+                    className="group relative h-20 rounded-lg border-2 border-[var(--color-border-divider)] overflow-hidden hover:border-[var(--color-brand-primary)] transition-colors flex flex-col items-center justify-center gap-1"
+                    style={{ background: localColors[index] }}
+                  >
+                    <span className="text-xs font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      {index + 1}
+                    </span>
+                    <span className="text-[10px] font-mono text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      {localColors[index]}
+                    </span>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                  </button>
+                ))}
+              </div>
+            </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-xs font-semibold text-[var(--color-text-muted)]">색상 3개</p>
-              <Button intent="secondary" size="small" onClick={handleAutoAssign} className="shrink-0">
-                자동 부여
+            <div className="pt-2 flex flex-col gap-3">
+              <Button
+                type="button"
+                intent="secondary"
+                size="xl"
+                onClick={handleRefresh}
+                disabled={updateMutation.isPending || isLoading}
+                className="w-full clinic-passcard-refresh-btn"
+              >
+                🔄 새로고침 — 3색 랜덤 배치 즉시 반영
+              </Button>
+              <Button
+                intent="primary"
+                onClick={handleSave}
+                disabled={updateMutation.isPending || isLoading}
+                className="w-full"
+              >
+                {updateMutation.isPending ? "저장 중…" : "저장"}
               </Button>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[0, 1, 2].map((index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => handleOpenColorModal(index)}
-                  className="group relative h-20 rounded-lg border-2 border-[var(--color-border-divider)] overflow-hidden hover:border-[var(--color-brand-primary)] transition-colors flex flex-col items-center justify-center gap-1"
-                  style={{ background: localColors[index] }}
-                >
-                  <span className="text-xs font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                    {index + 1}
-                  </span>
-                  <span className="text-[10px] font-mono text-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                    {localColors[index]}
-                  </span>
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-2 flex flex-col gap-3">
-            <Button
-              type="button"
-              intent="secondary"
-              size="xl"
-              onClick={handleRefresh}
-              disabled={updateMutation.isPending || isLoading}
-              className="w-full clinic-passcard-refresh-btn"
-            >
-              🔄 새로고침 — 3색 랜덤 배치 즉시 반영
-            </Button>
-            <Button
-              intent="primary"
-              onClick={handleSave}
-              disabled={updateMutation.isPending || isLoading}
-              className="w-full"
-            >
-              {updateMutation.isPending ? "저장 중…" : "저장"}
-            </Button>
           </div>
         </div>
-      </Section>
+      </div>
 
       {/* 색상 선택 모달 */}
       <ColorSelectModal

@@ -136,15 +136,6 @@ export default function ClinicTargetSelectModal({
     });
   };
 
-  const removeSelected = (id: number) => {
-    setSelectedIds((prev) => prev.filter((x) => x !== id));
-    setSelectedIdToName((prev) => {
-      const next = new Map(prev);
-      next.delete(id);
-      return next;
-    });
-  };
-
   const selectedRowsForDisplay = useMemo(() => {
     return selectedIds.map((id) => ({ id, name: selectedIdToName.get(id) ?? "(이름 없음)" }));
   }, [selectedIds, selectedIdToName]);
@@ -395,6 +386,25 @@ export default function ClinicTargetSelectModal({
                 ) : (
                   <ul className="space-y-0">
                     {selectedRowsForDisplay.map((r) => (
+                      <li
+                        key={r.id}
+                        className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-[var(--color-bg-surface)] group min-h-[32px]"
+                      >
+                        <span className="flex items-center gap-2 min-w-0 flex-1 truncate text-[13px] font-semibold leading-6 text-[var(--color-text-primary)]">
+                          {r.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeSelected(r.id)}
+                          disabled={isLoading}
+                          className="shrink-0 p-1.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-error)] hover:bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] transition-colors disabled:opacity-50"
+                          aria-label={`${r.name} 선택 해제`}
+                          title="선택 해제"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </li>
+                    ))}
                   </ul>
                 )}
               </div>
