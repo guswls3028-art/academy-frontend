@@ -74,17 +74,10 @@ export default function SessionDetailPage() {
     return Number.isFinite(v) && v > 0 ? v : null;
   }, [searchParams]);
 
-  if (!Number.isFinite(lecId) || !Number.isFinite(sId)) {
-    return <div className="p-4 text-sm text-[var(--color-error)]">잘못된 접근입니다.</div>;
-  }
-
-  /* --------------------------------------------------
-   * 탭 상태: 레이아웃 탭이 path로 이동하므로 pathname 기준으로 결정
-   * index(차시 진입) → 개요 표시
-   * -------------------------------------------------- */
+  /* 탭 상태: pathname 기준 (훅 개수 일정 유지 위해 모든 훅을 early return 위에 배치) */
+  const basePath = `/admin/lectures/${lecId}/sessions/${sId}`;
   const activeTab = useMemo((): SessionTab => {
     const p = location.pathname;
-    const basePath = `/admin/lectures/${lecId}/sessions/${sId}`;
     const isIndex = p === basePath || p === basePath + "/";
     if (isIndex) return "overview";
     if (p.includes("/scores")) return "scores";
@@ -95,14 +88,7 @@ export default function SessionDetailPage() {
     if (p.includes("/overview")) return "overview";
     if (p.includes("/attendance")) return "attendance";
     return "attendance";
-  }, [location.pathname, lecId, sId]);
-
-  // 차시 진입(index) 시 개요 탭으로 리다이렉트
-  const basePath = `/admin/lectures/${lecId}/sessions/${sId}`;
-  const isIndexPath = location.pathname === basePath || location.pathname === basePath + "/";
-  if (isIndexPath) {
-    return <Navigate to={`${basePath}/overview`} replace />;
-  }
+  }, [location.pathname, basePath]);
 
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -170,6 +156,16 @@ export default function SessionDetailPage() {
     qc.invalidateQueries({ queryKey: ["attendance-matrix", lecId] });
     qc.invalidateQueries({ queryKey: ["session-scores", sId] });
   };
+
+  // ---------- Early returns (모든 훅 호출 이후에만) ----------
+  if (!Number.isFinite(lecId) || !Number.isFinite(sId)) {
+    return <div className="p-4 text-sm text-[var(--color-error)]">잘못된 접근입니다.</div>;
+  }
+
+  const isIndexPath = location.pathname === basePath || location.pathname === basePath + "/";
+  if (isIndexPath) {
+    return <Navigate to={`${basePath}/overview`} replace />;
+  }
 
   if (!session) {
     return <div className="p-4 text-sm text-[var(--color-text-muted)]">로딩중...</div>;
