@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "antd";
 import { fetchClinicMe } from "../../api/clinicMe.api";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
-import ClinicRemoteControl from "../../components/ClinicRemoteControl";
 import Section from "@/shared/ui/ds/Section";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -58,19 +57,6 @@ export default function ClinicSettingsPage() {
   return (
     <div className="clinic-page space-y-0">
       <ClinicIdcardColorSettings />
-      <ClinicRemoteControl />
-
-      <Section
-        title="클리닉 정책"
-        description="ProgressPolicy · 대상자 자동 생성 · 예약 슬롯 규칙 등 (백엔드 정책 API 연동 예정)"
-      >
-        <div className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-5 py-4">
-          <p className="text-sm font-semibold text-[var(--color-text-primary)]">예시</p>
-          <p className="text-xs text-[var(--color-text-muted)] mt-1">
-            ProgressPolicy · 대상자 자동 생성 · 예약 슬롯 규칙
-          </p>
-        </div>
-      </Section>
     </div>
   );
 }
@@ -118,7 +104,7 @@ function ClinicIdcardColorSettings() {
     updateMutation.mutate({ colors: localColors });
   };
 
-  /** 팔레트에서 서로 다른 3색 랜덤 선택 */
+  /** 팔레트에서 서로 다른 3색 랜덤 선택 (로컬만) */
   const handleAutoAssign = () => {
     const palette = [
       "#ef4444", "#3b82f6", "#22c55e", "#f97316", "#a855f7", "#ec4899",
@@ -130,6 +116,22 @@ function ClinicIdcardColorSettings() {
       if (!indices.includes(i)) indices.push(i);
     }
     setLocalColors([palette[indices[0]], palette[indices[1]], palette[indices[2]]]);
+  };
+
+  /** 3색 랜덤 배치 후 즉시 서버에 반영 (새로고침) */
+  const handleRefresh = () => {
+    const palette = [
+      "#ef4444", "#3b82f6", "#22c55e", "#f97316", "#a855f7", "#ec4899",
+      "#eab308", "#06b6d4", "#84cc16", "#f43f5e", "#6366f1", "#14b8a6",
+    ];
+    const indices: number[] = [];
+    while (indices.length < 3) {
+      const i = Math.floor(Math.random() * palette.length);
+      if (!indices.includes(i)) indices.push(i);
+    }
+    const newColors: [string, string, string] = [palette[indices[0]], palette[indices[1]], palette[indices[2]]];
+    setLocalColors(newColors);
+    updateMutation.mutate({ colors: newColors });
   };
 
   const [colorSelectModalOpen, setColorSelectModalOpen] = useState(false);
@@ -233,7 +235,17 @@ function ClinicIdcardColorSettings() {
             </div>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-2 flex flex-col gap-3">
+            <Button
+              type="button"
+              intent="secondary"
+              size="lg"
+              onClick={handleRefresh}
+              disabled={updateMutation.isPending || isLoading}
+              className="w-full py-4 text-base font-semibold"
+            >
+              🔄 새로고침 — 3색 랜덤 배치 즉시 반영
+            </Button>
             <Button
               intent="primary"
               onClick={handleSave}
