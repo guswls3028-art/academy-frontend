@@ -5,24 +5,24 @@ import { updateAdminExam } from "../../api/adminExam";
 import { Button } from "@/shared/ui/ds";
 
 /**
- * 시험 단계 (사용자 노출용). DRAFT/OPEN/CLOSED 같은 용어 노출 없음.
- * - 설정 중: open_at 없음 → 기본 설정 완료 전
- * - 진행 중: open_at 있음, close_at 없음
- * - 마감: close_at 있음
+ * 시험 단계 (과제와 동일). DRAFT/OPEN/CLOSED는 사용자에게 노출하지 않음.
+ * - 설정 중: status DRAFT (생성 직후)
+ * - 진행 중: status OPEN (기본 설정 완료 후 진행하기)
+ * - 마감: status CLOSED (마감 버튼)
  */
-function derivePhase(exam: Exam): "설정 중" | "진행 중" | "마감" {
-  const hasOpen = !!exam.open_at;
-  const hasClose = !!exam.close_at;
-  if (hasClose) return "마감";
-  if (hasOpen) return "진행 중";
-  return "설정 중";
-}
+const PHASE_LABEL: Record<string, string> = {
+  DRAFT: "설정 중",
+  OPEN: "진행 중",
+  CLOSED: "마감",
+};
 
 export default function ExamHeader({ exam }: { exam: Exam }) {
   const qc = useQueryClient();
   const [loading, setLoading] = useState<"progress" | "close" | null>(null);
-  const phase = derivePhase(exam);
+  const phase = PHASE_LABEL[exam.status] ?? "설정 중";
   const isRegular = exam.exam_type === "regular";
+  const isDraft = exam.status === "DRAFT";
+  const isOpen = exam.status === "OPEN";
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["admin-exam", exam.id] });
@@ -31,9 +31,7 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
   const handleProgress = async () => {
     setLoading("progress");
     try {
-      await updateAdminExam(exam.id, {
-        open_at: new Date().toISOString(),
-      });
+      await updateAdminExam(exam.id, { status: "OPEN" });
       invalidate();
     } finally {
       setLoading(null);
@@ -43,17 +41,12 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
   const handleClose = async () => {
     setLoading("close");
     try {
-      await updateAdminExam(exam.id, {
-        close_at: new Date().toISOString(),
-      });
+      await updateAdminExam(exam.id, { status: "CLOSED" });
       invalidate();
     } finally {
       setLoading(null);
     }
   };
-
-  const showProgressButton = isRegular && phase === "설정 중";
-  const showCloseButton = isRegular && phase === "진행 중";
 
   return (
     <div className="space-y-2">
@@ -68,7 +61,7 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
 
         <div className="flex items-center gap-2">
           <span className="text-sm text-[var(--color-text-secondary)]">{phase}</span>
-          {showProgressButton && (
+          {isRegular && isDraft && (
             <Button
               type="button"
               intent="primary"
@@ -79,7 +72,7 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
               {loading === "progress" ? "처리 중…" : "진행하기"}
             </Button>
           )}
-          {showCloseButton && (
+          {isRegular && isOpen && (
             <Button
               type="button"
               intent="secondary"
