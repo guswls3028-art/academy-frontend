@@ -141,7 +141,6 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
           open={open}
           onClose={() => setOpen(false)}
           title="시험 대상 학생 관리"
-          description="이 시험에 포함할 학생을 선택 후 저장하세요."
           sessionId={sessionId}
           rows={rows}
           loading={rowsQ.isLoading}

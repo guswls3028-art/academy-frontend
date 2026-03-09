@@ -207,7 +207,6 @@ export default function HomeworkEnrollmentPanel({
         open={open}
         onClose={() => setOpen(false)}
         title="과제 대상 학생 관리"
-        description="이 과제에 포함할 학생을 선택 후 저장하세요."
         rows={rows}
         loading={saveMut.isPending ? false : false /* 모달 내부 로딩은 refetch로 처리 */}
         error={error}

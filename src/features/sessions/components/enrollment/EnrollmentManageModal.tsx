@@ -398,10 +398,7 @@ export default function EnrollmentManageModal({
               >
                 {selectedRows.length === 0 ? (
                   <p className="text-[13px] text-[var(--color-text-muted)] py-4 text-center">
-                    선택한 학생이 없어요.
-                    <span className="block mt-1.5 text-[11px] text-[var(--color-text-muted)]">
-                      왼쪽 테이블에서 체크 후 추가하세요.
-                    </span>
+                    선택한 학생이 없습니다.
                   </p>
                 ) : (
                   <ul className="space-y-0">

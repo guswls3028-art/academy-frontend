@@ -624,6 +624,32 @@
   max-height: none;
 }
 
+/* 생성 패널 — 폼 그룹·라벨 위계 (프리미엄 SaaS, 전역 DS 유지) */
+.clinic-panel .modal-form-group {
+  margin-top: var(--space-5);
+  border-radius: var(--radius-lg);
+}
+.clinic-panel .modal-form-group:first-of-type {
+  margin-top: 0;
+}
+.clinic-panel .modal-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+.clinic-panel .ds-card-modal__header-right .text-xs {
+  font-size: 13px !important;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-brand-primary);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider));
+}
+
 /* 장소 저장/불러오기 아이콘 버튼 */
 .clinic-location-icon-btn {
   display: flex;
