@@ -1,5 +1,7 @@
 // PATH: src/features/sessions/components/enrollment/EnrollmentManageFooter.tsx
 
+import { Button } from "@/shared/ui/ds";
+
 export default function EnrollmentManageFooter({
   readOnly,
   onClose,
@@ -24,24 +26,27 @@ export default function EnrollmentManageFooter({
       </div>
 
       <div className="flex gap-2">
-        <button
+        <Button
           type="button"
-          className="h-9 rounded border border-[var(--border-divider)] px-4 text-sm hover:bg-[var(--bg-surface-soft)]"
+          intent="secondary"
+          size="sm"
           onClick={onClose}
           disabled={saving}
         >
           취소
-        </button>
+        </Button>
 
         {!readOnly && (
-          <button
+          <Button
             type="button"
-            className="h-9 rounded bg-[var(--color-primary)] px-4 text-sm font-semibold text-white disabled:opacity-50"
+            intent="primary"
+            size="sm"
             onClick={onSave}
             disabled={saving}
+            loading={saving}
           >
-            {saving ? "저장중..." : "선택 확정(저장)"}
-          </button>
+            선택 확정(저장)
+          </Button>
         )}
       </div>
     </div>
