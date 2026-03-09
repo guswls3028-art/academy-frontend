@@ -1,6 +1,6 @@
 // PATH: src/shared/ui/layout/Header.tsx
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Dropdown, Badge } from "antd";
 import ThemeOverlay from "@/features/settings/overlays/ThemeOverlay";
@@ -170,8 +170,6 @@ export default function Header() {
   const { data: messagingInfo } = useMessagingInfo();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
 
-  const [searchParams] = useSearchParams();
-  const isOnDashboard = loc.pathname.includes("/dashboard");
   const [openTheme, setOpenTheme] = useState(false);
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
@@ -304,29 +302,6 @@ export default function Header() {
             <span className="app-header__brandName">{academyName}</span>
           </div>
         </div>
-
-        {/* CENTER: 중앙 통합 검색창 */}
-        {!isMobile && (
-        <div className="app-header__center">
-          <div className="app-header__searchWrap">
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Q 전체 검색 (학생/강의/시험/클리닉/직원)…"
-              allowClear
-              prefix={
-                <span style={{ color: "var(--color-text-muted)" }}>
-                  <IconSearch />
-                </span>
-              }
-              onPressEnter={() =>
-                nav(`/admin/dashboard?search=${encodeURIComponent(q.trim())}`)
-              }
-              className="app-header__searchInput"
-            />
-          </div>
-        </div>
-        )}
 
         {/* RIGHT: 크레딧 | 출근/퇴근(직원) | 알람 | 프로필 */}
         <div className="app-header__right">
