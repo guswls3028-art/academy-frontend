@@ -13,6 +13,8 @@ type Props = {
   records: WorkRecord[];
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
+  /** true면 우측 패널용 작은 달력 */
+  compact?: boolean;
 };
 
 export function AttendanceCalendar({
@@ -21,6 +23,7 @@ export function AttendanceCalendar({
   records,
   selectedDate,
   onSelectDate,
+  compact = false,
 }: Props) {
   const { days, firstDay } = useMemo(() => {
     const last = new Date(year, month, 0).getDate();
@@ -40,8 +43,8 @@ export function AttendanceCalendar({
   const cells = [...blanks, ...days];
 
   return (
-    <div className="staff-area">
-      <div className="staff-calendar">
+    <div className={`staff-area ${compact ? "staff-calendar-wrap staff-calendar-wrap--compact" : ""}`}>
+      <div className={`staff-calendar ${compact ? "staff-calendar--compact" : ""}`}>
         {WEEKDAYS.map((w) => (
           <div key={w} className="staff-calendar__head">
             {w}
