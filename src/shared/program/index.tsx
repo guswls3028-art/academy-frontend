@@ -44,7 +44,6 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
       const res = await api.get<Program>("/core/program/", { skipAuth: true } as ApiRequestConfig);
       setProgram(res.data ?? null);
     } catch (e: unknown) {
-      setProgram(null);
       if (import.meta.env.DEV) {
         const err = e as { code?: string; message?: string };
         if (err?.code === "ERR_NETWORK" || err?.message?.includes("Network Error")) {
@@ -53,8 +52,11 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
               "  예: academy 폴더에서 'Academy Local Dev.bat' 실행 또는\n" +
               "  python manage.py runserver 0.0.0.0:8000"
           );
+          setProgram(DEV_FALLBACK_PROGRAM);
+          return;
         }
       }
+      setProgram(null);
     }
   };
 
