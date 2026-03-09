@@ -8,7 +8,6 @@ const DEFAULT_ACCEPT = ".xlsx,.xls";
 const INVALID_FILE_MSG = "엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.";
 
 export interface ExcelUploadZoneProps {
-  inputRef?: React.RefObject<HTMLInputElement | null>;
   onFileSelect: (file: File) => void;
   selectedFile?: File | null;
   onClearFile?: () => void;
