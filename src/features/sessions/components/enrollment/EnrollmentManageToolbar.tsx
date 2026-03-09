@@ -1,6 +1,7 @@
 // PATH: src/features/sessions/components/enrollment/EnrollmentManageToolbar.tsx
 
 import type { EnrollmentRow } from "./types";
+import { Button } from "@/shared/ui/ds";
 
 export default function EnrollmentManageToolbar({
   keyword,
@@ -75,20 +76,12 @@ export default function EnrollmentManageToolbar({
 
       {!readOnly && (
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={selectAll}
-            className="h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 text-sm hover:bg-[var(--bg-surface-soft)]"
-          >
+          <Button type="button" intent="secondary" size="sm" onClick={selectAll}>
             현재 목록 전체 선택
-          </button>
-          <button
-            type="button"
-            onClick={clearAll}
-            className="h-9 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-3 text-sm hover:bg-[var(--bg-surface-soft)]"
-          >
+          </Button>
+          <Button type="button" intent="secondary" size="sm" onClick={clearAll}>
             현재 목록 전체 해제
-          </button>
+          </Button>
         </div>
       )}
     </div>
