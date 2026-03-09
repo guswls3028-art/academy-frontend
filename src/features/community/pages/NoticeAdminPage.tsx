@@ -75,7 +75,7 @@ export default function NoticeAdminPage() {
   const { data: sessionsOfLecture = [], isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["lecture-sessions", expandedLectureId],
     queryFn: () => fetchSessions(expandedLectureId!),
-    enabled: Number.isFinite(expandedLectureId ?? 0),
+    enabled: expandedLectureId != null && Number.isFinite(expandedLectureId),
   });
 
   const { data: blockTypes = [] } = useQuery({

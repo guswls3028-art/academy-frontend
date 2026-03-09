@@ -123,6 +123,9 @@ export function sortSessionsByDateDesc<T extends { date?: string | null }>(sessi
 // SESSION 목록 가져오기 (lecture 기준)
 // ----------------------------------------
 export async function fetchSessions(lectureId: number): Promise<Session[]> {
+  if (lectureId == null || !Number.isFinite(lectureId)) {
+    return [];
+  }
   const res = await api.get(`/lectures/sessions/?lecture=${lectureId}`);
   const data = res.data;
   return Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];

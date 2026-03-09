@@ -23,7 +23,7 @@ export default function CommunityScopeSelector() {
   const { data: sessions = [] } = useQuery({
     queryKey: ["lecture-sessions", lectureId],
     queryFn: () => fetchSessions(lectureId!),
-    enabled: scope !== "all" && Number.isFinite(lectureId ?? 0),
+    enabled: scope !== "all" && lectureId != null && Number.isFinite(lectureId),
   });
 
   return (
