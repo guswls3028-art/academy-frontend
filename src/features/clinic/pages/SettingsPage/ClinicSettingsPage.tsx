@@ -185,7 +185,7 @@ function ClinicIdcardColorSettings() {
               <div
                 className="h-24 rounded-lg border-2 border-[var(--color-border-divider)]"
                 style={{
-                  background: `linear-gradient(135deg, ${(settings?.colors || localColors)[0]} 0%, ${(settings?.colors || localColors)[1]} 50%, ${(settings?.colors || localColors)[2]} 100%)`,
+                  backgroundImage: `linear-gradient(135deg, ${(settings?.colors || localColors)[0]} 0%, ${(settings?.colors || localColors)[1]} 50%, ${(settings?.colors || localColors)[2]} 100%)`,
                   backgroundSize: "200% 200%",
                   animation: "idcard-background-flow 8s ease infinite",
                 }}
@@ -200,7 +200,7 @@ function ClinicIdcardColorSettings() {
             <div
               className="h-24 rounded-lg border-2 border-[var(--color-border-divider)]"
               style={{
-                background: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
+                backgroundImage: `linear-gradient(135deg, ${localColors[0]} 0%, ${localColors[1]} 50%, ${localColors[2]} 100%)`,
                 backgroundSize: "200% 200%",
                 animation: "idcard-background-flow 8s ease infinite",
               }}

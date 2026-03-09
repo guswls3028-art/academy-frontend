@@ -70,10 +70,6 @@ export default function ClinicIDCardPage() {
 
   const isClinicTarget = data.current_result === "FAIL";
   const bgColors = data.background_colors || ["#ef4444", "#3b82f6", "#22c55e"];
-  // 불합격(클리닉 대상)일 때는 검정색 배경 고정
-  const bgGradient = isClinicTarget
-    ? "#000000"
-    : `linear-gradient(135deg, ${bgColors[0]} 0%, ${bgColors[1]} 50%, ${bgColors[2]} 100%)`;
 
   const seconds = liveNow.getSeconds();
   const timeColor = getTimeColor(seconds);
@@ -82,7 +78,8 @@ export default function ClinicIDCardPage() {
     <div
       className="idcard-page idcard-page--black"
       style={{
-        background: bgGradient,
+        backgroundImage: isClinicTarget ? "none" : `linear-gradient(135deg, ${bgColors[0]} 0%, ${bgColors[1]} 50%, ${bgColors[2]} 100%)`,
+        backgroundColor: isClinicTarget ? "#000000" : "transparent",
         backgroundSize: isClinicTarget ? "100% 100%" : "200% 200%",
         animation: isClinicTarget ? "none" : "idcard-background-flow 8s ease infinite",
       }}

@@ -58,7 +58,6 @@ export default function DashboardPage() {
             <DashboardShortcutWidget
               icon={<ClinicRemoconIcon />}
               label="클리닉 패스카드"
-              subLabel="패스카드 배경색 · 즉시 반영"
               onClick={() => setClinicPasscardModalOpen(true)}
               data-testid="dashboard-shortcut-clinic-passcard"
             />
