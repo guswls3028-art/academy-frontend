@@ -144,9 +144,6 @@
   border: 1px solid var(--color-border-divider);
   background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-modal-bg));
 }
-.answer-key-section-reset-btn--refresh {
-  margin-left: auto;
-}
 
 @media (max-width: 720px) {
   .answer-key-two-panels {
