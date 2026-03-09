@@ -3,6 +3,7 @@ import { Modal } from "antd";
 import React from "react";
 
 import { BRAND_AND_LIGHT_THEMES, MODAL_DEFAULT_WIDTH } from "./constants";
+import { useModalKeyboard } from "./useModalKeyboard";
 
 export type AdminModalType = "action" | "confirm" | "inspect";
 
@@ -18,6 +19,8 @@ type AdminModalProps = {
   width?: number;
   /** 모달 위에 또 다른 모달을 띄울 때 상위 모달에 더 높은 값 지정 (기본 1000) */
   zIndex?: number;
+  /** Enter 키로 긍정 버튼(등록/적용/확인) 실행. textarea 포커스 시에는 동작하지 않음 */
+  onEnterConfirm?: () => void;
   children: React.ReactNode;
 };
 
@@ -27,10 +30,13 @@ export default function AdminModal({
   type = "action",
   width = MODAL_DEFAULT_WIDTH,
   zIndex,
+  onEnterConfirm,
   children,
 }: AdminModalProps) {
   const isConfirm = type === "confirm";
   const contentBg = getModalBackground();
+
+  useModalKeyboard(open, onClose, onEnterConfirm);
 
   return (
     <Modal
@@ -43,7 +49,7 @@ export default function AdminModal({
       zIndex={zIndex}
       mask={{ closable: !isConfirm }}
       closable={!isConfirm}
-      keyboard={!isConfirm}
+      keyboard={true}
       styles={{
         content: {
           padding: 0,
