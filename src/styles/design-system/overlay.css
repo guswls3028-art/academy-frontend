@@ -49,6 +49,21 @@
   margin-bottom: 0;
 }
 
+/* 우측 드로어 — 시험 통계 학생 상세 등 */
+.ds-overlay-wrap--drawer-right {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
+}
+
+.ds-overlay-wrap--drawer-right .ds-overlay-panel {
+  max-width: 420px;
+  width: 100%;
+  margin: 0;
+  border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+}
+
 .ds-overlay-panel__close {
   position: absolute;
   top: var(--space-3);
