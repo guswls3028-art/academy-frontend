@@ -512,6 +512,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 
 .answer-key-explanation-table__th--problem,
@@ -525,8 +526,19 @@
   background: var(--color-bg-surface-soft);
 }
 
-.answer-key-explanation-table__th--problem {
+.answer-key-explanation-table__th--problem,
+.answer-key-explanation-table__th--explanation {
   width: 200px;
+}
+
+.answer-key-explanation-table__th--explanation-text {
+  min-width: 0;
+}
+
+.answer-key-explanation-table__td--problem,
+.answer-key-explanation-table__td--explanation {
+  width: 200px;
+  vertical-align: top;
 }
 
 .answer-key-explanation-table__td--problem,

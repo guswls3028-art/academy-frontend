@@ -74,6 +74,13 @@
   font-size: 14px;
 }
 
+.ds-button[data-size="xl"] {
+  min-height: 48px;
+  padding: 0 var(--space-6);
+  font-size: 16px;
+  font-weight: 700;
+}
+
 /* ======================================================
  * Intent — 톤만 구분, 동일 입체감
  * ====================================================== */
@@ -168,6 +175,10 @@
 
 .ds-button[data-icon-only="true"][data-size="lg"] {
   width: var(--control-lg);
+}
+
+.ds-button[data-icon-only="true"][data-size="xl"] {
+  width: 48px;
 }
 
 .ds-button[data-icon-only="true"][data-size="sm"] {

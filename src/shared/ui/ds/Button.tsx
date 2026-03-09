@@ -2,7 +2,7 @@
 import React from "react";
 
 export type ButtonIntent = "primary" | "secondary" | "danger" | "ghost";
-export type ButtonSize = "sm" | "md" | "lg";
+export type ButtonSize = "sm" | "md" | "lg" | "xl";
 
 type ButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "color"> & {
   intent?: ButtonIntent;
