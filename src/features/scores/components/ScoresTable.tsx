@@ -679,21 +679,18 @@ export default function ScoresTable({
                   className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)]"
                   onClick={() => onSelectRow(row)}
                 >
-                  <span
-                    className={`inline-block min-w-0 ${row.name_highlight_clinic_target ? "ds-student-name--clinic-highlight" : ""}`}
-                  >
-                    <StudentNameWithLectureChip
-                      name={row.student_name ?? ""}
-                      profilePhotoUrl={row.profile_photo_url ?? undefined}
-                      avatarSize={24}
-                      lectures={
-                        row.lecture_title
-                          ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
-                          : undefined
-                      }
-                      chipSize={14}
-                    />
-                  </span>
+                  <StudentNameWithLectureChip
+                    name={row.student_name ?? ""}
+                    profilePhotoUrl={row.profile_photo_url ?? undefined}
+                    avatarSize={24}
+                    clinicHighlight={row.name_highlight_clinic_target === true}
+                    lectures={
+                      row.lecture_title
+                        ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
+                        : undefined
+                    }
+                    chipSize={14}
+                  />
                 </td>
 
                 <td className="text-left py-2.5 px-3 align-middle" onClick={() => onSelectRow(row)}>

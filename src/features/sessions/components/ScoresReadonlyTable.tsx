@@ -1,5 +1,6 @@
 // PATH: src/features/sessions/components/ScoresReadonlyTable.tsx
-import type { SessionScoreRow } from "../api/sessionScores";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
+import type { SessionScoreRow } from "@/features/scores/api/sessionScores";
 
 type Props = {
   rows: SessionScoreRow[];
@@ -57,7 +58,10 @@ export default function ScoresReadonlyTable({
                 }}
               >
                 <td className="px-4 py-3 font-medium">
-                  {row.student_name}
+                  <StudentNameWithLectureChip
+                    name={row.student_name ?? ""}
+                    clinicHighlight={row.name_highlight_clinic_target === true}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   {row.final_score ?? "-"}

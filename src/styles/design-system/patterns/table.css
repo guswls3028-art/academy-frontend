@@ -313,21 +313,14 @@ table.ds-table {
 
 /* 클리닉 대상자 — 이름만 노란 형광펜 하이라이트(셀 배경 X). 학생 목록/테이블 공통 */
 .ds-student-name--clinic-highlight {
-  display: inline-block;
-  background: linear-gradient(
-    180deg,
-    transparent 60%,
-    color-mix(in srgb, var(--color-warning, #e6b800) 35%, transparent) 60%
-  );
-  padding-inline: 2px;
-  border-radius: 1px;
+  display: inline;
+  background: color-mix(in srgb, var(--color-warning, #e6b800) 40%, transparent);
+  padding: 1px 3px;
+  border-radius: 2px;
+  box-decoration-break: clone;
 }
 .ds-table tbody tr:hover .ds-student-name--clinic-highlight {
-  background: linear-gradient(
-    180deg,
-    transparent 60%,
-    color-mix(in srgb, var(--color-warning, #e6b800) 45%, transparent) 60%
-  );
+  background: color-mix(in srgb, var(--color-warning, #e6b800) 50%, transparent);
 }
 .ds-table tbody tr.ds-scores-table-row--checked .ds-student-name--clinic-highlight {
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));

@@ -38,6 +38,7 @@ export default function StudentNameWithLectureChip({
   avatarSize,
   className,
   highlight,
+  clinicHighlight = false,
 }: Props) {
   const list = Array.isArray(lectures) && lectures.length > 0
     ? lectures
@@ -59,7 +60,7 @@ export default function StudentNameWithLectureChip({
           )}
         </span>
       )}
-      <span className="truncate">
+      <span className={`truncate ${clinicHighlight ? "ds-student-name--clinic-highlight" : ""}`}>
         {highlight ? highlight(name || "-") : (name || "-")}
       </span>
       {list.map((lec, i) => (
