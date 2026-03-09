@@ -70,3 +70,36 @@ export async function deleteWorkRecord(id: number) {
   await api.delete(`/staffs/work-records/${id}/`);
   return true;
 }
+
+// ========== 실시간 출근/퇴근 (직원 로그인 시 헤더용) ==========
+
+export type WorkCurrentStatus =
+  | { status: "OFF" }
+  | {
+      status: "WORKING" | "BREAK";
+      work_record_id: number;
+      date: string;
+      started_at: string;
+      break_minutes?: number;
+      break_started_at?: string;
+    };
+
+/** GET /staffs/{id}/work-records/current/ */
+export async function fetchWorkCurrent(staffId: number) {
+  const res = await api.get<WorkCurrentStatus>(`/staffs/${staffId}/work-records/current/`);
+  return res.data;
+}
+
+/** POST /staffs/{id}/work-records/start-work/ */
+export async function startWork(staffId: number, workTypeId: number) {
+  const res = await api.post<WorkRecord>(`/staffs/${staffId}/work-records/start-work/`, {
+    work_type: workTypeId,
+  });
+  return res.data;
+}
+
+/** POST /staffs/work-records/{id}/end_work/ */
+export async function endWork(workRecordId: number) {
+  const res = await api.post<WorkRecord>(`/staffs/work-records/${workRecordId}/end_work/`);
+  return res.data;
+}

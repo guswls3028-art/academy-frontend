@@ -12,6 +12,10 @@ export type StaffMe = {
   owner_display_name?: string | null;
   /** 원장 행 표시용 전화번호 */
   owner_phone?: string | null;
+  /** 직원(Staff)으로 로그인한 경우: 출근/퇴근용 */
+  staff_id?: number;
+  /** 출근 시 사용할 기본 work_type id (직원의 첫 번째 시급 유형) */
+  default_work_type_id?: number;
 };
 
 /**

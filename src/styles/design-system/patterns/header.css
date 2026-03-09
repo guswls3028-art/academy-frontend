@@ -213,6 +213,14 @@
   text-align: right;
 }
 
+[data-app="admin"] .app-header__staffClock {
+  padding: 0 4px;
+}
+
+[data-app="admin"] .app-header__staffClockElapsed {
+  min-width: 4ch;
+}
+
 /* ----- 알림 드롭다운 (작업박스와 동일 디자인, 포탈에서도 적용되도록 클래스 기준) ----- */
 .app-header__alarmDropdown,
 [data-app="admin"] .app-header__alarmDropdown {
