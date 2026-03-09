@@ -32,7 +32,7 @@ export function StaffWorkspaceTabs({ staffId, year, month }: Props) {
 
   return (
     <div
-      className="flex flex-wrap gap-1 border-b border-[var(--color-border-divider)] pb-3 mb-4"
+      className="staff-workspace-tabs flex flex-wrap gap-0 border-b-2 border-[var(--color-border-divider)] pb-0 mb-4"
       role="tablist"
     >
       {TABS.map((tab) => {
@@ -45,10 +45,10 @@ export function StaffWorkspaceTabs({ staffId, year, month }: Props) {
             role="tab"
             aria-selected={isActive}
             aria-label={`${tab.label} 탭`}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`staff-workspace-tabs__tab px-4 py-3 text-sm font-semibold transition-all duration-150 ${
               isActive
-                ? "bg-[var(--color-primary)] text-white"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]"
+                ? "staff-workspace-tabs__tab--active bg-[var(--color-primary)] text-white border-b-2 border-[var(--color-primary)] -mb-0.5 rounded-t-lg"
+                : "staff-workspace-tabs__tab--inactive text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] border-b-2 border-transparent -mb-0.5 rounded-t-lg"
             }`}
             onClick={() => navigate(buildPath(tab.path))}
           >
