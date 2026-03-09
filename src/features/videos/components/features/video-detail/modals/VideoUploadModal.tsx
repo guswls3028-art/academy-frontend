@@ -386,6 +386,9 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                 </div>
               </div>
             </div>
+            <p className="modal-hint video-upload-modal__policy-hint">
+              출석형태가 영상(실제 출결뱃지)인 학생만 최초 1회 영향을 받습니다. 이후 기능 제한 없이 시청합니다.
+            </p>
           </div>
         </div>
       </ModalBody>

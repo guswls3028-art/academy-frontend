@@ -226,3 +226,11 @@
   text-align: center;
   line-height: var(--control-sm);
 }
+
+.video-upload-modal__policy-hint {
+  margin-top: var(--space-2);
+  margin-bottom: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
