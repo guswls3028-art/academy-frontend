@@ -1,5 +1,5 @@
 // PATH: src/features/students/components/StudentCreateModal.tsx
-// 차시생성 모달처럼 초기 선택(1명만 등록 / 엑셀로 업로드) 후 해당 폼 표시. 엑셀 일괄 등록은 워커 전담.
+// 차시생성 모달처럼 초기 선택(1명만 등록 / 엑셀 업로드) 후 해당 폼 표시. 엑셀 일괄 등록은 워커 전담.
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -421,10 +421,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                   compact={false}
                   selected={false}
                   showCheck={false}
-                  title="엑셀로 업로드"
+                  title="엑셀 업로드"
                   desc="엑셀 파일로 학생 일괄 등록"
                   onClick={() => setMode("excel")}
-                  ariaLabel="엑셀로 업로드"
+                  ariaLabel="엑셀 업로드"
                 />
               </div>
             </div>
