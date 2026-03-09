@@ -29,7 +29,7 @@ export default function InlineExamItemsRow({
 }: Props) {
   const qc = useQueryClient();
 
-  const { data: items } = useQuery({
+  const { data: items, isLoading, isError } = useQuery({
     queryKey: ["exam-items", examId, enrollmentId],
     queryFn: () => fetchEditableExamItems({ examId, enrollmentId }),
     enabled: Number.isFinite(examId) && examId > 0 && Number.isFinite(enrollmentId) && enrollmentId > 0,
@@ -44,7 +44,29 @@ export default function InlineExamItemsRow({
     if (el) el.focus();
   };
 
-  if (!list || list.length === 0) return null;
+  if (isLoading) {
+    return (
+      <div className="text-xs text-[var(--color-text-muted)]">
+        문항 불러오는 중…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-xs text-[var(--color-text-muted)]">
+        문항 점수 입력을 사용할 수 없습니다. (제출/결과 데이터가 없을 수 있습니다)
+      </div>
+    );
+  }
+
+  if (!list || list.length === 0) {
+    return (
+      <div className="text-xs text-[var(--color-text-muted)]">
+        편집 가능한 문항이 없습니다.
+      </div>
+    );
+  }
 
   const inner = (
     <>
