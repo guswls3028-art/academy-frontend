@@ -1,6 +1,5 @@
 // PATH: src/features/staff/pages/PayrollSnapshotPage/PayrollSnapshotPage.tsx
-// 급여 스냅샷: 월별 확정 근무시간·급여·경비 요약
-// ※ 직원 열 뱃지/급여형태는 홈(근태) 탭과 동일 SSOT: StaffRoleAvatar, RoleBadge, payLabel
+// 급여 스냅샷: 월별 확정 근무시간·급여·경비 요약 (마감 시점 고정 데이터)
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +14,7 @@ import type { Staff } from "../../api/staff.api";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { RoleBadge } from "../../components/StatusBadge";
 import ActionButton from "../../components/ActionButton";
+import "../../styles/staff-area.css";
 
 function ymLabel(y: number, m: number) {
   return `${y}년 ${m}월`;
@@ -66,10 +66,10 @@ export default function PayrollSnapshotPage() {
 
   return (
     <>
-    <div className="ds-panel-card px-6 py-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="space-y-1">
-            <div className="text-sm font-semibold text-[var(--color-text-primary)]">기준월</div>
+    <div className="staff-area staff-panel">
+        <div className="staff-panel__header flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="staff-section-title">기준월</div>
             <div className="flex items-center gap-2 mt-2">
               <select
                 value={ym.year}
@@ -104,36 +104,38 @@ export default function PayrollSnapshotPage() {
             </ActionButton>
           </div>
         </div>
-        <div className="mt-2 text-[11px] text-[var(--color-text-muted)]">
-          * {ymLabel(ym.year, ym.month)} 월 마감 시 생성된 스냅샷만 표시됩니다.
+        <div className="staff-panel__body pt-0">
+        <p className="staff-helper">* {ymLabel(ym.year, ym.month)} 월 마감 시 생성된 스냅샷만 표시됩니다.</p>
         </div>
     </div>
 
       {listQ.isLoading && (
-        <div className="ds-panel-card p-8 text-center text-[var(--color-text-muted)]">불러오는 중…</div>
+        <div className="staff-area staff-panel p-8 text-center staff-helper">불러오는 중…</div>
       )}
 
       {!listQ.isLoading && rows.length === 0 && (
-        <div className="ds-panel-card p-8">
-          <div className="text-sm font-semibold text-[var(--color-text-primary)]">확정 급여 없음</div>
-          <div className="text-xs text-[var(--color-text-muted)] mt-1">
-            해당 월은 아직 마감되지 않았거나 급여 스냅샷이 없습니다. 월 마감 탭에서 마감 후 확인하세요.
-          </div>
+        <div className="staff-area staff-panel p-8">
+          <div className="staff-section-title">확정 급여 없음</div>
+          <p className="staff-helper mt-1">해당 월은 아직 마감되지 않았거나 급여 스냅샷이 없습니다. 월 마감 탭에서 마감 후 확인하세요.</p>
         </div>
       )}
 
       {!listQ.isLoading && rows.length > 0 && (
-        <div className="ds-panel-card overflow-hidden">
+        <div className="staff-area staff-panel overflow-hidden">
+          <div className="staff-panel__header">
+            <span className="staff-section-title">스냅샷 목록 (확정 데이터)</span>
+          </div>
           <div className="overflow-x-auto">
-            <table className="w-full ds-table--flat" style={{ tableLayout: "fixed" }}>
+            <table className="w-full ds-table ds-table--flat" style={{ tableLayout: "fixed" }}>
               <thead>
                 <tr>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-[var(--color-text-muted)]">직원</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-[var(--color-text-muted)]">근무시간</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-[var(--color-text-muted)]">근무금액</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-[var(--color-text-muted)]">승인경비</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-[var(--color-text-muted)]">총 급여</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-[var(--color-text-muted)]">명세</th>
+                  <th className="text-left py-3 px-4 staff-label">직원</th>
+                  <th className="text-right py-3 px-4 staff-label">근무시간</th>
+                  <th className="text-right py-3 px-4 staff-label">기본급</th>
+                  <th className="text-right py-3 px-4 staff-label">승인경비</th>
+                  <th className="text-right py-3 px-4 staff-label">총 급여</th>
+                  <th className="text-right py-3 px-4 staff-label">확정일시</th>
+                  <th className="text-right py-3 px-4 staff-label">명세</th>
                 </tr>
               </thead>
               <tbody>
@@ -153,10 +155,13 @@ export default function PayrollSnapshotPage() {
                         <span className="font-medium text-[var(--color-text-primary)]">{r.staff_name}</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-sm text-right">{r.work_hours}</td>
-                    <td className="py-3 px-4 text-sm text-right">{r.work_amount.toLocaleString()}원</td>
-                    <td className="py-3 px-4 text-sm text-right">{r.approved_expense_amount.toLocaleString()}원</td>
-                    <td className="py-3 px-4 text-sm font-semibold text-right">{r.total_amount.toLocaleString()}원</td>
+                    <td className="py-3 px-4 text-sm text-right staff-num">{r.work_hours}</td>
+                    <td className="py-3 px-4 text-sm text-right staff-num">{r.work_amount.toLocaleString()}원</td>
+                    <td className="py-3 px-4 text-sm text-right staff-num">{r.approved_expense_amount.toLocaleString()}원</td>
+                    <td className="py-3 px-4 text-sm font-semibold text-right staff-num">{r.total_amount.toLocaleString()}원</td>
+                    <td className="py-3 px-4 text-xs text-[var(--color-text-muted)] staff-num">
+                      {r.created_at ? new Date(r.created_at).toLocaleString("ko-KR") : "-"}
+                    </td>
                     <td className="py-3 px-4 text-right">
                       <ActionButton
                         variant="outline"
@@ -173,8 +178,8 @@ export default function PayrollSnapshotPage() {
               </tbody>
             </table>
           </div>
-          <div className="px-4 pb-4 text-[11px] text-[var(--color-text-muted)]">
-            * PDF는 직원별 급여명세, 엑셀은 해당 월 전체 직원 목록입니다.
+          <div className="staff-panel__body border-t border-[var(--color-border-divider)]">
+            <p className="staff-helper">* PDF는 직원별 급여명세, 엑셀은 해당 월 전체 직원 목록입니다.</p>
           </div>
         </div>
       )}
