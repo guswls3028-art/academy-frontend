@@ -15,6 +15,7 @@ import { useClinicTargets } from "../hooks/useClinicTargets";
 import { useClinicStudentSearch } from "../hooks/useClinicStudentSearch";
 import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
 import { fetchClinicSessionTree } from "../api/clinicSessions.api";
+import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
 
 import api from "@/shared/api/axios";
 
