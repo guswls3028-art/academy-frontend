@@ -33,40 +33,30 @@ export default function ThemeCard({
       size="md"
       onClick={onSelect}
       disabled={disabled}
-      className="!block !w-full !text-left !justify-start !rounded-xl !p-3 !min-h-0"
+      className="!block !w-full !text-left !justify-start !rounded-lg !p-2 !min-h-0"
       style={{
         border: frameBorder,
         opacity: disabled ? 0.6 : 1,
         display: "grid",
         gridTemplateRows: "auto auto",
-        gap: 10,
+        gap: 7,
       }}
     >
-      {/* Inner frame (액자) — 4:3 고정 */}
+      {/* Inner frame — 4:3 */}
       <div
         style={{
-          borderRadius: "var(--radius-lg)",
+          borderRadius: 6,
           border: "1px solid var(--color-border-divider)",
           background: "var(--color-bg-surface)",
           overflow: "hidden",
-          padding: 8,
+          padding: 4,
         }}
       >
-        {/* 4:3 aspect container */}
-        <div
-          style={{
-            width: "100%",
-            aspectRatio: "4 / 3",
-          }}
-        >
-          {/* Preview scope: MUST use preview-theme.css tokens only */}
+        <div style={{ width: "100%", aspectRatio: "4 / 3" }}>
           <div
             className="theme-preview"
             data-theme={theme.key}
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
+            style={{ width: "100%", height: "100%" }}
           >
             <MiniAdminPreview />
           </div>
@@ -74,68 +64,37 @@ export default function ThemeCard({
       </div>
 
       {/* Meta */}
-      <div style={{ display: "grid", gap: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 900,
-              color: "var(--color-text-primary)",
-              letterSpacing: "-0.1px",
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {theme.name}
-          </div>
-
-          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-            {selected && (
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 900,
-                  color: "var(--color-text-inverse)",
-                  background: "var(--color-brand-primary)",
-                  borderRadius: 999,
-                  padding: "4px 8px",
-                }}
-              >
-                현재
-              </span>
-            )}
-
-            {dirty && previewed && !selected && (
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 900,
-                  color: "var(--color-text-primary)",
-                  background: "var(--color-bg-surface-hover)",
-                  border: "1px solid var(--color-border-divider)",
-                  borderRadius: 999,
-                  padding: "4px 8px",
-                }}
-              >
-                미리보기
-              </span>
-            )}
-          </div>
-        </div>
-
+      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingInline: 1 }}>
         <div
           style={{
             fontSize: 12,
-            fontWeight: 800,
-            color: "var(--color-text-muted)",
-            lineHeight: 1.35,
-            minHeight: 32,
+            fontWeight: 500,
+            color: "var(--color-text-primary)",
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            flex: 1,
           }}
         >
-          {theme.desc}
+          {theme.name}
         </div>
+
+        {selected && (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--color-text-inverse)",
+              background: "var(--color-brand-primary)",
+              borderRadius: 999,
+              padding: "2px 6px",
+              flexShrink: 0,
+            }}
+          >
+            현재
+          </span>
+        )}
       </div>
     </Button>
   );

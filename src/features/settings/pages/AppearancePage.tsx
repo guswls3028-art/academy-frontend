@@ -57,13 +57,13 @@ function ThemeGroupSection({
 }) {
   const Icon = group.icon;
   return (
-    <div style={{ marginBottom: 32 }}>
+    <div style={{ marginBottom: 24 }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 8,
-          marginBottom: 14,
+          marginBottom: 10,
         }}
       >
         <Icon
@@ -93,8 +93,8 @@ function ThemeGroupSection({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-          gap: 12,
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 8,
         }}
       >
         {group.themes.map((t) => (
