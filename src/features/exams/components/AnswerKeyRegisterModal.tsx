@@ -338,9 +338,15 @@ export default function AnswerKeyRegisterModal({
                         if (choiceBubbleRefs.current.length <= index) choiceBubbleRefs.current.length = index + 1;
                         choiceBubbleRefs.current[index] = el;
                       }}
-                      onEnterMoveToNext={() => {
-                        const next = choiceBubbleRefs.current[index + 1];
-                        next?.focus();
+                      onMoveToNextRow={(currentValue) => {
+                        const nextQ = choiceQuestions[index + 1];
+                        if (nextQ) {
+                          setDraft((prev) => ({ ...prev, [String(nextQ.id)]: currentValue }));
+                          choiceBubbleRefs.current[index + 1]?.focus();
+                        }
+                      }}
+                      onMoveToPreviousRow={() => {
+                        choiceBubbleRefs.current[index - 1]?.focus();
                       }}
                     />
                   ))}
