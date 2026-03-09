@@ -183,8 +183,8 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
           return null;
         }
       });
-      const results = await Promise.all(initPromises);
-      results.forEach((r) => { if (r) initResults.push(r); });
+      const initRawResults = await Promise.all(initPromises);
+      initRawResults.forEach((r) => { if (r) initResults.push(r); });
 
       if (initResults.length > 0) {
         qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
@@ -195,12 +195,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
         feedback.error(initErrors.join(" / "));
       }
 
-      const results = await Promise.allSettled(
+      const uploadResults = await Promise.allSettled(
         initResults.map(({ init, file }) => uploadFileToR2AndComplete(init, file))
       );
-      const successCount = results.filter((r) => r.status === "fulfilled").length;
+      const successCount = uploadResults.filter((r) => r.status === "fulfilled").length;
       const r2Errors: string[] = [];
-      results.forEach((r, idx) => {
+      uploadResults.forEach((r, idx) => {
         if (r.status === "rejected") {
           r2Errors.push(`${initResults[idx].file.name}: ${(r.reason as Error)?.message || "업로드 실패"}`);
         }
