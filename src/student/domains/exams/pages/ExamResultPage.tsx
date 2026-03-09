@@ -72,12 +72,12 @@ export default function ExamResultPage() {
                 padding: "4px 8px",
                 borderRadius: 999,
                 fontSize: 12,
-                fontWeight: 900,
-                background: r.is_pass ? "#e8fff0" : "#ffecec",
-                color: r.is_pass ? "#0a7a38" : "#b10000",
+                fontWeight: 700,
+                background: r.is_pass ? "var(--stu-success-bg)" : "rgba(239,68,68,0.12)",
+                color: r.is_pass ? "var(--stu-success-text)" : "var(--stu-danger)",
               }}
             >
-              {r.is_pass ? "통과" : "미통과"}
+              {r.is_pass ? "합격" : "불합격"}
             </span>
           </div>
 

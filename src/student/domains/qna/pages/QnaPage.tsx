@@ -15,8 +15,6 @@ import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { IconPlus, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 
 const QNA_BLOCK_CODE = "qna";
-const MAX_FILES = 5;
-const MAX_SIZE_MB = 10;
 
 /** 선생앱 QnA와 동일한 필터 구분 */
 type FilterKind = "all" | "pending" | "resolved";
@@ -466,9 +464,6 @@ function QuestionFormPage({
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const hadFilesOnSubmitRef = useRef(false);
 
   const {
     data: blockTypes = [],
@@ -493,7 +488,6 @@ function QuestionFormPage({
       if (effectiveBlockTypeId == null) {
         throw new Error("질문 유형을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       }
-      hadFilesOnSubmitRef.current = files.length > 0;
       const me = qc.getQueryData<{ id: number }>(["student", "me"]) ?? profile;
       if (me?.id == null) {
         throw new Error("로그인 정보를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
@@ -511,7 +505,6 @@ function QuestionFormPage({
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
       setTitle("");
       setContent("");
-      setFiles([]);
       onSuccess();
     },
     onError: (err: unknown) => {
@@ -540,19 +533,6 @@ function QuestionFormPage({
     content.trim().length > 0 &&
     effectiveBlockTypeId != null &&
     (profile != null || qc.getQueryData<{ id: number }>(["student", "me"]) != null);
-
-  const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const chosen = Array.from(e.target.files || []);
-    const ok: File[] = [];
-    for (const f of chosen) {
-      if (f.size > MAX_SIZE_MB * 1024 * 1024) continue;
-      if (ok.length + files.length >= MAX_FILES) break;
-      ok.push(f);
-    }
-    setFiles((prev) => [...prev, ...ok].slice(0, MAX_FILES));
-    if (e.target) e.target.value = "";
-  };
-  const removeFile = (index: number) => setFiles((prev) => prev.filter((_, i) => i !== index));
 
   const handleSubmit = () => {
     if (!canSubmit || createMut.isPending) return;
@@ -640,59 +620,6 @@ function QuestionFormPage({
             style={{ width: "100%", resize: "vertical", minHeight: 160 }}
           />
         </label>
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
-            사진·파일 (선택, 최대 {MAX_FILES}개, 개당 {MAX_SIZE_MB}MB)
-          </span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-            multiple
-            onChange={addFiles}
-            style={{ display: "none" }}
-          />
-          <button
-            type="button"
-            className="stu-btn stu-btn--secondary stu-btn--sm"
-            onClick={() => fileInputRef.current?.click()}
-            style={{ alignSelf: "flex-start" }}
-          >
-            파일 선택
-          </button>
-          {files.length > 0 && (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-              {files.map((f, i) => (
-                <li
-                  key={`${f.name}-${i}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "var(--stu-space-2) var(--stu-space-3)",
-                    background: "var(--stu-surface)",
-                    border: "1px solid var(--stu-border)",
-                    borderRadius: "var(--stu-radius)",
-                    fontSize: 13,
-                    color: "var(--stu-text)",
-                  }}
-                >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
-                    {f.name} ({(f.size / 1024).toFixed(1)}KB)
-                  </span>
-                  <button
-                    type="button"
-                    className="stu-btn stu-btn--ghost stu-btn--sm"
-                    onClick={() => removeFile(i)}
-                    style={{ flexShrink: 0, padding: "var(--stu-space-1) var(--stu-space-2)" }}
-                  >
-                    삭제
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
         {createMut.isSuccess && (
           <div
             style={{
@@ -704,11 +631,6 @@ function QuestionFormPage({
             }}
           >
             질문이 전달되었습니다. 선생님이 확인 후 답변해 주실 거예요.
-            {hadFilesOnSubmitRef.current && (
-              <div style={{ marginTop: "var(--stu-space-2)", fontSize: 12, opacity: 0.9 }}>
-                ※ 첨부파일은 현재 저장되지 않습니다. 제목과 내용만 전송되었습니다.
-              </div>
-            )}
           </div>
         )}
         <button
