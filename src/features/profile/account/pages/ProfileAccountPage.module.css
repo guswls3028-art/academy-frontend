@@ -1,0 +1,126 @@
+/* PATH: src/features/profile/account/pages/ProfileAccountPage.module.css
+ * 설정 > 내 정보 — 섹션형 프리미엄 SaaS 스타일 (전역 DS와 충돌 없이 스코프)
+ */
+
+.root {
+  --account-gap: 2rem;
+  --account-section-gap: 1.5rem;
+  --account-card-radius: 16px;
+  --account-card-border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider));
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--account-gap);
+}
+
+/* ----- Section block ----- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--account-section-gap);
+}
+
+.sectionEyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.sectionTitle {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.sectionDescription {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 36rem;
+}
+
+.sectionContent {
+  margin: 0;
+}
+
+/* ----- Card (scoped override for .ds-card-modal inside this page) ----- */
+.root :global(.ds-card-modal) {
+  border-radius: var(--account-card-radius);
+  border: var(--account-card-border);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.06);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.root :global(.ds-card-modal--narrow) {
+  max-width: none;
+  width: 100%;
+}
+
+.root :global(.ds-card-modal__header) {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 8%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
+  box-shadow: none;
+}
+
+.root :global(.ds-card-modal__accent) {
+  height: 2px;
+  opacity: 0.5;
+}
+
+.root :global(.ds-card-modal__header-title) {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.root :global(.ds-card-modal__header-description) {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  line-height: 1.45;
+}
+
+.root :global(.ds-card-modal__body) {
+  padding: 1.25rem 1.5rem;
+}
+
+.root :global(.ds-card-modal__footer) {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-primary) 6%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-primary) 2%, var(--color-bg-surface));
+  box-shadow: none;
+}
+
+/* ----- Loading / empty ----- */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border-radius: var(--account-card-radius);
+  border: 1px dashed var(--color-border-divider);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.error {
+  composes: loading;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-danger) 30%, var(--color-border-divider));
+  color: var(--color-text-secondary);
+}
