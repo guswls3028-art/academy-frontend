@@ -192,15 +192,16 @@ export default function VideoExplorerPage() {
   };
 
   const openVideoDetail = (video: ApiVideo) => {
+    // 상세 페이지가 아니라 해당 영상이 있는 강의-차시-영상 탭으로 이동
     if (selectedFolderId === "public" && publicSession && video.session_id === publicSession.session_id) {
       navigate(
-        `/admin/lectures/${publicSession.lecture_id}/sessions/${publicSession.session_id}/videos/${video.id}`
+        `/admin/lectures/${publicSession.lecture_id}/sessions/${publicSession.session_id}/videos`
       );
       return;
     }
     if (video.session_id && selectedSession) {
       navigate(
-        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/videos/${video.id}`
+        `/admin/lectures/${selectedSession.lecture.id}/sessions/${selectedSession.session.id}/videos`
       );
       return;
     }
@@ -209,7 +210,7 @@ export default function VideoExplorerPage() {
     );
     const sess = lecWithSession?.sessions.find((s) => s.id === video.session_id);
     if (lecWithSession && sess) {
-      navigate(`/admin/lectures/${lecWithSession.id}/sessions/${sess.id}/videos/${video.id}`);
+      navigate(`/admin/lectures/${lecWithSession.id}/sessions/${sess.id}/videos`);
     }
   };
 

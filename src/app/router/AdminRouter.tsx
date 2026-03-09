@@ -84,10 +84,9 @@ const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) =
 const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
 const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
 
-/* ================= Lazy: Exams / Results / Videos ================= */
-const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
-const ResultsExplorerPage = lazy(() => import("@/features/results/pages/ResultsExplorerPage"));
+/* ================= Lazy: Videos (Admin Root) ================= */
 const VideoExplorerPage = lazy(() => import("@/features/videos/pages/VideoExplorerPage"));
+import VideoIdToSessionRedirect from "@/features/videos/pages/VideoIdToSessionRedirect";
 
 /* ================= Lazy: Placeholder ================= */
 const CounselPage = lazy(() => import("@/features/counseling/pages/CounselPage"));
@@ -172,6 +171,7 @@ export default function AdminRouter() {
 
         {/* ================= Videos (Admin Root) ================= */}
         <Route path="videos" element={wrapLazy(VideoExplorerPage)} />
+        <Route path="videos/:videoId" element={<VideoIdToSessionRedirect />} />
 
         <Route path="counsel" element={wrapLazy(CounselPage)} />
         <Route path="notice" element={<NoticePage />} />

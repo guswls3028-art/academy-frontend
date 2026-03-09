@@ -170,27 +170,37 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     }
   }, [showActions]);
 
-  // ✅ 작업 클릭 시 해당 페이지로 이동
+  // ✅ 작업 클릭 시 해당 페이지로 이동 (영상은 강의-차시-영상 탭으로)
   const handleTaskClick = () => {
     if (!task.meta?.jobType || !task.meta?.jobId) return;
-    
+
     const jobType = task.meta.jobType;
     const jobId = task.meta.jobId;
-    
+
     if (jobType === "video_processing") {
-      // 비디오의 경우 세션 정보가 필요하지만, 일단 비디오 ID로 이동 시도
-      // 실제로는 비디오 상세 페이지나 세션 비디오 탭으로 이동해야 함
-      navigate(`/admin/videos/${jobId}`);
-    } else if (jobType === "excel_parsing") {
-      // 엑셀 파싱은 학생 목록 페이지로 이동
-      navigate("/admin/students/home");
-    } else if (jobType === "messaging") {
-      // 메시지 페이지로 이동
-      navigate("/admin/message");
-    } else {
-      // 기타 작업은 대시보드로 이동
-      navigate("/admin/dashboard");
+      const videoId = Number(jobId);
+      fetchVideoDetail(videoId)
+        .then((video) => fetchSession(video.session_id))
+        .then((session) => {
+          navigate(
+            `/admin/lectures/${session.lecture}/sessions/${session.id}/videos`
+          );
+        })
+        .catch(() => {
+          feedback.error("영상 정보를 불러올 수 없습니다.");
+          navigate("/admin/videos");
+        });
+      return;
     }
+    if (jobType === "excel_parsing") {
+      navigate("/admin/students/home");
+      return;
+    }
+    if (jobType === "messaging") {
+      navigate("/admin/message");
+      return;
+    }
+    navigate("/admin/dashboard");
   };
 
   const handleDelete = async (e: React.MouseEvent) => {
