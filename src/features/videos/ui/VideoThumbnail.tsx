@@ -204,7 +204,7 @@ export default function VideoThumbnail({
           }}
           className="absolute bottom-2 right-2 !bg-black/60 hover:!bg-black/80 !text-white !border-0"
         >
-          🔄 썸네일 새로고침
+          ↺ 썸네일 새로고침
         </Button>
       )}
     </div>

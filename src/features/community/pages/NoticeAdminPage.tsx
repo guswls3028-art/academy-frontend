@@ -12,6 +12,7 @@ import {
   getNoticeBlockTypeId,
   fetchPost,
   updatePostNodes,
+  updatePost,
   deletePost,
   fetchAllNoticePostsForCount,
   fetchPostTemplates,

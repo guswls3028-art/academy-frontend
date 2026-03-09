@@ -138,12 +138,21 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     return (
       <div
         key={video.id}
+        className="group"
         style={{
           borderRadius: 14,
           border: "1px solid var(--color-border-divider)",
           background: "var(--color-bg-app)",
           padding: 12,
-          transition: "background 120ms ease",
+          transition: "border-color 120ms ease, box-shadow 120ms ease",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-primary)";
+          (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.borderColor = "var(--color-border-divider)";
+          (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
         }}
       >
         <Link to={`${video.id}`} style={{ textDecoration: "none" }}>
@@ -162,7 +171,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             <div
               style={{
                 fontSize: 14,
-                fontWeight: 950,
+                fontWeight: 700,
                 color: "var(--color-text-primary)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -173,7 +182,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             </div>
 
             {fileSize !== "-" && (
-              <div style={{ marginTop: 2, fontSize: 11, fontWeight: 850, color: "var(--color-text-muted)" }}>
+              <div style={{ marginTop: 2, fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)" }}>
                 {fileSize} · {uploadDate}
               </div>
             )}
@@ -184,37 +193,15 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           </div>
         </div>
 
-        <div
-          style={{
-            marginTop: 8,
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 11,
-            fontWeight: 850,
-            color: "var(--color-text-secondary)",
-          }}
-        >
-          <span>
-            워터마크:{" "}
-            <span style={{ fontWeight: 950, color: video.show_watermark ? "var(--color-primary)" : "var(--color-text-muted)" }}>
-              {video.show_watermark ? "표시" : "숨김"}
-            </span>
+        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <span className="ds-status-badge" data-tone={video.show_watermark ? "info" : "neutral"}>
+            {video.show_watermark ? "워터마크" : "워터마크 없음"}
           </span>
-          <span style={{ color: "var(--color-text-muted)" }}>·</span>
-          <span>
-            건너뛰기:{" "}
-            <span style={{ fontWeight: 950, color: video.allow_skip ? "var(--color-text-muted)" : "var(--color-primary)" }}>
-              {video.allow_skip ? "허용" : "금지"}
-            </span>
+          <span className="ds-status-badge" data-tone={video.allow_skip ? "neutral" : "warning"}>
+            {video.allow_skip ? "건너뛰기 허용" : "건너뛰기 금지"}
           </span>
-          <span style={{ color: "var(--color-text-muted)" }}>·</span>
-          <span>
-            배속:{" "}
-            <span style={{ fontWeight: 950, color: video.max_speed > 1.0 ? "var(--color-text-muted)" : "var(--color-primary)" }}>
-              {video.max_speed.toFixed(2)}x
-            </span>
+          <span className="ds-status-badge" data-tone="neutral">
+            최대 {video.max_speed.toFixed(2)}x
           </span>
         </div>
 
@@ -277,7 +264,27 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         }}
       >
         {isLoading ? (
-          <EmptyState mode="embedded" scope="panel" tone="loading" title="불러오는 중…" />
+          <div
+            className="animate-pulse"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: "var(--space-4)",
+            }}
+          >
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  borderRadius: 14,
+                  border: "1px solid var(--color-border-divider)",
+                  background: "var(--color-bg-surface-soft)",
+                  padding: 12,
+                  height: 220,
+                }}
+              />
+            ))}
+          </div>
         ) : videos.length === 0 ? (
           <EmptyState mode="embedded" scope="panel" title="등록된 영상이 없습니다." />
         ) : (

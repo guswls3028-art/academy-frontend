@@ -482,7 +482,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </div>
           </div>
         ) : mode === "single" ? (
-        <div className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll">
+        <div id="student-create-modal-dropdown-root" className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll">
           <div
             className="modal-form-row"
             style={{
@@ -778,7 +778,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
         </div>
         ) : (
-        <div className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll" style={{ display: "flex", flexDirection: "column" }}>
+        <div id="student-create-modal-dropdown-root" className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll" style={{ display: "flex", flexDirection: "column" }}>
           <div
             className="modal-form-row"
             style={{

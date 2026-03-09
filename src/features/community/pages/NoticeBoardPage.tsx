@@ -1,7 +1,7 @@
 // PATH: src/features/community/pages/NoticeBoardPage.tsx
 // 공지사항 목록+작성 (게시 관리 내 "공지사항" 탭에서 사용, 또는 단독 라우트용)
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
@@ -248,7 +248,7 @@ export function NoticeCreateModal({
   const qc = useQueryClient();
 
   // 공지 탭에서 열었을 때 유형을 공지로 확실히 맞춤 (blockTypes 로딩 후 한 번만)
-  React.useEffect(() => {
+  useEffect(() => {
     if (defaultBlockTypeCode != null && resolvedDefaultId != null) {
       setBlockTypeId(resolvedDefaultId);
     }
@@ -295,7 +295,7 @@ export function NoticeCreateModal({
       createCommunityBoardPost({
         block_type: blockTypeId ?? blockTypes[0]!.id,
         title: title.trim(),
-        content: content.trim(),
+        content: defaultBlockTypeCode === "notice" ? "" : content.trim(),
         node_ids: nodeIds,
       }),
     onSuccess: () => onSuccess(),
@@ -303,10 +303,10 @@ export function NoticeCreateModal({
 
   const canSubmit =
     title.trim() &&
-    content.trim() &&
     blockTypes.length > 0 &&
     (blockTypeId != null || blockTypes[0]?.id) &&
-    nodeIds.length > 0;
+    nodeIds.length > 0 &&
+    (defaultBlockTypeCode === "notice" || content.trim());
 
   const courseNodes = useMemo(
     () => scopeNodes.filter((n) => n.level === "COURSE"),
@@ -421,24 +421,31 @@ export function NoticeCreateModal({
                 style={{ width: "100%" }}
               />
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
-                내용
-              </label>
-              <textarea
-                className="ds-input"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="내용"
-                rows={4}
-                style={{ width: "100%", resize: "vertical" }}
-              />
-            </div>
+            {defaultBlockTypeCode !== "notice" && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
+                  내용
+                </label>
+                <textarea
+                  className="ds-input"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="내용"
+                  rows={4}
+                  style={{ width: "100%", resize: "vertical" }}
+                />
+              </div>
+            )}
+            {defaultBlockTypeCode === "notice" && (
+              <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 16 }}>
+                등록 후 오른쪽 상세 영역에서 내용을 작성할 수 있습니다.
+              </p>
+            )}
           </>
         )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
-            {(title.trim() || content.trim()) && (
+            {defaultBlockTypeCode !== "notice" && (title.trim() || content.trim()) && (
               <Button
                 intent="ghost"
                 size="sm"
