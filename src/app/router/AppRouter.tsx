@@ -1,5 +1,5 @@
 // PATH: src/app/router/AppRouter.tsx
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -7,11 +7,24 @@ import StudentRouter from "@/student/app/StudentRouter";
 import AuthRouter from "./AuthRouter";
 
 import TenantRequiredPage from "@/features/auth/pages/TenantRequiredPage";
+import MaintenancePage from "@/features/maintenance/pages/MaintenancePage";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 
 const AdminRouter = lazy(() => import("@/app/router/AdminRouter"));
 const DevAppRouter = lazy(() => import("@/dev_app/router/DevAppRouter"));
+
+function MaintenanceGate({ enabled }: { enabled: boolean }) {
+  const location = useLocation();
+  if (!enabled) return <Outlet />;
+
+  const p = location.pathname || "";
+  if (p.startsWith("/dev") || p.startsWith("/login") || p.startsWith("/maintenance")) {
+    return <Outlet />;
+  }
+
+  return <Navigate to="/maintenance" replace />;
+}
 
 function RootRedirect() {
   const { user, isLoading } = useAuth();
@@ -66,79 +79,85 @@ function RootRedirect() {
 }
 
 export default function AppRouter() {
+  const { program } = useProgram();
+  const maintenanceOn = Boolean(program?.feature_flags?.maintenance_mode);
+
   return (
     <Routes>
       <Route path="/login/*" element={<AuthRouter />} />
+      <Route path="/maintenance" element={<MaintenancePage />} />
 
       <Route
         path="/error/tenant-required"
         element={<TenantRequiredPage />}
       />
 
-      <Route path="/" element={<RootRedirect />} />
-
-      <Route element={<ProtectedRoute allow={["student", "parent"]} />}>
-        <Route path="/student/*" element={<StudentRouter />} />
-      </Route>
-
-      <Route
-        element={
-          <ProtectedRoute allow={["owner", "admin", "teacher", "staff"]} />
-        }
-      >
+      <Route element={<MaintenanceGate enabled={maintenanceOn} />}>
         <Route
-          path="/admin/*"
           element={
-            <Suspense
-              fallback={
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: 200,
-                    color: "#666",
-                    fontSize: 14,
-                  }}
-                >
-                  불러오는 중…
-                </div>
-              }
-            >
-              <AdminRouter />
-            </Suspense>
+            <ProtectedRoute allow={["owner"]} />
           }
-        />
-      </Route>
+        >
+          <Route
+            path="/dev/*"
+            element={
+              <Suspense
+                fallback={
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 200,
+                      color: "#666",
+                      fontSize: 14,
+                    }}
+                  >
+                    불러오는 중…
+                  </div>
+                }
+              >
+                <DevAppRouter />
+              </Suspense>
+            }
+          />
+        </Route>
 
-      <Route
-        element={
-          <ProtectedRoute allow={["owner"]} />
-        }
-      >
+        <Route path="/" element={<RootRedirect />} />
+
+        <Route element={<ProtectedRoute allow={["student", "parent"]} />}>
+          <Route path="/student/*" element={<StudentRouter />} />
+        </Route>
+
         <Route
-          path="/dev/*"
           element={
-            <Suspense
-              fallback={
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: 200,
-                    color: "#666",
-                    fontSize: 14,
-                  }}
-                >
-                  불러오는 중…
-                </div>
-              }
-            >
-              <DevAppRouter />
-            </Suspense>
+            <ProtectedRoute allow={["owner", "admin", "teacher", "staff"]} />
           }
-        />
+        >
+          <Route
+            path="/admin/*"
+            element={
+              <Suspense
+                fallback={
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minHeight: 200,
+                      color: "#666",
+                      fontSize: 14,
+                    }}
+                  >
+                    불러오는 중…
+                  </div>
+                }
+              >
+                <AdminRouter />
+              </Suspense>
+            }
+          />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
