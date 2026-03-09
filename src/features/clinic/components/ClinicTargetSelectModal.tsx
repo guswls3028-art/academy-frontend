@@ -174,6 +174,7 @@ export default function ClinicTargetSelectModal({
                   setMode("targets");
                   setKeyword("");
                   setSelectedIds([]);
+                  setSelectedIdToName(new Map());
                 }}
                 aria-pressed={mode === "targets"}
               >
@@ -186,6 +187,7 @@ export default function ClinicTargetSelectModal({
                   setMode("students");
                   setKeyword("");
                   setSelectedIds([]);
+                  setSelectedIdToName(new Map());
                 }}
                 aria-pressed={mode === "students"}
               >
@@ -231,7 +233,10 @@ export default function ClinicTargetSelectModal({
                   type="button"
                   intent="secondary"
                   size="sm"
-                  onClick={() => setSelectedIds([])}
+                  onClick={() => {
+                    setSelectedIds([]);
+                    setSelectedIdToName(new Map());
+                  }}
                   disabled={selectedIds.length === 0}
                 >
                   전체 해제
@@ -364,7 +369,10 @@ export default function ClinicTargetSelectModal({
                 <Button
                   intent="secondary"
                   size="sm"
-                  onClick={() => setSelectedIds([])}
+                  onClick={() => {
+                    setSelectedIds([]);
+                    setSelectedIdToName(new Map());
+                  }}
                   disabled={selectedIds.length === 0}
                   className="!text-[13px]"
                 >
