@@ -1,6 +1,7 @@
 // PATH: src/features/auth/context/AuthContext.tsx
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -56,13 +57,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const clearAuth = () => {
+  const clearAuth = useCallback(() => {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");
     setUser(null);
-  };
+  }, []);
 
-  const refreshMe = async () => {
+  const refreshMe = useCallback(async () => {
     const access = getAccessToken();
     if (!access) {
       setUser(null);
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       throw err;
     }
-  };
+  }, [clearAuth]);
 
   useEffect(() => {
     (async () => {
@@ -146,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshMe,
       clearAuth,
     }),
-    [user, isLoading]
+    [user, isLoading, refreshMe, clearAuth]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
