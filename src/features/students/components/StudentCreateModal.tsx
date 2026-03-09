@@ -621,6 +621,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         </div>
         )}
       </ModalBody>
+      </>
       ) : null}
 
       <ModalFooter

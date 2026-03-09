@@ -1,6 +1,6 @@
 /**
  * PATH: src/features/exams/pages/ExamExplorerPage.tsx
- * 시험 (사이드바 첫 페이지) — 저장소/메시지 템플릿과 동일한 폴더트리형 SSOT
+ * 시험 — QnA 페이지와 동일한 좌(폴더 트리) | 우(탐색 영역) 레이아웃
  */
 
 import { useState, useMemo } from "react";
@@ -9,11 +9,11 @@ import { useQuery, useQueries } from "@tanstack/react-query";
 import { FileText, FilePlus } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
-import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
 import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, type Session } from "@/features/lectures/api/sessions";
 import { fetchExams } from "../api/exams";
 import styles from "../components/ExamExplorer.module.css";
+import "../exam-explorer-inbox.css";
 
 type LectureWithSessions = Lecture & { sessions: Session[] };
 

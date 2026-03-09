@@ -17,8 +17,7 @@ const COMMUNITY_TABS = [
 function CommunityPageInner() {
   const location = useLocation();
   const isBoardPanel = location.pathname.endsWith("/board");
-  const isNoticePanel = location.pathname.endsWith("/notice");
-  const showScope = isBoardPanel || isNoticePanel;
+  const showScope = isBoardPanel; /* 공지는 좌측 패널 폴더 트리로 선택 */
 
   return (
     <DomainLayout

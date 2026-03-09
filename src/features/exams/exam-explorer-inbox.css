@@ -1,0 +1,119 @@
+/* PATH: src/features/exams/exam-explorer-inbox.css
+ * 시험 탐색기 — QnA Inbox와 동일한 좌(폴더 트리) | 우(탐색 영역) 레이아웃
+ * Design tokens: --color-*, --space-*, --radius-*
+ */
+
+.exam-explorer {
+  display: flex;
+  height: 100%;
+  min-height: calc(100vh - 180px);
+  min-height: 0;
+  background: var(--color-bg-surface, #fff);
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--color-border-divider, #e5e7eb);
+  overflow: hidden;
+}
+
+.exam-explorer__list {
+  width: 360px;
+  min-width: 300px;
+  max-width: 42%;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft, #fafafa);
+}
+
+.exam-explorer__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface);
+}
+
+/* ── 좌측 패널 헤더 (QnA list-header 스타일) ── */
+.exam-explorer__list-header {
+  padding: var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.exam-explorer__list-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.exam-explorer__search .ds-input {
+  width: 100%;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: 13px;
+}
+
+/* ── 좌측 트리 영역 ── */
+.exam-explorer__list-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2, 8px);
+}
+
+/* 트리 내부는 LectureSessionTree.module.css 유지, 여기서는 컨테이너만 */
+
+/* ── 우측 탐색 영역 (QnA thread 스타일) ── */
+.exam-explorer__main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5, 20px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 빈 상태 / 플레이스홀더 (QnA empty 스타일) ── */
+.exam-explorer__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8, 40px) var(--space-6, 24px);
+  text-align: center;
+  flex: 1;
+}
+
+.exam-explorer__empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--space-1, 4px) 0;
+}
+
+.exam-explorer__empty-desc {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.exam-explorer__keyboard-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-4, 16px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exam-explorer__keyboard-hint kbd {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
