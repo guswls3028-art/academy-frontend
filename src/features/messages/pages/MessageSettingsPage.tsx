@@ -11,7 +11,7 @@ import {
   FiPhone,
   FiExternalLink,
 } from "react-icons/fi";
-import { Panel, Button } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { useMessagingInfo, useUpdateKakaoPfid } from "../hooks/useMessagingInfo";
 
 /** 설정 상태 행 — label + value + status chip */
@@ -141,12 +141,21 @@ export default function MessageSettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* 메시징 상태 요약 */}
-      <Panel
-        variant="primary"
-        title="연동 상태"
-        description="현재 이 학원의 메시징 설정 상태입니다."
+      {/* 연동 상태 */}
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+        }}
       >
+        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+          연동 상태
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          현재 이 학원의 메시징 설정 상태입니다.
+        </p>
         <div>
           <StatusRow
             label="알림톡 채널"
@@ -206,14 +215,23 @@ export default function MessageSettingsPage() {
             </span>
           </div>
         </div>
-      </Panel>
+      </div>
 
       {/* 카카오 알림톡 연동 */}
-      <Panel
-        variant="primary"
-        title="카카오 알림톡 연동"
-        description="학원 전용 PFID를 설정하면 학원 채널로 알림톡을 발송할 수 있습니다."
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+        }}
       >
+        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+          카카오 알림톡 연동
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          학원 전용 PFID를 설정하면 학원 채널로 알림톡을 발송할 수 있습니다.
+        </p>
         <div className="flex flex-col gap-4">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <FiMessageCircle
@@ -268,14 +286,23 @@ export default function MessageSettingsPage() {
             </p>
           )}
         </div>
-      </Panel>
+      </div>
 
       {/* 발신번호 설정 */}
-      <Panel
-        variant="primary"
-        title="발신번호"
-        description="SMS·알림톡 발송 시 사용할 발신번호입니다. 솔라피에 등록된 번호만 사용 가능합니다."
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+        }}
       >
+        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+          발신번호
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          SMS·알림톡 발송 시 사용할 발신번호입니다. 솔라피에 등록된 번호만 사용 가능합니다.
+        </p>
         <div className="flex flex-col gap-3">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <FiPhone
@@ -306,14 +333,23 @@ export default function MessageSettingsPage() {
             설정 &gt; 내 정보로 이동
           </Button>
         </div>
-      </Panel>
+      </div>
 
       {/* Solapi 연동 가이드 */}
-      <Panel
-        variant="primary"
-        title="연동 가이드"
-        description="처음 연동하는 경우 아래 순서대로 진행하세요."
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+        }}
       >
+        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+          연동 가이드
+        </div>
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          처음 연동하는 경우 아래 순서대로 진행하세요.
+        </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <GuideStep step={1}>
             <strong>카카오 비즈니스 채널 개설</strong> — 카카오 비즈니스 관리자 센터에 접속해
@@ -349,7 +385,7 @@ export default function MessageSettingsPage() {
             이 영역에 추가할 수 있습니다.
           </div>
         </div>
-      </Panel>
+      </div>
     </div>
   );
 }

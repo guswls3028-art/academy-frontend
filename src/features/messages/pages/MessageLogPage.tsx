@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { Panel, EmptyState } from "@/shared/ui/ds";
+import { EmptyState } from "@/shared/ui/ds";
 import { useNotificationLog } from "../hooks/useNotificationLog";
 import type { NotificationLogItem } from "../api/messages.api";
 
@@ -176,12 +176,34 @@ export default function MessageLogPage() {
   );
 
   return (
-    <Panel
-      variant="primary"
-      title="발송 내역"
-      description="SMS·알림톡 발송 이력과 성공/실패, 차감 금액을 확인할 수 있습니다."
-      right={!isLoading && results.length > 0 ? filterBar : undefined}
+    <div
+      style={{
+        borderRadius: "var(--radius-lg)",
+        padding: "var(--space-5)",
+        border: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface)",
+      }}
     >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "var(--space-4)",
+          marginBottom: 10,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
+            발송 내역
+          </div>
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+            SMS·알림톡 발송 이력과 성공/실패, 차감 금액을 확인할 수 있습니다.
+          </div>
+        </div>
+        {!isLoading && results.length > 0 ? filterBar : null}
+      </div>
       {isLoading ? (
         <div
           style={{
@@ -233,6 +255,6 @@ export default function MessageLogPage() {
           style={{ marginTop: 4 }}
         />
       )}
-    </Panel>
+    </div>
   );
 }
