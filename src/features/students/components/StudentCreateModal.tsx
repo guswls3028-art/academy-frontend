@@ -534,10 +534,34 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                       ))}
                     </select>
                   </div>
+                  <div style={{ marginBottom: "var(--space-2)" }}>
+                    <span className="modal-phone-label" style={{ marginBottom: "var(--space-1)", display: "block" }}>발송 유형</span>
+                    <div className="modal-actions-inline" style={{ flexWrap: "wrap", gap: "var(--space-1)" }}>
+                      <button
+                        type="button"
+                        className={`ds-choice-btn ds-choice-btn--primary${(signupConfig?.message_mode === "sms" || signupConfig?.message_mode === "both") ? " is-selected" : ""}`}
+                        onClick={() => handleSetSignupMessageMode("sms")}
+                        disabled={updateAutoSendMut.isPending}
+                      >
+                        메시지
+                      </button>
+                      <button
+                        type="button"
+                        className={`ds-choice-btn ds-choice-btn--primary${(signupConfig?.message_mode === "alimtalk" || signupConfig?.message_mode === "both") ? " is-selected" : ""}`}
+                        onClick={() => handleSetSignupMessageMode("alimtalk")}
+                        disabled={updateAutoSendMut.isPending}
+                      >
+                        알림톡
+                      </button>
+                    </div>
+                    <span className="modal-hint" style={{ display: "block", marginTop: "var(--space-1)" }}>
+                      메시지만 선택 시 문자만, 알림톡만 선택 시 알림톡만, 둘 다 선택 시 둘 다 발송
+                    </span>
+                  </div>
                   <Button
                     intent="secondary"
                     size="sm"
-                    onClick={() => { setTemplateModalOpen(true); }}
+                    onClick={() => { setMessageDropdownOpen(false); setTemplateModalOpen(true); }}
                     disabled={createTemplateAndRegisterMut.isPending}
                     style={{ width: "100%" }}
                   >
@@ -798,10 +822,34 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                       ))}
                     </select>
                   </div>
+                  <div style={{ marginBottom: "var(--space-2)" }}>
+                    <span className="modal-phone-label" style={{ marginBottom: "var(--space-1)", display: "block" }}>발송 유형</span>
+                    <div className="modal-actions-inline" style={{ flexWrap: "wrap", gap: "var(--space-1)" }}>
+                      <button
+                        type="button"
+                        className={`ds-choice-btn ds-choice-btn--primary${(signupConfig?.message_mode === "sms" || signupConfig?.message_mode === "both") ? " is-selected" : ""}`}
+                        onClick={() => handleSetSignupMessageMode("sms")}
+                        disabled={updateAutoSendMut.isPending}
+                      >
+                        메시지
+                      </button>
+                      <button
+                        type="button"
+                        className={`ds-choice-btn ds-choice-btn--primary${(signupConfig?.message_mode === "alimtalk" || signupConfig?.message_mode === "both") ? " is-selected" : ""}`}
+                        onClick={() => handleSetSignupMessageMode("alimtalk")}
+                        disabled={updateAutoSendMut.isPending}
+                      >
+                        알림톡
+                      </button>
+                    </div>
+                    <span className="modal-hint" style={{ display: "block", marginTop: "var(--space-1)" }}>
+                      메시지만 선택 시 문자만, 알림톡만 선택 시 알림톡만, 둘 다 선택 시 둘 다 발송
+                    </span>
+                  </div>
                   <Button
                     intent="secondary"
                     size="sm"
-                    onClick={() => { setTemplateModalOpen(true); }}
+                    onClick={() => { setMessageDropdownOpen(false); setTemplateModalOpen(true); }}
                     disabled={createTemplateAndRegisterMut.isPending}
                     style={{ width: "100%" }}
                   >
