@@ -59,9 +59,20 @@
 .ds-overlay-wrap--drawer-right .ds-overlay-panel {
   max-width: 420px;
   width: 100%;
+  height: 100%;
   margin: 0;
   border-radius: var(--radius-xl) 0 0 var(--radius-xl);
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-overlay-wrap--drawer-right .ds-overlay-panel .ds-overlay-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 
 .ds-overlay-panel__close {

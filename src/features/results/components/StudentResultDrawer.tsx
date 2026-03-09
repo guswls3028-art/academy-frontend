@@ -104,7 +104,7 @@ export default function StudentResultDrawer({
             />
           </div>
 
-          <div className="ds-overlay-body" style={{ overflow: "auto", maxHeight: "calc(100vh - 200px)" }}>
+          <div className="ds-overlay-body" style={{ overflow: "auto" }}>
             {tab === "answer" && (
               <>
                 {isLoading && (

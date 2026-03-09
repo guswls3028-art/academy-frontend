@@ -702,8 +702,16 @@ export default function ScoresTable({
                                         qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                       }
                                       onRequestMoveDown?.();
-                                    } else if (e.key === "Tab") { e.preventDefault(); if (e.shiftKey) onRequestMovePrev?.(); else onRequestMoveNext?.(); }
-                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
+                                    } else if (e.key === "Tab") {
+                                      e.preventDefault();
+                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
+                                      if (parsed != null && validateScore(parsed, 100)) {
+                                        await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
+                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      }
+                                      if (e.shiftKey) onRequestMovePrev?.();
+                                      else onRequestMoveNext?.();
+                                    } else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
                                     else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
                                   }}
                                 />
@@ -760,7 +768,17 @@ export default function ScoresTable({
                                         qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                       }
                                       onRequestMoveDown?.();
-                                    } else if (e.key === "Tab") { e.preventDefault(); if (e.shiftKey) onRequestMovePrev?.(); else onRequestMoveNext?.(); }
+                                    } else if (e.key === "Tab") {
+                                      e.preventDefault();
+                                      const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
+                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
+                                      if (parsed != null && validateScore(parsed, 100)) {
+                                        await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
+                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      }
+                                      if (e.shiftKey) onRequestMovePrev?.();
+                                      else onRequestMoveNext?.();
+                                    }
                                   }}
                                 />
                               ) : (
@@ -819,8 +837,17 @@ export default function ScoresTable({
                                         qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                       }
                                       onRequestMoveDown?.();
-                                    } else if (e.key === "Tab") { e.preventDefault(); if (e.shiftKey) onRequestMovePrev?.(); else onRequestMoveNext?.(); }
-                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
+                                    } else if (e.key === "Tab") {
+                                      e.preventDefault();
+                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
+                                      if (parsed != null && validateScore(parsed, 100)) {
+                                        const newTotal = (typeof objScore === "number" ? objScore : 0) + parsed;
+                                        await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: newTotal, maxScore: 100 });
+                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      }
+                                      if (e.shiftKey) onRequestMovePrev?.();
+                                      else onRequestMoveNext?.();
+                                    } else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
                                     else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
                                   }}
                                 />

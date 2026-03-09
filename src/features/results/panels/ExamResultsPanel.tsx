@@ -65,6 +65,8 @@ export default function ExamResultsPanel({ examId }: Props) {
         : null
     );
 
+  const { data: exam } = useAdminExam(examId);
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ["admin-exam-results", examId],
     queryFn: () => fetchAdminExamResults(examId),
