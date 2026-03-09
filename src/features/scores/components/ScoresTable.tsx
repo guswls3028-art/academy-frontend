@@ -610,22 +610,83 @@ export default function ScoresTable({
                   })()}
                 </td>
 
-                {/* 시험: 점수 | 합불 — 4️⃣ exam_{id}_score, exam_{id}_pass */}
+                {/* 시험: 점수 | 합불 — 합산 모드 1칸 총점, 주관식 모드 문항별 */}
                 {examOptions.map((ex) => {
-                  const entry =
-                    row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
+                  const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
                   const block = entry?.block;
-                  const canEditTotal =
-                    isEditMode &&
-                    !block?.is_locked &&
-                    true;
+                  const questions = (ex as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
+                  const isItemMode = examScoreInputMode === "item" && questions.length > 0;
+                  const canEditTotal = isEditMode && !block?.is_locked && !isItemMode;
+                  const scoreText = block?.score == null ? "-" : `${Math.round(block.score)}`;
+
+                  if (isItemMode) {
+                    return (
+                      <Fragment key={ex.exam_id}>
+                        {questions.map((q) => {
+                          const item = entry?.items?.find((i) => i.question_id === q.question_id);
+                          const value = item?.score ?? null;
+                          const maxScore = item?.max_score ?? q.max_score ?? 0;
+                          const isSelected =
+                            !!selectedCell &&
+                            selectedCell.enrollmentId === row.enrollment_id &&
+                            selectedCell.type === "exam" &&
+                            selectedCell.examId === ex.exam_id &&
+                            selectedCell.questionId === q.question_id;
+                          const canEditItem = isEditMode && !block?.is_locked;
+                          return (
+                            <td
+                              key={`${ex.exam_id}-${q.question_id}`}
+                              className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              style={rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectCell(row, "exam", ex.exam_id, q.question_id);
+                              }}
+                            >
+                              {canEditItem ? (
+                                <ScoreInputCell
+                                  examId={ex.exam_id}
+                                  enrollmentId={row.enrollment_id}
+                                  questionId={q.question_id}
+                                  value={value}
+                                  maxScore={maxScore}
+                                  disabled={!!block?.is_locked}
+                                  onSaved={() => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] })}
+                                  inputRef={(el) => {
+                                    const k = `${row.enrollment_id}-${ex.exam_id}-${q.question_id}`;
+                                    examItemInputRefs.current[k] = el;
+                                  }}
+                                  onMovePrev={onRequestMovePrev}
+                                  onMoveNext={onRequestMoveNext}
+                                />
+                              ) : (
+                                <span className="font-medium text-[var(--color-text-primary)]">
+                                  {value != null ? String(value) : "-"}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td
+                          className="min-w-0 text-left align-middle py-2.5 px-3"
+                          style={rowChecked ? undefined : { backgroundColor: BG_EXAM }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectCell(row, "exam", ex.exam_id);
+                          }}
+                        >
+                          <PassFailBadge passed={block?.passed} />
+                        </td>
+                      </Fragment>
+                    );
+                  }
+
                   const isSelected =
                     !!selectedCell &&
                     selectedCell.enrollmentId === row.enrollment_id &&
                     selectedCell.type === "exam" &&
-                    selectedCell.examId === ex.exam_id;
-                  const scoreText =
-                    block?.score == null ? "-" : `${Math.round(block.score)}`;
+                    selectedCell.examId === ex.exam_id &&
+                    selectedCell.questionId == null;
 
                   return (
                     <Fragment key={ex.exam_id}>
