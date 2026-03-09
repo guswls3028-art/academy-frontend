@@ -82,15 +82,23 @@ export default function AnswerKeyRegisterModal({
   );
 
   const effectiveChoiceCount =
-    questions.length > 0 && (choiceCount === "" || essayCount === "")
-      ? questions.length
-      : Math.max(0, Number(choiceCount) || 0);
+    choiceCount !== "" && essayCount !== ""
+      ? Math.max(0, Number(choiceCount) || 0)
+      : choiceCount !== ""
+        ? Math.max(0, Number(choiceCount) || 0)
+        : essayCount !== ""
+          ? Math.max(0, questions.length - (Number(essayCount) || 0))
+          : questions.length;
   const effectiveEssayCount =
-    questions.length > 0 && (choiceCount === "" || essayCount === "")
-      ? 0
-      : Math.max(0, Number(essayCount) || 0);
+    choiceCount !== "" && essayCount !== ""
+      ? Math.max(0, Number(essayCount) || 0)
+      : essayCount !== ""
+        ? Math.max(0, Number(essayCount) || 0)
+        : choiceCount !== ""
+          ? Math.max(0, questions.length - (Number(choiceCount) || 0))
+          : 0;
   const choiceQuestions = sortedQuestions.slice(0, effectiveChoiceCount);
-  const essayQuestions = sortedQuestions.slice(effectiveChoiceCount);
+  const essayQuestions = sortedQuestions.slice(effectiveChoiceCount, effectiveChoiceCount + effectiveEssayCount);
 
   const getScore = (q: ExamQuestion) => scoreDraft[q.id] ?? q.score ?? 0;
   const totalScore = useMemo(
@@ -120,8 +128,15 @@ export default function AnswerKeyRegisterModal({
 
   const initMut = useMutation({
     mutationFn: async () => {
-      const cc = Number(choiceCount) || 0;
-      const ec = Number(essayCount) || 0;
+      const total = questions.length;
+      const cc =
+        choiceCount !== ""
+          ? Math.max(0, Number(choiceCount) || 0)
+          : Math.max(0, total - (Number(essayCount) || 0));
+      const ec =
+        essayCount !== ""
+          ? Math.max(0, Number(essayCount) || 0)
+          : Math.max(0, total - (Number(choiceCount) || 0));
       const cs = choiceNoDefaultScore ? 0 : (Number(choiceScore) || 5);
       const es = essayNoDefaultScore ? 0 : (Number(essayScore) || 5);
       if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
@@ -135,6 +150,16 @@ export default function AnswerKeyRegisterModal({
     },
     onSuccess: async (result) => {
       const list = result?.data ?? [];
+      const cc =
+        choiceCount !== ""
+          ? Math.max(0, Number(choiceCount) || 0)
+          : Math.max(0, list.length - (Number(essayCount) || 0));
+      const ec =
+        essayCount !== ""
+          ? Math.max(0, Number(essayCount) || 0)
+          : Math.max(0, list.length - (Number(choiceCount) || 0));
+      setChoiceCount(cc);
+      setEssayCount(ec);
       qc.setQueryData(["exam-questions", examId], list);
       setScoreDraft((prev) => {
         const next = { ...prev };
