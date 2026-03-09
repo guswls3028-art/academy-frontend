@@ -39,7 +39,7 @@ export default function CommonLoginPage() {
   return (
     <div data-app="auth" data-tenant="tchul" className={styles.root}>
       <div className={styles.center}>
-        <CommonLogoIcon height={48} className={styles.logo} />
+        <CommonLogoIcon height={64} className={styles.logo} />
         {!formExpanded ? (
           <>
             <button

@@ -315,7 +315,7 @@ export default function EnhancedCommonLoginPage() {
         {logoUrl ? (
           <img src={logoUrl} alt={title} className={styles.logo} />
         ) : (
-          <CommonLogoIcon height={48} className={styles.logo} />
+          <CommonLogoIcon height={64} className={styles.logo} />
         )}
         <div className={styles.typography}>
           <h1 className={styles.title}>{title}</h1>
