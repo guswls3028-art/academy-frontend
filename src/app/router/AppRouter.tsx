@@ -80,7 +80,9 @@ function RootRedirect() {
 
 export default function AppRouter() {
   const { program } = useProgram();
-  const maintenanceOn = Boolean(program?.feature_flags?.maintenance_mode);
+  const tenantCode = program?.tenantCode;
+  const maintenanceExempt = tenantCode === "hakwonplus" || tenantCode === "9999";
+  const maintenanceOn = Boolean(program?.feature_flags?.maintenance_mode) && !maintenanceExempt;
 
   return (
     <Routes>

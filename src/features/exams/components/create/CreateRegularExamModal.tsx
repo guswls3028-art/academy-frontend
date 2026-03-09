@@ -18,7 +18,7 @@ type Props = {
   onCreated: (examId: number) => void;
 };
 
-type CreateMode = "new" | "import";
+type Stage = "choose" | "new" | "import";
 
 export default function CreateRegularExamModal({
   open,
@@ -26,7 +26,7 @@ export default function CreateRegularExamModal({
   sessionId,
   onCreated,
 }: Props) {
-  const [mode, setMode] = useState<CreateMode | null>(null);
+  const [stage, setStage] = useState<Stage>("choose");
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -36,7 +36,7 @@ export default function CreateRegularExamModal({
 
   useEffect(() => {
     if (!open) return;
-    setMode(null);
+    setStage("choose");
     setTitle("");
     setError(null);
     setSubmitting(false);
@@ -47,7 +47,7 @@ export default function CreateRegularExamModal({
 
   useEffect(() => {
     if (!open) return;
-    if (mode !== "import") return;
+    if (stage !== "import") return;
 
     let cancelled = false;
     setTemplatesLoading(true);
@@ -69,7 +69,7 @@ export default function CreateRegularExamModal({
     return () => {
       cancelled = true;
     };
-  }, [open, mode]);
+  }, [open, stage]);
 
   const handleSubmit = async () => {
     if (!sessionId) {
@@ -77,12 +77,12 @@ export default function CreateRegularExamModal({
       return;
     }
 
-    if (!mode) {
+    if (stage === "choose") {
       setError("생성 방식을 선택하세요.");
       return;
     }
 
-    if (mode === "import" && !selectedTemplateId) {
+    if (stage === "import" && !selectedTemplateId) {
       setError("불러올 템플릿을 선택하세요.");
       return;
     }
@@ -100,7 +100,7 @@ export default function CreateRegularExamModal({
         description: "",
         exam_type: "regular",
         session_id: sessionId,
-        ...(mode === "import" ? { template_exam_id: selectedTemplateId } : {}),
+        ...(stage === "import" ? { template_exam_id: selectedTemplateId } : {}),
       });
       const newExamId = Number(res.data?.id);
       if (!newExamId) throw new Error("생성 후 ID를 받지 못했습니다.");
@@ -116,33 +116,64 @@ export default function CreateRegularExamModal({
   const disabled =
     submitting ||
     !(sessionId > 0) ||
-    !mode ||
+    stage === "choose" ||
     !title.trim() ||
-    (mode === "import" && !selectedTemplateId);
+    (stage === "import" && !selectedTemplateId);
 
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
-      if (e.key === "Enter" && !disabled) {
+      if (e.key === "Enter" && stage !== "choose" && !disabled) {
         e.preventDefault();
         handleSubmit();
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, disabled]);
+  }, [open, onClose, disabled, stage]);
 
   if (!open) return null;
 
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
 
+  const headerTitle =
+    stage === "choose" ? (
+      "시험 생성"
+    ) : (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setSubmitting(false);
+            setStage("choose");
+          }}
+          className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+          aria-label="뒤로"
+        >
+          ←
+        </button>
+        <span>{stage === "new" ? "신규시험" : "불러오기"}</span>
+      </div>
+    );
+
   return (
-    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default} onEnterConfirm={!disabled ? handleSubmit : undefined}>
+    <AdminModal
+      open
+      onClose={onClose}
+      type="action"
+      width={MODAL_WIDTH.default}
+      onEnterConfirm={stage !== "choose" && !disabled ? handleSubmit : undefined}
+    >
       <ModalHeader
         type="action"
-        title="시험 생성"
-        description="신규시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다."
+        title={headerTitle}
+        description={
+          stage === "choose"
+            ? "신규시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다."
+            : undefined
+        }
       />
 
       <ModalBody>
@@ -153,33 +184,43 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
-          <div className="modal-form-group">
-            <div className="modal-section-label mb-3">생성 방식</div>
-            <div className="grid grid-cols-2 gap-5">
-              <SessionBlockView
-                variant="n1"
-                compact={false}
-                selected={mode === "new"}
-                showCheck
-                title="신규시험"
-                desc="이 차시에 새 시험을 생성합니다."
-                onClick={() => setMode("new")}
-                ariaPressed={mode === "new"}
-              />
-              <SessionBlockView
-                variant="supplement"
-                compact={false}
-                selected={mode === "import"}
-                showCheck
-                title="불러오기"
-                desc="템플릿을 선택해 이 차시에 적용합니다."
-                onClick={() => setMode("import")}
-                ariaPressed={mode === "import"}
-              />
+          {stage === "choose" && (
+            <div className="modal-form-group">
+              <div className="modal-section-label mb-3">생성 방식</div>
+              <div className="grid grid-cols-2 gap-5">
+                <SessionBlockView
+                  variant="n1"
+                  compact={false}
+                  selected={false}
+                  showCheck
+                  title="신규시험"
+                  desc="이 차시에 새 시험을 생성합니다."
+                  onClick={() => {
+                    setError(null);
+                    setTitle("");
+                    setSelectedTemplateId(null);
+                    setStage("new");
+                  }}
+                />
+                <SessionBlockView
+                  variant="supplement"
+                  compact={false}
+                  selected={false}
+                  showCheck
+                  title="불러오기"
+                  desc="템플릿을 선택해 이 차시에 적용합니다."
+                  onClick={() => {
+                    setError(null);
+                    setTitle("");
+                    setSelectedTemplateId(null);
+                    setStage("import");
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {mode === "import" && (
+          {stage === "import" && (
             <div className="modal-form-group">
               <label className="modal-section-label">템플릿 선택</label>
 
@@ -246,22 +287,24 @@ export default function CreateRegularExamModal({
             </div>
           )}
 
-          <div className="modal-form-group">
-            <label className="modal-section-label">제목 (필수)</label>
-            <input
-              className="ds-input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="예) 3월 모의고사"
-              autoFocus
-              aria-label="시험 제목"
-            />
-            {mode === "import" && selectedTemplate && (
-              <p className="modal-hint modal-hint--block">
-                템플릿: {selectedTemplate.title} (#{selectedTemplate.id})
-              </p>
-            )}
-          </div>
+          {stage !== "choose" && (
+            <div className="modal-form-group">
+              <label className="modal-section-label">제목 (필수)</label>
+              <input
+                className="ds-input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="예) 3월 모의고사"
+                autoFocus
+                aria-label="시험 제목"
+              />
+              {stage === "import" && selectedTemplate && (
+                <p className="modal-hint modal-hint--block">
+                  템플릿: {selectedTemplate.title} (#{selectedTemplate.id})
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </ModalBody>
 
@@ -271,9 +314,11 @@ export default function CreateRegularExamModal({
             <Button intent="secondary" onClick={onClose} disabled={submitting}>
               취소
             </Button>
-            <Button intent="primary" onClick={handleSubmit} disabled={disabled}>
-              {submitting ? "생성 중…" : "생성"}
-            </Button>
+            {stage !== "choose" && (
+              <Button intent="primary" onClick={handleSubmit} disabled={disabled}>
+                {submitting ? "생성 중…" : "생성"}
+              </Button>
+            )}
           </>
         }
       />
