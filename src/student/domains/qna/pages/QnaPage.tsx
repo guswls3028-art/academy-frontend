@@ -1,10 +1,9 @@
 /**
  * 학생 QnA 페이지
- * - 내가 작성한 질문 목록 보기
- * - 질문 상세 및 답변 보기
- * - 질문하기 기능
+ * - 선생앱 QnA와 동일한 용어·구조 정합: 전체 질문 / 답변 필요 / 해결됨, 답변 대기·답변 완료
+ * - 내 질문 목록 → 선택 시 상세(질문 + 선생님 답변)
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
@@ -19,11 +18,15 @@ const QNA_BLOCK_CODE = "qna";
 const MAX_FILES = 5;
 const MAX_SIZE_MB = 10;
 
+/** 선생앱 QnA와 동일한 필터 구분 */
+type FilterKind = "all" | "pending" | "resolved";
+
 export default function QnaPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
+  const [filter, setFilter] = useState<FilterKind>("all");
 
   // 알림에서 "답변 달림" 클릭 시 해당 질문 상세로 열기
   useEffect(() => {
@@ -34,29 +37,21 @@ export default function QnaPage() {
     }
   }, [location.pathname, location.state, navigate]);
 
-  // 내 질문 목록 조회 (최대 50건으로 제한 — 모바일 초기 렌더 부담 감소)
+  // 내 질문 목록 조회 (선생앱과 동일: community.api 기반)
   const { data: questions = [], isLoading: questionsLoading, refetch: refetchQuestions } = useQuery({
     queryKey: ["student", "qna", "questions"],
     queryFn: () => fetchMyQnaQuestions({ pageSize: 50 }),
   });
 
-  // 선택한 질문 상세 조회
-  const { data: questionDetail, isLoading: detailLoading } = useQuery({
-    queryKey: ["student", "qna", "question", selectedQuestionId],
-    queryFn: () => selectedQuestionId ? fetchQnaQuestionDetail(selectedQuestionId) : null,
-    enabled: selectedQuestionId != null,
-  });
+  // 선생앱과 동일한 필터: 전체 / 답변 필요 / 해결됨
+  const filtered = useMemo(() => {
+    if (filter === "pending") return questions.filter((q) => isPendingAnswer(q));
+    if (filter === "resolved") return questions.filter((q) => hasAnswer(q));
+    return questions;
+  }, [questions, filter]);
 
-  // 선택한 질문의 답변 목록 조회
-  const { data: replies = [], isLoading: repliesLoading } = useQuery<Answer[]>({
-    queryKey: ["student", "qna", "replies", selectedQuestionId],
-    queryFn: () => selectedQuestionId ? fetchPostReplies(selectedQuestionId) : [],
-    enabled: selectedQuestionId != null && questionDetail != null && hasAnswer(questionDetail),
-  });
-
-  // 질문 분류
-  const answeredQuestions = questions.filter((q) => hasAnswer(q));
-  const pendingQuestions = questions.filter((q) => isPendingAnswer(q));
+  const pendingCount = useMemo(() => questions.filter((q) => isPendingAnswer(q)).length, [questions]);
+  const resolvedCount = useMemo(() => questions.filter((q) => hasAnswer(q)).length, [questions]);
 
   if (showQuestionForm) {
     return (
@@ -72,11 +67,23 @@ export default function QnaPage() {
     );
   }
 
-  if (selectedQuestionId && questionDetail) {
+  if (selectedQuestionId != null) {
+    const questionDetail = questions.find((q) => q.id === selectedQuestionId);
+    if (questionDetail) {
+      return (
+        <div data-page="qna">
+          <QuestionDetailPage
+            question={questionDetail}
+            onBack={() => setSelectedQuestionId(null)}
+          />
+        </div>
+      );
+    }
+    // 아직 로드 전이면 상세 쿼리로 조회
     return (
       <div data-page="qna">
-        <QuestionDetailPage
-          question={questionDetail}
+        <QuestionDetailPageById
+          questionId={selectedQuestionId}
           onBack={() => setSelectedQuestionId(null)}
         />
       </div>
@@ -90,7 +97,7 @@ export default function QnaPage() {
         description="내가 작성한 질문과 답변을 확인하세요."
       >
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
-        {/* 질문하기 버튼 */}
+        {/* 선생앱과 동일: 질문하기 버튼 */}
         <button
           type="button"
           className="stu-btn stu-btn--primary"
@@ -106,54 +113,69 @@ export default function QnaPage() {
           질문하기
         </button>
 
+        {/* 선생앱 QnA와 동일한 필터 탭: 전체 질문 / 답변 필요 / 해결됨 */}
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            padding: 4,
+            background: "var(--stu-surface-soft)",
+            borderRadius: 8,
+          }}
+        >
+          {(
+            [
+              { key: "all" as const, label: "전체 질문", count: questions.length },
+              { key: "pending" as const, label: "답변 필요", count: pendingCount },
+              { key: "resolved" as const, label: "해결됨", count: resolvedCount },
+            ] as const
+          ).map(({ key, label, count }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFilter(key)}
+              style={{
+                flex: 1,
+                padding: "6px 8px",
+                border: "none",
+                borderRadius: 6,
+                background: filter === key ? "var(--stu-surface)" : "transparent",
+                fontSize: 12,
+                fontWeight: filter === key ? 600 : 500,
+                color: filter === key ? "var(--stu-text)" : "var(--stu-text-muted)",
+                boxShadow: filter === key ? "0 1px 3px rgba(0,0,0,0.08)" : undefined,
+              }}
+            >
+              <span>{label}</span>
+              <span style={{ marginLeft: 4, opacity: 0.9 }}>{count}</span>
+            </button>
+          ))}
+        </div>
+
         {questionsLoading ? (
           <div className="stu-muted" style={{ textAlign: "center", padding: "var(--stu-space-8)" }}>
-            불러오는 중...
+            불러오는 중…
           </div>
-        ) : questions.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <EmptyState
-            title="작성한 질문이 없습니다"
-            description="질문하기 버튼을 눌러 선생님께 질문을 보내보세요."
+            title={filter !== "all" ? "해당하는 질문이 없습니다" : "작성한 질문이 없습니다"}
+            description={
+              filter !== "all"
+                ? "다른 필터를 선택해 보세요."
+                : "질문하기 버튼을 눌러 선생님께 질문을 보내보세요."
+            }
           />
         ) : (
-          <>
-            {/* 답변 대기 질문 */}
-            {pendingQuestions.length > 0 && (
-              <div className="stu-section stu-section--nested">
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
-                  답변 대기 ({pendingQuestions.length})
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-                  {pendingQuestions.map((question) => (
-                    <QuestionItem
-                      key={question.id}
-                      question={question}
-                      onClick={() => setSelectedQuestionId(question.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 답변 완료 질문 */}
-            {answeredQuestions.length > 0 && (
-              <div className="stu-section stu-section--nested">
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>
-                  답변 완료 ({answeredQuestions.length})
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
-                  {answeredQuestions.map((question) => (
-                    <QuestionItem
-                      key={question.id}
-                      question={question}
-                      onClick={() => setSelectedQuestionId(question.id)}
-                      isAnswered
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+            {filtered.map((question) => (
+              <QuestionItem
+                key={question.id}
+                question={question}
+                isAnswered={hasAnswer(question)}
+                onClick={() => setSelectedQuestionId(question.id)}
+              />
+            ))}
+          </div>
         )}
       </div>
     </StudentPageShell>
@@ -162,7 +184,7 @@ export default function QnaPage() {
 }
 
 /**
- * 질문 아이템 컴포넌트
+ * 질문 아이템 — 선생앱 QnA 카드와 동일한 상태 라벨(답변 대기 / 답변 완료)
  */
 function QuestionItem({
   question,
@@ -193,7 +215,7 @@ function QuestionItem({
           : undefined,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
             fontWeight: 600,
@@ -208,7 +230,7 @@ function QuestionItem({
         </div>
         <div className="stu-muted" style={{ fontSize: 12 }}>
           {formatYmd(question.created_at)}
-          {isAnswered && question.replies_count && question.replies_count > 0 && (
+          {isAnswered && question.replies_count != null && question.replies_count > 0 && (
             <> · 답변 {question.replies_count}개</>
           )}
         </div>
