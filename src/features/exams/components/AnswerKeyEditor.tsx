@@ -10,6 +10,7 @@ import { fetchQuestionsByExam, ExamQuestion } from "../api/questionApi";
 
 interface Props {
   examId: number; // template or regular id (backend resolves)
+  createExamId?: number | null; // create 시 사용할 template exam id
   disabled: boolean; // template locked이면 true (정답 변경 금지 정책 반영)
 }
 
@@ -21,7 +22,7 @@ function normalizeAnswers(input: Record<string, string>) {
   return out;
 }
 
-export function AnswerKeyEditor({ examId, disabled }: Props) {
+export function AnswerKeyEditor({ examId, createExamId, disabled }: Props) {
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [answerKey, setAnswerKey] = useState<AnswerKey | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -66,11 +67,8 @@ export function AnswerKeyEditor({ examId, disabled }: Props) {
       const normalized = normalizeAnswers(draft);
 
       if (!answerKey) {
-        // ⚠️ backend contract: create needs template exam id
-        // 여기서는 backend가 regular->template resolve를 create에 적용하지 않으므로
-        // 이 Editor는 "템플릿 화면에서" 쓰는 것이 안전 (SSOT 준수).
-        // (정규시험 화면에서는 조회만 허용하는 형태로 사용할 예정)
-        const created = await createAnswerKey({ exam: examId, answers: normalized });
+        const targetExamId = createExamId ?? examId;
+        const created = await createAnswerKey({ exam: targetExamId, answers: normalized });
         setAnswerKey(created.data);
         setMsg("저장 완료");
       } else {

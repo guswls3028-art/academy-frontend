@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminExam } from "../../hooks/useAdminExam";
-import { updateAdminExam } from "../../api/adminExam";
+import { saveExamAsTemplate, updateAdminExam } from "../../api/adminExam";
 import { fetchQuestionsByExam } from "../../api/questionApi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -48,6 +48,17 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     },
   });
 
+  const saveAsTemplateMut = useMutation({
+    mutationFn: () => saveExamAsTemplate(examId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
+      feedback.success("템플릿으로 저장했습니다.");
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "템플릿 저장에 실패했습니다.");
+    },
+  });
+
   if (isLoading || !exam) {
     return (
       <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 text-sm text-[var(--text-muted)]">
@@ -67,6 +78,9 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     }
   };
 
+  const templateExamId = exam.exam_type === "regular" ? (exam.template_exam_id ?? null) : exam.id;
+  const answerKeyDisabled = exam.exam_type === "regular" && !templateExamId;
+
   return (
     <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
       <div className="border-b border-[var(--border-divider)] px-4 py-3">
@@ -77,6 +91,30 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
       </div>
 
       <div className="space-y-6 p-4">
+        {exam.exam_type === "regular" && (
+          <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-[var(--color-text-secondary)]">
+                정규 시험을 템플릿으로 저장하면 답안키/문항 자산을 템플릿 기준으로 관리할 수 있습니다.
+              </div>
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                onClick={() => saveAsTemplateMut.mutate()}
+                disabled={!!exam.template_exam_id || saveAsTemplateMut.isPending}
+              >
+                {saveAsTemplateMut.isPending ? "처리 중…" : exam.template_exam_id ? "이미 템플릿 있음" : "템플릿으로 저장"}
+              </Button>
+            </div>
+            {answerKeyDisabled && (
+              <div className="mt-2 text-xs text-[var(--color-text-muted)]">
+                답안키 등록은 먼저 “템플릿으로 저장”을 한 뒤 가능합니다.
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <div className="mb-1 text-sm text-[var(--text-muted)]">커트라인</div>
@@ -126,7 +164,8 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           </div>
           <AnswerKeyEditor
             examId={examId}
-            disabled={exam.exam_type === "regular"}
+            createExamId={templateExamId}
+            disabled={answerKeyDisabled}
           />
         </div>
 

@@ -36,10 +36,6 @@ export default function HomeworkSetupPanel({
     <div className="space-y-6">
       <HomeworkPolicyPanel sessionId={sessionId} />
       <HomeworkEnrollmentPanel homeworkId={homeworkId} />
-
-      <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 text-sm text-[var(--text-secondary)]">
-        ℹ️ 과제 점수 입력·판정은 <b>세션 &gt; 성적</b> 메뉴에서 진행합니다.
-      </section>
     </div>
   );
 }
