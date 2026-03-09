@@ -196,6 +196,7 @@ export default function SessionAssessmentSidePanel({
                   active={active}
                   label={exam.title}
                   sub={statusLine}
+                  status={exam.status}
                   onSelect={() => onSelectExam(Number(exam.exam_id))}
                 />
               );
@@ -268,13 +269,24 @@ function ExamItemRow({
   active,
   label,
   sub,
+  status,
   onSelect,
 }: {
   active: boolean;
   label: string;
   sub: string;
+  status: SessionExamRow["status"];
   onSelect: () => void;
 }) {
+  const isOpen = status === "OPEN";
+  const isClosed = status === "CLOSED";
+  const statusBg =
+    isOpen
+      ? "color-mix(in srgb, var(--color-success) 14%, var(--color-bg-surface))"
+      : isClosed
+        ? "var(--color-bg-surface-soft)"
+        : "var(--color-bg-surface)";
+
   return (
     <div
       role="button"
@@ -284,10 +296,13 @@ function ExamItemRow({
       className={`
         group rounded-xl border-l-4 px-3 py-2.5 text-left transition-all
         ${active
-          ? "border-l-[var(--color-primary)] bg-[var(--state-selected-bg)] ring-1 ring-[var(--color-primary)]/20"
-          : "border-l-transparent hover:bg-[var(--color-bg-surface-soft)]"
+          ? "border-l-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20"
+          : "border-l-transparent hover:opacity-90"
         }
       `}
+      style={{
+        background: active ? "var(--state-selected-bg)" : statusBg,
+      }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
