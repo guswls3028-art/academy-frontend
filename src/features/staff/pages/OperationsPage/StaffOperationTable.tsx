@@ -44,8 +44,21 @@ export default function StaffOperationTable({
     });
   }, [staffs, q]);
 
-  const active = filtered.filter((s) => s.is_active);
-  const inactive = filtered.filter((s) => !s.is_active);
+  // ✅ 직급순 정렬(강사 → 조교), 동일 직급 시 이름순
+  const roleOrder = { TEACHER: 0, ASSISTANT: 1 } as const;
+  const byRoleThenName = (a: Staff, b: Staff) => {
+    const r = (roleOrder[a.role] ?? 1) - (roleOrder[b.role] ?? 1);
+    return r !== 0 ? r : (a.name || "").localeCompare(b.name || "", "ko");
+  };
+
+  const active = useMemo(
+    () => filtered.filter((s) => s.is_active).sort(byRoleThenName),
+    [filtered]
+  );
+  const inactive = useMemo(
+    () => filtered.filter((s) => !s.is_active).sort(byRoleThenName),
+    [filtered]
+  );
 
   const pick = (id: number) => {
     const next = new URLSearchParams(params);

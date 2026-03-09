@@ -1,7 +1,7 @@
 // PATH: src/features/staff/components/StaffWorkspaceTabs.tsx
-// Tab bar that preserves staffId, year, month when switching tabs
+// Tab bar: uses global design system .ds-tabs / .ds-tab. Preserves staffId, year, month when switching.
 
-import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const TABS = [
   { key: "attendance", label: "근태", path: "/admin/staff/attendance" },
@@ -31,10 +31,7 @@ export function StaffWorkspaceTabs({ staffId, year, month }: Props) {
   };
 
   return (
-    <div
-      className="staff-workspace-tabs flex flex-wrap gap-0 border-b-2 border-[var(--color-border-divider)] pb-0 mb-4"
-      role="tablist"
-    >
+    <div className="ds-tabs ds-tabs--flat" role="tablist" aria-orientation="horizontal">
       {TABS.map((tab) => {
         const isActive =
           pathname === tab.path || pathname.startsWith(tab.path + "/");
@@ -45,11 +42,7 @@ export function StaffWorkspaceTabs({ staffId, year, month }: Props) {
             role="tab"
             aria-selected={isActive}
             aria-label={`${tab.label} 탭`}
-            className={`staff-workspace-tabs__tab px-4 py-3 text-sm font-semibold transition-all duration-150 ${
-              isActive
-                ? "staff-workspace-tabs__tab--active bg-[var(--color-primary)] text-white border-b-2 border-[var(--color-primary)] -mb-0.5 rounded-t-lg"
-                : "staff-workspace-tabs__tab--inactive text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)] hover:text-[var(--color-text-primary)] border-b-2 border-transparent -mb-0.5 rounded-t-lg"
-            }`}
+            className={`ds-tab ${isActive ? "is-active" : ""}`}
             onClick={() => navigate(buildPath(tab.path))}
           >
             {tab.label}
