@@ -132,7 +132,7 @@ type Props = {
   focusCell?: ({ enrollmentId: number } & ({ type: "exam"; examId: number } | { type: "homework"; homeworkId: number })) | null;
   onFocusDone?: () => void;
 
-  /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 후 focusHomeworkCell 설정 */
+  /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 */
   onRequestMoveNext?: () => void;
   onRequestMovePrev?: () => void;
   onRequestMoveDown?: () => void;
@@ -556,11 +556,7 @@ export default function ScoresTable({
                     selectedCell.type === "exam" &&
                     selectedCell.examId === ex.exam_id;
                   const scoreText =
-                    block?.score == null
-                      ? "-"
-                      : block?.max_score != null && block.max_score > 0
-                        ? `${Math.round(block.score)}/${Math.round(block.max_score)}`
-                        : `${Math.round(block!.score)}점`;
+                    block?.score == null ? "-" : `${Math.round(block.score)}`;
 
                   return (
                     <Fragment key={ex.exam_id}>
@@ -734,8 +730,7 @@ export default function ScoresTable({
                         }}
                       >
                         <span className="inline-flex items-center gap-2 flex-wrap">
-                          {entry ? (
-                            canEditScore ? (
+                          {canEditScore ? (
                               <span
                                 ref={(el) => {
                                   const key = `${row.enrollment_id}-${hw.homework_id}`;
@@ -896,12 +891,10 @@ export default function ScoresTable({
                               />
                             ) : (
                               <span className="font-medium text-[var(--color-text-primary)]">
-                                {block?.score != null
-                                  ? String(block.score)
-                                  : "-"}
+                                {block?.score != null ? String(block.score) : "-"}
                               </span>
                             )
-                          ) : (
+                          : (
                             <span className="text-[var(--color-text-muted)]">-</span>
                           )}
                         </span>
