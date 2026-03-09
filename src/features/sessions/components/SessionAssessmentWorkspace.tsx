@@ -59,7 +59,7 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
         <>
           {mode === "exam" && <AdminExamDetail examId={activeId} />}
           {mode === "homework" && (
-            <AdminHomeworkDetail homeworkId={activeId} />
+            <AdminHomeworkDetail homeworkId={activeId} sessionId={sessionId} />
           )}
         </>
       )}

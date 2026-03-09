@@ -23,7 +23,14 @@ import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
 import HomeworkSubmissionsPanel from "../panels/HomeworkSubmissionsPanel";
 import HomeworkResultsPanel from "../panels/HomeworkResultsPanel";
 
-export default function AdminHomeworkDetail({ homeworkId }: { homeworkId: number }) {
+export default function AdminHomeworkDetail({
+  homeworkId,
+  sessionId: sessionIdFromRoute,
+}: {
+  homeworkId: number;
+  /** URL의 sessionId (과제 정책 조회용, 있으면 과제 로드 전에도 사용) */
+  sessionId?: number;
+}) {
   const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
   const { data, isLoading, isError } = useAdminHomework(homeworkId);
 
@@ -51,7 +58,13 @@ export default function AdminHomeworkDetail({ homeworkId }: { homeworkId: number
       <HomeworkHeader homework={summary} />
       <HomeworkTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      {activeTab === "setup" && <HomeworkSetupPanel homeworkId={homeworkId} />}
+      {activeTab === "setup" && (
+        <HomeworkSetupPanel
+          homeworkId={homeworkId}
+          sessionIdFromRoute={sessionIdFromRoute}
+          homeworkSessionId={data?.session_id}
+        />
+      )}
       {activeTab === "assets" && <HomeworkAssetsPanel homeworkId={homeworkId} />}
       {activeTab === "submissions" && <HomeworkSubmissionsPanel homeworkId={homeworkId} />}
       {activeTab === "results" && <HomeworkResultsPanel homeworkId={homeworkId} />}
