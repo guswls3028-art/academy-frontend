@@ -8,10 +8,14 @@
 import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import api from "@/shared/api/axios";
 
 import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
-import type { SessionScoreRow } from "@/features/scores/api/sessionScores";
+import {
+  fetchSessionScores,
+  type SessionScoreRow,
+  type SessionScoresResponse,
+} from "@/features/scores/api/sessionScores";
+import { scoresQueryKeys } from "@/features/scores/api/queryKeys";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
@@ -21,11 +25,6 @@ type Props = {
   onOpenEnrollModal?: () => void;
   onOpenStudentModal?: () => void;
 };
-
-async function fetchSessionScores(sessionId: number) {
-  const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`);
-  return res.data as { meta: unknown; rows: SessionScoreRow[] };
-}
 
 export default function SessionScoresEntryPage(_props: Props) {
   const { sessionId: sessionIdParam } = useParams<{ lectureId: string; sessionId: string }>();
@@ -98,7 +97,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   const handleSelectHomework = () => setHomeworkEdit((v) => !v);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["session-scores", numericSessionId],
+    queryKey: scoresQueryKeys.sessionScores(numericSessionId),
     queryFn: () => fetchSessionScores(numericSessionId),
     enabled: Number.isFinite(numericSessionId),
   });

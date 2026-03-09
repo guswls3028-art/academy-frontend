@@ -9,6 +9,7 @@ import {
   type SessionScoreRow,
   type SessionScoreMeta,
 } from "../api/sessionScores";
+import { scoresQueryKeys } from "../api/queryKeys";
 import { fetchAttendance } from "@/features/lectures/api/attendance";
 
 import ScoresTable from "../components/ScoresTable";
@@ -54,13 +55,13 @@ export default function SessionScoresPanel({
   const [focusCell, setFocusCell] = useState<FocusScoreCell | null>(null);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["session-scores", sessionId],
+    queryKey: scoresQueryKeys.sessionScores(sessionId),
     queryFn: () => fetchSessionScores(sessionId),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
   });
 
   const { data: attendanceList } = useQuery({
-    queryKey: ["attendance", sessionId],
+    queryKey: scoresQueryKeys.attendance(sessionId),
     queryFn: () => fetchAttendance(sessionId),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
   });
