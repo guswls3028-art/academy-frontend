@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
-import { SessionBlockView } from "@/shared/ui/session-block/SessionBlockView";
+import { SessionBlockView } from "@/shared/ui/session-block";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { createStudent, uploadStudentBulkFromExcel, bulkRestoreStudents, bulkPermanentDeleteStudents } from "../api/students";
@@ -19,11 +19,6 @@ interface Props {
   onSuccess: () => void;
   onBulkProgress?: (progress: { current: number; total: number } | null) => void;
 }
-
-const TAB_ITEMS = [
-  { key: "single", label: "1명만 등록" },
-  { key: "excel", label: "엑셀로 업로드" },
-];
 
 type RegisterMode = "choice" | "single" | "excel";
 
@@ -346,7 +341,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
               <Button
-                type="primary"
+                intent="primary"
                 onClick={handleRestoreDeletedStudent}
                 disabled={busy}
                 style={{ width: "100%" }}
