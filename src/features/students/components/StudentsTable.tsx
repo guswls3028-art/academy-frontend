@@ -34,7 +34,7 @@ function highlight(text: string, keyword: string) {
   );
 }
 
-/** 학생 테이블 컬럼 정의 (useTableColumnPrefs + TableColumnPicker용) — 체크박스 제외 */
+/** 학생 테이블 컬럼 정의 (useTableColumnPrefs + TableColumnPicker + 테이블 렌더 단일 진실) */
 export function getStudentsTableColumnsDef(isDeletedTab: boolean): TableColumnDef[] {
   return [
     { key: "name", label: "이름", defaultWidth: TABLE_COL.name, minWidth: 80 },
@@ -106,29 +106,22 @@ export default function StudentsTable({
     }
   }
 
-  // TABLE_COL SSOT + 전역 컬럼 프리프(표시/너비)
+  // TABLE_COL SSOT + 전역 컬럼 프리프(표시/너비) — 컬럼 목록은 getStudentsTableColumnsDef와 동일한 def 기반
   const columns = useMemo(() => {
-    const dataCols = [
-      { key: "name", label: "이름", w: TABLE_COL.name },
-      { key: "parentPhone", label: "학부모 전화", w: TABLE_COL.phone },
-      { key: "studentPhone", label: "학생 전화", w: TABLE_COL.phone },
-      { key: "school", label: "학교", w: TABLE_COL.medium },
-      { key: "schoolClass", label: "반", w: TABLE_COL.short },
-      { key: isDeletedTab ? "deletedAt" : "registeredAt", label: isDeletedTab ? "삭제일" : "등록일", w: TABLE_COL.medium },
-      { key: "tags", label: "태그", w: TABLE_COL.tag },
-      ...(isDeletedTab ? [] : [{ key: "active", label: "상태", w: TABLE_COL.status }]),
-    ];
+    const def = getStudentsTableColumnsDef(isDeletedTab);
     if (columnPrefs) {
-      const visible = columnPrefs.visibleColumns.map((c) => ({
-        key: c.key,
-        label: c.label,
-        w: columnPrefs.columnWidths[c.key] ?? c.defaultWidth,
-      }));
-      return [{ key: "_checkbox", label: "", w: TABLE_COL.checkbox }, ...visible];
+      return [
+        { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
+        ...columnPrefs.visibleColumns.map((c) => ({
+          key: c.key,
+          label: c.label,
+          w: columnPrefs.columnWidths[c.key] ?? c.defaultWidth,
+        })),
+      ];
     }
     return [
       { key: "_checkbox", label: "", w: TABLE_COL.checkbox },
-      ...dataCols,
+      ...def.map((c) => ({ key: c.key, label: c.label, w: c.defaultWidth })),
     ];
   }, [isDeletedTab, columnPrefs]);
   const tableWidth = useMemo(
