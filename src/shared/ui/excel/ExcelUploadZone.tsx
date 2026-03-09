@@ -53,11 +53,36 @@ function UploadIcon({ className, size = 24 }: { className?: string; size?: numbe
   );
 }
 
+function CheckCircleIcon({ className, size = 48 }: { className?: string; size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      width={size}
+      height={size}
+      aria-hidden
+    >
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
 export interface ExcelUploadZoneProps {
   /** 부모에서 전달한 file input ref (제어 불필요 시 내부 ref 사용) */
   inputRef?: React.RefObject<HTMLInputElement | null>;
   /** 파일 선택 시 (유효한 파일만 호출) */
   onFileSelect: (file: File) => void;
+  /** 선택된 파일 (지정 시 드래그 영역이 같은 영역 안에서 "파일 올라감" 상태로 전환) */
+  selectedFile?: File | null;
+  /** 선택된 파일 취소/변경 시 (selectedFile이 있을 때만 사용) */
+  onClearFile?: () => void;
   /** accept (기본 .xlsx,.xls) */
   accept?: string;
   /** 하단 보조 안내 (선택, 미지정 시 .xlsx, .xls만 표시) */
@@ -71,6 +96,8 @@ export interface ExcelUploadZoneProps {
 export default function ExcelUploadZone({
   inputRef: externalRef,
   onFileSelect,
+  selectedFile = null,
+  onClearFile,
   accept = DEFAULT_ACCEPT,
   hintText = ".xlsx, .xls",
   disabled = false,
@@ -89,17 +116,25 @@ export default function ExcelUploadZone({
     onFileSelect(file);
   };
 
+  const isFilled = Boolean(selectedFile);
+
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => !disabled && inputRef.current?.click()}
-      onKeyDown={(e) => e.key === "Enter" && !disabled && inputRef.current?.click()}
-      className={`excel-upload-zone ${dragover ? "excel-upload-zone--dragover" : ""}`}
+      onClick={() => {
+        if (isFilled) return;
+        if (!disabled) inputRef.current?.click();
+      }}
+      onKeyDown={(e) => {
+        if (isFilled) return;
+        if (e.key === "Enter" && !disabled) inputRef.current?.click();
+      }}
+      className={`excel-upload-zone ${dragover ? "excel-upload-zone--dragover" : ""} ${isFilled ? "excel-upload-zone--filled" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!disabled) setDragover(true);
+        if (!disabled && !isFilled) setDragover(true);
       }}
       onDragLeave={(e) => {
         e.preventDefault();
@@ -108,7 +143,7 @@ export default function ExcelUploadZone({
       onDrop={(e) => {
         e.preventDefault();
         setDragover(false);
-        if (disabled) return;
+        if (disabled || isFilled) return;
         const file = e.dataTransfer.files[0];
         handleFile(file ?? null);
       }}
@@ -124,20 +159,39 @@ export default function ExcelUploadZone({
           e.target.value = "";
         }}
       />
-      <div className="excel-upload-zone__head">
-        <ExcelIcon size={22} style={{ color: "var(--color-text-secondary)" }} />
-        <span className="excel-upload-zone__title">Excel</span>
-      </div>
-      <div className="excel-upload-zone__drag-label">Drag or Click</div>
-      <div className="excel-upload-zone__upload" style={{ marginBottom: hintText ? undefined : 0 }}>
-        <UploadIcon size={16} className="excel-upload-zone__upload-icon" />
-        <span className="excel-upload-zone__upload-label">업로드</span>
-      </div>
-      {hintText ? (
-        <div className="modal-hint" style={{ marginTop: "var(--space-1)" }}>
-          {hintText}
+      {isFilled ? (
+        <div className="excel-upload-zone__filled">
+          <CheckCircleIcon size={56} style={{ color: "var(--color-status-success, #10b981)" }} />
+          <span className="excel-upload-zone__filled-filename">{selectedFile!.name}</span>
+          {onClearFile && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onClearFile(); }}
+              disabled={disabled}
+              className="excel-upload-zone__filled-clear"
+            >
+              파일 변경
+            </button>
+          )}
         </div>
-      ) : null}
+      ) : (
+        <>
+          <div className="excel-upload-zone__head">
+            <ExcelIcon size={22} style={{ color: "var(--color-text-secondary)" }} />
+            <span className="excel-upload-zone__title">Excel</span>
+          </div>
+          <div className="excel-upload-zone__drag-label">Drag or Click</div>
+          <div className="excel-upload-zone__upload" style={{ marginBottom: hintText ? undefined : 0 }}>
+            <UploadIcon size={16} className="excel-upload-zone__upload-icon" />
+            <span className="excel-upload-zone__upload-label">업로드</span>
+          </div>
+          {hintText ? (
+            <div className="modal-hint" style={{ marginTop: "var(--space-1)" }}>
+              {hintText}
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

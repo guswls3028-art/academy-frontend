@@ -359,6 +359,39 @@
 .excel-upload-zone.excel-upload-zone--filled:hover {
   border-color: color-mix(in srgb, var(--color-brand-complement) 35%, var(--color-border-divider));
 }
+.excel-upload-zone__filled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+.excel-upload-zone__filled-filename {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  word-break: break-all;
+  text-align: center;
+}
+.excel-upload-zone__filled-clear {
+  margin-top: var(--space-1);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+}
+.excel-upload-zone__filled-clear:hover:not(:disabled) {
+  text-decoration: underline;
+}
+.excel-upload-zone__filled-clear:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .excel-upload-zone__head {
   display: flex;
   align-items: center;
