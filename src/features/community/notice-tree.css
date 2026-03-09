@@ -203,6 +203,37 @@
   font-weight: 500;
 }
 
+/* 차시 블럭과 동일한 DS 토큰 사용: 정규차시(n1) / 보강(supplement) */
+.notice-tree__sub-item--child.notice-tree__sub-item--n1 {
+  border-left-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+}
+
+.notice-tree__sub-item--child.notice-tree__sub-item--n1:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+}
+
+.notice-tree__sub-item--child.notice-tree__sub-item--supplement {
+  border-left-color: var(--color-brand-complement);
+  background: color-mix(in srgb, var(--color-brand-complement) 8%, transparent);
+}
+
+.notice-tree__sub-item--child.notice-tree__sub-item--supplement:hover {
+  background: color-mix(in srgb, var(--color-brand-complement) 12%, transparent);
+}
+
+.notice-tree__sub-item--child.notice-tree__sub-item--n1.notice-tree__sub-item--active {
+  background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
+  color: var(--color-brand-primary);
+  border-left-color: var(--color-brand-primary);
+}
+
+.notice-tree__sub-item--child.notice-tree__sub-item--supplement.notice-tree__sub-item--active {
+  background: color-mix(in srgb, var(--color-brand-complement) 14%, var(--color-bg-surface));
+  color: var(--color-brand-complement);
+  border-left-color: var(--color-brand-complement);
+}
+
 .notice-tree__sub-item-child-icon {
   flex-shrink: 0;
   font-size: 11px;

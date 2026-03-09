@@ -131,6 +131,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   });
   const signupConfig = autoSendConfigs.find((c) => c.trigger === "student_signup") ?? null;
 
+  useEffect(() => {
+    if (messageDropdownOpen) {
+      setLocalSignupMessageMode(signupConfig?.message_mode ?? "alimtalk");
+      setLocalSignupTemplateId(signupConfig?.template ?? null);
+    }
+  }, [messageDropdownOpen, signupConfig?.message_mode, signupConfig?.template]);
+
   const updateAutoSendMut = useMutation({
     mutationFn: updateAutoSendConfigs,
     onSuccess: () => {
@@ -193,10 +200,20 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   }
 
   function handleSetSignupMessageMode(toggle: "sms" | "alimtalk") {
-    const current = signupConfig?.message_mode ?? "alimtalk";
-    const nextMode = nextMessageMode(current, toggle);
+    const nextMode = nextMessageMode(localSignupMessageMode, toggle);
+    setLocalSignupMessageMode(nextMode);
     const configs: Partial<AutoSendConfigItem>[] = autoSendConfigs.map((c) =>
       c.trigger === "student_signup" ? { ...c, message_mode: nextMode } : c
+    );
+    updateAutoSendMut.mutate(configs);
+  }
+
+  function handleSelectSignupTemplateFromDropdown(templateId: number | null) {
+    setLocalSignupTemplateId(templateId);
+    const configs: Partial<AutoSendConfigItem>[] = autoSendConfigs.map((c) =>
+      c.trigger === "student_signup"
+        ? { ...c, template: templateId, enabled: templateId != null }
+        : c
     );
     updateAutoSendMut.mutate(configs);
   }

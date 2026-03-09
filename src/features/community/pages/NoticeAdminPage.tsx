@@ -21,6 +21,7 @@ import {
 } from "../api/community.api";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/features/lectures/api/sessions";
 import LectureChip from "@/shared/ui/chips/LectureChip";
+import { isSupplement } from "@/shared/ui/session-block/session-block.constants";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { NoticeCreateModal } from "./NoticeBoardPage";
@@ -284,11 +285,12 @@ export default function NoticeAdminPage() {
                         )?.id;
                         const sessionCount =
                           sessionNodeId != null ? noticeCounts.countByNodeId[sessionNodeId] ?? 0 : 0;
+                        const supplement = isSupplement(s.title);
                         return (
                           <button
                             key={s.id}
                             type="button"
-                            className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
+                            className={`notice-tree__sub-item notice-tree__sub-item--child ${supplement ? "notice-tree__sub-item--supplement" : "notice-tree__sub-item--n1"} ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
                             onClick={() => selectSession(lec.id, s.id)}
                           >
                             <span className="notice-tree__sub-item-child-icon" aria-hidden>ㄴ</span>

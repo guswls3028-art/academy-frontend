@@ -65,16 +65,16 @@ export default function StudentWatchPanel({
               className={[
                 "flex items-center gap-3",
                 "rounded-lg border px-3 py-2.5 text-sm",
-                "border-[var(--border-divider)] bg-[var(--bg-surface)]",
+                "border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]",
                 "overflow-hidden",
-                clickable && "cursor-pointer hover:bg-[var(--bg-surface-soft)]",
+                clickable && "cursor-pointer hover:bg-[var(--color-bg-surface-soft)]",
                 selected && "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)]",
               ]
                 .filter(Boolean)
                 .join(" ")}
             >
               {/* NAME + 아바타 + 강의 딱지 (전역 규칙) */}
-              <div className="w-[90px] min-w-0 truncate font-medium text-[var(--text-primary)]">
+              <div className="w-[90px] min-w-0 truncate font-medium text-[var(--color-text-primary)]">
                 <StudentNameWithLectureChip
                   name={s.student_name ?? ""}
                   profilePhotoUrl={s.profile_photo_url ?? undefined}
@@ -104,13 +104,13 @@ export default function StudentWatchPanel({
 
               {/* PROGRESS */}
               <div className="flex-1 min-w-0 flex items-center gap-2">
-                <div className="flex-1 h-[8px] rounded bg-[var(--bg-app)] overflow-hidden">
+                <div className="flex-1 h-[8px] rounded bg-[var(--color-bg-app)] overflow-hidden">
                   <div
                     className="h-full rounded bg-[var(--color-primary)]"
                     style={{ width: `${barWidth}%` }}
                   />
                 </div>
-                <div className="w-[40px] shrink-0 text-right text-xs text-[var(--text-muted)]">
+                <div className="w-[40px] shrink-0 text-right text-xs text-[var(--color-text-muted)]">
                   {progress}%
                 </div>
               </div>
