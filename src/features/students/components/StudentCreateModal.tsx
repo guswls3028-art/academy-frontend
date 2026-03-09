@@ -940,7 +940,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
       initial={null}
       onSubmit={handleTemplateSubmit}
       isPending={createTemplateAndRegisterMut.isPending}
-      zIndex={1050}
+      zIndex={1100}
     />
     </>
   );
