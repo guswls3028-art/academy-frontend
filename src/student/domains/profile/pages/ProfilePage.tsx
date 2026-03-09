@@ -1,5 +1,5 @@
 /**
- * 프로필 — 선생앱 학생 필드 스펙과 동일 (이름, 로그인 아이디, 학부모/학생 전화, 성별, 주소)
+ * 프로필 — 회원가입 모달과 동일 필드 (이름, 로그인 아이디, 학부모/학생 전화, 성별, 학교 정보, 주소, 메모)
  * 아이디·비밀번호 변경은 별도 블록
  */
 import { useState, useEffect } from "react";
@@ -36,6 +36,14 @@ export default function ProfilePage() {
   const [editPhone, setEditPhone] = useState("");
   const [editGender, setEditGender] = useState<string>("");
   const [editAddress, setEditAddress] = useState("");
+  const [editSchoolType, setEditSchoolType] = useState<"HIGH" | "MIDDLE">("HIGH");
+  const [editHighSchool, setEditHighSchool] = useState("");
+  const [editMiddleSchool, setEditMiddleSchool] = useState("");
+  const [editOriginMiddleSchool, setEditOriginMiddleSchool] = useState("");
+  const [editGrade, setEditGrade] = useState("");
+  const [editHighSchoolClass, setEditHighSchoolClass] = useState("");
+  const [editMajor, setEditMajor] = useState("");
+  const [editMemo, setEditMemo] = useState("");
   const [showUsernameForm, setShowUsernameForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [username, setUsername] = useState("");
@@ -57,20 +65,19 @@ export default function ProfilePage() {
       setEditPhone(ph.length >= 8 ? "010" + ph.slice(-8) : profile.phone || "");
       setEditGender(profile.gender || "");
       setEditAddress(profile.address || "");
+      setEditSchoolType(profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH");
+      setEditHighSchool(profile.high_school || "");
+      setEditMiddleSchool(profile.middle_school || "");
+      setEditOriginMiddleSchool(profile.origin_middle_school || "");
+      setEditGrade(profile.grade != null ? String(profile.grade) : "");
+      setEditHighSchoolClass(profile.high_school_class || "");
+      setEditMajor(profile.major || "");
+      setEditMemo(profile.memo || "");
     }
   }, [profile]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: (payload: {
-      name?: string;
-      username?: string;
-      current_password?: string;
-      new_password?: string;
-      phone?: string | null;
-      parent_phone?: string;
-      gender?: string | null;
-      address?: string | null;
-    }) => updateMyProfile(payload),
+    mutationFn: (payload: Parameters<typeof updateMyProfile>[0]) => updateMyProfile(payload),
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["student", "me"] });
       setEditing(false);
@@ -94,6 +101,14 @@ export default function ProfilePage() {
       setEditPhone(profile.phone || "");
       setEditGender(profile.gender || "");
       setEditAddress(profile.address || "");
+      setEditSchoolType(profile.school_type === "MIDDLE" ? "MIDDLE" : "HIGH");
+      setEditHighSchool(profile.high_school || "");
+      setEditMiddleSchool(profile.middle_school || "");
+      setEditOriginMiddleSchool(profile.origin_middle_school || "");
+      setEditGrade(profile.grade != null ? String(profile.grade) : "");
+      setEditHighSchoolClass(profile.high_school_class || "");
+      setEditMajor(profile.major || "");
+      setEditMemo(profile.memo || "");
       setEditing(true);
     }
   };
