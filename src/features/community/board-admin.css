@@ -1,0 +1,20 @@
+/* PATH: src/features/community/board-admin.css
+ * Board admin — minimal overrides on top of qna-inbox.css
+ */
+
+/* List header: title row with create button */
+.board-admin__list-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
+/* Create modal label helper */
+.board-create__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-bottom: 5px;
+}

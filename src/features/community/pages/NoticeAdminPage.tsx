@@ -171,19 +171,41 @@ export default function NoticeAdminPage() {
     [setSearchParams]
   );
 
+  /** 트리 선택 시 URL에 반영 → Context가 동기화되어 목록/공지추가 버튼 표시 */
   const selectAll = useCallback(() => {
-    setScope("all");
-    setLectureId(null);
-    setSessionId(null);
-  }, [setScope, setLectureId, setSessionId]);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("scope", "all");
+      next.delete("lectureId");
+      next.delete("sessionId");
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const selectLecture = useCallback(
+    (lecId: number) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("scope", "lecture");
+        next.set("lectureId", String(lecId));
+        next.delete("sessionId");
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
 
   const selectSession = useCallback(
     (lecId: number, sesId: number) => {
-      setScope("session");
-      setLectureId(lecId);
-      setSessionId(sesId);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("scope", "session");
+        next.set("lectureId", String(lecId));
+        next.set("sessionId", String(sesId));
+        return next;
+      });
     },
-    [setScope, setLectureId, setSessionId]
+    [setSearchParams]
   );
 
   const toggleParent = useCallback(() => {
@@ -248,9 +270,13 @@ export default function NoticeAdminPage() {
               <div key={`lec-${lec.id}`} className="notice-tree__branch">
                 <button
                   type="button"
-                  className={`notice-tree__sub-item notice-tree__sub-item--parent ${expandedLectureId === lec.id ? "notice-tree__sub-item--active" : ""}`}
-                  onClick={() => toggleLecture(lec.id)}
+                  className={`notice-tree__sub-item notice-tree__sub-item--parent ${expandedLectureId === lec.id ? "notice-tree__sub-item--active" : ""} ${scope === "lecture" && lectureId === lec.id ? "notice-tree__sub-item--selected" : ""}`}
+                  onClick={() => {
+                    toggleLecture(lec.id);
+                    selectLecture(lec.id);
+                  }}
                   aria-expanded={expandedLectureId === lec.id}
+                  aria-selected={scope === "lecture" && lectureId === lec.id}
                 >
                   <span className="notice-tree__sub-chevron">
                     {expandedLectureId === lec.id ? "▼" : "▶"}
@@ -286,8 +312,9 @@ export default function NoticeAdminPage() {
                           <button
                             key={s.id}
                             type="button"
-                            className={`notice-tree__sub-item notice-tree__sub-item--child ${supplement ? "notice-tree__sub-item--supplement" : "notice-tree__sub-item--n1"} ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
+                            className={`notice-tree__sub-item notice-tree__sub-item--child ${supplement ? "notice-tree__sub-item--supplement" : "notice-tree__sub-item--n1"} ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active notice-tree__sub-item--selected" : ""}`}
                             onClick={() => selectSession(lec.id, s.id)}
+                            aria-selected={scope === "session" && lectureId === lec.id && sessionId === s.id}
                           >
                             <span className="notice-tree__sub-item-child-icon" aria-hidden>ㄴ</span>
                             <span className="notice-tree__sub-label">{s.title || `${s.order}차시`}</span>
