@@ -97,7 +97,7 @@ export default function AnswerKeyRegisterModal({
       const es = Number(essayScore) || 5;
       if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
       return initExamQuestions({
-        examId,
+        examId: structureOwnerId,
         choice_count: cc,
         choice_score: cs,
         essay_count: ec,
@@ -106,6 +106,7 @@ export default function AnswerKeyRegisterModal({
     },
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+      await qc.invalidateQueries({ queryKey: ["exam-questions", structureOwnerId] });
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
       feedback.success("문항이 반영되었습니다.");
     },
