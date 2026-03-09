@@ -199,103 +199,63 @@ export default function AnswerKeyRegisterModal({
         <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
           {activeTab === "answer" && (
             <>
-          {/* 문항 구성 — 상단 통째 */}
-          <div className="answer-key-section answer-key-section--full">
-            <div className="ds-section__title">문항 구성</div>
-            <div className="answer-key-structure">
-              <div className="answer-key-structure__row">
-                <label className="answer-key-field">
-                  <span className="answer-key-field__label">객관식(선택형) 문항 수</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={choiceCount}
-                    onChange={(e) =>
-                      setChoiceCount(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    placeholder="예: 19"
-                    className="ds-input"
-                    style={{ width: 120 }}
-                  />
-                </label>
-                <label className="answer-key-field">
-                  <span className="answer-key-field__label">객관식 기본 점수</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={choiceScore}
-                    onChange={(e) =>
-                      setChoiceScore(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    className="ds-input"
-                    style={{ width: 80 }}
-                  />
-                </label>
-                <label className="answer-key-field">
-                  <span className="answer-key-field__label">주관식(서술형) 문항 수</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={essayCount}
-                    onChange={(e) =>
-                      setEssayCount(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    placeholder="예: 1"
-                    className="ds-input"
-                    style={{ width: 120 }}
-                  />
-                </label>
-                <label className="answer-key-field">
-                  <span className="answer-key-field__label">주관식 기본 점수</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={essayScore}
-                    onChange={(e) =>
-                      setEssayScore(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    className="ds-input"
-                    style={{ width: 80 }}
-                  />
-                </label>
-                <Button
-                  type="button"
-                  intent="secondary"
-                  size="sm"
-                  onClick={() => initMut.mutate()}
-                  disabled={initMut.isPending}
-                  loading={initMut.isPending}
-                >
-                  문항 반영
-                </Button>
-              </div>
-              {hasQuestions && (
-                <p className="answer-key-structure__summary">
-                  현재 문항 <strong>{questions.length}</strong>개 (선택형 {effectiveChoiceCount}
-                  문항, 서술형 {effectiveEssayCount}문항)
-                </p>
-              )}
-            </div>
-          </div>
-
-          {!hasQuestions && (
-            <div className="answer-key-empty">
-              위에서 객관식·주관식 문항 수와 배점을 입력한 뒤 &quot;문항 반영&quot;을 누르면
-              아래에 선택형·서술형 답안 입력란이 나타납니다.
-            </div>
-          )}
-
-          {hasQuestions && (
             <div className="answer-key-two-panels">
-              {/* 좌측: 객관식 — 5문항 단위 구분선, 영역 내 스크롤 */}
+              {/* 좌측: 선택형 — 제목 버튼 클릭 시 문항 수 변경 */}
               <div className="answer-key-panel answer-key-panel--choice">
-                <h3 className="answer-key-section__title">
+                <button
+                  type="button"
+                  className="answer-key-section-btn"
+                  onClick={() => {
+                    setChoiceEditorOpen((v) => !v);
+                    if (essayEditorOpen) setEssayEditorOpen(false);
+                  }}
+                  aria-expanded={choiceEditorOpen}
+                >
                   선택형 ({choiceTotalScore}점) — {choiceQuestions.length}문항
-                </h3>
+                </button>
+                {choiceEditorOpen && (
+                  <div className="answer-key-inline-editor">
+                    <label className="answer-key-field">
+                      <span className="answer-key-field__label">문항 수</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={choiceCount}
+                        onChange={(e) =>
+                          setChoiceCount(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        placeholder="예: 20"
+                        className="ds-input"
+                        style={{ width: 100 }}
+                      />
+                    </label>
+                    <label className="answer-key-field">
+                      <span className="answer-key-field__label">기본 점수</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={choiceScore}
+                        onChange={(e) =>
+                          setChoiceScore(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        className="ds-input"
+                        style={{ width: 80 }}
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      intent="primary"
+                      size="sm"
+                      onClick={() => initMut.mutate()}
+                      disabled={initMut.isPending}
+                      loading={initMut.isPending}
+                    >
+                      문항 반영
+                    </Button>
+                  </div>
+                )}
                 <ul className="answer-key-list answer-key-list--choice-scroll">
                   {choiceQuestions.map((q, index) => (
                     <ChoiceRow
