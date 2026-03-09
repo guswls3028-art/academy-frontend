@@ -1,8 +1,15 @@
 /* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. 모달 한눈에 보이게, 주관식 영역 내 스크롤. */
 
-/* 본문 여백 축소 → 선택형·주관식 영역을 더 넓게 */
+/* 본문 여백 축소 → 선택형·주관식 영역을 더 넓게, 모달 높이 고정으로 클릭 시 크기 변동 방지 */
 .modal-body:has(> .answer-key-panel) {
   padding: var(--space-2) var(--space-3);
+  min-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-body:has(> .answer-key-panel) > .answer-key-panel {
+  flex: 1;
+  min-height: 0;
 }
 
 /* 모달 헤더 내 탭 (답안 등록 | 이미지 등록) */
@@ -260,16 +267,16 @@
   text-align: right;
 }
 
-/* 한국식 OMR — 작고 세로로 긴 버블 (exam-omr-bubble은 modal.css SSOT) */
+/* 한국식 OMR — 작고 세로로 긴 버블 (exam-omr-bubble은 modal.css SSOT). 포커스 링은 layout 영향 없이 box-shadow로 */
 .answer-key-row__bubbles {
   display: flex;
   align-items: center;
   gap: var(--space-1);
 }
 .answer-key-row__bubbles:focus {
-  outline: 2px solid var(--color-brand-primary);
-  outline-offset: 2px;
+  outline: none;
   border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2px var(--color-bg-surface), 0 0 0 4px var(--color-brand-primary);
 }
 
 .answer-key-omr-label {
