@@ -808,7 +808,6 @@ export default function ScoresTable({
                           const subScore = block?.subjective_score ?? null;
                           const scoreText = subScore != null ? String(Math.round(subScore)) : "-";
                           const canEdit = col.editable && !block?.is_locked;
-                          const objScore = block?.objective_score ?? 0;
                           return (
                             <td
                               key={col.key}
