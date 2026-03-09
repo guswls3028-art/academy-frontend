@@ -222,7 +222,17 @@ export default function SessionScoresEntryPage(_props: Props) {
                   className="cursor-pointer"
                   aria-label="주관식 셀 쓰기"
                 />
-                <span className="text-[var(--color-text-primary)]">주관식</span>
+                <span
+                  className="text-[var(--color-text-primary)] select-none"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setExamEditSubjective((s) => !s);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  주관식
+                </span>
               </label>
               <label id="exam-edit-total-label" className="inline-flex items-center gap-1.5 cursor-pointer">
                 <input
