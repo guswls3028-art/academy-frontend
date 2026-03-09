@@ -78,13 +78,12 @@ export default function AnswerKeyRegisterModal({
 
   const [choiceCount, setChoiceCount] = useState<number | "">("");
   const [choiceCountInput, setChoiceCountInput] = useState<number | "">("");
-  const [choiceScore, setChoiceScore] = useState<number | "">(5);
   /** 자동점수 부여 ON이면 총점 입력 후 정수 분배. 기본값 OFF */
   const [choiceAutoScore, setChoiceAutoScore] = useState(false);
   const [choiceTotalInput, setChoiceTotalInput] = useState<number | "">("");
   const [essayCount, setEssayCount] = useState<number | "">("");
   const [essayCountInput, setEssayCountInput] = useState<number | "">("");
-  const [essayScore, setEssayScore] = useState<number | "">(5);
+  /** 자동점수 부여. 기본값 OFF */
   const [essayAutoScore, setEssayAutoScore] = useState(false);
   const [essayTotalInput, setEssayTotalInput] = useState<number | "">("");
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -900,7 +899,6 @@ function ExplanationRow({
       </td>
       <td className="answer-key-explanation-table__td--explanation">
         <div className="answer-key-explanation-cell answer-key-explanation-cell--explanation">
-          <span className="answer-key-explanation-cell__num">{label}</span>
           <ImageCell
             label="해설 이미지"
             imageUrl={explanationUrl}
