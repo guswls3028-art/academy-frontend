@@ -1,0 +1,80 @@
+/* ============================================================================
+ * 출결 UI — 상태필터/상태변경 팝오버 등장 애니메이션 + 선택된 출석형태 뱃지
+ * PATH: src/features/lectures/pages/attendance/attendance-ui.css
+ * ============================================================================ */
+
+/* ---- 팝오버 등장: scale + opacity + 약간의 translate ---- */
+.attendance-popover {
+  animation: attendance-popover-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: left bottom;
+}
+
+@keyframes attendance-popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-100%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-100%) scale(1);
+  }
+}
+
+/* 팝오버 내부 버튼/뱃지 가벼운 스태거 (선택) */
+.attendance-popover-item {
+  animation: attendance-popover-item-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+}
+
+.attendance-popover-item:nth-child(1) { animation-delay: 0.02s; }
+.attendance-popover-item:nth-child(2) { animation-delay: 0.04s; }
+.attendance-popover-item:nth-child(3) { animation-delay: 0.06s; }
+.attendance-popover-item:nth-child(4) { animation-delay: 0.08s; }
+.attendance-popover-item:nth-child(5) { animation-delay: 0.10s; }
+.attendance-popover-item:nth-child(6) { animation-delay: 0.12s; }
+.attendance-popover-item:nth-child(7) { animation-delay: 0.14s; }
+.attendance-popover-item:nth-child(8) { animation-delay: 0.16s; }
+.attendance-popover-item:nth-child(9) { animation-delay: 0.18s; }
+.attendance-popover-item:nth-child(10) { animation-delay: 0.20s; }
+.attendance-popover-item:nth-child(11) { animation-delay: 0.22s; }
+
+@keyframes attendance-popover-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- 테이블 셀 내 "선택된 출석형태" 뱃지 — 프리미엄 강조 ---- */
+.attendance-status-badge--selected {
+  position: relative;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.attendance-status-badge--selected:hover {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+/* 클릭 가능한 상태 변경 버튼(테이블 셀) 호버 시 살짝 올라감 */
+button .attendance-status-badge--selected {
+  display: inline-flex;
+}
+
+button:hover .attendance-status-badge--selected {
+  transform: translateY(-1px);
+}
+
+button:active .attendance-status-badge--selected {
+  transform: translateY(0);
+}

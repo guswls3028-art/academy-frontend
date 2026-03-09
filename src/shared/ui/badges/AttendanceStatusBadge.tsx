@@ -63,20 +63,24 @@ export function getAttendanceStyle(status: string | null | undefined): React.CSS
 export default function AttendanceStatusBadge({
   status,
   variant = "2ch",
+  selected = false,
 }: {
   status: AttendanceStatus;
   /** 1ch: 한글자(매트릭스 셀 등), 2ch: 두글자(출결 테이블·라벨) */
   variant?: "1ch" | "2ch";
+  /** 테이블 등에서 현재 선택된 출석형태로 강조 표시 */
+  selected?: boolean;
 }) {
   const meta = STATUS_META[status];
   if (!meta) return null;
 
   const text = variant === "1ch" ? meta.short : meta.label;
   const sizeClass = variant === "1ch" ? "ds-status-badge ds-status-badge--1ch" : "ds-status-badge";
+  const selectedClass = selected ? " attendance-status-badge--selected" : "";
 
   return (
     <span
-      className={sizeClass}
+      className={sizeClass + selectedClass}
       style={meta.style}
       title={meta.label}
     >

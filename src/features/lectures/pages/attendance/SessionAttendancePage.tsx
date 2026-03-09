@@ -21,6 +21,7 @@ import AttendanceStatusBadge, {
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import "./attendance-ui.css";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 
@@ -306,7 +307,7 @@ export default function SessionAttendancePage({
         createPortal(
           <div
             ref={statusPopoverRef}
-            className="fixed flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-lg"
+            className="attendance-popover fixed flex flex-wrap items-center gap-2 rounded-lg border p-2 shadow-lg"
             style={{
               left: statusPopoverAnchor.left,
               top: statusPopoverAnchor.top,
@@ -322,6 +323,7 @@ export default function SessionAttendancePage({
               type="button"
               intent={!statusFilter ? "primary" : "secondary"}
               size="sm"
+              className="attendance-popover-item"
               onClick={() => { setStatusFilter(""); setStatusPopoverOpen(false); }}
             >
               전체
@@ -332,12 +334,12 @@ export default function SessionAttendancePage({
                 <button
                   key={code}
                   type="button"
-                  onClick={() => { setStatusFilter(code); setStatusPopoverOpen(false); }}
-                  className="cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
+                  className="attendance-popover-item cursor-pointer rounded border-0 p-0.5 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]/40"
                   style={{
                     opacity: selected ? 1 : 0.85,
                     boxShadow: selected ? "0 0 0 2px var(--color-primary)" : undefined,
                   }}
+                  onClick={() => { setStatusFilter(code); setStatusPopoverOpen(false); }}
                 >
                   <AttendanceStatusBadge status={code} variant="2ch" />
                 </button>
