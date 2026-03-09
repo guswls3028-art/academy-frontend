@@ -53,8 +53,40 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
 
   if (locked) return null;
 
+  const handleSubmit = () => {
+    if (!form.work_type || !form.start_time || !form.end_time) {
+      alert("필수 항목을 입력하세요.");
+      return;
+    }
+    if (createM.isPending) return;
+    createM.mutate(
+      {
+        staff: staffId,
+        work_type: form.work_type,
+        date: form.date,
+        start_time: form.start_time,
+        end_time: form.end_time,
+        break_minutes: form.break_minutes,
+        memo: form.memo,
+      },
+      {
+        onSuccess: () => {
+          onClose();
+          setForm({
+            date: range.from,
+            work_type: undefined,
+            start_time: "",
+            end_time: "",
+            break_minutes: 0,
+            memo: "",
+          });
+        },
+      }
+    );
+  };
+
   return (
-    <AdminModal open={open} onClose={onClose} type="action">
+    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={handleSubmit}>
       <ModalHeader
         title="근무 기록 추가"
         description="직원의 근무 기록을 등록합니다."
@@ -153,41 +185,7 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
             <ActionButton
               action="create"
               loading={createM.isPending}
-              onClick={() => {
-                if (
-                  !form.work_type ||
-                  !form.start_time ||
-                  !form.end_time
-                ) {
-                  alert("필수 항목을 입력하세요.");
-                  return;
-                }
-
-                createM.mutate(
-                  {
-                    staff: staffId,
-                    work_type: form.work_type,
-                    date: form.date,
-                    start_time: form.start_time,
-                    end_time: form.end_time,
-                    break_minutes: form.break_minutes,
-                    memo: form.memo,
-                  },
-                  {
-                    onSuccess: () => {
-                      onClose();
-                      setForm({
-                        date: range.from,
-                        work_type: undefined,
-                        start_time: "",
-                        end_time: "",
-                        break_minutes: 0,
-                        memo: "",
-                      });
-                    },
-                  }
-                );
-              }}
+              onClick={handleSubmit}
             >
               추가
             </ActionButton>
