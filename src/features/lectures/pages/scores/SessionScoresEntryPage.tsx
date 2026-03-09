@@ -33,9 +33,27 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
-  /** 시험 점수 입력 모드: 합산(한 칸에 총점) | 주관식(문항별 점수) */
-  const [examScoreInputMode, setExamScoreInputMode] = useState<"total" | "item">("total");
+  /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
+  const [examEditTotal, setExamEditTotal] = useState(false);
+  const [examEditObjective, setExamEditObjective] = useState(false);
+  const [examEditSubjective, setExamEditSubjective] = useState(false);
+  const [homeworkEdit, setHomeworkEdit] = useState(false);
+  /** 읽기 모드에서 시험 점수 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
+  const [scoreDisplayMode, setScoreDisplayMode] = useState<"total" | "breakdown">("total");
   const { openSendMessageModal } = useSendMessageModal();
+
+  const setPresetTotalHw = () => {
+    setExamEditTotal(true);
+    setExamEditObjective(false);
+    setExamEditSubjective(false);
+    setHomeworkEdit(true);
+  };
+  const setPresetSubjectiveHw = () => {
+    setExamEditTotal(false);
+    setExamEditObjective(false);
+    setExamEditSubjective(true);
+    setHomeworkEdit(true);
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["session-scores", numericSessionId],
@@ -153,42 +171,74 @@ export default function SessionScoresEntryPage(_props: Props) {
 
       {isEditMode && (
         <div
-          className="flex flex-col gap-1 px-4 py-2 rounded-lg text-sm font-medium"
+          className="flex flex-col gap-2 px-4 py-3 rounded-lg text-sm font-medium"
           style={{
             background: "color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface))",
             color: "var(--color-brand-primary)",
             border: "1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border-divider))",
           }}
         >
-          <span aria-live="polite">편집 모드</span>
-          <div className="flex flex-wrap items-center gap-4 font-normal">
-            <span className="text-[var(--color-text-secondary)]">
-              엑셀과 동일한 조작방식. · Tab/Enter/방향키로 셀 이동 · 숫자 입력 시 기존 값 대체 · 미제출: <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)]">/</kbd> + Enter
-            </span>
-            <fieldset className="flex items-center gap-3" aria-label="시험 점수 입력 방식">
-              <legend className="sr-only">시험 점수 입력 방식</legend>
+          <span aria-live="polite">편집 모드 — 셀 쓰기 대상 선택</span>
+          <div className="flex flex-wrap items-center gap-6 font-normal">
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--color-text-secondary)] mr-1">프리셋:</span>
+              <button
+                type="button"
+                onClick={setPresetTotalHw}
+                className={`px-2 py-1 rounded text-xs font-medium border ${examEditTotal && homeworkEdit && !examEditSubjective ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]" : "bg-transparent border-[var(--color-border-divider)] text-[var(--color-text-primary)]"}`}
+              >
+                합산+과제
+              </button>
+              <button
+                type="button"
+                onClick={setPresetSubjectiveHw}
+                className={`px-2 py-1 rounded text-xs font-medium border ${examEditSubjective && homeworkEdit ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)]" : "bg-transparent border-[var(--color-border-divider)] text-[var(--color-text-primary)]"}`}
+              >
+                주관식+과제
+              </button>
+            </div>
+            <span className="text-[var(--color-border-divider)]">|</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[var(--color-text-secondary)] font-semibold">시험</span>
               <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="examScoreInputMode"
-                  checked={examScoreInputMode === "total"}
-                  onChange={() => setExamScoreInputMode("total")}
-                  className="cursor-pointer"
-                />
-                <span className="text-[var(--color-text-primary)]">합산점수입력</span>
+                <input type="checkbox" checked={examEditObjective} onChange={(e) => setExamEditObjective(e.target.checked)} className="cursor-pointer" />
+                <span className="text-[var(--color-text-primary)]">객관식</span>
               </label>
               <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="examScoreInputMode"
-                  checked={examScoreInputMode === "item"}
-                  onChange={() => setExamScoreInputMode("item")}
-                  className="cursor-pointer"
-                />
-                <span className="text-[var(--color-text-primary)]">주관식점수만입력</span>
+                <input type="checkbox" checked={examEditSubjective} onChange={(e) => setExamEditSubjective(e.target.checked)} className="cursor-pointer" />
+                <span className="text-[var(--color-text-primary)]">주관식</span>
               </label>
-            </fieldset>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={examEditTotal} onChange={(e) => setExamEditTotal(e.target.checked)} className="cursor-pointer" />
+                <span className="text-[var(--color-text-primary)]">합산</span>
+              </label>
+            </div>
+            <span className="text-[var(--color-border-divider)]">|</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--color-text-secondary)] font-semibold">과제</span>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={homeworkEdit} onChange={(e) => setHomeworkEdit(e.target.checked)} className="cursor-pointer" />
+                <span className="text-[var(--color-text-primary)]">과제</span>
+              </label>
+            </div>
           </div>
+          <span className="text-[var(--color-text-muted)] text-xs">
+            엑셀과 동일 조작 · Tab/Enter/방향키 셀 이동 · 미제출: <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)]">/</kbd>+Enter
+          </span>
+        </div>
+      )}
+
+      {!isEditMode && (
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-[var(--color-text-secondary)]">시험 점수 표시:</span>
+          <label className="inline-flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="scoreDisplayMode" checked={scoreDisplayMode === "total"} onChange={() => setScoreDisplayMode("total")} className="cursor-pointer" />
+            <span>합산</span>
+          </label>
+          <label className="inline-flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="scoreDisplayMode" checked={scoreDisplayMode === "breakdown"} onChange={() => setScoreDisplayMode("breakdown")} className="cursor-pointer" />
+            <span>객관식 + 주관식</span>
+          </label>
         </div>
       )}
 
@@ -205,7 +255,11 @@ export default function SessionScoresEntryPage(_props: Props) {
           sessionId={numericSessionId}
           search={searchInput}
           isEditMode={isEditMode}
-          examScoreInputMode={examScoreInputMode}
+          examEditTotal={examEditTotal}
+          examEditObjective={examEditObjective}
+          examEditSubjective={examEditSubjective}
+          homeworkEdit={homeworkEdit}
+          scoreDisplayMode={scoreDisplayMode}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
         />

@@ -17,24 +17,39 @@ import { EmptyState } from "@/shared/ui/ds";
 type Props = {
   sessionId: number;
   search?: string;
-  /** 편집 모드일 때만 점수 셀 입력 가능 */
   isEditMode?: boolean;
-  /** 시험 점수 입력 모드: 합산(한 칸 총점) | 주관식(문항별) */
-  examScoreInputMode?: "total" | "item";
-  /** 일괄 작업용 행 선택. 부모에서 관리 시 전달 */
+  examEditTotal?: boolean;
+  examEditObjective?: boolean;
+  examEditSubjective?: boolean;
+  homeworkEdit?: boolean;
+  /** 읽기 모드 시험 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
+  scoreDisplayMode?: "total" | "breakdown";
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
 };
 
 type ScoreCellRef =
-  | { type: "exam"; examId: number; questionId?: number }
+  | { type: "exam"; examId: number; sub: "total" }
+  | { type: "exam"; examId: number; sub: "objective" }
+  | { type: "exam"; examId: number; sub: "item"; questionId: number }
   | { type: "homework"; homeworkId: number };
 
 type FocusScoreCell = {
   enrollmentId: number;
 } & ScoreCellRef;
 
-export default function SessionScoresPanel({ sessionId, search = "", isEditMode = false, examScoreInputMode = "total", selectedEnrollmentIds = [], onSelectionChange }: Props) {
+export default function SessionScoresPanel({
+  sessionId,
+  search = "",
+  isEditMode = false,
+  examEditTotal = false,
+  examEditObjective = false,
+  examEditSubjective = false,
+  homeworkEdit = false,
+  scoreDisplayMode = "total",
+  selectedEnrollmentIds = [],
+  onSelectionChange,
+}: Props) {
   const [focusCell, setFocusCell] = useState<FocusScoreCell | null>(null);
 
   const { data, isLoading, isError } = useQuery({
@@ -78,17 +93,19 @@ export default function SessionScoresPanel({ sessionId, search = "", isEditMode 
   const homeworkCols = meta?.homeworks ?? [];
   const editableCols = useMemo((): ScoreCellRef[] => {
     const list: ScoreCellRef[] = [];
-    if (examScoreInputMode === "item") {
+    if (isEditMode) {
       examCols.forEach((e) => {
-        const questions = (e as { questions?: { question_id: number }[] }).questions ?? [];
-        questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, questionId: q.question_id }));
+        if (examEditTotal) list.push({ type: "exam", examId: e.exam_id, sub: "total" });
+        if (examEditObjective) list.push({ type: "exam", examId: e.exam_id, sub: "objective" });
+        if (examEditSubjective) {
+          const questions = (e as { questions?: { question_id: number }[] }).questions ?? [];
+          questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, sub: "item", questionId: q.question_id }));
+        }
       });
-    } else {
-      examCols.forEach((e) => list.push({ type: "exam", examId: e.exam_id }));
+      if (homeworkEdit) homeworkCols.forEach((h) => list.push({ type: "homework", homeworkId: h.homework_id }));
     }
-    homeworkCols.forEach((h) => list.push({ type: "homework", homeworkId: h.homework_id }));
     return list;
-  }, [examCols, homeworkCols, examScoreInputMode]);
+  }, [examCols, homeworkCols, isEditMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
 
   const rowIndex = useMemo(() => {
     if (selectedEnrollmentId == null) return 0;

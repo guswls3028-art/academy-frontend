@@ -20,9 +20,13 @@ export type ScoreBlock = {
   is_locked?: boolean;
   lock_reason?: string | null;
 
-  // ✅ 확장(옵셔널, 계약 파괴 없음): 서버가 내려주는 meta.status 소비
+  /** 시험만: 객관식 점수 (합산 = score = objective + subjective) */
+  objective_score?: number | null;
+  /** 시험만: 주관식 점수 = sum(ResultItem) */
+  subjective_score?: number | null;
+
   meta?: {
-    status?: string | null; // "NOT_SUBMITTED" | null
+    status?: string | null;
   } | null;
 };
 
