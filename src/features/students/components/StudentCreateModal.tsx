@@ -448,7 +448,15 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         <div className="modal-scroll-body modal-scroll-body--compact">
           <div
             className="modal-form-row"
-            style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "nowrap",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "var(--space-3)",
+              gap: "var(--space-3)",
+            }}
           >
             <button
               type="button"
@@ -703,7 +711,15 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
           <div
             className="modal-form-row"
-            style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              flexWrap: "nowrap",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "var(--space-3)",
+              gap: "var(--space-3)",
+            }}
           >
             <button
               type="button"
