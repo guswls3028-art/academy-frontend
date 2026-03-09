@@ -7,9 +7,9 @@ import { CommunityScopeProvider } from "../context/CommunityScopeContext";
 import CommunityScopeSelector from "../components/CommunityScopeSelector";
 
 const COMMUNITY_TABS = [
-  { key: "board", label: "게시판", path: "/admin/community/board" },
-  { key: "notice", label: "공지사항", path: "/admin/community/notice" },
   { key: "qna", label: "QnA", path: "/admin/community/qna" },
+  { key: "notice", label: "공지사항", path: "/admin/community/notice" },
+  { key: "board", label: "게시판", path: "/admin/community/board" },
   { key: "materials", label: "자료실", path: "/admin/community/materials" },
 ];
 

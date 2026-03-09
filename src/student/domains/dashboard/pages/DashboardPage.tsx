@@ -29,31 +29,90 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      {/* 공지: 대시보드 API 공지 반영, 최신 1건 제목 노출 */}
+      {/* 공지 KPI 위젯 — 결계형 */}
       <Link
         to="/student/notices"
-        className="stu-panel stu-panel--pressable stu-panel--accent"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--stu-space-4)",
-          marginBottom: "var(--stu-space-6)",
+          display: "block",
           textDecoration: "none",
           color: "inherit",
+          marginBottom: "var(--stu-space-6)",
+          borderRadius: 14,
+          background: "linear-gradient(135deg, rgba(59,130,246,0.07) 0%, var(--stu-surface) 55%)",
+          border: "1.5px solid rgba(59,130,246,0.18)",
+          boxShadow: "0 2px 16px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+          padding: "14px 16px 12px",
+          transition: "box-shadow var(--stu-motion-base), transform var(--stu-motion-base)",
         }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(59,130,246,0.14), 0 2px 8px rgba(0,0,0,0.06)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 16px rgba(59,130,246,0.08), 0 1px 4px rgba(0,0,0,0.04)"; }}
       >
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--stu-surface-soft)", display: "grid", placeItems: "center" }}>
-          <IconNotice style={{ width: 24, height: 24, color: "var(--stu-primary)" }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>공지사항</div>
-          <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
-            {dashboard?.notices?.length
-              ? `최신: ${dashboard.notices[0].title || "공지"}`
-              : "중요한 공지를 확인하세요"}
+        {/* 헤더 행 */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(59,130,246,0.12)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+              <IconNotice style={{ width: 17, height: 17, color: "var(--stu-primary)" }} />
+            </div>
+            <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: "-0.02em" }}>공지사항</span>
           </div>
+          {(dashboard?.notices?.length ?? 0) > 0 && (
+            <span style={{
+              background: "var(--stu-primary)",
+              color: "#fff",
+              borderRadius: 999,
+              padding: "2px 10px",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.01em",
+              flexShrink: 0,
+            }}>
+              {dashboard!.notices.length}건
+            </span>
+          )}
         </div>
-        <span className="stu-cta-link" style={{ fontSize: 13 }}>보기</span>
+
+        {/* 공지 미리보기 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {dashboard?.notices?.length ? (
+            dashboard.notices.slice(0, 2).map((n, i) => (
+              <div
+                key={n.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: i === 0 ? "8px 10px" : "4px 10px",
+                  borderRadius: 8,
+                  background: i === 0 ? "rgba(59,130,246,0.06)" : "transparent",
+                  border: i === 0 ? "1px solid rgba(59,130,246,0.12)" : "none",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: i === 0 ? 14 : 13,
+                    fontWeight: i === 0 ? 600 : 400,
+                    color: i === 0 ? "var(--stu-text)" : "var(--stu-text-muted)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}>
+                    {n.title}
+                  </div>
+                </div>
+                <span style={{ fontSize: 11, color: "var(--stu-text-subtle)", flexShrink: 0 }}>
+                  {formatYmd(n.created_at)}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="stu-muted" style={{ fontSize: 13, padding: "4px 2px" }}>중요한 공지를 확인하세요</div>
+          )}
+        </div>
+
+        {/* 푸터 CTA */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10, paddingTop: 8, borderTop: "1px solid rgba(59,130,246,0.1)" }}>
+          <span style={{ fontSize: 12, color: "var(--stu-primary)", fontWeight: 600, letterSpacing: "-0.01em" }}>전체 공지 보기 →</span>
+        </div>
       </Link>
 
       {/* 오늘 일정 → useMySessions (GET /student/sessions/me/) 반영 */}

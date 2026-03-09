@@ -57,7 +57,6 @@ const MaterialsBoardPage = lazy(() => import("@/features/community/pages/Materia
 const CommunityAdminPage = lazy(() => import("@/features/community/pages/CommunityAdminPage"));
 const BoardAdminPage = lazy(() => import("@/features/community/pages/BoardAdminPage"));
 const NoticeAdminPage = lazy(() => import("@/features/community/pages/NoticeAdminPage"));
-const CommunitySettingsPage = lazy(() => import("@/features/community/pages/CommunitySettingsPage"));
 
 /* ================= Lazy: Clinic ================= */
 const ClinicRoutes = lazy(() => import("@/features/clinic/ClinicRoutes"));
@@ -193,7 +192,7 @@ export default function AdminRouter() {
           <Route path="qna" element={wrapLazy(QnaInboxPage)} />
           <Route path="qna/read/:id" element={<QnaReadRedirect />} />
           <Route path="materials" element={wrapLazy(MaterialsBoardPage)} />
-          <Route path="settings" element={wrapLazy(CommunitySettingsPage)} />
+          <Route path="settings" element={<Navigate to="/admin/community/board" replace />} />
         </Route>
 
         {/* ================= Staff ================= */}
