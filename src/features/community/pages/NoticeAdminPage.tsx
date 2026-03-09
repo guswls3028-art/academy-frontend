@@ -1,5 +1,5 @@
 // PATH: src/features/community/pages/NoticeAdminPage.tsx
-// 공지사항 관리 — QnA 탭과 동일한 디자인(좌 목록 | 우 상세)
+// 공지사항 관리 — QnA 탭 참고: 좌측 폴더 트리(전체/강의/차시 공지) + 우측 목록·상세
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -7,7 +7,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
 import {
   fetchScopeNodes,
-  resolveNodeIdFromScope,
   fetchCommunityBoardPosts,
   fetchBlockTypes,
   getNoticeBlockTypeId,
@@ -16,23 +15,55 @@ import {
   deletePost,
   fetchPostTemplates,
   type BoardPost,
-  type PostEntity,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
 } from "../api/community.api";
-import { EmptyState, Button } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { NoticeCreateModal } from "./NoticeBoardPage";
 import "@/features/community/qna-inbox.css";
+import "@/features/community/notice-tree.css";
 
 const SNIPPET_LEN = 72;
+
+type NoticeFolderTab = "all" | "lecture" | "session";
+
+/** scope nodes에서 강의 단위 노드만 (session == null) */
+function useLectureNodes(nodes: ScopeNodeMinimal[]) {
+  return useMemo(
+    () => nodes.filter((n) => n.session == null),
+    [nodes]
+  );
+}
+
+/** scope nodes에서 차시 단위만, lecture별로 그룹 */
+function useSessionTree(nodes: ScopeNodeMinimal[]) {
+  return useMemo(() => {
+    const sessionNodes = nodes.filter((n) => n.session != null);
+    const byLecture: Record<number, ScopeNodeMinimal[]> = {};
+    sessionNodes.forEach((n) => {
+      if (!byLecture[n.lecture]) byLecture[n.lecture] = [];
+      byLecture[n.lecture].push(n);
+    });
+    return byLecture;
+  }, [nodes]);
+}
 
 export default function NoticeAdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIdParam = searchParams.get("id");
   const selectedId = selectedIdParam && /^\d+$/.test(selectedIdParam) ? Number(selectedIdParam) : null;
 
-  const { scope, effectiveLectureId, sessionId } = useCommunityScope();
+  const {
+    scope,
+    setScope,
+    lectureId,
+    setLectureId,
+    sessionId,
+    setSessionId,
+    effectiveLectureId,
+  } = useCommunityScope();
+
   const scopeParams = useMemo<CommunityScopeParams>(
     () => ({
       scope,
@@ -42,6 +73,11 @@ export default function NoticeAdminPage() {
     [scope, effectiveLectureId, sessionId]
   );
 
+  const [folderTab, setFolderTab] = useState<NoticeFolderTab>("all");
+
+  useEffect(() => {
+    setFolderTab(scope);
+  }, [scope]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const qc = useQueryClient();
@@ -50,6 +86,9 @@ export default function NoticeAdminPage() {
     queryKey: ["community-scope-nodes"],
     queryFn: () => fetchScopeNodes(),
   });
+
+  const lectureNodes = useLectureNodes(scopeNodes);
+  const sessionTree = useSessionTree(scopeNodes);
 
   const { data: noticeBlockTypeId } = useQuery({
     queryKey: ["community-notice-block-type-id"],
@@ -108,26 +147,125 @@ export default function NoticeAdminPage() {
     [setSearchParams]
   );
 
-  if (
-    (scope === "lecture" && effectiveLectureId == null) ||
-    (scope === "session" && (!effectiveLectureId || sessionId == null))
-  ) {
-    return (
-      <div className="qna-inbox__empty">
-        <p className="qna-inbox__empty-title">
-          {scope === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
-        </p>
-        <p className="qna-inbox__empty-desc">
-          {scope === "session"
-            ? "노출 범위를 세션별로 두고 강의와 차시를 선택하면 해당 차시 공지를 관리할 수 있습니다."
-            : "노출 범위를 강의별로 두고 위에서 강의를 선택하면 해당 강의의 공지를 관리할 수 있습니다."}
-        </p>
-      </div>
-    );
-  }
+  const selectAll = useCallback(() => {
+    setFolderTab("all");
+    setScope("all");
+    setLectureId(null);
+    setSessionId(null);
+  }, [setScope, setLectureId, setSessionId]);
+
+  const selectLecture = useCallback(
+    (lecId: number) => {
+      setFolderTab("lecture");
+      setScope("lecture");
+      setLectureId(lecId);
+      setSessionId(null);
+    },
+    [setScope, setLectureId, setSessionId]
+  );
+
+  const selectSession = useCallback(
+    (lecId: number, sesId: number) => {
+      setFolderTab("session");
+      setScope("session");
+      setLectureId(lecId);
+      setSessionId(sesId);
+    },
+    [setScope, setLectureId, setSessionId]
+  );
+
+  useEffect(() => {
+    setFolderTab(scope);
+  }, [scope]);
+
+  const canShowList =
+    scope === "all" ||
+    (scope === "lecture" && effectiveLectureId != null) ||
+    (scope === "session" && sessionId != null);
 
   return (
-    <div className="qna-inbox" style={{ minHeight: "calc(100vh - 180px)" }}>
+    <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
+      {/* 좌측: 폴더형 탭 + 강의/차시 트리 */}
+      <nav className="notice-tree__nav">
+        <div className="notice-tree__nav-header">
+          <h2 className="notice-tree__nav-title">공지</h2>
+          <Button
+            intent="primary"
+            size="sm"
+            onClick={() => setShowCreate(true)}
+            disabled={!canShowList}
+            className="w-full"
+          >
+            + 공지 작성
+          </Button>
+        </div>
+
+        <div className="notice-tree__tabs">
+          <button
+            type="button"
+            className={`notice-tree__tab ${folderTab === "all" && scope === "all" ? "notice-tree__tab--active" : ""}`}
+            onClick={selectAll}
+          >
+            <span className="notice-tree__tab-icon" aria-hidden>📋</span>
+            전체공지
+          </button>
+          <button
+            type="button"
+            className={`notice-tree__tab ${folderTab === "lecture" ? "notice-tree__tab--active" : ""}`}
+            onClick={() => setFolderTab("lecture")}
+          >
+            <span className="notice-tree__tab-icon" aria-hidden>📁</span>
+            강의공지
+          </button>
+          <button
+            type="button"
+            className={`notice-tree__tab ${folderTab === "session" ? "notice-tree__tab--active" : ""}`}
+            onClick={() => setFolderTab("session")}
+          >
+            <span className="notice-tree__tab-icon" aria-hidden>📂</span>
+            차시공지
+          </button>
+        </div>
+
+        <div className="notice-tree__sub">
+          {folderTab === "lecture" &&
+            lectureNodes.map((n) => (
+              <button
+                key={`lec-${n.lecture}`}
+                type="button"
+                className={`notice-tree__sub-item ${scope === "lecture" && effectiveLectureId === n.lecture ? "notice-tree__sub-item--active" : ""}`}
+                onClick={() => selectLecture(n.lecture)}
+              >
+                {n.lecture_title || `강의 ${n.lecture}`}
+              </button>
+            ))}
+          {folderTab === "session" &&
+            Object.entries(sessionTree).map(([lecIdStr, sessions]) => {
+              const lecId = Number(lecIdStr);
+              const first = sessions[0];
+              const lectureTitle = first?.lecture_title ?? `강의 ${lecId}`;
+              return (
+                <div key={`session-${lecId}`}>
+                  <div className="notice-tree__sub-item" style={{ cursor: "default", fontWeight: 600 }}>
+                    {lectureTitle}
+                  </div>
+                  {sessions.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lecId && sessionId === s.session ? "notice-tree__sub-item--active" : ""}`}
+                      onClick={() => selectSession(lecId, s.session!)}
+                    >
+                      {s.session_title ?? `${s.session}차시`}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+        </div>
+      </nav>
+
+      {/* 우측: 공지 목록 + 상세 (QnA와 동일 레이아웃) */}
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">공지사항</h2>
@@ -140,15 +278,21 @@ export default function NoticeAdminPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="검색"
             />
-            {(scope === "all" || (scope === "lecture" && effectiveLectureId) || (scope === "session" && sessionId)) && (
-              <Button intent="primary" size="sm" onClick={() => setShowCreate(true)}>
-                + 공지 작성
-              </Button>
-            )}
           </div>
         </div>
         <div className="qna-inbox__list-body">
-          {isLoading ? (
+          {!canShowList ? (
+            <div className="qna-inbox__empty">
+              <p className="qna-inbox__empty-title">
+                {folderTab === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
+              </p>
+              <p className="qna-inbox__empty-desc">
+                {folderTab === "session"
+                  ? "차시공지에서 위 트리에서 강의와 차시를 선택하면 해당 차시 공지가 표시됩니다."
+                  : "강의공지에서 위 트리에서 강의를 선택하면 해당 강의 공지가 표시됩니다."}
+              </p>
+            </div>
+          ) : isLoading ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">불러오는 중…</p>
             </div>
@@ -160,7 +304,7 @@ export default function NoticeAdminPage() {
               <p className="qna-inbox__empty-desc">
                 {searchQuery.trim()
                   ? "다른 검색어를 입력해 보세요."
-                  : "공지 작성 버튼으로 등록하거나, 노출 범위를 바꿔 보세요."}
+                  : "공지 작성 버튼으로 등록하거나, 좌측에서 다른 범위를 선택해 보세요."}
               </p>
             </div>
           ) : (
