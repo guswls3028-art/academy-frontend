@@ -64,7 +64,6 @@ const ClinicRoutes = lazy(() => import("@/features/clinic/ClinicRoutes"));
 
 /* ================= Lazy: Profile ================= */
 const ProfileLayout = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileLayout })));
-const ProfileAccountPage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileAccountPage })));
 const ProfileAttendancePage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileAttendancePage })));
 const ProfileExpensePage = lazy(() => import("@/features/profile").then((m) => ({ default: m.ProfileExpensePage })));
 
@@ -82,7 +81,11 @@ const MessageRoutes = lazy(() => import("@/features/messages/routes").then((m) =
 
 /* ================= Lazy: Settings ================= */
 const SettingsLayout = lazy(() => import("@/features/settings/SettingsLayout"));
-const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
+const ProfileSettingsPage = lazy(() => import("@/features/settings/pages/ProfileSettingsPage"));
+const OrganizationSettingsPage = lazy(() => import("@/features/settings/pages/OrganizationSettingsPage"));
+const MessagingSettingsPage = lazy(() => import("@/features/settings/pages/MessagingSettingsPage"));
+const AppearancePage = lazy(() => import("@/features/settings/pages/AppearancePage"));
+const SecuritySettingsPage = lazy(() => import("@/features/settings/pages/SecuritySettingsPage"));
 
 /* ================= Lazy: Exams / Results ================= */
 const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
@@ -196,17 +199,23 @@ export default function AdminRouter() {
         {/* ================= Staff ================= */}
         <Route path="staff/*" element={wrapLazy(StaffRoutes)} />
 
-        {/* ================= 설정 (내 정보 · 테마 탭) ================= */}
+        {/* ================= 설정 — 사이드바 레이아웃 ================= */}
         <Route path="settings" element={wrapLazy(SettingsLayout)}>
-          <Route index element={<Navigate to="account" replace />} />
-          <Route path="account" element={wrapLazy(ProfileAccountPage)} />
-          <Route path="system" element={wrapLazy(SettingsPage)} />
+          <Route index element={<Navigate to="profile" replace />} />
+          <Route path="profile" element={wrapLazy(ProfileSettingsPage)} />
+          <Route path="organization" element={wrapLazy(OrganizationSettingsPage)} />
+          <Route path="messaging" element={wrapLazy(MessagingSettingsPage)} />
+          <Route path="appearance" element={wrapLazy(AppearancePage)} />
+          <Route path="security" element={wrapLazy(SecuritySettingsPage)} />
+          {/* 하위 호환 리디렉트 */}
+          <Route path="account" element={<Navigate to="/admin/settings/profile" replace />} />
+          <Route path="system" element={<Navigate to="/admin/settings/appearance" replace />} />
         </Route>
 
         {/* ================= Profile (근태 · 지출 — 내 계정은 설정 탭으로) ================= */}
         <Route path="profile" element={wrapLazy(ProfileLayout)}>
           <Route index element={<Navigate to="attendance" replace />} />
-          <Route path="account" element={<Navigate to="/admin/settings/account" replace />} />
+          <Route path="account" element={<Navigate to="/admin/settings/profile" replace />} />
           <Route path="attendance" element={wrapLazy(ProfileAttendancePage)} />
           <Route path="expense" element={wrapLazy(ProfileExpensePage)} />
         </Route>
