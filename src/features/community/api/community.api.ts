@@ -202,6 +202,19 @@ export async function fetchNoticePosts(params?: { page?: number; pageSize?: numb
   return Array.isArray(data) ? data : [];
 }
 
+/** 공지 전체 목록을 페이지네이션으로 수집 (트리 노드별 개수 집계용, 최대 2000건) */
+export async function fetchAllNoticePostsForCount(): Promise<PostEntity[]> {
+  const pageSize = 200;
+  const maxPages = 10;
+  const all: PostEntity[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const chunk = await fetchNoticePosts({ page, pageSize });
+    all.push(...chunk);
+    if (chunk.length < pageSize) break;
+  }
+  return all;
+}
+
 /** 관리자 목록: block_type_id, lecture_id, page, page_size */
 export async function fetchAdminPosts(params: {
   blockTypeId?: number | null;

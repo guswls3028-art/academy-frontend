@@ -13,6 +13,7 @@ import {
   fetchPost,
   updatePostNodes,
   deletePost,
+  fetchAllNoticePostsForCount,
   fetchPostTemplates,
   type BoardPost,
   type ScopeNodeMinimal,
@@ -92,6 +93,45 @@ export default function NoticeAdminPage() {
     queryFn: () => fetchPostTemplates(),
     enabled: showCreate,
   });
+
+  /** 트리 노드별 공지 개수 집계용: 공지 전체 목록(매핑 포함) */
+  const { data: allNoticePostsForCount = [] } = useQuery({
+    queryKey: ["community-all-notice-posts-for-count"],
+    queryFn: () => fetchAllNoticePostsForCount(),
+  });
+
+  const noticeCounts = useMemo(() => {
+    const scopeNodeIds = new Set(scopeNodes.map((n) => n.id));
+    const countByNodeId: Record<number, number> = {};
+    for (const n of scopeNodes) countByNodeId[n.id] = 0;
+    for (const p of allNoticePostsForCount) {
+      for (const m of p.mappings ?? []) {
+        if (scopeNodeIds.has(m.node)) countByNodeId[m.node] = (countByNodeId[m.node] ?? 0) + 1;
+      }
+    }
+    const totalNoticeCount = allNoticePostsForCount.length;
+    const totalUnderScope = allNoticePostsForCount.filter((p) =>
+      p.mappings?.some((m) => scopeNodeIds.has(m.node))
+    ).length;
+    const countByLecture: Record<number, number> = {};
+    for (const lec of lectures) countByLecture[lec.id] = 0;
+    for (const p of allNoticePostsForCount) {
+      const seen = new Set<number>();
+      for (const m of p.mappings ?? []) {
+        const lid = m.node_detail?.lecture;
+        if (lid != null && !seen.has(lid)) {
+          seen.add(lid);
+          countByLecture[lid] = (countByLecture[lid] ?? 0) + 1;
+        }
+      }
+    }
+    return {
+      totalNoticeCount,
+      totalUnderScope,
+      countByNodeId,
+      countByLecture,
+    };
+  }, [allNoticePostsForCount, scopeNodes, lectures]);
 
   const { data: posts = [], isLoading } = useQuery<BoardPost[]>({
     queryKey: [
