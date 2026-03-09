@@ -13,6 +13,10 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
   const isRegular = exam.exam_type === "regular";
   const isDraft = exam.status === "DRAFT";
   const isOpen = exam.status === "OPEN";
+  const isClosed = exam.status === "CLOSED";
+
+  const statusLabel = isDraft ? "초안" : isOpen ? "진행 중" : isClosed ? "마감" : exam.status;
+  const statusTone = isOpen ? "success" : "neutral";
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["admin-exam", exam.id] });
@@ -46,7 +50,10 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{exam.title}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">{exam.title}</h2>
+            <span className="ds-status-badge" data-tone={statusTone}>{statusLabel}</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">

@@ -23,6 +23,7 @@ import StudentResultPanel from "./StudentResultPanel";
 
 import api from "@/shared/api/axios";
 import type { AdminExamResultRow } from "../types/results.types";
+import { EmptyState } from "@/shared/ui/ds";
 
 type Props = {
   examId: number;
@@ -69,29 +70,17 @@ export default function ExamResultsPanel({ examId }: Props) {
   });
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-gray-500">
-        성적 불러오는 중...
-      </div>
-    );
+    return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
   }
 
   if (isError) {
-    return (
-      <div className="text-sm text-red-600">
-        성적 조회 실패
-      </div>
-    );
+    return <EmptyState scope="panel" tone="error" title="성적을 불러오지 못했습니다." />;
   }
 
   const rows: AdminExamResultRow[] = data ?? [];
 
   if (rows.length === 0) {
-    return (
-      <div className="text-sm text-gray-500">
-        제출된 성적이 없습니다.
-      </div>
-    );
+    return <EmptyState scope="panel" tone="empty" title="제출된 성적이 없습니다." />;
   }
 
   return (
@@ -112,9 +101,13 @@ export default function ExamResultsPanel({ examId }: Props) {
             enrollmentId={selectedEnrollmentId}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
-            좌측에서 학생을 선택하세요
-          </div>
+          <EmptyState
+            scope="panel"
+            tone="empty"
+            mode="embedded"
+            title="학생을 선택하세요"
+            description="좌측 목록에서 학생을 클릭하면 상세 결과가 표시됩니다."
+          />
         )}
       </div>
     </div>

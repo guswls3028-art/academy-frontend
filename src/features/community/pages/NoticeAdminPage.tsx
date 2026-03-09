@@ -307,7 +307,7 @@ export default function NoticeAdminPage() {
         </div>
       </nav>
 
-      {/* 2번 영역: 공지 목록 (최상단 공지 추가하기 섹션 + 리스트) */}
+      {/* 2번 영역: 공지 목록 — 상단에 공지 추가하기 고정, 아래로 목록 스크롤 */}
       <aside className="qna-inbox__list">
         <div className="qna-inbox__list-header">
           <h2 className="qna-inbox__list-title">공지사항</h2>
@@ -322,19 +322,19 @@ export default function NoticeAdminPage() {
             />
           </div>
         </div>
+        {canShowList && noticeTypeId != null && (
+          <div className="notice-tree__add-section">
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={() => setShowCreate(true)}
+              className="w-full"
+            >
+              + 공지 추가하기
+            </Button>
+          </div>
+        )}
         <div className="qna-inbox__list-body">
-          {canShowList && noticeTypeId != null && (
-            <div className="notice-tree__add-section">
-              <Button
-                intent="primary"
-                size="sm"
-                onClick={() => setShowCreate(true)}
-                className="w-full"
-              >
-                + 공지 추가하기
-              </Button>
-            </div>
-          )}
           {!canShowList ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">

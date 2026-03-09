@@ -16,6 +16,7 @@ import type { HomeworkTabKey, HomeworkSummary } from "../types";
 
 import HomeworkHeader from "./common/HomeworkHeader";
 import HomeworkTabs from "./common/HomeworkTabs";
+import { EmptyState } from "@/shared/ui/ds";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import HomeworkSetupPanel from "../panels/HomeworkSetupPanel";
 import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
@@ -27,19 +28,15 @@ export default function AdminHomeworkDetail({ homeworkId }: { homeworkId: number
   const { data, isLoading, isError } = useAdminHomework(homeworkId);
 
   if (!Number.isFinite(homeworkId) || homeworkId <= 0) {
-    return (
-      <div className="rounded border bg-yellow-50 p-4 text-sm text-yellow-800">
-        homeworkId가 올바르지 않습니다.
-      </div>
-    );
+    return <EmptyState scope="panel" tone="error" title="과제 ID가 올바르지 않습니다." />;
   }
 
   if (isLoading) {
-    return <div className="text-sm text-gray-500">과제 정보 불러오는 중...</div>;
+    return <EmptyState scope="panel" tone="loading" title="과제 정보 불러오는 중…" />;
   }
 
   if (isError || !data) {
-    return <div className="text-sm text-red-600">과제 정보를 불러오지 못했습니다.</div>;
+    return <EmptyState scope="panel" tone="error" title="과제 정보를 불러오지 못했습니다." />;
   }
 
   const summary: HomeworkSummary = {

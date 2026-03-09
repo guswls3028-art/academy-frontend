@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { EmptyState } from "@/shared/ui/ds";
 
 type Props = {
   sessionId: number;

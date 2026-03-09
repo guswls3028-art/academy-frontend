@@ -31,51 +31,51 @@ export default function AdminExamResultsTable({
   onSelectEnrollment: (id: number) => void;
 }) {
   return (
-    <table className="w-full text-sm border">
-      <thead className="bg-gray-100">
-        <tr>
-          <th className="p-2 text-left">학생</th>
-          <th className="p-2 text-center">최종점수</th>
-          <th className="p-2 text-center">상태</th>
-          <th className="p-2 text-center">합격</th>
-        </tr>
-      </thead>
+    <div className="ds-table-wrap">
+      <table className="ds-table w-full text-sm">
+        <thead>
+          <tr>
+            <th style={{ textAlign: "left" }}>학생</th>
+            <th>최종점수</th>
+            <th>상태</th>
+            <th>합격</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const frontStatus = deriveFrontResultStatus(r);
+            const passed = r.passed;
 
-      <tbody>
-        {rows.map((r) => {
-          const frontStatus = deriveFrontResultStatus(r);
-          const passed = r.passed;
+            return (
+              <tr
+                key={r.enrollment_id}
+                className="cursor-pointer"
+                onClick={() => onSelectEnrollment(r.enrollment_id)}
+              >
+                <td style={{ textAlign: "left" }}>{r.student_name}</td>
 
-          return (
-            <tr
-              key={r.enrollment_id}
-              className="cursor-pointer hover:bg-gray-50"
-              onClick={() => onSelectEnrollment(r.enrollment_id)}
-              title={`enrollment_id: ${r.enrollment_id}`}
-            >
-              <td className="p-2">{r.student_name}</td>
+                <td style={{ fontWeight: 600 }}>
+                  {scoreCell(r)}
+                </td>
 
-              <td className="p-2 text-center font-semibold">
-                {scoreCell(r)}
-              </td>
+                <td>
+                  <FrontResultStatusBadge status={frontStatus} />
+                </td>
 
-              <td className="p-2 text-center">
-                <FrontResultStatusBadge status={frontStatus} />
-              </td>
-
-              <td className="p-2 text-center">
-                {passed === true ? (
-                  <span className="text-emerald-700 font-semibold">합격</span>
-                ) : passed === false ? (
-                  <span className="text-red-700 font-semibold">불합격</span>
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+                <td>
+                  {passed === true ? (
+                    <span className="ds-status-badge" data-tone="success">합격</span>
+                  ) : passed === false ? (
+                    <span className="ds-status-badge" data-tone="danger">불합격</span>
+                  ) : (
+                    <span style={{ color: "var(--color-text-muted)" }}>—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
