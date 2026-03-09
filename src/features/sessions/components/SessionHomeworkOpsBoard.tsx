@@ -127,9 +127,9 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
       {!hasNoHomeworks && (
         <>
           <div className="grid grid-cols-3 gap-3">
-            <KPICard label="초안" value={stats.draft} color="gray" />
-            <KPICard label="진행중" value={stats.open} color="blue" />
-            <KPICard label="완료" value={stats.closed} color="green" />
+            <KPICard label="설정 중" value={stats.draft} color="gray" />
+            <KPICard label="진행 중" value={stats.open} color="blue" />
+            <KPICard label="마감" value={stats.closed} color="green" />
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

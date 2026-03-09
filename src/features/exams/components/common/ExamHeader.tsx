@@ -1,52 +1,63 @@
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Exam } from "../../types";
+import { updateAdminExam } from "../../api/adminExam";
+import { Button } from "@/shared/ui/ds";
 
-function deriveState(exam: Exam) {
-  // ✅ 서버 단일진실 기반 파생 (프론트 표시용)
-  // - is_active + open_at/close_at로 Badge 상태만 계산
-  const now = new Date();
-
-  const openAt = exam.open_at ? new Date(exam.open_at) : null;
-  const closeAt = exam.close_at ? new Date(exam.close_at) : null;
-
-  if (!exam.is_active) {
-    return { key: "inactive" as const, label: "비활성" };
-  }
-
-  if (openAt && now < openAt) {
-    return { key: "scheduled" as const, label: "예정" };
-  }
-
-  if (closeAt && now > closeAt) {
-    return { key: "closed" as const, label: "종료" };
-  }
-
-  // open_at/close_at이 없거나, 현재가 구간 안이면 진행중으로 본다
-  return { key: "open" as const, label: "진행중" };
-}
-
-function Badge({ state }: { state: ReturnType<typeof deriveState> }) {
-  const cls =
-    state.key === "open"
-      ? "bg-emerald-600/10 text-emerald-700"
-      : state.key === "scheduled"
-      ? "bg-blue-600/10 text-blue-700"
-      : state.key === "closed"
-      ? "bg-gray-600/10 text-gray-700"
-      : "bg-red-600/10 text-red-700";
-
-  return (
-    <span className={`rounded-full px-3 py-1 text-xs ${cls}`}>
-      {state.label}
-    </span>
-  );
+/**
+ * 시험 단계 (사용자 노출용). DRAFT/OPEN/CLOSED 같은 용어 노출 없음.
+ * - 설정 중: open_at 없음 → 기본 설정 완료 전
+ * - 진행 중: open_at 있음, close_at 없음
+ * - 마감: close_at 있음
+ */
+function derivePhase(exam: Exam): "설정 중" | "진행 중" | "마감" {
+  const hasOpen = !!exam.open_at;
+  const hasClose = !!exam.close_at;
+  if (hasClose) return "마감";
+  if (hasOpen) return "진행 중";
+  return "설정 중";
 }
 
 export default function ExamHeader({ exam }: { exam: Exam }) {
-  const state = deriveState(exam);
+  const qc = useQueryClient();
+  const [loading, setLoading] = useState<"progress" | "close" | null>(null);
+  const phase = derivePhase(exam);
+  const isRegular = exam.exam_type === "regular";
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["admin-exam", exam.id] });
+  };
+
+  const handleProgress = async () => {
+    setLoading("progress");
+    try {
+      await updateAdminExam(exam.id, {
+        open_at: new Date().toISOString(),
+      });
+      invalidate();
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleClose = async () => {
+    setLoading("close");
+    try {
+      await updateAdminExam(exam.id, {
+        close_at: new Date().toISOString(),
+      });
+      invalidate();
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const showProgressButton = isRegular && phase === "설정 중";
+  const showCloseButton = isRegular && phase === "진행 중";
 
   return (
     <div className="space-y-2">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">{exam.title}</h2>
           <div className="text-xs text-muted">
@@ -56,7 +67,29 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge state={state} />
+          <span className="text-sm text-[var(--color-text-secondary)]">{phase}</span>
+          {showProgressButton && (
+            <Button
+              type="button"
+              intent="primary"
+              size="sm"
+              onClick={handleProgress}
+              disabled={!!loading}
+            >
+              {loading === "progress" ? "처리 중…" : "진행하기"}
+            </Button>
+          )}
+          {showCloseButton && (
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              onClick={handleClose}
+              disabled={!!loading}
+            >
+              {loading === "close" ? "처리 중…" : "마감"}
+            </Button>
+          )}
         </div>
       </div>
 
