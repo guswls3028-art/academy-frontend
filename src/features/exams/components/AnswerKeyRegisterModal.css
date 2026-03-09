@@ -36,6 +36,40 @@
 }
 
 /* 섹션 제목 버튼 — 선택형/서술형 문항 수 변경용 */
+.answer-key-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+.answer-key-section-header .answer-key-section-btn {
+  flex: 1;
+  min-width: 0;
+}
+.answer-key-section-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.answer-key-section-reset-btn:hover {
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+}
+.answer-key-section-reset-btn:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
 .answer-key-section-btn {
   display: inline-flex;
   align-items: center;
