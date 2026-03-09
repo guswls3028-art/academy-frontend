@@ -7,11 +7,12 @@ import {
   AnswerKey,
 } from "../api/answerKeyApi";
 import { fetchQuestionsByExam, ExamQuestion } from "../api/questionApi";
+import { Button } from "@/shared/ui/ds";
 
 interface Props {
   examId: number; // template or regular id (backend resolves)
   createExamId?: number | null; // create 시 사용할 template exam id
-  disabled: boolean; // template locked이면 true (정답 변경 금지 정책 반영)
+  disabled: boolean;
 }
 
 function normalizeAnswers(input: Record<string, string>) {
@@ -84,63 +85,63 @@ export function AnswerKeyEditor({ examId, createExamId, disabled }: Props) {
   }
 
   return (
-    <section className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium">정답표</h3>
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-medium text-[var(--text-primary)]">정답표</h3>
 
-        <div className="flex items-center gap-2">
-          {disabled && (
-            <span className="text-xs text-red-500">
-              템플릿이 이미 사용 중이라 정답 수정이 봉인됩니다
-            </span>
-          )}
-          <button
-            onClick={save}
-            disabled={disabled || busy}
-            className={`px-3 py-2 rounded text-sm ${
-              disabled || busy
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-black text-white"
-            }`}
-          >
-            저장
-          </button>
-        </div>
+        <Button
+          type="button"
+          intent="primary"
+          size="sm"
+          onClick={save}
+          disabled={disabled || busy}
+          loading={busy}
+        >
+          저장
+        </Button>
       </div>
 
-      {msg && <div className="text-xs text-gray-600">{msg}</div>}
+      {msg && (
+        <div className="text-xs text-[var(--text-muted)]">
+          {msg}
+        </div>
+      )}
 
-      <div className="border rounded">
+      <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
         {sorted.length === 0 && (
-          <div className="p-3 text-sm text-gray-400">문항이 없습니다.</div>
+          <div className="px-4 py-3 text-sm text-[var(--text-muted)]">
+            문항이 없습니다.
+          </div>
         )}
 
-        {sorted.map((q) => {
+        {sorted.map((q, idx) => {
           const key = String(q.id);
+          const isLast = idx === sorted.length - 1;
           return (
-            <div key={q.id} className="flex items-center gap-3 border-b p-2 text-sm">
-              <div className="w-12 text-right font-medium">{q.number}</div>
+            <div
+              key={q.id}
+              className={`flex items-center gap-3 px-4 py-2 text-sm ${isLast ? "" : "border-b border-[var(--border-divider)]"}`}
+            >
+              <div className="w-10 text-right font-semibold text-[var(--text-primary)]">
+                {q.number}
+              </div>
 
               <input
                 disabled={disabled}
                 value={draft[key] ?? ""}
-                onChange={(ev) => setDraft((prev) => ({ ...prev, [key]: ev.target.value }))}
-                className={`flex-1 border rounded px-2 py-1 ${
-                  disabled ? "bg-gray-100 text-gray-500" : ""
-                }`}
+                onChange={(ev) =>
+                  setDraft((prev) => ({ ...prev, [key]: ev.target.value }))
+                }
+                className="flex-1 rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] disabled:opacity-60"
                 placeholder="정답 입력"
               />
 
-              <div className="w-16 text-right text-gray-500">
+              <div className="w-12 text-right text-xs text-[var(--text-muted)]">
                 {q.score}
               </div>
             </div>
           );
         })}
-      </div>
-
-      <div className="text-xs text-gray-400">
-        * 저장 단위: key = ExamQuestion.id (string), value = 정답
       </div>
     </section>
   );

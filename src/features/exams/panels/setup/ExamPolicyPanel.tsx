@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { saveExamAsTemplate, updateAdminExam } from "../../api/adminExam";
 import { fetchQuestionsByExam } from "../../api/questionApi";
+import { initExamQuestions } from "../../api/questionInitApi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { AnswerKeyEditor } from "../../components/AnswerKeyEditor";
@@ -78,8 +79,10 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     }
   };
 
-  const templateExamId = exam.exam_type === "regular" ? (exam.template_exam_id ?? null) : exam.id;
-  const answerKeyDisabled = exam.exam_type === "regular" && !templateExamId;
+  // 구조 단일진실: template이 있으면 template, 없으면 자기 자신(regular)
+  const structureOwnerId = exam.exam_type === "regular"
+    ? (exam.template_exam_id ?? exam.id)
+    : exam.id;
 
   return (
     <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
@@ -107,11 +110,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
                 {saveAsTemplateMut.isPending ? "처리 중…" : exam.template_exam_id ? "이미 템플릿 있음" : "템플릿으로 저장"}
               </Button>
             </div>
-            {answerKeyDisabled && (
-              <div className="mt-2 text-xs text-[var(--color-text-muted)]">
-                답안키/문항 관리는 템플릿에서 진행합니다.
-              </div>
-            )}
           </div>
         )}
 
@@ -164,8 +162,8 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           </div>
           <AnswerKeyEditor
             examId={examId}
-            createExamId={templateExamId}
-            disabled={answerKeyDisabled}
+            createExamId={structureOwnerId}
+            disabled={false}
           />
         </div>
 
@@ -182,26 +180,78 @@ function QuestionSelectionBlock({ examId }: { examId: number }) {
     enabled: Number.isFinite(examId),
   });
 
+  const qc = useQueryClient();
+  const [total, setTotal] = useState<number | "">("");
+  const [score, setScore] = useState<number | "">(1);
+
+  const initMut = useMutation({
+    mutationFn: async () => {
+      const t = typeof total === "number" ? total : Number(total);
+      const s = typeof score === "number" ? score : Number(score);
+      return initExamQuestions({
+        examId,
+        total_questions: Number.isFinite(t) ? t : 0,
+        default_score: Number.isFinite(s) ? s : 1,
+      });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+      feedback.success("문항이 반영되었습니다.");
+    },
+    onError: (e: any) => {
+      feedback.error(e?.response?.data?.detail ?? "문항 반영 실패");
+    },
+  });
+
   return (
     <div className="space-y-3">
       <div>
         <div className="text-lg font-semibold">문항선택하기</div>
-        <div className="text-xs text-muted">
-          연결된 템플릿의 문항을 사용합니다. 문항 추가·수정은 템플릿 시험에서 편집하세요.
-        </div>
       </div>
       <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <span className="text-sm text-[var(--color-text-secondary)]">
             현재 문항 <strong className="text-[var(--color-text-primary)]">{questions.length}</strong>개
           </span>
-          <Button type="button" intent="secondary" size="sm" disabled>
-            문항 선택하기
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="grid gap-1">
+            <span className="text-xs text-[var(--text-muted)]">문항 수</span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={total}
+              onChange={(e) => setTotal(e.target.value === "" ? "" : Number(e.target.value))}
+              placeholder="예: 20"
+              className="h-9 w-[140px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+            />
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-xs text-[var(--text-muted)]">기본 점수</span>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={score}
+              onChange={(e) => setScore(e.target.value === "" ? "" : Number(e.target.value))}
+              className="h-9 w-[140px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+            />
+          </label>
+
+          <Button
+            type="button"
+            intent="secondary"
+            size="sm"
+            onClick={() => initMut.mutate()}
+            disabled={initMut.isPending}
+            loading={initMut.isPending}
+          >
+            문항 반영
           </Button>
         </div>
-        <p className="mt-2 text-xs text-muted">
-          문항 구성은 자산 탭 또는 템플릿 시험에서 관리할 수 있습니다.
-        </p>
       </div>
     </div>
   );
