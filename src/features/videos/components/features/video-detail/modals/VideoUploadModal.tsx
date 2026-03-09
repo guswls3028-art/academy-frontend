@@ -9,7 +9,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { initVideoUpload, uploadFileToR2AndComplete } from "@/features/videos/utils/videoUpload";
 import "./VideoUploadModal.css";
 
-function UploadIcon({ size = 22 }: { size?: number }) {
+function UploadIcon({ className, size = 22 }: { className?: string; size?: number }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -156,7 +156,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
     const initErrors: string[] = [];
 
     try {
-      for (const { file, title } of items) {
+      const initPromises = items.map(async ({ file, title }) => {
         try {
           const init = await initVideoUpload({
             sessionId,
@@ -167,7 +167,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
             allowSkip,
             maxSpeed,
           });
-          initResults.push({ init, file });
+          return { init, file };
         } catch (error) {
           const err = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
           const msg =
@@ -179,8 +179,11 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
           } else {
             initErrors.push(`${file.name}: ${msg}`);
           }
+          return null;
         }
-      }
+      });
+      const results = await Promise.all(initPromises);
+      results.forEach((r) => { if (r) initResults.push(r); });
 
       if (initResults.length > 0) {
         qc.invalidateQueries({ queryKey: ["session-videos", sessionId] });
@@ -296,12 +299,12 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
                     ) : (
                       <>
                         <div className="excel-upload-zone__head">
-                          <UploadIcon size={18} />
+                          <UploadIcon size={18} style={{ color: "var(--color-text-secondary)" }} />
                           <span className="excel-upload-zone__title">Video</span>
                         </div>
                         <div className="excel-upload-zone__drag-label">Drag or Click</div>
                         <div className="excel-upload-zone__upload">
-                          <UploadIcon size={14} />
+                          <UploadIcon size={14} className="excel-upload-zone__upload-icon" />
                           <span className="excel-upload-zone__upload-label">업로드</span>
                         </div>
                       </>

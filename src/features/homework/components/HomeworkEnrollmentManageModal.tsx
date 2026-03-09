@@ -149,11 +149,7 @@ export default function HomeworkEnrollmentManageModal({
 
   return (
     <AdminModal open={true} onClose={safeClose} type="action" width={840}>
-      <ModalHeader
-        type="action"
-        title={title}
-        description={description ?? "이 과제에 포함할 학생을 선택 후 저장하세요."}
-      />
+      <ModalHeader type="action" title={title} description={description} />
 
       <ModalBody>
         <div
@@ -222,16 +218,6 @@ export default function HomeworkEnrollmentManageModal({
                 {error}
               </div>
             )}
-
-            <div
-              className="rounded-lg border px-3 py-2 text-[12px] text-[var(--color-text-muted)]"
-              style={{
-                borderColor: "var(--color-border-divider)",
-                background: "var(--color-bg-surface-soft)",
-              }}
-            >
-              ⚠ 저장 버튼을 눌러야 서버에 실제 반영됩니다.
-            </div>
 
             <div
               className="rounded-xl border overflow-hidden flex flex-col flex-1 min-h-0"
@@ -393,10 +379,7 @@ export default function HomeworkEnrollmentManageModal({
               >
                 {selectedRows.length === 0 ? (
                   <p className="text-[13px] text-[var(--color-text-muted)] py-4 text-center">
-                    선택한 학생이 없어요.
-                    <span className="block mt-1.5 text-[11px] text-[var(--color-text-muted)]">
-                      왼쪽 테이블에서 체크 후 추가하세요.
-                    </span>
+                    선택한 학생이 없습니다.
                   </p>
                 ) : (
                   <ul className="space-y-0">
@@ -429,15 +412,6 @@ export default function HomeworkEnrollmentManageModal({
       </ModalBody>
 
       <ModalFooter
-        left={
-          <span className="text-[12px] text-[var(--color-text-muted)]">
-            {saving
-              ? "저장 중… 잠시만 기다려주세요."
-              : dirty
-                ? "변경사항이 있습니다. 저장하면 확정됩니다."
-                : "변경사항 없음"}
-          </span>
-        }
         right={
           <>
             <Button intent="secondary" onClick={safeClose} className="text-[13px]" disabled={saving}>
