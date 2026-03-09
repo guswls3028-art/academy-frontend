@@ -53,8 +53,8 @@ export default function SessionAssessmentSidePanel({
 
   const [openCreateHomeworkLocal, setOpenCreateHomeworkLocal] = useState(false);
   const openCreateHomework = openCreateHomeworkProp ?? openCreateHomeworkLocal;
-  const setOpenCreateHomework = onOpenCreateHomework ?? (() => setOpenCreateHomeworkLocal(true));
-  const handleCloseCreateHomework = onCloseCreateHomework ?? (() => setOpenCreateHomeworkLocal(false));
+  const setOpenCreateHomework = onOpenCreateHomeworkProp ?? (() => setOpenCreateHomeworkLocal(true));
+  const handleCloseCreateHomework = onCloseCreateHomeworkProp ?? (() => setOpenCreateHomeworkLocal(false));
 
   const examId = useMemo(() => {
     const v = Number(searchParams.get("examId"));
