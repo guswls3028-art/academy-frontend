@@ -3,6 +3,7 @@ import { useAdminExam } from "../hooks/useAdminExam";
 
 import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
+import { EmptyState } from "@/shared/ui/ds";
 
 import ExamSetupPanel from "../panels/setup/ExamSetupPanel";
 import ExamAssetsPanel from "../panels/ExamAssetsPanel";
@@ -22,8 +23,8 @@ export default function AdminExamDetail({ examId, mode = "design" }: Props) {
     "setup"
   );
 
-  if (isLoading) return <div>Loading...</div>;
-  if (!exam) return <div>시험 없음</div>;
+  if (isLoading) return <EmptyState scope="panel" tone="loading" title="시험 정보 불러오는 중…" />;
+  if (!exam) return <EmptyState scope="panel" tone="error" title="시험을 불러오지 못했습니다." />;
 
   return (
     <div className="space-y-6">
