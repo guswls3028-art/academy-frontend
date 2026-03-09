@@ -155,7 +155,7 @@
   word-break: break-word;
 }
 
-/* 블록 버튼 (좌측) */
+/* 블록 버튼 (좌측) — 레거시, 현재는 우측 본문 패널에서 사용 */
 .template-editor__block-btn {
   border: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface);
@@ -165,6 +165,86 @@
 .template-editor__block-btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
   border-color: var(--color-primary);
+}
+
+/* ----- 본문 2패널: 좌측 입력 | 우측 삽입 블록 ----- */
+.template-editor__body-row {
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: var(--color-bg-surface);
+  padding: 12px;
+}
+
+.template-editor__body-input .template-editor__textarea {
+  flex: 1;
+  min-height: 260px;
+}
+
+.template-editor__body-blocks {
+  border-left: 1px solid var(--color-border-divider);
+  padding-left: 12px;
+}
+
+.template-editor__block-list {
+  min-height: 200px;
+}
+
+/* 삽입 블록 태그 — 색상·태그 스타일 */
+.template-editor__block-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.template-editor__block-tag:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.template-editor__block-tag:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 카테고리별 톤 + n0/n1/n2로 3가지 색 교차 */
+.template-editor__block-tag--default.template-editor__block-tag--n0,
+.template-editor__block-tag--lecture.template-editor__block-tag--n0,
+.template-editor__block-tag--clinic.template-editor__block-tag--n0 {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-bg-surface));
+  color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+.template-editor__block-tag--default.template-editor__block-tag--n1,
+.template-editor__block-tag--lecture.template-editor__block-tag--n1 {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
+  color: var(--color-success, #16a34a);
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, transparent);
+}
+.template-editor__block-tag--default.template-editor__block-tag--n2 {
+  background: color-mix(in srgb, var(--color-warning, #eab308) 14%, var(--color-bg-surface));
+  color: var(--color-warning, #ca8a04);
+  border-color: color-mix(in srgb, var(--color-warning, #eab308) 35%, transparent);
+}
+.template-editor__block-tag--lecture.template-editor__block-tag--n2 {
+  background: color-mix(in srgb, #0ea5e9 14%, var(--color-bg-surface));
+  color: #0284c7;
+  border-color: color-mix(in srgb, #0ea5e9 35%, transparent);
+}
+.template-editor__block-tag--clinic.template-editor__block-tag--n1 {
+  background: color-mix(in srgb, #f97316 14%, var(--color-bg-surface));
+  color: #ea580c;
+  border-color: color-mix(in srgb, #f97316 35%, transparent);
+}
+.template-editor__block-tag--clinic.template-editor__block-tag--n2 {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 14%, var(--color-bg-surface));
+  color: var(--color-success, #16a34a);
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, transparent);
 }
 
 /* 제목(알림톡) 슬롯 — 탭 전환 시 높이 고정 */
@@ -178,7 +258,35 @@
   pointer-events: none;
 }
 
-/* 모달 내 메시지|알림톡 탭 — 디자인 토큰, 다크 테마 가독성 */
+/* 모달 내 메시지|알림톡 탭 — 디자인 토큰, 다크 테마 가독성 (ds-tabs 사용) */
+.template-editor__tabs .ds-tabs {
+  display: flex;
+  gap: var(--space-1, 4px);
+  margin-bottom: 12px;
+}
+
+.template-editor__tabs--top .ds-tabs {
+  margin-bottom: 8px;
+}
+
+.template-editor__tabs .ds-tab {
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-radius: 8px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.template-editor__tabs .ds-tab:hover:not(.is-active):not(:disabled) {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.template-editor__tabs .ds-tab.is-active {
+  color: var(--color-primary);
+}
+
 .template-editor__tabs.ant-tabs {
   display: block;
 }
