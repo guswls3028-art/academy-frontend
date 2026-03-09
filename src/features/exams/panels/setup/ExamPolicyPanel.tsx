@@ -21,7 +21,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
 
   const [passScore, setPassScore] = useState<number | "">("");
   const [savedScore, setSavedScore] = useState<number | "">("");
-  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
     if (!exam) return;
@@ -29,7 +28,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     const value = Number.isFinite(ps) && ps > 0 ? ps : "";
     setPassScore(value);
     setSavedScore(value);
-    setIsActive(Boolean(exam.is_active));
   }, [exam?.id]);
 
   const isDirty = useMemo(
@@ -40,10 +38,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const numericPassScore = typeof passScore === "number" ? passScore : 0;
 
   const patchMut = useMutation({
-    mutationFn: (payload: {
-      pass_score: number;
-      is_active: boolean;
-    }) => updateAdminExam(examId, payload),
+    mutationFn: (payload: { pass_score: number }) => updateAdminExam(examId, payload),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["admin-exam", examId] });
       feedback.success("저장되었습니다.");
@@ -65,7 +60,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     try {
       await patchMut.mutateAsync({
         pass_score: numericPassScore,
-        is_active: isActive,
       });
       setSavedScore(passScore);
     } catch {
@@ -73,21 +67,12 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     }
   };
 
-  const toggleActive = async () => {
-    const next = !isActive;
-    setIsActive(next);
-    await patchMut.mutateAsync({
-      pass_score: numericPassScore,
-      is_active: next,
-    });
-  };
-
   return (
     <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
       <div className="border-b border-[var(--border-divider)] px-4 py-3">
         <div className="text-sm font-semibold text-[var(--text-primary)]">시험 정책</div>
         <div className="mt-0.5 text-xs text-[var(--text-muted)]">
-          커트라인과 시험 진행 상태를 설정합니다
+          커트라인을 설정합니다
         </div>
       </div>
 
@@ -124,16 +109,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
             disabled={!isDirty || patchMut.isPending}
           >
             저장
-          </Button>
-
-          <Button
-            type="button"
-            intent={isActive ? "secondary" : "danger"}
-            size="md"
-            onClick={toggleActive}
-            disabled={patchMut.isPending}
-          >
-            {isActive ? "진행중" : "종료"}
           </Button>
         </div>
 
