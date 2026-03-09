@@ -333,24 +333,15 @@ export default function AnswerKeyRegisterModal({
           {activeTab === "answer" && (
             <>
             <div className="answer-key-two-panels">
-              {/* 좌측: 선택형 — 제목 버튼 클릭 시 문항 수 변경 */}
+              {/* 좌측: 선택형 — 문항 수 메뉴 상시 표시 */}
               <div className="answer-key-panel answer-key-panel--choice">
                 <div className="answer-key-section-header">
-                  <button
-                    type="button"
-                    className="answer-key-section-btn"
-                    onClick={() => {
-                      setChoiceEditorOpen((v) => !v);
-                      if (!choiceEditorOpen) setChoiceCountInput(choiceCount);
-                      if (essayEditorOpen) setEssayEditorOpen(false);
-                    }}
-                    aria-expanded={choiceEditorOpen}
-                  >
+                  <div className="answer-key-section-btn answer-key-section-btn--label-only">
                     <span className="answer-key-section-btn__title">선택형 ({choiceTotalScore}점)</span>
                     <span className="answer-key-section-badge" aria-label="문항 수">
                       {choiceQuestions.length}문항
                     </span>
-                  </button>
+                  </div>
                   <button
                     type="button"
                     className="answer-key-section-reset-btn"
@@ -370,77 +361,100 @@ export default function AnswerKeyRegisterModal({
                     <ResetIcon />
                   </button>
                 </div>
-                {choiceEditorOpen && (
-                  <div className="answer-key-inline-editor">
+                <div className="answer-key-inline-editor">
+                  <label className="answer-key-field">
+                    <span className="answer-key-field__label">문항 수</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={choiceCountInput === "" ? "" : choiceCountInput}
+                      onChange={(e) =>
+                        setChoiceCountInput(e.target.value === "" ? "" : Number(e.target.value))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          setChoiceCount(choiceCountInput);
+                        }
+                      }}
+                      placeholder="예: 20"
+                      className="ds-input"
+                      style={{ width: 100 }}
+                    />
+                  </label>
+                  <div className="answer-key-field">
+                    <span className="answer-key-field__label">자동점수 부여</span>
+                    <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
+                      <button
+                        type="button"
+                        className={`answer-key-toggle-btn ${choiceAutoScore ? "is-active" : ""}`}
+                        onClick={() => setChoiceAutoScore(true)}
+                      >
+                        사용
+                      </button>
+                      <button
+                        type="button"
+                        className={`answer-key-toggle-btn ${!choiceAutoScore ? "is-active" : ""}`}
+                        onClick={() => setChoiceAutoScore(false)}
+                      >
+                        미사용
+                      </button>
+                    </div>
+                  </div>
+                  {choiceAutoScore && (
                     <label className="answer-key-field">
-                      <span className="answer-key-field__label">문항 수</span>
+                      <span className="answer-key-field__label">총점</span>
                       <input
                         type="number"
                         min={0}
                         step={1}
-                        value={choiceCountInput === "" ? "" : choiceCountInput}
+                        value={choiceTotalInput === "" ? "" : choiceTotalInput}
                         onChange={(e) =>
-                          setChoiceCountInput(e.target.value === "" ? "" : Number(e.target.value))
+                          setChoiceTotalInput(e.target.value === "" ? "" : Number(e.target.value))
                         }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            setChoiceCount(choiceCountInput);
-                          }
-                        }}
-                        placeholder="예: 20"
+                        placeholder="예: 80"
                         className="ds-input"
-                        style={{ width: 100 }}
+                        style={{ width: 80 }}
                       />
                     </label>
-                    <div className="answer-key-field">
-                      <span className="answer-key-field__label">자동점수 부여</span>
-                      <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
-                        <button
-                          type="button"
-                          className={`answer-key-toggle-btn ${choiceAutoScore ? "is-active" : ""}`}
-                          onClick={() => setChoiceAutoScore(true)}
-                        >
-                          사용
-                        </button>
-                        <button
-                          type="button"
-                          className={`answer-key-toggle-btn ${!choiceAutoScore ? "is-active" : ""}`}
-                          onClick={() => setChoiceAutoScore(false)}
-                        >
-                          미사용
-                        </button>
-                      </div>
-                    </div>
-                    {choiceAutoScore && (
-                      <label className="answer-key-field">
-                        <span className="answer-key-field__label">총점</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={choiceTotalInput === "" ? "" : choiceTotalInput}
-                          onChange={(e) =>
-                            setChoiceTotalInput(e.target.value === "" ? "" : Number(e.target.value))
-                          }
-                          placeholder="예: 80"
-                          className="ds-input"
-                          style={{ width: 80 }}
-                        />
-                      </label>
-                    )}
-                    <Button
-                      type="button"
-                      intent="primary"
-                      size="sm"
-                      onClick={() => handleApply("choice")}
-                      disabled={initMut.isPending}
-                      loading={initMut.isPending}
-                    >
-                      적용
-                    </Button>
-                  </div>
-                )}
+                  )}
+                  <Button
+                    type="button"
+                    intent="primary"
+                    size="sm"
+                    onClick={() => handleApply("choice")}
+                    disabled={initMut.isPending}
+                    loading={initMut.isPending}
+                  >
+                    적용
+                  </Button>
+                  <button
+                    type="button"
+                    className="answer-key-section-reset-btn answer-key-section-reset-btn--refresh"
+                    onClick={() => {
+                      setDraft((prev) => {
+                        const next = { ...prev };
+                        choiceQuestions.forEach((q) => {
+                          next[String(q.id)] = "";
+                        });
+                        return next;
+                      });
+                      setScoreDraft((prev) => {
+                        const next = { ...prev };
+                        choiceQuestions.forEach((q) => {
+                          next[q.id] = 0;
+                        });
+                        return next;
+                      });
+                      feedback.info("선택형 답안·배점이 초기화되었습니다.");
+                    }}
+                    aria-label="선택형 초기화 (답안·배점)"
+                    title="선택형 답안·배점 전부 초기화"
+                  >
+                    <RefreshIcon />
+                  </button>
+                </div>
                 <ul className="answer-key-list answer-key-list--choice-scroll">
                   {choiceQuestions.map((q, index) => (
                     <ChoiceRow
@@ -485,94 +499,110 @@ export default function AnswerKeyRegisterModal({
                 </div>
               </div>
 
-              {/* 우측: 서술형 — 제목 버튼 클릭 시 문항 수 변경 */}
+              {/* 우측: 서술형 — 문항 수 메뉴 상시 표시 */}
               <div className="answer-key-panel answer-key-panel--essay">
-                <button
-                  type="button"
-                  className="answer-key-section-btn"
-                    onClick={() => {
-                      setEssayEditorOpen((v) => !v);
-                      if (!essayEditorOpen) setEssayCountInput(essayCount);
-                      if (choiceEditorOpen) setChoiceEditorOpen(false);
-                    }}
-                  aria-expanded={essayEditorOpen}
-                >
-                  <span className="answer-key-section-btn__title">서술형 ({essayTotalScore}점)</span>
-                  <span className="answer-key-section-badge" aria-label="문항 수">
-                    {essayQuestions.length}문항
-                  </span>
-                </button>
-                {essayEditorOpen && (
-                  <div className="answer-key-inline-editor">
+                <div className="answer-key-section-header">
+                  <div className="answer-key-section-btn answer-key-section-btn--label-only">
+                    <span className="answer-key-section-btn__title">서술형 ({essayTotalScore}점)</span>
+                    <span className="answer-key-section-badge" aria-label="문항 수">
+                      {essayQuestions.length}문항
+                    </span>
+                  </div>
+                </div>
+                <div className="answer-key-inline-editor">
+                  <label className="answer-key-field">
+                    <span className="answer-key-field__label">문항 수</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={essayCountInput === "" ? "" : essayCountInput}
+                      onChange={(e) =>
+                        setEssayCountInput(e.target.value === "" ? "" : Number(e.target.value))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          setEssayCount(essayCountInput);
+                        }
+                      }}
+                      placeholder="예: 1"
+                      className="ds-input"
+                      style={{ width: 100 }}
+                    />
+                  </label>
+                  <div className="answer-key-field">
+                    <span className="answer-key-field__label">자동점수 부여</span>
+                    <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
+                      <button
+                        type="button"
+                        className={`answer-key-toggle-btn ${essayAutoScore ? "is-active" : ""}`}
+                        onClick={() => setEssayAutoScore(true)}
+                      >
+                        사용
+                      </button>
+                      <button
+                        type="button"
+                        className={`answer-key-toggle-btn ${!essayAutoScore ? "is-active" : ""}`}
+                        onClick={() => setEssayAutoScore(false)}
+                      >
+                        미사용
+                      </button>
+                    </div>
+                  </div>
+                  {essayAutoScore && (
                     <label className="answer-key-field">
-                      <span className="answer-key-field__label">문항 수</span>
+                      <span className="answer-key-field__label">총점</span>
                       <input
                         type="number"
                         min={0}
                         step={1}
-                        value={essayCountInput === "" ? "" : essayCountInput}
+                        value={essayTotalInput === "" ? "" : essayTotalInput}
                         onChange={(e) =>
-                          setEssayCountInput(e.target.value === "" ? "" : Number(e.target.value))
+                          setEssayTotalInput(e.target.value === "" ? "" : Number(e.target.value))
                         }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            setEssayCount(essayCountInput);
-                          }
-                        }}
-                        placeholder="예: 1"
+                        placeholder="예: 50"
                         className="ds-input"
-                        style={{ width: 100 }}
+                        style={{ width: 80 }}
                       />
                     </label>
-                    <div className="answer-key-field">
-                      <span className="answer-key-field__label">자동점수 부여</span>
-                      <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
-                        <button
-                          type="button"
-                          className={`answer-key-toggle-btn ${essayAutoScore ? "is-active" : ""}`}
-                          onClick={() => setEssayAutoScore(true)}
-                        >
-                          사용
-                        </button>
-                        <button
-                          type="button"
-                          className={`answer-key-toggle-btn ${!essayAutoScore ? "is-active" : ""}`}
-                          onClick={() => setEssayAutoScore(false)}
-                        >
-                          미사용
-                        </button>
-                      </div>
-                    </div>
-                    {essayAutoScore && (
-                      <label className="answer-key-field">
-                        <span className="answer-key-field__label">총점</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={essayTotalInput === "" ? "" : essayTotalInput}
-                          onChange={(e) =>
-                            setEssayTotalInput(e.target.value === "" ? "" : Number(e.target.value))
-                          }
-                          placeholder="예: 50"
-                          className="ds-input"
-                          style={{ width: 80 }}
-                        />
-                      </label>
-                    )}
-                    <Button
-                      type="button"
-                      intent="primary"
-                      size="sm"
-                      onClick={() => handleApply("essay")}
-                      disabled={initMut.isPending}
-                      loading={initMut.isPending}
-                    >
-                      적용
-                    </Button>
-                  </div>
-                )}
+                  )}
+                  <Button
+                    type="button"
+                    intent="primary"
+                    size="sm"
+                    onClick={() => handleApply("essay")}
+                    disabled={initMut.isPending}
+                    loading={initMut.isPending}
+                  >
+                    적용
+                  </Button>
+                  <button
+                    type="button"
+                    className="answer-key-section-reset-btn answer-key-section-reset-btn--refresh"
+                    onClick={() => {
+                      setDraft((prev) => {
+                        const next = { ...prev };
+                        essayQuestions.forEach((q) => {
+                          next[String(q.id)] = "";
+                        });
+                        return next;
+                      });
+                      setScoreDraft((prev) => {
+                        const next = { ...prev };
+                        essayQuestions.forEach((q) => {
+                          next[q.id] = 0;
+                        });
+                        return next;
+                      });
+                      feedback.info("서술형 답안·배점이 초기화되었습니다.");
+                    }}
+                    aria-label="서술형 초기화 (답안·배점)"
+                    title="서술형 답안·배점 전부 초기화"
+                  >
+                    <RefreshIcon />
+                  </button>
+                </div>
                 <ul className="answer-key-list answer-key-list--essay-scroll">
                   {essayQuestions.map((q, index) => (
                     <EssayRow
@@ -784,6 +814,15 @@ function ResetIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
       <path d="M3 3v5h5" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M23 4v6h-6" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
     </svg>
   );
 }
