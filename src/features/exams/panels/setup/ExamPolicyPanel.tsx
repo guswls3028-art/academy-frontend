@@ -95,7 +95,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-[var(--color-text-secondary)]">
-                정규 시험을 템플릿으로 저장하면 답안키/문항 자산을 템플릿 기준으로 관리할 수 있습니다.
+                시험을 템플릿으로 저장하면 다른 강의에서 같은 시험을 불러올 수 있습니다.
               </div>
               <Button
                 type="button"
@@ -109,7 +109,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
             </div>
             {answerKeyDisabled && (
               <div className="mt-2 text-xs text-[var(--color-text-muted)]">
-                답안키 등록은 먼저 “템플릿으로 저장”을 한 뒤 가능합니다.
+                답안키/문항 관리는 템플릿에서 진행합니다.
               </div>
             )}
           </div>
