@@ -133,6 +133,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           onClose={() => setAnswerModalOpen(false)}
           examId={examId}
           structureOwnerId={exam.id}
+          canEditQuestions={exam.exam_type === "template"}
         />
       </div>
     </section>

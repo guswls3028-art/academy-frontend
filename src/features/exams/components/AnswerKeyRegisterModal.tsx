@@ -24,6 +24,8 @@ type Props = {
   onClose: () => void;
   examId: number;
   structureOwnerId: number;
+  /** false면 문항/배점 PATCH 생략(regular 시험에서 403 방지). 정답만 저장됨. */
+  canEditQuestions?: boolean;
 };
 
 const CHOICES = ["1", "2", "3", "4", "5"];
@@ -53,6 +55,7 @@ export default function AnswerKeyRegisterModal({
   onClose,
   examId,
   structureOwnerId,
+  canEditQuestions = true,
 }: Props) {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<"answer" | "image">("answer");
@@ -226,10 +229,12 @@ export default function AnswerKeyRegisterModal({
         });
       }
       setScoreDraft((prev) => ({ ...prev, ...nextScoreDraft }));
-      for (const q of sorted) {
-        const score = nextScoreDraft[q.id];
-        if (score !== undefined && Number.isFinite(score)) {
-          await patchQuestionScore({ questionId: q.id, score });
+      if (canEditQuestions) {
+        for (const q of sorted) {
+          const score = nextScoreDraft[q.id];
+          if (score !== undefined && Number.isFinite(score)) {
+            await patchQuestionScore({ questionId: q.id, score });
+          }
         }
       }
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
@@ -290,14 +295,18 @@ export default function AnswerKeyRegisterModal({
         await updateAnswerKey(answerKey.id, { answers: normalized });
       }
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
-      for (const q of sortedQuestions) {
-        const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
-        if (Number.isFinite(nextScore) && nextScore !== (q.score ?? 0)) {
-          await patchQuestionScore({ questionId: q.id, score: nextScore });
+      if (canEditQuestions) {
+        for (const q of sortedQuestions) {
+          const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
+          if (Number.isFinite(nextScore) && nextScore !== (q.score ?? 0)) {
+            await patchQuestionScore({ questionId: q.id, score: nextScore });
+          }
         }
+        await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
       }
-      await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
-      feedback.success("저장되었습니다.");
+      feedback.success(
+        canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
+      );
     } catch (e: any) {
       feedback.error(e?.response?.data?.detail ?? "저장 실패");
     } finally {
@@ -310,7 +319,15 @@ export default function AnswerKeyRegisterModal({
   const hasQuestions = questions.length > 0;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.answerKey}>
+    <AdminModal
+      open
+      onClose={onClose}
+      type="action"
+      width={MODAL_WIDTH.answerKey}
+      onEnterConfirm={
+        activeTab === "answer" && hasQuestions && !saveBusy ? handleSave : undefined
+      }
+    >
       <ModalHeader
         type="action"
         title={
@@ -731,6 +748,7 @@ function ChoiceRow({
     }
     if (e.key === "ArrowDown" || e.key === "Enter") {
       e.preventDefault();
+      e.stopPropagation();
       const value = draft || CHOICES[0];
       onMoveToNextRow?.(value);
       return;
@@ -828,6 +846,7 @@ function EssayRow({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
+      e.stopPropagation();
       onMoveToNextRow?.();
       return;
     }
