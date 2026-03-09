@@ -168,23 +168,6 @@ export default function AnswerKeyRegisterModal({
           ]}
           onChange={(key) => setActiveTab(key as "answer" | "image")}
         />
-        <div className="answer-key-toolbar">
-          <div className="ds-action-bar" data-align="left">
-            <Button type="button" intent="ghost" size="sm">
-              ① 연속된 번호
-            </Button>
-            <Button type="button" intent="ghost" size="sm">
-              분리된 번호
-            </Button>
-            <Button type="button" intent="ghost" size="sm">
-              답안만
-            </Button>
-            <Button type="button" intent="ghost" size="sm">
-              유형도 입력
-            </Button>
-          </div>
-          <Button type="button" intent="ghost" size="sm" iconOnly leftIcon={<DownloadIcon />} aria-label="다운로드" />
-        </div>
       </div>
 
       <ModalBody>
@@ -302,9 +285,6 @@ export default function AnswerKeyRegisterModal({
                   <button type="button" className="answer-key-link">
                     엑셀로 답안 업로드
                   </button>
-                  <Button type="button" intent="ghost" size="sm">
-                    양식
-                  </Button>
                 </div>
               </div>
 

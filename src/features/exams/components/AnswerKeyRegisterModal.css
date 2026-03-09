@@ -1,4 +1,4 @@
-/* 답안 등록 모달 — 2번 예시 레이아웃. 디자인 시스템 토큰 사용. */
+/* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. */
 
 .answer-key-toolbar {
   display: flex;
@@ -11,36 +11,36 @@
 
 .answer-key-panel {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.answer-key-layout {
+/* 좌우 2패널: 좌측 객관식 | 우측 주관식 */
+.answer-key-two-panels {
   display: grid;
-  grid-template-columns: 1fr 200px;
-  gap: var(--space-6);
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
   align-items: start;
 }
 
 @media (max-width: 720px) {
-  .answer-key-layout {
+  .answer-key-two-panels {
     grid-template-columns: 1fr;
   }
 }
 
-.answer-key-main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
+.answer-key-panel--choice,
+.answer-key-panel--essay {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  padding: var(--space-4);
 }
 
-.answer-key-section {
+.answer-key-section--full {
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--color-border-divider);
-}
-
-.answer-key-section:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
 }
 
 .answer-key-section .ds-section__title {
@@ -54,8 +54,7 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-primary);
-  margin-bottom: var(--space-3);
-  margin-top: 0;
+  margin: 0 0 var(--space-3);
 }
 
 .answer-key-structure {
@@ -105,9 +104,6 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
   overflow: hidden;
 }
 
@@ -115,7 +111,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border-divider);
   font-size: 13px;
 }
@@ -132,30 +128,21 @@
   text-align: right;
 }
 
-.answer-key-row__radios {
+/* 한국식 OMR — 작고 세로로 긴 버블 (exam-omr-bubble은 modal.css SSOT) */
+.answer-key-row__bubbles {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-}
-
-.answer-key-radio {
-  display: inline-flex;
-  align-items: center;
   gap: var(--space-1);
-  cursor: pointer;
-  font-weight: 500;
-  color: var(--color-text-primary);
 }
 
-.answer-key-radio__input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--color-brand-primary);
+.answer-key-omr-label {
+  display: inline-flex;
   cursor: pointer;
+  margin: 0;
 }
 
-.answer-key-radio__label {
-  font-size: 13px;
+.answer-key-omr-label .exam-omr-bubble {
+  pointer-events: none;
 }
 
 .answer-key-row__score {
@@ -172,7 +159,7 @@
 .answer-key-row__input-wrap {
   flex: 1;
   min-width: 0;
-  max-width: 220px;
+  max-width: 100%;
 }
 
 .answer-key-row__input {
@@ -198,60 +185,6 @@
 
 .answer-key-link:hover {
   text-decoration: underline;
-}
-
-/* 사이드바 */
-.answer-key-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-border-divider) 5%, var(--color-modal-bg));
-  position: sticky;
-  top: var(--space-4);
-}
-
-.answer-key-sidebar__btn {
-  width: 100%;
-}
-
-.answer-key-drag-zone {
-  padding: var(--space-4);
-  border: 2px dashed var(--color-border-divider);
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-align: center;
-  background: var(--color-bg-surface-soft);
-}
-
-.answer-key-sidebar__summary {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.answer-key-sidebar__total {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--color-text-primary);
-  margin: 0;
-  letter-spacing: -0.02em;
-}
-
-.answer-key-sidebar__actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin-top: var(--space-2);
-}
-
-.answer-key-sidebar__actions .ds-button {
-  justify-content: flex-start;
 }
 
 .answer-key-footer-hint {
