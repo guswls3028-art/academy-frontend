@@ -1,5 +1,5 @@
 // PATH: src/features/students/components/DeleteConfirmModal.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_DEFAULT_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { deleteStudent } from "../api/students";
@@ -19,19 +19,6 @@ export default function DeleteConfirmModal({
 
   const title = useMemo(() => "학생 삭제", []);
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      if (e.key === "Enter" && !busy) {
-        e.preventDefault();
-        handleDelete();
-      }
-    }
-    if (open) window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, busy]);
-
   async function handleDelete() {
     if (busy) return;
     setBusy(true);
@@ -45,7 +32,7 @@ export default function DeleteConfirmModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="confirm" width={MODAL_DEFAULT_WIDTH}>
+    <AdminModal open={open} onClose={onClose} type="confirm" width={MODAL_DEFAULT_WIDTH} onEnterConfirm={!busy ? handleDelete : undefined}>
       <ModalHeader
         type="confirm"
         title={title}

@@ -8,6 +8,7 @@ import {
   type CommunityScopeParams,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
+import { useModalKeyboard } from "@/shared/ui/modal";
 
 export type NoticeScope = "all" | "lecture" | "session";
 
@@ -83,6 +84,8 @@ export function NoticeAdminCreateModal({
       setIsSubmitting(false);
     }
   };
+
+  useModalKeyboard(true, onClose, canSubmit && !isSubmitting ? handleSubmit : undefined);
 
   return (
     <div

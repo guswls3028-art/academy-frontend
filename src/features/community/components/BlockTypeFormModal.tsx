@@ -55,7 +55,7 @@ export default function BlockTypeFormModal({
   const pending = createMut.isPending || updateMut.isPending;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={420}>
+    <AdminModal open onClose={onClose} type="action" width={420} onEnterConfirm={handleSubmit}>
       <ModalHeader
         type="action"
         title={edit ? "유형 수정" : "유형 추가"}

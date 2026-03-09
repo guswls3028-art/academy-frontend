@@ -20,3 +20,4 @@ export type { ModalDateSectionProps } from "./ModalDateSection";
 export { default as ModalTimeSection } from "./ModalTimeSection";
 export type { ModalTimeSectionProps } from "./ModalTimeSection";
 export { MODAL_DEFAULT_WIDTH, MODAL_WIDTH } from "./constants";
+export { useModalKeyboard } from "./useModalKeyboard";

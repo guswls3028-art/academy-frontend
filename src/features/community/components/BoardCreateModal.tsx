@@ -10,6 +10,7 @@ import {
   type ScopeNodeMinimal,
 } from "../api/community.api";
 import { Button } from "@/shared/ui/ds";
+import { useModalKeyboard } from "@/shared/ui/modal";
 
 interface Props {
   blockTypes: BlockType[];
@@ -75,6 +76,8 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
       setSubmitting(false);
     }
   };
+
+  useModalKeyboard(true, onClose, canSubmit ? handleSubmit : undefined);
 
   return (
     <div
