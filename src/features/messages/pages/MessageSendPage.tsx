@@ -3,7 +3,7 @@
 
 import { useNavigate } from "react-router-dom";
 import { FiAlertCircle, FiCheckCircle, FiSend, FiUsers } from "react-icons/fi";
-import { Button, Panel } from "@/shared/ui/ds";
+import { Button } from "@/shared/ui/ds";
 import { useSendMessageModal } from "../context/SendMessageModalContext";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
 
@@ -192,37 +192,52 @@ export default function MessageSendPage() {
         </div>
       )}
 
-      {/* 발송 패널 */}
-      <Panel
-        variant="primary"
-        title="메시지 발송"
-        description="학생·학부모에게 SMS 또는 알림톡을 발송합니다."
+      {/* 발송 패널 — 발송 방법과 동일한 카드 스타일 */}
+      <div
+        style={{
+          borderRadius: "var(--radius-lg)",
+          padding: "var(--space-5)",
+          border: "1px solid var(--color-border-divider)",
+          background: "var(--color-bg-surface)",
+          fontSize: 14,
+          color: "var(--color-text-secondary)",
+        }}
       >
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            수신자를 선택한 뒤 발송 버튼을 눌러 메시지를 보낼 수 있습니다.
-            학생·강의·출결 페이지에서 수신자를 선택하거나, 아래에서 직접 발송 모달을 열 수 있습니다.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button
-              intent="primary"
-              onClick={() =>
-                openSendMessageModal({ studentIds: [], recipientLabel: "수신자 없음" })
-              }
-            >
-              <FiSend size={14} style={{ marginRight: 6 }} aria-hidden />
-              메시지 발송
-            </Button>
-            <Button
-              intent="secondary"
-              onClick={() => navigate("/admin/students")}
-            >
-              <FiUsers size={14} style={{ marginRight: 6 }} aria-hidden />
-              학생 목록으로 이동
-            </Button>
-          </div>
+        <div
+          style={{
+            fontWeight: 600,
+            color: "var(--color-text-primary)",
+            marginBottom: 10,
+          }}
+        >
+          메시지 발송
         </div>
-      </Panel>
+        <p style={{ marginBottom: 12, lineHeight: 1.6 }}>
+          학생·학부모에게 SMS 또는 알림톡을 발송합니다.
+        </p>
+        <p className="text-sm text-[var(--color-text-secondary)]" style={{ marginBottom: 16, lineHeight: 1.6 }}>
+          수신자를 선택한 뒤 발송 버튼을 눌러 메시지를 보낼 수 있습니다.
+          학생·강의·출결 페이지에서 수신자를 선택하거나, 아래에서 직접 발송 모달을 열 수 있습니다.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            intent="primary"
+            onClick={() =>
+              openSendMessageModal({ studentIds: [], recipientLabel: "수신자 없음" })
+            }
+          >
+            <FiSend size={14} style={{ marginRight: 6 }} aria-hidden />
+            메시지 발송
+          </Button>
+          <Button
+            intent="secondary"
+            onClick={() => navigate("/admin/students")}
+          >
+            <FiUsers size={14} style={{ marginRight: 6 }} aria-hidden />
+            학생 목록으로 이동
+          </Button>
+        </div>
+      </div>
 
       {/* 사용 방법 */}
       <div
