@@ -92,6 +92,7 @@ export default function SessionDetailPage() {
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [openCreateExam, setOpenCreateExam] = useState(false);
+  const [openCreateHomework, setOpenCreateHomework] = useState(false);
 
   const { data: session } = useQuery({
     queryKey: ["session", sId],
@@ -170,7 +171,7 @@ export default function SessionDetailPage() {
         <SessionBlock lectureId={lecId} currentSessionId={sId} />
       )}
 
-      <div className="flex gap-4">
+      <div className="flex items-start gap-4">
         {showAssessmentPanel && (
           <SessionAssessmentSidePanel
             lectureId={lecId}
@@ -178,6 +179,9 @@ export default function SessionDetailPage() {
             openCreateExam={openCreateExam}
             onCloseCreateExam={() => setOpenCreateExam(false)}
             onOpenCreateExam={() => setOpenCreateExam(true)}
+            openCreateHomework={openCreateHomework}
+            onCloseCreateHomework={() => setOpenCreateHomework(false)}
+            onOpenCreateHomework={() => setOpenCreateHomework(true)}
           />
         )}
         <div className="flex-1 min-w-0">
@@ -211,7 +215,11 @@ export default function SessionDetailPage() {
             (homeworkId ? (
               <SessionAssessmentWorkspace mode="homework" />
             ) : (
-              <SessionHomeworkOpsBoard lectureId={lecId} sessionId={sId} />
+              <SessionHomeworkOpsBoard
+                lectureId={lecId}
+                sessionId={sId}
+                onAddHomework={() => setOpenCreateHomework(true)}
+              />
             ))}
 
           {activeTab === "videos" && (

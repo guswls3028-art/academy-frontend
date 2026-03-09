@@ -21,6 +21,10 @@ type Props = {
   openCreateExam?: boolean;
   onCloseCreateExam?: () => void;
   onOpenCreateExam?: () => void;
+  /** 과제 추가 모달 열림(상위 제어). 없으면 내부 state 사용 */
+  openCreateHomework?: boolean;
+  onCloseCreateHomework?: () => void;
+  onOpenCreateHomework?: () => void;
 };
 
 type HomeworkItem = {
@@ -35,6 +39,9 @@ export default function SessionAssessmentSidePanel({
   openCreateExam: openCreateExamProp,
   onCloseCreateExam,
   onOpenCreateExam,
+  openCreateHomework: openCreateHomeworkProp,
+  onCloseCreateHomework: onCloseCreateHomeworkProp,
+  onOpenCreateHomework: onOpenCreateHomeworkProp,
 }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -43,6 +50,11 @@ export default function SessionAssessmentSidePanel({
   const openCreateExam = openCreateExamProp ?? openCreateExamLocal;
   const setOpenCreateExam = onOpenCreateExam ?? (() => setOpenCreateExamLocal(true));
   const handleCloseCreateExam = onCloseCreateExam ?? (() => setOpenCreateExamLocal(false));
+
+  const [openCreateHomeworkLocal, setOpenCreateHomeworkLocal] = useState(false);
+  const openCreateHomework = openCreateHomeworkProp ?? openCreateHomeworkLocal;
+  const setOpenCreateHomework = onOpenCreateHomework ?? (() => setOpenCreateHomeworkLocal(true));
+  const handleCloseCreateHomework = onCloseCreateHomework ?? (() => setOpenCreateHomeworkLocal(false));
 
   const examId = useMemo(() => {
     const v = Number(searchParams.get("examId"));
@@ -90,8 +102,6 @@ export default function SessionAssessmentSidePanel({
     enabled: !!sessionId,
   });
 
-  const [openCreateHomework, setOpenCreateHomework] = useState(false);
-
   const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
 
   const invalidateExams = () =>
@@ -132,15 +142,18 @@ export default function SessionAssessmentSidePanel({
 
   return (
     <aside
-      className="ds-panel flex-shrink-0"
+      className="ds-panel flex-shrink-0 self-start overflow-y-auto"
       style={{
         width: 220,
+        maxHeight: "calc(100vh - 140px)",
         borderRadius: "var(--radius-xl)",
         border: "1px solid var(--color-border-divider)",
         background: "var(--color-bg-surface)",
         padding: "var(--space-4)",
         display: "grid",
         gap: "var(--space-4)",
+        position: "sticky",
+        top: "var(--space-6)",
       }}
     >
       <PanelSection
@@ -170,7 +183,7 @@ export default function SessionAssessmentSidePanel({
 
       <PanelSection
         title="과제"
-        onAdd={() => setOpenCreateHomework(true)}
+        onAdd={setOpenCreateHomework}
       >
         {hwLoading && <Empty>불러오는 중…</Empty>}
         {!hwLoading && homeworks.length === 0 && <Empty>과제 없음</Empty>}
@@ -206,7 +219,7 @@ export default function SessionAssessmentSidePanel({
 
       <CreateHomeworkModal
         open={openCreateHomework}
-        onClose={() => setOpenCreateHomework(false)}
+        onClose={handleCloseCreateHomework}
         sessionId={sessionId}
         onCreated={(id) => {
           invalidateHomeworks();

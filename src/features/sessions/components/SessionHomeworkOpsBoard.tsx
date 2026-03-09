@@ -21,6 +21,8 @@ const HW_LABEL: Record<string, string> = {
 type Props = {
   lectureId: number;
   sessionId: number;
+  /** 메인 영역에서 과제 추가 모달 열기 (좌측 패널과 동일 모달) */
+  onAddHomework?: () => void;
 };
 
 function toCard(item: HomeworkListItem): HomeworkCardData {
@@ -65,7 +67,7 @@ function useHomeworkStatsAndGroups(sessionId: number) {
   return { stats, byStatus, isLoading };
 }
 
-export default function SessionHomeworkOpsBoard({ lectureId, sessionId }: Props) {
+export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHomework }: Props) {
   const navigate = useNavigate();
   const { stats, byStatus, isLoading } = useHomeworkStatsAndGroups(sessionId);
 
@@ -74,6 +76,10 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId }: Props)
   const handleSelect = (id: number) => {
     navigate(`${basePath}?homeworkId=${id}`);
   };
+
+  const hasNoHomeworks =
+    !isLoading &&
+    (byStatus.DRAFT?.length ?? 0) + (byStatus.OPEN?.length ?? 0) + (byStatus.CLOSED?.length ?? 0) === 0;
 
   if (isLoading) {
     return (
