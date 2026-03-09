@@ -469,9 +469,17 @@
   margin-bottom: 0;
 }
 
-/* 2열 그리드: 좌우 섹션 각각 카드, 간격 */
-.clinic-home__row .grid {
+/* 3열 그리드: 오늘 클리닉 | 예약 대상자 | 예약 신청 */
+.clinic-home__row {
+  display: grid;
   gap: var(--space-6);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .clinic-home__row {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .clinic-home__row .clinic-home__section {
@@ -497,20 +505,23 @@
   justify-content: space-between;
   gap: var(--space-4);
   margin-bottom: var(--space-4);
-  padding-left: var(--space-5);
+  padding: var(--space-3) var(--space-4) var(--space-3) calc(var(--space-4) + 4px);
   position: relative;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 15%, var(--color-border-divider));
 }
 .clinic-home__section .clinic-home__header::before {
   content: "";
   position: absolute;
-  left: 0;
+  left: var(--space-2);
   top: 50%;
   transform: translateY(-50%);
-  width: 2px;
-  height: 14px;
-  border-radius: 1px;
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
   background: var(--color-brand-primary);
-  opacity: 0.7;
+  opacity: 0.85;
 }
 .clinic-home__section .clinic-home__title {
   font-size: var(--text-lg);
@@ -533,6 +544,227 @@
   padding: var(--space-6) var(--space-4);
   font-weight: 500;
   color: var(--color-text-muted);
+}
+
+/* 본문 텍스트 — 가독성 */
+.clinic-home__body-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.clinic-home__body-text--muted {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.clinic-home__body-text--error {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-error);
+}
+
+.clinic-home__body-text--alert {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-error);
+}
+
+/* 오늘 클리닉 일정 리스트 — 시간·장소·인원 가독 */
+.clinic-home__schedule-block {
+  margin-top: var(--space-2);
+}
+
+.clinic-home__schedule-block-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-3) 0;
+  letter-spacing: 0.02em;
+}
+
+.clinic-home__schedule-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-home__schedule-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  font-size: 14px;
+}
+
+.clinic-home__schedule-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-home__schedule-item-time {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.clinic-home__schedule-item-location {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-home__schedule-item-meta {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clinic-home__schedule-item-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.clinic-home__schedule-item-detail {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.clinic-home__schedule-item-alert {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+/* 예약 대상자·예약 신청 리스트 */
+.clinic-home__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.clinic-home__list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  font-size: 14px;
+}
+
+.clinic-home__list-item--two-line {
+  align-items: center;
+}
+
+.clinic-home__list-item-primary {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.clinic-home__list-item-secondary {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.clinic-home__list-item-badge {
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.clinic-home__list-item-badge--success {
+  color: var(--color-success);
+}
+
+.clinic-home__list-item-badge--muted {
+  color: var(--color-text-muted);
+}
+
+.clinic-home__action-btn {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.clinic-home__action-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.clinic-home__action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.clinic-home__action-btn--approve {
+  background: var(--color-success);
+  color: white;
+}
+
+.clinic-home__action-btn--reject {
+  background: var(--color-error);
+  color: white;
+}
+
+/* 자동 승인 — 가시성 강화 */
+.clinic-home__auto-approve {
+  display: inline-flex;
+  align-items: center;
+}
+
+.clinic-home__auto-approve-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  padding: var(--space-2) var(--space-4);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.clinic-home__auto-approve-label:hover {
+  background: var(--color-bg-surface-hover);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border-divider));
+}
+
+.clinic-home__auto-approve-checkbox {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-brand-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.clinic-home__auto-approve-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
 }
 
 /* 클리닉 홈 KPI — 대형·가시성 강화 */
