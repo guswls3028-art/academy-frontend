@@ -58,8 +58,8 @@ export type SessionScoreRow = {
 
   updated_at: string;
 
-  /** 클리닉 대상이면서 클리닉 예약 없음 → 이름 셀 노란 배경 */
-  name_highlight_clinic_no_reservation?: boolean;
+  /** 클리닉 대상 + 해당 주차 클리닉 미수강 → 이름만 노란 형광펜. 수강 완료(ATTENDED) 시 false */
+  name_highlight_clinic_target?: boolean;
 };
 
 export type SessionScoreMeta = {

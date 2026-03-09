@@ -676,20 +676,24 @@ export default function ScoresTable({
                 </td>
 
                 <td
-                  className={`font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)] ${row.name_highlight_clinic_no_reservation ? "ds-table-cell-name--clinic-no-reservation" : clinicTarget ? "ds-table-cell-name--clinic-target" : ""}`}
+                  className="font-semibold min-w-0 text-[var(--color-text-primary)] py-2.5 px-3 align-middle border-l-2 border-[var(--color-border-divider)]"
                   onClick={() => onSelectRow(row)}
                 >
-                  <StudentNameWithLectureChip
-                    name={row.student_name ?? ""}
-                    profilePhotoUrl={row.profile_photo_url ?? undefined}
-                    avatarSize={24}
-                    lectures={
-                      row.lecture_title
-                        ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
-                        : undefined
-                    }
-                    chipSize={14}
-                  />
+                  <span
+                    className={`inline-block min-w-0 ${row.name_highlight_clinic_target ? "ds-student-name--clinic-highlight" : ""}`}
+                  >
+                    <StudentNameWithLectureChip
+                      name={row.student_name ?? ""}
+                      profilePhotoUrl={row.profile_photo_url ?? undefined}
+                      avatarSize={24}
+                      lectures={
+                        row.lecture_title
+                          ? [{ lectureName: row.lecture_title, color: row.lecture_color }]
+                          : undefined
+                      }
+                      chipSize={14}
+                    />
+                  </span>
                 </td>
 
                 <td className="text-left py-2.5 px-3 align-middle" onClick={() => onSelectRow(row)}>

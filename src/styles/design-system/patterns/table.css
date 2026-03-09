@@ -311,7 +311,32 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
-/* 클리닉 대상자 이름 셀 — 전역: 이름 컬럼에 보색 배경 (DS --color-brand-complement) */
+/* 클리닉 대상자 — 이름만 노란 형광펜 하이라이트(셀 배경 X). 학생 목록/테이블 공통 */
+.ds-student-name--clinic-highlight {
+  display: inline-block;
+  background: linear-gradient(
+    180deg,
+    transparent 60%,
+    color-mix(in srgb, var(--color-warning, #e6b800) 35%, transparent) 60%
+  );
+  padding-inline: 2px;
+  border-radius: 1px;
+}
+.ds-table tbody tr:hover .ds-student-name--clinic-highlight {
+  background: linear-gradient(
+    180deg,
+    transparent 60%,
+    color-mix(in srgb, var(--color-warning, #e6b800) 45%, transparent) 60%
+  );
+}
+.ds-table tbody tr.ds-scores-table-row--checked .ds-student-name--clinic-highlight {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
+}
+.ds-table tbody tr.ds-scores-table-row--checked:hover .ds-student-name--clinic-highlight {
+  background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface));
+}
+
+/* (레거시) 클리닉 대상자 이름 셀 — 전역: 이름 컬럼에 보색 배경. 사용처는 ds-student-name--clinic-highlight로 이전 */
 .ds-table-cell-name--clinic-target {
   background: color-mix(in srgb, var(--color-brand-complement) 12%, var(--color-bg-surface)) !important;
 }
@@ -325,7 +350,7 @@ table.ds-table {
   background: color-mix(in srgb, var(--color-primary) 18%, var(--color-bg-surface)) !important;
 }
 
-/* 클리닉 대상자이지만 예약 없음 — 이름 셀 노란 배경 (백엔드 name_highlight_clinic_no_reservation) */
+/* (레거시) 클리닉 대상자이지만 예약 없음 — 이름 셀 노란 배경 */
 .ds-table-cell-name--clinic-no-reservation {
   background: color-mix(in srgb, var(--color-warning, #e6b800) 28%, var(--color-bg-surface)) !important;
 }

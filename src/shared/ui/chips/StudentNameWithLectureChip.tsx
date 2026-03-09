@@ -24,6 +24,8 @@ type Props = {
   avatarSize?: number;
   className?: string;
   highlight?: (text: string) => React.ReactNode;
+  /** 클리닉 대상(미수강) 시 이름만 노란 형광펜 하이라이트 — 백엔드 name_highlight_clinic_target */
+  clinicHighlight?: boolean;
 };
 
 const DEFAULT_COLOR = "#3b82f6";
