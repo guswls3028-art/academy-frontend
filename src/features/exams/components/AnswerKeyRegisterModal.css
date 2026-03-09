@@ -24,13 +24,13 @@
   gap: var(--space-2);
 }
 
-/* 좌우 2패널: 좌측 객관식 | 우측 주관식, 높이 제한 — 간격 축소·높이 확대 */
+/* 좌우 2패널: 좌측 객관식 | 우측 주관식, 높이 제한 — 세로 확대 */
 .answer-key-two-panels {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-3);
   align-items: stretch;
-  max-height: min(72vh, 620px);
+  max-height: min(85vh, 760px);
   min-height: 0;
   overflow: hidden;
 }
@@ -94,18 +94,18 @@
   flex-direction: column;
 }
 
-/* 선택형 리스트: 스크롤 없음(첫 페이지에 맞춤) 또는 필요 시 스크롤 — 예시처럼 1~15번 보이게 높이 맞춤 */
+/* 선택형 리스트: 스크롤 없음(첫 페이지에 맞춤) 또는 필요 시 스크롤 — 세로 확대 */
 .answer-key-panel--choice .answer-key-list--choice-scroll {
   overflow-y: auto;
-  max-height: 420px;
+  max-height: 520px;
   min-height: 0;
 }
 
-/* 주관식 영역만 스크롤: 첫 페이지에 1~15번까지 보이게(~15행), 5문항 단위 구분선 */
+/* 주관식 영역만 스크롤: 첫 페이지에 1~15번까지 보이게(~15행), 5문항 단위 구분선, 세로 확대 */
 .answer-key-panel--essay .answer-key-list--essay-scroll {
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: 420px;
+  max-height: 520px;
   min-height: 0;
   flex: 1;
 }
@@ -182,7 +182,7 @@
 .answer-key-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   padding: var(--space-1) 0;
   border-bottom: 1px solid var(--color-border-divider);
   font-size: 13px;
@@ -231,12 +231,12 @@
   white-space: nowrap;
 }
 
-/* 문항별 점수 조절: N점 + [+1][+2][+5][초기화] */
+/* 문항별 점수 조절: N점 + [+1][+2][+5][초기화] — 버블과 점수 사이 여백 축소 */
 .answer-key-row__score-ctrl {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   flex-shrink: 0;
 }
 
