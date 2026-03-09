@@ -239,10 +239,10 @@ function ClinicIdcardColorSettings() {
             <Button
               type="button"
               intent="secondary"
-              size="lg"
+              size="xl"
               onClick={handleRefresh}
               disabled={updateMutation.isPending || isLoading}
-              className="w-full py-4 text-base font-semibold"
+              className="w-full clinic-passcard-refresh-btn"
             >
               🔄 새로고침 — 3색 랜덤 배치 즉시 반영
             </Button>

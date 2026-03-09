@@ -1466,3 +1466,12 @@ details[open] > .clinic-tree__summary {
   width: min(720px, 95vw) !important;
   max-width: 95vw;
 }
+
+/* 패스카드 설정 — 새로고침 버튼 큼지막하게 */
+.clinic-passcard-refresh-btn {
+  min-height: 56px !important;
+  padding: 16px 24px !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+}
