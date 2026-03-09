@@ -1475,3 +1475,33 @@ details[open] > .clinic-tree__summary {
   font-weight: 700 !important;
   letter-spacing: -0.02em;
 }
+
+/* 대시보드 클리닉 패스카드 모달 — 새로고침 아이콘 큼지막하게 */
+.clinic-passcard-refresh-btn-dashboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 24px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
+  border: 2px solid color-mix(in srgb, var(--color-brand-primary) 35%, var(--color-border-divider));
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.clinic-passcard-refresh-btn-dashboard:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-brand-primary) 18%, var(--color-bg-surface));
+  border-color: var(--color-brand-primary);
+}
+
+.clinic-passcard-refresh-btn-dashboard:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
