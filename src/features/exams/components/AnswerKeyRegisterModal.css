@@ -1,14 +1,5 @@
 /* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. */
 
-.answer-key-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  margin-top: var(--space-2);
-}
-
 .answer-key-panel {
   min-width: 0;
   display: flex;
