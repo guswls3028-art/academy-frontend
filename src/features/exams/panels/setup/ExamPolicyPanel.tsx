@@ -2,19 +2,16 @@
  * ExamPolicyPanel – FINAL / HUMAN / SAFE
  *
  * - 커트라인 / 진행 상태
- * - 답안키 등록 영역 (AnswerKeyEditor)
- * - 문항선택하기 영역 (문항 수 표시 + 문항 선택 CTA)
+ * - 답안 등록: "답안등록하기" 버튼 → 모달(문항 수·기본 점수·문항 반영 + 정답표)
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { saveExamAsTemplate, updateAdminExam } from "../../api/adminExam";
-import { fetchQuestionsByExam } from "../../api/questionApi";
-import { initExamQuestions } from "../../api/questionInitApi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { AnswerKeyEditor } from "../../components/AnswerKeyEditor";
+import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
 
 export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
@@ -22,6 +19,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
 
   const [passScore, setPassScore] = useState<number | "">("");
   const [savedScore, setSavedScore] = useState<number | "">("");
+  const [answerModalOpen, setAnswerModalOpen] = useState(false);
 
   useEffect(() => {
     if (!exam) return;
@@ -155,19 +153,27 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
 
         <div className="space-y-3">
           <div>
-            <div className="text-sm font-semibold text-[var(--text-primary)]">답안키 등록</div>
+            <div className="text-sm font-semibold text-[var(--text-primary)]">답안 등록</div>
             <div className="mt-0.5 text-xs text-[var(--text-muted)]">
               문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다.
             </div>
           </div>
-          <AnswerKeyEditor
-            examId={examId}
-            createExamId={structureOwnerId}
-            disabled={false}
-          />
+          <Button
+            type="button"
+            intent="secondary"
+            size="sm"
+            onClick={() => setAnswerModalOpen(true)}
+          >
+            답안등록하기
+          </Button>
         </div>
 
-        <QuestionSelectionBlock examId={examId} />
+        <AnswerKeyRegisterModal
+          open={answerModalOpen}
+          onClose={() => setAnswerModalOpen(false)}
+          examId={examId}
+          structureOwnerId={structureOwnerId}
+        />
       </div>
     </section>
   );
