@@ -27,17 +27,27 @@ export default function ClinicTargetTable({
     rows.length > 0 && rows.every((r) => selected.includes(r.enrollment_id));
 
   return (
-    <div className="clinic-panel overflow-hidden flex flex-col min-h-0">
-      <div className="clinic-panel__header">
-        <h2 className="clinic-panel__title">예약 대상자</h2>
+    <div className="ds-card-modal clinic-panel overflow-hidden flex flex-col min-h-0">
+      <div className="ds-card-modal__header flex items-center justify-between">
+        <div className="ds-card-modal__accent" aria-hidden />
+        <div className="ds-card-modal__header-inner">
+          <h2 className="ds-card-modal__header-title">예약 대상자</h2>
+          <p className="ds-card-modal__header-description">이름·ID 검색</p>
+        </div>
+        <div className="ds-card-modal__header-right">
+          <span className="text-xs font-semibold text-[var(--color-text-muted)]">
+            {selected.length}명
+          </span>
+        </div>
+      </div>
+      <div className="ds-card-modal__body flex flex-col flex-1 min-h-0 border-t border-[var(--color-border-divider)]">
         <Input
           placeholder="이름·ID 검색"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="mt-3 bg-[var(--color-bg-surface)] border-[var(--color-border-divider)] rounded-lg"
+          className="mb-3 bg-[var(--color-bg-surface)] border-[var(--color-border-divider)] rounded-lg"
         />
-      </div>
-      <div className="px-5 py-3 flex items-center justify-between text-xs border-t border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] shrink-0">
+        <div className="px-3 py-2 flex items-center justify-between text-xs border border-[var(--color-border-divider)] rounded-lg bg-[var(--color-bg-surface-soft)] shrink-0 mb-3">
         <Checkbox
           checked={allChecked}
           onChange={() =>

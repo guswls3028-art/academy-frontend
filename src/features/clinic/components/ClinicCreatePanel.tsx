@@ -2,7 +2,7 @@
 // 클리닉 생성 — 차시 추가 모달과 똑같은 DatePicker·TimeRangeInput만 사용 (같은 컴포넌트·같은 props, 직접선택 행 없음)
 
 import { useEffect, useMemo, useState } from "react";
-import { Input, Checkbox, App, Popover } from "antd";
+import { Input, App, Popover } from "antd";
 import dayjs from "dayjs";
 import { Save, FolderOpen, Trash2 } from "lucide-react";
 
@@ -11,9 +11,6 @@ import { TimeRangeInput } from "@/shared/ui/time";
 import { Button } from "@/shared/ui/ds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { useClinicTargets } from "../hooks/useClinicTargets";
-import { useClinicStudentSearch } from "../hooks/useClinicStudentSearch";
-import { fetchClinicStudentsDefault } from "../api/clinicStudents.api";
 import { fetchClinicSessionTree } from "../api/clinicSessions.api";
 import ClinicTargetSelectModal, { type ClinicTargetSelectResult } from "./ClinicTargetSelectModal";
 
@@ -121,7 +118,7 @@ export default function ClinicCreatePanel({
   }, [date]);
 
   const [mode, setMode] = useState<"targets" | "students">(defaultMode);
-  const [keyword, setKeyword] = useState("");
+  const [targetModalOpen, setTargetModalOpen] = useState(false);
 
   const [internalSelected, setInternalSelected] = useState<number[]>([]);
   const selected =
@@ -139,6 +136,15 @@ export default function ClinicCreatePanel({
     setInternalSelected(resolved);
   };
 
+  const handleTargetModalConfirm = (result: ClinicTargetSelectResult) => {
+    setMode(result.mode);
+    if (result.mode === "targets" && onChangeSelectedTargetEnrollmentIds) {
+      onChangeSelectedTargetEnrollmentIds(result.ids);
+    } else {
+      setInternalSelected(result.ids);
+    }
+  };
+
   const [timeRange, setTimeRange] = useState("");
   const [room, setRoom] = useState("");
   const [memo, setMemo] = useState("");
@@ -147,50 +153,6 @@ export default function ClinicCreatePanel({
   const [savedLocations, setSavedLocations] = useState<string[]>(() => getSavedLocations());
   const [loadPopoverOpen, setLoadPopoverOpen] = useState(false);
   const [addLocationInput, setAddLocationInput] = useState("");
-
-  const targetsQ = useClinicTargets();
-  const studentsSearchQ = useClinicStudentSearch(keyword);
-
-  const studentsDefaultQ = useQuery({
-    queryKey: ["clinic-students-default"],
-    queryFn: fetchClinicStudentsDefault,
-    enabled: mode === "students" && keyword.trim().length < 2,
-    staleTime: 10_000,
-    retry: 0,
-  });
-
-  const rows = useMemo(() => {
-    if (mode === "targets") {
-      const arr = (targetsQ.data ?? []) as TargetRow[];
-      if (!keyword.trim()) return arr;
-      return arr.filter((t) =>
-        (t.student_name || "").includes(keyword.trim())
-      );
-    }
-    if (keyword.trim().length >= 2)
-      return (studentsSearchQ.data ?? []) as StudentRow[];
-    return (studentsDefaultQ.data ?? []) as StudentRow[];
-  }, [
-    mode,
-    targetsQ.data,
-    keyword,
-    studentsSearchQ.data,
-    studentsDefaultQ.data,
-  ]);
-
-  const allChecked = rows.length > 0 && selected.length === rows.length;
-
-  const toggleAll = () => {
-    if (allChecked) {
-      setSelected([]);
-      return;
-    }
-    if (mode === "targets") {
-      setSelected((rows as TargetRow[]).map((r) => r.enrollment_id));
-    } else {
-      setSelected((rows as StudentRow[]).map((r) => r.id));
-    }
-  };
 
   const createSessionM = useMutation({
     mutationFn: async (payload: {

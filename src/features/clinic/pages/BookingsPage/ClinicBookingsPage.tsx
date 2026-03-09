@@ -80,16 +80,22 @@ export default function ClinicBookingsPage() {
   return (
     <div className="clinic-page">
       <div className="clinic-three-panel">
-        {/* 1단: 예약 신청 (승인 대기) — 비었을 땐 예약대상자처럼 좁게 */}
-        <div
-          className={`clinic-three-panel__cell clinic-three-panel__cell--fixed w-full ${hasPending ? "lg:w-[320px]" : "lg:w-[280px]"}`}
-        >
-          <div className="clinic-panel h-full flex flex-col overflow-hidden">
-            <div className="clinic-panel__header">
-              <h2 className="clinic-panel__title">예약 신청 (승인 대기)</h2>
-              <p className="clinic-panel__meta">{pendingList.length}건</p>
+        {/* 1단: 예약 신청 (승인 대기) — 클리닉 생성과 동일 헤더/카드 톤 */}
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[320px]">
+          <div className="ds-card-modal clinic-panel h-full flex flex-col overflow-hidden">
+            <div className="ds-card-modal__header flex items-center justify-between">
+              <div className="ds-card-modal__accent" aria-hidden />
+              <div className="ds-card-modal__header-inner">
+                <h2 className="ds-card-modal__header-title">예약 신청 (승인 대기)</h2>
+                <p className="ds-card-modal__header-description">대기 중인 신청</p>
+              </div>
+              <div className="ds-card-modal__header-right">
+                <span className="text-xs font-semibold text-[var(--color-text-muted)]">
+                  {pendingList.length}건
+                </span>
+              </div>
             </div>
-            <div className="flex-1 min-h-0 overflow-auto border-t border-[var(--color-border-divider)]">
+            <div className="flex-1 min-h-0 overflow-auto border-t border-[var(--color-border-divider)] ds-card-modal__body">
               {pendingQ.listQ.isLoading ? (
                 <div className="ds-section__empty py-10">불러오는 중…</div>
               ) : pendingList.length === 0 ? (
@@ -133,8 +139,8 @@ export default function ClinicBookingsPage() {
           </div>
         </div>
 
-        {/* 2단: 예약대상자 */}
-        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[360px]">
+        {/* 2단: 예약대상자 — 1단과 동일 너비·동일 카드/헤더 톤 */}
+        <div className="clinic-three-panel__cell clinic-three-panel__cell--fixed w-full lg:w-[320px]">
           <ClinicTargetTable selected={selected} onChangeSelected={setSelected} />
         </div>
 
