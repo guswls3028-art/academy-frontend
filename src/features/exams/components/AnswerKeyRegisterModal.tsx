@@ -483,10 +483,41 @@ function ChoiceRow({
   onScoreReset: () => void;
   showDividerAfter?: boolean;
 }) {
+  const currentIndex = CHOICES.indexOf(draft);
+  const selectedIndex = currentIndex >= 0 ? currentIndex : 0;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      const next = selectedIndex <= 0 ? CHOICES[0] : CHOICES[selectedIndex - 1];
+      onChange(next);
+      return;
+    }
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      const next =
+        selectedIndex >= CHOICES.length - 1 ? CHOICES[CHOICES.length - 1] : CHOICES[selectedIndex + 1];
+      onChange(next);
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      const next = CHOICES[selectedIndex];
+      if (next) onChange(next);
+      return;
+    }
+  };
+
   return (
     <li className={`answer-key-row answer-key-row--choice ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
       <div className="answer-key-row__num">{question.number}</div>
-      <div className="answer-key-row__bubbles">
+      <div
+        className="answer-key-row__bubbles"
+        role="radiogroup"
+        aria-label={`${question.number}번 정답`}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
         {CHOICES.map((c) => (
           <label key={c} className="answer-key-omr-label">
             <input

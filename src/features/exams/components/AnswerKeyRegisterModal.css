@@ -202,10 +202,10 @@
   border-bottom: none;
 }
 
-/* 5문항 단위 구분선 (5, 10, 15번 다음) */
+/* 5문항 단위 구분선 — 연하고 얇게, 단위별 약간 패딩 */
 .answer-key-row--divider-after {
-  border-bottom: 2px solid var(--color-border-strong, var(--color-border-divider));
-  margin-bottom: var(--space-1);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-divider) 60%, transparent);
+  margin-bottom: var(--space-2);
   padding-bottom: var(--space-2);
 }
 
@@ -222,6 +222,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
+}
+.answer-key-row__bubbles:focus {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .answer-key-omr-label {
