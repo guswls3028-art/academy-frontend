@@ -37,6 +37,8 @@ export type SendMessageModalProps = {
   onClose: () => void;
   /** 호출한 화면에서 넘긴 수신자(학생 ID). 비어 있으면 발송 불가 안내 */
   initialStudentIds?: number[];
+  /** 직원 수신 시 넘긴 직원 ID 목록 */
+  initialStaffIds?: number[];
   /** 수신자 설명 (예: "선택한 학생 3명") */
   recipientLabel?: string;
 };
@@ -47,13 +49,14 @@ export default function SendMessageModal({
   open,
   onClose,
   initialStudentIds = [],
+  initialStaffIds = [],
   recipientLabel,
 }: SendMessageModalProps) {
   const [contentMode, setContentMode] = useState<ContentMode>("free");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개) */
+  /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개). 직원 모드일 때는 사용 안 함 */
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(false);
   /** 발송 유형: SMS·알림톡 둘 다 선택 가능 (최소 1개). 선택한 각각에 대해 API 호출 */
@@ -65,11 +68,18 @@ export default function SendMessageModal({
   const { data: messagingInfo } = useMessagingInfo();
   const smsAllowed = messagingInfo?.sms_allowed ?? true;
 
+  const isStaffMode = (initialStaffIds?.length ?? 0) > 0;
   const studentIds = initialStudentIds;
-  const hasRecipients = studentIds.length > 0;
-  const sendToTargets: SendToType[] = [];
-  if (sendToParent) sendToTargets.push("parent");
-  if (sendToStudent) sendToTargets.push("student");
+  const staffIds = initialStaffIds ?? [];
+  const hasRecipients = isStaffMode ? staffIds.length > 0 : studentIds.length > 0;
+  const sendToTargets: SendToType[] = isStaffMode
+    ? ["staff"]
+    : (() => {
+        const t: SendToType[] = [];
+        if (sendToParent) t.push("parent");
+        if (sendToStudent) t.push("student");
+        return t;
+      })();
   const messageModes: MessageMode[] = [];
   if (useSms && smsAllowed) messageModes.push("sms");
   if (useAlimtalk) messageModes.push("alimtalk");

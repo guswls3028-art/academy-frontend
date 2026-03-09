@@ -179,13 +179,14 @@ export async function submitMessageTemplateReview(
 // 메시지 발송 (공용 모달에서 사용)
 // ----------------------------------------
 
-export type SendToType = "student" | "parent";
+export type SendToType = "student" | "parent" | "staff";
 
 /** sms=SMS만, alimtalk=알림톡만, both=알림톡→SMS폴백 */
 export type MessageMode = "sms" | "alimtalk" | "both";
 
 export interface SendMessagePayload {
-  student_ids: number[];
+  student_ids?: number[];
+  staff_ids?: number[];
   send_to: SendToType;
   /** sms | alimtalk | both */
   message_mode?: MessageMode;

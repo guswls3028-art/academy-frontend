@@ -5,7 +5,8 @@ import { createContext, useContext, useState, useCallback, ReactNode } from "rea
 import SendMessageModal from "../components/SendMessageModal";
 
 export type OpenSendMessageOptions = {
-  studentIds: number[];
+  studentIds?: number[];
+  staffIds?: number[];
   recipientLabel?: string;
 };
 
@@ -26,10 +27,12 @@ export function useSendMessageModal(): ContextValue {
 export function SendMessageModalProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [studentIds, setStudentIds] = useState<number[]>([]);
+  const [staffIds, setStaffIds] = useState<number[]>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
 
   const openSendMessageModal = useCallback((options: OpenSendMessageOptions) => {
-    setStudentIds(options.studentIds);
+    setStudentIds(options.studentIds ?? []);
+    setStaffIds(options.staffIds ?? []);
     setRecipientLabel(options.recipientLabel);
     setOpen(true);
   }, []);
@@ -37,6 +40,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const close = useCallback(() => {
     setOpen(false);
     setStudentIds([]);
+    setStaffIds([]);
     setRecipientLabel(undefined);
   }, []);
 
@@ -47,6 +51,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
         open={open}
         onClose={close}
         initialStudentIds={studentIds}
+        initialStaffIds={staffIds}
         recipientLabel={recipientLabel}
       />
     </SendMessageModalContext.Provider>
