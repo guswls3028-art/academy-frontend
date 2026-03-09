@@ -17,7 +17,7 @@ import {
   getTenantIdFromCode,
   getTenantBranding,
 } from "@/shared/tenant";
-import CommonLogo from "../logos/commonlogo.png";
+import CommonLogoIcon from "../logos/CommonLogoIcon";
 import "@/features/auth/themes/tchul.css";
 import "@/features/auth/themes/limglish.css";
 import styles from "./EnhancedCommonLoginPage.module.css";
@@ -312,11 +312,11 @@ export default function EnhancedCommonLoginPage() {
       className={styles.root}
     >
       <div className={styles.center}>
-        <img
-          src={logoUrl || CommonLogo}
-          alt={title}
-          className={styles.logo}
-        />
+        {logoUrl ? (
+          <img src={logoUrl} alt={title} className={styles.logo} />
+        ) : (
+          <CommonLogoIcon height={48} className={styles.logo} />
+        )}
         <div className={styles.typography}>
           <h1 className={styles.title}>{title}</h1>
           {subtitle && <p className={styles.subtitle}>{subtitle}</p>}

@@ -1,11 +1,11 @@
 // PATH: src/features/auth/pages/login/CommonLoginPage.tsx
-// 테넌트 1, 3, 4, 9999 공통 — commonlogo.png + 2번(박철과학) 색상
+// 테넌트 1, 3, 4, 9999 공통 — SVG 로고 + 2번(박철과학) 색상
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
-import CommonLogo from "../logos/commonlogo.png";
+import CommonLogoIcon from "../logos/CommonLogoIcon";
 import "@/features/auth/themes/tchul.css";
 import styles from "./TchulLoginPage.module.css";
 
@@ -39,7 +39,7 @@ export default function CommonLoginPage() {
   return (
     <div data-app="auth" data-tenant="tchul" className={styles.root}>
       <div className={styles.center}>
-        <img src={CommonLogo} alt="로그인" className={styles.logo} />
+        <CommonLogoIcon height={48} className={styles.logo} />
         {!formExpanded ? (
           <>
             <button

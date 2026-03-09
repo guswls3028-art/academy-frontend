@@ -1,6 +1,6 @@
 /**
  * 상단 바 — 좌: 로고·타이틀 고정(박철과학 등) / 우: 학생 이름
- * 로고는 테넌트별 동적 import로 필요한 리소스만 로드 (모바일 초기 번들 경량화)
+ * 2번(박철과학)은 이미지, 그 외 공통 테넌트는 SVG 로고 컴포넌트 사용
  */
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import CommonLogoIcon from "@/features/auth/pages/logos/CommonLogoIcon";
 
 type Props = { tenantCode: string | null };
 
@@ -20,22 +21,19 @@ export default function StudentTopBar({ tenantCode }: Props) {
 
   const currentTenantCode = getTenantCodeForApiRequest();
   const isTchulTheme = currentTenantCode != null && currentTenantCode === "tchul";
-  const isCommonTheme = currentTenantCode != null && ["hakwonplus", "limglish", "ymath", "9999", "common"].includes(String(currentTenantCode));
-
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   useEffect(() => {
     if (isTchulTheme) {
       import("@/features/auth/pages/logos/TchulLogoIcon.png").then((m) => setLogoSrc(m.default));
-    } else if (branding.useCommonLogo) {
-      import("@/features/auth/pages/logos/commonlogo.png").then((m) => setLogoSrc(m.default));
     } else if (branding.logoUrl) {
       setLogoSrc(branding.logoUrl);
     } else {
       setLogoSrc(null);
     }
-  }, [isTchulTheme, branding.useCommonLogo, branding.logoUrl]);
+  }, [isTchulTheme, branding.logoUrl]);
 
-  const showLogoSrc = logoSrc != null && (isTchulTheme || branding.useCommonLogo || branding.logoUrl);
+  const useCommonSvgLogo = branding.useCommonLogo && !isTchulTheme;
+  const showImgLogo = logoSrc != null && (isTchulTheme || branding.logoUrl);
 
   return (
     <div
@@ -61,7 +59,9 @@ export default function StudentTopBar({ tenantCode }: Props) {
         }}
         aria-label="홈"
       >
-        {showLogoSrc ? (
+        {useCommonSvgLogo ? (
+          <CommonLogoIcon height={32} style={{ width: "auto", maxWidth: 120 }} />
+        ) : showImgLogo ? (
           <img
             src={logoSrc}
             alt=""
