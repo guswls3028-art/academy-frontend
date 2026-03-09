@@ -1,6 +1,6 @@
 /* PATH: src/features/staff/styles/staff-area.css
  * Premium Korean academy SaaS — staff management area
- * Typography, panels, chips, payroll card, calendar, empty states
+ * Typography: Inter, Pretendard. Strong hierarchy, compact tables, professional chips.
  */
 
 /* ---------- Typography ---------- */
@@ -38,6 +38,12 @@
 .staff-area .staff-helper {
   font-size: 0.6875rem;
   color: var(--color-text-muted);
+}
+
+/* Numeric readability (KRW, hours) */
+.staff-area .staff-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 /* ---------- Panels ---------- */
@@ -192,6 +198,7 @@
 .staff-area .staff-calendar__cell .hours {
   font-size: 0.625rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   opacity: 0.9;
   margin-top: 1px;
 }
@@ -313,4 +320,12 @@
 
 .staff-area .staff-wage-badge--dark {
   color: #fff;
+}
+
+/* Table in staff area: selected row (align with ds-row-selected) */
+.staff-area .ds-table-wrap .ds-table tbody tr.ds-row-selected > td {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface));
+}
+.staff-area .ds-table-wrap .ds-table tbody tr.ds-row-selected:hover > td {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
 }

@@ -211,14 +211,14 @@ export default function HomePage() {
                 intent="secondary"
                 onClick={() => setOpenWorkType(true)}
               >
-                시급태그 생성
+                시급태그 생성 / 관리
               </Button>
               <Button
                 type="button"
                 intent="primary"
                 onClick={() => setOpenCreate(true)}
               >
-                + 직원 등록
+                직원 등록
               </Button>
             </div>
           ) : null

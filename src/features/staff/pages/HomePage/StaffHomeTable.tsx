@@ -306,8 +306,8 @@ export function StaffHomeTable({
   if (dataSource.length === 0 && !hasOwner) {
     return (
       <EmptyState
-        title="직원 정보가 없습니다."
-        description="직원을 등록하거나 검색 조건을 확인해 주세요."
+        title="등록된 직원이 없습니다"
+        description="직원 등록을 하거나 검색 조건을 완화해 보세요."
         scope="panel"
       />
     );

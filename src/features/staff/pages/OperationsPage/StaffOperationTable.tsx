@@ -155,6 +155,17 @@ function Row({
   selected: boolean;
   onClick: () => void;
 }) {
+  const wageTagSummary = (() => {
+    const list = staff.staff_work_types ?? [];
+    if (list.length === 0) return null;
+    const first = list[0];
+    const wt = first.work_type;
+    const rate = first.effective_hourly_wage ?? wt?.base_hourly_wage;
+    if (rate == null) return wt?.name ?? null;
+    const man = (rate / 10000).toFixed(1);
+    return `${wt?.name ?? ""} ${man}만`;
+  })();
+
   return (
     <button
       type="button"
@@ -176,6 +187,11 @@ function Row({
         <span className="ds-status-badge shrink-0" data-tone="neutral">
           {payLabel(staff.pay_type)}
         </span>
+        {wageTagSummary && (
+          <span className="staff-wage-badge staff-wage-badge--dark shrink-0 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: (staff.staff_work_types?.[0]?.work_type?.color) || "#6b7280" }}>
+            {wageTagSummary}
+          </span>
+        )}
       </span>
     </button>
   );

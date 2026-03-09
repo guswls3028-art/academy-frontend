@@ -15,6 +15,8 @@ import { useStaffs } from "../../hooks/useStaffs";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
 import { Button } from "@/shared/ui/ds";
+import type { WorkRecord } from "../../api/workRecords.api";
+import "../../styles/staff-area.css";
 
 function getThisMonth() {
   const d = new Date();
@@ -23,6 +25,79 @@ function getThisMonth() {
 
 function ymLabel(y: number, m: number) {
   return `${y}년 ${m}월`;
+}
+
+/** 선택 일자 근무 상세: 해당 날짜의 기록(들) 표시 */
+function DailyWorkDetailSection({
+  selectedDate,
+  records,
+}: {
+  selectedDate: string | null;
+  records: WorkRecord[];
+}) {
+  const dayRecords = useMemo(() => {
+    if (!selectedDate) return [];
+    return records.filter((r) => r.date === selectedDate);
+  }, [selectedDate, records]);
+
+  if (!selectedDate) {
+    return (
+      <div className="staff-panel">
+        <div className="staff-panel__header">
+          <span className="staff-section-title">일자별 근무 상세</span>
+        </div>
+        <div className="staff-panel__body">
+          <p className="staff-helper">캘린더에서 날짜를 선택하면 해당 일의 근무 내역이 표시됩니다.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const dayNum = selectedDate.slice(8);
+  const dayLabel = `${selectedDate.slice(5, 7)}월 ${dayNum}일`;
+
+  return (
+    <div className="staff-panel">
+      <div className="staff-panel__header">
+        <span className="staff-section-title">{dayLabel} 근무 상세</span>
+      </div>
+      <div className="staff-panel__body">
+        {dayRecords.length === 0 ? (
+          <p className="staff-helper">해당 일자에 등록된 근무 기록이 없습니다. 근무 기록을 추가하면 여기에 표시됩니다.</p>
+        ) : (
+          <div className="space-y-3">
+            {dayRecords.map((r) => (
+              <div
+                key={r.id}
+                className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3"
+              >
+                <div className="staff-label mb-1">{r.work_type_name}</div>
+                <div className="staff-body grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <span>시작</span>
+                  <span className="staff-num">{r.start_time}</span>
+                  <span>종료</span>
+                  <span className="staff-num">{r.end_time ?? "-"}</span>
+                  <span>휴게(분)</span>
+                  <span className="staff-num">{r.break_minutes ?? 0}</span>
+                  <span>근무시간</span>
+                  <span className="staff-num">{r.work_hours != null ? `${r.work_hours}h` : "-"}</span>
+                  {r.amount != null && (
+                    <>
+                      <span>금액</span>
+                      <span className="staff-num">{r.amount.toLocaleString()}원</span>
+                    </>
+                  )}
+                </div>
+                {r.memo && (
+                  <p className="staff-helper mt-2 pt-2 border-t border-[var(--color-border-divider)]">메모: {r.memo}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function RightPanelContent() {
@@ -134,7 +209,10 @@ function RightPanelContent() {
             </div>
           </div>
 
-          {/* Daily work records */}
+          {/* Daily work detail (selected date) */}
+          <DailyWorkDetailSection selectedDate={selectedDate} records={records} />
+
+          {/* Full month work records list */}
           <WorkRecordsPanel />
         </div>
 
