@@ -29,6 +29,8 @@ export interface User {
   tenantRole: TenantRole | null;
   /** 학부모일 때 연결된 학생 ID (첫 번째) */
   linkedStudentId?: number | null;
+  /** 학부모일 때 연결된 학생 이름. 표시용 "{name} 학생 학부모님" */
+  linkedStudentName?: string | null;
 }
 
 type AuthState = {

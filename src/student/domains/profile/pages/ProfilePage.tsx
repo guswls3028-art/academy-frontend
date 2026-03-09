@@ -116,12 +116,22 @@ export default function ProfilePage() {
   const saveProfile = () => {
     const parentRaw = editParentPhone.replace(/\D/g, "");
     const phoneRaw = editPhone.replace(/\D/g, "");
+    const gradeNum = editGrade.trim() ? parseInt(editGrade, 10) : null;
+    const gradeValid = gradeNum != null && !isNaN(gradeNum) && gradeNum >= 1 && gradeNum <= 3;
     updateProfileMutation.mutate({
       name: editName.trim() || undefined,
       parent_phone: parentRaw.length >= 10 ? "010" + parentRaw.slice(-8) : undefined,
       phone: phoneRaw.length >= 10 ? "010" + phoneRaw.slice(-8) : (editPhone.trim() || null),
       gender: editGender === "M" || editGender === "F" ? editGender : null,
       address: editAddress.trim() || null,
+      school_type: editSchoolType,
+      high_school: editSchoolType === "HIGH" ? (editHighSchool.trim() || null) : null,
+      middle_school: editSchoolType === "MIDDLE" ? (editMiddleSchool.trim() || null) : null,
+      origin_middle_school: editSchoolType === "HIGH" ? (editOriginMiddleSchool.trim() || null) : null,
+      grade: gradeValid ? gradeNum! : null,
+      high_school_class: editHighSchoolClass.trim() || null,
+      major: editSchoolType === "HIGH" ? (editMajor.trim() || null) : null,
+      memo: editMemo.trim() || null,
     });
   };
 
@@ -262,6 +272,136 @@ export default function ProfilePage() {
               )}
             </div>
 
+            {/* 학교 정보 — 회원가입 모달과 동일 */}
+            <div>
+              <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학교 유형</div>
+              {editing ? (
+                <div style={{ display: "flex", gap: "var(--stu-space-2)" }}>
+                  {[
+                    { key: "HIGH" as const, label: "고등" },
+                    { key: "MIDDLE" as const, label: "중등" },
+                  ].map((s) => (
+                    <button
+                      key={s.key}
+                      type="button"
+                      className={`stu-btn stu-btn--secondary ${editSchoolType === s.key ? "stu-btn--primary" : ""}`}
+                      onClick={() => setEditSchoolType(s.key)}
+                      style={{ padding: "var(--stu-space-2) var(--stu-space-4)" }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontWeight: 600, fontSize: 16 }}>
+                  {profile.school_type === "MIDDLE" ? "중등" : "고등"}
+                </div>
+              )}
+            </div>
+
+            {editSchoolType === "HIGH" && (
+              <>
+                <div>
+                  <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>고등학교명</div>
+                  {editing ? (
+                    <input
+                      type="text"
+                      value={editHighSchool}
+                      onChange={(e) => setEditHighSchool(e.target.value)}
+                      className="stu-input"
+                      style={{ width: "100%", maxWidth: 280 }}
+                      placeholder="고등학교명"
+                    />
+                  ) : (
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.high_school || "-"}</div>
+                  )}
+                </div>
+                <div>
+                  <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>출신중학교</div>
+                  {editing ? (
+                    <input
+                      type="text"
+                      value={editOriginMiddleSchool}
+                      onChange={(e) => setEditOriginMiddleSchool(e.target.value)}
+                      className="stu-input"
+                      style={{ width: "100%", maxWidth: 280 }}
+                      placeholder="출신중학교"
+                    />
+                  ) : (
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.origin_middle_school || "-"}</div>
+                  )}
+                </div>
+              </>
+            )}
+            {editSchoolType === "MIDDLE" && (
+              <div>
+                <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>중학교명</div>
+                {editing ? (
+                  <input
+                    type="text"
+                    value={editMiddleSchool}
+                    onChange={(e) => setEditMiddleSchool(e.target.value)}
+                    className="stu-input"
+                    style={{ width: "100%", maxWidth: 280 }}
+                    placeholder="중학교명"
+                  />
+                ) : (
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.middle_school || "-"}</div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--stu-space-4)" }}>
+              <div style={{ minWidth: 80 }}>
+                <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학년</div>
+                {editing ? (
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={editGrade}
+                    onChange={(e) => setEditGrade(e.target.value.replace(/\D/g, "").slice(0, 1))}
+                    className="stu-input"
+                    style={{ width: 56 }}
+                    placeholder="1~3"
+                  />
+                ) : (
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.grade != null ? `${profile.grade}학년` : "-"}</div>
+                )}
+              </div>
+              <div style={{ minWidth: 80 }}>
+                <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>반</div>
+                {editing ? (
+                  <input
+                    type="text"
+                    value={editHighSchoolClass}
+                    onChange={(e) => setEditHighSchoolClass(e.target.value)}
+                    className="stu-input"
+                    style={{ width: 72 }}
+                    placeholder="반"
+                  />
+                ) : (
+                  <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.high_school_class || "-"}</div>
+                )}
+              </div>
+              {editSchoolType === "HIGH" && (
+                <div style={{ minWidth: 120 }}>
+                  <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>계열</div>
+                  {editing ? (
+                    <input
+                      type="text"
+                      value={editMajor}
+                      onChange={(e) => setEditMajor(e.target.value)}
+                      className="stu-input"
+                      style={{ width: "100%", maxWidth: 140 }}
+                      placeholder="계열 (선택)"
+                    />
+                  ) : (
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.major || "-"}</div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>주소</div>
               {editing ? (
@@ -275,6 +415,21 @@ export default function ProfilePage() {
                 />
               ) : (
                 <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.address || "-"}</div>
+              )}
+            </div>
+
+            <div>
+              <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>메모</div>
+              {editing ? (
+                <textarea
+                  value={editMemo}
+                  onChange={(e) => setEditMemo(e.target.value)}
+                  className="stu-input"
+                  style={{ width: "100%", maxWidth: 320, minHeight: 60, resize: "vertical" }}
+                  placeholder="메모 (선택)"
+                />
+              ) : (
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.memo || "-"}</div>
               )}
             </div>
 

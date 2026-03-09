@@ -20,6 +20,10 @@ export type MyProfile = {
   high_school_class?: string | null;
   major?: string | null;
   memo?: string | null;
+  /** 학부모 읽기 전용 모드일 때 true */
+  isParentReadOnly?: boolean;
+  /** 학부모일 때 표시 이름 (예: "홍길동 학생 학부모님") */
+  displayName?: string | null;
 };
 
 export async function fetchMyProfile(): Promise<MyProfile> {
