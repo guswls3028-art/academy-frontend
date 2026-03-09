@@ -14,6 +14,13 @@
 
 export type HomeworkCutlineMode = "PERCENT" | "COUNT";
 
+export type HomeworkSummary = {
+  id: number;
+  title: string;
+  status: "DRAFT" | "OPEN" | "CLOSED";
+  session_id?: number;
+};
+
 export type HomeworkPolicy = {
   id: number;
   session: number;

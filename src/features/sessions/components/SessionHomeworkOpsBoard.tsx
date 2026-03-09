@@ -14,9 +14,9 @@ import HomeworkKanbanCard from "./ops/HomeworkKanbanCard";
 
 const HW_STATUS_ORDER = ["DRAFT", "OPEN", "CLOSED"] as const;
 const HW_LABEL: Record<string, string> = {
-  DRAFT: "초안",
-  OPEN: "진행중",
-  CLOSED: "완료",
+  DRAFT: "설정 중",
+  OPEN: "진행 중",
+  CLOSED: "마감",
 };
 
 type Props = {

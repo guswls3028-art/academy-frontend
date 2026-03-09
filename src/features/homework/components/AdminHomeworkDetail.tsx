@@ -46,6 +46,7 @@ export default function AdminHomeworkDetail({ homeworkId }: { homeworkId: number
     id: data.id,
     title: data.title,
     status: data.status,
+    session_id: data.session_id,
   };
 
   return (
