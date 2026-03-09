@@ -1,18 +1,19 @@
 /**
  * ExamPolicyPanel – FINAL / HUMAN / SAFE
  *
- * WHY:
- * - exam 정책은 setup 패널의 핵심이므로 self-contained
- * - 비동기 로딩 / PATCH / dirty 판단을 내부에서 모두 책임
- * - pass_score / is_active만 제어 (results 단일진실 유지)
+ * - 커트라인 / 진행 상태
+ * - 답안키 등록 영역 (AnswerKeyEditor)
+ * - 문항선택하기 영역 (문항 수 표시 + 문항 선택 CTA)
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { updateAdminExam } from "../../api/adminExam";
+import { fetchQuestionsByExam } from "../../api/questionApi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { AnswerKeyEditor } from "../../components/AnswerKeyEditor";
 
 export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
@@ -139,6 +140,55 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
         • 합격/불합격 판정은 Results 도메인에서 자동 계산됩니다.<br />
         • 시험 시작/종료 시점은 세션 일정과 연동됩니다.
       </div>
+
+      {/* 답안키 등록 영역 */}
+      <div className="space-y-3">
+        <div>
+          <div className="text-lg font-semibold">답안키 등록</div>
+          <div className="text-xs text-muted">
+            문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다.
+          </div>
+        </div>
+        <AnswerKeyEditor
+          examId={examId}
+          disabled={exam.exam_type === "regular"}
+        />
+      </div>
+
+      {/* 문항선택하기 영역 */}
+      <QuestionSelectionBlock examId={examId} />
     </section>
+  );
+}
+
+function QuestionSelectionBlock({ examId }: { examId: number }) {
+  const { data: questions = [] } = useQuery({
+    queryKey: ["exam-questions", examId],
+    queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
+    enabled: Number.isFinite(examId),
+  });
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="text-lg font-semibold">문항선택하기</div>
+        <div className="text-xs text-muted">
+          연결된 템플릿의 문항을 사용합니다. 문항 추가·수정은 템플릿 시험에서 편집하세요.
+        </div>
+      </div>
+      <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm text-[var(--color-text-secondary)]">
+            현재 문항 <strong className="text-[var(--color-text-primary)]">{questions.length}</strong>개
+          </span>
+          <Button type="button" intent="secondary" size="sm" disabled>
+            문항 선택하기
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          문항 구성은 자산 탭 또는 템플릿 시험에서 관리할 수 있습니다.
+        </p>
+      </div>
+    </div>
   );
 }

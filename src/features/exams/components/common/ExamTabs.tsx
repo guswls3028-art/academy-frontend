@@ -13,13 +13,11 @@ type Props = {
 const TABS_DESIGN: { key: ExamTabKey; label: string }[] = [
   { key: "setup", label: "기본 설정" },
   { key: "assets", label: "자산" },
-  { key: "submissions", label: "제출" },
   { key: "results", label: "결과" },
 ];
 
 const TABS_OPERATE: { key: ExamTabKey; label: string }[] = [
   { key: "setup", label: "운영" },
-  { key: "submissions", label: "제출" },
   { key: "results", label: "채점·결과" },
 ];
 
