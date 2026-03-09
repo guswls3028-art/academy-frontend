@@ -200,24 +200,56 @@ export default function SessionScoresEntryPage(_props: Props) {
             <span className="text-[var(--color-border-divider)]">|</span>
             <div className="flex items-center gap-3">
               <span className="text-[var(--color-text-secondary)] font-semibold">시험</span>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={examEditObjective} onChange={(e) => setExamEditObjective(e.target.checked)} className="cursor-pointer" />
+              <label id="exam-edit-objective-label" className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input
+                  id="exam-edit-objective"
+                  type="checkbox"
+                  checked={examEditObjective}
+                  onChange={(e) => setExamEditObjective(e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="cursor-pointer"
+                  aria-label="객관식 셀 쓰기"
+                />
                 <span className="text-[var(--color-text-primary)]">객관식</span>
               </label>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={examEditSubjective} onChange={(e) => setExamEditSubjective(e.target.checked)} className="cursor-pointer" />
+              <label id="exam-edit-subjective-label" className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input
+                  id="exam-edit-subjective"
+                  type="checkbox"
+                  checked={examEditSubjective}
+                  onChange={(e) => setExamEditSubjective(e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="cursor-pointer"
+                  aria-label="주관식 셀 쓰기"
+                />
                 <span className="text-[var(--color-text-primary)]">주관식</span>
               </label>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={examEditTotal} onChange={(e) => setExamEditTotal(e.target.checked)} className="cursor-pointer" />
+              <label id="exam-edit-total-label" className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input
+                  id="exam-edit-total"
+                  type="checkbox"
+                  checked={examEditTotal}
+                  onChange={(e) => setExamEditTotal(e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="cursor-pointer"
+                  aria-label="합산 셀 쓰기"
+                />
                 <span className="text-[var(--color-text-primary)]">합산</span>
               </label>
             </div>
             <span className="text-[var(--color-border-divider)]">|</span>
             <div className="flex items-center gap-2">
               <span className="text-[var(--color-text-secondary)] font-semibold">과제</span>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={homeworkEdit} onChange={(e) => setHomeworkEdit(e.target.checked)} className="cursor-pointer" />
+              <label id="homework-edit-label" className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input
+                  id="homework-edit"
+                  type="checkbox"
+                  checked={homeworkEdit}
+                  onChange={(e) => setHomeworkEdit(e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="cursor-pointer"
+                  aria-label="과제 셀 쓰기"
+                />
                 <span className="text-[var(--color-text-primary)]">과제</span>
               </label>
             </div>
