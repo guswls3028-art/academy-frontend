@@ -5,10 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
-import {
-  formatIdentifierForInput,
-  parseIdentifierInput,
-} from "@/shared/utils/phoneInput";
 import { updateStudent } from "../api/students";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
@@ -19,22 +15,12 @@ interface Props {
   onSuccess: () => void;
 }
 
-function is8Digits(v: any) {
-  return /^\d{8}$/.test(String(v ?? ""));
-}
-
 export default function EditStudentModal({
   open,
   initialValue,
   onClose,
   onSuccess,
 }: Props) {
-  const initialNoPhone = useMemo(() => {
-    if (initialValue.usesIdentifier != null) return initialValue.usesIdentifier;
-    return initialValue.studentPhone && is8Digits(initialValue.studentPhone);
-  }, [initialValue.studentPhone, initialValue.usesIdentifier]);
-
-  const [noPhone, setNoPhone] = useState(initialNoPhone);
   const [busy, setBusy] = useState(false);
   /** 400 응답 시 백엔드 필드별 에러 (backend key -> message). setFields 개념으로 매핑 */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -43,8 +29,7 @@ export default function EditStudentModal({
     name: initialValue.name || "",
     gender: initialValue.gender || "",
     psNumber: initialValue.psNumber || "",
-    studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
-    omrCode: initialNoPhone ? initialValue.studentPhone || "" : "",
+    studentPhone: initialValue.studentPhone || "",
     parentPhone: initialValue.parentPhone || "",
     schoolType: initialValue.schoolType || "HIGH",
     school: initialValue.school || "",
@@ -71,24 +56,17 @@ export default function EditStudentModal({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, form, noPhone, busy]);
+  }, [open, onClose, form, busy]);
 
   useEffect(() => {
     if (!open) return;
-    setNoPhone(initialNoPhone);
     setBusy(false);
     setFieldErrors({});
     setForm({
       name: initialValue.name || "",
       gender: initialValue.gender || "",
       psNumber: initialValue.psNumber || "",
-      studentPhone: initialNoPhone ? "" : initialValue.studentPhone || "",
-      omrCode: initialNoPhone
-        ? (() => {
-            const p = String(initialValue.studentPhone || "").replace(/\D/g, "");
-            return p.length === 11 && p.startsWith("010") ? p.slice(-8) : p.slice(0, 8);
-          })()
-        : "",
+      studentPhone: initialValue.studentPhone || "",
       parentPhone: initialValue.parentPhone || "",
       schoolType: initialValue.schoolType || "HIGH",
       school: initialValue.school || "",
@@ -106,7 +84,6 @@ export default function EditStudentModal({
   /** 백엔드 필드명 -> 프론트 필드명 (setFields 매핑) */
   const backendToFrontendField: Record<string, string> = {
     ps_number: "psNumber",
-    omr_code: noPhone ? "omrCode" : "studentPhone",
     phone: "studentPhone",
     parent_phone: "parentPhone",
     name: "name",
