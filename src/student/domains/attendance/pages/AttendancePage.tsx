@@ -11,7 +11,7 @@ export default function AttendancePage() {
       </h1>
       <EmptyState
         title="출결 정보"
-        description="수업별 출석 현황은 관리자 페이지에서 확인한 뒤 안내됩니다. API 연동 시 여기에 표시됩니다."
+        description="수업별 출석 현황은 관리자가 확인 후 별도 안내드립니다."
       />
     </div>
   );

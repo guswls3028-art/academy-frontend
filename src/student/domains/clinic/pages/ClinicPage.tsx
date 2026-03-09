@@ -20,6 +20,7 @@ import {
 import { formatYmd, todayYmd } from "@/student/shared/utils/date";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
+// NOTE: useNotificationCounts is called here to prime cache only; invalidateQueries handles refresh
 
 function formatTime(time: string): string {
   return time.slice(0, 5);
@@ -32,8 +33,8 @@ export default function ClinicPage() {
   const [memo, setMemo] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  // 알림 카운트 갱신을 위한 훅
-  const { refetch: refetchNotifications } = useNotificationCounts();
+  // 알림 카운트는 invalidateQueries로 자동 갱신됨
+  useNotificationCounts();
 
   // 내 예약 신청 목록 조회 (알림·클리닉 공통 키로 캐시 공유)
   const { data: myRequests = [], isLoading: requestsLoading } = useQuery({
@@ -65,7 +66,6 @@ export default function ClinicPage() {
       qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
       qc.invalidateQueries({ queryKey: ["clinic-idcard"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
-      refetchNotifications();
       setSelectedSessionId(null);
       setMemo("");
       setShowSuccessMessage(true);
@@ -87,7 +87,6 @@ export default function ClinicPage() {
       qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
       qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
-      refetchNotifications();
       alert("예약 신청이 취소되었습니다.");
     },
     onError: (error: any) => {

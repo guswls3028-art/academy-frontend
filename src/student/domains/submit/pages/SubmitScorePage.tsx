@@ -17,7 +17,7 @@ export default function SubmitScorePage() {
   const [error, setError] = useState<string | null>(null);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ["student-profile"],
+    queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
   });
 

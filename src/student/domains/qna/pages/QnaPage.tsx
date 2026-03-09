@@ -3,7 +3,7 @@
  * - 선생앱 QnA와 동일한 용어·구조 정합: 전체 질문 / 답변 필요 / 해결됨, 답변 대기·답변 완료
  * - 내 질문 목록 → 선택 시 상세(질문 + 선생님 답변)
  */
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";

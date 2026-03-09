@@ -4,13 +4,13 @@
  */
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { useStudentExam } from "@/student/domains/exams/hooks/useStudentExams";
 import {
   fetchStudentExamQuestions,
   submitStudentExamAnswers,
-  type StudentExamQuestion,
 } from "@/student/domains/exams/api/exams";
 
 export default function ExamSubmitPage() {
@@ -19,29 +19,29 @@ export default function ExamSubmitPage() {
   const navigate = useNavigate();
 
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
-  const [questions, setQuestions] = useState<StudentExamQuestion[]>([]);
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const questionsQ = useQuery({
+    queryKey: ["student-exam-questions", safeId],
+    queryFn: () => fetchStudentExamQuestions(safeId),
+    enabled: Number.isFinite(safeId),
+  });
+  const questions = questionsQ.data ?? [];
+  const loadingQuestions = questionsQ.isLoading;
+
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Seed answers state when questions first load
   useEffect(() => {
-    if (!Number.isFinite(safeId)) return;
-    setLoadingQuestions(true);
-    fetchStudentExamQuestions(safeId)
-      .then((list) => {
-        setQuestions(list);
-        setAnswers((prev) => {
-          const next = { ...prev };
-          list.forEach((q) => {
-            if (next[q.id] === undefined) next[q.id] = "";
-          });
-          return next;
-        });
-      })
-      .catch(() => setError("문항을 불러오지 못했습니다."))
-      .finally(() => setLoadingQuestions(false));
-  }, [safeId]);
+    if (questions.length === 0) return;
+    setAnswers((prev) => {
+      const next = { ...prev };
+      questions.forEach((q) => {
+        if (next[q.id] === undefined) next[q.id] = "";
+      });
+      return next;
+    });
+  }, [questions]);
 
   const handleSubmit = async () => {
     if (!Number.isFinite(safeId)) return;
@@ -112,22 +112,22 @@ export default function ExamSubmitPage() {
           </div>
         )}
 
-        {error && (
+        {(error || questionsQ.isError) && (
           <div
             role="alert"
             style={{
               padding: 12,
               borderRadius: 10,
               background: "var(--stu-surface-soft)",
-              color: "var(--stu-danger, #c00)",
+              color: "var(--stu-danger)",
               fontSize: 14,
             }}
           >
-            {error}
+            {error ?? "문항을 불러오지 못했습니다."}
           </div>
         )}
 
-        {!loadingQuestions && questions.length === 0 && !error && (
+        {!loadingQuestions && !questionsQ.isError && questions.length === 0 && !error && (
           <EmptyState title="문항이 없습니다." />
         )}
 
