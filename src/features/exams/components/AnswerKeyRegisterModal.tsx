@@ -98,9 +98,6 @@ export default function AnswerKeyRegisterModal({
   const [saveBusy, setSaveBusy] = useState(false);
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
   const [scoreDraft, setScoreDraft] = useState<Record<number, number>>({});
-  /** 선택형/서술형 제목 클릭 시 문항 수·기본점수 편집 영역 표시 */
-  const [choiceEditorOpen, setChoiceEditorOpen] = useState(false);
-  const [essayEditorOpen, setEssayEditorOpen] = useState(false);
   /** 이미지 등록 탭: 문항별 해설 — 해설 텍스트, 문제 이미지 URL, 해설 이미지 URL(객체 URL) */
   const [explanationDraft, setExplanationDraft] = useState<
     Record<number, { text: string; problemImageUrl: string | null; imageUrl: string | null }>
@@ -235,8 +232,6 @@ export default function AnswerKeyRegisterModal({
           await patchQuestionScore({ questionId: q.id, score });
         }
       }
-      setChoiceEditorOpen(false);
-      setEssayEditorOpen(false);
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
       await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
       feedback.success("적용되었습니다.");
@@ -282,6 +277,12 @@ export default function AnswerKeyRegisterModal({
     setSaveBusy(true);
     try {
       const normalized = normalizeAnswers(draft);
+      const essayIds = new Set(
+        sortedQuestions.slice(effectiveChoiceCount, effectiveChoiceCount + effectiveEssayCount).map((q) => String(q.id))
+      );
+      Object.keys(normalized).forEach((k) => {
+        if (essayIds.has(k) && normalized[k] === "") normalized[k] = "해설참조";
+      });
       const targetExamId = examId;
       if (!answerKey) {
         await createAnswerKey({ exam: targetExamId, answers: normalized });
