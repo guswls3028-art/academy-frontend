@@ -1,6 +1,6 @@
 // PATH: src/features/exams/api/regularExamApi.ts
-import { api } from "@/shared/api";
-import { Exam } from "./examApi";
+import api from "@/shared/api/axios";
+import { Exam } from "../types";
 
 export async function createRegularExam(params: {
   title: string;

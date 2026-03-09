@@ -1,5 +1,5 @@
 // PATH: src/features/exams/api/autoQuestionsApi.ts
-import { api } from "@/shared/api";
+import api from "@/shared/api/axios";
 import { ExamQuestion } from "./questionApi";
 
 export type Box = [number, number, number, number]; // [x,y,w,h]

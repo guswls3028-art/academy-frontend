@@ -1,5 +1,5 @@
 // PATH: src/features/exams/api/templateEditorApi.ts
-import { api } from "@/shared/api";
+import api from "@/shared/api/axios";
 
 export interface TemplateEditorSummary {
   exam_id: number;

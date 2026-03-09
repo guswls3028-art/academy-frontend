@@ -1,5 +1,5 @@
 // PATH: src/features/exams/api/examAssetApi.ts
-import { api } from "@/shared/api";
+import api from "@/shared/api/axios";
 
 export type ExamAssetType = "problem_pdf" | "omr_sheet";
 

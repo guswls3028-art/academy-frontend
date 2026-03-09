@@ -1,5 +1,5 @@
 // PATH: src/features/exams/api/answerKeyApi.ts
-import { api } from "@/shared/api";
+import api from "@/shared/api/axios";
 
 export interface AnswerKey {
   id: number;
