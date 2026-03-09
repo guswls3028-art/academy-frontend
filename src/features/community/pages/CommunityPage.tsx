@@ -7,7 +7,8 @@ import { CommunityScopeProvider } from "../context/CommunityScopeContext";
 import CommunityScopeSelector from "../components/CommunityScopeSelector";
 
 const COMMUNITY_TABS = [
-  { key: "admin", label: "게시 관리", path: "/admin/community/admin" },
+  { key: "board", label: "게시판", path: "/admin/community/board" },
+  { key: "notice", label: "공지사항", path: "/admin/community/notice" },
   { key: "qna", label: "QnA", path: "/admin/community/qna" },
   { key: "materials", label: "자료실", path: "/admin/community/materials" },
   { key: "settings", label: "설정", path: "/admin/community/settings" },
@@ -15,16 +16,17 @@ const COMMUNITY_TABS = [
 
 function CommunityPageInner() {
   const location = useLocation();
-  const isAdminPanel = location.pathname.endsWith("/admin");
-  const isSettingsPanel = location.pathname.endsWith("/settings");
+  const isBoardPanel = location.pathname.endsWith("/board");
+  const isNoticePanel = location.pathname.endsWith("/notice");
+  const showScope = isBoardPanel || isNoticePanel;
 
   return (
     <DomainLayout
       title="커뮤니티"
-      description="게시 관리 · QnA · 자료실"
+      description="게시판 · 공지사항 · QnA · 자료실"
       tabs={COMMUNITY_TABS}
     >
-      {!isAdminPanel && !isSettingsPanel && <CommunityScopeSelector />}
+      {showScope && <CommunityScopeSelector />}
       <Outlet />
     </DomainLayout>
   );

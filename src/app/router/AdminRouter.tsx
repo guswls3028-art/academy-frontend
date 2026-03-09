@@ -55,6 +55,8 @@ const CommunityPage = lazy(() => import("@/features/community/pages/CommunityPag
 const QnaInboxPage = lazy(() => import("@/features/community/pages/QnaInboxPage"));
 const MaterialsBoardPage = lazy(() => import("@/features/community/pages/MaterialsBoardPage"));
 const CommunityAdminPage = lazy(() => import("@/features/community/pages/CommunityAdminPage"));
+const BoardAdminPage = lazy(() => import("@/features/community/pages/BoardAdminPage"));
+const NoticeAdminPage = lazy(() => import("@/features/community/pages/NoticeAdminPage"));
 const CommunitySettingsPage = lazy(() => import("@/features/community/pages/CommunitySettingsPage"));
 
 /* ================= Lazy: Clinic ================= */
@@ -190,12 +192,13 @@ export default function AdminRouter() {
 
         {/* ================= Community ================= */}
         <Route path="community" element={wrapLazy(CommunityPage)}>
-          <Route index element={<Navigate to="admin" replace />} />
-          <Route path="notice" element={<Navigate to="/admin/community/admin?tab=notice" replace />} />
+          <Route index element={<Navigate to="board" replace />} />
+          <Route path="board" element={wrapLazy(BoardAdminPage)} />
+          <Route path="notice" element={wrapLazy(NoticeAdminPage)} />
+          <Route path="admin" element={<Navigate to="/admin/community/board" replace />} />
           <Route path="qna" element={wrapLazy(QnaInboxPage)} />
           <Route path="qna/read/:id" element={<QnaReadRedirect />} />
           <Route path="materials" element={wrapLazy(MaterialsBoardPage)} />
-          <Route path="admin" element={wrapLazy(CommunityAdminPage)} />
           <Route path="settings" element={wrapLazy(CommunitySettingsPage)} />
         </Route>
 

@@ -361,6 +361,13 @@ export async function getQnaBlockTypeId(): Promise<number | null> {
   return qna?.id ?? null;
 }
 
+/** 블록타입 code가 "notice"인 id 반환 (공지사항 관리용). 없으면 null */
+export async function getNoticeBlockTypeId(): Promise<number | null> {
+  const types = await fetchBlockTypes();
+  const notice = types.find((t) => (t.code || "").toLowerCase() === "notice");
+  return notice?.id ?? null;
+}
+
 /** QNA 블록타입만 필터한 질문 목록 (code "qna" 기준 — 선생 앱과 동일) */
 export async function fetchCommunityQuestions(
   params?: CommunityScopeParams | null
