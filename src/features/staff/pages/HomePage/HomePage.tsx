@@ -12,6 +12,7 @@ import WorkTypeCreateModal from "./WorkTypeCreateModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStaffMe } from "../../api/staffMe.api";
 import { deleteStaff } from "../../api/staff.api";
+import { exportPayrollSnapshotExcel } from "../../api/payrollSnapshots.api";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -47,6 +48,7 @@ export default function HomePage() {
   const [q, setQ] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   const canManage = !!meQ.data?.is_payroll_manager;
 
@@ -83,8 +85,27 @@ export default function HomePage() {
       <Button intent="secondary" size="sm" onClick={() => openSendMessageModal({ studentIds: [] })}>
         메시지 발송
       </Button>
-      <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
-        엑셀 다운로드
+      <Button
+        intent="secondary"
+        size="sm"
+        disabled={exportingExcel}
+        onClick={async () => {
+          setExportingExcel(true);
+          try {
+            const now = new Date();
+            await exportPayrollSnapshotExcel({
+              year: now.getFullYear(),
+              month: now.getMonth() + 1,
+            });
+            feedback.success("엑셀 다운로드가 시작되었습니다.");
+          } catch (e) {
+            feedback.error(e instanceof Error ? e.message : "엑셀 다운로드에 실패했습니다.");
+          } finally {
+            setExportingExcel(false);
+          }
+        }}
+      >
+        {exportingExcel ? "다운로드 중…" : "엑셀 다운로드"}
       </Button>
       <Button intent="secondary" size="sm" onClick={() => feedback.info("시급 태그 추가 기능 준비 중입니다.")}>
         시급 태그 추가
