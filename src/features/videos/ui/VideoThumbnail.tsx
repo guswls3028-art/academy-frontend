@@ -125,86 +125,88 @@ export default function VideoThumbnail({
 
   return (
     <div className="aspect-video w-full overflow-hidden rounded-md bg-gray-100 shadow-sm relative">
-      <img
-        src={src}
-        alt={title || "영상 썸네일"}
-        className="h-full w-full object-cover"
-        loading="lazy"
-        decoding="async"
-        onError={() => {
-          setSrc(PLACEHOLDER_VIDEO);
-        }}
-      />
+      {/* 인코딩 중이 아닐 때만 썸네일 이미지 표시 (인코딩 중엔 깨진/플레이스홀더 이미지 없음) */}
+      {!showProgressOverlay && (
+        <img
+          src={src}
+          alt={title || "영상 썸네일"}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onError={() => {
+            setSrc(PLACEHOLDER_VIDEO);
+          }}
+        />
+      )}
 
-      {/* 인코딩 중: 썸네일 영역에 진행률 오버레이 (우하단 진행 상황 패널과 동일 디자인 톤) */}
+      {/* 인코딩 중: 단색 배경 + 진행률 %를 화면 절반 이상 차지할 정도로 크게 표시 */}
       {showProgressOverlay && (
         <div
           className="video-thumbnail-progress"
           style={{
             position: "absolute",
             inset: 0,
-            background: "rgba(0,0,0,0.65)",
+            background: "var(--color-bg-surface-soft, #1f2937)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 10,
-            padding: 12,
+            gap: 8,
+            padding: 16,
             borderRadius: "inherit",
           }}
         >
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+          {/* 진행률 % — 카드 영역 대부분을 채우는 큰 글씨 (거의 화면 절반 이상) */}
+          <span
+            className="video-thumbnail-progress__pct"
+            style={{
+              fontSize: "clamp(4rem, 28vmin, 140px)",
+              fontWeight: 700,
+              lineHeight: 1,
+              color: "var(--color-text-primary, #fff)",
+              textShadow: "0 2px 12px rgba(0,0,0,0.5)",
+            }}
+            aria-hidden
+          >
+            {progressNum != null ? `${progressNum}%` : "—"}
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary, rgba(255,255,255,0.9))" }}>
             {isQueuedOrWaiting ? "대기 중" : "인코딩 중"}
           </span>
-          {encodingStep ? (
-            <>
-              <div style={{ fontSize: 11, color: "var(--color-text-muted)", width: "100%", textAlign: "center" }}>
-                <span style={{ fontWeight: 600 }}>[{encodingStep.index}/{encodingStep.total}]</span>{" "}
-                {encodingStep.name}
+          {encodingStep && (
+            <div style={{ fontSize: 11, color: "var(--color-text-muted)", textAlign: "center" }}>
+              <span style={{ fontWeight: 600 }}>[{encodingStep.index}/{encodingStep.total}]</span>{" "}
+              {encodingStep.name} {encodingStep.percent}%
+            </div>
+          )}
+          {encodingStep && (
+            <div className="async-status-bar__progress-row" style={{ width: "100%", maxWidth: 260 }}>
+              <div className="async-status-bar__progress">
+                <div
+                  className="async-status-bar__progress-fill"
+                  style={{ width: `${encodingStep.percent}%` }}
+                />
               </div>
-              <div className="async-status-bar__progress-row" style={{ width: "100%", maxWidth: 240 }}>
-                <div className="async-status-bar__progress">
-                  <div
-                    className="async-status-bar__progress-fill"
-                    style={{ width: `${encodingStep.percent}%` }}
-                  />
-                </div>
-                <span className="async-status-bar__progress-pct">{encodingStep.percent}%</span>
+              <span className="async-status-bar__progress-pct">{encodingStep.percent}%</span>
+            </div>
+          )}
+          {!encodingStep && progressNum != null && progressNum < 100 && (
+            <div className="async-status-bar__progress-row" style={{ width: "100%", maxWidth: 260 }}>
+              <div className="async-status-bar__progress">
+                <div
+                  className="async-status-bar__progress-fill"
+                  style={{ width: `${progressNum}%` }}
+                />
               </div>
-              {progressNum != null && progressNum > 0 && (
-                <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
-                  전체 진행률: {progressNum}%
-                </span>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="async-status-bar__progress-row" style={{ width: "100%", maxWidth: 240 }}>
-                <div className="async-status-bar__progress">
-                  <div
-                    className={
-                      progressNum != null
-                        ? "async-status-bar__progress-fill"
-                        : "async-status-bar__progress-fill async-status-bar__progress-fill--indeterminate"
-                    }
-                    style={progressNum != null ? { width: `${progressNum}%` } : undefined}
-                  />
-                </div>
-                {progressNum != null && (
-                  <span className="async-status-bar__progress-pct" style={{ color: "rgba(255,255,255,0.95)" }}>
-                    {progressNum}%
-                  </span>
-                )}
-              </div>
-              {remainingLabel && (
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{remainingLabel}</span>
-              )}
-              {progressNum == null && !remainingLabel && (
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
-                  {isQueuedOrWaiting ? "인코딩 대기 중…" : "진행률 계산 중…"}
-                </span>
-              )}
-            </>
+            </div>
+          )}
+          {remainingLabel && (
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{remainingLabel}</span>
+          )}
+          {progressNum == null && !remainingLabel && !encodingStep && (
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+              {isQueuedOrWaiting ? "인코딩 대기 중…" : "진행률 계산 중…"}
+            </span>
           )}
         </div>
       )}
