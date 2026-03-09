@@ -111,6 +111,71 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
     });
   }, [open, onBulkProgress]);
 
+  const qc = useQueryClient();
+  const needMessageConfig = open && (mode === "single" || mode === "excel");
+  const { data: messageTemplates = [] } = useQuery({
+    queryKey: ["messaging", "templates"],
+    queryFn: () => fetchMessageTemplates(),
+    enabled: needMessageConfig,
+    staleTime: 30 * 1000,
+  });
+  const { data: autoSendConfigs = [] } = useQuery({
+    queryKey: ["messaging", "auto-send"],
+    queryFn: fetchAutoSendConfigs,
+    enabled: needMessageConfig,
+    staleTime: 30 * 1000,
+  });
+  const signupConfig = autoSendConfigs.find((c) => c.trigger === "student_signup") ?? null;
+
+  const updateAutoSendMut = useMutation({
+    mutationFn: updateAutoSendConfigs,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["messaging", "auto-send"] });
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "자동발송 설정 저장에 실패했습니다.";
+      feedback.error(msg);
+    },
+  });
+
+  const createTemplateAndRegisterMut = useMutation({
+    mutationFn: async (payload: MessageTemplatePayload) => {
+      const created = await createMessageTemplate(payload);
+      const configs = await fetchAutoSendConfigs();
+      const next = configs.map((c) =>
+        c.trigger === "student_signup"
+          ? { ...c, template: created.id, template_name: created.name, enabled: true }
+          : c
+      );
+      await updateAutoSendConfigs(next);
+      return created;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
+      qc.invalidateQueries({ queryKey: ["messaging", "auto-send"] });
+      setTemplateModalOpen(false);
+      setMessageDropdownOpen(false);
+      feedback.success("템플릿이 저장되었고, 가입 완료 시 자동 발송 메시지로 등록되었습니다.");
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "템플릿 저장에 실패했습니다.";
+      feedback.error(msg);
+    },
+  });
+
+  function handleSelectSignupTemplate(templateId: number | null) {
+    const configs: Partial<AutoSendConfigItem>[] = autoSendConfigs.map((c) =>
+      c.trigger === "student_signup"
+        ? { ...c, template: templateId, enabled: templateId != null }
+        : c
+    );
+    updateAutoSendMut.mutate(configs);
+  }
+
+  function handleTemplateSubmit(payload: MessageTemplatePayload) {
+    createTemplateAndRegisterMut.mutate(payload);
+  }
+
   function handleExcelFileSelect(file: File) {
     setSelectedExcelFile(file);
   }
@@ -290,6 +355,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   };
 
   return (
+    <>
     <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md}>
       <ModalHeader
         type="action"
@@ -380,7 +446,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
           </div>
         ) : mode === "single" ? (
         <div className="modal-scroll-body modal-scroll-body--compact">
-          <div style={{ marginBottom: "var(--space-3)" }}>
+          <div
+            className="modal-form-row"
+            style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}
+          >
             <button
               type="button"
               onClick={() => setMode("choice")}
@@ -389,16 +458,77 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             >
               ← 등록 방식 변경
             </button>
+            <Dropdown
+              open={messageDropdownOpen}
+              onOpenChange={setMessageDropdownOpen}
+              trigger={["click"]}
+              dropdownRender={() => (
+                <div
+                  className="modal-form-group"
+                  style={{ minWidth: 280, padding: "var(--space-4)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="modal-section-label">메시지 자동발송</span>
+                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", cursor: "pointer", marginBottom: "var(--space-2)" }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(sendWelcomeMessage)}
+                      onChange={(e) => setSendWelcomeMessage(e.target.checked)}
+                      disabled={busy}
+                    />
+                    <span className="text-sm text-[var(--color-text-secondary)]">
+                      등록 완료 시 학부모·학생에게 가입 성공 메시지 발송
+                    </span>
+                  </label>
+                  <div style={{ marginBottom: "var(--space-2)" }}>
+                    <span className="modal-phone-label" style={{ marginBottom: "var(--space-1)" }}>발송할 템플릿</span>
+                    <select
+                      className="ds-input w-full"
+                      value={signupConfig?.template ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        handleSelectSignupTemplate(v ? Number(v) : null);
+                      }}
+                      disabled={updateAutoSendMut.isPending}
+                    >
+                      <option value="">선택 안 함</option>
+                      {messageTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                          {t.solapi_status === "APPROVED" ? " ✓" : t.solapi_status === "PENDING" ? " (검수대기)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => { setTemplateModalOpen(true); }}
+                    disabled={createTemplateAndRegisterMut.isPending}
+                    style={{ width: "100%" }}
+                  >
+                    + 추가하기 (템플릿 생성 후 가입 완료 메시지로 등록)
+                  </Button>
+                </div>
+              )}
+            >
+              <button
+                type="button"
+                className="modal-hint"
+                style={{
+                  background: "none",
+                  border: "1px solid var(--color-border-divider)",
+                  cursor: "pointer",
+                  padding: "var(--space-1) var(--space-3)",
+                  borderRadius: "var(--radius-md)",
+                  fontWeight: 600,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                메시지 자동발송 {signupConfig?.template_name ? `· ${signupConfig.template_name}` : ""} ▾
+              </button>
+            </Dropdown>
           </div>
-          <label className="modal-section-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-3)", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={Boolean(sendWelcomeMessage)}
-              onChange={(e) => setSendWelcomeMessage(e.target.checked)}
-              disabled={busy}
-            />
-            등록완료 후 학부모, 학생에게 가입성공 메세지 일괄발송
-          </label>
           {/* 필수 입력 — 세션 모달과 동일 구조·입체감 */}
           <div className="modal-form-group">
             <span className="modal-section-label">필수 입력</span>
@@ -587,7 +717,10 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         </div>
         ) : (
         <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ marginBottom: "var(--space-3)" }}>
+          <div
+            className="modal-form-row"
+            style={{ justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-3)" }}
+          >
             <button
               type="button"
               onClick={() => setMode("choice")}
@@ -596,6 +729,76 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             >
               ← 등록 방식 변경
             </button>
+            <Dropdown
+              open={messageDropdownOpen}
+              onOpenChange={setMessageDropdownOpen}
+              trigger={["click"]}
+              dropdownRender={() => (
+                <div
+                  className="modal-form-group"
+                  style={{ minWidth: 280, padding: "var(--space-4)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="modal-section-label">메시지 자동발송</span>
+                  <label style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", cursor: "pointer", marginBottom: "var(--space-2)" }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(sendWelcomeMessage)}
+                      onChange={(e) => setSendWelcomeMessage(e.target.checked)}
+                      disabled={busy}
+                    />
+                    <span className="text-sm text-[var(--color-text-secondary)]">
+                      등록 완료 시 학부모·학생에게 가입 성공 메시지 발송
+                    </span>
+                  </label>
+                  <div style={{ marginBottom: "var(--space-2)" }}>
+                    <span className="modal-phone-label" style={{ marginBottom: "var(--space-1)" }}>발송할 템플릿</span>
+                    <select
+                      className="ds-input w-full"
+                      value={signupConfig?.template ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        handleSelectSignupTemplate(v ? Number(v) : null);
+                      }}
+                      disabled={updateAutoSendMut.isPending}
+                    >
+                      <option value="">선택 안 함</option>
+                      {messageTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                          {t.solapi_status === "APPROVED" ? " ✓" : t.solapi_status === "PENDING" ? " (검수대기)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => { setTemplateModalOpen(true); }}
+                    disabled={createTemplateAndRegisterMut.isPending}
+                    style={{ width: "100%" }}
+                  >
+                    + 추가하기 (템플릿 생성 후 가입 완료 메시지로 등록)
+                  </Button>
+                </div>
+              )}
+            >
+              <button
+                type="button"
+                className="modal-hint"
+                style={{
+                  background: "none",
+                  border: "1px solid var(--color-border-divider)",
+                  cursor: "pointer",
+                  padding: "var(--space-1) var(--space-3)",
+                  borderRadius: "var(--radius-md)",
+                  fontWeight: 600,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                메시지 자동발송 {signupConfig?.template_name ? `· ${signupConfig.template_name}` : ""} ▾
+              </button>
+            </Dropdown>
           </div>
           <div className="modal-form-row modal-form-row--1-auto" style={{ alignItems: "end" }}>
             <div>
@@ -654,5 +857,15 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
         }
       />
     </AdminModal>
+
+    <TemplateEditModal
+      open={templateModalOpen}
+      onClose={() => setTemplateModalOpen(false)}
+      category="default"
+      initial={null}
+      onSubmit={handleTemplateSubmit}
+      isPending={createTemplateAndRegisterMut.isPending}
+    />
+    </>
   );
 }
