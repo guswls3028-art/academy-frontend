@@ -87,6 +87,31 @@ a {
   text-decoration: none;
 }
 
+/* 상단 바 로고 영역 — 배경 없음(투명) 고정 */
+.stu-topbar__home-link,
+.stu-topbar__home-link:hover,
+.stu-topbar__home-link:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+.stu-topbar__home-link::before,
+.stu-topbar__home-link::after {
+  display: none !important;
+  content: none !important;
+}
+.stu-topbar__logo,
+.stu-topbar__home-link img {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+.stu-topbar__logo::before,
+.stu-topbar__logo::after {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
 :focus-visible {
   outline: 3px solid color-mix(in srgb, var(--stu-primary) 55%, transparent);
   outline-offset: 2px;
