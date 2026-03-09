@@ -3,6 +3,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FiRefreshCw } from "react-icons/fi";
 import { fetchClinicSettings, updateClinicSettings } from "../api/clinicSettings.api";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -160,6 +161,21 @@ export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }
     [selectedColorIndex, settings, updateMutation]
   );
 
+  /** 팔레트에서 서로 다른 3색 랜덤 선택 후 즉시 저장 (매일 자동 로직은 그대로 유지) */
+  const handleRandomThree = useCallback(() => {
+    const indices: number[] = [];
+    while (indices.length < 3) {
+      const i = Math.floor(Math.random() * COLOR_PALETTE.length);
+      if (!indices.includes(i)) indices.push(i);
+    }
+    const newColors: [string, string, string] = [
+      COLOR_PALETTE[indices[0]],
+      COLOR_PALETTE[indices[1]],
+      COLOR_PALETTE[indices[2]],
+    ];
+    updateMutation.mutate(newColors);
+  }, [updateMutation]);
+
   if (isLoading) {
     if (embedded) {
       return <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>;
@@ -177,6 +193,18 @@ export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }
 
   const content = (
     <div className="space-y-3">
+      {embedded && (
+        <button
+          type="button"
+          onClick={handleRandomThree}
+          disabled={updateMutation.isPending}
+          className="clinic-passcard-refresh-btn-dashboard"
+          title="랜덤 3색 즉시 반영"
+        >
+          <FiRefreshCw size={28} strokeWidth={2.5} className="shrink-0" />
+          <span>랜덤 3색 배치</span>
+        </button>
+      )}
       <div>
         <p className="text-xs text-[var(--color-text-muted)] mb-2">현재 배경</p>
         <div
