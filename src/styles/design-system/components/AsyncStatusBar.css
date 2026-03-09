@@ -526,11 +526,12 @@
   border-radius: 50%;
   background: var(--color-primary, #3b82f6);
   animation: video-thumbnail-encoding-pulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
 }
 
 @keyframes video-thumbnail-encoding-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.9); }
+  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  50% { opacity: 0.85; transform: scale(0.95); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0); }
 }
 
 .video-thumbnail-encoding-overlay__pct-center {
@@ -548,11 +549,18 @@
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
   letter-spacing: -0.02em;
+  animation: video-thumbnail-pct-breathe 2.5s ease-in-out infinite;
+}
+
+@keyframes video-thumbnail-pct-breathe {
+  0%, 100% { opacity: 0.92; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4); }
+  50% { opacity: 1; text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35), 0 0 20px rgba(59, 130, 246, 0.15); }
 }
 
 .video-thumbnail-encoding-overlay__pct-placeholder {
   font-size: clamp(1.25rem, 5vw, 1.75rem);
   color: rgba(255, 255, 255, 0.5);
+  animation: video-thumbnail-pct-breathe 2.2s ease-in-out infinite;
 }
 
 .video-thumbnail-encoding-overlay__footer {
@@ -608,6 +616,31 @@
   border-radius: 2px;
   background: var(--color-primary, #3b82f6);
   transition: width 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 진행률이 멈춰 보이지 않도록 바 위로 은은한 shimmer */
+.video-thumbnail-encoding-overlay__bar-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 40%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.25) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: video-thumbnail-bar-shimmer 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes video-thumbnail-bar-shimmer {
+  0% { background-position: 150% 0; }
+  100% { background-position: -50% 0; }
 }
 
 .video-thumbnail-encoding-overlay__bar-pct {
@@ -618,4 +651,5 @@
   font-variant-numeric: tabular-nums;
   min-width: 2.2em;
   text-align: right;
+  animation: video-thumbnail-pct-breathe 2.5s ease-in-out infinite;
 }
