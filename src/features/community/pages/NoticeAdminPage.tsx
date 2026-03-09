@@ -19,6 +19,7 @@ import {
   type CommunityScopeParams,
 } from "../api/community.api";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/features/lectures/api/sessions";
+import LectureChip from "@/shared/ui/chips/LectureChip";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { NoticeCreateModal } from "./NoticeBoardPage";
@@ -177,7 +178,8 @@ export default function NoticeAdminPage() {
             onClick={selectAll}
           >
             <span className="notice-tree__tab-icon" aria-hidden>📋</span>
-            전체공지
+            <span className="notice-tree__tab-label">전체공지</span>
+            <span className="notice-tree__tab-chevron" aria-hidden />
           </button>
           <button
             type="button"
@@ -186,7 +188,7 @@ export default function NoticeAdminPage() {
             aria-expanded={expandedParent}
           >
             <span className="notice-tree__tab-icon" aria-hidden>📁</span>
-            강의목록
+            <span className="notice-tree__tab-label">강의목록</span>
             <span className="notice-tree__tab-chevron">
               {expandedParent ? "▼" : "▶"}
             </span>
@@ -206,7 +208,13 @@ export default function NoticeAdminPage() {
                   <span className="notice-tree__sub-chevron">
                     {expandedLectureId === lec.id ? "▼" : "▶"}
                   </span>
-                  {lec.title || lec.name || `강의 ${lec.id}`}
+                  <LectureChip
+                    lectureName={lec.title || lec.name || ""}
+                    color={lec.color ?? undefined}
+                    size={20}
+                  />
+                  <span className="notice-tree__sub-label">{lec.title || lec.name || `강의 ${lec.id}`}</span>
+                  <span className="notice-tree__sub-chevron-right" aria-hidden />
                 </button>
                 {expandedLectureId === lec.id && (
                   <div className="notice-tree__children">
@@ -222,7 +230,8 @@ export default function NoticeAdminPage() {
                           className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
                           onClick={() => selectSession(lec.id, s.id)}
                         >
-                          ㄴ{s.title || `${s.order}차시`}
+                          <span className="notice-tree__sub-item-child-icon" aria-hidden>ㄴ</span>
+                          <span className="notice-tree__sub-label">{s.title || `${s.order}차시`}</span>
                         </button>
                       ))
                     )}
