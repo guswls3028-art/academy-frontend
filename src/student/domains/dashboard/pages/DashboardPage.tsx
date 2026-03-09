@@ -29,7 +29,7 @@ export default function DashboardPage() {
 
   return (
     <div style={{ padding: "var(--stu-space-2) 0" }}>
-      {/* 공지 */}
+      {/* 공지: 대시보드 API 공지 반영, 최신 1건 제목 노출 */}
       <Link
         to="/student/notices"
         className="stu-panel stu-panel--pressable stu-panel--accent"
@@ -47,12 +47,16 @@ export default function DashboardPage() {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15 }}>공지사항</div>
-          <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>중요한 공지를 확인하세요</div>
+          <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>
+            {dashboard?.notices?.length
+              ? `최신: ${dashboard.notices[0].title || "공지"}`
+              : "중요한 공지를 확인하세요"}
+          </div>
         </div>
         <span className="stu-cta-link" style={{ fontSize: 13 }}>보기</span>
       </Link>
 
-      {/* 오늘 일정 → 전체 일정 보기 (우측 일정 아이콘) */}
+      {/* 오늘 일정 → useMySessions (GET /student/sessions/me/) 반영 */}
       <section style={{ marginBottom: "var(--stu-space-8)" }}>
         {todaySessions.length === 0 ? (
           <Link
