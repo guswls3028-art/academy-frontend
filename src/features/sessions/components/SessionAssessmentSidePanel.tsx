@@ -39,7 +39,6 @@ export default function SessionAssessmentSidePanel({
   onOpenCreateExam,
   openCreateHomework: openCreateHomeworkProp,
   onCloseCreateHomework,
-  onCloseCreateHomeworkProp,
   onOpenCreateHomework: onOpenCreateHomeworkProp,
 }: Props) {
   const navigate = useNavigate();
@@ -53,7 +52,7 @@ export default function SessionAssessmentSidePanel({
   const [openCreateHomeworkLocal, setOpenCreateHomeworkLocal] = useState(false);
   const openCreateHomework = openCreateHomeworkProp ?? openCreateHomeworkLocal;
   const setOpenCreateHomework = onOpenCreateHomeworkProp ?? (() => setOpenCreateHomeworkLocal(true));
-  const handleCloseCreateHomework = onCloseCreateHomeworkProp ?? (() => setOpenCreateHomeworkLocal(false));
+  const handleCloseCreateHomework = onCloseCreateHomework ?? (() => setOpenCreateHomeworkLocal(false));
 
   const examId = useMemo(() => {
     const v = Number(searchParams.get("examId"));
@@ -119,10 +118,11 @@ export default function SessionAssessmentSidePanel({
   const handleExamProgress = async (row: SessionExamRow) => {
     const id = Number(row.exam_id);
     try {
-      const examRow = row as SessionExamRow & { template_exam_id?: number };
-      if (!examRow.template_exam_id) {
+      try {
         await saveExamAsTemplate(id);
         invalidateExams();
+      } catch (_) {
+        // 이미 템플릿이 있으면 무시
       }
       await updateAdminExam(id, { status: "OPEN" });
       invalidateExams();
