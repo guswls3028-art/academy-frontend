@@ -384,6 +384,22 @@
   transition: background 0.15s, border-color 0.15s;
 }
 
+.answer-key-score-btn--plus1 {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+.answer-key-score-btn--plus2 {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  color: #047857;
+}
+.answer-key-score-btn--plus5 {
+  background: #fce7f3;
+  border-color: #f9a8d4;
+  color: #be185d;
+}
+
 .answer-key-score-btn:hover {
   background: color-mix(in srgb, var(--color-brand-primary) 14%, var(--color-bg-surface));
   border-color: var(--color-brand-primary);
