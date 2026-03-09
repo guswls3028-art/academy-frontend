@@ -64,9 +64,9 @@
 }
 
 .staff-area .staff-section-card__header {
-  padding: 16px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--color-border-divider);
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--color-border-divider) 5%, var(--color-bg-surface)), var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
 }
 
 .staff-area .staff-section-card__title {
@@ -84,7 +84,7 @@
 }
 
 .staff-area .staff-section-card__body {
-  padding: 20px;
+  padding: 12px 20px;
 }
 
 .staff-area .staff-section-card__body + .staff-section-card__footer {
@@ -155,7 +155,7 @@
   font-weight: 600;
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
 }
 
 .staff-area .staff-payroll-card__body {

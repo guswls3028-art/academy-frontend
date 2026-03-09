@@ -1,8 +1,9 @@
 // PATH: src/features/staff/pages/OperationsPage/WorkRecordsPanel.tsx
-// 월 전체 근무기록 — 섹션 카드 스타일 (staff-area)
+// 월 전체 근무기록 — 섹션 카드 스타일 (staff-area), 전역 DS Button 사용
 
 import { useState } from "react";
-import ActionButton from "../../components/ActionButton";
+import { Plus } from "lucide-react";
+import { Button } from "@/shared/ui/ds";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/WorkMonthContext";
 import { useWorkRecords } from "../../hooks/useWorkRecords";
@@ -58,14 +59,16 @@ export default function WorkRecordsPanel() {
           </p>
         </div>
         <div className="shrink-0">
-          <ActionButton
-            variant="primary"
-            size="xs"
-            disabledReason={locked ? "마감된 월입니다." : ""}
+          <Button
+            intent="primary"
+            size="sm"
+            leftIcon={<Plus size={14} strokeWidth={2.5} />}
+            disabled={locked}
+            title={locked ? "마감된 월입니다." : undefined}
             onClick={() => setOpen(true)}
           >
-            + 추가
-          </ActionButton>
+            추가
+          </Button>
         </div>
         {locked && (
           <p className="staff-helper text-[var(--color-danger)] w-full mt-1">
@@ -110,10 +113,17 @@ export default function WorkRecordsPanel() {
                       </div>
                     </div>
 
-                    <ActionButton
-                      variant="danger-outline"
-                      size="xs"
-                      disabledReason={locked ? "마감된 월입니다." : deleteM.isPending ? "처리 중..." : ""}
+                    <Button
+                      intent="danger"
+                      size="sm"
+                      disabled={locked || deleteM.isPending}
+                      title={
+                        locked
+                          ? "마감된 월입니다."
+                          : deleteM.isPending
+                          ? "처리 중…"
+                          : undefined
+                      }
                       onClick={() => {
                         if (locked || deleteM.isPending) return;
                         if (!confirm("이 근무 기록을 삭제할까요?")) return;
@@ -121,7 +131,7 @@ export default function WorkRecordsPanel() {
                       }}
                     >
                       삭제
-                    </ActionButton>
+                    </Button>
                   </div>
                 </div>
               </div>

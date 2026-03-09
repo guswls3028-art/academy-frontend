@@ -1,11 +1,12 @@
 // PATH: src/features/staff/pages/OperationsPage/ExpensesPanel.tsx
-// 비용 · 경비 — 대형 섹션 카드 스타일 (staff-area)
+// 비용 · 경비 — 대형 섹션 카드 스타일 (staff-area), 전역 DS Button 사용
 
 import { useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { useWorkMonth } from "../../operations/context/WorkMonthContext";
 import { useExpenses } from "../../hooks/useExpenses";
 import CreateExpenseModal from "./CreateExpenseModal";
-import ActionButton from "../../components/ActionButton";
+import { Button } from "@/shared/ui/ds";
 import { ExpenseStatusBadge, LockBadge } from "../../components/StatusBadge";
 import "../../styles/staff-area.css";
 
@@ -67,14 +68,16 @@ export default function ExpensesPanel() {
           </p>
         </div>
         <div className="shrink-0">
-          <ActionButton
-            variant="primary"
-            size="xs"
-            disabledReason={locked ? "마감된 월입니다." : ""}
+          <Button
+            intent="primary"
+            size="sm"
+            leftIcon={<Plus size={14} strokeWidth={2.5} />}
+            disabled={locked}
+            title={locked ? "마감된 월입니다." : undefined}
             onClick={() => setOpen(true)}
           >
-            + 추가
-          </ActionButton>
+            추가
+          </Button>
         </div>
         {locked && (
           <p className="staff-helper text-[var(--color-danger)] w-full mt-1">
@@ -127,17 +130,21 @@ export default function ExpensesPanel() {
                   {canManage && (
                     <div className="mt-3 pt-3 border-t border-[var(--color-border-divider)] flex flex-col gap-2">
                       <div className="flex items-center gap-2">
-                        <ActionButton
-                          variant="success"
-                          size="xs"
-                          disabledReason={
+                        <Button
+                          intent="primary"
+                          size="sm"
+                          disabled={
+                            actionDisabled ||
+                            !isPending
+                          }
+                          title={
                             actionDisabled
                               ? locked
                                 ? "마감된 월입니다."
                                 : "처리 중입니다."
                               : !isPending
                               ? "대기 상태에서만 가능합니다."
-                              : ""
+                              : undefined
                           }
                           onClick={() => {
                             if (actionDisabled || !isPending) return;
@@ -146,18 +153,22 @@ export default function ExpensesPanel() {
                           }}
                         >
                           승인
-                        </ActionButton>
-                        <ActionButton
-                          variant="danger-outline"
-                          size="xs"
-                          disabledReason={
+                        </Button>
+                        <Button
+                          intent="danger"
+                          size="sm"
+                          disabled={
+                            actionDisabled ||
+                            !isPending
+                          }
+                          title={
                             actionDisabled
                               ? locked
                                 ? "마감된 월입니다."
                                 : "처리 중입니다."
                               : !isPending
                               ? "대기 상태에서만 가능합니다."
-                              : ""
+                              : undefined
                           }
                           onClick={() => {
                             if (actionDisabled || !isPending) return;
@@ -166,7 +177,7 @@ export default function ExpensesPanel() {
                           }}
                         >
                           반려
-                        </ActionButton>
+                        </Button>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="staff-helper shrink-0 w-[52px]">메모</span>

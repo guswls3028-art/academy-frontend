@@ -1,7 +1,7 @@
 // PATH: src/features/staff/pages/OperationsPage/MonthLockPanel.tsx
-// 월 마감 — 대형 섹션 카드 스타일 (staff-area)
+// 월 마감 — 대형 섹션 카드 스타일 (staff-area), 전역 DS Button 사용
 
-import ActionButton from "../../components/ActionButton";
+import { Button } from "@/shared/ui/ds";
 import { LockBadge } from "../../components/StatusBadge";
 import { useWorkMonth } from "../../operations/context/WorkMonthContext";
 import "../../styles/staff-area.css";
@@ -46,13 +46,13 @@ export default function MonthLockPanel() {
           </p>
         </div>
         <div className="shrink-0">
-          <ActionButton
-            variant="danger"
+          <Button
+            intent="danger"
             size="sm"
-            disabledReason={disabledReason || (lockM.isPending ? "처리 중입니다." : "")}
+            disabled={!!disabledReason || lockM.isPending}
             title={
               disabledReason ||
-              "이번 달 근무·비용을 확정합니다. 마감 후에는 수정할 수 없습니다."
+              (lockM.isPending ? "처리 중입니다." : "이번 달 근무·비용을 확정합니다. 마감 후에는 수정할 수 없습니다.")
             }
             onClick={() => {
               if (disabledReason || lockM.isPending) return;
@@ -65,8 +65,8 @@ export default function MonthLockPanel() {
               lockM.mutate();
             }}
           >
-            월 마감
-          </ActionButton>
+            {lockM.isPending ? "처리 중…" : "월 마감"}
+          </Button>
         </div>
       </div>
 
