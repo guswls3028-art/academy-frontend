@@ -228,7 +228,7 @@ export default function SessionScoresEntryPage(_props: Props) {
                   className={`min-w-[100px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 ${
                     examEditTotal && homeworkEdit && !examEditSubjective
                       ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   합산 + 과제
@@ -239,7 +239,7 @@ export default function SessionScoresEntryPage(_props: Props) {
                   className={`min-w-[100px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 ${
                     examEditSubjective && homeworkEdit && !examEditTotal
                       ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   주관식 + 과제
@@ -257,10 +257,10 @@ export default function SessionScoresEntryPage(_props: Props) {
                   disabled={isBreakdownMode}
                   className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
                     isBreakdownMode
-                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
+                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
                       : examEditTotal
                         ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                        : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                        : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   합산
@@ -271,10 +271,10 @@ export default function SessionScoresEntryPage(_props: Props) {
                   disabled={isSumOnly}
                   className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
                     isSumOnly
-                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
+                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
                       : examEditObjective
                         ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                        : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                        : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   객관식
@@ -285,10 +285,10 @@ export default function SessionScoresEntryPage(_props: Props) {
                   disabled={isSumOnly}
                   className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
                     isSumOnly
-                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-elevated)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
+                      ? "opacity-50 cursor-not-allowed bg-[var(--color-bg-surface-soft)] text-[var(--color-text-muted)] border-[var(--color-border-divider)]"
                       : examEditSubjective
                         ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                        : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                        : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   주관식
@@ -306,7 +306,7 @@ export default function SessionScoresEntryPage(_props: Props) {
                   className={`min-w-[80px] px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-2 select-none ${
                     homeworkEdit
                       ? "bg-[var(--color-brand-primary)] text-white border-[var(--color-brand-primary)] shadow-sm"
-                      : "bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
+                      : "bg-[var(--color-bg-surface-soft)] text-[var(--color-text-primary)] border-[var(--color-border-divider)] hover:border-[var(--color-brand-primary)]/50 hover:bg-[var(--color-bg-surface)]"
                   }`}
                 >
                   과제
@@ -315,7 +315,7 @@ export default function SessionScoresEntryPage(_props: Props) {
             </div>
           </div>
           <div className="px-4 py-2 border-t text-xs text-[var(--color-text-muted)]" style={{ borderColor: "var(--color-border-divider)" }}>
-            Tab / Enter / 방향키로 셀 이동 · 미제출: <kbd className="px-1.5 py-0.5 rounded bg-[var(--color-bg-elevated)] border border-[var(--color-border-divider)] font-mono">/</kbd> + Enter
+            Tab / Enter / 방향키로 셀 이동 · 미제출: <kbd className="px-1.5 py-0.5 rounded bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)] font-mono">/</kbd> + Enter
           </div>
         </div>
       )}

@@ -104,9 +104,10 @@ export default function AnswerKeyRegisterModal({
         essay_score: es,
       });
     },
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
-      await qc.invalidateQueries({ queryKey: ["exam-questions", structureOwnerId] });
+    onSuccess: async (result) => {
+      const list = result?.data ?? [];
+      qc.setQueryData(["exam-questions", examId], list);
+      qc.setQueryData(["exam-questions", structureOwnerId], list);
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
       feedback.success("문항이 반영되었습니다.");
     },
