@@ -74,6 +74,7 @@ export default function AnswerKeyRegisterModal({
       }
     },
     enabled: open && questions.length > 0,
+    retry: (_, error: any) => error?.response?.status !== 404,
   });
   /** DRF list는 pagination 시 { results: [] }, 미사용 시 [] — response.data 기준으로 파싱 */
   const answerKey = useMemo(() => {
@@ -431,11 +432,7 @@ export default function AnswerKeyRegisterModal({
                       type="button"
                       intent="primary"
                       size="sm"
-                      onClick={() => {
-                        setChoiceCount(choiceCountInput);
-                        setEssayCount(essayCountInput);
-                        initMut.mutate({ choiceCount: choiceCountInput, essayCount: essayCountInput });
-                      }}
+                      onClick={() => handleApply("choice")}
                       disabled={initMut.isPending}
                       loading={initMut.isPending}
                     >
@@ -567,11 +564,7 @@ export default function AnswerKeyRegisterModal({
                       type="button"
                       intent="primary"
                       size="sm"
-                      onClick={() => {
-                        setChoiceCount(choiceCountInput);
-                        setEssayCount(essayCountInput);
-                        initMut.mutate({ choiceCount: choiceCountInput, essayCount: essayCountInput });
-                      }}
+                      onClick={() => handleApply("essay")}
                       disabled={initMut.isPending}
                       loading={initMut.isPending}
                     >
