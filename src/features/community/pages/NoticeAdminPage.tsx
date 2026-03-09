@@ -27,11 +27,6 @@ import "@/features/community/notice-tree.css";
 
 const SNIPPET_LEN = 72;
 
-type NoticeFolderTab = "all" | "lecture" | "session";
-
-/** 차시공지에서 펼친 강의 id (해당 강의의 차시 목록 표시용) */
-const NO_EXPAND = 0;
-
 export default function NoticeAdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIdParam = searchParams.get("id");
@@ -56,11 +51,11 @@ export default function NoticeAdminPage() {
     [scope, effectiveLectureId, sessionId]
   );
 
-  const [folderTab, setFolderTab] = useState<NoticeFolderTab>("all");
+  /** 강의목록 폴더 펼침 여부 */
+  const [expandedParent, setExpandedParent] = useState(false);
+  /** 펼쳐진 강의(해당 강의의 차시 목록 표시) */
+  const [expandedLectureId, setExpandedLectureId] = useState<number | null>(null);
 
-  useEffect(() => {
-    setFolderTab(scope);
-  }, [scope]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const qc = useQueryClient();
@@ -70,19 +65,15 @@ export default function NoticeAdminPage() {
     queryFn: () => fetchScopeNodes(),
   });
 
-  /** 실제 강의 목록 (강의공지·차시공지 트리용) */
   const { data: lectures = [] } = useQuery<Lecture[]>({
     queryKey: ["lectures-list"],
     queryFn: () => fetchLectures({ is_active: true }),
   });
 
-  const [expandedLectureId, setExpandedLectureId] = useState<number | null>(null);
-
-  /** 차시공지에서 선택한 강의의 차시 목록 */
   const { data: sessionsOfLecture = [], isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ["lecture-sessions", expandedLectureId],
     queryFn: () => fetchSessions(expandedLectureId!),
-    enabled: folderTab === "session" && Number.isFinite(expandedLectureId ?? 0),
+    enabled: Number.isFinite(expandedLectureId ?? 0),
   });
 
   const { data: noticeBlockTypeId } = useQuery({
@@ -143,26 +134,13 @@ export default function NoticeAdminPage() {
   );
 
   const selectAll = useCallback(() => {
-    setFolderTab("all");
     setScope("all");
     setLectureId(null);
     setSessionId(null);
   }, [setScope, setLectureId, setSessionId]);
 
-  const selectLecture = useCallback(
-    (lecId: number) => {
-      setFolderTab("lecture");
-      setScope("lecture");
-      setLectureId(lecId);
-      setSessionId(null);
-      setExpandedLectureId(null);
-    },
-    [setScope, setLectureId, setSessionId]
-  );
-
   const selectSession = useCallback(
     (lecId: number, sesId: number) => {
-      setFolderTab("session");
       setScope("session");
       setLectureId(lecId);
       setSessionId(sesId);
@@ -170,14 +148,14 @@ export default function NoticeAdminPage() {
     [setScope, setLectureId, setSessionId]
   );
 
-  const toggleSessionTree = useCallback((lecId: number) => {
-    setExpandedLectureId((prev) => (prev === lecId ? null : lecId));
-    setFolderTab("session");
-  }, []);
+  const toggleParent = useCallback(() => {
+    setExpandedParent((p) => !p);
+    if (expandedParent) setExpandedLectureId(null);
+  }, [expandedParent]);
 
-  useEffect(() => {
-    setFolderTab(scope);
-  }, [scope]);
+  const toggleLecture = useCallback((lecId: number) => {
+    setExpandedLectureId((prev) => (prev === lecId ? null : lecId));
+  }, []);
 
   const canShowList =
     scope === "all" ||
@@ -186,7 +164,7 @@ export default function NoticeAdminPage() {
 
   return (
     <div className="notice-tree" style={{ minHeight: "calc(100vh - 180px)" }}>
-      {/* 좌측: 폴더형 탭만 (공지 작성 버튼 제거) */}
+      {/* 좌측: 전체공지 + 강의목록(펼침) → 강의명(펼침) → 차시 (실제 DB 연동) */}
       <nav className="notice-tree__nav">
         <div className="notice-tree__nav-header">
           <h2 className="notice-tree__nav-title">공지</h2>
@@ -195,7 +173,7 @@ export default function NoticeAdminPage() {
         <div className="notice-tree__tabs">
           <button
             type="button"
-            className={`notice-tree__tab ${folderTab === "all" && scope === "all" ? "notice-tree__tab--active" : ""}`}
+            className={`notice-tree__tab ${scope === "all" ? "notice-tree__tab--active" : ""}`}
             onClick={selectAll}
           >
             <span className="notice-tree__tab-icon" aria-hidden>📋</span>
@@ -203,64 +181,53 @@ export default function NoticeAdminPage() {
           </button>
           <button
             type="button"
-            className={`notice-tree__tab ${folderTab === "lecture" ? "notice-tree__tab--active" : ""}`}
-            onClick={() => setFolderTab("lecture")}
+            className={`notice-tree__tab ${expandedParent ? "notice-tree__tab--active" : ""}`}
+            onClick={toggleParent}
+            aria-expanded={expandedParent}
           >
             <span className="notice-tree__tab-icon" aria-hidden>📁</span>
-            강의공지
-          </button>
-          <button
-            type="button"
-            className={`notice-tree__tab ${folderTab === "session" ? "notice-tree__tab--active" : ""}`}
-            onClick={() => setFolderTab("session")}
-          >
-            <span className="notice-tree__tab-icon" aria-hidden>📂</span>
-            차시공지
+            강의목록
+            <span className="notice-tree__tab-chevron">
+              {expandedParent ? "▼" : "▶"}
+            </span>
           </button>
         </div>
 
         <div className="notice-tree__sub">
-          {folderTab === "lecture" &&
+          {expandedParent &&
             lectures.map((lec) => (
-              <button
-                key={`lec-${lec.id}`}
-                type="button"
-                className={`notice-tree__sub-item ${scope === "lecture" && effectiveLectureId === lec.id ? "notice-tree__sub-item--active" : ""}`}
-                onClick={() => selectLecture(lec.id)}
-              >
-                {lec.title || lec.name || `강의 ${lec.id}`}
-              </button>
-            ))}
-          {folderTab === "session" &&
-            lectures.map((lec) => (
-              <div key={`session-${lec.id}`}>
+              <div key={`lec-${lec.id}`} className="notice-tree__branch">
                 <button
                   type="button"
-                  className={`notice-tree__sub-item ${expandedLectureId === lec.id ? "notice-tree__sub-item--active" : ""}`}
-                  onClick={() => toggleSessionTree(lec.id)}
+                  className={`notice-tree__sub-item notice-tree__sub-item--parent ${expandedLectureId === lec.id ? "notice-tree__sub-item--active" : ""}`}
+                  onClick={() => toggleLecture(lec.id)}
+                  aria-expanded={expandedLectureId === lec.id}
                 >
-                  {lec.title || lec.name || `강의 ${lec.id}`}
-                  <span style={{ marginLeft: "auto", fontSize: 10 }}>
+                  <span className="notice-tree__sub-chevron">
                     {expandedLectureId === lec.id ? "▼" : "▶"}
                   </span>
+                  {lec.title || lec.name || `강의 ${lec.id}`}
                 </button>
-                {expandedLectureId === lec.id &&
-                  (sessionsLoading ? (
-                    <div className="notice-tree__sub-item notice-tree__sub-item--child" style={{ cursor: "wait", color: "var(--color-text-muted)" }}>
-                      불러오는 중…
-                    </div>
-                  ) : (
-                    (sessionsOfLecture as Session[]).map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
-                        onClick={() => selectSession(lec.id, s.id)}
-                      >
-                        {s.title || `${s.order}차시`}
-                      </button>
-                    ))
-                  ))}
+                {expandedLectureId === lec.id && (
+                  <div className="notice-tree__children">
+                    {sessionsLoading ? (
+                      <div className="notice-tree__sub-item notice-tree__sub-item--child" style={{ color: "var(--color-text-muted)" }}>
+                        불러오는 중…
+                      </div>
+                    ) : (
+                      (sessionsOfLecture as Session[]).map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className={`notice-tree__sub-item notice-tree__sub-item--child ${scope === "session" && lectureId === lec.id && sessionId === s.id ? "notice-tree__sub-item--active" : ""}`}
+                          onClick={() => selectSession(lec.id, s.id)}
+                        >
+                          ㄴ{s.title || `${s.order}차시`}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             ))}
         </div>
@@ -297,12 +264,10 @@ export default function NoticeAdminPage() {
           {!canShowList ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">
-                {folderTab === "session" ? "강의·차시를 선택하세요" : "강의를 선택하세요"}
+                {expandedParent ? "차시를 선택하세요" : "전체공지 또는 강의목록에서 차시를 선택하세요"}
               </p>
               <p className="qna-inbox__empty-desc">
-                {folderTab === "session"
-                  ? "차시공지에서 위 트리에서 강의와 차시를 선택하면 해당 차시 공지가 표시됩니다."
-                  : "강의공지에서 위 트리에서 강의를 선택하면 해당 강의 공지가 표시됩니다."}
+                강의목록을 펼친 뒤 강의명을 누르면 1차시, 2차시 등이 나옵니다. 차시를 클릭하면 해당 공지가 표시됩니다.
               </p>
             </div>
           ) : isLoading ? (
