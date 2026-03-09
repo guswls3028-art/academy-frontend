@@ -118,7 +118,6 @@ export default function ClinicDaySchedulePanel({
         {times.map((time) => {
           const sessionsAtTime = sessionsForDay.filter((s) => formatTime(s.start_time) === time);
           const items = byTime[time] ?? [];
-          const totalCount = sessionsAtTime.reduce((n, s) => n + (s.participant_count ?? 0), 0) || items.length;
           const slotStatus = getSlotStatus(sessionsAtTime);
           return (
             <section
@@ -132,29 +131,46 @@ export default function ClinicDaySchedulePanel({
             >
               <div className="clinic-section__header">
                 <p className="clinic-section__title">{time}</p>
-                {sessionsAtTime.length > 0 && (
-                  <div className="clinic-section__meta text-sm text-[var(--color-text-muted)] mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span>{sessionsAtTime.map((s) => s.location).join(" · ")} · 예약 {totalCount}명</span>
-                    {onDeleteSession &&
-                      sessionsAtTime.map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() =>
-                            onDeleteSession(s.id, `${formatTime(s.start_time)} ${s.location}`)
-                          }
-                          className="text-[var(--color-text-muted)] hover:text-[var(--color-status-danger)] inline-flex items-center gap-1"
-                          title="클리닉 삭제"
-                          aria-label={`${s.location} 클리닉 삭제`}
-                        >
-                          <Trash2 size={14} />
-                          <span className="text-xs">{s.location} 삭제</span>
-                        </button>
-                      ))}
-                  </div>
-                )}
               </div>
-              <ul className="space-y-2">
+              {sessionsAtTime.length > 0 && (
+                <div className="clinic-session-cards">
+                  {sessionsAtTime.map((s) => {
+                    const sessionStatus = getSessionStatus(s);
+                    const booked = s.booked_count ?? 0;
+                    return (
+                      <div
+                        key={s.id}
+                        className={cx(
+                          "clinic-session-card",
+                          sessionStatus === "normal" && "clinic-session-card--normal",
+                          sessionStatus === "almost" && "clinic-session-card--almost",
+                          sessionStatus === "full" && "clinic-session-card--full"
+                        )}
+                      >
+                        <span className="clinic-session-card__bar" aria-hidden />
+                        <div className="clinic-session-card__body">
+                          <span className="clinic-session-card__location">{s.location || "—"}</span>
+                          <span className="clinic-session-card__count">예약 {booked}명</span>
+                        </div>
+                        {onDeleteSession && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onDeleteSession(s.id, `${formatTime(s.start_time)} ${s.location}`)
+                            }
+                            className="clinic-session-card__delete"
+                            title="클리닉 삭제"
+                            aria-label={`${s.location} 클리닉 삭제`}
+                          >
+                            <Trash2 size={18} strokeWidth={2} aria-hidden />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <ul className="clinic-schedule-slot__list space-y-2">
                 {items.length > 0 ? (
                   items.map((r) => (
                     <li
