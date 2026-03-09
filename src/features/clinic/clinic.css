@@ -451,27 +451,45 @@
   gap: var(--space-8);
 }
 
-/* 클리닉 홈 — 섹션형(카드 아님): 구분선·여백만 사용 */
+/* 클리닉 홈 — 섹션형 카드: 경계 명확, KPI 대형 */
 .clinic-home {
-  gap: 0;
+  gap: var(--space-6);
 }
+
 .clinic-home .clinic-home__section {
-  padding-bottom: var(--space-8);
-  border-bottom: 1px solid var(--color-border-divider);
-  background: transparent;
-  border-radius: 0;
-  border: none;
-  box-shadow: none;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  padding: 20px 24px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   overflow: visible;
 }
+
 .clinic-home .clinic-home__section:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+  margin-bottom: 0;
 }
-/* 2열 그리드 안의 섹션은 하단 선 제거(행 단위로만 구분선) */
+
+/* 2열 그리드: 좌우 섹션 각각 카드, 간격 */
+.clinic-home__row .grid {
+  gap: var(--space-6);
+}
+
 .clinic-home__row .clinic-home__section {
-  border-bottom: none;
-  padding-bottom: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  padding: 20px 24px;
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.clinic-home__row .clinic-home__section:first-child {
+  border-right: 1px solid var(--color-border-divider);
+}
+
+@media (max-width: 1023px) {
+  .clinic-home__row .clinic-home__section:first-child {
+    border-right: 1px solid var(--color-border-divider);
+  }
 }
 .clinic-home__section .clinic-home__header {
   display: flex;
