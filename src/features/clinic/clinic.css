@@ -535,6 +535,36 @@
   color: var(--color-text-muted);
 }
 
+/* 클리닉 홈 KPI — 대형·가시성 강화 */
+.clinic-home .ds-section__kpi-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.clinic-home .ds-section__kpi-list .kpi {
+  min-width: 160px;
+  padding: 20px 24px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-bg-surface));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.clinic-home .ds-section__kpi-list .kpi .kpi-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.clinic-home .ds-section__kpi-list .kpi .kpi-value {
+  margin-top: 8px;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
 .clinic-toolbar {
   display: flex;
   align-items: center;
