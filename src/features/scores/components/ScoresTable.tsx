@@ -888,7 +888,7 @@ export default function ScoresTable({
                   return (
                     <Fragment key={hw.homework_id}>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""} ${isNotSubmitted ? "bg-[var(--color-bg-surface-soft)]" : ""}`}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         style={rowChecked ? undefined : { backgroundColor: isNotSubmitted ? "var(--color-bg-surface-soft)" : isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1083,8 +1083,8 @@ export default function ScoresTable({
                               }}
                             />
                           ) : block ? (
-                            <span className="font-medium text-[var(--color-text-primary)]">
-                              {block?.score != null ? String(block.score) : "-"}
+                            <span className={`font-medium ${isNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}>
+                              {isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "-")}
                             </span>
                           ) : (
                             <span className="text-[var(--color-text-muted)]">-</span>

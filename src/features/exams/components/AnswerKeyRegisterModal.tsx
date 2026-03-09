@@ -183,9 +183,7 @@ export default function AnswerKeyRegisterModal({
               유형도 입력
             </Button>
           </div>
-          <Button type="button" intent="ghost" size="sm" iconOnly aria-label="다운로드">
-            <DownloadIcon />
-          </Button>
+          <Button type="button" intent="ghost" size="sm" iconOnly leftIcon={<DownloadIcon />} aria-label="다운로드" />
         </div>
       </div>
 
