@@ -690,11 +690,11 @@ function ChoiceRow({
         ))}
       </div>
       <div className="answer-key-row__score-ctrl">
-        <span className="answer-key-row__score-val">{score}점</span>
+        <span className={`answer-key-row__score-val answer-key-row__score-val--${Math.min(10, Math.max(0, score))}`}>{score}점</span>
         <div className="answer-key-row__score-btns">
-          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(1)}>+1</button>
-          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(2)}>+2</button>
-          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(5)}>+5</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus1" onClick={() => onScoreChange(1)}>+1</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus2" onClick={() => onScoreChange(2)}>+2</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus5" onClick={() => onScoreChange(5)}>+5</button>
           <button type="button" className="answer-key-score-btn answer-key-score-btn--reset" onClick={onScoreReset} aria-label="점수 초기화">
             <ResetIcon />
           </button>
@@ -721,6 +721,9 @@ function EssayRow({
   onScoreChange,
   onScoreReset,
   showDividerAfter = false,
+  inputRef,
+  onMoveToNextRow,
+  onMoveToPreviousRow,
 }: {
   question: ExamQuestion;
   draft: string;
@@ -729,25 +732,42 @@ function EssayRow({
   onScoreChange: (delta: number) => void;
   onScoreReset: () => void;
   showDividerAfter?: boolean;
+  inputRef?: (el: HTMLInputElement | null) => void;
+  onMoveToNextRow?: () => void;
+  onMoveToPreviousRow?: () => void;
 }) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onMoveToNextRow?.();
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      onMoveToPreviousRow?.();
+    }
+  };
+
   return (
     <li className={`answer-key-row answer-key-row--essay ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
       <div className="answer-key-row__num">{question.number}</div>
       <div className="answer-key-row__input-wrap">
         <input
+          ref={inputRef}
           type="text"
           value={draft}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="해설참조"
           className="ds-input answer-key-row__input"
         />
       </div>
       <div className="answer-key-row__score-ctrl">
-        <span className="answer-key-row__score-val">{score}점</span>
+        <span className={`answer-key-row__score-val answer-key-row__score-val--${Math.min(10, Math.max(0, score))}`}>{score}점</span>
         <div className="answer-key-row__score-btns">
-          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(1)}>+1</button>
-          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(2)}>+2</button>
-          <button type="button" className="answer-key-score-btn" onClick={() => onScoreChange(5)}>+5</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus1" onClick={() => onScoreChange(1)}>+1</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus2" onClick={() => onScoreChange(2)}>+2</button>
+          <button type="button" className="answer-key-score-btn answer-key-score-btn--plus5" onClick={() => onScoreChange(5)}>+5</button>
           <button type="button" className="answer-key-score-btn answer-key-score-btn--reset" onClick={onScoreReset} aria-label="점수 초기화">
             <ResetIcon />
           </button>
