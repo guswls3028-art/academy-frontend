@@ -146,10 +146,10 @@ export default function AnswerKeyRegisterModal({
       setChoiceEditorOpen(false);
       setEssayEditorOpen(false);
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
-      feedback.success("문항이 반영되었습니다.");
+      feedback.success("적용되었습니다.");
     },
     onError: (e: any) => {
-      feedback.error(e?.response?.data?.detail ?? "문항 반영 실패");
+      feedback.error(e?.response?.data?.detail ?? "적용 실패");
     },
   });
 
@@ -249,17 +249,29 @@ export default function AnswerKeyRegisterModal({
                         }
                         className="ds-input"
                         style={{ width: 80 }}
+                        disabled={choiceNoDefaultScore}
+                        aria-readonly={choiceNoDefaultScore}
                       />
                     </label>
-                    <label className="answer-key-field answer-key-field--checkbox">
-                      <input
-                        type="checkbox"
-                        checked={choiceNoDefaultScore}
-                        onChange={(e) => setChoiceNoDefaultScore(e.target.checked)}
-                        className="ds-input"
-                      />
-                      <span className="answer-key-field__label">기본점수 미사용</span>
-                    </label>
+                    <div className="answer-key-field">
+                      <span className="answer-key-field__label">기본점수</span>
+                      <div className="answer-key-default-score-toggle" role="group" aria-label="기본점수 사용 여부">
+                        <button
+                          type="button"
+                          className={`answer-key-toggle-btn ${!choiceNoDefaultScore ? "is-active" : ""}`}
+                          onClick={() => setChoiceNoDefaultScore(false)}
+                        >
+                          사용
+                        </button>
+                        <button
+                          type="button"
+                          className={`answer-key-toggle-btn ${choiceNoDefaultScore ? "is-active" : ""}`}
+                          onClick={() => setChoiceNoDefaultScore(true)}
+                        >
+                          미사용
+                        </button>
+                      </div>
+                    </div>
                     <Button
                       type="button"
                       intent="primary"
@@ -268,7 +280,7 @@ export default function AnswerKeyRegisterModal({
                       disabled={initMut.isPending}
                       loading={initMut.isPending}
                     >
-                      문항 반영
+                      적용
                     </Button>
                   </div>
                 )}
@@ -344,17 +356,29 @@ export default function AnswerKeyRegisterModal({
                         }
                         className="ds-input"
                         style={{ width: 80 }}
+                        disabled={essayNoDefaultScore}
+                        aria-readonly={essayNoDefaultScore}
                       />
                     </label>
-                    <label className="answer-key-field answer-key-field--checkbox">
-                      <input
-                        type="checkbox"
-                        checked={essayNoDefaultScore}
-                        onChange={(e) => setEssayNoDefaultScore(e.target.checked)}
-                        className="ds-input"
-                      />
-                      <span className="answer-key-field__label">기본점수 미사용</span>
-                    </label>
+                    <div className="answer-key-field">
+                      <span className="answer-key-field__label">기본점수</span>
+                      <div className="answer-key-default-score-toggle" role="group" aria-label="기본점수 사용 여부">
+                        <button
+                          type="button"
+                          className={`answer-key-toggle-btn ${!essayNoDefaultScore ? "is-active" : ""}`}
+                          onClick={() => setEssayNoDefaultScore(false)}
+                        >
+                          사용
+                        </button>
+                        <button
+                          type="button"
+                          className={`answer-key-toggle-btn ${essayNoDefaultScore ? "is-active" : ""}`}
+                          onClick={() => setEssayNoDefaultScore(true)}
+                        >
+                          미사용
+                        </button>
+                      </div>
+                    </div>
                     <Button
                       type="button"
                       intent="primary"
@@ -363,7 +387,7 @@ export default function AnswerKeyRegisterModal({
                       disabled={initMut.isPending}
                       loading={initMut.isPending}
                     >
-                      문항 반영
+                      적용
                     </Button>
                   </div>
                 )}
