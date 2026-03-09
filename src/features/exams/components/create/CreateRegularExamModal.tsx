@@ -3,7 +3,7 @@
 // 시험 생성 모달 — 과제와 동일: 제목만 입력 후 생성. 템플릿·세부 설정은 시험 설정에서.
 // ------------------------------------------------------------
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import api from "@/shared/api/axios";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -135,8 +135,6 @@ export default function CreateRegularExamModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open, onClose, disabled, stage]);
 
-  if (!open) return null;
-
   const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) ?? null;
 
   const filteredTemplates = useMemo(() => {
@@ -155,6 +153,8 @@ export default function CreateRegularExamModal({
       return tTitle.includes(k) || tSub.includes(k);
     });
   }, [templates, keyword]);
+
+  if (!open) return null;
 
   const headerTitle =
     stage === "choose" ? (
@@ -311,7 +311,7 @@ export default function CreateRegularExamModal({
                                       ? ({
                                           ["--badge-bg" as any]: `color-mix(in srgb, ${lec.color} 18%, var(--bg-surface-soft))`,
                                           ["--badge-text" as any]: "var(--text-primary)",
-                                        } as React.CSSProperties)
+                                        } as CSSProperties)
                                       : undefined
                                   }
                                 >

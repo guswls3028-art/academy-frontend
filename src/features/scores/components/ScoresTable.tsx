@@ -123,19 +123,14 @@ type Props = {
 
   /** 편집 모드일 때만 점수 셀 입력 가능. 기본은 읽기 전용 */
   isEditMode?: boolean;
-  /** 현재 선택 컬럼(패널 상태). 시험 점수 입력/확장행 제어용 */
-  activeColumn?: "exam" | "homework";
-  /** 시험 점수 입력 모드 */
-  examScoreInputMode?: "TOTAL" | "SUBJECTIVE";
 
   selectedEnrollmentId: number | null;
-  selectedExamId: number | null;
-  selectedHomeworkId: number | null;
+  selectedCell?: ({ enrollmentId: number } & ({ type: "exam"; examId: number } | { type: "homework"; homeworkId: number })) | null;
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number) => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
-  focusHomeworkCell?: { enrollmentId: number; homeworkId: number } | null;
-  onFocusHomeworkDone?: () => void;
+  focusCell?: ({ enrollmentId: number } & ({ type: "exam"; examId: number } | { type: "homework"; homeworkId: number })) | null;
+  onFocusDone?: () => void;
 
   /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 후 focusHomeworkCell 설정 */
   onRequestMoveNext?: () => void;
@@ -153,15 +148,12 @@ export default function ScoresTable({
   sessionId,
   attendanceMap = {},
   isEditMode = false,
-  activeColumn = "homework",
-  examScoreInputMode = "TOTAL",
   selectedEnrollmentId,
-  selectedExamId,
-  selectedHomeworkId,
+  selectedCell = null,
   onSelectCell,
   onSelectRow,
-  focusHomeworkCell,
-  onFocusHomeworkDone,
+  focusCell,
+  onFocusDone,
   onRequestMoveNext,
   onRequestMovePrev,
   onRequestMoveDown,
@@ -220,17 +212,25 @@ export default function ScoresTable({
   }, []);
 
   useEffect(() => {
-    if (!focusHomeworkCell || !onFocusHomeworkDone) return;
-    const key = `${focusHomeworkCell.enrollmentId}-${focusHomeworkCell.homeworkId}`;
-    const el = homeworkInputRefs.current[key];
+    if (!focusCell || !onFocusDone) return;
+    if (focusCell.type === "homework") {
+      const key = `${focusCell.enrollmentId}-${focusCell.homeworkId}`;
+      const el = homeworkInputRefs.current[key];
+      if (el) {
+        el.focus();
+        selectAllScoreCell(el);
+      }
+      onFocusDone();
+      return;
+    }
+    const key = `${focusCell.enrollmentId}-${focusCell.examId}`;
+    const el = examInputRefs.current[key];
     if (el) {
       el.focus();
       selectAllScoreCell(el);
-      onFocusHomeworkDone();
-    } else {
-      onFocusHomeworkDone();
     }
-  }, [focusHomeworkCell, onFocusHomeworkDone, selectAllScoreCell]);
+    onFocusDone();
+  }, [focusCell, onFocusDone, selectAllScoreCell]);
 
   const columns = useMemo((): ScoreColumnDef[] => {
     const list: ScoreColumnDef[] = [
@@ -548,13 +548,13 @@ export default function ScoresTable({
                   const block = entry?.block;
                   const canEditTotal =
                     isEditMode &&
-                    examScoreInputMode === "TOTAL" &&
                     !block?.is_locked &&
-                    activeColumn === "exam";
+                    true;
                   const isSelected =
-                    selected &&
-                    selectedExamId === ex.exam_id &&
-                    activeColumn === "exam";
+                    !!selectedCell &&
+                    selectedCell.enrollmentId === row.enrollment_id &&
+                    selectedCell.type === "exam" &&
+                    selectedCell.examId === ex.exam_id;
                   const scoreText =
                     block?.score == null
                       ? "-"
@@ -716,13 +716,17 @@ export default function ScoresTable({
                       (h) => h.homework_id === hw.homework_id
                     ) ?? null;
                   const block = entry?.block;
-                  const isSelected = selected && selectedHomeworkId === hw.homework_id;
+                  const isSelected =
+                    !!selectedCell &&
+                    selectedCell.enrollmentId === row.enrollment_id &&
+                    selectedCell.type === "homework" &&
+                    selectedCell.homeworkId === hw.homework_id;
                   const canEditScore = isEditMode;
 
                   return (
                     <Fragment key={hw.homework_id}>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected && selectedHomeworkId === hw.homework_id ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         style={rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
