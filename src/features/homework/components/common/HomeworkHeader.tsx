@@ -86,7 +86,7 @@ export default function HomeworkHeader({ homework }: Props) {
         </div>
       </div>
 
-      <div className="text-xs text-[var(--text-muted)]">
+      <div className="text-sm text-[var(--color-text-muted)]">
         ※ 과제의 <b>성적 입력 · 판정</b>은 <b>세션 &gt; 성적</b> 메뉴에서
         진행합니다.
       </div>

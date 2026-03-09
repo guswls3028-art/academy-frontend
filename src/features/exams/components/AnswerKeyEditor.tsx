@@ -30,13 +30,24 @@ export function AnswerKeyEditor({ examId, disabled }: Props) {
 
   useEffect(() => {
     async function load() {
-      const q = await fetchQuestionsByExam(examId);
-      setQuestions(q.data);
+      try {
+        const q = await fetchQuestionsByExam(examId);
+        setQuestions(q.data ?? []);
 
-      const ak = await fetchAnswerKeyByExam(examId);
-      const first = (ak.data || [])[0] ?? null;
-      setAnswerKey(first);
-      setDraft(first ? normalizeAnswers(first.answers) : {});
+        let first: AnswerKey | null = null;
+        try {
+          const ak = await fetchAnswerKeyByExam(examId);
+          first = (ak.data ?? [])[0] ?? null;
+        } catch {
+          // 404 등: 정답키 미생성 시 빈 상태로 표시 (Uncaught AxiosError 방지)
+        }
+        setAnswerKey(first);
+        setDraft(first ? normalizeAnswers(first.answers) : {});
+      } catch (e) {
+        setQuestions([]);
+        setAnswerKey(null);
+        setDraft({});
+      }
     }
     load();
   }, [examId]);
