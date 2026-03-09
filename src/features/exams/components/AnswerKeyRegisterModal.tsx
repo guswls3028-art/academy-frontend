@@ -3,7 +3,7 @@
  * 디자인 시스템: ds-tabs, ds-button, ds-input, modal-tabs-area, modal-footer.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button, Tabs } from "@/shared/ui/ds";
@@ -75,6 +75,8 @@ export default function AnswerKeyRegisterModal({
   const [explanationDraft, setExplanationDraft] = useState<
     Record<number, { text: string; imageUrl: string | null }>
   >({});
+
+  const choiceBubbleRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const sortedQuestions = useMemo(
     () => [...questions].sort((a, b) => a.number - b.number),
@@ -332,6 +334,14 @@ export default function AnswerKeyRegisterModal({
                         setScoreDraft((prev) => ({ ...prev, [q.id]: 0 }))
                       }
                       showDividerAfter={(index + 1) % 5 === 0 && index < choiceQuestions.length - 1}
+                      bubblesRef={(el) => {
+                        if (choiceBubbleRefs.current.length <= index) choiceBubbleRefs.current.length = index + 1;
+                        choiceBubbleRefs.current[index] = el;
+                      }}
+                      onEnterMoveToNext={() => {
+                        const next = choiceBubbleRefs.current[index + 1];
+                        next?.focus();
+                      }}
                     />
                   ))}
                 </ul>
@@ -529,6 +539,8 @@ function ChoiceRow({
   onScoreChange,
   onScoreReset,
   showDividerAfter = false,
+  bubblesRef,
+  onEnterMoveToNext,
 }: {
   question: ExamQuestion;
   draft: string;
@@ -537,6 +549,8 @@ function ChoiceRow({
   onScoreChange: (delta: number) => void;
   onScoreReset: () => void;
   showDividerAfter?: boolean;
+  bubblesRef?: (el: HTMLDivElement | null) => void;
+  onEnterMoveToNext?: () => void;
 }) {
   const currentIndex = CHOICES.indexOf(draft);
   const selectedIndex = currentIndex >= 0 ? currentIndex : 0;
@@ -555,7 +569,14 @@ function ChoiceRow({
       onChange(next);
       return;
     }
-    if (e.key === "Enter" || e.key === " ") {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const next = CHOICES[selectedIndex];
+      if (next) onChange(next);
+      onEnterMoveToNext?.();
+      return;
+    }
+    if (e.key === " ") {
       e.preventDefault();
       const next = CHOICES[selectedIndex];
       if (next) onChange(next);
@@ -567,6 +588,7 @@ function ChoiceRow({
     <li className={`answer-key-row answer-key-row--choice ${showDividerAfter ? "answer-key-row--divider-after" : ""}`}>
       <div className="answer-key-row__num">{question.number}</div>
       <div
+        ref={bubblesRef}
         className="answer-key-row__bubbles"
         role="radiogroup"
         aria-label={`${question.number}번 정답`}
