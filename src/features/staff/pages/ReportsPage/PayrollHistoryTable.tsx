@@ -47,32 +47,29 @@ export default function PayrollHistoryTable({ staffId: staffIdProp }: { staffId?
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-5 py-6">
-        <div className="text-sm font-semibold">급여 히스토리 없음</div>
-        <div className="text-xs text-[var(--text-muted)] mt-1">
-          아직 마감된 급여 내역이 없습니다.
-        </div>
+      <div className="staff-area rounded-xl border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-border-divider)_6%,var(--color-bg-surface))] px-5 py-8 text-center">
+        <div className="staff-section-title">급여 히스토리 없음</div>
+        <div className="staff-helper mt-2">아직 마감된 급여 내역이 없습니다.</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="staff-area space-y-3">
       {rows.map((r) => (
         <div
           key={r.id}
-          className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface)] px-5 py-4 flex justify-between items-center gap-4"
+          className="rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] px-5 py-4 flex justify-between items-center gap-4 shadow-sm"
         >
           <div>
-            <div className="font-semibold">{ymLabel(r.year, r.month)}</div>
-            <div className="text-xs text-[var(--text-muted)]">
-              생성:{" "}
-              {r.created_at ? new Date(r.created_at).toLocaleString() : "-"}
+            <div className="staff-section-title font-semibold">{ymLabel(r.year, r.month)}</div>
+            <div className="staff-helper mt-0.5">
+              생성: {r.created_at ? new Date(r.created_at).toLocaleString() : "-"}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="font-semibold">{r.total_amount.toLocaleString()}원</div>
+            <div className="staff-body font-semibold tabular-nums">{r.total_amount.toLocaleString()}원</div>
 
             <ActionButton
               variant="outline"

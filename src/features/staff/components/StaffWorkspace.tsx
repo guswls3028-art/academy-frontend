@@ -68,7 +68,9 @@ export function StaffWorkspace() {
           <>
             <StaffWorkspaceHeader staffId={staffId} year={year} month={month} />
             <div className="staff-panel__body overflow-y-auto flex-1 pt-4">
-              <StaffWorkspaceTabs staffId={staffId} year={year} month={month} />
+              <div className="mb-5">
+                <StaffWorkspaceTabs staffId={staffId} year={year} month={month} />
+              </div>
               <Outlet />
             </div>
           </>

@@ -54,6 +54,50 @@
   overflow: hidden;
 }
 
+/* 우측 워크스페이스 콘텐츠용 섹션 카드 — 고급 섹션형 블록 */
+.staff-area .staff-section-card {
+  border-radius: 12px;
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.staff-area .staff-section-card__header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border-divider);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--color-border-divider) 5%, var(--color-bg-surface)), var(--color-bg-surface));
+}
+
+.staff-area .staff-section-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
+}
+
+.staff-area .staff-section-card__desc {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.staff-area .staff-section-card__body {
+  padding: 20px;
+}
+
+.staff-area .staff-section-card__body + .staff-section-card__footer {
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.staff-area .staff-section-card__footer {
+  padding: 12px 20px;
+  background: color-mix(in srgb, var(--color-border-divider) 4%, var(--color-bg-surface));
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
 .staff-area .staff-panel__header {
   padding: 14px 18px;
   border-bottom: 1px solid var(--color-border-divider);

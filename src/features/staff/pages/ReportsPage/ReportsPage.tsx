@@ -1,5 +1,5 @@
 // PATH: src/features/staff/pages/ReportsPage/ReportsPage.tsx
-// Report/Statement tab: payroll history and lock history for selected staff. Layout is in StaffWorkspace.
+// Report/Statement tab: payroll history and lock history for selected staff. Section-style layout.
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -20,22 +20,22 @@ export default function ReportsPage() {
   if (staffId == null) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="staff-panel">
-        <div className="staff-panel__header">
-          <span className="staff-section-title">급여 이력</span>
-          <p className="staff-helper mt-1">선택한 직원의 월별 확정 급여 내역입니다.</p>
+    <div className="staff-area space-y-6">
+      <section className="staff-section-card">
+        <div className="staff-section-card__header">
+          <h2 className="staff-section-card__title">급여 이력</h2>
+          <p className="staff-section-card__desc">선택한 직원의 월별 확정 급여 내역입니다.</p>
         </div>
-        <div className="staff-panel__body">
+        <div className="staff-section-card__body">
           <PayrollHistoryTable staffId={staffId} />
         </div>
-      </div>
+      </section>
 
-      <div className="staff-panel">
-        <div className="staff-panel__header flex flex-wrap items-center justify-between gap-4">
+      <section className="staff-section-card">
+        <div className="staff-section-card__header flex flex-wrap items-center justify-between gap-4">
           <div>
-            <span className="staff-section-title">월별 마감 이력</span>
-            <p className="staff-helper mt-1">기준월 선택 시 해당 월 마감 상태를 확인합니다.</p>
+            <h2 className="staff-section-card__title">월별 마감 이력</h2>
+            <p className="staff-section-card__desc">기준월 선택 시 해당 월 마감 상태를 확인합니다.</p>
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -60,13 +60,13 @@ export default function ReportsPage() {
             </select>
           </div>
         </div>
-        <div className="staff-panel__body">
+        <div className="staff-section-card__body">
           <WorkMonthLockHistory year={ym.year} month={ym.month} />
         </div>
-        <div className="staff-panel__body border-t border-[var(--color-border-divider)] pt-3">
-          <p className="staff-helper">엑셀/PDF 다운로드는 급여 스냅샷 탭에서 기준월 선택 후 사용하세요.</p>
+        <div className="staff-section-card__footer">
+          엑셀/PDF 다운로드는 급여 스냅샷 탭에서 기준월 선택 후 사용하세요.
         </div>
-      </div>
+      </section>
     </div>
   );
 }
