@@ -119,7 +119,7 @@ function ColorSelectModal({ open, onClose, onSelect, currentColor }: ColorSelect
   );
 }
 
-export default function ClinicRemoteControl() {
+export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }) {
   const qc = useQueryClient();
   const { data: settings, isLoading } = useQuery({
     queryKey: ["clinic-settings"],
@@ -161,6 +161,9 @@ export default function ClinicRemoteControl() {
   );
 
   if (isLoading) {
+    if (embedded) {
+      return <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>;
+    }
     return (
       <div className="clinic-panel">
         <div className="clinic-panel__body">
@@ -171,6 +174,60 @@ export default function ClinicRemoteControl() {
   }
 
   const colors = settings?.colors || ["#ef4444", "#3b82f6", "#22c55e"];
+
+  const content = (
+    <div className="space-y-3">
+      <div>
+        <p className="text-xs text-[var(--color-text-muted)] mb-2">현재 배경</p>
+        <div
+          className="w-full h-16 rounded-lg border border-[var(--color-border-divider)]"
+          style={{
+            background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
+            backgroundSize: "200% 200%",
+          }}
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {[0, 1, 2].map((index) => (
+          <button
+            key={index}
+            type="button"
+            onClick={() => handleColorSelect(index)}
+            className="relative group text-left"
+          >
+            <div
+              className="w-full h-20 rounded-lg border-2 border-[var(--color-border-divider)] transition-all hover:border-[var(--color-brand-primary)] hover:scale-[1.02]"
+              style={{ backgroundColor: colors[index] }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
+              <span className="text-xs font-semibold text-white">변경</span>
+            </div>
+            <div className="mt-2">
+              <span className="text-xs font-semibold text-[var(--color-text-primary)]">색상 {index + 1}</span>
+              <p className="text-[10px] font-mono text-[var(--color-text-muted)]">{colors[index]}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {content}
+        <ColorSelectModal
+          open={colorModalOpen}
+          onClose={() => {
+            setColorModalOpen(false);
+            setSelectedColorIndex(null);
+          }}
+          onSelect={handleColorConfirm}
+          currentColor={selectedColorIndex !== null ? colors[selectedColorIndex] : "#ef4444"}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -185,40 +242,7 @@ export default function ClinicRemoteControl() {
           </span>
         </div>
         <div className="clinic-panel__body">
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs text-[var(--color-text-muted)] mb-2">현재 배경</p>
-              <div
-                className="w-full h-16 rounded-lg border border-[var(--color-border-divider)]"
-                style={{
-                  background: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
-                  backgroundSize: "200% 200%",
-                }}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[0, 1, 2].map((index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => handleColorSelect(index)}
-                  className="relative group text-left"
-                >
-                  <div
-                    className="w-full h-20 rounded-lg border-2 border-[var(--color-border-divider)] transition-all hover:border-[var(--color-brand-primary)] hover:scale-[1.02]"
-                    style={{ backgroundColor: colors[index] }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
-                    <span className="text-xs font-semibold text-white">변경</span>
-                  </div>
-                  <div className="mt-2">
-                    <span className="text-xs font-semibold text-[var(--color-text-primary)]">색상 {index + 1}</span>
-                    <p className="text-[10px] font-mono text-[var(--color-text-muted)]">{colors[index]}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+          {content}
         </div>
       </div>
 

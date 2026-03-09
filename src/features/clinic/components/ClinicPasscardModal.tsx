@@ -24,7 +24,7 @@ export default function ClinicPasscardModal({ open, onClose }: Props) {
       <ModalHeader title="클리닉 패스카드" onClose={onClose} />
       <ModalBody>
         <div className="p-4 sm:p-5">
-          <ClinicRemoteControl />
+          <ClinicRemoteControl embedded />
         </div>
       </ModalBody>
     </AdminModal>
