@@ -222,6 +222,12 @@
   gap: var(--space-4);
 }
 
+/* 스크롤 없음 — 본문이 모달 높이만큼 흐르도록 (학생 등록 등) */
+.modal-scroll-body--no-scroll {
+  overflow: visible;
+  max-height: none;
+}
+
 /* 폼 행 — 2열·3열·1+auto 등 SSOT 배치 (할당 크기에 맞게 정렬) */
 .modal-form-row {
   display: grid;

@@ -445,7 +445,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
             </div>
           </div>
         ) : mode === "single" ? (
-        <div className="modal-scroll-body modal-scroll-body--compact">
+        <div className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll">
           <div
             className="modal-form-row"
             style={{
@@ -703,12 +703,13 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               onChange={handleChange}
               className="ds-textarea"
               disabled={busy}
+              style={{ minHeight: 40, maxHeight: 40, resize: "none" }}
             />
           </div>
 
         </div>
         ) : (
-        <div className="modal-scroll-body modal-scroll-body--compact" style={{ display: "flex", flexDirection: "column" }}>
+        <div className="modal-scroll-body modal-scroll-body--compact modal-scroll-body--no-scroll" style={{ display: "flex", flexDirection: "column" }}>
           <div
             className="modal-form-row"
             style={{
