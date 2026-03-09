@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchHomeworks } from "@/features/homework/api/homeworks";
 import type { HomeworkListItem } from "@/features/homework/api/homeworks";
 import type { HomeworkCardData } from "./ops/HomeworkKanbanCard";
+import { Button } from "@/shared/ui/ds";
 import KPICard from "./ops/KPICard";
 import HomeworkKanbanCard from "./ops/HomeworkKanbanCard";
 
@@ -91,20 +92,48 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
-          이번 차시 과제 운영 현황
-        </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">
+            이번 차시 과제 운영 현황
+          </h2>
+          {onAddHomework && (
+            <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+              과제를 추가하면 이 차시에 연결됩니다. 좌측 패널 &quot;+ 추가&quot; 또는 아래 버튼으로 생성하세요.
+            </p>
+          )}
+        </div>
+        {onAddHomework && (
+          <Button type="button" intent="primary" onClick={onAddHomework}>
+            + 과제 추가
+          </Button>
+        )}
       </div>
+      {hasNoHomeworks && onAddHomework && (
+        <div
+          className="rounded-xl border-2 border-dashed border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-8 text-center"
+        >
+          <p className="mb-2 text-sm font-medium text-[var(--color-text-secondary)]">
+            이 차시에 연결된 과제가 없습니다
+          </p>
+          <p className="mb-4 text-xs text-[var(--color-text-muted)]">
+            좌측 패널 또는 아래 버튼으로 과제를 추가하세요.
+          </p>
+          <Button type="button" intent="primary" size="lg" onClick={onAddHomework}>
+            + 과제 추가
+          </Button>
+        </div>
+      )}
+      {!hasNoHomeworks && (
+        <>
+          <div className="grid grid-cols-3 gap-3">
+            <KPICard label="초안" value={stats.draft} color="gray" />
+            <KPICard label="진행중" value={stats.open} color="blue" />
+            <KPICard label="완료" value={stats.closed} color="green" />
+          </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <KPICard label="초안" value={stats.draft} color="gray" />
-        <KPICard label="진행중" value={stats.open} color="blue" />
-        <KPICard label="완료" value={stats.closed} color="green" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {HW_STATUS_ORDER.map((status) => (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {HW_STATUS_ORDER.map((status) => (
           <div
             key={status}
             className="rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3"
@@ -129,7 +158,9 @@ export default function SessionHomeworkOpsBoard({ lectureId, sessionId, onAddHom
             </div>
           </div>
         ))}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

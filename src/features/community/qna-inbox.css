@@ -1,8 +1,11 @@
 /* PATH: src/features/community/qna-inbox.css
- * QnA Inbox/Thread 레이아웃 — SaaS 표준 (Linear, Intercom, Zendesk)
- * SSOT: section.css 토큰 사용, 프리미엄 SaaS 톤
+ * QnA Inbox — Premium SaaS (Linear / Intercom / Zendesk level)
+ * Design system tokens: --color-*, --space-*, --radius-*, --text-*
  */
 
+/* ─────────────────────────────────────────────────────
+   Layout shell
+───────────────────────────────────────────────────── */
 .qna-inbox {
   display: flex;
   height: 100%;
@@ -15,7 +18,7 @@
 
 .qna-inbox__list {
   width: 360px;
-  min-width: 320px;
+  min-width: 300px;
   max-width: 42%;
   display: flex;
   flex-direction: column;
@@ -31,117 +34,216 @@
   background: var(--color-bg-surface);
 }
 
+/* ─────────────────────────────────────────────────────
+   Avatar
+───────────────────────────────────────────────────── */
+.qna-inbox__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+  user-select: none;
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-secondary);
+}
+
+/* Teacher: primary-color identity */
+.qna-inbox__avatar--teacher {
+  background: color-mix(in srgb, var(--color-primary) 88%, transparent);
+  color: #fff;
+}
+
+/* Student color palette — 5 hue slots using color-mix for theme safety */
+.qna-inbox__avatar[data-slot="0"] {
+  background: color-mix(in srgb, #818cf8 22%, var(--color-bg-surface));
+  color: #4338ca;
+}
+.qna-inbox__avatar[data-slot="1"] {
+  background: color-mix(in srgb, #38bdf8 22%, var(--color-bg-surface));
+  color: #0369a1;
+}
+.qna-inbox__avatar[data-slot="2"] {
+  background: color-mix(in srgb, #a78bfa 22%, var(--color-bg-surface));
+  color: #6d28d9;
+}
+.qna-inbox__avatar[data-slot="3"] {
+  background: color-mix(in srgb, #34d399 22%, var(--color-bg-surface));
+  color: #065f46;
+}
+.qna-inbox__avatar[data-slot="4"] {
+  background: color-mix(in srgb, #fb923c 22%, var(--color-bg-surface));
+  color: #c2410c;
+}
+
+/* ─────────────────────────────────────────────────────
+   Left panel — header
+───────────────────────────────────────────────────── */
 .qna-inbox__list-header {
-  padding: var(--space-4);
+  padding: var(--space-4, 16px);
   border-bottom: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
 }
 
 .qna-inbox__list-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--color-text-primary);
-  margin-bottom: var(--space-3);
+  margin: 0;
 }
 
+/* ── Filter tabs: horizontal segmented control ── */
 .qna-inbox__filter-group {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  gap: 3px;
+  background: var(--color-bg-surface-soft);
+  border-radius: var(--radius-md, 8px);
+  padding: 3px;
 }
 
 .qna-inbox__filter-btn {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 6px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: calc(var(--radius-md, 8px) - 2px);
   background: transparent;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-secondary);
-  text-align: left;
+  color: var(--color-text-muted);
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: background 100ms ease, color 100ms ease, box-shadow 100ms ease;
+  white-space: nowrap;
 }
 
 .qna-inbox__filter-btn:hover {
-  background: var(--color-bg-surface-hover);
-  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+  color: var(--color-text-secondary);
 }
 
 .qna-inbox__filter-btn--active {
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  color: var(--color-primary);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 .qna-inbox__filter-badge {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 1px 5px;
   border-radius: 999px;
-  background: var(--color-bg-surface-hover);
+  background: var(--color-bg-surface-soft);
   color: var(--color-text-muted);
+  line-height: 1.5;
+  min-width: 18px;
+  text-align: center;
 }
 
 .qna-inbox__filter-btn--active .qna-inbox__filter-badge {
-  background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
   color: var(--color-primary);
 }
 
-.qna-inbox__search {
-  margin-top: var(--space-3);
-}
-
+/* ── Search ── */
 .qna-inbox__search .ds-input {
   width: 100%;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
   font-size: 13px;
 }
 
+/* ─────────────────────────────────────────────────────
+   Question card list
+───────────────────────────────────────────────────── */
 .qna-inbox__list-body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-2);
+  padding: var(--space-2, 8px);
 }
 
 .qna-inbox__card {
   display: block;
   width: 100%;
-  padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-2);
+  padding: var(--space-3, 12px) var(--space-3, 12px);
+  margin-bottom: 3px;
   border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
   text-align: left;
   cursor: pointer;
-  transition: box-shadow 0.15s ease, background 0.15s ease;
+  transition: background 100ms ease;
   position: relative;
 }
 
 .qna-inbox__card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: var(--color-bg-surface-hover, rgba(0, 0, 0, 0.03));
 }
 
 .qna-inbox__card--active {
-  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
-  box-shadow: 0 0 0 1px var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-bg-surface));
 }
 
-.qna-inbox__card--unread::before {
+.qna-inbox__card--active::before {
   content: "";
   position: absolute;
-  left: var(--space-2);
-  top: var(--space-4);
-  width: 8px;
-  height: 8px;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--color-primary);
+}
+
+/* Card body — flex row: avatar + content */
+.qna-inbox__card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.qna-inbox__card-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Unread badge — dot on avatar bottom-right */
+.qna-inbox__card--unread .qna-inbox__card-avatar-wrap::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--color-primary);
+  border: 2px solid var(--color-bg-surface-soft);
+}
+
+.qna-inbox__card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.qna-inbox__card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
 }
 
 .qna-inbox__card-title {
@@ -149,12 +251,14 @@
   font-weight: 600;
   color: var(--color-text-primary);
   line-height: 1.4;
-  margin-bottom: 4px;
-  padding-left: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 .qna-inbox__card--unread .qna-inbox__card-title {
-  padding-left: calc(8px + 6px);
+  font-weight: 700;
 }
 
 .qna-inbox__card-snippet {
@@ -165,11 +269,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-bottom: var(--space-2);
-}
-
-.qna-inbox__card--unread .qna-inbox__card-snippet {
-  padding-left: calc(8px + 6px);
+  margin-bottom: var(--space-2, 8px);
 }
 
 .qna-inbox__card-meta {
@@ -177,74 +277,149 @@
   color: var(--color-text-muted);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 5px;
   flex-wrap: wrap;
 }
 
-.qna-inbox__card--unread .qna-inbox__card-meta {
-  padding-left: calc(8px + 6px);
+.qna-inbox__card-meta-dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  flex-shrink: 0;
 }
 
+/* ─────────────────────────────────────────────────────
+   Status badges — consistent pill shape
+───────────────────────────────────────────────────── */
 .qna-inbox__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.qna-inbox__status::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .qna-inbox__status--pending {
-  background: color-mix(in srgb, #eab308 18%, transparent);
-  color: #b45309;
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  color: #92400e;
+}
+
+.qna-inbox__status--pending::before {
+  background: #f59e0b;
 }
 
 .qna-inbox__status--resolved {
-  background: color-mix(in srgb, #22c55e 14%, transparent);
-  color: #15803d;
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  color: #14532d;
 }
 
+.qna-inbox__status--resolved::before {
+  background: #22c55e;
+}
+
+/* ─────────────────────────────────────────────────────
+   Right panel — thread header
+───────────────────────────────────────────────────── */
 .qna-inbox__thread-header {
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4, 16px) var(--space-5, 20px);
   border-bottom: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface);
   flex-shrink: 0;
 }
 
+.qna-inbox__thread-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+}
+
+.qna-inbox__thread-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
 .qna-inbox__thread-title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--color-text-primary);
   line-height: 1.3;
-  margin-bottom: var(--space-1);
+  margin: 0 0 var(--space-1, 4px) 0;
 }
 
 .qna-inbox__thread-meta {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
+.qna-inbox__thread-meta-dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.qna-inbox__thread-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────
+   Student context panel
+───────────────────────────────────────────────────── */
 .qna-inbox__student-panel {
-  padding: var(--space-4);
+  padding: var(--space-3, 12px) var(--space-5, 20px);
   border-bottom: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface-soft);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  flex-shrink: 0;
 }
 
-.qna-inbox__student-panel-title {
-  font-size: 11px;
+.qna-inbox__student-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.qna-inbox__student-panel-label {
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--color-text-muted);
-  margin-bottom: var(--space-2);
+  margin-bottom: 2px;
 }
 
 .qna-inbox__student-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text-primary);
-  margin-bottom: 2px;
 }
 
 .qna-inbox__student-course {
@@ -255,36 +430,81 @@
 .qna-inbox__student-history {
   font-size: 12px;
   color: var(--color-primary);
-  margin-top: var(--space-2);
   font-weight: 500;
+  flex-shrink: 0;
 }
 
+/* ─────────────────────────────────────────────────────
+   Thread body — message conversation
+───────────────────────────────────────────────────── */
 .qna-inbox__thread-body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-5);
+  padding: var(--space-5, 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-.qna-inbox__message {
-  margin-bottom: var(--space-6);
-}
-
-.qna-inbox__message-header {
+/* Thread separator — visual divider between question and replies */
+.qna-inbox__thread-sep {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
+  gap: var(--space-3, 12px);
+  margin: var(--space-4, 16px) 0;
+}
+
+.qna-inbox__thread-sep::before,
+.qna-inbox__thread-sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border-divider);
+}
+
+.qna-inbox__thread-sep-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+/* ── Message row: Avatar + Bubble ── */
+.qna-inbox__message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: var(--space-4, 16px);
+}
+
+.qna-inbox__message-bubble {
+  flex: 1;
+  min-width: 0;
+  background: var(--color-bg-surface-soft);
+  border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) var(--radius-md, 8px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+}
+
+/* Teacher bubble: primary accent */
+.qna-inbox__message-row--teacher .qna-inbox__message-bubble {
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface));
+  border-radius: 0 var(--radius-md, 8px) var(--radius-md, 8px) var(--radius-md, 8px);
+  border-left: 2px solid color-mix(in srgb, var(--color-primary) 50%, transparent);
+}
+
+.qna-inbox__message-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: var(--space-2, 8px);
 }
 
 .qna-inbox__message-author {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-primary);
-}
-
-.qna-inbox__message-date {
-  font-size: 12px;
-  color: var(--color-text-muted);
 }
 
 .qna-inbox__message-badge {
@@ -294,45 +514,109 @@
   border-radius: 4px;
   background: var(--color-bg-surface-soft);
   color: var(--color-text-muted);
+  letter-spacing: 0.01em;
 }
 
-.qna-inbox__message--teacher .qna-inbox__message-badge {
+.qna-inbox__message-row--teacher .qna-inbox__message-badge {
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   color: var(--color-primary);
 }
 
+.qna-inbox__message-date {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
 .qna-inbox__message-body {
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--color-text-primary);
   white-space: pre-wrap;
 }
 
+/* ── Reply actions — revealed on hover ── */
+.qna-inbox__message-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: var(--space-2, 8px);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.qna-inbox__message-row:hover .qna-inbox__message-actions {
+  opacity: 1;
+}
+
+/* Edit form inside bubble */
+.qna-inbox__edit-form {
+  margin-top: var(--space-2, 8px);
+}
+
+.qna-inbox__edit-form textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.qna-inbox__edit-form textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.qna-inbox__edit-actions {
+  display: flex;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-2, 8px);
+}
+
+/* ─────────────────────────────────────────────────────
+   Question history timeline
+───────────────────────────────────────────────────── */
 .qna-inbox__timeline {
-  margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border-divider);
+  margin-top: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  background: var(--color-bg-surface-soft);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border-divider);
 }
 
 .qna-inbox__timeline-title {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--color-text-muted);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-3, 12px);
 }
 
 .qna-inbox__timeline-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-  font-size: 13px;
+  gap: var(--space-2, 8px);
+  padding: 5px 0;
+  font-size: 12px;
   color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.qna-inbox__timeline-item:first-of-type {
+  border-top: none;
+  padding-top: 0;
 }
 
 .qna-inbox__timeline-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--color-border-divider);
   flex-shrink: 0;
@@ -343,87 +627,134 @@
   background: transparent;
   color: var(--color-primary);
   cursor: pointer;
+  font-size: 12px;
   font-weight: 500;
   text-align: left;
   padding: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 100ms ease;
 }
 
 .qna-inbox__timeline-item button:hover {
   text-decoration: underline;
 }
 
+/* ─────────────────────────────────────────────────────
+   Composer
+───────────────────────────────────────────────────── */
 .qna-inbox__composer {
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3, 12px) var(--space-5, 20px) var(--space-4, 16px);
   border-top: 1px solid var(--color-border-divider);
   background: var(--color-bg-surface);
   flex-shrink: 0;
 }
 
-.qna-inbox__composer-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  margin-bottom: var(--space-2);
+.qna-inbox__composer-inner {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.qna-inbox__composer-inner:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
 }
 
 .qna-inbox__composer textarea {
   width: 100%;
-  min-height: 100px;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border-divider);
-  font-size: 14px;
-  line-height: 1.5;
-  resize: vertical;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  min-height: 80px;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  border: none;
+  border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  resize: none;
+  background: transparent;
+  color: var(--color-text-primary);
 }
 
 .qna-inbox__composer textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
-.qna-inbox__composer-actions {
+.qna-inbox__composer textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.qna-inbox__composer-footer {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-top: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+  border-radius: 0 0 var(--radius-md, 8px) var(--radius-md, 8px);
 }
 
+.qna-inbox__composer-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qna-inbox__composer-hint kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────────────────────────────
+   Empty / loading states
+───────────────────────────────────────────────────── */
 .qna-inbox__empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-8);
+  padding: var(--space-8, 40px) var(--space-6, 24px);
   text-align: center;
-  color: var(--color-text-muted);
+  flex: 1;
 }
 
 .qna-inbox__empty-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-secondary);
-  margin-bottom: var(--space-1);
+  margin: 0 0 var(--space-1, 4px) 0;
 }
 
 .qna-inbox__empty-desc {
   font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0;
 }
 
 .qna-inbox__keyboard-hint {
   font-size: 11px;
   color: var(--color-text-muted);
-  margin-top: var(--space-4);
+  margin-top: var(--space-4, 16px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .qna-inbox__keyboard-hint kbd {
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--color-bg-surface-soft);
+  border: 1px solid var(--color-border-divider);
   font-family: ui-monospace, monospace;
   font-size: 11px;
+  color: var(--color-text-secondary);
 }
