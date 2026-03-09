@@ -54,7 +54,9 @@ function StatusBadge({ success }: { success: boolean }) {
 
 export default function MessageLogPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const { data, isLoading } = useNotificationLog({ page: 1, page_size: 50 });
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
+  const { data, isLoading } = useNotificationLog({ page: currentPage, page_size: PAGE_SIZE });
   const results = data?.results ?? [];
   const count = data?.count ?? 0;
 
@@ -247,9 +249,15 @@ export default function MessageLogPage() {
           columns={columns}
           dataSource={filtered}
           pagination={
-            count <= (data?.results?.length ?? 0)
+            count <= PAGE_SIZE
               ? false
-              : { total: count, pageSize: 50, showSizeChanger: false }
+              : {
+                  total: count,
+                  pageSize: PAGE_SIZE,
+                  current: currentPage,
+                  showSizeChanger: false,
+                  onChange: (page) => setCurrentPage(page),
+                }
           }
           size="small"
           style={{ marginTop: 4 }}

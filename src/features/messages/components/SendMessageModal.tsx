@@ -2,7 +2,7 @@
 // 공용 메시지 발송 모달 — 직접 입력 또는 기존 템플릿 불러와서 발송
 // 수신자(학부모/학생), 발송 유형(SMS/알림톡) 다중 선택 가능. 템플릿 수정 모달과 비슷한 큰 레이아웃.
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "antd";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
@@ -15,9 +15,17 @@ import {
   type SendToType,
 } from "../api/messages.api";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
-import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
+import { TEMPLATE_CATEGORY_LABELS, DEFAULT_BLOCKS } from "../constants/templateBlocks";
 import type { MessageTemplateCategory } from "../api/messages.api";
 import "../styles/templateEditor.css";
+
+/** SMS 기준 글자수: 90자 이하 = SMS, 91~2000 = LMS */
+function getCharLabel(len: number) {
+  if (len === 0) return null;
+  if (len <= 90) return { label: `${len}/90`, tone: "ok" as const };
+  if (len <= 2000) return { label: `${len} (LMS)`, tone: "lms" as const };
+  return { label: `${len} (초과)`, tone: "over" as const };
+}
 
 export type SendMessageModalOpenOptions = {
   studentIds: number[];
@@ -53,6 +61,7 @@ export default function SendMessageModal({
   const [useAlimtalk, setUseAlimtalk] = useState(false);
   const [sending, setSending] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const { data: messagingInfo } = useMessagingInfo();
   const smsAllowed = messagingInfo?.sms_allowed ?? true;
 
@@ -68,7 +77,8 @@ export default function SendMessageModal({
     hasRecipients &&
     body.trim().length > 0 &&
     sendToTargets.length > 0 &&
-    messageModes.length > 0;
+    messageModes.length > 0 &&
+    !sending;
 
   useEffect(() => {
     if (open) {
@@ -104,6 +114,22 @@ export default function SendMessageModal({
       cancelled = true;
     };
   }, [open]);
+
+  const insertBlock = (insertText: string) => {
+    const ta = bodyRef.current;
+    if (!ta) {
+      setBody((prev) => prev + insertText);
+      return;
+    }
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd ?? start;
+    setBody(body.slice(0, start) + insertText + body.slice(end));
+    setTimeout(() => {
+      ta.focus();
+      const pos = start + insertText.length;
+      ta.setSelectionRange(pos, pos);
+    }, 0);
+  };
 
   const handleLoadTemplate = (t: MessageTemplateItem) => {
     setSelectedTemplateId(t.id);
@@ -312,15 +338,52 @@ export default function SendMessageModal({
               />
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
-              <label className="block text-xs text-[var(--color-text-muted)] mb-1">본문</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs text-[var(--color-text-muted)]">본문</label>
+                {(() => {
+                  const info = getCharLabel(body.length);
+                  if (!info) return null;
+                  return (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color:
+                          info.tone === "ok"
+                            ? "var(--color-text-muted)"
+                            : info.tone === "lms"
+                            ? "var(--color-primary)"
+                            : "var(--color-error)",
+                      }}
+                    >
+                      {info.label}
+                    </span>
+                  );
+                })()}
+              </div>
+              {/* 변수 삽입 블록 */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {DEFAULT_BLOCKS.map((block) => (
+                  <button
+                    key={block.id}
+                    type="button"
+                    onClick={() => insertBlock(block.insertText)}
+                    disabled={sending}
+                    className="template-editor__block-btn px-2 py-1 rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {block.label}
+                  </button>
+                ))}
+              </div>
               <Input.TextArea
-                placeholder="내용을 입력하거나 위에서 템플릿을 선택하세요. #{student_name_2}, #{student_name_3}, #{site_link} 등 변수는 발송 시 자동 치환됩니다."
+                ref={bodyRef}
+                placeholder="내용을 입력하거나 위에서 템플릿을 선택하세요. 위 버튼으로 변수를 삽입할 수 있습니다."
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                rows={14}
+                rows={12}
                 disabled={sending}
                 className="template-editor__textarea w-full p-3"
-                style={{ resize: "vertical", minHeight: 280 }}
+                style={{ resize: "vertical", minHeight: 240 }}
               />
             </div>
           </section>
