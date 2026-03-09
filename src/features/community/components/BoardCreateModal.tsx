@@ -18,7 +18,8 @@ interface Props {
 }
 
 export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Props) {
-  const [blockTypeId, setBlockTypeId] = useState<number | "">(blockTypes[0]?.id ?? "");
+  // 유형 기본값 비움. 이전엔 blockTypes[0] 사용 → API 정렬에 따라 QnA가 첫 번째면 항상 QnA가 기본으로 잡혀 구조적 문제 발생.
+  const [blockTypeId, setBlockTypeId] = useState<number | "">("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selectedNodeIds, setSelectedNodeIds] = useState<number[]>([]);

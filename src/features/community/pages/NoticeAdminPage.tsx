@@ -129,7 +129,7 @@ export default function NoticeAdminPage() {
     };
   }, [allNoticePostsForCount, scopeNodes, lectures]);
 
-  const { data: posts = [], isLoading } = useQuery<BoardPost[]>({
+  const { data: posts = [], isLoading, isError, error } = useQuery<BoardPost[]>({
     queryKey: [
       "community-notice-posts",
       scope,
@@ -147,6 +147,8 @@ export default function NoticeAdminPage() {
         (scope === "lecture" && effectiveLectureId != null) ||
         (scope === "session" && sessionId != null)) &&
       noticeTypeId != null,
+    retry: 1,
+    staleTime: 30_000,
   });
 
   const filtered = useMemo(() => {
@@ -381,6 +383,13 @@ export default function NoticeAdminPage() {
           ) : isLoading ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">불러오는 중…</p>
+            </div>
+          ) : isError ? (
+            <div className="qna-inbox__empty">
+              <p className="qna-inbox__empty-title">목록을 불러오지 못했습니다</p>
+              <p className="qna-inbox__empty-desc">
+                {(error as Error)?.message || "잠시 후 다시 시도해 주세요."}
+              </p>
             </div>
           ) : filtered.length === 0 ? (
             <div className="qna-inbox__empty">
