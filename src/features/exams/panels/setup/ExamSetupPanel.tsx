@@ -195,13 +195,18 @@
 // }
 
 import { useSearchParams } from "react-router-dom";
+import { useSessionParams } from "@/features/sessions/hooks/useSessionParams";
 import ExamPolicyPanel from "./ExamPolicyPanel";
 import ExamBulkActionsPanel from "./ExamBulkActionsPanel";
 import BlockReason from "../../components/BlockReason";
 
 export default function ExamSetupPanel({ examId }: { examId: number }) {
+  const { sessionId: sessionIdFromPath } = useSessionParams();
   const [sp] = useSearchParams();
-  const sessionId = Number(sp.get("session_id"));
+  const sessionIdFromQuery = Number(sp.get("session_id"));
+  const sessionId = Number.isFinite(sessionIdFromQuery) && sessionIdFromQuery > 0
+    ? sessionIdFromQuery
+    : (sessionIdFromPath ?? 0);
 
   const hasSession = Number.isFinite(sessionId) && sessionId > 0;
 

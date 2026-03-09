@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useSessionParams } from "@/features/sessions/hooks/useSessionParams";
 import {
   useExamEnrollmentRows,
   useUpdateExamEnrollmentRows,
@@ -17,8 +18,12 @@ import { fetchSessionEnrollments } from "../../api/sessionEnrollments";
 import BlockReason from "../../components/BlockReason";
 
 export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
+  const { sessionId: sessionIdFromPath } = useSessionParams();
   const [sp] = useSearchParams();
-  const sessionId = Number(sp.get("session_id"));
+  const sessionIdFromQuery = Number(sp.get("session_id"));
+  const sessionId = Number.isFinite(sessionIdFromQuery) && sessionIdFromQuery > 0
+    ? sessionIdFromQuery
+    : (sessionIdFromPath ?? 0);
 
   if (!sessionId) {
     return (

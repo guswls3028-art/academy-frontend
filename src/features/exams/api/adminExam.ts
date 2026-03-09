@@ -64,6 +64,15 @@ export async function updateAdminExam(
 }
 
 /**
+ * POST /exams/{id}/save-as-template/
+ * regular 시험에 template가 없을 때, 현재 설정으로 템플릿을 생성해 연결합니다.
+ */
+export async function saveExamAsTemplate(examId: number): Promise<Exam> {
+  const res = await api.post(`/exams/${examId}/save-as-template/`);
+  return normalizeExam(res.data);
+}
+
+/**
  * POST /exams/{id}/recalculate/
  * (없으면 no-op)
  */

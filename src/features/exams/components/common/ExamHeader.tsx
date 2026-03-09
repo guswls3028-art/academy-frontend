@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Exam } from "../../types";
-import { updateAdminExam } from "../../api/adminExam";
+import { updateAdminExam, saveExamAsTemplate } from "../../api/adminExam";
 import { Button } from "@/shared/ui/ds";
 
 /**
@@ -21,6 +21,10 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
   const handleProgress = async () => {
     setLoading("progress");
     try {
+      if (isRegular && !exam.template_exam_id) {
+        await saveExamAsTemplate(exam.id);
+        invalidate();
+      }
       await updateAdminExam(exam.id, { status: "OPEN" });
       invalidate();
     } finally {
