@@ -1,6 +1,6 @@
 /**
- * 클리닉 패스카드 설정 모달 — 대시보드 바로가기 등에서 사용
- * 리모컨(실시간 3색 변경) + 저장을 모달로 제공
+ * 클리닉 패스카드 — 대시보드에서 열리는 오버레이(포탈)
+ * 실시간 3색 변경 후 즉시 학생 앱에 반영
  */
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import ModalHeader from "@/shared/ui/modal/ModalHeader";
@@ -15,13 +15,20 @@ type Props = {
 
 export default function ClinicPasscardModal({ open, onClose }: Props) {
   return (
-    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.wide}>
-      <ModalHeader title="클리닉 패스카드 설정" onClose={onClose} />
-      <ModalBody>
-        <div className="p-5">
-          <ClinicRemoteControl />
-        </div>
-      </ModalBody>
+    <AdminModal
+      open={open}
+      onClose={onClose}
+      width={MODAL_WIDTH.wide}
+      className="clinic-passcard-modal"
+    >
+      <div className="clinic-passcard-modal__inner">
+        <ModalHeader title="클리닉 패스카드" onClose={onClose} />
+        <ModalBody>
+          <div className="p-4 sm:p-5">
+            <ClinicRemoteControl />
+          </div>
+        </ModalBody>
+      </div>
     </AdminModal>
   );
 }

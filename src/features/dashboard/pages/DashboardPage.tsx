@@ -121,10 +121,10 @@ export default function DashboardPage() {
           <div className="ds-section__grid">
             <DashboardShortcutWidget
               icon={<ClinicRemoconIcon />}
-              label="클리닉 리모컨"
-              subLabel="패스카드 배경색 설정"
+              label="클리닉 패스카드"
+              subLabel="패스카드 배경색 · 즉시 반영"
               onClick={() => setClinicPasscardModalOpen(true)}
-              data-testid="dashboard-shortcut-clinic-remocon"
+              data-testid="dashboard-shortcut-clinic-passcard"
             />
             <DashboardShortcutWidget
               icon={<NavIcon d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" />}
