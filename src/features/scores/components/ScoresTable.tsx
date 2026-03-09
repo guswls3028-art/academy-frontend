@@ -597,227 +597,188 @@ export default function ScoresTable({
                   })()}
                 </td>
 
-                {/* 시험: 점수 | 합불 — 합산 모드 1칸 총점, 주관식 모드 문항별 */}
+                {/* 시험: 컬럼 정의에 따라 합산/객관식/주관식/문항별/합불 */}
                 {examOptions.map((ex) => {
                   const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
                   const block = entry?.block;
                   const questions = (ex as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
-                  const isItemMode = examScoreInputMode === "item" && questions.length > 0;
-                  const canEditTotal = isEditMode && !block?.is_locked && !isItemMode;
-                  const scoreText = block?.score == null ? "-" : `${Math.round(block.score)}`;
+                  const examColsList = columns.filter((c) => c.type === "exam" && c.examId === ex.exam_id) as Extract<ScoreColumnDef, { type: "exam" }>[];
+                  return (
+                    <Fragment key={ex.exam_id}>
+                      {examColsList.map((col) => {
+                        const isSelected =
+                          !!selectedCell &&
+                          selectedCell.enrollmentId === row.enrollment_id &&
+                          selectedCell.type === "exam" &&
+                          selectedCell.examId === ex.exam_id &&
+                          (col.sub === "total" ? selectedCell.sub === "total" : col.sub === "objective" ? selectedCell.sub === "objective" : col.sub === "item" && col.questionId != null ? selectedCell.sub === "item" && selectedCell.questionId === col.questionId : false);
+                        const bg = rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM };
 
-                  if (isItemMode) {
-                    return (
-                      <Fragment key={ex.exam_id}>
-                        {questions.map((q) => {
-                          const item = entry?.items?.find((i) => i.question_id === q.question_id);
-                          const value = item?.score ?? null;
-                          const maxScore = item?.max_score ?? q.max_score ?? 0;
-                          const isSelected =
-                            !!selectedCell &&
-                            selectedCell.enrollmentId === row.enrollment_id &&
-                            selectedCell.type === "exam" &&
-                            selectedCell.examId === ex.exam_id &&
-                            selectedCell.questionId === q.question_id;
-                          const canEditItem = isEditMode && !block?.is_locked;
+                        if (col.sub === "pass") {
+                          return (
+                            <td key={col.key} className="min-w-0 text-left align-middle py-2.5 px-3" style={bg} onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id); }}>
+                              <PassFailBadge passed={block?.passed} />
+                            </td>
+                          );
+                        }
+
+                        if (col.sub === "total") {
+                          const scoreText = block?.score == null ? "-" : `${Math.round(block.score)}`;
+                          const canEdit = isEditMode && examEditTotal && !block?.is_locked;
                           return (
                             <td
-                              key={`${ex.exam_id}-${q.question_id}`}
+                              key={col.key}
                               className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              style={rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectCell(row, "exam", ex.exam_id, q.question_id);
-                              }}
+                              style={bg}
+                              onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
-                              {canEditItem ? (
+                              {canEdit ? (
+                                <span
+                                  ref={(el) => {
+                                    const k = `${row.enrollment_id}-${ex.exam_id}`;
+                                    examInputRefs.current[k] = el;
+                                    if (el && el !== document.activeElement) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                  }}
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0"
+                                  onFocus={(e) => {
+                                    const el = e.currentTarget;
+                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = block?.score != null ? String(Math.round(block.score)) : "";
+                                    requestAnimationFrame(() => selectAllScoreCell(el));
+                                  }}
+                                  onBlur={async () => {
+                                    const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
+                                    if (!el) return;
+                                    const raw = firstLine(el.innerText);
+                                    const parsed = parseScoreInput(raw, 100);
+                                    if (parsed != null && validateScore(parsed, 100)) {
+                                      await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
+                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    } else if (raw !== "") el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                  }}
+                                  onKeyDown={async (e) => {
+                                    const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
+                                      if (parsed != null && validateScore(parsed, 100)) {
+                                        await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
+                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      }
+                                      onRequestMoveDown?.();
+                                    } else if (e.key === "Tab") { e.preventDefault(); if (e.shiftKey) onRequestMovePrev?.(); else onRequestMoveNext?.(); }
+                                    else if (e.key === "ArrowLeft") { e.preventDefault(); onRequestMovePrev?.(); }
+                                    else if (e.key === "ArrowRight") { e.preventDefault(); onRequestMoveNext?.(); }
+                                  }}
+                                />
+                              ) : (
+                                <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
+                              )}
+                            </td>
+                          );
+                        }
+
+                        if (col.sub === "objective") {
+                          const objScore = block?.objective_score ?? block?.score ?? null;
+                          const scoreText = objScore == null ? "-" : `${Math.round(objScore)}`;
+                          const canEdit = isEditMode && examEditObjective && !block?.is_locked;
+                          return (
+                            <td
+                              key={col.key}
+                              className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
+                              style={bg}
+                              onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
+                            >
+                              {canEdit ? (
+                                <span
+                                  ref={(el) => {
+                                    const k = `${row.enrollment_id}-${ex.exam_id}-objective`;
+                                    examObjectiveInputRefs.current[k] = el;
+                                    if (el && el !== document.activeElement) el.innerText = objScore != null ? String(Math.round(objScore)) : "";
+                                  }}
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0"
+                                  onFocus={(e) => {
+                                    const el = e.currentTarget;
+                                    examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] = objScore != null ? String(Math.round(objScore)) : "";
+                                    requestAnimationFrame(() => selectAllScoreCell(el));
+                                  }}
+                                  onBlur={async () => {
+                                    const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
+                                    if (!el) return;
+                                    const raw = firstLine(el.innerText);
+                                    const parsed = parseScoreInput(raw, 100);
+                                    if (parsed != null && validateScore(parsed, 100)) {
+                                      await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
+                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    } else if (raw !== "") el.innerText = objScore != null ? String(Math.round(objScore)) : "";
+                                  }}
+                                  onKeyDown={async (e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
+                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
+                                      if (parsed != null && validateScore(parsed, 100)) {
+                                        await patchExamObjectiveScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
+                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      }
+                                      onRequestMoveDown?.();
+                                    } else if (e.key === "Tab") { e.preventDefault(); if (e.shiftKey) onRequestMovePrev?.(); else onRequestMoveNext?.(); }
+                                  }}
+                                />
+                              ) : (
+                                <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
+                              )}
+                            </td>
+                          );
+                        }
+
+                        if (col.sub === "subjective") {
+                          const subScore = block?.subjective_score ?? null;
+                          return (
+                            <td key={col.key} className="min-w-0 text-left align-middle py-2.5 px-3" style={bg}>
+                              <span className="font-medium text-[var(--color-text-primary)]">{subScore != null ? String(Math.round(subScore)) : "-"}</span>
+                            </td>
+                          );
+                        }
+
+                        if (col.sub === "item" && col.questionId != null) {
+                          const q = questions.find((qu) => qu.question_id === col.questionId);
+                          const item = entry?.items?.find((i) => i.question_id === col.questionId);
+                          const value = item?.score ?? null;
+                          const maxScore = item?.max_score ?? q?.max_score ?? 0;
+                          const canEdit = isEditMode && examEditSubjective && !block?.is_locked;
+                          return (
+                            <td
+                              key={col.key}
+                              className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
+                              style={bg}
+                              onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
+                            >
+                              {canEdit ? (
                                 <ScoreInputCell
                                   examId={ex.exam_id}
                                   enrollmentId={row.enrollment_id}
-                                  questionId={q.question_id}
+                                  questionId={col.question_id}
                                   value={value}
                                   maxScore={maxScore}
                                   disabled={!!block?.is_locked}
                                   onSaved={() => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] })}
-                                  inputRef={(el) => {
-                                    const k = `${row.enrollment_id}-${ex.exam_id}-${q.question_id}`;
-                                    examItemInputRefs.current[k] = el;
-                                  }}
+                                  inputRef={(el) => { examItemInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-${col.questionId}`] = el; }}
                                   onMovePrev={onRequestMovePrev}
                                   onMoveNext={onRequestMoveNext}
                                 />
                               ) : (
-                                <span className="font-medium text-[var(--color-text-primary)]">
-                                  {value != null ? String(value) : "-"}
-                                </span>
+                                <span className="font-medium text-[var(--color-text-primary)]">{value != null ? String(value) : "-"}</span>
                               )}
                             </td>
                           );
-                        })}
-                        <td
-                          className="min-w-0 text-left align-middle py-2.5 px-3"
-                          style={rowChecked ? undefined : { backgroundColor: BG_EXAM }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectCell(row, "exam", ex.exam_id);
-                          }}
-                        >
-                          <PassFailBadge passed={block?.passed} />
-                        </td>
-                      </Fragment>
-                    );
-                  }
+                        }
 
-                  const isSelected =
-                    !!selectedCell &&
-                    selectedCell.enrollmentId === row.enrollment_id &&
-                    selectedCell.type === "exam" &&
-                    selectedCell.examId === ex.exam_id &&
-                    selectedCell.questionId == null;
-
-                  return (
-                    <Fragment key={ex.exam_id}>
-                      <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                        style={rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectCell(row, "exam", ex.exam_id);
-                        }}
-                      >
-                        {canEditTotal ? (
-                          <span
-                            ref={(el) => {
-                              const key = `${row.enrollment_id}-${ex.exam_id}`;
-                              examInputRefs.current[key] = el;
-                              if (el && el !== document.activeElement) {
-                                el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
-                              }
-                            }}
-                            contentEditable
-                            suppressContentEditableWarning
-                            className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm text-[var(--color-text-primary)] outline-none inline-block w-full min-w-0"
-                            onFocus={(e) => {
-                              const el = e.currentTarget;
-                              const key = `${row.enrollment_id}-${ex.exam_id}`;
-                              examScoreValueOnFocusRef.current[key] = block?.score != null ? String(Math.round(block.score)) : "";
-                              requestAnimationFrame(() => selectAllScoreCell(el));
-                            }}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              const el = e.currentTarget;
-                              el.focus();
-                              selectAllScoreCell(el);
-                            }}
-                            onBlur={async () => {
-                              const key = `${row.enrollment_id}-${ex.exam_id}`;
-                              const el = examInputRefs.current[key];
-                              if (!el) return;
-                              const raw = firstLine(el.innerText);
-                              if (raw === "") {
-                                el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
-                                return;
-                              }
-                              const parsed = parseScoreInput(raw, 100);
-                              if (parsed != null) {
-                                if (!validateScore(parsed, 100)) {
-                                  el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
-                                  return;
-                                }
-                                await patchExamTotalScoreQuick({
-                                  examId: ex.exam_id,
-                                  enrollmentId: row.enrollment_id,
-                                  score: parsed,
-                                  maxScore: 100,
-                                });
-                                qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
-                              } else {
-                                el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
-                              }
-                            }}
-                            onKeyDown={async (e) => {
-                              const key = `${row.enrollment_id}-${ex.exam_id}`;
-                              const el = examInputRefs.current[key];
-                              const raw = el?.innerText?.trim() ?? "";
-
-                              if (e.key === "Escape") {
-                                e.preventDefault();
-                                const prev = examScoreValueOnFocusRef.current[key] ?? "";
-                                if (el) el.innerText = prev;
-                                el?.blur();
-                                return;
-                              }
-                              if (e.key === "Tab") {
-                                e.preventDefault();
-                                if (e.shiftKey) onRequestMovePrev?.();
-                                else onRequestMoveNext?.();
-                                return;
-                              }
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                const parsed = parseScoreInput(raw, 100);
-                                if (parsed != null) {
-                                  if (!validateScore(parsed, 100)) {
-                                    if (el) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
-                                    return;
-                                  }
-                                  await patchExamTotalScoreQuick({
-                                    examId: ex.exam_id,
-                                    enrollmentId: row.enrollment_id,
-                                    score: parsed,
-                                    maxScore: 100,
-                                  });
-                                  qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
-                                } else {
-                                  if (el) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
-                                }
-                                onRequestMoveDown?.();
-                                return;
-                              }
-                              if (e.key === "Delete" || e.key === "Backspace") {
-                                e.preventDefault();
-                                if (el) el.innerText = "";
-                                return;
-                              }
-                              if (e.key === "ArrowUp") {
-                                e.preventDefault();
-                                onRequestMoveUp?.();
-                                return;
-                              }
-                              if (e.key === "ArrowDown") {
-                                e.preventDefault();
-                                onRequestMoveDown?.();
-                                return;
-                              }
-                              if (e.key === "ArrowLeft") {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onRequestMovePrev?.();
-                                return;
-                              }
-                              if (e.key === "ArrowRight") {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                onRequestMoveNext?.();
-                                return;
-                              }
-                            }}
-                            title="Enter 저장 · Tab 이동 · Esc 취소"
-                          />
-                        ) : (
-                          <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
-                        )}
-                      </td>
-                      <td
-                        className="min-w-0 text-left align-middle py-2.5 px-3"
-                        style={rowChecked ? undefined : { backgroundColor: BG_EXAM }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectCell(row, "exam", ex.exam_id);
-                        }}
-                      >
-                        <PassFailBadge passed={block?.passed} />
-                      </td>
+                        return null;
+                      })}
                     </Fragment>
                   );
                 })}
@@ -834,7 +795,7 @@ export default function ScoresTable({
                     selectedCell.enrollmentId === row.enrollment_id &&
                     selectedCell.type === "homework" &&
                     selectedCell.homeworkId === hw.homework_id;
-                  const canEditScore = isEditMode;
+                  const canEditScore = isEditMode && homeworkEdit;
 
                   return (
                     <Fragment key={hw.homework_id}>
