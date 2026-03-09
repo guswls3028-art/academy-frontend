@@ -187,6 +187,7 @@ export default function ScoresTable({
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const examObjectiveInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examItemInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   /** ESC 복원용 — 포커스 진입 시점의 값 */
   const scoreValueOnFocusRef = useRef<Record<string, string>>({});
@@ -248,10 +249,20 @@ export default function ScoresTable({
       return;
     }
     if (focusCell.type === "exam") {
-      if (focusCell.questionId != null) {
+      if (focusCell.sub === "item" && "questionId" in focusCell) {
         const key = `${focusCell.enrollmentId}-${focusCell.examId}-${focusCell.questionId}`;
         const el = examItemInputRefs.current[key];
         if (el) el.focus();
+        onFocusDone();
+        return;
+      }
+      if (focusCell.sub === "objective") {
+        const key = `${focusCell.enrollmentId}-${focusCell.examId}-objective`;
+        const el = examObjectiveInputRefs.current[key];
+        if (el) {
+          el.focus();
+          selectAllScoreCell(el);
+        }
         onFocusDone();
         return;
       }
@@ -272,30 +283,27 @@ export default function ScoresTable({
     ];
     examOptions.forEach((e) => {
       const questions = (e as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
-      if (examScoreInputMode === "item" && questions.length > 0) {
-        questions.forEach((q) => {
-          list.push({
-            type: "exam",
-            examId: e.exam_id,
-            questionId: q.question_id,
-            title: e.title,
-            sub: "score",
-            key: `exam_${e.exam_id}_q_${q.question_id}_score`,
-            width: COL_SCORE,
-            editable: true,
-          });
-        });
+      if (isEditMode) {
+        if (examEditTotal) list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "total", key: `exam_${e.exam_id}_total`, width: COL_SCORE, editable: true });
+        if (examEditObjective) list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "objective", key: `exam_${e.exam_id}_objective`, width: COL_SCORE, editable: true });
+        if (examEditSubjective && questions.length > 0) {
+          questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, questionId: q.question_id, title: e.title, sub: "item", key: `exam_${e.exam_id}_q_${q.question_id}`, width: COL_SCORE, editable: true }));
+        }
         list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
       } else {
-        list.push(
-          { type: "exam", examId: e.exam_id, title: e.title, sub: "score", key: `exam_${e.exam_id}_score`, width: COL_SCORE, editable: true },
-          { type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false }
-        );
+        if (scoreDisplayMode === "total") {
+          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "total", key: `exam_${e.exam_id}_score`, width: COL_SCORE, editable: false });
+          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
+        } else {
+          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "objective", key: `exam_${e.exam_id}_objective`, width: COL_SCORE, editable: false });
+          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: false });
+          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
+        }
       }
     });
     homeworkOptions.forEach((h) => {
       list.push(
-        { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: true },
+        { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: COL_SCORE, editable: isEditMode && homeworkEdit },
         { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "pass", key: `hw_${h.homework_id}_pass`, width: COL_PASS, editable: false }
       );
     });
@@ -304,7 +312,7 @@ export default function ScoresTable({
       { type: "clinic_reason", key: "clinic_reason", width: COL_REASON, editable: false }
     );
     return list;
-  }, [examOptions, homeworkOptions, examScoreInputMode]);
+  }, [examOptions, homeworkOptions, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
 
   const columnDefs = useMemo((): TableColumnDef[] => {
     return [
@@ -405,8 +413,8 @@ export default function ScoresTable({
             출석
           </ResizableTh>
           {examOptions.map((ex) => {
-            const questions = (ex as { questions?: { question_id: number; number: number }[] }).questions ?? [];
-            const colSpan = examScoreInputMode === "item" && questions.length > 0 ? questions.length + 1 : 2;
+            const examColsList = columns.filter((c) => c.type === "exam" && c.examId === ex.exam_id);
+            const colSpan = examColsList.length || 1;
             return (
               <th
                 key={`head-exam-${ex.exam_id}`}
@@ -465,57 +473,25 @@ export default function ScoresTable({
             사유
           </ResizableTh>
         </tr>
-        {/* Row2: 점수 | 합불 (시험별) | 점수 | 합불 (과제별) */}
+        {/* Row2: 시험별 서브헤더(합산/객관식/주관식/N번/합불) | 과제 점수/합불 */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
           {examOptions.map((ex) => {
+            const examColsList = columns.filter((c) => c.type === "exam" && c.examId === ex.exam_id) as Extract<ScoreColumnDef, { type: "exam" }>[];
             const questions = (ex as { questions?: { question_id: number; number: number }[] }).questions ?? [];
-            if (examScoreInputMode === "item" && questions.length > 0) {
-              return (
-                <Fragment key={ex.exam_id}>
-                  {questions.map((q) => (
-                    <th
-                      key={`exam_${ex.exam_id}_q_${q.question_id}`}
-                      scope="col"
-                      className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                      style={{ backgroundColor: BG_EXAM, width: COL_SCORE, minWidth: 48 }}
-                    >
-                      {q.number}번
-                    </th>
-                  ))}
-                  <th
-                    scope="col"
-                    className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                    style={{ backgroundColor: BG_EXAM, width: COL_PASS, minWidth: 48 }}
-                  >
-                    합불
-                  </th>
-                </Fragment>
-              );
-            }
             return (
               <Fragment key={ex.exam_id}>
-                <ResizableTh
-                  columnKey={`exam_${ex.exam_id}_score`}
-                  width={columnWidths[`exam_${ex.exam_id}_score`] ?? COL_SCORE}
-                  minWidth={48}
-                  maxWidth={200}
-                  onWidthChange={setColumnWidth}
-                  className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                  style={{ backgroundColor: BG_EXAM }}
-                >
-                  점수
-                </ResizableTh>
-                <ResizableTh
-                  columnKey={`exam_${ex.exam_id}_pass`}
-                  width={columnWidths[`exam_${ex.exam_id}_pass`] ?? COL_PASS}
-                  minWidth={48}
-                  maxWidth={100}
-                  onWidthChange={setColumnWidth}
-                  className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                  style={{ backgroundColor: BG_EXAM }}
-                >
-                  합불
-                </ResizableTh>
+                {examColsList.map((c) => (
+                  <th
+                    key={c.key}
+                    scope="col"
+                    className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
+                    style={{ backgroundColor: BG_EXAM, width: c.sub === "pass" ? COL_PASS : COL_SCORE, minWidth: 48 }}
+                  >
+                    {c.sub === "total" ? "합산" : c.sub === "objective" ? "객관식" : c.sub === "subjective" ? "주관식" : c.sub === "item" && c.questionId != null
+                      ? `${questions.find((q) => q.question_id === c.questionId)?.number ?? c.questionId}번`
+                      : "합불"}
+                  </th>
+                ))}
               </Fragment>
             );
           })}
