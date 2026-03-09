@@ -10,7 +10,7 @@ const CLINIC_TABS = [
   { key: "operations", label: "운영", path: "/admin/clinic/operations" },
   { key: "bookings", label: "예약대상자", path: "/admin/clinic/bookings" },
   { key: "reports", label: "리포트", path: "/admin/clinic/reports" },
-  { key: "settings", label: "설정", path: "/admin/clinic/settings" },
+  { key: "settings", label: "패스카드", path: "/admin/clinic/settings" },
 ];
 
 export default function ClinicLayout() {

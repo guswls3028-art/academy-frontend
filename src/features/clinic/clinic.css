@@ -11,6 +11,13 @@
 @import "@/styles/design-system/components/TimeRangeInput.css";
 @import "@/styles/design-system/components/TimeScrollPopover.css";
 
+/* 패스카드 배경 — 흐르는 그라데이션 애니메이션 (설정 탭·대시보드 공용) */
+@keyframes idcard-background-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 /* 클리닉 도메인 폰트 — 가독성 개선 */
 .clinic-page,
 .clinic-three-panel,

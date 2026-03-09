@@ -59,12 +59,15 @@ export default function ClinicTargetSelectModal({
   const [mode, setMode] = useState<"targets" | "students">(initialMode);
   const [keyword, setKeyword] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>(() => [...initialSelectedIds]);
+  /** 선택된 id → 이름 (우측 목록 표시용, 검색/탭 변경 후에도 유지) */
+  const [selectedIdToName, setSelectedIdToName] = useState<Map<number, string>>(new Map());
 
   useEffect(() => {
     if (!open) return;
     setMode(initialMode);
     setKeyword("");
     setSelectedIds([...initialSelectedIds]);
+    setSelectedIdToName(new Map());
   }, [open, initialMode, initialSelectedIds]);
 
   const targetsQ = useClinicTargets();
@@ -96,33 +99,55 @@ export default function ClinicTargetSelectModal({
   const toggleAll = () => {
     if (allChecked) {
       setSelectedIds([]);
+      setSelectedIdToName(new Map());
       return;
     }
     if (mode === "targets") {
-      setSelectedIds((rows as TargetRow[]).map((r) => r.enrollment_id));
+      const rowsT = rows as TargetRow[];
+      setSelectedIds(rowsT.map((r) => r.enrollment_id));
+      setSelectedIdToName(new Map(rowsT.map((r) => [r.enrollment_id, r.student_name ?? ""])));
     } else {
-      setSelectedIds((rows as StudentRow[]).map((r) => r.id));
+      const rowsS = rows as StudentRow[];
+      setSelectedIds(rowsS.map((r) => r.id));
+      setSelectedIdToName(new Map(rowsS.map((r) => [r.id, r.name ?? ""])));
     }
   };
 
   const toggleOne = (id: number, checked: boolean) => {
     setSelectedIds((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
+    setSelectedIdToName((prev) => {
+      const next = new Map(prev);
+      if (checked) {
+        const name = mode === "targets"
+          ? (rows as TargetRow[]).find((r) => r.enrollment_id === id)?.student_name
+          : (rows as StudentRow[]).find((r) => r.id === id)?.name;
+        if (name != null) next.set(id, name);
+      } else next.delete(id);
+      return next;
+    });
   };
 
   const removeSelected = (id: number) => {
     setSelectedIds((prev) => prev.filter((x) => x !== id));
+    setSelectedIdToName((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
-  const selectedRows = useMemo(() => {
-    if (mode === "targets") {
-      const arr = (targetsQ.data ?? []) as TargetRow[];
-      return arr.filter((r) => selectedIds.includes(r.enrollment_id));
-    }
-    const fromDefault = (studentsDefaultQ.data ?? []) as StudentRow[];
-    const fromSearch = (studentsSearchQ.data ?? []) as StudentRow[];
-    const byId = new Map([...fromDefault, ...fromSearch].map((r) => [r.id, r]));
-    return selectedIds.map((id) => byId.get(id)).filter(Boolean) as StudentRow[];
-  }, [mode, selectedIds, targetsQ.data, studentsSearchQ.data, studentsDefaultQ.data]);
+  const removeSelected = (id: number) => {
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+    setSelectedIdToName((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const selectedRowsForDisplay = useMemo(() => {
+    return selectedIds.map((id) => ({ id, name: selectedIdToName.get(id) ?? "(이름 없음)" }));
+  }, [selectedIds, selectedIdToName]);
 
   const handleConfirm = () => {
     onConfirm({ mode, ids: selectedIds });
@@ -363,36 +388,13 @@ export default function ClinicTargetSelectModal({
                   WebkitOverflowScrolling: "touch",
                 }}
               >
-                {selectedRows.length === 0 ? (
+                {selectedRowsForDisplay.length === 0 ? (
                   <p className="text-[13px] text-[var(--color-text-muted)] py-4 text-center">
                     선택한 대상이 없습니다.
                   </p>
                 ) : (
                   <ul className="space-y-0">
-                    {selectedRows.map((r) => {
-                      const id = mode === "targets" ? (r as TargetRow).enrollment_id : (r as StudentRow).id;
-                      const name = mode === "targets" ? (r as TargetRow).student_name : (r as StudentRow).name;
-                      return (
-                        <li
-                          key={id}
-                          className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-[var(--color-bg-surface)] group min-h-[32px]"
-                        >
-                          <span className="flex items-center gap-2 min-w-0 flex-1 truncate text-[13px] font-semibold leading-6 text-[var(--color-text-primary)]">
-                            {name || "(이름 없음)"}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => removeSelected(id)}
-                            disabled={isLoading}
-                            className="shrink-0 p-1.5 rounded text-[var(--color-text-muted)] hover:text-[var(--color-error)] hover:bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] transition-colors disabled:opacity-50"
-                            aria-label={`${name ?? ""} 선택 해제`}
-                            title="선택 해제"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </li>
-                      );
-                    })}
+                    {selectedRowsForDisplay.map((r) => (
                   </ul>
                 )}
               </div>

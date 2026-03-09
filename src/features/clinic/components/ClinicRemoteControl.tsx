@@ -208,10 +208,11 @@ export default function ClinicRemoteControl({ embedded }: { embedded?: boolean }
       <div>
         <p className="text-xs text-[var(--color-text-muted)] mb-2">현재 배경</p>
         <div
-          className="w-full h-16 rounded-lg border border-[var(--color-border-divider)]"
+          className="w-full h-16 rounded-lg border-2 border-[var(--color-border-divider)] clinic-passcard-gradient-flow"
           style={{
             backgroundImage: `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 50%, ${colors[2]} 100%)`,
             backgroundSize: "200% 200%",
+            animation: "idcard-background-flow 8s ease infinite",
           }}
         />
       </div>
