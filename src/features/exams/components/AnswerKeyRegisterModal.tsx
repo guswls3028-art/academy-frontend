@@ -182,7 +182,7 @@ export default function AnswerKeyRegisterModal({
   const hasQuestions = questions.length > 0;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.wide}>
+    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.xwide}>
       <ModalHeader
         type="action"
         title={
