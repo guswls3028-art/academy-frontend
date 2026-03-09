@@ -133,18 +133,23 @@ export default function AnswerKeyRegisterModal({
   const initMut = useMutation({
     mutationFn: async (overrides?: { choiceCount?: number | ""; essayCount?: number | "" }) => {
       const total = questions.length;
-      const cc =
-        overrides?.choiceCount !== undefined
-          ? (overrides.choiceCount === "" ? Math.max(0, total - (Number(essayCount) || 0)) : Math.max(0, Number(overrides.choiceCount) || 0))
-          : choiceCount !== ""
+      let cc: number;
+      let ec: number;
+      if (overrides) {
+        const oc = overrides.choiceCount;
+        const oe = overrides.essayCount;
+        cc = oc !== "" ? Math.max(0, Number(oc) || 0) : Math.max(0, total - (Number(oe) || 0));
+        ec = oe !== "" ? Math.max(0, Number(oe) || 0) : Math.max(0, total - (Number(oc) || 0));
+      } else {
+        cc =
+          choiceCount !== ""
             ? Math.max(0, Number(choiceCount) || 0)
             : Math.max(0, total - (Number(essayCount) || 0));
-      const ec =
-        overrides?.essayCount !== undefined
-          ? (overrides.essayCount === "" ? Math.max(0, total - (Number(choiceCount) || 0)) : Math.max(0, Number(overrides.essayCount) || 0))
-          : essayCount !== ""
+        ec =
+          essayCount !== ""
             ? Math.max(0, Number(essayCount) || 0)
             : Math.max(0, total - (Number(choiceCount) || 0));
+      }
       const cs = choiceNoDefaultScore ? 0 : (Number(choiceScore) || 5);
       const es = essayNoDefaultScore ? 0 : (Number(essayScore) || 5);
       if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
@@ -248,6 +253,7 @@ export default function AnswerKeyRegisterModal({
                     className="answer-key-section-btn"
                     onClick={() => {
                       setChoiceEditorOpen((v) => !v);
+                      if (!choiceEditorOpen) setChoiceCountInput(choiceCount);
                       if (essayEditorOpen) setEssayEditorOpen(false);
                     }}
                     aria-expanded={choiceEditorOpen}
@@ -284,10 +290,16 @@ export default function AnswerKeyRegisterModal({
                         type="number"
                         min={0}
                         step={1}
-                        value={choiceCount}
+                        value={choiceCountInput === "" ? "" : choiceCountInput}
                         onChange={(e) =>
-                          setChoiceCount(e.target.value === "" ? "" : Number(e.target.value))
+                          setChoiceCountInput(e.target.value === "" ? "" : Number(e.target.value))
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            setChoiceCount(choiceCountInput);
+                          }
+                        }}
                         placeholder="예: 20"
                         className="ds-input"
                         style={{ width: 100 }}
@@ -332,7 +344,11 @@ export default function AnswerKeyRegisterModal({
                       type="button"
                       intent="primary"
                       size="sm"
-                      onClick={() => initMut.mutate()}
+                      onClick={() => {
+                        setChoiceCount(choiceCountInput);
+                        setEssayCount(essayCountInput);
+                        initMut.mutate({ choiceCount: choiceCountInput, essayCount: essayCountInput });
+                      }}
                       disabled={initMut.isPending}
                       loading={initMut.isPending}
                     >
@@ -389,10 +405,11 @@ export default function AnswerKeyRegisterModal({
                 <button
                   type="button"
                   className="answer-key-section-btn"
-                  onClick={() => {
-                    setEssayEditorOpen((v) => !v);
-                    if (choiceEditorOpen) setChoiceEditorOpen(false);
-                  }}
+                    onClick={() => {
+                      setEssayEditorOpen((v) => !v);
+                      if (!essayEditorOpen) setEssayCountInput(essayCount);
+                      if (choiceEditorOpen) setChoiceEditorOpen(false);
+                    }}
                   aria-expanded={essayEditorOpen}
                 >
                   <span className="answer-key-section-btn__title">서술형 ({essayTotalScore}점)</span>
@@ -408,10 +425,16 @@ export default function AnswerKeyRegisterModal({
                         type="number"
                         min={0}
                         step={1}
-                        value={essayCount}
+                        value={essayCountInput === "" ? "" : essayCountInput}
                         onChange={(e) =>
-                          setEssayCount(e.target.value === "" ? "" : Number(e.target.value))
+                          setEssayCountInput(e.target.value === "" ? "" : Number(e.target.value))
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            setEssayCount(essayCountInput);
+                          }
+                        }}
                         placeholder="예: 1"
                         className="ds-input"
                         style={{ width: 100 }}
@@ -456,7 +479,11 @@ export default function AnswerKeyRegisterModal({
                       type="button"
                       intent="primary"
                       size="sm"
-                      onClick={() => initMut.mutate()}
+                      onClick={() => {
+                        setChoiceCount(choiceCountInput);
+                        setEssayCount(essayCountInput);
+                        initMut.mutate({ choiceCount: choiceCountInput, essayCount: essayCountInput });
+                      }}
                       disabled={initMut.isPending}
                       loading={initMut.isPending}
                     >
