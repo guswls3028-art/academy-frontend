@@ -998,13 +998,26 @@ export default function ScoresTable({
                                       metaStatus: "NOT_SUBMITTED",
                                     });
                                     qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    if (el) el.innerText = "미제출";
+                                    onRequestMoveDown?.();
+                                    return;
+                                  }
+                                  if (raw === "미제출") {
+                                    await patchHomeworkQuick({
+                                      sessionId,
+                                      enrollmentId: row.enrollment_id,
+                                      homeworkId: hw.homework_id,
+                                      score: null,
+                                      metaStatus: "NOT_SUBMITTED",
+                                    });
+                                    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                     onRequestMoveDown?.();
                                     return;
                                   }
                                   const parsed = parseScoreInput(raw, block?.max_score ?? null);
                                   if (parsed != null) {
                                     if (!validateScore(parsed, block?.max_score)) {
-                                      if (el) el.innerText = block?.score != null ? String(block.score) : "";
+                                      if (el) el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                       return;
                                     }
                                     await patchHomeworkQuick({

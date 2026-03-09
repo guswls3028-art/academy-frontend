@@ -16,6 +16,7 @@ import {
   updateAnswerKey,
   type AnswerKey,
 } from "../api/answerKeyApi";
+import "./AnswerKeyRegisterModal.css";
 
 type Props = {
   open: boolean;
