@@ -28,10 +28,24 @@ type HomeworkResultRow = {
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
+    <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-3 py-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{label}</div>
       <div className="mt-1 text-base font-bold text-[var(--color-text-primary)]">{value}</div>
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: HomeworkStatus }) {
+  const tone =
+    status === "NOT_SUBMITTED"
+      ? "danger"
+      : status === "SCORED" || status === "ZERO"
+      ? "success"
+      : "neutral";
+  return (
+    <span className="ds-status-badge" data-tone={tone}>
+      {homeworkStatusLabel(status)}
+    </span>
   );
 }
 
@@ -147,14 +161,14 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   return (
     <div className="space-y-6">
       {/* ========== 채점결과 섹션 (시험과 동일 디자인) ========== */}
-      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
+      <section className="space-y-6 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5">
         <div>
           <div className="text-lg font-semibold">채점결과</div>
-          <div className="text-xs text-muted">과제 제출·채점 기준 요약입니다. 커트라인은 기본설정에서 퍼센트 또는 문항 수로 설정할 수 있습니다.</div>
+          <div className="text-xs text-[var(--color-text-muted)]">과제 제출·채점 기준 요약입니다. 커트라인은 기본설정에서 퍼센트 또는 문항 수로 설정할 수 있습니다.</div>
         </div>
 
         {!hasData ? (
-          <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
+          <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
             이 과제에 연결된 대상자가 없거나 성적 데이터가 없습니다. 성적 탭에서 대상자를 확인하세요.
           </div>
         ) : (
@@ -168,7 +182,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
               <KpiCard label="클리닉 대상" value={`${summary.clinic}명`} />
             </div>
 
-            <div className="text-xs text-muted">
+            <div className="text-xs text-[var(--color-text-muted)]">
               커트라인: <strong className="text-[var(--color-text-primary)]">{cutlineLabel}</strong>
               {summary.graded > 0 && (
                 <> (합격 {summary.passCount}명 / 불합격 {summary.failCount}명)</>
@@ -178,7 +192,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
             {scoresForHistogram.length > 0 && (
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-[var(--color-text-primary)]">점수 분포 (%)</div>
-                <div className="flex items-end gap-1 rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] p-3">
+                <div className="flex items-end gap-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3">
                   {histogram.map((h) => (
                     <div key={h.label} className="flex flex-1 flex-col items-center gap-1" title={`${h.label}: ${h.count}명`}>
                       <div
@@ -200,34 +214,35 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
       </section>
 
       {/* ========== 통계 (과제는 문항별 정답률 없음) ========== */}
-      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
+      <section className="space-y-6 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5">
         <div>
           <div className="text-lg font-semibold">통계</div>
-          <div className="text-xs text-muted">제출·채점 현황 요약입니다. 과제는 문항별 정답률 통계가 없습니다.</div>
+          <div className="text-xs text-[var(--color-text-muted)]">제출·채점 현황 요약입니다. 과제는 문항별 정답률 통계가 없습니다.</div>
         </div>
-        <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
+        <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-4 text-sm text-[var(--color-text-muted)]">
           제출률 {summary.assigned > 0 ? ((summary.assigned - summary.notSubmitted) / summary.assigned * 100).toFixed(1) : 0}% · 채점완료 {summary.graded}명
         </div>
       </section>
 
       {/* ========== 학생별 결과 ========== */}
-      <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
+      <section className="space-y-4 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-5">
         <div>
           <div className="text-lg font-semibold">학생별 결과</div>
-          <div className="text-xs text-muted">학생을 선택하면 우측에 상세를 볼 수 있습니다. 점수 입력·미제출 처리·잠금은 세션 &gt; 성적 탭에서 진행하세요.</div>
+          <div className="text-xs text-[var(--color-text-muted)]">학생을 선택하면 우측에 상세를 볼 수 있습니다. 점수 입력·미제출 처리·잠금은 세션 &gt; 성적 탭에서 진행하세요.</div>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-0">
+          {/* Student list table */}
           <div className="min-w-0 flex-1 overflow-hidden">
             {rows.length === 0 ? (
-              <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
+              <div className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-6 text-center text-sm text-[var(--color-text-muted)]">
                 이 과제에 연결된 대상자가 없거나 성적 데이터가 없습니다.
               </div>
             ) : (
-              <div className="overflow-x-auto rounded border border-[var(--border-divider)]">
+              <div className="overflow-x-auto rounded-l border border-[var(--color-border-divider)]">
                 <table className="w-full min-w-[520px] text-sm">
                   <thead>
-                    <tr className="border-b border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)]">
+                    <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)]">
                       <th className="px-3 py-2 text-left font-medium text-[var(--color-text-secondary)]">이름</th>
                       <th className="px-3 py-2 text-left font-medium text-[var(--color-text-secondary)]">상태</th>
                       <th className="px-3 py-2 text-center font-medium text-[var(--color-text-secondary)]">점수</th>
@@ -237,101 +252,133 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => (
-                      <tr
-                        key={r.enrollment_id}
-                        className={`border-b border-[var(--color-border-divider)] cursor-pointer ${selectedEnrollmentId === r.enrollment_id ? "bg-[var(--color-bg-surface-soft)]" : "hover:bg-[var(--color-bg-surface-soft)]/60"}`}
-                        onClick={() => setSelectedEnrollmentId((prev) => (prev === r.enrollment_id ? null : r.enrollment_id))}
-                      >
-                        <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">{r.student_name}</td>
-                        <td className="px-3 py-2">
-                          <span
-                            className="inline-flex rounded px-2 py-0.5 text-xs font-medium"
-                            style={{
-                              background: r.status === "NOT_SUBMITTED" ? "var(--color-danger-subtle, #fef2f2)" : "var(--color-bg-surface-soft)",
-                              color: r.status === "NOT_SUBMITTED" ? "var(--color-danger, #b91c1c)" : "var(--color-text-primary)",
-                            }}
-                          >
-                            {homeworkStatusLabel(r.status)}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-center text-[var(--color-text-primary)]">
-                          {r.score != null ? `${r.score}${r.max_score != null ? ` / ${r.max_score}` : ""}` : "—"}
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          {r.passed == null ? "—" : (
-                            <span className={r.passed ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>
-                              {r.passed ? "합격" : "불합"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          {r.clinic_required ? <span className="text-[var(--color-warning)] font-medium">대상</span> : "—"}
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          {r.is_locked ? <span className="text-xs text-[var(--color-text-muted)]" title={r.lock_reason ?? ""}>잠금</span> : "—"}
-                        </td>
-                      </tr>
-                    ))}
+                    {rows.map((r, idx) => {
+                      const isSelected = selectedEnrollmentId === r.enrollment_id;
+                      const isEven = idx % 2 === 1;
+                      return (
+                        <tr
+                          key={r.enrollment_id}
+                          className={[
+                            "border-b border-[var(--color-border-divider)] cursor-pointer transition-colors",
+                            isSelected
+                              ? "bg-[var(--color-primary)]/10 ring-1 ring-inset ring-[var(--color-primary)]/30"
+                              : isEven
+                              ? "bg-[var(--color-bg-surface-soft)]/40 hover:bg-[var(--color-bg-surface-soft)]"
+                              : "hover:bg-[var(--color-bg-surface-soft)]/60",
+                          ].join(" ")}
+                          onClick={() => setSelectedEnrollmentId((prev) => (prev === r.enrollment_id ? null : r.enrollment_id))}
+                        >
+                          <td className="px-3 py-2 font-medium text-[var(--color-text-primary)]">{r.student_name}</td>
+                          <td className="px-3 py-2">
+                            <StatusBadge status={r.status} />
+                          </td>
+                          <td className="px-3 py-2 text-center text-[var(--color-text-primary)]">
+                            {r.score != null ? `${r.score}${r.max_score != null ? ` / ${r.max_score}` : ""}` : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {r.passed == null ? (
+                              <span className="text-[var(--color-text-muted)]">—</span>
+                            ) : (
+                              <span className="ds-status-badge" data-tone={r.passed ? "success" : "danger"}>
+                                {r.passed ? "합격" : "불합"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {r.clinic_required ? (
+                              <span className="ds-status-badge" data-tone="warning">대상</span>
+                            ) : (
+                              <span className="text-[var(--color-text-muted)]">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {r.is_locked ? (
+                              <span
+                                className="cursor-default text-base"
+                                title={r.lock_reason ?? "잠금됨"}
+                                aria-label={`잠금: ${r.lock_reason ?? "잠금됨"}`}
+                              >
+                                🔒
+                              </span>
+                            ) : (
+                              <span className="text-[var(--color-text-muted)]">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
           </div>
 
+          {/* Divider + detail aside */}
           {selectedRow && (
-            <aside className="w-72 shrink-0 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4">
-              <div className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">선택 학생 상세</div>
-              <dl className="space-y-2 text-sm">
-                <div>
-                  <dt className="text-[var(--color-text-muted)]">이름</dt>
-                  <dd className="font-medium text-[var(--color-text-primary)]">{selectedRow.student_name}</dd>
+            <>
+              <div className="w-px shrink-0 bg-[var(--color-border-divider)]" />
+              <aside className="w-72 shrink-0 rounded-r border border-l-0 border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
+                {/* Header */}
+                <div className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">선택 학생 상세</div>
+                  <div className="mt-0.5 text-base font-bold text-[var(--color-text-primary)] truncate" title={selectedRow.student_name}>
+                    {selectedRow.student_name}
+                  </div>
                 </div>
-                <div>
-                  <dt className="text-[var(--color-text-muted)]">상태</dt>
-                  <dd>
-                    <span
-                      className="inline-flex rounded px-2 py-0.5 text-xs font-medium"
-                      style={{
-                        background: selectedRow.status === "NOT_SUBMITTED" ? "var(--color-danger-subtle, #fef2f2)" : "var(--color-bg-surface-soft)",
-                        color: selectedRow.status === "NOT_SUBMITTED" ? "var(--color-danger, #b91c1c)" : "var(--color-text-primary)",
-                      }}
-                    >
-                      {homeworkStatusLabel(selectedRow.status)}
-                    </span>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--color-text-muted)]">점수</dt>
-                  <dd className="text-[var(--color-text-primary)]">
-                    {selectedRow.score != null ? `${selectedRow.score}${selectedRow.max_score != null ? ` / ${selectedRow.max_score}` : ""}` : "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[var(--color-text-muted)]">합불</dt>
-                  <dd>
-                    {selectedRow.passed == null ? "—" : (
-                      <span className={selectedRow.passed ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}>
-                        {selectedRow.passed ? "합격" : "불합"}
-                      </span>
+
+                {/* Body */}
+                <div className="p-4">
+                  <dl className="space-y-3 text-sm">
+                    <div>
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">상태</dt>
+                      <dd className="mt-1">
+                        <StatusBadge status={selectedRow.status} />
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">점수</dt>
+                      <dd className="mt-1 font-medium text-[var(--color-text-primary)]">
+                        {selectedRow.score != null
+                          ? `${selectedRow.score}${selectedRow.max_score != null ? ` / ${selectedRow.max_score}` : ""}`
+                          : "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">합불</dt>
+                      <dd className="mt-1">
+                        {selectedRow.passed == null ? (
+                          <span className="text-[var(--color-text-muted)]">—</span>
+                        ) : (
+                          <span className="ds-status-badge" data-tone={selectedRow.passed ? "success" : "danger"}>
+                            {selectedRow.passed ? "합격" : "불합"}
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                    {selectedRow.clinic_required && (
+                      <div>
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">클리닉</dt>
+                        <dd className="mt-1">
+                          <span className="ds-status-badge" data-tone="warning">대상</span>
+                        </dd>
+                      </div>
                     )}
-                  </dd>
+                    {selectedRow.is_locked && (
+                      <div>
+                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">잠금</dt>
+                        <dd className="mt-1 flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+                          <span aria-hidden>🔒</span>
+                          <span>{selectedRow.lock_reason || "잠금됨"}</span>
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  <p className="mt-5 border-t border-[var(--color-border-divider)] pt-3 text-xs text-[var(--color-text-muted)]">
+                    상세 입력은 세션 &gt; 성적 탭에서 진행하세요.
+                  </p>
                 </div>
-                {selectedRow.clinic_required && (
-                  <div>
-                    <dt className="text-[var(--color-text-muted)]">클리닉</dt>
-                    <dd className="text-[var(--color-warning)] font-medium">대상</dd>
-                  </div>
-                )}
-                {selectedRow.is_locked && (
-                  <div>
-                    <dt className="text-[var(--color-text-muted)]">잠금</dt>
-                    <dd className="text-xs text-[var(--color-text-muted)]">{selectedRow.lock_reason || "잠금됨"}</dd>
-                  </div>
-                )}
-              </dl>
-              <p className="mt-4 text-xs text-[var(--color-text-muted)]">상세 입력은 세션 &gt; 성적 탭에서 진행하세요.</p>
-            </aside>
+              </aside>
+            </>
           )}
         </div>
       </section>
