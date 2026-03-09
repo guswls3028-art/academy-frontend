@@ -30,6 +30,7 @@
 }
 
 [data-app="admin"] .app-header__left,
+[data-app="admin"] .app-header__center,
 [data-app="admin"] .app-header__right {
   position: relative;
   z-index: 2;
@@ -120,6 +121,71 @@
 
 [data-app="admin"] .app-header__crumbSep {
   color: var(--color-text-disabled);
+}
+
+[data-app="admin"] .app-header__center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  overflow: visible;
+}
+
+/* 헤더 중앙: 근무 중인 직원 아바타 + 총근무시간 + 출근/퇴근 */
+[data-app="admin"] .app-header__centerClock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-2);
+}
+
+[data-app="admin"] .app-header__centerClockAvatars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+[data-app="admin"] .app-header__centerClockAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-inverse);
+  background: color-mix(in srgb, var(--color-primary) 80%, var(--color-bg-surface));
+  border: 2px solid var(--layout-header-bg);
+  margin-left: -6px;
+}
+[data-app="admin"] .app-header__centerClockAvatar:first-child {
+  margin-left: 0;
+}
+
+[data-app="admin"] .app-header__centerClockTime {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+[data-app="admin"] .app-header__centerClockLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+[data-app="admin"] .app-header__centerClockValue {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary);
+  min-width: 3ch;
+}
+
+[data-app="admin"] .app-header__centerClockActions {
+  flex-shrink: 0;
 }
 
 [data-app="admin"] .app-header__right {

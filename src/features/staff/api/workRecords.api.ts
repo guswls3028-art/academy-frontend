@@ -103,3 +103,11 @@ export async function endWork(workRecordId: number) {
   const res = await api.post<WorkRecord>(`/staffs/work-records/${workRecordId}/end_work/`);
   return res.data;
 }
+
+/** GET /staffs/currently-working/ — 현재 근무 중인 직원 목록 (헤더 중앙 아바타용) */
+export type CurrentlyWorkingItem = { staff_id: number; staff_name: string };
+
+export async function fetchCurrentlyWorkingStaff(): Promise<CurrentlyWorkingItem[]> {
+  const res = await api.get<CurrentlyWorkingItem[]>("/staffs/currently-working/");
+  return Array.isArray(res.data) ? res.data : [];
+}

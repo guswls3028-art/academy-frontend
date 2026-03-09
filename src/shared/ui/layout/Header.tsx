@@ -19,7 +19,7 @@ import { Button } from "@/shared/ui/ds";
 import { useMessagingInfo } from "@/features/messages/hooks/useMessagingInfo";
 import { fetchMe, displayUsername, meToStaffRole } from "@/features/profile/api/profile.api";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-import { StaffClockHeader } from "@/features/staff/components/StaffClockHeader";
+import { HeaderCenterStaffClock } from "@/features/staff/components/HeaderCenterStaffClock";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { resolveTenantCode } from "@/shared/tenant";
 import { getTenantIdFromCode } from "@/shared/tenant";
@@ -303,7 +303,14 @@ export default function Header() {
           </div>
         </div>
 
-        {/* RIGHT: 크레딧 | 출근/퇴근(직원) | 알람 | 프로필 */}
+        {/* CENTER: 근무 중인 직원 아바타 + 총근무시간 + 출근/퇴근 */}
+        {!isMobile && (
+          <div className="app-header__center">
+            <HeaderCenterStaffClock />
+          </div>
+        )}
+
+        {/* RIGHT: 크레딧 | 알람 | 프로필 */}
         <div className="app-header__right">
           {!isMobile && (
             <div className="app-header__credit" title="알림톡 크레딧">
@@ -315,8 +322,6 @@ export default function Header() {
               </span>
             </div>
           )}
-
-          {!isMobile && <StaffClockHeader />}
 
           {workbox && (
             <Dropdown
