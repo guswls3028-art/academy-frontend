@@ -84,43 +84,34 @@ export default function HomeworkPolicyCard({
           커트라인 기준
         </div>
 
-        <div className="flex gap-2">
+        <div
+          className="ds-segment"
+          role="group"
+          aria-label="커트라인 기준"
+        >
           <button
             type="button"
             disabled={!canEdit}
+            aria-pressed={mode === "PERCENT"}
             onClick={() => {
               const nextMode: HomeworkCutlineMode = "PERCENT";
               setMode(nextMode);
               setCutlineValue((prev) => clampCutline(prev, nextMode));
             }}
-            className={[
-              "rounded-lg border px-3 py-2 text-sm transition-colors",
-              "border-[var(--color-border-divider)]",
-              mode === "PERCENT"
-                ? "border-[var(--color-brand-primary)] bg-[var(--color-bg-surface-hover)] font-semibold text-[var(--color-brand-primary)]"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]",
-              !canEdit ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-            ].join(" ")}
+            className="ds-segment__btn"
           >
             퍼센트 (%)
           </button>
-
           <button
             type="button"
             disabled={!canEdit}
+            aria-pressed={mode === "COUNT"}
             onClick={() => {
               const nextMode: HomeworkCutlineMode = "COUNT";
               setMode(nextMode);
               setCutlineValue((prev) => clampCutline(prev, nextMode));
             }}
-            className={[
-              "rounded-lg border px-3 py-2 text-sm transition-colors",
-              "border-[var(--color-border-divider)]",
-              mode === "COUNT"
-                ? "border-[var(--color-brand-primary)] bg-[var(--color-bg-surface-hover)] font-semibold text-[var(--color-brand-primary)]"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface-hover)]",
-              !canEdit ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-            ].join(" ")}
+            className="ds-segment__btn"
           >
             문항 수
           </button>
