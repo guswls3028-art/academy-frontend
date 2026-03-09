@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import InlineExamItemsRow from "./InlineExamItemsRow";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
+import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
@@ -119,6 +120,10 @@ type Props = {
 
   /** 편집 모드일 때만 점수 셀 입력 가능. 기본은 읽기 전용 */
   isEditMode?: boolean;
+  /** 현재 선택 컬럼(패널 상태). 시험 점수 입력/확장행 제어용 */
+  activeColumn?: "exam" | "homework";
+  /** 시험 점수 입력 모드 */
+  examScoreInputMode?: "TOTAL" | "SUBJECTIVE";
 
   selectedEnrollmentId: number | null;
   selectedExamId: number | null;
@@ -145,6 +150,8 @@ export default function ScoresTable({
   sessionId,
   attendanceMap = {},
   isEditMode = false,
+  activeColumn = "homework",
+  examScoreInputMode = "TOTAL",
   selectedEnrollmentId,
   selectedExamId,
   selectedHomeworkId,
@@ -161,8 +168,10 @@ export default function ScoresTable({
 }: Props) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const examInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   /** ESC 복원용 — 포커스 진입 시점의 값 */
   const scoreValueOnFocusRef = useRef<Record<string, string>>({});
+  const examScoreValueOnFocusRef = useRef<Record<string, string>>({});
 
   const examOptions = meta?.exams ?? [];
   const homeworkOptions = meta?.homeworks ?? [];
@@ -181,6 +190,20 @@ export default function ScoresTable({
       });
     });
   }, [rows, homeworkOptions]);
+
+  useEffect(() => {
+    if (!rows.length) return;
+    examOptions.forEach((ex) => {
+      rows.forEach((row) => {
+        const key = `${row.enrollment_id}-${ex.exam_id}`;
+        const el = examInputRefs.current[key];
+        if (!el || el === document.activeElement) return;
+        const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
+        const score = entry?.block?.score;
+        el.innerText = score != null ? String(Math.round(score)) : "";
+      });
+    });
+  }, [rows, examOptions]);
 
   /** contenteditable 셀 포커스 시 전체 선택 — 엑셀처럼 입력하면 기존 값이 바로 대체되도록 */
   const selectAllScoreCell = useCallback((el: HTMLElement | null) => {
@@ -451,8 +474,10 @@ export default function ScoresTable({
           const { target: clinicTarget, reason: clinicReason } = getClinicReason(row);
           const showExpand =
             selected &&
+            isEditMode &&
+            examScoreInputMode === "SUBJECTIVE" &&
+            activeColumn === "exam" &&
             selectedExamId != null &&
-            selectedHomeworkId == null &&
             row.enrollment_id === selectedEnrollmentId;
           const isEvenRow = rowIndex % 2 === 1;
 
@@ -525,6 +550,13 @@ export default function ScoresTable({
                   const entry =
                     row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
                   const block = entry?.block;
+                  const canEditTotal =
+                    isEditMode &&
+                    examScoreInputMode === "TOTAL" &&
+                    !!entry &&
+                    !block?.is_locked &&
+                    block?.score != null &&
+                    block?.max_score != null;
                   const isSelected =
                     selected &&
                     selectedExamId === ex.exam_id &&
@@ -546,7 +578,128 @@ export default function ScoresTable({
                           onSelectCell(row, "exam", ex.exam_id);
                         }}
                       >
-                        <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
+                        {canEditTotal ? (
+                          <span
+                            ref={(el) => {
+                              const key = `${row.enrollment_id}-${ex.exam_id}`;
+                              examInputRefs.current[key] = el;
+                              if (el && el !== document.activeElement) {
+                                el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                              }
+                            }}
+                            contentEditable
+                            suppressContentEditableWarning
+                            className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm text-[var(--color-text-primary)] outline-none inline-block w-full min-w-0"
+                            onFocus={(e) => {
+                              const el = e.currentTarget;
+                              const key = `${row.enrollment_id}-${ex.exam_id}`;
+                              examScoreValueOnFocusRef.current[key] = block?.score != null ? String(Math.round(block.score)) : "";
+                              requestAnimationFrame(() => selectAllScoreCell(el));
+                            }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              const el = e.currentTarget;
+                              el.focus();
+                              selectAllScoreCell(el);
+                            }}
+                            onBlur={async () => {
+                              const key = `${row.enrollment_id}-${ex.exam_id}`;
+                              const el = examInputRefs.current[key];
+                              if (!el) return;
+                              const raw = el.innerText.trim();
+                              if (raw === "") {
+                                el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                return;
+                              }
+                              const parsed = parseScoreInput(raw, block?.max_score ?? null);
+                              if (parsed != null) {
+                                if (!validateScore(parsed, block?.max_score)) {
+                                  el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                  return;
+                                }
+                                await patchExamTotalScoreQuick({
+                                  examId: ex.exam_id,
+                                  enrollmentId: row.enrollment_id,
+                                  score: parsed,
+                                  maxScore: block?.max_score ?? null,
+                                });
+                                qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                              } else {
+                                el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                              }
+                            }}
+                            onKeyDown={async (e) => {
+                              const key = `${row.enrollment_id}-${ex.exam_id}`;
+                              const el = examInputRefs.current[key];
+                              const raw = el?.innerText?.trim() ?? "";
+
+                              if (e.key === "Escape") {
+                                e.preventDefault();
+                                const prev = examScoreValueOnFocusRef.current[key] ?? "";
+                                if (el) el.innerText = prev;
+                                el?.blur();
+                                return;
+                              }
+                              if (e.key === "Tab") {
+                                e.preventDefault();
+                                if (e.shiftKey) onRequestMovePrev?.();
+                                else onRequestMoveNext?.();
+                                return;
+                              }
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                const parsed = parseScoreInput(raw, block?.max_score ?? null);
+                                if (parsed != null) {
+                                  if (!validateScore(parsed, block?.max_score)) {
+                                    if (el) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                    return;
+                                  }
+                                  await patchExamTotalScoreQuick({
+                                    examId: ex.exam_id,
+                                    enrollmentId: row.enrollment_id,
+                                    score: parsed,
+                                    maxScore: block?.max_score ?? null,
+                                  });
+                                  qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                } else {
+                                  if (el) el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
+                                }
+                                onRequestMoveDown?.();
+                                return;
+                              }
+                              if (e.key === "Delete" || e.key === "Backspace") {
+                                e.preventDefault();
+                                if (el) el.innerText = "";
+                                return;
+                              }
+                              if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                onRequestMoveUp?.();
+                                return;
+                              }
+                              if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                onRequestMoveDown?.();
+                                return;
+                              }
+                              if (e.key === "ArrowLeft") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onRequestMovePrev?.();
+                                return;
+                              }
+                              if (e.key === "ArrowRight") {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onRequestMoveNext?.();
+                                return;
+                              }
+                            }}
+                            title="Enter 저장 · Tab 이동 · Esc 취소"
+                          />
+                        ) : (
+                          <span className="font-medium text-[var(--color-text-primary)]">{scoreText}</span>
+                        )}
                       </td>
                       <td
                         className="min-w-0 text-left align-middle py-2.5 px-3"

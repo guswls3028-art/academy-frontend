@@ -32,6 +32,7 @@ export default function HomeworkPolicyPanel({ sessionId }: { sessionId: number }
     }) => patchHomeworkPolicy(payload.id, payload.data),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["homework-policy", safeSessionId] });
+      await qc.invalidateQueries({ queryKey: ["session-scores", safeSessionId] });
       alert("과제 정책이 저장되었습니다.");
     },
     onError: (e: any) => {
