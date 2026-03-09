@@ -75,9 +75,27 @@
 }
 
 /* 헤더 아바타 */
-[data-app="student"][data-video-page="true"] header .stu-topbar__avatar {
+[data-app="student"][data-video-page="true"] header .stu-topbar__avatar,
+[data-app="student"][data-video-page="true"] header .stu-topbar__avatar-initial {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #fff !important;
+}
+
+/* 헤더 프로필 버튼(아바타+이름) — 영상 탭 다크 */
+[data-app="student"][data-video-page="true"] header .stu-topbar__profileBtn {
   background: rgba(255, 255, 255, 0.1) !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+}
+
+[data-app="student"][data-video-page="true"] header .stu-topbar__profileBtn:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #fff !important;
+}
+
+[data-app="student"][data-video-page="true"] header .stu-topbar__profileBtn .stu-topbar__name {
   color: #fff !important;
 }
 
@@ -275,4 +293,35 @@
   background: linear-gradient(90deg, #f3f3f3, #fafafa, #f3f3f3);
   background-size: 200% 100%;
   animation: stuShimmer 1.05s ease-in-out infinite;
+}
+
+/* =========================
+   프로필 드롭다운 다크 모드 (포탈 렌더 — 영상 탭에서 열 때)
+   ========================= */
+.stu-topbar__profileDropdownOverlay--video .stu-topbar__profileDropdown {
+  background: #1a1a1a !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.stu-topbar__profileDropdownOverlay--video .stu-topbar__profileDropdownItem {
+  color: #fff !important;
+}
+
+.stu-topbar__profileDropdownOverlay--video .stu-topbar__profileDropdownItem:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+.stu-topbar__profileDropdownOverlay--video .stu-topbar__profileDropdownItem--danger {
+  color: #f87171 !important;
+}
+
+.stu-topbar__profileDropdownOverlay--video .stu-topbar__profileDropdownItem--danger:hover {
+  background: rgba(248, 113, 113, 0.2) !important;
+  color: #fca5a5 !important;
+}
+
+.stu-topbar__profileDropdownOverlay--video .stu-topbar__profileDropdownDivider {
+  background: rgba(255, 255, 255, 0.12) !important;
 }

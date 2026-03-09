@@ -51,8 +51,10 @@ export default function ProfilePage() {
   useEffect(() => {
     if (profile) {
       setEditName(profile.name || "");
-      setEditParentPhone(profile.parent_phone || "");
-      setEditPhone(profile.phone || "");
+      const p = (profile.parent_phone || "").replace(/\D/g, "");
+      setEditParentPhone(p.length >= 8 ? "010" + p.slice(-8) : profile.parent_phone || "");
+      const ph = (profile.phone || "").replace(/\D/g, "");
+      setEditPhone(ph.length >= 8 ? "010" + ph.slice(-8) : profile.phone || "");
       setEditGender(profile.gender || "");
       setEditAddress(profile.address || "");
     }
@@ -194,7 +196,7 @@ export default function ProfilePage() {
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학부모 전화번호</div>
               {editing ? (
                 <PhoneInput010Blocks
-                  value={editParentPhone.replace(/\D/g, "").length >= 11 ? editParentPhone : editParentPhone.replace(/\D/g, "").startsWith("010") ? editParentPhone : "010" + editParentPhone.replace(/\D/g, "").slice(-8)}
+                  value={editParentPhone}
                   onChange={(v) => setEditParentPhone(v)}
                   inputClassName="stu-input"
                   blockClassName="stu-phone-block"
@@ -209,7 +211,7 @@ export default function ProfilePage() {
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학생 전화번호</div>
               {editing ? (
                 <PhoneInput010Blocks
-                  value={editPhone.replace(/\D/g, "").length >= 11 ? editPhone : editPhone.replace(/\D/g, "").startsWith("010") ? editPhone : "010" + editPhone.replace(/\D/g, "").slice(-8)}
+                  value={editPhone}
                   onChange={(v) => setEditPhone(v)}
                   inputClassName="stu-input"
                   blockClassName="stu-phone-block"

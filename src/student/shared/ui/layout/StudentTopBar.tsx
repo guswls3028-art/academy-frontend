@@ -38,6 +38,8 @@ function StudentAvatar({ profile }: { profile: { name?: string; profile_photo_ur
 
 export default function StudentTopBar({ tenantCode }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isVideoPage = location.pathname.startsWith("/student/video");
   const branding = getStudentTenantBranding(tenantCode);
   const { data: profile } = useQuery({
     queryKey: ["student", "me"],
@@ -166,7 +168,9 @@ export default function StudentTopBar({ tenantCode }: Props) {
         trigger={["click"]}
         placement="bottomRight"
         dropdownRender={() => profileDropdownContent}
-        classNames={{ root: "stu-topbar__profileDropdownOverlay" }}
+        classNames={{
+          root: `stu-topbar__profileDropdownOverlay${isVideoPage ? " stu-topbar__profileDropdownOverlay--video" : ""}`,
+        }}
       >
         <button
           type="button"
