@@ -11,12 +11,15 @@ export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
   });
 
   return (
-    <div className="space-y-3">
+    <section className="space-y-6 rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] p-5">
       <div>
-        <div className="text-sm font-semibold">OMR 업로드</div>
+        <div className="text-lg font-semibold">OMR 업로드</div>
+        <div className="text-xs text-muted">
+          재채점 실행 및 OMR 파일 업로드
+        </div>
       </div>
 
-      <div className="surface p-4 space-y-4">
+      <div className="space-y-4">
         <Button
           type="button"
           intent="danger"
@@ -30,6 +33,6 @@ export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
 
         <AdminOmrBatchUploadBox examId={examId} />
       </div>
-    </div>
+    </section>
   );
 }

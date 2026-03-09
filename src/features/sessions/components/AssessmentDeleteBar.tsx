@@ -47,13 +47,13 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
 
   return (
     <div className="mt-6 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4">
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex items-center justify-end">
         <Button
           type="button"
           intent="danger"
-          size="sm"
+          size="md"
+          className="w-full !bg-[var(--color-error)] hover:!bg-[var(--color-error)]/90"
           onClick={() => setConfirmOpen(true)}
-          className="!bg-[var(--color-error)] hover:!bg-[var(--color-error)]/90"
         >
           {label}
         </Button>
