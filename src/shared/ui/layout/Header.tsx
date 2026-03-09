@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Dropdown, Input, Badge } from "antd";
+import { Dropdown, Badge } from "antd";
 import ThemeOverlay from "@/features/settings/overlays/ThemeOverlay";
 import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
 import { useNotices } from "@/features/notice/context/NoticeContext";
@@ -53,24 +53,6 @@ function IconMonitor() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
       <path d="M8 21h8M12 17v4" />
-    </svg>
-  );
-}
-
-function IconSearch() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M16.5 16.5 21 21"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
     </svg>
   );
 }
@@ -189,14 +171,8 @@ export default function Header() {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
 
   const [searchParams] = useSearchParams();
-  const searchFromUrl = searchParams.get("search") ?? "";
   const isOnDashboard = loc.pathname.includes("/dashboard");
-  const [q, setQ] = useState(searchFromUrl);
   const [openTheme, setOpenTheme] = useState(false);
-
-  useEffect(() => {
-    if (isOnDashboard && searchFromUrl !== q) setQ(searchFromUrl);
-  }, [isOnDashboard, searchFromUrl]);
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);

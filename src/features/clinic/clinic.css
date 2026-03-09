@@ -767,15 +767,15 @@
   letter-spacing: -0.01em;
 }
 
-/* 클리닉 홈 KPI — 대형·가시성 강화 */
+/* 클리닉 홈 KPI — 한 줄 3칸 (ㅁㅁㅁ), 대형·가시성 강화 */
 .clinic-home .ds-section__kpi-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4);
 }
 
 .clinic-home .ds-section__kpi-list .kpi {
-  min-width: 160px;
+  min-width: 0;
   padding: 20px 24px;
   border: 1px solid var(--color-border-divider);
   border-radius: 12px;
