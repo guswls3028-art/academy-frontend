@@ -33,6 +33,8 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  /** 시험 점수 입력 모드: 합산(한 칸에 총점) | 주관식(문항별 점수) */
+  const [examScoreInputMode, setExamScoreInputMode] = useState<"total" | "item">("total");
   const { openSendMessageModal } = useSendMessageModal();
 
   const { data, isLoading, isError } = useQuery({
@@ -159,9 +161,34 @@ export default function SessionScoresEntryPage(_props: Props) {
           }}
         >
           <span aria-live="polite">편집 모드</span>
-          <span className="text-[var(--color-text-secondary)] font-normal">
-            엑셀과 동일한 조작방식. · Tab/Enter/방향키로 셀 이동 · 숫자 입력 시 기존 값 대체 · 미제출: <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)]">/</kbd> + Enter
-          </span>
+          <div className="flex flex-wrap items-center gap-4 font-normal">
+            <span className="text-[var(--color-text-secondary)]">
+              엑셀과 동일한 조작방식. · Tab/Enter/방향키로 셀 이동 · 숫자 입력 시 기존 값 대체 · 미제출: <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)]">/</kbd> + Enter
+            </span>
+            <fieldset className="flex items-center gap-3" aria-label="시험 점수 입력 방식">
+              <legend className="sr-only">시험 점수 입력 방식</legend>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="examScoreInputMode"
+                  checked={examScoreInputMode === "total"}
+                  onChange={() => setExamScoreInputMode("total")}
+                  className="cursor-pointer"
+                />
+                <span className="text-[var(--color-text-primary)]">합산점수입력</span>
+              </label>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="examScoreInputMode"
+                  checked={examScoreInputMode === "item"}
+                  onChange={() => setExamScoreInputMode("item")}
+                  className="cursor-pointer"
+                />
+                <span className="text-[var(--color-text-primary)]">주관식점수만입력</span>
+              </label>
+            </fieldset>
+          </div>
         </div>
       )}
 
@@ -178,6 +205,7 @@ export default function SessionScoresEntryPage(_props: Props) {
           sessionId={numericSessionId}
           search={searchInput}
           isEditMode={isEditMode}
+          examScoreInputMode={examScoreInputMode}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
         />

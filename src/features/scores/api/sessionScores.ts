@@ -31,6 +31,8 @@ export type SessionScoreExamEntry = {
   title: string;
   pass_score: number;
   block: ScoreBlock;
+  /** 주관식 점수 입력 모드용 문항별 점수 (서버가 내려줌) */
+  items?: { question_id: number; score: number; max_score: number }[];
 };
 
 export type SessionScoreHomeworkEntry = {
@@ -61,6 +63,8 @@ export type SessionScoreMeta = {
     exam_id: number;
     title: string;
     pass_score: number;
+    /** 주관식 점수 입력 모드용 문항 목록 */
+    questions?: { question_id: number; number: number; max_score: number }[];
   }[];
 
   homeworks: {
