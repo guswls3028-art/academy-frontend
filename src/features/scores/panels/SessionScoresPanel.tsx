@@ -268,7 +268,11 @@ export default function SessionScoresPanel({
           sessionId={sessionId}
           attendanceMap={attendanceMap}
           isEditMode={isEditMode}
-          examScoreInputMode={examScoreInputMode}
+          examEditTotal={examEditTotal}
+          examEditObjective={examEditObjective}
+          examEditSubjective={examEditSubjective}
+          homeworkEdit={homeworkEdit}
+          scoreDisplayMode={scoreDisplayMode}
           selectedEnrollmentId={selectedEnrollmentId}
           selectedCell={selectedEnrollmentId != null ? (() => {
             const col = editableCols[clampCol(selectedColIndex)];
@@ -281,19 +285,22 @@ export default function SessionScoresPanel({
           onRequestMoveDown={onRequestMoveDown}
           onRequestMoveUp={onRequestMoveUp}
           onSelectCell={isEditMode
-            ? (row, type, id, questionId) => {
                 setSelectedEnrollmentId(row.enrollment_id);
                 const rIdx = rows.findIndex((r) => r.enrollment_id === row.enrollment_id);
                 if (type === "exam") {
-                  const cIdx = editableCols.findIndex(
-                    (c) => c.type === "exam" && c.examId === id && (questionId == null ? c.questionId == null : c.questionId === questionId)
-                  );
+                  const sub = questionIdOrSub as "total" | "objective" | number | undefined;
+                  const cIdx = editableCols.findIndex((c) => {
+                    if (c.type !== "exam" || c.examId !== id) return false;
+                    if (c.sub === "total") return sub === "total" || (sub == null && questionIdOrSub == null);
+                    if (c.sub === "objective") return sub === "objective";
+                    if (c.sub === "item") return typeof sub === "number" && c.questionId === sub;
+                    return false;
+                  });
                   const colIdx = cIdx >= 0 ? cIdx : 0;
                   setSelectedColIndex(colIdx);
                   focusAt(rIdx, colIdx);
                 } else {
-                  const idx = homeworkCols.findIndex((h) => h.homework_id === id);
-                  const c = idx >= 0 ? editableCols.findIndex((c) => c.type === "homework" && c.homeworkId === id) : 0;
+                  const c = editableCols.findIndex((c) => c.type === "homework" && c.homeworkId === id);
                   const colIdx = c >= 0 ? c : 0;
                   setSelectedColIndex(colIdx);
                   focusAt(rIdx, colIdx);
