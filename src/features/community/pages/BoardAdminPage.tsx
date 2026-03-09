@@ -61,7 +61,6 @@ export default function BoardAdminPage() {
   const selectedId =
     selectedIdParam && /^\d+$/.test(selectedIdParam) ? Number(selectedIdParam) : null;
 
-  const [blockTypeFilter, setBlockTypeFilter] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [accPosts, setAccPosts] = useState<PostEntity[]>([]);
@@ -75,8 +74,8 @@ export default function BoardAdminPage() {
   const blockTypes = blockTypesQ.data ?? [];
 
   const postsQ = useQuery({
-    queryKey: ["community-board-admin-posts", blockTypeFilter, page],
-    queryFn: () => fetchAdminPosts({ blockTypeId: blockTypeFilter, page, pageSize: PAGE_SIZE }),
+    queryKey: ["community-board-admin-posts", page],
+    queryFn: () => fetchAdminPosts({ blockTypeId: null, page, pageSize: PAGE_SIZE }),
   });
   const totalCount = postsQ.data?.count ?? 0;
 
@@ -87,12 +86,6 @@ export default function BoardAdminPage() {
       page === 1 ? postsQ.data!.results : [...prev, ...postsQ.data!.results]
     );
   }, [postsQ.data, page]);
-
-  // Reset when filter changes
-  useEffect(() => {
-    setAccPosts([]);
-    setPage(1);
-  }, [blockTypeFilter]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return accPosts;
@@ -153,31 +146,15 @@ export default function BoardAdminPage() {
             </Button>
           </div>
 
-          {/* Block-type filter tabs */}
+          {/* Block-type filter: 전체 탭만 표시 */}
           <div className="qna-inbox__filter-group" style={{ flexWrap: "wrap" }}>
             <button
               type="button"
-              className={`qna-inbox__filter-btn ${blockTypeFilter === null ? "qna-inbox__filter-btn--active" : ""}`}
-              onClick={() => setBlockTypeFilter(null)}
+              className="qna-inbox__filter-btn qna-inbox__filter-btn--active"
             >
               <span>전체</span>
-              {blockTypeFilter === null && (
-                <span className="qna-inbox__filter-badge">{totalCount}</span>
-              )}
+              <span className="qna-inbox__filter-badge">{totalCount}</span>
             </button>
-            {blockTypes.map((bt) => (
-              <button
-                key={bt.id}
-                type="button"
-                className={`qna-inbox__filter-btn ${blockTypeFilter === bt.id ? "qna-inbox__filter-btn--active" : ""}`}
-                onClick={() => setBlockTypeFilter(bt.id)}
-              >
-                <span>{bt.label}</span>
-                {blockTypeFilter === bt.id && (
-                  <span className="qna-inbox__filter-badge">{totalCount}</span>
-                )}
-              </button>
-            ))}
           </div>
 
           {/* Search */}
