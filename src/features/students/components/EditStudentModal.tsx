@@ -1,7 +1,7 @@
 // PATH: src/features/students/components/EditStudentModal.tsx
 // 디자인: StudentCreateModal(1명 등록)과 동일 구조·클래스 — 쌍둥이 UX
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
@@ -108,26 +108,14 @@ export default function EditStudentModal({
     if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   }
 
-  function handleIdentifierChange(value: string) {
-    const raw = parseIdentifierInput(value);
-    setForm((p) => ({ ...p, omrCode: raw }));
-    if (fieldErrors.omrCode) setFieldErrors((prev) => ({ ...prev, omrCode: "" }));
-  }
-
   /** StudentUpdateSerializer / 모델 기준 필수: name, ps_number, phone, parent_phone (Create와 동일) */
   function validate(): string | null {
     if (!String(form.name || "").trim()) return "필수 입력입니다.";
     if (!String(form.psNumber || "").trim()) return "필수 입력입니다.";
 
-    if (noPhone) {
-      const code = String(form.omrCode || "").trim();
-      if (!code) return "필수 입력입니다.";
-      if (!/^\d{8}$/.test(code)) return "식별자는 8자리 숫자(XXXXXXXX)여야 합니다.";
-    } else {
-      const phone = String(form.studentPhone || "").trim();
-      if (!phone || phone.length < 11) return "학생 전화(010 뒤 8자리)를 입력해 주세요.";
-      if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010 뒤 8자리 숫자여야 합니다.";
-    }
+    const phone = String(form.studentPhone || "").trim();
+    if (!phone || phone.length < 11) return "학생 전화(010 뒤 8자리)를 입력해 주세요.";
+    if (!/^010\d{8}$/.test(phone)) return "학생 전화번호는 010 뒤 8자리 숫자여야 합니다.";
 
     const parent = String(form.parentPhone || "").trim();
     if (!parent || parent.length !== 11) return "학부모 전화(010 뒤 8자리)를 입력해 주세요.";
@@ -148,7 +136,7 @@ export default function EditStudentModal({
     setBusy(true);
     setFieldErrors({});
     try {
-      await updateStudent(initialValue.id, { ...form, noPhone });
+      await updateStudent(initialValue.id, { ...form, noPhone: false });
       onSuccess();
       onClose();
     } catch (raw: any) {
@@ -163,7 +151,7 @@ export default function EditStudentModal({
         }
         setFieldErrors(next);
         const messages = Object.entries(next)
-          .map(([k, v]) => (k === "name" ? "이름" : k === "psNumber" ? "아이디" : k === "studentPhone" ? "학생 전화/식별자" : k === "omrCode" ? "식별자" : k === "parentPhone" ? "학부모 전화" : k) + ": " + v)
+          .map(([k, v]) => (k === "name" ? "이름" : k === "psNumber" ? "아이디" : k === "studentPhone" ? "학생 전화" : k === "parentPhone" ? "학부모 전화" : k) + ": " + v)
           .join("\n");
         feedback.error(messages);
       } else {
@@ -222,48 +210,18 @@ export default function EditStudentModal({
               />
             </div>
             <div className="modal-phone-row">
-              <span className="modal-phone-label">학생 전화번호 또는 식별자</span>
-              <span className="modal-phone-desc">전화 입력 시 학생 본인 번호, 식별자 사용 시 OMR용 XXXX-XXXX.</span>
-              <div className="modal-form-row modal-form-row--1-auto">
-                {noPhone ? (
-                <input
-                  placeholder="식별자 (XXXX-XXXX)"
-                  value={formatIdentifierForInput(form.omrCode ?? "")}
-                  onChange={(e) => handleIdentifierChange(e.target.value)}
-                  className="ds-input"
-                  data-required="true"
-                  data-invalid={!String(form.omrCode || "").trim() ? "true" : "false"}
-                  disabled={busy}
-                  maxLength={9}
-                  inputMode="numeric"
-                  pattern="[0-9\-]*"
-                />
-              ) : (
-                <PhoneInput010Blocks
-                  value={form.studentPhone ?? ""}
-                  onChange={(v) => handlePhoneChange("studentPhone", v)}
-                  disabled={busy}
-                  blockClassName="modal-phone-block"
-                  inputClassName="modal-phone-block-input"
-                  data-required="true"
-                  data-invalid={!String(form.studentPhone || "").trim() ? "true" : "false"}
-                  aria-label="학생 전화"
-                />
-              )}
-              <div className="modal-actions-inline" style={{ height: 36 }}>
-                <Button
-                  intent={noPhone ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => {
-                    setNoPhone((v) => !v);
-                    setForm((p) => ({ ...p, studentPhone: "", omrCode: "" }));
-                  }}
-                  disabled={busy}
-                >
-                  {noPhone ? "전화 입력" : "식별자 사용"}
-                </Button>
-              </div>
-              </div>
+              <span className="modal-phone-label">학생 전화번호</span>
+              <span className="modal-phone-desc">학생 본인 번호(010 포함 11자리)를 입력하세요.</span>
+              <PhoneInput010Blocks
+                value={form.studentPhone ?? ""}
+                onChange={(v) => handlePhoneChange("studentPhone", v)}
+                disabled={busy}
+                blockClassName="modal-phone-block"
+                inputClassName="modal-phone-block-input"
+                data-required="true"
+                data-invalid={!String(form.studentPhone || "").trim() ? "true" : "false"}
+                aria-label="학생 전화"
+              />
             </div>
           </div>
 

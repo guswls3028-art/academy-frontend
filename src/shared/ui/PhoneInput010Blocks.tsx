@@ -55,6 +55,7 @@ export function PhoneInput010Blocks({
       const v = e.target.value.replace(/\D/g, "").slice(0, 8);
       if (v.length <= 4) {
         setRaw(v, last4);
+        if (v.length === 4) secondInputRef.current?.focus();
       } else {
         setRaw(v.slice(0, 4), v.slice(4, 8));
         secondInputRef.current?.focus();
