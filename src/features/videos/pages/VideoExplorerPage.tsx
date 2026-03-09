@@ -58,6 +58,31 @@ function formatDate(iso: string | null): string {
   }
 }
 
+/** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
+function formatTimeAgo(isoDate: string): string {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  const diffWeek = Math.floor(diffDay / 7);
+  if (diffSec < 60) return "방금 전";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  if (diffDay < 7) return `${diffDay}일 전`;
+  if (diffWeek < 4) return `${diffWeek}주 전`;
+  return `${Math.floor(diffDay / 30)}개월 전`;
+}
+
+/** 조회수 표기: 1234 → "1.2천 회", 10000+ → "1만 회" 등 */
+function formatViewCount(count: number): string {
+  if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만 회`;
+  if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}천 회`;
+  return `${count}회`;
+}
+
 export default function VideoExplorerPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -406,7 +431,16 @@ export default function VideoExplorerPage() {
                     <span className={styles.itemLabel} title={v.title}>
                       {v.title || "—"}
                     </span>
-                    <span className={styles.itemMeta}>{formatDate(v.created_at)}</span>
+                    <span className={styles.itemMeta}>
+                      {[
+                        v.view_count != null && Number.isFinite(v.view_count)
+                          ? `조회수 ${formatViewCount(v.view_count)}`
+                          : null,
+                        v.created_at ? formatTimeAgo(v.created_at) : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", justifyContent: "center", flexWrap: "wrap" }}>
                       <VideoStatusBadge status={v.status ?? "PENDING"} />
                       {canShowRetryButton(v) && (

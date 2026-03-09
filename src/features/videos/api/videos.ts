@@ -68,6 +68,8 @@ export interface Video {
   updated_at: string;
 
   source_type: VideoSourceType;
+  /** 조회수 (목록/상세에서 내려오면 유튜브 스타일로 표시) */
+  view_count?: number | null;
 }
 
 export interface VideoDetail extends Video {}

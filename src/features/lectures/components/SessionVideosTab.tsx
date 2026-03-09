@@ -17,6 +17,31 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainListToolbar } from "@/shared/ui/domain";
 import { feedback } from "@/shared/ui/feedback/feedback";
 
+/** 유튜브 스타일: 업로드 시각 → "N분 전", "N시간 전", "N일 전" */
+function formatTimeAgo(isoDate: string): string {
+  const date = new Date(isoDate);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  const diffWeek = Math.floor(diffDay / 7);
+  if (diffSec < 60) return "방금 전";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  if (diffDay < 7) return `${diffDay}일 전`;
+  if (diffWeek < 4) return `${diffWeek}주 전`;
+  return `${Math.floor(diffDay / 30)}개월 전`;
+}
+
+/** 조회수 표기: 1234 → "1.2천 회", 10000+ → "1만 회" 등 */
+function formatViewCount(count: number): string {
+  if (count >= 10000) return `${(count / 10000).toFixed(1).replace(/\.0$/, "")}만 회`;
+  if (count >= 1000) return `${(count / 1000).toFixed(1).replace(/\.0$/, "")}천 회`;
+  return `${count}회`;
+}
+
 /**
  * media 도메인 기준 Video 타입 (관리자 목록용)
  * ⚠️ status 필드 반드시 포함
@@ -43,6 +68,8 @@ export interface MediaVideo {
   status?: "PENDING" | "UPLOADED" | "PROCESSING" | "READY" | "FAILED";
 
   created_at: string;
+  /** 조회수 (백엔드 목록 API에서 내려오면 표시, 유튜브 스타일) */
+  view_count?: number | null;
 }
 
 interface SessionVideosTabProps {
@@ -122,18 +149,11 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
     const videoTask = asyncTasks.find(
       (t) => t.meta?.jobType === "video_processing" && t.meta?.jobId === String(video.id)
     );
-    const fileSize =
-      video.file_size && video.file_size > 0 ? `${(video.file_size / 1024 / 1024).toFixed(2)}MB` : "-";
-    const uploadDate = video.created_at
-      ? new Date(video.created_at).toLocaleString("ko-KR", {
-          year: "2-digit",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-      : "-";
+    const timeAgo = video.created_at ? formatTimeAgo(video.created_at) : "";
+    const viewCountLabel =
+      video.view_count != null && Number.isFinite(video.view_count)
+        ? `조회수 ${formatViewCount(video.view_count)}`
+        : null;
 
     return (
       <div
@@ -181,9 +201,10 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
               {video.title}
             </div>
 
-            {fileSize !== "-" && (
-              <div style={{ marginTop: 2, fontSize: 11, fontWeight: 600, color: "var(--color-text-muted)" }}>
-                {fileSize} · {uploadDate}
+            {/* 유튜브 스타일: 조회수 · N시간 전 (제목 바로 아래) */}
+            {(viewCountLabel || timeAgo) && (
+              <div style={{ marginTop: 4, fontSize: 12, color: "var(--color-text-muted)" }}>
+                {[viewCountLabel, timeAgo].filter(Boolean).join(" · ")}
               </div>
             )}
           </div>
