@@ -96,19 +96,17 @@ export default function ClinicHomePage() {
         <DatePicker value={date} onChange={setDate} placeholder="날짜" />
       </div>
 
-      {/* 1. 오늘 클리닉 일정 — 섹션 */}
-      <ClinicTodaySummary
-        date={date}
-        rows={todayQ.listQ.data ?? []}
-        loading={todayQ.listQ.isLoading}
-        onGoOperations={() => nav("/admin/clinic/operations")}
-        onGoBookings={() => nav("/admin/clinic/bookings")}
-      />
+      {/* 오늘 클리닉 · 예약 대상자 · 예약 신청 — 가로 3섹션 */}
+      <div className="clinic-home__row grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <ClinicTodaySummary
+          date={date}
+          rows={todayQ.listQ.data ?? []}
+          loading={todayQ.listQ.isLoading}
+          onGoOperations={() => nav("/admin/clinic/operations")}
+          onGoBookings={() => nav("/admin/clinic/bookings")}
+        />
 
-      {/* 2. 예약대상자 · 예약신청 — 섹션형 2열 */}
-      <div className="clinic-home__row border-b border-[var(--color-border-divider)] pb-8">
-        <div className="grid grid-cols-1 gap-0 lg:grid-cols-2">
-          <div className="clinic-home__section lg:border-r lg:border-b-0 lg:pr-8 lg:pr-[var(--space-8)]">
+        <div className="clinic-home__section">
           <div className="clinic-home__header flex items-center justify-between gap-4">
             <div>
               <h2 className="clinic-home__title">예약 대상자</h2>
@@ -127,25 +125,25 @@ export default function ClinicHomePage() {
           </div>
           <div className="clinic-home__body">
             {targetsQ.isLoading && (
-              <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
+              <p className="clinic-home__body-text clinic-home__body-text--muted">불러오는 중…</p>
             )}
             {!targetsQ.isLoading && targetsList.length === 0 && (
               <p className="ds-section__empty">대상자가 없습니다.</p>
             )}
             {!targetsQ.isLoading && targetsList.length > 0 && (
-              <ul className="space-y-2 max-h-[240px] overflow-auto">
+              <ul className="clinic-home__list space-y-2 max-h-[240px] overflow-auto">
                 {targetsList.map((t) => (
                   <li
                     key={t.enrollment_id}
-                    className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)]"
+                    className="clinic-home__list-item"
                   >
-                    <span className="font-medium text-[var(--color-text-primary)] truncate">
+                    <span className="clinic-home__list-item-primary truncate">
                       {t.student_name}
                     </span>
                     {bookedEnrollmentIds.has(t.enrollment_id) ? (
-                      <span className="text-xs text-[var(--color-success)] shrink-0">예약됨</span>
+                      <span className="clinic-home__list-item-badge clinic-home__list-item-badge--success">예약됨</span>
                     ) : (
-                      <span className="text-xs text-[var(--color-text-muted)] shrink-0">미예약</span>
+                      <span className="clinic-home__list-item-badge clinic-home__list-item-badge--muted">미예약</span>
                     )}
                   </li>
                 ))}
@@ -154,59 +152,59 @@ export default function ClinicHomePage() {
           </div>
         </div>
 
-        <div className="clinic-home__section lg:pl-8 lg:pl-[var(--space-8)]">
+        <div className="clinic-home__section">
           <div className="clinic-home__header flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h2 className="clinic-home__title">예약 신청</h2>
               <p className="clinic-home__meta">승인 대기 {pendingList.length}건</p>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer shrink-0">
-              <input
-                type="checkbox"
-                checked={autoApproved}
-                onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
-                disabled={updateAutoApprovedM.isPending}
-                className="rounded border-[var(--color-border-divider)]"
-                aria-describedby={settingsQ.isError ? "clinic-auto-approve-error" : undefined}
-              />
-              <span className="text-sm font-medium text-[var(--color-text-primary)]">
-                자동 승인
-              </span>
-            </label>
+            <div className="clinic-home__auto-approve shrink-0">
+              <label className="clinic-home__auto-approve-label">
+                <input
+                  type="checkbox"
+                  checked={autoApproved}
+                  onChange={(e) => updateAutoApprovedM.mutate(e.target.checked)}
+                  disabled={updateAutoApprovedM.isPending}
+                  className="clinic-home__auto-approve-checkbox"
+                  aria-describedby={settingsQ.isError ? "clinic-auto-approve-error" : undefined}
+                />
+                <span className="clinic-home__auto-approve-text">자동 승인</span>
+              </label>
+            </div>
             {settingsQ.isError && (
-              <p id="clinic-auto-approve-error" className="text-xs text-[var(--color-error)] mt-1 w-full">
+              <p id="clinic-auto-approve-error" className="clinic-home__body-text clinic-home__body-text--error mt-1 w-full">
                 설정을 불러올 수 없습니다. 네트워크 또는 로그인을 확인하세요.
               </p>
             )}
           </div>
           <div className="clinic-home__body">
             {pendingQ.listQ.isLoading && (
-              <p className="text-sm text-[var(--color-text-muted)]">불러오는 중…</p>
+              <p className="clinic-home__body-text clinic-home__body-text--muted">불러오는 중…</p>
             )}
             {!pendingQ.listQ.isLoading && pendingList.length === 0 && (
               <p className="ds-section__empty">대기 중인 신청이 없습니다.</p>
             )}
             {!pendingQ.listQ.isLoading && pendingList.length > 0 && (
-              <ul className="space-y-2 max-h-[240px] overflow-auto">
+              <ul className="clinic-home__list space-y-2 max-h-[240px] overflow-auto">
                 {pendingList.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-[var(--color-bg-surface-soft)] border border-[var(--color-border-divider)]"
+                    className="clinic-home__list-item clinic-home__list-item--two-line"
                   >
                     <div className="min-w-0">
-                      <div className="font-medium text-[var(--color-text-primary)] truncate">
+                      <div className="clinic-home__list-item-primary truncate">
                         {p.student_name}
                       </div>
-                      <div className="text-xs text-[var(--color-text-muted)]">
+                      <div className="clinic-home__list-item-secondary">
                         {p.session_date ?? "-"} {p.session_start_time?.slice(0, 5) ?? ""} · {p.session_location ?? "-"}
                       </div>
                     </div>
-                    <div className="flex gap-1 shrink-0">
+                    <div className="flex gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => patchStatusM.mutate({ id: p.id, status: "booked" })}
                         disabled={patchStatusM.isPending}
-                        className="text-xs font-semibold px-2 py-1 rounded bg-[var(--color-success)] text-white hover:opacity-90"
+                        className="clinic-home__action-btn clinic-home__action-btn--approve"
                       >
                         승인
                       </button>
@@ -214,7 +212,7 @@ export default function ClinicHomePage() {
                         type="button"
                         onClick={() => patchStatusM.mutate({ id: p.id, status: "rejected" })}
                         disabled={patchStatusM.isPending}
-                        className="text-xs font-semibold px-2 py-1 rounded bg-[var(--color-error)] text-white hover:opacity-90"
+                        className="clinic-home__action-btn clinic-home__action-btn--reject"
                       >
                         거절
                       </button>
@@ -225,7 +223,6 @@ export default function ClinicHomePage() {
             )}
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

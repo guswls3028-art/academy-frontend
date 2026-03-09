@@ -67,49 +67,43 @@ export default function ClinicTodaySummary({
           />
         </div>
         {noShow > 0 && (
-          <p className="text-sm font-semibold text-[var(--color-error)] mb-3">
+          <p className="clinic-home__body-text clinic-home__body-text--alert mb-3">
             불참 {noShow}명
           </p>
         )}
         {loading && (
-          <p className="text-xs text-[var(--color-text-muted)]">불러오는 중…</p>
+          <p className="clinic-home__body-text clinic-home__body-text--muted">불러오는 중…</p>
         )}
         {!loading && sessions.length === 0 && (
           <p className="ds-section__empty">오늘 예정된 클리닉이 없습니다.</p>
         )}
         {!loading && sessions.length > 0 && (
-          <div className="space-y-2">
-            {sessions.map((s) => (
-              <div
-                key={s.sessionId}
-                className="clinic-time-block flex items-start justify-between gap-3"
-              >
-                <div>
-                  <span className="font-semibold">
-                    {s.time}
-                    {s.end ? ` ~ ${s.end}` : ""}
-                  </span>
-                  <span className="text-[var(--color-text-muted)] ml-2">
-                    · {s.total}명
-                  </span>
-                  {s.location && (
-                    <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-                      {s.location}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right text-xs">
-                  <div className="text-[var(--color-text-muted)]">예약 {s.booked}</div>
-                  <div
-                    className={
-                      s.noShow > 0 ? "clinic-time-block--alert" : "text-[var(--color-text-muted)]"
-                    }
-                  >
-                    불참 {s.noShow}
+          <div className="clinic-home__schedule-block">
+            <p className="clinic-home__schedule-block-title">오늘 기준 클리닉 일정</p>
+            <ul className="clinic-home__schedule-list">
+              {sessions.map((s) => (
+                <li key={s.sessionId} className="clinic-home__schedule-item">
+                  <div className="clinic-home__schedule-item-main">
+                    <span className="clinic-home__schedule-item-time">
+                      {s.time}
+                      {s.end ? ` ~ ${s.end}` : ""}
+                    </span>
+                    {s.location && (
+                      <span className="clinic-home__schedule-item-location">{s.location}</span>
+                    )}
                   </div>
-                </div>
-              </div>
-            ))}
+                  <div className="clinic-home__schedule-item-meta">
+                    <span className="clinic-home__schedule-item-count">{s.total}명</span>
+                    <span className="clinic-home__schedule-item-detail">
+                      예약 {s.booked}
+                      {s.noShow > 0 && (
+                        <span className="clinic-home__schedule-item-alert"> · 불참 {s.noShow}</span>
+                      )}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
