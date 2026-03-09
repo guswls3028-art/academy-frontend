@@ -280,6 +280,12 @@ export default function AnswerKeyRegisterModal({
 
   const handleSave = async () => {
     setSaveBusy(true);
+    const stepLog = (msg: string, data?: unknown) => {
+      if (import.meta.env.DEV) {
+        console.log("[AnswerKeyRegister] " + msg, data ?? "");
+      }
+    };
+    stepLog("handleSave 시작", { canEditQuestions, examId, hasAnswerKey: !!answerKey });
     try {
       const normalized = normalizeAnswers(draft);
       const essayIds = new Set(
@@ -290,25 +296,35 @@ export default function AnswerKeyRegisterModal({
       });
       const targetExamId = examId;
       if (!answerKey) {
+        stepLog("createAnswerKey 호출", { exam: targetExamId, answerKeys: Object.keys(normalized).length });
         await createAnswerKey({ exam: targetExamId, answers: normalized });
       } else {
-        await updateAnswerKey(answerKey.id, { answers: normalized });
+        stepLog("updateAnswerKey 호출", { id: answerKey.id, exam: answerKey.exam, answerKeys: Object.keys(normalized).length });
+        await updateAnswerKey(answerKey.id, { exam: answerKey.exam, answers: normalized });
       }
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
       if (canEditQuestions) {
-        for (const q of sortedQuestions) {
+        const toPatch = sortedQuestions.filter(
+          (q) => Number.isFinite(scoreDraft[q.id] ?? q.score ?? 0) && (scoreDraft[q.id] ?? q.score ?? 0) !== (q.score ?? 0)
+        );
+        stepLog("문항 점수 PATCH", { count: toPatch.length, canEditQuestions });
+        for (const q of toPatch) {
           const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
-          if (Number.isFinite(nextScore) && nextScore !== (q.score ?? 0)) {
-            await patchQuestionScore({ questionId: q.id, score: nextScore });
-          }
+          await patchQuestionScore({ questionId: q.id, score: nextScore });
         }
         await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
+      } else {
+        stepLog("문항 점수 PATCH 생략 (regular 시험)", { canEditQuestions });
       }
       feedback.success(
         canEditQuestions ? "저장되었습니다." : "정답이 저장되었습니다. 문항·배점 수정은 템플릿 시험에서만 가능합니다."
       );
     } catch (e: any) {
-      feedback.error(e?.response?.data?.detail ?? "저장 실패");
+      const detail = e?.response?.data?.detail ?? e?.response?.data ?? e?.message;
+      stepLog("저장 실패", { status: e?.response?.status, detail });
+      feedback.error(
+        typeof detail === "string" ? detail : Array.isArray(detail) ? detail.join(", ") : "저장 실패"
+      );
     } finally {
       setSaveBusy(false);
     }

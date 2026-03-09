@@ -55,6 +55,11 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     );
   }
 
+  const canEditQuestions = exam.exam_type === "template";
+  if (import.meta.env.DEV) {
+    console.log("[ExamPolicyPanel] exam", { examId, exam_type: exam.exam_type, canEditQuestions });
+  }
+
   const savePassScore = async () => {
     try {
       await patchMut.mutateAsync({
@@ -133,7 +138,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           onClose={() => setAnswerModalOpen(false)}
           examId={examId}
           structureOwnerId={exam.id}
-          canEditQuestions={exam.exam_type === "template"}
+          canEditQuestions={canEditQuestions}
         />
       </div>
     </section>

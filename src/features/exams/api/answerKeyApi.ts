@@ -18,6 +18,9 @@ export async function createAnswerKey(payload: { exam: number; answers: Record<s
   return api.post<AnswerKey>(`/exams/answer-keys/`, payload);
 }
 
-export async function updateAnswerKey(id: number, payload: { answers: Record<string, string> }) {
+export async function updateAnswerKey(
+  id: number,
+  payload: { exam: number; answers: Record<string, string> }
+) {
   return api.put<AnswerKey>(`/exams/answer-keys/${id}/`, payload);
 }
