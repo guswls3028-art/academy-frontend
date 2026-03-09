@@ -1,15 +1,14 @@
 /**
- * 프로필 — students 도메인 기준 정보 표시
- * 이름 / 학생 번호(PS) / 부모 전화번호 / 로그인 아이디 구분 표시
- * 우상단 편집 아이콘 → 이름 수정 가능
- * 아이디·비밀번호 변경은 버튼으로 누르면 입력 필드 표시
+ * 프로필 — 선생앱 학생 필드 스펙과 동일 (이름, 로그인 아이디, 학부모/학생 전화, 성별, 주소)
+ * 아이디·비밀번호 변경은 별도 블록
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import { fetchMyProfile, updateMyProfile } from "../api/profile";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { IconPencil } from "@/student/shared/ui/icons/Icons";
+import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 
 function formatPhone(phone: string | null | undefined): string {
   if (!phone || !phone.trim()) return "-";
@@ -23,10 +22,20 @@ function formatPhone(phone: string | null | undefined): string {
   return phone;
 }
 
+function formatGender(g: string | null | undefined): string {
+  if (g === "M") return "남";
+  if (g === "F") return "여";
+  return "-";
+}
+
 export default function ProfilePage() {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState("");
+  const [editParentPhone, setEditParentPhone] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editGender, setEditGender] = useState<string>("");
+  const [editAddress, setEditAddress] = useState("");
   const [showUsernameForm, setShowUsernameForm] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [username, setUsername] = useState("");
@@ -39,13 +48,30 @@ export default function ProfilePage() {
     queryFn: fetchMyProfile,
   });
 
+  useEffect(() => {
+    if (profile) {
+      setEditName(profile.name || "");
+      setEditParentPhone(profile.parent_phone || "");
+      setEditPhone(profile.phone || "");
+      setEditGender(profile.gender || "");
+      setEditAddress(profile.address || "");
+    }
+  }, [profile]);
+
   const updateProfileMutation = useMutation({
-    mutationFn: (payload: { name?: string; username?: string; current_password?: string; new_password?: string }) =>
-      updateMyProfile(payload),
+    mutationFn: (payload: {
+      name?: string;
+      username?: string;
+      current_password?: string;
+      new_password?: string;
+      phone?: string | null;
+      parent_phone?: string;
+      gender?: string | null;
+      address?: string | null;
+    }) => updateMyProfile(payload),
     onSuccess: (_, variables) => {
       qc.invalidateQueries({ queryKey: ["student", "me"] });
       setEditing(false);
-      setEditName("");
       if (variables.username !== undefined) {
         setShowUsernameForm(false);
         setUsername("");
@@ -62,14 +88,24 @@ export default function ProfilePage() {
   const startEdit = () => {
     if (profile) {
       setEditName(profile.name || "");
+      setEditParentPhone(profile.parent_phone || "");
+      setEditPhone(profile.phone || "");
+      setEditGender(profile.gender || "");
+      setEditAddress(profile.address || "");
       setEditing(true);
     }
   };
 
-  const saveName = () => {
-    const trimmed = editName.trim();
-    if (!trimmed) return;
-    updateProfileMutation.mutate({ name: trimmed });
+  const saveProfile = () => {
+    const parentRaw = editParentPhone.replace(/\D/g, "");
+    const phoneRaw = editPhone.replace(/\D/g, "");
+    updateProfileMutation.mutate({
+      name: editName.trim() || undefined,
+      parent_phone: parentRaw.length >= 10 ? "010" + parentRaw.slice(-8) : undefined,
+      phone: phoneRaw.length >= 10 ? "010" + phoneRaw.slice(-8) : (editPhone.trim() || null),
+      gender: editGender === "M" || editGender === "F" ? editGender : null,
+      address: editAddress.trim() || null,
+    });
   };
 
   const handleUsernameSubmit = (e: React.FormEvent) => {
@@ -112,13 +148,13 @@ export default function ProfilePage() {
 
   return (
     <StudentPageShell title="내 정보">
-      {/* 기본 정보 카드 — 우상단 편집 아이콘, 이름/학생번호/부모번호/로그인아이디 */}
+      {/* 기본 정보 — 선생앱 학생 필드 스펙(이름, 로그인 아이디, 학부모/학생 전화, 성별, 주소) */}
       <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
         <div style={{ position: "relative", paddingRight: 36 }}>
           <button
             type="button"
             className="stu-btn stu-btn--ghost stu-btn--sm"
-            onClick={editing ? () => { setEditing(false); setEditName(""); } : startEdit}
+            onClick={editing ? () => setEditing(false) : startEdit}
             style={{
               position: "absolute",
               top: 0,
@@ -143,36 +179,112 @@ export default function ProfilePage() {
                     style={{ flex: 1, maxWidth: 200 }}
                     placeholder="이름"
                   />
-                  <button
-                    type="button"
-                    className="stu-btn stu-btn--primary stu-btn--sm"
-                    onClick={saveName}
-                    disabled={updateProfileMutation.isPending || !editName.trim()}
-                  >
-                    {updateProfileMutation.isPending ? "저장 중…" : "저장"}
-                  </button>
                 </div>
               ) : (
                 <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.name || "-"}</div>
               )}
             </div>
-            <div>
-              <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학생 번호(PS 번호)</div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.ps_number || "-"}</div>
-            </div>
-            <div>
-              <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>부모 전화번호</div>
-              <div style={{ fontWeight: 600, fontSize: 16 }}>{formatPhone(profile.parent_phone)}</div>
-            </div>
+
             <div>
               <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>로그인 아이디</div>
               <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.username || "-"}</div>
             </div>
+
+            <div>
+              <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학부모 전화번호</div>
+              {editing ? (
+                <PhoneInput010Blocks
+                  value={editParentPhone.replace(/\D/g, "").length >= 11 ? editParentPhone : editParentPhone.replace(/\D/g, "").startsWith("010") ? editParentPhone : "010" + editParentPhone.replace(/\D/g, "").slice(-8)}
+                  onChange={(v) => setEditParentPhone(v)}
+                  inputClassName="stu-input"
+                  blockClassName="stu-phone-block"
+                  aria-label="학부모 전화번호"
+                />
+              ) : (
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{formatPhone(profile.parent_phone)}</div>
+              )}
+            </div>
+
+            <div>
+              <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>학생 전화번호</div>
+              {editing ? (
+                <PhoneInput010Blocks
+                  value={editPhone.replace(/\D/g, "").length >= 11 ? editPhone : editPhone.replace(/\D/g, "").startsWith("010") ? editPhone : "010" + editPhone.replace(/\D/g, "").slice(-8)}
+                  onChange={(v) => setEditPhone(v)}
+                  inputClassName="stu-input"
+                  blockClassName="stu-phone-block"
+                  placeholder="선택"
+                  aria-label="학생 전화번호"
+                />
+              ) : (
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.phone ? formatPhone(profile.phone) : "-"}</div>
+              )}
+            </div>
+
+            <div>
+              <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>성별</div>
+              {editing ? (
+                <div style={{ display: "flex", gap: "var(--stu-space-2)" }}>
+                  {[
+                    { key: "M", label: "남" },
+                    { key: "F", label: "여" },
+                  ].map((g) => (
+                    <button
+                      key={g.key}
+                      type="button"
+                      className={`stu-btn stu-btn--secondary ${editGender === g.key ? "stu-btn--primary" : ""}`}
+                      onClick={() => setEditGender(g.key)}
+                      style={{ padding: "var(--stu-space-2) var(--stu-space-4)" }}
+                    >
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{formatGender(profile.gender)}</div>
+              )}
+            </div>
+
+            <div>
+              <div className="stu-muted" style={{ fontSize: 12, marginBottom: 4 }}>주소</div>
+              {editing ? (
+                <input
+                  type="text"
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  className="stu-input"
+                  style={{ width: "100%", maxWidth: 320 }}
+                  placeholder="주소 (선택)"
+                />
+              ) : (
+                <div style={{ fontWeight: 600, fontSize: 16 }}>{profile.address || "-"}</div>
+              )}
+            </div>
+
+            {editing && (
+              <div style={{ display: "flex", gap: "var(--stu-space-2)", marginTop: "var(--stu-space-2)" }}>
+                <button
+                  type="button"
+                  className="stu-btn stu-btn--primary"
+                  onClick={saveProfile}
+                  disabled={updateProfileMutation.isPending || !editName.trim()}
+                >
+                  {updateProfileMutation.isPending ? "저장 중…" : "저장"}
+                </button>
+                <button
+                  type="button"
+                  className="stu-btn stu-btn--ghost"
+                  onClick={() => setEditing(false)}
+                >
+                  취소
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 아이디 변경 — 버튼 클릭 시 입력 필드 표시 */}
+      {/* 아이디 변경 */}
       <div className="stu-section stu-section--nested" style={{ marginBottom: "var(--stu-space-6)" }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>아이디 변경</div>
         {!showUsernameForm ? (
@@ -189,7 +301,7 @@ export default function ProfilePage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="새 아이디"
+              placeholder="새 로그인 아이디"
               className="stu-input"
             />
             <div style={{ display: "flex", gap: "var(--stu-space-2)" }}>
@@ -217,7 +329,7 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* 비밀번호 변경 — 버튼 클릭 시 입력 필드 표시 */}
+      {/* 비밀번호 변경 */}
       <div className="stu-section stu-section--nested">
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: "var(--stu-space-4)" }}>비밀번호 변경</div>
         {!showPasswordForm ? (

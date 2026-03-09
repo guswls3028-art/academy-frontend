@@ -2,7 +2,7 @@
  * 상단 바 — 좌: 로고·타이틀 / 우: 프로필(아바타+이름) 클릭 시 내정보·설정·로그아웃
  */
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Dropdown } from "antd";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
