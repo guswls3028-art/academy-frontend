@@ -45,11 +45,14 @@ async function postWithFallback(examId: number, form: FormData) {
    * - 400/403/500은 그대로 throw (진짜 에러)
    */
   const candidates = [
-    // 가장 흔한 형태들
+    // 현재 백엔드 (apps/domains/submissions/urls.py)
+    `/submissions/submissions/exams/${examId}/omr/`,
+    `/submissions/submissions/exams/${examId}/omr/batch/`,
+    // 레거시/다른 형태
     `/submissions/exams/${examId}/omr/upload/`,
     `/submissions/exams/${examId}/omr/batch/`,
     `/submissions/exams/${examId}/omr/files/`,
-    `/submissions/exams/${examId}/omr/`, // 혹시 multipart도 받도록 구현한 경우
+    `/submissions/exams/${examId}/omr/`,
   ];
 
   let last404: any = null;

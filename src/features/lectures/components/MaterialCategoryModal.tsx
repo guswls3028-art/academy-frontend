@@ -1,5 +1,5 @@
 // PATH: src/features/lectures/components/MaterialCategoryModal.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createMaterialCategory } from "../api/materials";
 
@@ -33,21 +33,8 @@ export default function MaterialCategoryModal({ lectureId, onClose }: Props) {
     },
   });
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      if (e.key === "Enter" && !busy && name.trim()) {
-        e.preventDefault();
-        mutate();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, name]);
-
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={560}>
+    <AdminModal open={true} onClose={onClose} type="action" width={560} onEnterConfirm={!busy && name.trim() ? () => mutate() : undefined}>
       <ModalHeader type="action" title={title} />
 
       <ModalBody>

@@ -124,17 +124,6 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
     }
   }, [sessionType, dateMode, defaultDateFromLecture]);
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea) handleSubmit();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionType, date, timeMode, timeInput, busy]);
-
   const effectiveDate = dateMode === "default" ? (defaultDateFromLecture || date) : date;
 
   function validate(): string | null {
@@ -172,7 +161,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
   const showDefaultTimeOption = sessionType === "n+1";
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={620}>
+    <AdminModal open={true} onClose={onClose} type="action" width={620} onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="차시 추가"

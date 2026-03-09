@@ -44,21 +44,6 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
     },
   });
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (!isOpen) return;
-      if (e.key === "Escape") onClose();
-      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && selectedIds.length > 0 && !mutation.isPending) {
-        e.preventDefault();
-        mutation.mutate(selectedIds);
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, selectedIds]);
-
   const { data: students = [], isLoading } = useQuery({
     queryKey: ["enroll-modal-students", search],
     queryFn: async (): Promise<Student[]> => {
@@ -81,7 +66,7 @@ export default function EnrollStudentModal({ sessionId, isOpen, onClose, onSucce
   };
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={720}>
+    <AdminModal open={true} onClose={onClose} type="action" width={720} onEnterConfirm={selectedIds.length > 0 && !mutation.isPending ? () => mutation.mutate(selectedIds) : undefined}>
       <ModalHeader
         type="action"
         title={title}

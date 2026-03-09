@@ -96,7 +96,7 @@ export default function AdminOmrBatchUploadBox({ examId }: Props) {
         fd.append("files", it.file);
 
         // ✅ 여기 엔드포인트가 없으면 404가 날 수 있음 → 그 경우 조용히 안내 후 중단
-        await api.post(`/submissions/exams/${examId}/omr/batch/`, fd, {
+        await api.post(`/submissions/submissions/exams/${examId}/omr/batch/`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
 

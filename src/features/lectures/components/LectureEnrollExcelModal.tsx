@@ -95,7 +95,7 @@ export default function LectureEnrollExcelModal({
   const isConfirmStep = parsed != null && parsed.rows.length > 0;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={520}>
+    <AdminModal open onClose={onClose} type="action" width={520} onEnterConfirm={isConfirmStep && !busy && initialPassword.trim().length >= 4 ? handleConfirmAndRegister : undefined}>
       <ModalHeader
         type="action"
         title="수강생 엑셀 업로드"

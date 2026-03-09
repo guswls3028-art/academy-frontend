@@ -49,7 +49,7 @@ export default function BoardCategoryModal({ lectureId, isOpen, onClose }: Props
   if (!isOpen) return null;
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={560}>
+    <AdminModal open={true} onClose={onClose} type="action" width={560} onEnterConfirm={name.trim() && !busy ? () => mutate() : undefined}>
       <ModalHeader type="action" title={title} />
       <ModalBody>
         <input

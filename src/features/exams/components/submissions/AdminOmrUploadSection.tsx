@@ -4,7 +4,7 @@
  * WHY:
  * - submissions 도메인은 "제출 이벤트 생성"까지만 책임진다
  * - 점수/판정/상태 해석은 절대 하지 않는다
- * - FINAL SPEC: POST /submissions/exams/{exam_id}/omr/ 만 사용
+ * - FINAL SPEC: POST /submissions/submissions/exams/{exam_id}/omr/ (현재 백엔드)
  * - JSX 사용 → 반드시 .tsx
  */
 
@@ -39,7 +39,7 @@ export default function AdminOmrUploadSection({ examId }: Props) {
     try {
       setLoading(true);
 
-      await api.post(`/submissions/exams/${examId}/omr/`, {
+      await api.post(`/submissions/submissions/exams/${examId}/omr/`, {
         enrollment_id: eid,
         sheet_id: sid,
         file_key: fileKey.trim(),

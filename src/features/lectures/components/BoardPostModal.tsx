@@ -1,5 +1,5 @@
 // PATH: src/features/lectures/components/BoardPostModal.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BoardCategory, createBoardPost, getCourseNodeIdForLecture } from "../api/board";
 import { createPostTemplate, type PostTemplate } from "@/features/community/api/community.api";
@@ -70,22 +70,8 @@ export default function BoardPostModal({ lectureId, category, templates = [], on
     },
   });
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-      const isTextarea = (e.target as HTMLElement)?.tagName === "TEXTAREA";
-      if (e.key === "Enter" && !isTextarea && !busy && titleInput.trim()) {
-        e.preventDefault();
-        mutate();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, titleInput, content]);
-
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={980}>
+    <AdminModal open={true} onClose={onClose} type="action" width={980} onEnterConfirm={!busy && titleInput.trim() ? () => mutate() : undefined}>
       <ModalHeader type="action" title={title} />
 
       <ModalBody>

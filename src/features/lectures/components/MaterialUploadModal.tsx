@@ -61,7 +61,7 @@ export default function MaterialUploadModal({ lectureId, categoryId, onClose }: 
   }, [busy, file, url, titleInput, description]);
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={920}>
+    <AdminModal open={true} onClose={onClose} type="action" width={920} onEnterConfirm={() => { if (file) mutate(); }}>
       <ModalHeader type="action" title={title} />
 
       <ModalBody>

@@ -52,7 +52,7 @@ export default function DdayModal({ lectureId, onClose }: Props) {
   }, [busy, titleInput, date, time]);
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={720}>
+    <AdminModal open={true} onClose={onClose} type="action" width={720} onEnterConfirm={!busy && titleInput.trim() ? () => mutate() : undefined}>
       <ModalHeader type="action" title={title} />
 
       <ModalBody>
