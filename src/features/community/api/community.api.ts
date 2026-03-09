@@ -50,6 +50,8 @@ export interface PostEntity {
   content: string;
   created_by: number | null;
   created_by_display?: string | null;
+  /** true면 질문자가 삭제된 학생. 답변 추가 비활성화용 */
+  created_by_deleted?: boolean;
   created_at: string;
   updated_at?: string;
   replies_count?: number;
@@ -333,6 +335,8 @@ export interface Question {
   lecture_id?: number;
   lecture_title?: string;
   created_by?: number | null;
+  /** true면 질문자가 삭제된 학생 */
+  created_by_deleted?: boolean;
 }
 
 function postEntityToQuestion(p: PostEntity): Omit<Question, "is_answered"> {
@@ -344,6 +348,7 @@ function postEntityToQuestion(p: PostEntity): Omit<Question, "is_answered"> {
     created_at: p.created_at,
     student_name: p.created_by_display ?? undefined,
     created_by: p.created_by ?? undefined,
+    created_by_deleted: p.created_by_deleted,
     lecture_id: firstNode?.lecture,
     lecture_title: firstNode?.lecture_title,
   };

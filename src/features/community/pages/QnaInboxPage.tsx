@@ -291,7 +291,7 @@ function QuestionCard({
     >
       <div className="qna-inbox__card-top">
         <div className="qna-inbox__card-avatar-wrap">
-          <QnaAvatar name={question.student_name ?? "?"} role="student" size={30} />
+          <QnaAvatar name={question.created_by_deleted ? "삭제된 학생입니다." : (question.student_name ?? "?")} role="student" size={30} />
         </div>
         <div className="qna-inbox__card-body">
           <div className="qna-inbox__card-title-row">
@@ -300,7 +300,7 @@ function QuestionCard({
           </div>
           {snippet && <div className="qna-inbox__card-snippet">{snippet}</div>}
           <div className="qna-inbox__card-meta">
-            <span>{question.student_name ?? "—"}</span>
+            <span>{question.created_by_deleted ? "삭제된 학생입니다." : (question.student_name ?? "—")}</span>
             <span className="qna-inbox__card-meta-dot" />
             <span>{timeAgo}</span>
             {question.lecture_title && (
@@ -375,7 +375,7 @@ function ThreadView({
           <div className="qna-inbox__thread-title-group">
             <h1 className="qna-inbox__thread-title">{post.title}</h1>
             <div className="qna-inbox__thread-meta">
-              <span>{post.created_by_display ?? "—"}</span>
+              <span>{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "—")}</span>
               <span className="qna-inbox__thread-meta-dot" />
               <span>{lectureLabel}</span>
               <span className="qna-inbox__thread-meta-dot" />
@@ -417,10 +417,10 @@ function ThreadView({
       </header>
 
       <div className="qna-inbox__student-panel">
-        <QnaAvatar name={post.created_by_display ?? "?"} role="student" size={28} />
+        <QnaAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" size={28} />
         <div className="qna-inbox__student-info">
           <div className="qna-inbox__student-panel-label">학생</div>
-          <div className="qna-inbox__student-name">{post.created_by_display ?? "—"}</div>
+          <div className="qna-inbox__student-name">{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "—")}</div>
           <div className="qna-inbox__student-course">{lectureLabel}</div>
         </div>
         {questionHistory.length > 0 && (
@@ -431,10 +431,10 @@ function ThreadView({
       <div className="qna-inbox__thread-body">
         {/* Student question */}
         <div className="qna-inbox__message-row">
-          <QnaAvatar name={post.created_by_display ?? "?"} role="student" />
+          <QnaAvatar name={post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "?")} role="student" />
           <div className="qna-inbox__message-bubble">
             <div className="qna-inbox__message-meta">
-              <span className="qna-inbox__message-author">{post.created_by_display ?? "학생"}</span>
+              <span className="qna-inbox__message-author">{post.created_by_deleted ? "삭제된 학생입니다." : (post.created_by_display ?? "학생")}</span>
               <span className="qna-inbox__message-badge">학생</span>
               <span className="qna-inbox__message-date">
                 {new Date(post.created_at).toLocaleString("ko-KR", {
@@ -474,7 +474,7 @@ function ThreadView({
         )}
       </div>
 
-      <Composer postId={postId} />
+      <Composer postId={postId} allowReply={!post.created_by_deleted} />
     </>
   );
 }
