@@ -75,7 +75,7 @@ function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
       className="ds-status-badge ds-scores-pass-fail-badge inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-xs font-semibold"
       data-tone={tone}
     >
-      {passed ? "합" : "불"}
+      {passed ? "합격" : "불"}
     </span>
   );
 }
@@ -1239,7 +1239,7 @@ export default function ScoresTable({
                         대상
                       </span>
                     ) : (
-                      <span className="text-[var(--color-text-muted)]">해당없음</span>
+                      <span className="text-[var(--color-text-secondary)] font-medium">합격</span>
                     )}
                   </span>
                 </td>
