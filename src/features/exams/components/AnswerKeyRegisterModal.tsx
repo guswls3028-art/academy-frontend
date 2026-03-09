@@ -546,7 +546,8 @@ function ChoiceRow({
   onScoreReset,
   showDividerAfter = false,
   bubblesRef,
-  onEnterMoveToNext,
+  onMoveToNextRow,
+  onMoveToPreviousRow,
 }: {
   question: ExamQuestion;
   draft: string;
@@ -556,7 +557,8 @@ function ChoiceRow({
   onScoreReset: () => void;
   showDividerAfter?: boolean;
   bubblesRef?: (el: HTMLDivElement | null) => void;
-  onEnterMoveToNext?: () => void;
+  onMoveToNextRow?: (currentValue: string) => void;
+  onMoveToPreviousRow?: () => void;
 }) {
   const currentIndex = CHOICES.indexOf(draft);
   const selectedIndex = currentIndex >= 0 ? currentIndex : 0;
@@ -575,11 +577,15 @@ function ChoiceRow({
       onChange(next);
       return;
     }
-    if (e.key === "Enter") {
+    if (e.key === "ArrowDown" || e.key === "Enter") {
       e.preventDefault();
-      const next = CHOICES[selectedIndex];
-      if (next) onChange(next);
-      onEnterMoveToNext?.();
+      const value = draft || CHOICES[0];
+      onMoveToNextRow?.(value);
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      onMoveToPreviousRow?.();
       return;
     }
     if (e.key === " ") {
