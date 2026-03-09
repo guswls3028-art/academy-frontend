@@ -83,11 +83,36 @@
   opacity: 0.8;
 }
 
-/* 하위 트리 (강의 목록 / 차시 트리) */
+.notice-tree__tab-chevron {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+/* 하위 트리: 강의목록 펼치면 강의명 → 차시 */
 .notice-tree__sub {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-1) 0 var(--space-2);
+}
+
+.notice-tree__branch {
+  margin: 0;
+}
+
+.notice-tree__children {
+  padding-left: var(--space-2);
+}
+
+.notice-tree__sub-chevron {
+  flex-shrink: 0;
+  width: 14px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.notice-tree__sub-item--parent {
+  padding-left: var(--space-4);
 }
 
 .notice-tree__sub-item {
@@ -120,7 +145,7 @@
 }
 
 .notice-tree__sub-item--child {
-  padding-left: var(--space-8);
+  padding-left: var(--space-6);
   font-size: 12px;
 }
 
