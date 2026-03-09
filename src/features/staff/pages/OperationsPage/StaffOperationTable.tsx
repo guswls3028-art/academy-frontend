@@ -1,6 +1,6 @@
 // PATH: src/features/staff/pages/OperationsPage/StaffOperationTable.tsx
-// Design: docs/DESIGN_SSOT.md
-// 직원 선택: 아바타·이름·직위·급여유형 한 줄 표시. 리스트 행 스타일(카드 안 카드 없음, students 도메인 톤).
+// Design: docs/DESIGN_SSOT.md — Premium staff list for attendance/operations
+// 직원 선택: 아바타·이름·직위·급여유형. staff-area 리스트 스타일.
 
 import { useMemo, useState } from "react";
 import { useStaffs } from "../../hooks/useStaffs";
@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Staff } from "../../api/staff.api";
 import { EmptyState } from "@/shared/ui/ds";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
+import "../../styles/staff-area.css";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -112,8 +113,8 @@ export default function StaffOperationTable({
         </div>
       )}
 
-      <p className="text-[11px] text-[var(--color-text-muted)]">
-        * 선택된 직원이 우측 패널에 반영됩니다.
+      <p className="staff-helper mt-3">
+        선택된 직원이 우측 패널에 반영됩니다.
       </p>
     </div>
   );
@@ -132,7 +133,7 @@ function Section({
 
   return (
     <div className="space-y-1.5">
-      <div className="text-xs font-semibold text-[var(--color-text-secondary)] px-0.5">{title}</div>
+      <div className="staff-section-title px-0.5">{title}</div>
       {!hasItems ? (
         <div className="rounded-lg bg-[var(--color-bg-surface-soft)] px-3 py-2.5 text-sm text-[var(--color-text-muted)]">
           {emptyText}
@@ -160,25 +161,22 @@ function Row({
       type="button"
       onClick={onClick}
       className={cx(
-        "w-full text-left flex items-center gap-2.5 px-3 py-2.5 border-b border-[var(--color-border-divider)] last:border-b-0 transition-colors",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-border-focus)]/50",
-        selected
-          ? "bg-[var(--state-selected-bg)]"
-          : "hover:bg-[var(--color-bg-surface-soft)]"
+        "staff-list-item",
+        selected && "staff-list-item--selected"
       )}
     >
       <StaffRoleAvatar role={staff.role} size={20} className="shrink-0 text-[var(--color-text-secondary)]" />
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-text-primary)]">
-        {staff.name}
-      </span>
-      {!staff.is_active && (
-        <span className="ds-status-badge shrink-0" data-status="inactive" aria-hidden>비활성</span>
-      )}
-      <span className="ds-status-badge ds-status-badge--action shrink-0" data-tone={staff.role === "TEACHER" ? "primary" : "neutral"} aria-label={staff.role === "TEACHER" ? "강사" : "조교"}>
-        {staff.role === "TEACHER" ? "강사" : "조교"}
-      </span>
-      <span className="ds-status-badge shrink-0" data-tone="neutral">
-        {payLabel(staff.pay_type)}
+      <span className="staff-list-item__name">{staff.name}</span>
+      <span className="staff-list-item__meta">
+        {!staff.is_active && (
+          <span className="ds-status-badge shrink-0" data-status="inactive" aria-hidden>비활성</span>
+        )}
+        <span className="ds-status-badge ds-status-badge--action shrink-0" data-tone={staff.role === "TEACHER" ? "primary" : "neutral"} aria-label={staff.role === "TEACHER" ? "강사" : "조교"}>
+          {staff.role === "TEACHER" ? "강사" : "조교"}
+        </span>
+        <span className="ds-status-badge shrink-0" data-tone="neutral">
+          {payLabel(staff.pay_type)}
+        </span>
       </span>
     </button>
   );

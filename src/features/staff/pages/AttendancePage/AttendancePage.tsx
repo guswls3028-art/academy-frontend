@@ -28,8 +28,20 @@ function ymLabel(y: number, m: number) {
 }
 
 function RightPanelContent() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { staffId, year, month, range } = useWorkMonth();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const goMonth = (delta: number) => {
+    const d = new Date(year, month - 1 + delta);
+    const nextY = d.getFullYear();
+    const nextM = d.getMonth() + 1;
+    const next = new URLSearchParams(searchParams);
+    next.set("staffId", String(staffId));
+    next.set("year", String(nextY));
+    next.set("month", String(nextM));
+    setSearchParams(next);
+  };
 
   const { listQ } = useWorkRecords({
     staff: staffId,
@@ -66,10 +78,7 @@ function RightPanelContent() {
               intent="ghost"
               size="sm"
               aria-label="이전 달"
-              onClick={() => {
-                const d = new Date(year, month - 2);
-                window.location.search = `?staffId=${staffId}&year=${d.getFullYear()}&month=${d.getMonth() + 1}`;
-              }}
+              onClick={() => goMonth(-1)}
             >
               <ChevronLeft size={18} />
             </Button>
@@ -78,10 +87,7 @@ function RightPanelContent() {
               intent="ghost"
               size="sm"
               aria-label="다음 달"
-              onClick={() => {
-                const d = new Date(year, month, 0);
-                window.location.search = `?staffId=${staffId}&year=${d.getFullYear()}&month=${d.getMonth() + 1}`;
-              }}
+              onClick={() => goMonth(1)}
             >
               <ChevronRight size={18} />
             </Button>
@@ -130,9 +136,7 @@ function RightPanelContent() {
           </div>
 
           {/* Daily work records */}
-          <div className="staff-panel">
-            <WorkRecordsPanel />
-          </div>
+          <WorkRecordsPanel />
         </div>
 
         <div className="space-y-6">
@@ -166,7 +170,7 @@ export default function AttendancePage() {
       </div>
 
       {/* RIGHT: Detail */}
-      <div className="staff-panel min-h-[420px] flex flex-col min-h-0 overflow-hidden">
+      <div className="staff-panel min-h-[420px] flex flex-col overflow-hidden">
         {!staffId ? (
           <div className="staff-empty flex-1">
             <User className="staff-empty__icon" strokeWidth={1.5} />
