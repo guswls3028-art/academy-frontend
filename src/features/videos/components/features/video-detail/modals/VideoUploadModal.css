@@ -1,4 +1,4 @@
-/* PATH: VideoUploadModal.css — 영상 추가 모달 전용 (드롭존·토글·컴팩트) */
+/* PATH: VideoUploadModal.css — 영상 추가 모달 전용 (5슬롯 가로·엑셀존 감성·토글·컴팩트) */
 
 .video-upload-modal__body {
   gap: var(--space-3);
@@ -8,6 +8,84 @@
   padding: var(--space-3) var(--space-4);
 }
 
+/* 5개 슬롯 가로 배치 — 직사각형, 엑셀 업로드 존(modal.css .excel-upload-zone)과 동일 감성 */
+.video-upload-modal__slots-label {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.video-upload-modal__slots {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.video-upload-modal__slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* 슬롯 내 드래그 영역 — 전역 .excel-upload-zone 스타일 적용, 세로 비율 직사각형 */
+.video-upload-modal__zone {
+  min-height: 88px;
+  padding: var(--space-2) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.video-upload-modal__zone .excel-upload-zone__filled {
+  padding: var(--space-1) 0;
+}
+.video-upload-modal__zone .excel-upload-zone__filled-filename {
+  font-size: 11px;
+  word-break: break-all;
+  max-height: 2.4em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.video-upload-modal__zone .excel-upload-zone__head {
+  margin-bottom: 2px;
+}
+.video-upload-modal__zone .excel-upload-zone__title {
+  font-size: 12px;
+}
+.video-upload-modal__zone .excel-upload-zone__drag-label {
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.video-upload-modal__zone .excel-upload-zone__upload {
+  margin-bottom: 0;
+}
+.video-upload-modal__zone .excel-upload-zone__upload-label {
+  font-size: 12px;
+}
+
+/* 슬롯 밑 제목 — "제목 - 1" ~ "제목 - 5" */
+.video-upload-modal__slot-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.25;
+  min-height: 2.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 /* 라벨 없이 인풋만 — placeholder/영역 안 문구로 구분 */
 .video-upload-modal__row--input-only {
   padding: var(--space-2) var(--space-4);
@@ -15,32 +93,6 @@
 .video-upload-modal__row--input-only .ds-input,
 .video-upload-modal__row--input-only .ds-textarea {
   width: 100%;
-}
-.video-upload-modal__row--input-only .video-upload-modal__dropzone {
-  width: 100%;
-}
-
-/* 드롭존 — modal-form-group과 톤 통일 (inset 입체감) */
-.video-upload-modal__dropzone {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 120px;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border-divider);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-modal-bg));
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
-    inset 0 2px 4px rgba(0, 0, 0, 0.03);
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
-}
-
-.video-upload-modal__dropzone--compact {
-  min-height: 40px;
-  padding: var(--space-2) var(--space-3);
-  border-style: dashed;
 }
 
 /* 설명 영역 — 크기·위치 고정, 리사이즈 제한 */

@@ -221,7 +221,7 @@ export default function VideoUploadModal({ sessionId, isOpen, onClose }: Props) 
   if (!isOpen) return null;
 
   return (
-    <AdminModal open={isOpen} onClose={onClose} type="action" width={MODAL_WIDTH.lg} onEnterConfirm={canSubmit && !isUploading ? handleUpload : undefined}>
+    <AdminModal open={isOpen} onClose={onClose} type="action" width={MODAL_WIDTH.wide} onEnterConfirm={canSubmit && !isUploading ? handleUpload : undefined}>
       <ModalHeader
         type="action"
         title="영상 추가"
