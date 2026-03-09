@@ -13,8 +13,6 @@ import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useStudentExam } from "@/student/domains/exams/hooks/useStudentExams";
 import { useMyExamResult } from "@/student/domains/exams/hooks/useMyExamResult";
-import { useQuery } from "@tanstack/react-query";
-import { fetchExamAssets } from "@/student/domains/exams/api/assets";
 
 export default function ExamDetailPage() {
   const { examId } = useParams();
@@ -24,13 +22,6 @@ export default function ExamDetailPage() {
 
   // ✅ 결과는 "단일 진실": can_retake 포함
   const resultQ = useMyExamResult(Number.isFinite(safeId) ? safeId : undefined);
-
-  // ✅ 자산 목록
-  const assetsQ = useQuery({
-    queryKey: ["student-exam-assets", safeId],
-    queryFn: () => fetchExamAssets(safeId),
-    enabled: Number.isFinite(safeId),
-  });
 
   if (!Number.isFinite(safeId)) {
     return (
@@ -57,7 +48,14 @@ export default function ExamDetailPage() {
   }
 
   const exam = examQ.data;
-  const canRetake = typeof resultQ.data?.can_retake === "boolean" ? resultQ.data.can_retake : true;
+  // While result is loading: hide submit button (unknown state).
+  // On error (no prior submission = 404): allow submit (first attempt).
+  // On success: trust can_retake from backend.
+  const canRetake = resultQ.isLoading
+    ? null
+    : resultQ.isError
+      ? true
+      : (typeof resultQ.data?.can_retake === "boolean" ? resultQ.data.can_retake : true);
 
   return (
     <StudentPageShell
@@ -84,8 +82,10 @@ export default function ExamDetailPage() {
               결과 보기
             </Link>
 
-            {/* ✅ can_retake만 신뢰 */}
-            {canRetake ? (
+            {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시) */}
+            {canRetake === null ? (
+              <div className="stu-muted" style={{ fontSize: 13 }}>확인 중…</div>
+            ) : canRetake ? (
               <Link to={`/student/exams/${exam.id}/submit`} className="stu-cta-link">
                 입력하기
               </Link>
@@ -96,9 +96,6 @@ export default function ExamDetailPage() {
             )}
           </div>
 
-          <div style={{ marginTop: "var(--stu-space-6)", fontSize: 12, color: "var(--stu-text-muted)" }}>
-            ※ 재시험 가능 여부는 결과 API의 <b>can_retake</b>만 신뢰합니다.
-          </div>
         </div>
       </div>
     </StudentPageShell>

@@ -92,11 +92,11 @@ export default function ExamResultPage() {
         <div style={card}>
           <div style={{ fontWeight: 900, marginBottom: 8 }}>문항별 결과</div>
 
-          {itemsQ.isLoading && <div style={{ fontSize: 13, color: "#666" }}>문항 불러오는 중...</div>}
-          {itemsQ.isError && <div style={{ fontSize: 13, color: "#c00" }}>문항 조회 실패</div>}
+          {itemsQ.isLoading && <div className="stu-muted" style={{ fontSize: 13 }}>문항 불러오는 중...</div>}
+          {itemsQ.isError && <div style={{ fontSize: 13, color: "var(--stu-danger)" }}>문항 조회 실패</div>}
 
           {itemsQ.data && itemsQ.data.length === 0 && (
-            <div style={{ fontSize: 13, color: "#777" }}>문항 데이터가 없습니다.</div>
+            <div className="stu-muted" style={{ fontSize: 13 }}>문항 데이터가 없습니다.</div>
           )}
 
           {itemsQ.data && itemsQ.data.length > 0 && (
@@ -105,22 +105,32 @@ export default function ExamResultPage() {
                 <div
                   key={`${it.question_id}-${it.question_number}`}
                   style={{
-                    border: "1px solid #eee",
+                    border: "1px solid var(--stu-border)",
                     borderRadius: 10,
                     padding: 10,
-                    background: "#fafafa",
+                    background: it.is_correct ? "var(--stu-success-bg)" : "var(--stu-surface-soft)",
                   }}
                 >
-                  <div style={{ fontWeight: 900 }}>
-                    Q{it.question_number} (id:{it.question_id})
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{it.question_number}번</span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        background: it.is_correct ? "var(--stu-success-bg)" : "rgba(239,68,68,0.12)",
+                        color: it.is_correct ? "var(--stu-success-text)" : "var(--stu-danger)",
+                      }}
+                    >
+                      {it.is_correct ? "정답" : "오답"}
+                    </span>
+                    <span className="stu-muted" style={{ fontSize: 12, marginLeft: "auto" }}>
+                      {it.score} / {it.max_score}점
+                    </span>
                   </div>
-                  <div style={{ marginTop: 6, fontSize: 13, color: "#444" }}>
-                    정오: <b>{it.is_correct ? "정답" : "오답"}</b>
-                    {" · "}
-                    점수: <b>{it.score}</b> / {it.max_score}
-                  </div>
-                  <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
-                    내 답: {it.student_answer ?? "-"} / 정답: {it.correct_answer ?? "-"}
+                  <div className="stu-muted" style={{ marginTop: 6, fontSize: 13 }}>
+                    내 답: {it.student_answer ?? "-"} · 정답: {it.correct_answer ?? "-"}
                   </div>
                 </div>
               ))}
@@ -133,19 +143,19 @@ export default function ExamResultPage() {
 }
 
 const card: React.CSSProperties = {
-  border: "1px solid #eee",
+  border: "1px solid var(--stu-border)",
   borderRadius: 12,
   padding: 14,
-  background: "#fff",
+  background: "var(--stu-surface)",
 };
 
 const linkBtn: React.CSSProperties = {
   display: "inline-block",
   padding: "10px 12px",
   borderRadius: 10,
-  border: "1px solid #ddd",
+  border: "1px solid var(--stu-border)",
   textDecoration: "none",
-  background: "#fafafa",
-  color: "#111",
-  fontWeight: 800,
+  background: "var(--stu-surface-soft)",
+  color: "var(--stu-text)",
+  fontWeight: 700,
 };

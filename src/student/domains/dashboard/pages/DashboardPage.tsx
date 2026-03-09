@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const today = new Date().toISOString().slice(0, 10);
   const todaySessions = (sessions ?? []).filter((s) => (s.date ?? "").slice(0, 10) === today);
 
-  if (dashLoading && sessionsLoading) {
+  if (dashLoading || sessionsLoading) {
     return (
       <div style={{ padding: "var(--stu-space-4) 0" }}>
         <div className="stu-skel" style={{ height: 100, borderRadius: "var(--stu-radius-md)" }} />
