@@ -22,8 +22,6 @@ type Props = {
   onOpenStudentModal?: () => void;
 };
 
-type ExamScoreInputMode = "TOTAL" | "SUBJECTIVE";
-
 async function fetchSessionScores(sessionId: number) {
   const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`);
   return res.data as { meta: unknown; rows: SessionScoreRow[] };
@@ -35,7 +33,6 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [examScoreInputMode, setExamScoreInputMode] = useState<ExamScoreInputMode>("TOTAL");
   const { openSendMessageModal } = useSendMessageModal();
 
   const { data, isLoading, isError } = useQuery({
@@ -165,27 +162,6 @@ export default function SessionScoresEntryPage(_props: Props) {
           <span className="text-[var(--color-text-secondary)] font-normal">
             엑셀과 동일한 조작방식. · Tab/Enter/방향키로 셀 이동 · 숫자 입력 시 기존 값 대체 · 미제출: <kbd className="px-1 py-0.5 rounded bg-[var(--color-bg-surface)] border border-[var(--color-border-divider)]">/</kbd> + Enter
           </span>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
-              시험 점수 입력
-            </span>
-            <Button
-              type="button"
-              intent={examScoreInputMode === "TOTAL" ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setExamScoreInputMode("TOTAL")}
-            >
-              합산 점수로 입력
-            </Button>
-            <Button
-              type="button"
-              intent={examScoreInputMode === "SUBJECTIVE" ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setExamScoreInputMode("SUBJECTIVE")}
-            >
-              주관식 점수만 입력
-            </Button>
-          </div>
         </div>
       )}
 
@@ -202,7 +178,6 @@ export default function SessionScoresEntryPage(_props: Props) {
           sessionId={numericSessionId}
           search={searchInput}
           isEditMode={isEditMode}
-          examScoreInputMode={examScoreInputMode}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={setSelectedEnrollmentIds}
         />
