@@ -230,17 +230,25 @@ export default function EditStudentModal({
               data-invalid={!String(form.psNumber || "").trim() ? "true" : "false"}
               disabled={busy}
             />
-            <PhoneInput010Blocks
-              value={form.parentPhone ?? ""}
-              onChange={(v) => handlePhoneChange("parentPhone", v)}
-              disabled={busy}
-              inputClassName="ds-input"
-              data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
-              data-required="true"
-              aria-label="학부모 전화"
-            />
-            <div className="modal-form-row modal-form-row--1-auto">
-              {noPhone ? (
+            <div className="modal-phone-row">
+              <span className="modal-phone-label">학부모 전화번호 (필수)</span>
+              <span className="modal-phone-desc">문자·연락 수신용입니다.</span>
+              <PhoneInput010Blocks
+                value={form.parentPhone ?? ""}
+                onChange={(v) => handlePhoneChange("parentPhone", v)}
+                disabled={busy}
+                blockClassName="modal-phone-block"
+                inputClassName="modal-phone-block-input"
+                data-invalid={!String(form.parentPhone || "").trim() ? "true" : "false"}
+                data-required="true"
+                aria-label="학부모 전화"
+              />
+            </div>
+            <div className="modal-phone-row">
+              <span className="modal-phone-label">학생 전화번호 또는 식별자</span>
+              <span className="modal-phone-desc">전화 입력 시 학생 본인 번호, 식별자 사용 시 OMR용 XXXX-XXXX.</span>
+              <div className="modal-form-row modal-form-row--1-auto">
+                {noPhone ? (
                 <input
                   placeholder="식별자 (XXXX-XXXX)"
                   value={formatIdentifierForInput(form.omrCode ?? "")}
@@ -258,7 +266,8 @@ export default function EditStudentModal({
                   value={form.studentPhone ?? ""}
                   onChange={(v) => handlePhoneChange("studentPhone", v)}
                   disabled={busy}
-                  inputClassName="ds-input"
+                  blockClassName="modal-phone-block"
+                  inputClassName="modal-phone-block-input"
                   data-required="true"
                   data-invalid={!String(form.studentPhone || "").trim() ? "true" : "false"}
                   aria-label="학생 전화"
@@ -276,6 +285,7 @@ export default function EditStudentModal({
                 >
                   {noPhone ? "전화 입력" : "식별자 사용"}
                 </Button>
+              </div>
               </div>
             </div>
           </div>

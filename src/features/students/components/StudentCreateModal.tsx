@@ -380,27 +380,37 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               data-invalid={!String(form.initialPassword || "").trim() ? "true" : "false"}
               disabled={busy}
             />
-            <PhoneInput010Blocks
-              value={form.parentPhone ?? ""}
-              onChange={(v) => setForm((p) => ({ ...p, parentPhone: v }))}
-              disabled={busy}
-              inputClassName="ds-input"
-              data-invalid={String(form.parentPhone ?? "").trim().length > 0 && String(form.parentPhone ?? "").trim().length !== 11}
-              aria-label="학부모 전화"
-            />
+            <div className="modal-phone-row">
+              <span className="modal-phone-label">학부모 전화번호 (필수)</span>
+              <span className="modal-phone-desc">문자·연락 수신용입니다.</span>
+              <PhoneInput010Blocks
+                value={form.parentPhone ?? ""}
+                onChange={(v) => setForm((p) => ({ ...p, parentPhone: v }))}
+                disabled={busy}
+                blockClassName="modal-phone-block"
+                inputClassName="modal-phone-block-input"
+                data-invalid={String(form.parentPhone ?? "").trim().length > 0 && String(form.parentPhone ?? "").trim().length !== 11}
+                aria-label="학부모 전화"
+              />
+            </div>
           </div>
 
           {/* 선택 입력 — 강조색 없음, 입체감만 유지 */}
           <div className="modal-form-group modal-form-group--neutral">
             <span className="modal-section-label">선택 입력</span>
-            <div className="modal-form-row modal-form-row--1-auto">
+            <div className="modal-phone-row">
+              <span className="modal-phone-label">학생 전화번호 (선택)</span>
+              <span className="modal-phone-desc">비우면 학부모 번호로 OMR 식별 등에 사용됩니다.</span>
               <PhoneInput010Blocks
                 value={form.studentPhone ?? ""}
                 onChange={(v) => setForm((p) => ({ ...p, studentPhone: v }))}
                 disabled={busy}
-                inputClassName="ds-input"
+                blockClassName="modal-phone-block"
+                inputClassName="modal-phone-block-input"
                 aria-label="학생 전화"
               />
+            </div>
+            <div className="modal-form-row modal-form-row--1-auto">
               <div className="modal-actions-inline" style={{ height: 36 }}>
                 {[{ key: "M", label: "남자" }, { key: "F", label: "여자" }].map((g) => (
                   <button
