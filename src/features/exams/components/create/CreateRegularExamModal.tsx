@@ -190,7 +190,7 @@ export default function CreateRegularExamModal({
         title={headerTitle}
         description={
           stage === "choose"
-            ? "신규시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다."
+            ? "신규 시험을 만들거나, 기존 템플릿을 불러와 이 차시에 적용할 수 있습니다. 템플릿은 다른 강의에서도 사용 가능하며, 여러 강의의 통계를 합산해 볼 수 있습니다."
             : undefined
         }
       />
@@ -358,11 +358,11 @@ export default function CreateRegularExamModal({
       <ModalFooter
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={submitting}>
+            <Button intent="secondary" size="xl" onClick={onClose} disabled={submitting}>
               취소
             </Button>
             {stage !== "choose" && (
-              <Button intent="primary" onClick={handleSubmit} disabled={disabled}>
+              <Button intent="primary" size="xl" onClick={handleSubmit} disabled={disabled}>
                 {submitting ? "생성 중…" : "생성"}
               </Button>
             )}

@@ -213,7 +213,7 @@ export default function SessionAssessmentSidePanel({
             <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
               시험
             </h3>
-            <Button type="button" intent="ghost" size="sm" onClick={setOpenCreateExam} className="text-xs font-semibold">
+            <Button type="button" intent="ghost" size="xl" onClick={setOpenCreateExam} className="text-sm font-bold">
               + 추가
             </Button>
           </div>
@@ -252,7 +252,7 @@ export default function SessionAssessmentSidePanel({
             <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
               과제
             </h3>
-            <Button type="button" intent="ghost" size="sm" onClick={setOpenCreateHomework} className="text-xs font-semibold">
+            <Button type="button" intent="ghost" size="xl" onClick={setOpenCreateHomework} className="text-sm font-bold">
               + 추가
             </Button>
           </div>
@@ -360,11 +360,11 @@ function ExamItemRow({
           {isDraft && (
             <Button
               type="button"
-              size="sm"
+              size="lg"
               intent="primary"
               onClick={onStart}
               disabled={busy != null}
-              className="!py-1 !text-xs"
+              className="!py-2 !px-4 !text-sm !min-h-[44px]"
             >
               {busy === "start" ? "처리 중…" : "진행"}
             </Button>
@@ -372,11 +372,11 @@ function ExamItemRow({
           {isOpen && (
             <Button
               type="button"
-              size="sm"
+              size="lg"
               intent="secondary"
               onClick={onEnd}
               disabled={busy != null}
-              className="!py-1 !text-xs"
+              className="!py-2 !px-4 !text-sm !min-h-[44px]"
             >
               {busy === "end" ? "처리 중…" : "종료"}
             </Button>
@@ -427,12 +427,12 @@ function HomeworkItemRow({
         </div>
         <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {isDraft && (
-            <Button type="button" size="sm" intent="primary" onClick={onStart} className="!py-1 !text-xs">
+            <Button type="button" size="lg" intent="primary" onClick={onStart} className="!py-2 !px-4 !text-sm !min-h-[44px]">
               진행
             </Button>
           )}
           {isOpen && (
-            <Button type="button" size="sm" intent="secondary" onClick={onEnd} className="!py-1 !text-xs">
+            <Button type="button" size="lg" intent="secondary" onClick={onEnd} className="!py-2 !px-4 !text-sm !min-h-[44px]">
               종료
             </Button>
           )}

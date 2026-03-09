@@ -111,10 +111,10 @@ export default function CreateHomeworkModal({
       <ModalFooter
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={m.isPending}>
+            <Button intent="secondary" size="xl" onClick={onClose} disabled={m.isPending}>
               취소
             </Button>
-            <Button intent="primary" onClick={() => m.mutate()} disabled={disabled}>
+            <Button intent="primary" size="xl" onClick={() => m.mutate()} disabled={disabled}>
               {m.isPending ? "생성 중…" : "생성"}
             </Button>
           </>

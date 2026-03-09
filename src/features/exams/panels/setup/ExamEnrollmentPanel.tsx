@@ -155,6 +155,7 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
             apply();
           }}
           saving={updateMut.isPending}
+          dirty={dirty}
         />
       </div>
     </section>
