@@ -23,6 +23,7 @@ import type { TableColumnDef } from "@/shared/ui/domain";
 import AttendanceStatusBadge, {
   type AttendanceStatus,
 } from "@/shared/ui/badges/AttendanceStatusBadge";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 컬럼 기본 너비 — 설계 문서 12️⃣ */
 const COL_EDIT = 80;
@@ -994,8 +995,8 @@ export default function ScoresTable({
                               }}
                               onKeyDown={async (e) => {
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
-                                const el = homeworkInputRefs.current[key];
-                                const raw = el?.innerText?.trim() ?? "";
+                                const el = homeworkInputRefs.current[key] ?? (e.target instanceof HTMLElement ? e.target : null);
+                                const raw = (e.target instanceof HTMLElement ? e.target.innerText?.trim() : el?.innerText?.trim()) ?? "";
 
                                 if (e.key === "Escape") {
                                   e.preventDefault();
@@ -1006,17 +1007,23 @@ export default function ScoresTable({
                                 }
                                 if (e.key === "Tab") {
                                   e.preventDefault();
-                                  const rawToSave = el?.innerText?.trim() ?? "";
+                                  const targetEl = e.target instanceof HTMLElement ? e.target : el;
+                                  const rawToSave = targetEl?.innerText?.trim() ?? "";
                                   if (rawToSave === "" || rawToSave === "미제출") {
                                     if (rawToSave === "미제출") {
-                                      await patchHomeworkQuick({
-                                        sessionId,
-                                        enrollmentId: row.enrollment_id,
-                                        homeworkId: hw.homework_id,
-                                        score: null,
-                                        metaStatus: "NOT_SUBMITTED",
-                                      });
-                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      try {
+                                        await patchHomeworkQuick({
+                                          sessionId,
+                                          enrollmentId: row.enrollment_id,
+                                          homeworkId: hw.homework_id,
+                                          score: null,
+                                          metaStatus: "NOT_SUBMITTED",
+                                        });
+                                        qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                      } catch (err) {
+                                        feedback.error("과제 미제출 저장에 실패했습니다.");
+                                        return;
+                                      }
                                     }
                                     if (e.shiftKey) onRequestMovePrev?.();
                                     else onRequestMoveNext?.();
@@ -1024,13 +1031,18 @@ export default function ScoresTable({
                                   }
                                   const parsed = parseScoreInput(rawToSave, block?.max_score ?? null);
                                   if (parsed != null && validateScore(parsed, block?.max_score)) {
-                                    await patchHomeworkQuick({
-                                      sessionId,
-                                      enrollmentId: row.enrollment_id,
-                                      homeworkId: hw.homework_id,
-                                      score: parsed,
-                                    });
-                                    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    try {
+                                      await patchHomeworkQuick({
+                                        sessionId,
+                                        enrollmentId: row.enrollment_id,
+                                        homeworkId: hw.homework_id,
+                                        score: parsed,
+                                      });
+                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    } catch (err) {
+                                      feedback.error("과제 점수 저장에 실패했습니다.");
+                                      return;
+                                    }
                                   }
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
