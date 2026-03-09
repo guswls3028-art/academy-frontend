@@ -79,24 +79,28 @@ export default function ExamAssetsPanel({ examId }: { examId: number }) {
 
           {/* ✅ 자산 누락 체크리스트 */}
           {(!hasPdf || !hasOmr) && (
-            <div className="rounded border border-yellow-600/30 bg-yellow-600/10 p-4 text-sm text-yellow-800 space-y-2">
-              <div className="font-semibold">운영 불가: 자산이 준비되지 않았습니다</div>
-              <div className="text-xs">
+            <div
+              className="rounded-lg border p-4 text-sm space-y-2"
+              style={{
+                borderColor: "color-mix(in srgb, var(--color-warning) 40%, var(--color-border-divider))",
+                background: "color-mix(in srgb, var(--color-warning) 8%, var(--color-bg-surface))",
+              }}
+            >
+              <div className="font-semibold text-[var(--color-text-primary)]">운영 불가 — 자산이 준비되지 않았습니다</div>
+              <div className="text-xs text-[var(--color-text-secondary)]">
                 아래 항목이 모두 충족되어야 제출/채점 기능이 열립니다.
               </div>
-
-              <ul className="list-disc pl-5 text-sm">
-                <li className={hasPdf ? "opacity-60" : ""}>
-                  시험지 PDF (problem_pdf) {hasPdf ? "✅" : "❌"}
+              <ul className="list-none pl-0 text-sm space-y-1">
+                <li className={hasPdf ? "opacity-60" : ""} style={{ color: hasPdf ? "var(--color-text-muted)" : "var(--color-text-primary)" }}>
+                  {hasPdf ? "✓" : "○"} 시험지 PDF {hasPdf ? "(등록됨)" : "(미등록)"}
                 </li>
-                <li className={hasOmr ? "opacity-60" : ""}>
-                  OMR 답안지 (omr_sheet) {hasOmr ? "✅" : "❌"}
+                <li className={hasOmr ? "opacity-60" : ""} style={{ color: hasOmr ? "var(--color-text-muted)" : "var(--color-text-primary)" }}>
+                  {hasOmr ? "✓" : "○"} OMR 답안지 {hasOmr ? "(등록됨)" : "(미등록)"}
                 </li>
               </ul>
-
               {isRegular && (
-                <div className="text-xs">
-                  ※ 이 시험은 <b>운영 시험</b>이라 여기서 업로드할 수 없습니다. 템플릿 시험에서 자산을 등록한 뒤 다시 확인하세요.
+                <div className="text-xs text-[var(--color-text-secondary)]">
+                  ※ 이 시험은 <b>운영 시험</b>입니다. 자산 등록은 템플릿 시험에서 진행하세요.
                 </div>
               )}
             </div>

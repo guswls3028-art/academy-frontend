@@ -17,7 +17,7 @@ export function RegularExamPanel({ exam }: { exam: Exam }) {
     <div className="space-y-6">
       <header>
         <h2 className="text-lg font-bold">{exam.title}</h2>
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-[var(--color-text-muted)]">
           운영 시험 (Template 기반)
         </div>
       </header>
@@ -26,7 +26,7 @@ export function RegularExamPanel({ exam }: { exam: Exam }) {
 
       <AnswerKeyEditor examId={exam.id} disabled={locked} />
 
-      <div className="text-xs text-gray-400">
+      <div className="text-xs text-[var(--color-text-muted)]">
         * 정답/자산은 템플릿 단일진실 기준으로 조회됩니다.
       </div>
     </div>

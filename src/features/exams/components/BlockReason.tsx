@@ -7,9 +7,16 @@ export default function BlockReason({
   description: string;
 }) {
   return (
-    <div className="rounded border border-red-600/30 bg-red-600/10 p-4 text-sm text-red-700">
+    <div
+      className="rounded-lg border p-4 text-sm"
+      style={{
+        borderColor: "color-mix(in srgb, var(--color-danger) 30%, var(--color-border-divider))",
+        background: "color-mix(in srgb, var(--color-danger) 8%, var(--color-bg-surface))",
+        color: "var(--color-danger)",
+      }}
+    >
       <div className="font-semibold">{title}</div>
-      <div className="mt-1">{description}</div>
+      <div className="mt-1" style={{ color: "var(--color-text-secondary)" }}>{description}</div>
     </div>
   );
 }

@@ -46,13 +46,20 @@ export default function HomeworkHeader({ homework }: Props) {
 
   const isDraft = homework.status === "DRAFT";
   const isOpen = homework.status === "OPEN";
+  const isClosed = homework.status === "CLOSED";
+
+  const statusLabel = isDraft ? "초안" : isOpen ? "진행 중" : isClosed ? "마감" : homework.status;
+  const statusTone = isOpen ? "success" : "neutral";
 
   return (
     <div className="mb-6 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-          {homework.title}
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+            {homework.title}
+          </h2>
+          <span className="ds-status-badge" data-tone={statusTone}>{statusLabel}</span>
+        </div>
         <div className="flex items-center gap-2">
           {isDraft && (
             <Button

@@ -8,6 +8,7 @@
 
 import { useMemo, useState } from "react";
 import { useAdminHomework } from "../hooks/useAdminHomework";
+import { EmptyState } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/features/scores/api/sessionScores";
 import { useQuery } from "@tanstack/react-query";
 import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus } from "@/features/scores/utils/homeworkStatus";
@@ -84,23 +85,19 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   );
 
   if (!Number.isFinite(homeworkId) || homeworkId <= 0) {
-    return (
-      <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        homeworkId가 올바르지 않습니다.
-      </div>
-    );
+    return <EmptyState scope="panel" tone="error" title="과제 ID가 올바르지 않습니다." />;
   }
 
   if (hwLoading) {
-    return <div className="text-sm text-[var(--color-text-muted)]">과제 정보 불러오는 중...</div>;
+    return <EmptyState scope="panel" tone="loading" title="과제 정보 불러오는 중…" />;
   }
 
   if (!homework) {
-    return <div className="text-sm text-[var(--color-error)]">과제를 불러오지 못했습니다.</div>;
+    return <EmptyState scope="panel" tone="error" title="과제를 불러오지 못했습니다." />;
   }
 
   if (scoresLoading) {
-    return <div className="text-sm text-[var(--color-text-muted)]">성적 불러오는 중...</div>;
+    return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
   }
 
   return (
