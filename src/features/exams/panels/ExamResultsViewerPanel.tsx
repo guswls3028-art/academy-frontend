@@ -13,8 +13,7 @@ import type { AdminExamResultRow } from "@/features/results/types/results.types"
 import type { QuestionStat } from "@/features/results/types/results.types";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import ExamResultsPanel from "@/features/results/panels/ExamResultsPanel";
-import { Button } from "@/shared/ui/ds";
-import { EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
 type Props = { examId: number };
 
