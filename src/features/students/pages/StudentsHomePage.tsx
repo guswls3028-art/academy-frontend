@@ -13,7 +13,11 @@ import {
   checkDeletedStudentDuplicates,
   fixDeletedStudentDuplicates,
   toggleStudentActive,
+  getTags,
+  attachStudentTag,
+  sendPasswordReset,
 } from "../api/students";
+import { downloadStudentsExcel, type StudentExportRow } from "../excel/studentExcel";
 import StudentsTable, { getStudentsTableColumnsDef } from "../components/StudentsTable";
 import StudentCreateModal from "../components/StudentCreateModal";
 import StudentFilterModal from "../components/StudentFilterModal";
@@ -23,6 +27,9 @@ import { DomainListToolbar, useTableColumnPrefs, TableColumnPicker } from "@/sha
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useSendMessageModal } from "@/features/messages/context/SendMessageModalContext";
+import { useQuery } from "@tanstack/react-query";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { MODAL_WIDTH } from "@/shared/ui/modal";
 
 export default function StudentsHomePage() {
   const navigate = useNavigate();
@@ -53,6 +60,11 @@ export default function StudentsHomePage() {
   const [deleting, setDeleting] = useState(false);
   const [duplicateFixing, setDuplicateFixing] = useState(false);
   const [bulkUploadProgress, setBulkUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [showTagModal, setShowTagModal] = useState(false);
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [passwordResetTarget, setPasswordResetTarget] = useState<"student" | "parent">("student");
+  const [tagAdding, setTagAdding] = useState(false);
+  const [passwordResetting, setPasswordResetting] = useState(false);
 
   useEffect(() => {
     setSort(isDeletedTab ? "-deletedAt" : "-registeredAt");
@@ -140,13 +152,38 @@ export default function StudentsHomePage() {
           <Button intent="secondary" size="sm" onClick={() => openSendMessageModal({ studentIds: selectedIds, recipientLabel: `선택한 학생 ${selectedIds.length}명` })}>
             메시지 발송
           </Button>
-          <Button intent="secondary" size="sm" onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}>
+          <Button
+            intent="secondary"
+            size="sm"
+            onClick={() => {
+              const selected = (data ?? []).filter((s) => selectedIds.includes(s.id));
+              if (selected.length === 0) {
+                feedback.info("선택한 학생이 없습니다.");
+                return;
+              }
+              const rows: StudentExportRow[] = selected.map((s) => ({
+                name: s.name,
+                parentPhone: s.parentPhone ?? null,
+                studentPhone: s.studentPhone ?? null,
+                school: s.school ?? null,
+                grade: s.grade ?? null,
+                schoolClass: s.schoolClass ?? null,
+                major: s.major ?? null,
+                gender: s.gender ?? null,
+                omrCode: s.omrCode ?? "",
+                registeredAt: s.registeredAt ?? null,
+                tags: (s.tags ?? []).map((t) => ({ name: t.name })),
+              }));
+              downloadStudentsExcel(rows, `학생목록_${selected.length}명.xlsx`);
+              feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
+            }}
+          >
             엑셀 다운로드
           </Button>
-          <Button intent="secondary" size="sm" onClick={() => feedback.info("태그 추가 기능 준비 중입니다.")}>
+          <Button intent="secondary" size="sm" onClick={() => setShowTagModal(true)} disabled={selectedIds.length === 0}>
             태그 추가
           </Button>
-          <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
+          <Button intent="secondary" size="sm" onClick={() => setShowPasswordResetModal(true)} disabled={selectedIds.length === 0}>
             비밀번호 변경
           </Button>
           <Button
@@ -460,6 +497,37 @@ export default function StudentsHomePage() {
           setFilters(next);
           setShowFilter(false);
         }}
+      />
+
+      {/* 태그 추가 모달 — 선택한 학생들에게 태그 일괄 부여 */}
+      <TagAddModal
+        open={showTagModal}
+        onClose={() => setShowTagModal(false)}
+        studentIds={selectedIds}
+        onSuccess={() => {
+          setShowTagModal(false);
+          setSelectedIds([]);
+          qc.invalidateQueries({ queryKey: ["students"] });
+          qc.invalidateQueries({ queryKey: ["student"] });
+        }}
+        adding={tagAdding}
+        setAdding={setTagAdding}
+      />
+
+      {/* 비밀번호 변경(임시 비밀번호 발송) 모달 */}
+      <PasswordResetModal
+        open={showPasswordResetModal}
+        onClose={() => setShowPasswordResetModal(false)}
+        selectedStudents={(data ?? []).filter((s) => selectedIds.includes(s.id))}
+        target={passwordResetTarget}
+        onTargetChange={setPasswordResetTarget}
+        onSuccess={() => {
+          setShowPasswordResetModal(false);
+          setSelectedIds([]);
+          qc.invalidateQueries({ queryKey: ["students"] });
+        }}
+        resetting={passwordResetting}
+        setResetting={setPasswordResetting}
       />
     </>
   );

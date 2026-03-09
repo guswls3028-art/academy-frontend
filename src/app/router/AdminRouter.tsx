@@ -122,7 +122,7 @@ export default function AdminRouter() {
         <Route path="students" element={wrapLazy(StudentsLayout)}>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={wrapLazy(StudentsHomePage)} />
-          <Route path="requests" element={wrapLazy(StudentsRequestsPage)} />
+          <Route path="requests" element={<Suspense fallback={<AdminRouteFallback />}><StudentsRequestsPage /></Suspense>} />
           <Route path="deleted" element={wrapLazy(StudentsHomePage)} />
         </Route>
 
