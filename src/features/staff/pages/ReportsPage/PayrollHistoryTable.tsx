@@ -47,7 +47,7 @@ export default function PayrollHistoryTable({ staffId: staffIdProp }: { staffId?
 
   if (rows.length === 0) {
     return (
-      <div className="staff-area rounded-xl border border-[var(--color-border-divider)] bg-[color-mix(in_srgb,var(--color-border-divider)_6%,var(--color-bg-surface))] px-5 py-8 text-center">
+      <div className="staff-section-card__empty">
         <div className="staff-section-title">급여 히스토리 없음</div>
         <div className="staff-helper mt-2">아직 마감된 급여 내역이 없습니다.</div>
       </div>
@@ -55,7 +55,7 @@ export default function PayrollHistoryTable({ staffId: staffIdProp }: { staffId?
   }
 
   return (
-    <div className="staff-area space-y-3">
+    <div className="space-y-3">
       {rows.map((r) => (
         <div
           key={r.id}
