@@ -355,7 +355,7 @@ export default function AnswerKeyRegisterModal({
             <Button intent="secondary" onClick={onClose}>
               취소
             </Button>
-            {hasQuestions && (
+            {activeTab === "answer" && hasQuestions && (
               <Button
                 intent="primary"
                 onClick={handleSave}
@@ -363,6 +363,14 @@ export default function AnswerKeyRegisterModal({
                 loading={saveBusy}
               >
                 저장 (총 {Math.round(totalScore)}점)
+              </Button>
+            )}
+            {activeTab === "image" && sortedQuestions.length > 0 && (
+              <Button
+                intent="primary"
+                onClick={() => feedback.info("해설 저장 기능은 API 연동 후 제공됩니다.")}
+              >
+                저장
               </Button>
             )}
           </>
@@ -435,5 +443,79 @@ function EssayRow({
       </div>
       <div className="answer-key-row__score">{question.score} 점</div>
     </li>
+  );
+}
+
+type ExplanationState = { text: string; imageUrl: string | null };
+
+function ExplanationRow({
+  question,
+  explanation,
+  onChange,
+}: {
+  question: ExamQuestion;
+  explanation: ExplanationState;
+  onChange: (next: ExplanationState) => void;
+}) {
+  const label = typeof question.number === "number" ? String(question.number) : `S${question.number}`;
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    onChange({ ...explanation, imageUrl: url });
+    e.target.value = "";
+  };
+  const clearImage = () => onChange({ ...explanation, imageUrl: null });
+
+  return (
+    <tr className="answer-key-explanation-row">
+      <td className="answer-key-explanation-table__td--problem">
+        <div className="answer-key-explanation-cell answer-key-explanation-cell--problem">
+          <span className="answer-key-explanation-cell__num">{label}</span>
+          {question.image ? (
+            <img
+              src={question.image}
+              alt={`문제 ${label}`}
+              className="answer-key-explanation-cell__img"
+            />
+          ) : (
+            <div className="answer-key-explanation-cell__placeholder">
+              <span className="answer-key-explanation-cell__placeholder-text">문제 이미지</span>
+              <span className="answer-key-explanation-cell__placeholder-hint">클릭 후 Ctrl+V</span>
+            </div>
+          )}
+        </div>
+      </td>
+      <td className="answer-key-explanation-table__td--explanation">
+        <div className="answer-key-explanation-cell answer-key-explanation-cell--explanation">
+          {explanation.imageUrl ? (
+            <div className="answer-key-explanation-cell__image-wrap">
+              <img
+                src={explanation.imageUrl}
+                alt={`해설 ${label}`}
+                className="answer-key-explanation-cell__img"
+              />
+              <Button type="button" intent="ghost" size="sm" onClick={clearImage}>
+                변경
+              </Button>
+            </div>
+          ) : (
+            <>
+              <textarea
+                value={explanation.text}
+                onChange={(e) => onChange({ ...explanation, text: e.target.value })}
+                placeholder="해설 텍스트 또는 이미지 업로드"
+                className="ds-input ds-textarea answer-key-explanation-cell__textarea"
+                rows={3}
+              />
+              <label className="answer-key-explanation-cell__upload">
+                <input type="file" accept="image/*" className="ds-sr-only" onChange={handleFile} />
+                <span>이미지 업로드</span>
+              </label>
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }

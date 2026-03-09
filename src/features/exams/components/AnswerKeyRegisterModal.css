@@ -183,3 +183,121 @@
   font-weight: 600;
   color: var(--color-text-muted);
 }
+
+/* ========== 이미지 등록 탭 — 문제 해설 (문제 | 해설 2열, 동형문제/동형해설 없음) ========== */
+.answer-key-image-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.answer-key-image-tab__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.answer-key-explanation-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+}
+
+.answer-key-explanation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.answer-key-explanation-table__th--problem,
+.answer-key-explanation-table__th--explanation {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+}
+
+.answer-key-explanation-table__th--problem {
+  width: 200px;
+}
+
+.answer-key-explanation-table__td--problem,
+.answer-key-explanation-table__td--explanation {
+  padding: var(--space-3) var(--space-4);
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.answer-key-explanation-row:last-child td {
+  border-bottom: none;
+}
+
+.answer-key-explanation-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 80px;
+}
+
+.answer-key-explanation-cell__num {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.answer-key-explanation-cell__img {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface-soft);
+}
+
+.answer-key-explanation-cell__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 120px;
+  border: 2px dashed var(--color-border-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.answer-key-explanation-cell__placeholder-text {
+  font-weight: 600;
+}
+
+.answer-key-explanation-cell__placeholder-hint {
+  font-size: 11px;
+}
+
+.answer-key-explanation-cell__image-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.answer-key-explanation-cell__textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.answer-key-explanation-cell__upload {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+}
+
+.answer-key-explanation-cell__upload:hover {
+  text-decoration: underline;
+}
