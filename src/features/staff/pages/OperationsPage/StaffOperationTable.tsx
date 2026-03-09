@@ -49,8 +49,12 @@ export default function StaffOperationTable({
   const inactive = filtered.filter((s) => !s.is_active);
 
   const pick = (id: number) => {
-    params.set("staffId", String(id));
-    navigate(`/admin/staff/${basePath}?${params.toString()}`);
+    const next = new URLSearchParams(params);
+    next.set("staffId", String(id));
+    const now = new Date();
+    if (!next.has("year")) next.set("year", String(now.getFullYear()));
+    if (!next.has("month")) next.set("month", String(now.getMonth() + 1));
+    navigate(`/admin/staff/${basePath}?${next.toString()}`);
   };
 
   return (
