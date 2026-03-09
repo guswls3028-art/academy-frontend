@@ -8,7 +8,6 @@ import styles from "@/shared/ui/domain/StorageStyleTabs.module.css";
 
 const MESSAGE_TABS = [
   { key: "templates", label: "템플릿 저장", path: "/admin/message/templates" },
-  { key: "send", label: "발송", path: "/admin/message/send" },
   { key: "auto-send", label: "자동발송", path: "/admin/message/auto-send" },
   { key: "log", label: "발송 내역", path: "/admin/message/log" },
   { key: "settings", label: "설정", path: "/admin/message/settings" },
@@ -18,7 +17,7 @@ export default function MessageLayout() {
   return (
     <DomainLayout
       title="메시지"
-      description="템플릿 · 발송 · 자동발송 · 설정"
+      description="템플릿 · 자동발송 · 발송 내역 · 설정"
     >
       <div className={styles.wrap}>
         <StorageStyleTabs tabs={MESSAGE_TABS} />

@@ -14,6 +14,34 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { useMessagingInfo, useUpdateKakaoPfid } from "../hooks/useMessagingInfo";
 
+/** KPI용 상태 칩 (크레딧/발신번호/채널/서비스 상태) */
+function StatusChip({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 8px",
+        borderRadius: "var(--radius-md)",
+        fontSize: 12,
+        fontWeight: 600,
+        color: ok ? "var(--color-success)" : "var(--color-status-warning, #d97706)",
+        background: ok
+          ? "color-mix(in srgb, var(--color-success) 10%, transparent)"
+          : "color-mix(in srgb, var(--color-status-warning, #d97706) 10%, transparent)",
+      }}
+    >
+      {ok ? (
+        <FiCheckCircle size={12} aria-hidden />
+      ) : (
+        <FiAlertCircle size={12} aria-hidden />
+      )}
+      {label}
+    </span>
+  );
+}
+
 /** 설정 상태 행 — label + value + status chip */
 function StatusRow({
   label,
@@ -139,8 +167,144 @@ export default function MessageSettingsPage() {
   const hasSender = !!(info?.messaging_sender);
   const smsAllowed = info?.sms_allowed ?? false;
 
+  const creditBalance = info?.credit_balance
+    ? `${Number(info.credit_balance).toLocaleString()}원`
+    : "0원";
+  const isActive = info?.is_active ?? false;
+
   return (
     <div className="flex flex-col gap-6">
+      {/* KPI: 크레딧 잔액 · 발신번호 · 알림톡 채널 · 서비스 상태 */}
+      {info && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: "var(--space-3)",
+          }}
+        >
+          <div
+            style={{
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface)",
+              padding: "var(--space-4) var(--space-5)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                marginBottom: 6,
+              }}
+            >
+              크레딧 잔액
+            </div>
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: "var(--color-text-primary)",
+                letterSpacing: "-0.5px",
+              }}
+            >
+              {creditBalance}
+            </div>
+          </div>
+          <div
+            style={{
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface)",
+              padding: "var(--space-4) var(--space-5)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                marginBottom: 6,
+              }}
+            >
+              발신번호
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {info.messaging_sender ?? "미등록"}
+              </span>
+              <StatusChip ok={hasSender} label={hasSender ? "등록됨" : "미등록"} />
+            </div>
+          </div>
+          <div
+            style={{
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface)",
+              padding: "var(--space-4) var(--space-5)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                marginBottom: 6,
+              }}
+            >
+              알림톡 채널
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--color-text-primary)",
+                }}
+              >
+                {info.channel_source === "tenant_override" ? "자체 채널" : "기본 채널"}
+              </span>
+              <StatusChip ok={hasPfid} label={hasPfid ? "연동됨" : "미연동"} />
+            </div>
+          </div>
+          <div
+            style={{
+              borderRadius: "var(--radius-lg)",
+              border: "1px solid var(--color-border-divider)",
+              background: "var(--color-bg-surface)",
+              padding: "var(--space-4) var(--space-5)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+                marginBottom: 6,
+              }}
+            >
+              서비스 상태
+            </div>
+            <StatusChip ok={isActive} label={isActive ? "활성화" : "비활성화"} />
+          </div>
+        </div>
+      )}
+
       {/* 연동 상태 */}
       <div
         style={{
