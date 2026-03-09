@@ -197,6 +197,47 @@ export default function ScoresTable({
   const scoreValueOnFocusRef = useRef<Record<string, string>>({});
   const examScoreValueOnFocusRef = useRef<Record<string, string>>({});
 
+  /** 시험/과제 저장 + 무효화, 실패 시 feedback */
+  const saveExamTotal = useCallback(
+    async (examId: number, enrollmentId: number, score: number) => {
+      try {
+        await patchExamTotalScoreQuick({ examId, enrollmentId, score, maxScore: 100 });
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+        return true;
+      } catch {
+        feedback.error("합산 점수 저장에 실패했습니다.");
+        return false;
+      }
+    },
+    [qc, sessionId]
+  );
+  const saveExamObjective = useCallback(
+    async (examId: number, enrollmentId: number, score: number) => {
+      try {
+        await patchExamObjectiveScoreQuick({ examId, enrollmentId, score });
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+        return true;
+      } catch {
+        feedback.error("객관식 점수 저장에 실패했습니다.");
+        return false;
+      }
+    },
+    [qc, sessionId]
+  );
+  const saveExamSubjective = useCallback(
+    async (examId: number, enrollmentId: number, score: number) => {
+      try {
+        await patchExamSubjectiveScoreQuick({ examId, enrollmentId, score });
+        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+        return true;
+      } catch {
+        feedback.error("주관식 점수 저장에 실패했습니다.");
+        return false;
+      }
+    },
+    [qc, sessionId]
+  );
+
   const examOptions = meta?.exams ?? [];
   const homeworkOptions = meta?.homeworks ?? [];
 
@@ -691,8 +732,7 @@ export default function ScoresTable({
                                     const raw = firstLine(el.innerText);
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
-                                      await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
-                                      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                      await saveExamTotal(ex.exam_id, row.enrollment_id, parsed);
                                     } else if (raw !== "") el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                   }}
                                   onKeyDown={async (e) => {
@@ -706,16 +746,14 @@ export default function ScoresTable({
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
-                                        await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
-                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                        await saveExamTotal(ex.exam_id, row.enrollment_id, parsed);
                                       }
                                       onRequestMoveDown?.();
                                     } else if (e.key === "Tab") {
                                       e.preventDefault();
                                       const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
                                       if (parsed != null && validateScore(parsed, 100)) {
-                                        await patchExamTotalScoreQuick({ examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed, maxScore: 100 });
-                                        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+                                        await saveExamTotal(ex.exam_id, row.enrollment_id, parsed);
                                       }
                                       if (e.shiftKey) onRequestMovePrev?.();
                                       else onRequestMoveNext?.();
