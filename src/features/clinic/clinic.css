@@ -833,8 +833,9 @@
 .clinic-reports-calendar-block__nav {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--space-6);
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
   margin-bottom: var(--space-6);
 }
 .clinic-reports-calendar-block__nav-btn {

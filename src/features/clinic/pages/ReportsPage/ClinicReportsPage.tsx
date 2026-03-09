@@ -6,7 +6,6 @@ import dayjs from "dayjs";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import Section from "@/shared/ui/ds/Section";
 
 function cx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -156,10 +155,31 @@ export default function ClinicReportsPage() {
 
   return (
     <div className="clinic-page space-y-0">
-      <Section
-        title="리포트"
-        description="월 단위 클리닉 현황"
-        right={
+      {/* 월 네비 + 자세히/간략 등 컨트롤 */}
+      <div className="clinic-reports-calendar-block">
+        <div className="clinic-reports-calendar-block__nav">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="clinic-reports-calendar-block__nav-btn"
+              onClick={() => moveMonth(-1)}
+              aria-label="이전 달"
+            >
+              <ChevronLeft size={28} strokeWidth={2} />
+            </button>
+            <div className="clinic-reports-calendar-block__month">
+              <span className="clinic-reports-calendar-block__year">{yearLabel}</span>
+              <span className="clinic-reports-calendar-block__month-label">{monthLabel}</span>
+            </div>
+            <button
+              type="button"
+              className="clinic-reports-calendar-block__nav-btn"
+              onClick={() => moveMonth(1)}
+              aria-label="다음 달"
+            >
+              <ChevronRight size={28} strokeWidth={2} />
+            </button>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex gap-1">
               <button
@@ -213,32 +233,6 @@ export default function ClinicReportsPage() {
               </span>
             )}
           </div>
-        }
-      />
-
-      {/* 한 묶음: 큰 글씨 < 3월 > + 캘린더(또는 간략 목록) */}
-      <div className="clinic-reports-calendar-block">
-        <div className="clinic-reports-calendar-block__nav">
-          <button
-            type="button"
-            className="clinic-reports-calendar-block__nav-btn"
-            onClick={() => moveMonth(-1)}
-            aria-label="이전 달"
-          >
-            <ChevronLeft size={28} strokeWidth={2} />
-          </button>
-          <div className="clinic-reports-calendar-block__month">
-            <span className="clinic-reports-calendar-block__year">{yearLabel}</span>
-            <span className="clinic-reports-calendar-block__month-label">{monthLabel}</span>
-          </div>
-          <button
-            type="button"
-            className="clinic-reports-calendar-block__nav-btn"
-            onClick={() => moveMonth(1)}
-            aria-label="다음 달"
-          >
-            <ChevronRight size={28} strokeWidth={2} />
-          </button>
         </div>
 
         {mode === "detail" ? (
