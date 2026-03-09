@@ -5,9 +5,9 @@ import { updateAdminExam, saveExamAsTemplate } from "../../api/adminExam";
 import { Button } from "@/shared/ui/ds";
 
 /**
- * 시험 단계 (과제와 동일). DRAFT/OPEN/CLOSED 문구 노출 없음. 진행하기/마감 버튼만.
+ * 시험 단계 (과제와 동일). DRAFT/OPEN/CLOSED 문구 노출 없음. 진행/종료 버튼만.
  */
-export default function ExamHeader({ exam }: { exam: Exam }) {
+export default function ExamHeader({ exam, sessionId }: { exam: Exam; sessionId?: number | null }) {
   const qc = useQueryClient();
   const [loading, setLoading] = useState<"progress" | "close" | null>(null);
   const isRegular = exam.exam_type === "regular";
@@ -20,6 +20,9 @@ export default function ExamHeader({ exam }: { exam: Exam }) {
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["admin-exam", exam.id] });
+    if (sessionId != null) {
+      qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
+    }
   };
 
   const handleProgress = async () => {

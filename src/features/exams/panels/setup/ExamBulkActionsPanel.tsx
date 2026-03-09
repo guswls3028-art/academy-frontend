@@ -3,6 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { recalculateExam } from "../../api/adminExam";
 import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
+import { Button } from "@/shared/ui/ds";
 
 export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
   const recalc = useMutation({
@@ -19,13 +20,16 @@ export default function ExamBulkActionsPanel({ examId }: { examId: number }) {
       </div>
 
       <div className="surface p-4 space-y-4">
-        <button
+        <Button
+          type="button"
+          intent="danger"
+          size="md"
           onClick={() => recalc.mutate()}
-          className="btn-danger"
           disabled={recalc.isPending}
+          loading={recalc.isPending}
         >
           {recalc.isPending ? "재채점 중..." : "재채점 실행"}
-        </button>
+        </Button>
 
         <div className="surface-muted p-3">
           <div className="mb-2 text-xs font-semibold text-muted">

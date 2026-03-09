@@ -196,7 +196,6 @@ export default function SessionAssessmentSidePanel({
                   active={active}
                   label={exam.title}
                   sub={statusLine}
-                  status={exam.status}
                   onSelect={() => onSelectExam(Number(exam.exam_id))}
                 />
               );
@@ -269,13 +268,11 @@ function ExamItemRow({
   active,
   label,
   sub,
-  status,
   onSelect,
 }: {
   active: boolean;
   label: string;
   sub: string;
-  status: SessionExamRow["status"];
   onSelect: () => void;
 }) {
   return (

@@ -203,7 +203,7 @@ export default function SessionDetailPage() {
           {activeTab === "exams" &&
             (examId ? (
               <div className="flex flex-col">
-                <AdminExamDetail examId={examId} mode="operate" />
+                <AdminExamDetail examId={examId} mode="operate" sessionId={sId} />
                 <AssessmentDeleteBar
                   type="exam"
                   id={examId}

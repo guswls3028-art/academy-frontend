@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { updateAdminExam } from "../../api/adminExam";
+import { Button } from "@/shared/ui/ds";
 
 export default function ExamPolicyPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
@@ -97,31 +98,25 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           />
         </div>
 
-        <button
+        <Button
+          type="button"
+          intent="primary"
+          size="md"
           onClick={savePassScore}
           disabled={!isDirty || patchMut.isPending}
-          className={[
-            "h-14 rounded px-8 text-lg font-semibold",
-            !isDirty || patchMut.isPending
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "bg-[var(--color-primary)] text-white",
-          ].join(" ")}
         >
           저장
-        </button>
+        </Button>
 
-        <button
+        <Button
+          type="button"
+          intent={isActive ? "secondary" : "danger"}
+          size="md"
           onClick={toggleActive}
           disabled={patchMut.isPending}
-          className={[
-            "h-14 rounded px-10 text-lg font-bold",
-            isActive
-              ? "bg-emerald-600 text-white"
-              : "bg-red-600 text-white",
-          ].join(" ")}
         >
           {isActive ? "진행중" : "종료"}
-        </button>
+        </Button>
       </div>
 
       <div className="text-xs text-muted">

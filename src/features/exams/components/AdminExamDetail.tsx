@@ -15,9 +15,10 @@ export type ExamDetailMode = "design" | "operate";
 type Props = {
   examId: number;
   mode?: ExamDetailMode;
+  sessionId?: number | null;
 };
 
-export default function AdminExamDetail({ examId, mode = "design" }: Props) {
+export default function AdminExamDetail({ examId, mode = "design", sessionId }: Props) {
   const { data: exam, isLoading } = useAdminExam(examId);
   const [tab, setTab] = useState<"setup" | "assets" | "submissions" | "results">(
     "setup"
@@ -28,7 +29,7 @@ export default function AdminExamDetail({ examId, mode = "design" }: Props) {
 
   return (
     <div className="space-y-6">
-      <ExamHeader exam={exam} />
+      <ExamHeader exam={exam} sessionId={sessionId} />
 
       <ExamTabs
         activeTab={tab}
