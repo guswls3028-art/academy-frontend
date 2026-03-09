@@ -448,7 +448,7 @@ export function NoticeCreateModal({
                 />
               </div>
             )}
-            {defaultBlockTypeCode === "notice" && (
+            {isNoticeContext && (
               <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 16 }}>
                 등록 후 오른쪽 상세 영역에서 내용을 작성할 수 있습니다.
               </p>
@@ -457,7 +457,7 @@ export function NoticeCreateModal({
         )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
-            {defaultBlockTypeCode !== "notice" && (title.trim() || content.trim()) && (
+            {!isNoticeContext && (title.trim() || content.trim()) && (
               <Button
                 intent="ghost"
                 size="sm"
