@@ -45,6 +45,9 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [messageDropdownOpen, setMessageDropdownOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
+  /** 드롭다운 내 표시용 — 클릭 즉시 반영 후 API 호출 */
+  const [localSignupMessageMode, setLocalSignupMessageMode] = useState<MessageMode>("alimtalk");
+  const [localSignupTemplateId, setLocalSignupTemplateId] = useState<number | null>(null);
   const [form, setForm] = useState({
     name: "",
     psNumber: "",
