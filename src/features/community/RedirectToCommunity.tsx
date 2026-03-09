@@ -13,6 +13,6 @@ export function RedirectToCommunityMaterials() {
 export function RedirectToCommunityNotice() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const id = lectureId != null && Number.isFinite(Number(lectureId)) ? lectureId : "";
-  if (!id) return <Navigate to="/admin/community/admin?tab=notice" replace />;
-  return <Navigate to={`/admin/community/admin?tab=notice&scope=lecture&lectureId=${id}`} replace />;
+  if (!id) return <Navigate to="/admin/community/notice" replace />;
+  return <Navigate to={`/admin/community/notice?scope=lecture&lectureId=${id}`} replace />;
 }

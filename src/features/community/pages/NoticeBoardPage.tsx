@@ -211,7 +211,7 @@ export function NoticeBoardContent() {
   );
 }
 
-function NoticeCreateModal({
+export function NoticeCreateModal({
   scope,
   scopeNodes,
   scopeParams,

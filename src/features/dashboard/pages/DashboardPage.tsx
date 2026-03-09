@@ -153,9 +153,9 @@ export default function DashboardPage() {
             />
             <DashboardShortcutWidget
               icon={<NavIcon d="M4 4h16v12H7l-3 3z" />}
-              label="게시 관리"
-              subLabel="공지·게시판"
-              onClick={() => navigate("/admin/community/admin")}
+              label="게시판 · 공지"
+              subLabel="공지사항·게시판"
+              onClick={() => navigate("/admin/community/notice")}
             />
           </div>
         </DashboardWidget>

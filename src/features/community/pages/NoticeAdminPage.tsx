@@ -1,7 +1,7 @@
 // PATH: src/features/community/pages/NoticeAdminPage.tsx
 // 공지사항 관리 — QnA 탭과 동일한 디자인(좌 목록 | 우 상세)
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCommunityScope } from "../context/CommunityScopeContext";
@@ -14,6 +14,7 @@ import {
   fetchPost,
   updatePostNodes,
   deletePost,
+  fetchPostTemplates,
   type BoardPost,
   type PostEntity,
   type ScopeNodeMinimal,
@@ -58,6 +59,12 @@ export default function NoticeAdminPage() {
   const { data: blockTypes = [] } = useQuery({
     queryKey: ["community-block-types"],
     queryFn: () => fetchBlockTypes(),
+  });
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ["community-post-templates"],
+    queryFn: () => fetchPostTemplates(),
+    enabled: showCreate,
   });
 
   const { data: posts = [], isLoading } = useQuery<BoardPost[]>({
@@ -195,7 +202,7 @@ export default function NoticeAdminPage() {
           effectiveLectureId={effectiveLectureId ?? undefined}
           sessionId={sessionId ?? undefined}
           blockTypes={blockTypes}
-          templates={[]}
+          templates={templates}
           onClose={() => setShowCreate(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
@@ -273,6 +280,17 @@ function NoticeDetailView({
     enabled: postId != null,
   });
 
+  const initialNodeIds = post?.mappings?.map((m) => m.node) ?? [];
+  const [inspectorNodeIds, setInspectorNodeIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (post?.mappings?.length) {
+      setInspectorNodeIds(post.mappings.map((m) => m.node));
+    } else {
+      setInspectorNodeIds([]);
+    }
+  }, [post?.id, post?.mappings]);
+
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
@@ -286,7 +304,6 @@ function NoticeDetailView({
     },
   });
 
-  const [inspectorNodeIds, setInspectorNodeIds] = useState<number[]>([]);
   const updateNodesMut = useMutation({
     mutationFn: (nodeIds: number[]) => updatePostNodes(postId, nodeIds),
     onSuccess: () => {
@@ -298,13 +315,6 @@ function NoticeDetailView({
       feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
     },
   });
-
-  if (post) {
-    const currentIds = post.mappings?.map((m) => m.node) ?? [];
-    if (inspectorNodeIds.length === 0 && currentIds.length > 0 && inspectorNodeIds !== currentIds) {
-      setInspectorNodeIds(currentIds);
-    }
-  }
 
   const nodePickerOptions = useMemo(
     () =>
@@ -328,7 +338,7 @@ function NoticeDetailView({
   }
 
   const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "—";
-  const initialNodeIds = post.mappings?.map((m) => m.node) ?? [];
+  const currentNodeIds = inspectorNodeIds.length ? inspectorNodeIds : initialNodeIds;
 
   return (
     <>
@@ -385,7 +395,7 @@ function NoticeDetailView({
           <select
             className="ds-input w-full"
             multiple
-            value={inspectorNodeIds.length ? inspectorNodeIds.map(String) : initialNodeIds.map(String)}
+            value={currentNodeIds.map(String)}
             onChange={(e) => {
               const selected = Array.from(
                 e.target.selectedOptions,
@@ -405,11 +415,7 @@ function NoticeDetailView({
             <Button
               intent="primary"
               size="sm"
-              onClick={() =>
-                updateNodesMut.mutate(
-                  inspectorNodeIds.length ? inspectorNodeIds : initialNodeIds
-                )
-              }
+              onClick={() => updateNodesMut.mutate(currentNodeIds)}
               disabled={updateNodesMut.isPending}
             >
               노출 노드 저장

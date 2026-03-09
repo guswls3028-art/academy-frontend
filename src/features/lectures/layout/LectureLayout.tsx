@@ -48,7 +48,7 @@ export default function LectureLayout() {
     () => [
       { key: "students", label: "수강생", path: base, exact: true },
       { key: "materials", label: "자료실", path: `/admin/community/materials?scope=lecture&lectureId=${lectureId}` },
-      { key: "board", label: "게시판", path: `/admin/community/admin?tab=notice&scope=lecture&lectureId=${lectureId}` },
+      { key: "board", label: "게시판", path: `/admin/community/notice?scope=lecture&lectureId=${lectureId}` },
       { key: "ddays", label: "디데이", path: `${base}/ddays` },
       { key: "attendance", label: "출결", path: `${base}/attendance` },
       { key: "report", label: "리포트", path: `${base}/report` },
