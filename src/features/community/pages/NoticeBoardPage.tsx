@@ -222,6 +222,7 @@ export function NoticeCreateModal({
   onClose,
   onSuccess,
   defaultBlockTypeCode,
+  defaultBlockTypeId: defaultBlockTypeIdProp,
 }: {
   scope: "all" | "lecture" | "session";
   scopeNodes: ScopeNodeMinimal[];
@@ -234,9 +235,13 @@ export function NoticeCreateModal({
   onSuccess: () => void;
   /** 공지사항 탭에서 열 때 "notice" 전달 → 유형을 공지로 고정 */
   defaultBlockTypeCode?: string;
+  /** 공지 관리 페이지에서 사용. 있으면 이 ID로 유형 고정(우선) */
+  defaultBlockTypeId?: number | null;
 }) {
   const resolvedDefaultId =
-    defaultBlockTypeCode != null
+    defaultBlockTypeIdProp != null && defaultBlockTypeIdProp !== 0
+      ? defaultBlockTypeIdProp
+      : defaultBlockTypeCode != null
       ? blockTypes.find((b) => (b.code || "").toLowerCase() === defaultBlockTypeCode.toLowerCase())?.id ?? blockTypes[0]?.id
       : blockTypes[0]?.id;
   const [title, setTitle] = useState("");
@@ -247,12 +252,19 @@ export function NoticeCreateModal({
   const [templateName, setTemplateName] = useState("");
   const qc = useQueryClient();
 
-  // 공지 탭에서 열었을 때 유형을 공지로 확실히 맞춤 (blockTypes 로딩 후 한 번만)
+  // 공지 탭/공지 관리에서 열었을 때 유형을 해당 섹션으로 확실히 맞춤 (ID 우선, code 보조)
   useEffect(() => {
+    if (defaultBlockTypeIdProp != null && defaultBlockTypeIdProp !== 0) {
+      setBlockTypeId(defaultBlockTypeIdProp);
+      return;
+    }
     if (defaultBlockTypeCode != null && resolvedDefaultId != null) {
       setBlockTypeId(resolvedDefaultId);
     }
-  }, [defaultBlockTypeCode, resolvedDefaultId]);
+  }, [defaultBlockTypeIdProp, defaultBlockTypeCode, resolvedDefaultId]);
+
+  const isNoticeContext =
+    defaultBlockTypeCode === "notice" || (defaultBlockTypeIdProp != null && defaultBlockTypeIdProp !== 0);
 
   const loadTemplate = (t: PostTemplate) => {
     setTitle(t.title ?? "");
@@ -295,7 +307,7 @@ export function NoticeCreateModal({
       createCommunityBoardPost({
         block_type: blockTypeId ?? blockTypes[0]!.id,
         title: title.trim(),
-        content: defaultBlockTypeCode === "notice" ? "" : content.trim(),
+        content: isNoticeContext ? "" : content.trim(),
         node_ids: nodeIds,
       }),
     onSuccess: () => onSuccess(),
@@ -306,7 +318,7 @@ export function NoticeCreateModal({
     blockTypes.length > 0 &&
     (blockTypeId != null || blockTypes[0]?.id) &&
     nodeIds.length > 0 &&
-    (defaultBlockTypeCode === "notice" || content.trim());
+    (isNoticeContext || content.trim());
 
   const courseNodes = useMemo(
     () => scopeNodes.filter((n) => n.level === "COURSE"),
@@ -421,7 +433,7 @@ export function NoticeCreateModal({
                 style={{ width: "100%" }}
               />
             </div>
-            {defaultBlockTypeCode !== "notice" && (
+            {!isNoticeContext && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 12, color: "var(--color-text-muted)", display: "block", marginBottom: 4 }}>
                   내용

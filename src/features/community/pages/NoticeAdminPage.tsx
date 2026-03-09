@@ -405,6 +405,7 @@ export default function NoticeAdminPage() {
           blockTypes={blockTypes}
           templates={templates}
           defaultBlockTypeCode="notice"
+          defaultBlockTypeId={noticeBlockTypeId ?? undefined}
           onClose={() => setShowCreate(false)}
           onSuccess={() => {
             qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
