@@ -104,8 +104,28 @@ export async function endWork(workRecordId: number) {
   return res.data;
 }
 
+/** POST /staffs/work-records/{id}/start_break/ */
+export async function startBreak(workRecordId: number) {
+  const res = await api.post<{ status: string }>(
+    `/staffs/work-records/${workRecordId}/start_break/`
+  );
+  return res.data;
+}
+
+/** POST /staffs/work-records/{id}/end_break/ */
+export async function endBreak(workRecordId: number) {
+  const res = await api.post<{ status: string }>(
+    `/staffs/work-records/${workRecordId}/end_break/`
+  );
+  return res.data;
+}
+
 /** GET /staffs/currently-working/ — 현재 근무 중인 직원 목록 (헤더 중앙 아바타용) */
-export type CurrentlyWorkingItem = { staff_id: number; staff_name: string };
+export type CurrentlyWorkingItem = {
+  staff_id: number;
+  staff_name: string;
+  role?: "TEACHER" | "ASSISTANT";
+};
 
 export async function fetchCurrentlyWorkingStaff(): Promise<CurrentlyWorkingItem[]> {
   const res = await api.get<CurrentlyWorkingItem[]>("/staffs/currently-working/");
