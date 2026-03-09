@@ -1,9 +1,8 @@
-// PATH: src/features/materials/sheets/components/submissions/submissions.api.ts
 // SSOT ALIGN (backend domains/submissions):
-// - list:    GET  /submissions/exams/<exam_id>/
+// - list:    GET  /submissions/submissions/exams/<exam_id>/
 // - retry:   POST /submissions/submissions/<submission_id>/retry/
 // - manual:  POST /submissions/submissions/<submission_id>/manual-edit/
-// - batch:   POST /submissions/exams/<exam_id>/omr/batch/  (multipart, files[])
+// - batch:   POST /submissions/submissions/exams/<exam_id>/omr/batch/  (multipart, files[])
 
 import api from "@/shared/api/axios";
 import type { SubmissionStatus } from "@/features/submissions/types";
@@ -30,7 +29,7 @@ export type SubmissionManualEditInput = {
 
 export async function listExamSubmissionsApi(examId: number): Promise<ExamSubmissionRow[]> {
   if (!Number.isFinite(examId) || examId <= 0) return [];
-  const res = await api.get(`/submissions/exams/${examId}/`);
+  const res = await api.get(`/submissions/submissions/exams/${examId}/`);
   const data = res.data;
   if (Array.isArray(data)) return data as ExamSubmissionRow[];
   if (Array.isArray(data?.items)) return data.items as ExamSubmissionRow[];
@@ -84,8 +83,8 @@ export async function uploadOmrBatchApi(input: { examId: number; files: File[]; 
     fd.append("sheet_id", String(input.sheetId));
   }
 
-  // urls.py: /submissions/exams/<exam_id>/omr/batch/
-  const res = await api.post(`/submissions/exams/${examId}/omr/batch/`, fd, {
+  // urls.py: /submissions/submissions/exams/<exam_id>/omr/batch/
+  const res = await api.post(`/submissions/submissions/exams/${examId}/omr/batch/`, fd, {
     headers: { "Content-Type": "multipart/form-data" },
   });
 

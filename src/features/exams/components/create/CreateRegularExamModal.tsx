@@ -80,7 +80,7 @@ export default function CreateRegularExamModal({
   if (!open) return null;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default}>
+    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default} onEnterConfirm={!disabled ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="시험 생성"

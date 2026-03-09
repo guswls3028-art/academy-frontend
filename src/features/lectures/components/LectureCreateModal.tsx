@@ -369,7 +369,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
   );
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={480}>
+    <AdminModal open={true} onClose={onClose} type="action" width={480} onEnterConfirm={!isPending ? submit : undefined}>
       <ModalHeader type="action" title={modalTitle} />
 
       <ModalBody>

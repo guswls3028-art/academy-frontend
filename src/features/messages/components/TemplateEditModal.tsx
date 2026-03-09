@@ -113,7 +113,7 @@ export default function TemplateEditModal({
     : "템플릿 추가";
 
   return (
-    <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex}>
+    <AdminModal open={open} onClose={onClose} width={1000} zIndex={zIndex} onEnterConfirm={!isPending ? handleSubmit : undefined}>
       <ModalHeader title={title} />
       <ModalBody>
         <div className="template-editor flex gap-5" style={{ minHeight: 420 }}>

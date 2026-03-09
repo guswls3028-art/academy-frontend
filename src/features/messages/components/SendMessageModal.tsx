@@ -161,7 +161,7 @@ export default function SendMessageModal({
     recipientLabel ?? (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음");
 
   return (
-    <AdminModal open={open} onClose={onClose} width={1000}>
+    <AdminModal open={open} onClose={onClose} width={1000} onEnterConfirm={handleSend}>
       <ModalHeader title="메시지 발송" />
       <ModalBody>
         <div className="flex flex-col gap-5" style={{ minHeight: 420 }}>

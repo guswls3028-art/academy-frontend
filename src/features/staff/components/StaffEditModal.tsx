@@ -75,7 +75,7 @@ export default function StaffEditModal({
   if (!open) return null;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default}>
+    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default} onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="직원 수정"

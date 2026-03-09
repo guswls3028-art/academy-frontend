@@ -393,7 +393,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
   return (
     <>
-    <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md}>
+    <AdminModal open={open} onClose={handleClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={!busy ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="학생 등록"

@@ -19,6 +19,6 @@ export type SubmissionDTO = {
 };
 
 export async function fetchSubmission(submissionId: number) {
-  const res = await api.get(`/submissions/${submissionId}/`);
+  const res = await api.get(`/submissions/submissions/${submissionId}/`);
   return res.data as SubmissionDTO;
 }

@@ -84,7 +84,7 @@ export default function CreateHomeworkModal({
   if (!open) return null;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default}>
+    <AdminModal open onClose={onClose} type="action" width={MODAL_WIDTH.default} onEnterConfirm={!disabled && !m.isPending ? () => m.mutate() : undefined}>
       <ModalHeader
         type="action"
         title="과제 생성"
