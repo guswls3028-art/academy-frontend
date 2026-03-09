@@ -125,6 +125,14 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
 }
 
+.answer-key-section-btn--label-only {
+  cursor: default;
+  pointer-events: none;
+}
+.answer-key-section-btn--label-only * {
+  pointer-events: auto;
+}
+
 /* 제목 버튼 아래 인라인 편집 (문항 수·기본 점수·문항 반영) */
 .answer-key-inline-editor {
   display: flex;
@@ -135,6 +143,9 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border-divider);
   background: color-mix(in srgb, var(--color-border-divider) 6%, var(--color-modal-bg));
+}
+.answer-key-section-reset-btn--refresh {
+  margin-left: auto;
 }
 
 @media (max-width: 720px) {

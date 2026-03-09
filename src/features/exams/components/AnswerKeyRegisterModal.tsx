@@ -280,8 +280,8 @@ export default function AnswerKeyRegisterModal({
       const essayIds = new Set(
         sortedQuestions.slice(effectiveChoiceCount, effectiveChoiceCount + effectiveEssayCount).map((q) => String(q.id))
       );
-      Object.keys(normalized).forEach((k) => {
-        if (essayIds.has(k) && normalized[k] === "") normalized[k] = "해설참조";
+      essayIds.forEach((id) => {
+        if (normalized[id] === "" || normalized[id] === undefined) normalized[id] = "해설참조";
       });
       const targetExamId = examId;
       if (!answerKey) {
