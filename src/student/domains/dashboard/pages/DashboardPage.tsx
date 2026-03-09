@@ -190,23 +190,33 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* 학원문의 (학원명·전화) */}
-      {dashboard?.tenant_info && (dashboard.tenant_info.name || dashboard.tenant_info.phone || dashboard.tenant_info.headquarters_phone) && (
-        <section style={{ marginTop: "var(--stu-space-8)", paddingTop: "var(--stu-space-4)", borderTop: "1px solid var(--stu-border)" }}>
-          <div className="stu-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", marginBottom: 8, textTransform: "uppercase" }}>
-            학원문의
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>{dashboard.tenant_info.name || "학원"}</div>
-          {(dashboard.tenant_info.headquarters_phone || dashboard.tenant_info.phone) && (
-            <a
-              href={`tel:${(dashboard.tenant_info.headquarters_phone || dashboard.tenant_info.phone).replace(/\D/g, "")}`}
-              style={{ fontSize: 14, color: "var(--stu-primary)", textDecoration: "none", marginTop: 6, display: "inline-block", fontWeight: 600 }}
-            >
-              {dashboard.tenant_info.headquarters_phone || dashboard.tenant_info.phone}
-            </a>
-          )}
-        </section>
-      )}
+      {/* 학원문의 (학원명·전화) — 여러 학원일 때 목록, 단일일 때 기존 표시 */}
+      {dashboard?.tenant_info && (() => {
+        const ti = dashboard.tenant_info;
+        const academies = ti.academies?.length ? ti.academies : [{ name: ti.name || "학원", phone: ti.headquarters_phone || ti.phone || "" }];
+        const hasAny = academies.some((a) => a.name || a.phone);
+        if (!hasAny) return null;
+        return (
+          <section style={{ marginTop: "var(--stu-space-8)", paddingTop: "var(--stu-space-4)", borderTop: "1px solid var(--stu-border)" }}>
+            <div className="stu-muted" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.04em", marginBottom: 8, textTransform: "uppercase" }}>
+              학원문의
+            </div>
+            {academies.map((a, i) => (
+              <div key={i} style={{ marginBottom: academies.length > 1 ? 12 : 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.02em" }}>{a.name || "학원"}</div>
+                {a.phone && (
+                  <a
+                    href={`tel:${a.phone.replace(/\D/g, "")}`}
+                    style={{ fontSize: 14, color: "var(--stu-primary)", textDecoration: "none", marginTop: 6, display: "inline-block", fontWeight: 600 }}
+                  >
+                    {a.phone}
+                  </a>
+                )}
+              </div>
+            ))}
+          </section>
+        );
+      })()}
     </div>
   );
 }

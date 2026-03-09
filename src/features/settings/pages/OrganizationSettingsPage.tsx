@@ -182,7 +182,7 @@ export default function OrganizationSettingsPage() {
           <div className={s.row} style={{ gridTemplateColumns: "1fr auto" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <FiLock size={14} style={{ color: "var(--color-text-muted)" }} aria-hidden />
-              <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text-muted)" }}>
                 학원 정보는 대표 계정에서만 수정할 수 있습니다.
               </span>
             </div>

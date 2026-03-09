@@ -37,6 +37,7 @@ export type StudentDashboardResponse = {
     name: string;
     phone: string;
     headquarters_phone: string;
+    academies?: { name: string; phone: string }[];
   } | null;
 };
 
@@ -73,6 +74,12 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
             name: String(data.tenant_info.name ?? ""),
             phone: String(data.tenant_info.phone ?? ""),
             headquarters_phone: String(data.tenant_info.headquarters_phone ?? ""),
+            academies: Array.isArray(data.tenant_info.academies)
+              ? (data.tenant_info.academies as { name?: string; phone?: string }[]).map((a) => ({
+                  name: String(a.name ?? ""),
+                  phone: String(a.phone ?? ""),
+                }))
+              : undefined,
           }
         : null,
   };

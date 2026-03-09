@@ -120,8 +120,8 @@ export default function MessagingSettingsPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      fontSize: 12,
-                      fontWeight: 500,
+                      fontSize: 13,
+                      fontWeight: 600,
                       color: verifyResult.verified
                         ? "var(--color-success)"
                         : "var(--color-error)",
@@ -165,7 +165,7 @@ export default function MessagingSettingsPage() {
             <div className={s.row}>
               <span className={s.rowLabel}>발신번호</span>
               <span className={currentSender ? s.rowValue : s.rowValueMuted}
-                style={{ fontFamily: currentSender ? "monospace" : undefined, fontSize: currentSender ? 13 : undefined }}
+                style={{ fontFamily: currentSender ? "monospace" : undefined, fontSize: currentSender ? 15 : undefined, fontWeight: currentSender ? 600 : undefined }}
               >
                 {currentSender || "미설정"}
               </span>
@@ -179,7 +179,7 @@ export default function MessagingSettingsPage() {
         </div>
 
         {/* Info note */}
-        <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "12px 0 0", lineHeight: 1.5 }}>
+        <p style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-muted)", margin: "12px 0 0", lineHeight: 1.5 }}>
           솔라피(Solapi) 계정에 등록된 발신번호만 사용할 수 있습니다. 미등록 번호로 발송 시 실패할 수 있습니다.
         </p>
       </section>

@@ -155,7 +155,7 @@ function PasswordChangeGroup({
 
         {error && (
           <div style={{
-            fontSize: 12, color: "var(--color-error)",
+            fontSize: 13, fontWeight: 600, color: "var(--color-error)",
             background: "color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface))",
             border: "1px solid color-mix(in srgb, var(--color-error) 20%, var(--color-border-divider))",
             borderRadius: 6, padding: "8px 12px",
