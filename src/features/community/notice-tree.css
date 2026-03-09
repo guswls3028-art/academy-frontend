@@ -64,6 +64,11 @@
   border-left: 3px solid transparent;
 }
 
+.notice-tree__tab-label {
+  flex: 1;
+  min-width: 0;
+}
+
 .notice-tree__tab:hover {
   background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
   color: var(--color-text-primary);
@@ -84,9 +89,11 @@
 }
 
 .notice-tree__tab-chevron {
-  margin-left: auto;
+  flex-shrink: 0;
+  width: 14px;
   font-size: 10px;
   color: var(--color-text-muted);
+  text-align: right;
 }
 
 /* 하위 트리: 강의목록 펼치면 강의명 → 차시 (위 탭과 동일 디자인) */
@@ -140,6 +147,16 @@
   border-left: 3px solid transparent;
 }
 
+.notice-tree__sub-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.notice-tree__sub-chevron-right {
+  flex-shrink: 0;
+  width: 14px;
+}
+
 .notice-tree__sub-item:hover {
   background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
   color: var(--color-text-primary);
@@ -160,6 +177,13 @@
   padding-left: var(--space-6);
   font-size: 13px;
   font-weight: 500;
+}
+
+.notice-tree__sub-item-child-icon {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  width: 14px;
 }
 
 .notice-tree__list-body {
