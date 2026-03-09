@@ -38,7 +38,13 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
         mode={mode}
       />
 
-      {tab === "setup" && <ExamSetupPanel examId={examId} />}
+      {tab === "setup" && (
+        <div className="space-y-6">
+          <ExamSetupPanel examId={examId} />
+          {/* operate(세션 컨텍스트)에서는 자산도 '운영'에 함께 담아서 과제와 동일한 톤 */}
+          {mode === "operate" && <ExamAssetsPanel examId={examId} />}
+        </div>
+      )}
       {tab === "assets" && mode === "design" && <ExamAssetsPanel examId={examId} />}
       {tab === "results" && <ExamResultsViewerPanel examId={examId} />}
     </div>
