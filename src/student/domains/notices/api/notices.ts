@@ -1,29 +1,15 @@
 // PATH: src/student/domains/notices/api/notices.ts
-// 학생 앱 공지 API
+// 학생 앱 공지 API — 관리자 공지사항 탭과 동일 데이터 (GET /community/posts/notices/)
 
-import { fetchPosts, fetchPost, type PostEntity } from "@/features/community/api/community.api";
+import { fetchNoticePosts, fetchPost, type PostEntity } from "@/features/community/api/community.api";
 
 /**
- * 학생이 볼 수 있는 모든 공지 목록 조회
- * block_type_label에 "공지" 또는 "notice"가 포함된 게시물만 필터링
- * - pageSize 50으로 제한하여 한 번에 과도한 렌더 방지 (모바일 성능)
+ * 학생이 볼 수 있는 공지 목록 조회
+ * - 관리자 공지사항 탭에서 등록한 공지(block_type code=notice)와 동일한 API 사용
  */
 export async function fetchNotices(): Promise<PostEntity[]> {
   try {
-    const allPosts = await fetchPosts({ nodeId: null, pageSize: 50 });
-    
-    // block_type_label에 "공지" 또는 "notice"가 포함된 것만 필터링
-    const notices = allPosts.filter((post) => {
-      const label = (post.block_type_label || "").toLowerCase();
-      return label.includes("notice") || label.includes("공지");
-    });
-    
-    // 최신순 정렬
-    return notices.sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return dateB - dateA;
-    });
+    return await fetchNoticePosts({ pageSize: 50 });
   } catch (error) {
     console.error("공지 목록 조회 실패:", error);
     return [];

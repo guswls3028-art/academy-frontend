@@ -221,6 +221,7 @@ export function NoticeCreateModal({
   templates,
   onClose,
   onSuccess,
+  defaultBlockTypeCode,
 }: {
   scope: "all" | "lecture" | "session";
   scopeNodes: ScopeNodeMinimal[];
@@ -231,10 +232,16 @@ export function NoticeCreateModal({
   templates: PostTemplate[];
   onClose: () => void;
   onSuccess: () => void;
+  /** 공지사항 탭에서 열 때 "notice" 전달 → 학생앱 공지와 동일 유형으로 생성 */
+  defaultBlockTypeCode?: string;
 }) {
+  const resolvedDefaultId =
+    defaultBlockTypeCode != null
+      ? blockTypes.find((b) => (b.code || "").toLowerCase() === defaultBlockTypeCode.toLowerCase())?.id ?? blockTypes[0]?.id
+      : blockTypes[0]?.id;
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [blockTypeId, setBlockTypeId] = useState<number | null>(blockTypes[0]?.id ?? null);
+  const [blockTypeId, setBlockTypeId] = useState<number | null>(resolvedDefaultId ?? null);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState("");

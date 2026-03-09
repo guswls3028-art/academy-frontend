@@ -190,6 +190,18 @@ export async function fetchPost(id: number): Promise<PostEntity | null> {
   }
 }
 
+/** 공지 목록 조회 — 학생앱·관리자 동일 (block_type code=notice). GET /community/posts/notices/ */
+export async function fetchNoticePosts(params?: { page?: number; pageSize?: number }): Promise<PostEntity[]> {
+  const search = new URLSearchParams();
+  if (params?.page != null) search.set("page", String(params.page));
+  if (params?.pageSize != null) search.set("page_size", String(params.pageSize));
+  const qs = search.toString();
+  const url = qs ? `${PREFIX}/posts/notices/?${qs}` : `${PREFIX}/posts/notices/`;
+  const res = await api.get(url);
+  const data = res.data;
+  return Array.isArray(data) ? data : [];
+}
+
 /** 관리자 목록: block_type_id, lecture_id, page, page_size */
 export async function fetchAdminPosts(params: {
   blockTypeId?: number | null;

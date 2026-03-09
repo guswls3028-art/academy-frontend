@@ -48,6 +48,7 @@ export default function QnaReadPage() {
     mutationFn: () => deletePost(postId!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-questions"] });
+      qc.invalidateQueries({ queryKey: ["admin", "notification-counts"] });
       feedback.success("질문이 삭제되었습니다.");
       navigate("/admin/community/qna", { replace: true });
     },
