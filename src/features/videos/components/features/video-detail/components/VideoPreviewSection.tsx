@@ -1,9 +1,11 @@
 import AdminHlsPreview from "./AdminHlsPreview";
+import AdminStudentVideoPreview from "./AdminStudentVideoPreview";
 import VideoProcessingPreview from "./VideoProcessingPreview";
 
 type PreviewMode = "admin" | "student";
 
 interface Props {
+  videoId: number;
   previewMode: PreviewMode;
   setPreviewMode: (v: PreviewMode) => void;
   hlsSrc: string | null;
@@ -11,9 +13,11 @@ interface Props {
   progressPercent?: number | null;
   onRetry?: () => void;
   isRetrying?: boolean;
+  selectedEnrollmentId?: number | null;
 }
 
 export default function VideoPreviewSection({
+  videoId,
   previewMode,
   setPreviewMode,
   hlsSrc,
@@ -21,40 +25,56 @@ export default function VideoPreviewSection({
   progressPercent,
   onRetry,
   isRetrying,
+  selectedEnrollmentId,
 }: Props) {
   const isReady = status === "READY";
 
   return (
-    <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] p-4 space-y-4">
+    <div
+      className="rounded-lg p-4 space-y-4"
+      style={{
+        border: "1px solid var(--color-border-divider)",
+        background: "var(--color-bg-surface-soft)",
+      }}
+    >
       {/* MODE TOGGLE */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => setPreviewMode("admin")}
-          className={`rounded border px-3 py-1 text-xs ${
-            previewMode === "admin"
-              ? "bg-[var(--bg-surface)] font-semibold"
-              : "bg-[var(--bg-surface-soft)]"
-          }`}
-        >
-          관리자 미리보기
-        </button>
-
-        <button
-          onClick={() => setPreviewMode("student")}
-          className={`rounded border px-3 py-1 text-xs ${
-            previewMode === "student"
-              ? "bg-[var(--bg-surface)] font-semibold"
-              : "bg-[var(--bg-surface-soft)]"
-          }`}
-        >
-          학생 페이지로 보기
-        </button>
+        {(["admin", "student"] as PreviewMode[]).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => setPreviewMode(mode)}
+            style={{
+              borderRadius: 6,
+              border: "1px solid var(--color-border-divider)",
+              padding: "4px 12px",
+              fontSize: 12,
+              cursor: "pointer",
+              background:
+                previewMode === mode
+                  ? "var(--color-bg-surface)"
+                  : "var(--color-bg-surface-soft)",
+              fontWeight: previewMode === mode ? 600 : 400,
+              color: "var(--color-text-primary)",
+            }}
+          >
+            {mode === "admin" ? "관리자 미리보기" : "학생 페이지로 보기"}
+          </button>
+        ))}
       </div>
 
       {/* PREVIEW */}
-      <div className="rounded-md bg-[var(--bg-surface)] p-3">
+      <div
+        className="rounded-md p-3"
+        style={{ background: "var(--color-bg-surface)" }}
+      >
         {isReady && previewMode === "admin" && hlsSrc ? (
           <AdminHlsPreview src={hlsSrc} />
+        ) : isReady && previewMode === "student" ? (
+          <AdminStudentVideoPreview
+            videoId={videoId}
+            enrollmentId={selectedEnrollmentId}
+          />
         ) : (
           <VideoProcessingPreview
             status={status}

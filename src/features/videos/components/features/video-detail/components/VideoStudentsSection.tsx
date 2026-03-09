@@ -9,6 +9,8 @@ interface Props {
   onOpenPermission: () => void;
   onOpenAchievement?: () => void;
   onOpenLog?: () => void;
+  selectedEnrollmentId?: number | null;
+  onSelectPreviewStudent?: (enrollmentId: number) => void;
 }
 
 function percent(v: number) {
@@ -20,6 +22,8 @@ export default function VideoStudentsSection({
   onOpenPermission,
   onOpenAchievement,
   onOpenLog,
+  selectedEnrollmentId,
+  onSelectPreviewStudent,
 }: Props) {
   const total = students.length;
   const completed100 = students.filter((s) => (Number(s.progress ?? 0) || 0) >= 1).length;
@@ -31,7 +35,7 @@ export default function VideoStudentsSection({
       {/* 상단 KPI 3개 */}
       <div className="grid grid-cols-3 gap-3">
         <KPI label="총 학생" value={total > 0 ? `${total}명` : "—"} />
-        <KPI label="평균 만족도" value={percent(avgProgress)} />
+        <KPI label="평균 진도율" value={percent(avgProgress)} />
         <KPI label="100% 완료" value={total > 0 ? `${completed100}명` : "—"} />
       </div>
 
