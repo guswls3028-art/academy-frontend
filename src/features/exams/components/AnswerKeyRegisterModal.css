@@ -1,4 +1,4 @@
-/* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. */
+/* 답안 등록 모달 — 좌(객관식) / 우(주관식) 2패널, 한국식 OMR 세로 버블. 모달 한눈에 보이게, 주관식 영역 내 스크롤. */
 
 .answer-key-panel {
   min-width: 0;
@@ -7,12 +7,15 @@
   gap: var(--space-3);
 }
 
-/* 좌우 2패널: 좌측 객관식 | 우측 주관식 */
+/* 좌우 2패널: 좌측 객관식 | 우측 주관식, 높이 제한 */
 .answer-key-two-panels {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-5);
-  align-items: start;
+  align-items: stretch;
+  max-height: min(65vh, 560px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 720px) {
@@ -27,6 +30,25 @@
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
   padding: var(--space-4);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 선택형 리스트: 스크롤 없음(첫 페이지에 맞춤) 또는 필요 시 스크롤 — 예시처럼 1~15번 보이게 높이 맞춤 */
+.answer-key-panel--choice .answer-key-list--choice-scroll {
+  overflow-y: auto;
+  max-height: 380px;
+  min-height: 0;
+}
+
+/* 주관식 영역만 스크롤: 첫 페이지에 1~15번까지 보이게(~15행), 5문항 단위 구분선 */
+.answer-key-panel--essay .answer-key-list--essay-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 380px;
+  min-height: 0;
+  flex: 1;
 }
 
 .answer-key-section--full {
@@ -109,6 +131,13 @@
 
 .answer-key-row:last-child {
   border-bottom: none;
+}
+
+/* 5문항 단위 구분선 (5, 10, 15번 다음) */
+.answer-key-row--divider-after {
+  border-bottom: 2px solid var(--color-border-strong, var(--color-border-divider));
+  margin-bottom: var(--space-1);
+  padding-bottom: var(--space-2);
 }
 
 .answer-key-row__num {
