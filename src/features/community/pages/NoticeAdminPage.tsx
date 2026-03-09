@@ -544,6 +544,27 @@ function NoticeDetailView({
 
   const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "—";
   const currentNodeIds = inspectorNodeIds.length ? inspectorNodeIds : initialNodeIds;
+  const [editingContent, setEditingContent] = useState(post.content ?? "");
+  const [contentSaved, setContentSaved] = useState(false);
+
+  useEffect(() => {
+    setEditingContent(post.content ?? "");
+  }, [post.id, post.content]);
+
+  const updateContentMut = useMutation({
+    mutationFn: (content: string) => updatePost(postId, { content }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
+      qc.invalidateQueries({ queryKey: ["community-board-posts"] });
+      setContentSaved(true);
+      feedback.success("내용이 저장되었습니다.");
+      setTimeout(() => setContentSaved(false), 2000);
+    },
+    onError: (e: unknown) => {
+      feedback.error((e as Error)?.message ?? "저장에 실패했습니다.");
+    },
+  });
 
   return (
     <>
@@ -583,11 +604,34 @@ function NoticeDetailView({
       </header>
 
       <div className="qna-inbox__thread-body" style={{ padding: "var(--space-5, 20px)" }}>
-        <div
-          className="whitespace-pre-wrap text-[var(--color-text-primary)]"
-          style={{ fontSize: "var(--text-sm)", lineHeight: 1.65 }}
-        >
-          {post.content || "(내용 없음)"}
+        <div style={{ marginBottom: "var(--space-4)" }}>
+          <div
+            className="text-xs font-semibold text-[var(--color-text-secondary)] mb-2"
+            style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}
+          >
+            내용
+          </div>
+          <textarea
+            className="ds-input w-full whitespace-pre-wrap"
+            value={editingContent}
+            onChange={(e) => setEditingContent(e.target.value)}
+            placeholder="공지 내용을 입력하세요."
+            rows={12}
+            style={{ resize: "vertical", minHeight: 160, fontSize: "var(--text-sm)", lineHeight: 1.65 }}
+          />
+          <div className="flex items-center gap-2 mt-2">
+            <Button
+              intent="primary"
+              size="sm"
+              onClick={() => updateContentMut.mutate(editingContent)}
+              disabled={updateContentMut.isPending || editingContent === (post.content ?? "")}
+            >
+              {updateContentMut.isPending ? "저장 중…" : "내용 저장"}
+            </Button>
+            {contentSaved && (
+              <span className="text-sm text-[var(--color-text-muted)]">저장되었습니다.</span>
+            )}
+          </div>
         </div>
 
         <div style={{ marginTop: "var(--space-6)" }}>
