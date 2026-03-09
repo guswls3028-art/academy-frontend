@@ -210,4 +210,7 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
         <div className="text-sm text-muted whitespace-pre-wrap">
           {exam.description}
         </div>
-   
+      )}
+    </div>
+  );
+}

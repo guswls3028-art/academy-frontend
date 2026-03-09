@@ -1,0 +1,22 @@
+/* 시험 헤더 — 템플릿 저장됨 드롭다운 */
+
+.exam-header-template-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.exam-header-template-dropdown-item:hover {
+  background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-bg-surface));
+}
+.exam-header-template-dropdown-item--danger:hover {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface));
+}
