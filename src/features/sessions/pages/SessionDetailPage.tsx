@@ -39,8 +39,10 @@ import SessionAssessmentWorkspace from "@/features/sessions/components/SessionAs
 import SessionExamOpsBoard from "@/features/sessions/components/SessionExamOpsBoard";
 import SessionHomeworkOpsBoard from "@/features/sessions/components/SessionHomeworkOpsBoard";
 import AdminExamDetail from "@/features/exams/components/AdminExamDetail";
+import SessionOverviewRoute from "@/features/sessions/routes/SessionOverviewRoute";
 
 type SessionTab =
+  | "overview"
   | "attendance"
   | "scores"
   | "exams"
@@ -78,16 +80,22 @@ export default function SessionDetailPage() {
 
   /* --------------------------------------------------
    * 탭 상태: 레이아웃 탭이 path로 이동하므로 pathname 기준으로 결정
+   * index(차시 진입) → 개요 표시
    * -------------------------------------------------- */
   const activeTab = useMemo((): SessionTab => {
     const p = location.pathname;
+    const basePath = `/admin/lectures/${lecId}/sessions/${sId}`;
+    const isIndex = p === basePath || p === basePath + "/";
+    if (isIndex) return "overview";
     if (p.includes("/scores")) return "scores";
     if (p.includes("/exams")) return "exams";
     if (p.includes("/assignments")) return "assignments";
     if (p.includes("/videos")) return "videos";
     if (p.includes("/materials")) return "materials";
+    if (p.includes("/overview")) return "overview";
+    if (p.includes("/attendance")) return "attendance";
     return "attendance";
-  }, [location.pathname]);
+  }, [location.pathname, lecId, sId]);
 
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -166,6 +174,8 @@ export default function SessionDetailPage() {
 
   return (
     <>
+      {activeTab === "overview" && <SessionOverviewRoute />}
+
       {/* 차시블럭: 출결탭에서만 노출 */}
       {activeTab === "attendance" && (
         <SessionBlock lectureId={lecId} currentSessionId={sId} />
