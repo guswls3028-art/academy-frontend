@@ -1,12 +1,12 @@
 /**
- * 답안 등록 모달 — 객관식/주관식 문항 수·배점 입력 후, 선택형/서술형 섹션으로 정답 입력.
- * 예시 이미지와 동일: 선택형(1~5 번호), 서술형(해설참조), 총점 표시·저장.
+ * 답안 등록 모달 — 2번 예시 레이아웃: 탭(답안 등록 | 이미지 등록), 툴바, 2단(문항 영역 | 요약/액션), 선택형·서술형 행(+ 예외, 점수), 하단 액션바.
+ * 디자인 시스템: ds-tabs, ds-button, ds-input, modal-tabs-area, modal-footer.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Button, Tabs } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchQuestionsByExam, type ExamQuestion } from "../api/questionApi";
 import { initExamQuestions } from "../api/questionInitApi";
@@ -34,6 +34,16 @@ function normalizeAnswers(input: Record<string, string>) {
   return out;
 }
 
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
 export default function AnswerKeyRegisterModal({
   open,
   onClose,
@@ -41,6 +51,8 @@ export default function AnswerKeyRegisterModal({
   structureOwnerId,
 }: Props) {
   const qc = useQueryClient();
+  const [activeTab, setActiveTab] = useState<"answer" | "image">("answer");
+
   const { data: questions = [] } = useQuery({
     queryKey: ["exam-questions", examId],
     queryFn: () => fetchQuestionsByExam(examId).then((r) => r.data),
@@ -143,160 +155,223 @@ export default function AnswerKeyRegisterModal({
       <ModalHeader
         type="action"
         title="답안 등록"
-        description={
-          hasQuestions
-            ? "선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
-            : "객관식·주관식 문항 수와 배점을 입력한 뒤 문항 반영을 누르세요."
-        }
+        description="선택형·서술형 문항별 정답을 입력하고 저장합니다. 채점 시 사용됩니다."
       />
+
+      <div className="modal-tabs-area">
+        <Tabs
+          value={activeTab}
+          items={[
+            { key: "answer", label: "답안 등록" },
+            { key: "image", label: "이미지 등록", disabled: true },
+          ]}
+          onChange={(key) => setActiveTab(key as "answer" | "image")}
+        />
+        <div className="answer-key-toolbar">
+          <div className="ds-action-bar" data-align="left">
+            <Button type="button" intent="ghost" size="sm">
+              ① 연속된 번호
+            </Button>
+            <Button type="button" intent="ghost" size="sm">
+              분리된 번호
+            </Button>
+            <Button type="button" intent="ghost" size="sm">
+              답안만
+            </Button>
+            <Button type="button" intent="ghost" size="sm">
+              유형도 입력
+            </Button>
+          </div>
+          <Button type="button" intent="ghost" size="sm" iconOnly aria-label="다운로드">
+            <DownloadIcon />
+          </Button>
+        </div>
+      </div>
+
       <ModalBody>
-        <div className="modal-scroll-body modal-scroll-body--compact space-y-6">
-          {/* 문항 수·배점 입력 (항상 표시) */}
-          <div className="space-y-3">
-            <div className="text-sm font-semibold text-[var(--text-primary)]">문항 구성</div>
-            <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
-              <div className="flex flex-wrap items-end gap-4">
-                <label className="grid gap-1">
-                  <span className="text-xs text-[var(--text-muted)]">객관식(선택형) 문항 수</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={choiceCount}
-                    onChange={(e) =>
-                      setChoiceCount(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    placeholder="예: 19"
-                    className="h-9 w-[120px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 text-sm"
-                  />
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs text-[var(--text-muted)]">객관식 기본 점수</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={choiceScore}
-                    onChange={(e) =>
-                      setChoiceScore(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    className="h-9 w-[100px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 text-sm"
-                  />
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs text-[var(--text-muted)]">주관식(서술형) 문항 수</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={essayCount}
-                    onChange={(e) =>
-                      setEssayCount(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    placeholder="예: 1"
-                    className="h-9 w-[120px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 text-sm"
-                  />
-                </label>
-                <label className="grid gap-1">
-                  <span className="text-xs text-[var(--text-muted)]">주관식 기본 점수</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={essayScore}
-                    onChange={(e) =>
-                      setEssayScore(e.target.value === "" ? "" : Number(e.target.value))
-                    }
-                    className="h-9 w-[100px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 text-sm"
-                  />
-                </label>
-                <Button
-                  type="button"
-                  intent="secondary"
-                  size="sm"
-                  onClick={() => initMut.mutate()}
-                  disabled={initMut.isPending}
-                  loading={initMut.isPending}
-                >
-                  문항 반영
+        <div className="modal-scroll-body modal-scroll-body--compact answer-key-panel">
+          <div className="answer-key-layout">
+            <div className="answer-key-main">
+              {/* 문항 구성 */}
+              <div className="answer-key-section">
+                <div className="ds-section__title">문항 구성</div>
+                <div className="answer-key-structure">
+                  <div className="answer-key-structure__row">
+                    <label className="answer-key-field">
+                      <span className="answer-key-field__label">객관식(선택형) 문항 수</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={choiceCount}
+                        onChange={(e) =>
+                          setChoiceCount(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        placeholder="예: 19"
+                        className="ds-input"
+                        style={{ width: 120 }}
+                      />
+                    </label>
+                    <label className="answer-key-field">
+                      <span className="answer-key-field__label">객관식 기본 점수</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={choiceScore}
+                        onChange={(e) =>
+                          setChoiceScore(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        className="ds-input"
+                        style={{ width: 80 }}
+                      />
+                    </label>
+                    <label className="answer-key-field">
+                      <span className="answer-key-field__label">주관식(서술형) 문항 수</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={essayCount}
+                        onChange={(e) =>
+                          setEssayCount(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        placeholder="예: 1"
+                        className="ds-input"
+                        style={{ width: 120 }}
+                      />
+                    </label>
+                    <label className="answer-key-field">
+                      <span className="answer-key-field__label">주관식 기본 점수</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={essayScore}
+                        onChange={(e) =>
+                          setEssayScore(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        className="ds-input"
+                        style={{ width: 80 }}
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      intent="secondary"
+                      size="sm"
+                      onClick={() => initMut.mutate()}
+                      disabled={initMut.isPending}
+                      loading={initMut.isPending}
+                    >
+                      문항 반영
+                    </Button>
+                  </div>
+                  {hasQuestions && (
+                    <p className="answer-key-structure__summary">
+                      현재 문항 <strong>{questions.length}</strong>개 (선택형 {effectiveChoiceCount}
+                      문항, 서술형 {effectiveEssayCount}문항)
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {!hasQuestions && (
+                <div className="answer-key-empty">
+                  위에서 객관식·주관식 문항 수와 배점을 입력한 뒤 &quot;문항 반영&quot;을 누르면
+                  아래에 선택형·서술형 답안 입력란이 나타납니다.
+                </div>
+              )}
+
+              {hasQuestions && (
+                <>
+                  {choiceQuestions.length > 0 && (
+                    <div className="answer-key-section">
+                      <h3 className="answer-key-section__title">
+                        선택형 ({choiceTotalScore}점) — {choiceQuestions.length}문항
+                      </h3>
+                      <ul className="answer-key-list">
+                        {choiceQuestions.map((q) => (
+                          <ChoiceRow
+                            key={q.id}
+                            question={q}
+                            draft={draft[String(q.id)] ?? ""}
+                            onChange={(value) =>
+                              setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
+                            }
+                          />
+                        ))}
+                      </ul>
+                      <div className="answer-key-upload-links">
+                        <button type="button" className="answer-key-link">
+                          엑셀로 답안 업로드
+                        </button>
+                        <Button type="button" intent="ghost" size="sm">
+                          양식
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {essayQuestions.length > 0 && (
+                    <div className="answer-key-section">
+                      <h3 className="answer-key-section__title">
+                        서술형 ({essayTotalScore}점) — {essayQuestions.length}문항
+                      </h3>
+                      <ul className="answer-key-list">
+                        {essayQuestions.map((q) => (
+                          <EssayRow
+                            key={q.id}
+                            question={q}
+                            draft={draft[String(q.id)] ?? ""}
+                            onChange={(value) =>
+                              setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
+                            }
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <aside className="answer-key-sidebar">
+              <Button type="button" intent="secondary" size="sm" className="answer-key-sidebar__btn">
+                다른 차시에서 가져오기
+              </Button>
+              <div className="answer-key-drag-zone">+ 끌어서 업로드</div>
+              {hasQuestions && (
+                <>
+                  <p className="answer-key-sidebar__summary">
+                    선택형 {effectiveChoiceCount}문항, 서술형 {effectiveEssayCount}문항 등록됨
+                  </p>
+                  <p className="answer-key-sidebar__total">{Math.round(totalScore)} 점</p>
+                </>
+              )}
+              <div className="answer-key-sidebar__actions">
+                <Button type="button" intent="ghost" size="sm">
+                  설정
+                </Button>
+                <Button type="button" intent="ghost" size="sm">
+                  재채점 진행
+                </Button>
+                <Button type="button" intent="ghost" size="sm">
+                  일괄 삭제
                 </Button>
               </div>
-              {hasQuestions && (
-                <p className="mt-2 text-xs text-[var(--text-muted)]">
-                  현재 문항 <strong>{questions.length}</strong>개 (선택형 {effectiveChoiceCount}
-                  문항, 서술형 {effectiveEssayCount}문항)
-                </p>
-              )}
-            </div>
+            </aside>
           </div>
-
-          {!hasQuestions && (
-            <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)] px-4 py-6 text-center text-sm text-[var(--text-muted)]">
-              위에서 객관식·주관식 문항 수와 배점을 입력한 뒤 &quot;문항 반영&quot;을 누르면
-              아래에 선택형·서술형 답안 입력란이 나타납니다.
-            </div>
-          )}
-
-          {hasQuestions && (
-            <>
-              {/* 선택형 (객관식) */}
-              {choiceQuestions.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                    선택형 (객관식) — {choiceTotalScore}점 · {choiceQuestions.length}문항
-                  </h3>
-                  <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
-                    <ul className="divide-y divide-[var(--border-divider)]">
-                      {choiceQuestions.map((q) => (
-                        <ChoiceRow
-                          key={q.id}
-                          question={q}
-                          draft={draft[String(q.id)] ?? ""}
-                          onChange={(value) =>
-                            setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
-                          }
-                        />
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* 서술형 (주관식) */}
-              {essayQuestions.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                    서술형 (주관식) — {essayTotalScore}점 · {essayQuestions.length}문항
-                  </h3>
-                  <div className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
-                    <ul className="divide-y divide-[var(--border-divider)]">
-                      {essayQuestions.map((q) => (
-                        <EssayRow
-                          key={q.id}
-                          question={q}
-                          draft={draft[String(q.id)] ?? ""}
-                          onChange={(value) =>
-                            setDraft((prev) => ({ ...prev, [String(q.id)]: value }))
-                          }
-                        />
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              <p className="text-xs text-[var(--text-muted)]">
-                선택형 {effectiveChoiceCount}문항, 서술형 {effectiveEssayCount}문항 등록됨
-              </p>
-            </>
-          )}
         </div>
       </ModalBody>
+
       <ModalFooter
+        left={
+          <span className="answer-key-footer-hint">기본점수 0 점</span>
+        }
         right={
           <>
             <Button intent="secondary" onClick={onClose}>
-              {hasQuestions ? "취소" : "닫기"}
+              취소
             </Button>
             {hasQuestions && (
               <Button
@@ -325,28 +400,27 @@ function ChoiceRow({
   onChange: (value: string) => void;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
-      <div className="w-8 text-right font-semibold text-[var(--text-primary)]">
-        {question.number}
-      </div>
-      <div className="flex items-center gap-2">
+    <li className="answer-key-row answer-key-row--choice">
+      <div className="answer-key-row__num">{question.number}</div>
+      <div className="answer-key-row__radios">
         {CHOICES.map((c) => (
-          <label key={c} className="flex cursor-pointer items-center gap-1.5">
+          <label key={c} className="answer-key-radio">
             <input
               type="radio"
               name={`q-${question.id}`}
               value={c}
               checked={draft === c}
               onChange={() => onChange(c)}
-              className="h-4 w-4 accent-[var(--color-brand-primary)]"
+              className="answer-key-radio__input"
             />
-            <span className="text-[var(--text-primary)]">{c}</span>
+            <span className="answer-key-radio__label">{c}</span>
           </label>
         ))}
       </div>
-      <div className="ml-auto w-12 text-right text-xs text-[var(--text-muted)]">
-        {question.score}점
-      </div>
+      <div className="answer-key-row__score">{question.score} 점</div>
+      <Button type="button" intent="ghost" size="sm" className="answer-key-row__exception">
+        + 예외
+      </Button>
     </li>
   );
 }
@@ -361,22 +435,18 @@ function EssayRow({
   onChange: (value: string) => void;
 }) {
   return (
-    <li className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
-      <div className="w-8 text-right font-semibold text-[var(--text-primary)]">
-        {question.number}
-      </div>
-      <div className="flex-1">
+    <li className="answer-key-row answer-key-row--essay">
+      <div className="answer-key-row__num">{question.number}</div>
+      <div className="answer-key-row__input-wrap">
         <input
           type="text"
           value={draft}
           onChange={(e) => onChange(e.target.value)}
           placeholder="해설참조"
-          className="w-full max-w-[200px] rounded border border-[var(--border-divider)] bg-[var(--bg-app)] px-3 py-2 text-sm placeholder:text-[var(--text-muted)]"
+          className="ds-input answer-key-row__input"
         />
       </div>
-      <div className="w-12 text-right text-xs text-[var(--text-muted)]">
-        {question.score}점
-      </div>
+      <div className="answer-key-row__score">{question.score} 점</div>
     </li>
   );
 }

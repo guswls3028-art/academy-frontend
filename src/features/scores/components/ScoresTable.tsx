@@ -206,8 +206,14 @@ export default function ScoresTable({
         const el = homeworkInputRefs.current[key];
         if (!el || el === document.activeElement) return;
         const entry = row.homeworks?.find((h) => h.homework_id === hw.homework_id);
-        const score = entry?.block?.score;
-        el.innerText = score != null ? String(score) : "";
+        const block = entry?.block;
+        const metaStatus = block?.meta?.status;
+        const score = block?.score;
+        if (metaStatus === "NOT_SUBMITTED") {
+          el.innerText = "미제출";
+        } else {
+          el.innerText = score != null ? String(score) : "";
+        }
       });
     });
   }, [rows, homeworkOptions]);
@@ -877,12 +883,13 @@ export default function ScoresTable({
                     selectedCell.type === "homework" &&
                     selectedCell.homeworkId === hw.homework_id;
                   const canEditScore = isEditMode && homeworkEdit;
+                  const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
 
                   return (
                     <Fragment key={hw.homework_id}>
                       <td
-                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                        style={rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
+                        className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""} ${isNotSubmitted ? "bg-[var(--color-bg-surface-soft)]" : ""}`}
+                        style={rowChecked ? undefined : { backgroundColor: isNotSubmitted ? "var(--color-bg-surface-soft)" : isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
@@ -894,16 +901,19 @@ export default function ScoresTable({
                               ref={(el) => {
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 homeworkInputRefs.current[key] = el;
-                                if (el && el !== document.activeElement) el.innerText = block?.score != null ? String(block.score) : "";
+                                if (el && el !== document.activeElement) {
+                                  if (isNotSubmitted) el.innerText = "미제출";
+                                  else el.innerText = block?.score != null ? String(block.score) : "";
+                                }
                               }}
                               contentEditable
                               suppressContentEditableWarning
-                              className="ds-scores-cell-editable font-medium text-right tabular-nums text-sm text-[var(--color-text-primary)] outline-none inline-block w-full min-w-0"
+                              className={`ds-scores-cell-editable font-medium text-right tabular-nums text-sm outline-none inline-block w-full min-w-0 ${isNotSubmitted ? "text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"}`}
                               style={{ listStyle: "none" }}
                               onFocus={(e) => {
                                 const el = e.currentTarget;
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
-                                scoreValueOnFocusRef.current[key] = block?.score != null ? String(block.score) : "";
+                                scoreValueOnFocusRef.current[key] = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                 requestAnimationFrame(() => selectAllScoreCell(el));
                               }}
                               onMouseDown={(e) => {
@@ -917,6 +927,17 @@ export default function ScoresTable({
                                 const el = homeworkInputRefs.current[key];
                                 if (!el) return;
                                 const raw = el.innerText.trim();
+                                if (raw === "미제출") {
+                                  await patchHomeworkQuick({
+                                    sessionId,
+                                    enrollmentId: row.enrollment_id,
+                                    homeworkId: hw.homework_id,
+                                    score: null,
+                                    metaStatus: "NOT_SUBMITTED",
+                                  });
+                                  qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                  return;
+                                }
                                 if (raw === "") {
                                   await patchHomeworkQuick({
                                     sessionId,
@@ -930,7 +951,7 @@ export default function ScoresTable({
                                 const parsed = parseScoreInput(raw, block?.max_score ?? null);
                                 if (parsed != null) {
                                   if (!validateScore(parsed, block?.max_score)) {
-                                    el.innerText = block?.score != null ? String(block.score) : "";
+                                    el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                     return;
                                   }
                                   await patchHomeworkQuick({
@@ -941,7 +962,7 @@ export default function ScoresTable({
                                   });
                                   qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
                                 } else {
-                                  el.innerText = block?.score != null ? String(block.score) : "";
+                                  el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                 }
                               }}
                               onKeyDown={async (e) => {
