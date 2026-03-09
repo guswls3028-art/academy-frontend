@@ -22,6 +22,8 @@ export type HomeworkSummary = {
   title: string;
   status: "DRAFT" | "OPEN" | "CLOSED";
   session_id?: number;
+  homework_type?: "template" | "regular";
+  template_homework_id?: number | null;
 };
 
 export type HomeworkPolicy = {
