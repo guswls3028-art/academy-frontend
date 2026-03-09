@@ -10,7 +10,7 @@ import TenantRequiredPage from "@/features/auth/pages/TenantRequiredPage";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 
-const AdminRouter = lazy(() => import("./AdminRouter"));
+const AdminRouter = lazy(() => import("@/app/router/AdminRouter"));
 const DevAppRouter = lazy(() => import("@/dev_app/router/DevAppRouter"));
 
 function RootRedirect() {
