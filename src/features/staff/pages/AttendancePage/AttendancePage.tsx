@@ -14,7 +14,6 @@ import { useWorkMonth } from "../../operations/context/WorkMonthContext";
 import { useStaffs } from "../../hooks/useStaffs";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStaffSummaryByRange } from "../../api/staff.detail.api";
-import { EmptyState } from "@/shared/ui/ds";
 import { Button } from "@/shared/ui/ds";
 import "../../styles/staff-area.css";
 
@@ -73,6 +72,7 @@ function RightPanelContent() {
       {/* Header: month selector + summary chips */}
       <div className="staff-panel__header flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
+          {staff && <span className="staff-page-title text-base mr-2">{staff.name}</span>}
           <div className="flex items-center gap-1">
             <Button
               intent="ghost"

@@ -77,7 +77,7 @@ export default function HomePage() {
   }, [staffs, q]);
 
   const selectionBar = (
-    <div className="flex flex-wrap items-center gap-2 pl-1">
+    <div className="staff-toolbar">
       <span
         className="text-[13px] font-semibold"
         style={{
@@ -86,71 +86,73 @@ export default function HomePage() {
       >
         {selectedIds.length}명 선택됨
       </span>
-      <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
-        선택 해제
-      </Button>
-      <span className="text-[var(--color-border-divider)]">|</span>
-      <Button
-        intent="secondary"
-        size="sm"
-        onClick={() => {
-          if (selectedStaffIds.length === 0) {
-            feedback.info("직원을 선택한 뒤 메시지 발송을 눌러 주세요.");
-            return;
-          }
-          openSendMessageModal({
-            staffIds: selectedStaffIds,
-            recipientLabel: `선택한 직원 ${selectedStaffIds.length}명`,
-          });
-        }}
-      >
-        메시지 발송
-      </Button>
-      <Button
-        intent="secondary"
-        size="sm"
-        disabled={exportingExcel}
-        onClick={async () => {
-          setExportingExcel(true);
-          try {
-            if (selectedStaffIds.length > 0) {
-              const selectedRows = rows.filter((r) => selectedIds.includes(r.id));
-              downloadStaffExcel(selectedRows, `직원목록_${selectedRows.length}명.xlsx`);
-              feedback.success("엑셀 다운로드가 완료되었습니다.");
-            } else {
-              const now = new Date();
-              await exportPayrollSnapshotExcel({
-                year: now.getFullYear(),
-                month: now.getMonth() + 1,
-              });
-              feedback.success("급여 스냅샷 엑셀 다운로드가 시작되었습니다.");
+      <span className="staff-toolbar__divider" />
+      <div className="staff-toolbar__group">
+        <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+          선택 해제
+        </Button>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => {
+            if (selectedStaffIds.length === 0) {
+              feedback.info("직원을 선택한 뒤 메시지 발송을 눌러 주세요.");
+              return;
             }
-          } catch (e) {
-            feedback.error(e instanceof Error ? e.message : "엑셀 다운로드에 실패했습니다.");
-          } finally {
-            setExportingExcel(false);
-          }
-        }}
-      >
-        {exportingExcel ? "다운로드 중…" : "엑셀 다운로드"}
-      </Button>
-      <Button
-        intent="secondary"
-        size="sm"
-        onClick={() => {
-          if (selectedStaffIds.length === 0) {
-            feedback.info("직원을 선택한 뒤 시급 태그 추가를 눌러 주세요.");
-            return;
-          }
-          setOpenAddWorkTypeBulk(true);
-        }}
-      >
-        시급 태그 추가
-      </Button>
-      <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
-        비밀번호 변경
-      </Button>
+            openSendMessageModal({
+              staffIds: selectedStaffIds,
+              recipientLabel: `선택한 직원 ${selectedStaffIds.length}명`,
+            });
+          }}
+        >
+          메시지 발송
+        </Button>
+        <Button
+          intent="secondary"
+          size="sm"
+          disabled={exportingExcel}
+          onClick={async () => {
+            setExportingExcel(true);
+            try {
+              if (selectedStaffIds.length > 0) {
+                const selectedRows = rows.filter((r) => selectedIds.includes(r.id));
+                downloadStaffExcel(selectedRows, `직원목록_${selectedRows.length}명.xlsx`);
+                feedback.success("엑셀 다운로드가 완료되었습니다.");
+              } else {
+                const now = new Date();
+                await exportPayrollSnapshotExcel({
+                  year: now.getFullYear(),
+                  month: now.getMonth() + 1,
+                });
+                feedback.success("급여 스냅샷 엑셀 다운로드가 시작되었습니다.");
+              }
+            } catch (e) {
+              feedback.error(e instanceof Error ? e.message : "엑셀 다운로드에 실패했습니다.");
+            } finally {
+              setExportingExcel(false);
+            }
+          }}
+        >
+          {exportingExcel ? "다운로드 중…" : "엑셀 다운로드"}
+        </Button>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => {
+            if (selectedStaffIds.length === 0) {
+              feedback.info("직원을 선택한 뒤 시급 태그 추가를 눌러 주세요.");
+              return;
+            }
+            setOpenAddWorkTypeBulk(true);
+          }}
+        >
+          시급 태그 추가
+        </Button>
+        <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
+          비밀번호 변경
+        </Button>
+      </div>
+      <span className="staff-toolbar__divider" />
       <Button
         intent="danger"
         size="sm"
