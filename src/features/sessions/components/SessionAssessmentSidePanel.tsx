@@ -1,6 +1,6 @@
 // PATH: src/features/sessions/components/SessionAssessmentSidePanel.tsx
-import { useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
@@ -44,6 +44,7 @@ export default function SessionAssessmentSidePanel({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [openCreateExamLocal, setOpenCreateExamLocal] = useState(false);
   const openCreateExam = openCreateExamProp ?? openCreateExamLocal;
   const setOpenCreateExam = onOpenCreateExam ?? (() => setOpenCreateExamLocal(true));
@@ -102,6 +103,29 @@ export default function SessionAssessmentSidePanel({
   });
 
   const base = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+
+  // 시험 탭 진입 시 선택 없으면 최상단 시험 자동 선택 / 과제 탭 진입 시 최상단 과제 자동 선택
+  useEffect(() => {
+    if (!sessionId || !lectureId) return;
+    const path = location.pathname;
+    const basePath = `/admin/lectures/${lectureId}/sessions/${sessionId}`;
+    if (path.startsWith(`${basePath}/exams`)) {
+      if (examId == null && exams.length > 0) {
+        const firstId = Number((exams[0] as SessionExamRow).exam_id);
+        if (Number.isFinite(firstId)) {
+          navigate({ pathname: `${basePath}/exams`, search: `?examId=${firstId}` }, { replace: true });
+        }
+      }
+    } else if (path.startsWith(`${basePath}/assignments`)) {
+      if (homeworkId == null && homeworks.length > 0) {
+        const firstId = homeworks[0].id;
+        if (Number.isFinite(firstId)) {
+          navigate({ pathname: `${basePath}/assignments`, search: `?homeworkId=${firstId}` }, { replace: true });
+        }
+      }
+    }
+  }, [location.pathname, sessionId, lectureId, examId, homeworkId, exams, homeworks, navigate]);
+
   const invalidateExams = () => qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
   const invalidateSessionScores = () => qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
   const invalidateHomeworks = () => qc.invalidateQueries({ queryKey: ["session-homeworks", sessionId] });
