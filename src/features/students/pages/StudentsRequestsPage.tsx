@@ -93,7 +93,7 @@ function RequestDetailModal({
   ];
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={480}>
+    <AdminModal open={open} onClose={onClose} type="action" width={480} onEnterConfirm={!approving && !rejecting ? onApprove : undefined}>
       <ModalHeader
         type="action"
         title="가입 신청 상세"

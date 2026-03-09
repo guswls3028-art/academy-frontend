@@ -51,13 +51,6 @@ export default function ChangePasswordModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
   const submit = async () => {
     setMsg("");
     if (!oldPw || !newPw) {
@@ -83,7 +76,7 @@ export default function ChangePasswordModal({
   if (!open) return null;
 
   return (
-    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.sm}>
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.sm} onEnterConfirm={!mut.isPending ? submit : undefined}>
       <ModalHeader
         title="비밀번호 변경"
         description="현재 비밀번호를 입력한 뒤 새 비밀번호로 변경해 주세요."

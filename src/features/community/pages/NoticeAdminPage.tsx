@@ -399,7 +399,7 @@ export default function NoticeAdminPage() {
               <p className="qna-inbox__empty-desc">
                 {searchQuery.trim()
                   ? "다른 검색어를 입력해 보세요."
-                  : "공지 작성 버튼으로 등록하거나, 좌측에서 다른 범위를 선택해 보세요."}
+                  : "위 '공지 추가하기' 버튼을 누르면 이 범위에 공지를 등록할 수 있습니다. 목록 로딩을 기다리지 않아도 됩니다."}
               </p>
             </div>
           ) : (

@@ -516,6 +516,7 @@ export default function VideoExplorerPage() {
             setNewFolderName("");
           }}
           width={MODAL_WIDTH.smallModal}
+          onEnterConfirm={newFolderName.trim() ? handleCreateFolder : undefined}
         >
           <ModalHeader title="새 폴더" onClose={() => {
             setNewFolderOpen(false);

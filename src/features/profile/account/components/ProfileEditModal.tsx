@@ -66,7 +66,7 @@ export default function ProfileEditModal({
   if (!open) return null;
 
   return (
-    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.md}>
+    <AdminModal open={open} onClose={onClose} width={MODAL_WIDTH.md} onEnterConfirm={!saving ? handleSave : undefined}>
       <ModalHeader
         title="내 정보 수정"
         description="이름, 전화번호, 비밀번호를 수정할 수 있습니다."

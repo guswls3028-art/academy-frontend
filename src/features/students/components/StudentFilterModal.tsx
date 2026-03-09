@@ -49,14 +49,6 @@ export default function StudentFilterModal({
     setLocal(filters || {});
   }, [open, filters]);
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (open) window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
-
   function update(key: string, value: any) {
     setLocal((prev: any) => ({ ...prev, [key]: value }));
   }
@@ -71,7 +63,7 @@ export default function StudentFilterModal({
   }
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md}>
+    <AdminModal open={open} onClose={onClose} type="action" width={MODAL_WIDTH.md} onEnterConfirm={apply}>
       <ModalHeader
         type="action"
         title={title}

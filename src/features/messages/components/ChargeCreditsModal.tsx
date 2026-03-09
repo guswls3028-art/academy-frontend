@@ -29,7 +29,7 @@ export default function ChargeCreditsModal({ open, onClose }: Props) {
   };
 
   return (
-    <AdminModal open={open} onClose={onClose} width={400}>
+    <AdminModal open={open} onClose={onClose} width={400} onEnterConfirm={!isPending ? handleSubmit : undefined}>
       <ModalHeader title="알림톡 크레딧 충전" />
       <ModalBody>
         <p className="text-sm text-[var(--color-text-muted)] mb-3">

@@ -62,7 +62,7 @@ export default function WorkTypeCreateModal({
   });
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action">
+    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={() => { if (!form.name.trim() || form.base_hourly_wage <= 0) { alert("필수 항목을 입력하세요."); return; } if (!createM.isPending) createM.mutate(); }}>
       <ModalHeader
         title="시급태그 생성"
         description="직원 시급태그로 사용할 유형을 추가합니다. 생성 후 테이블 시급태그 영역에서 직원별로 적용할 수 있습니다."

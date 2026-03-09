@@ -250,7 +250,7 @@ function PostTemplateFormModal({
   const pending = createMut.isPending || updateMut.isPending;
 
   return (
-    <AdminModal open onClose={onClose} type="action" width={560}>
+    <AdminModal open onClose={onClose} type="action" width={560} onEnterConfirm={!pending ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title={edit ? "양식 수정" : "양식 추가"}

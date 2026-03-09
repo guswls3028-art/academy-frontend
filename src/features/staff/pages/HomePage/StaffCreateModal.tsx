@@ -67,7 +67,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
   const invalidName = !String(form.name || "").trim();
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action">
+    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={!createM.isPending && !invalidUsername && !invalidPassword && !invalidName ? () => createM.mutate() : undefined}>
       <ModalHeader
         title="직원 등록"
         description="로그인 계정을 포함한 직원 정보를 등록합니다."
