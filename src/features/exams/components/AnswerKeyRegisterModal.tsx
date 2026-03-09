@@ -16,6 +16,7 @@ import {
   updateAnswerKey,
   type AnswerKey,
 } from "../api/answerKeyApi";
+import { patchQuestionScore } from "@/features/materials/api/sheetQuestions";
 import "./AnswerKeyRegisterModal.css";
 
 type Props = {
@@ -63,6 +64,8 @@ export default function AnswerKeyRegisterModal({
   const [essayScore, setEssayScore] = useState<number | "">(5);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saveBusy, setSaveBusy] = useState(false);
+  /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
+  const [scoreDraft, setScoreDraft] = useState<Record<number, number>>({});
   /** 이미지 등록 탭: 문항별 해설 — 해설 텍스트 또는 해설 이미지 URL(객체 URL) */
   const [explanationDraft, setExplanationDraft] = useState<
     Record<number, { text: string; imageUrl: string | null }>
@@ -84,17 +87,30 @@ export default function AnswerKeyRegisterModal({
   const choiceQuestions = sortedQuestions.slice(0, effectiveChoiceCount);
   const essayQuestions = sortedQuestions.slice(effectiveChoiceCount);
 
+  const getScore = (q: ExamQuestion) => scoreDraft[q.id] ?? q.score ?? 0;
   const totalScore = useMemo(
-    () => sortedQuestions.reduce((sum, q) => sum + (q.score ?? 0), 0),
-    [sortedQuestions]
+    () => sortedQuestions.reduce((sum, q) => sum + getScore(q), 0),
+    [sortedQuestions, scoreDraft]
   );
-  const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + (q.score ?? 0), 0);
-  const essayTotalScore = essayQuestions.reduce((sum, q) => sum + (q.score ?? 0), 0);
+  const choiceTotalScore = choiceQuestions.reduce((sum, q) => sum + getScore(q), 0);
+  const essayTotalScore = essayQuestions.reduce((sum, q) => sum + getScore(q), 0);
 
   useEffect(() => {
     if (!answerKey || !answerKey.answers) return;
     setDraft(normalizeAnswers(answerKey.answers));
   }, [answerKey?.id]);
+
+  /** 문항 목록 로드 시 점수 드래프트 동기화 */
+  useEffect(() => {
+    if (sortedQuestions.length === 0) return;
+    setScoreDraft((prev) => {
+      const next = { ...prev };
+      sortedQuestions.forEach((q) => {
+        if (next[q.id] === undefined) next[q.id] = q.score ?? 0;
+      });
+      return next;
+    });
+  }, [sortedQuestions.map((q) => q.id).join(","), sortedQuestions.length]);
 
   const initMut = useMutation({
     mutationFn: async () => {
@@ -114,6 +130,13 @@ export default function AnswerKeyRegisterModal({
     onSuccess: async (result) => {
       const list = result?.data ?? [];
       qc.setQueryData(["exam-questions", examId], list);
+      setScoreDraft((prev) => {
+        const next = { ...prev };
+        list.forEach((q: ExamQuestion) => {
+          next[q.id] = q.score ?? 0;
+        });
+        return next;
+      });
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
       feedback.success("문항이 반영되었습니다.");
     },
@@ -133,6 +156,13 @@ export default function AnswerKeyRegisterModal({
         await updateAnswerKey(answerKey.id, { answers: normalized });
       }
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
+      for (const q of sortedQuestions) {
+        const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
+        if (Number.isFinite(nextScore) && nextScore !== (q.score ?? 0)) {
+          await patchQuestionScore({ questionId: q.id, score: nextScore });
+        }
+      }
+      await qc.invalidateQueries({ queryKey: ["exam-questions", examId] });
       feedback.success("저장되었습니다.");
     } catch (e: any) {
       feedback.error(e?.response?.data?.detail ?? "저장 실패");
