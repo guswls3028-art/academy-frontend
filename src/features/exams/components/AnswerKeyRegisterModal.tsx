@@ -60,8 +60,10 @@ export default function AnswerKeyRegisterModal({
 
   const [choiceCount, setChoiceCount] = useState<number | "">("");
   const [choiceScore, setChoiceScore] = useState<number | "">(5);
+  const [choiceNoDefaultScore, setChoiceNoDefaultScore] = useState(false);
   const [essayCount, setEssayCount] = useState<number | "">("");
   const [essayScore, setEssayScore] = useState<number | "">(5);
+  const [essayNoDefaultScore, setEssayNoDefaultScore] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [saveBusy, setSaveBusy] = useState(false);
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
@@ -120,8 +122,8 @@ export default function AnswerKeyRegisterModal({
     mutationFn: async () => {
       const cc = Number(choiceCount) || 0;
       const ec = Number(essayCount) || 0;
-      const cs = Number(choiceScore) || 5;
-      const es = Number(essayScore) || 5;
+      const cs = choiceNoDefaultScore ? 0 : (Number(choiceScore) || 5);
+      const es = essayNoDefaultScore ? 0 : (Number(essayScore) || 5);
       if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
       return initExamQuestions({
         examId,

@@ -231,9 +231,8 @@
   white-space: nowrap;
 }
 
-/* 문항별 점수 조절: N점 + [+1][+2][+5][초기화] — 버블과 점수 사이 여백 축소 */
+/* 문항별 점수 조절: N점 + [+1][+2][+5][초기화] — 버블과 점수 사이 여백 최소화(오른쪽 여백 허용) */
 .answer-key-row__score-ctrl {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--space-1);
