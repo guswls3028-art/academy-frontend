@@ -226,6 +226,20 @@ export default function ScoresTable({
     });
   }, [rows, examOptions]);
 
+  useEffect(() => {
+    if (!rows.length) return;
+    examOptions.forEach((ex) => {
+      rows.forEach((row) => {
+        const key = `${row.enrollment_id}-${ex.exam_id}-subjective`;
+        const el = examSubjectiveInputRefs.current[key];
+        if (!el || el === document.activeElement) return;
+        const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
+        const subScore = entry?.block?.subjective_score;
+        el.innerText = subScore != null ? String(Math.round(subScore)) : "";
+      });
+    });
+  }, [rows, examOptions]);
+
   /** contenteditable 셀 포커스 시 전체 선택 — 엑셀처럼 입력하면 기존 값이 바로 대체되도록 */
   const selectAllScoreCell = useCallback((el: HTMLElement | null) => {
     if (!el) return;

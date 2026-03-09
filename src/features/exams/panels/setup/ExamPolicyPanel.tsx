@@ -66,11 +66,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
     }
   };
 
-  // 구조 단일진실: template이 있으면 template, 없으면 자기 자신(regular)
-  const structureOwnerId = exam.exam_type === "regular"
-    ? (exam.template_exam_id ?? exam.id)
-    : exam.id;
-
   return (
     <section className="rounded border border-[var(--border-divider)] bg-[var(--bg-surface)]">
       <div className="border-b border-[var(--border-divider)] px-4 py-3">
@@ -81,25 +76,6 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
       </div>
 
       <div className="space-y-6 p-4">
-        {exam.exam_type === "regular" && (
-          <div className="rounded border border-[var(--border-divider)] bg-[var(--color-bg-surface-soft)] px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-[var(--color-text-secondary)]">
-                시험을 템플릿으로 저장하면 다른 강의에서 같은 시험을 불러올 수 있습니다.
-              </div>
-              <Button
-                type="button"
-                intent="secondary"
-                size="sm"
-                onClick={() => saveAsTemplateMut.mutate()}
-                disabled={!!exam.template_exam_id || saveAsTemplateMut.isPending}
-              >
-                {saveAsTemplateMut.isPending ? "처리 중…" : exam.template_exam_id ? "이미 템플릿 있음" : "템플릿으로 저장"}
-              </Button>
-            </div>
-          </div>
-        )}
-
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <div className="mb-1 text-sm text-[var(--text-muted)]">커트라인</div>
@@ -161,7 +137,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
           open={answerModalOpen}
           onClose={() => setAnswerModalOpen(false)}
           examId={examId}
-          structureOwnerId={structureOwnerId}
+          structureOwnerId={exam.id}
         />
       </div>
     </section>
