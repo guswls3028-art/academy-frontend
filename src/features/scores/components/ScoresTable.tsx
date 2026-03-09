@@ -136,11 +136,11 @@ type Props = {
 
   selectedEnrollmentId: number | null;
   selectedCell?: ({ enrollmentId: number } & (
-    | { type: "exam"; examId: number; sub: "total" | "objective"; questionId?: undefined }
+    | { type: "exam"; examId: number; sub: "total" | "objective" | "subjective"; questionId?: undefined }
     | { type: "exam"; examId: number; sub: "item"; questionId: number }
     | { type: "homework"; homeworkId: number }
   )) | null;
-  onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective") => void;
+  onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
   focusCell?: ({ enrollmentId: number } & (

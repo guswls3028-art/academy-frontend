@@ -32,6 +32,7 @@ type ScoreCellRef =
   | { type: "exam"; examId: number; sub: "total" }
   | { type: "exam"; examId: number; sub: "objective" }
   | { type: "exam"; examId: number; sub: "item"; questionId: number }
+  | { type: "exam"; examId: number; sub: "subjective" }
   | { type: "homework"; homeworkId: number };
 
 type FocusScoreCell = {
@@ -99,7 +100,11 @@ export default function SessionScoresPanel({
         if (examEditObjective) list.push({ type: "exam", examId: e.exam_id, sub: "objective" });
         if (examEditSubjective) {
           const questions = (e as { questions?: { question_id: number }[] }).questions ?? [];
-          questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, sub: "item", questionId: q.question_id }));
+          if (questions.length > 0) {
+            questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, sub: "item", questionId: q.question_id }));
+          } else {
+            list.push({ type: "exam", examId: e.exam_id, sub: "subjective" });
+          }
         }
       });
       if (homeworkEdit) homeworkCols.forEach((h) => list.push({ type: "homework", homeworkId: h.homework_id }));
@@ -289,11 +294,12 @@ export default function SessionScoresPanel({
                 setSelectedEnrollmentId(row.enrollment_id);
                 const rIdx = rows.findIndex((r) => r.enrollment_id === row.enrollment_id);
                 if (type === "exam") {
-                  const sub = questionIdOrSub as "total" | "objective" | number | undefined;
+                  const sub = questionIdOrSub as "total" | "objective" | "subjective" | number | undefined;
                   const cIdx = editableCols.findIndex((c) => {
                     if (c.type !== "exam" || c.examId !== id) return false;
                     if (c.sub === "total") return sub === "total" || (sub == null && questionIdOrSub == null);
                     if (c.sub === "objective") return sub === "objective";
+                    if (c.sub === "subjective") return sub === "subjective";
                     if (c.sub === "item") return typeof sub === "number" && c.questionId === sub;
                     return false;
                   });

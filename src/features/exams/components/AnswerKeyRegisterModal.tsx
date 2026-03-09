@@ -97,7 +97,7 @@ export default function AnswerKeyRegisterModal({
       const es = Number(essayScore) || 5;
       if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
       return initExamQuestions({
-        examId: structureOwnerId,
+        examId,
         choice_count: cc,
         choice_score: cs,
         essay_count: ec,
@@ -107,7 +107,6 @@ export default function AnswerKeyRegisterModal({
     onSuccess: async (result) => {
       const list = result?.data ?? [];
       qc.setQueryData(["exam-questions", examId], list);
-      qc.setQueryData(["exam-questions", structureOwnerId], list);
       await qc.invalidateQueries({ queryKey: ["answer-key", examId] });
       feedback.success("문항이 반영되었습니다.");
     },
@@ -120,7 +119,7 @@ export default function AnswerKeyRegisterModal({
     setSaveBusy(true);
     try {
       const normalized = normalizeAnswers(draft);
-      const targetExamId = structureOwnerId ?? examId;
+      const targetExamId = examId;
       if (!answerKey) {
         await createAnswerKey({ exam: targetExamId, answers: normalized });
       } else {
