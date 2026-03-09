@@ -117,7 +117,7 @@ export default function TemplateEditModal({
       <ModalHeader title={title} />
       <ModalBody>
         <div className="template-editor flex gap-5" style={{ minHeight: 420 }}>
-          {/* 좌측: 미리보기 → 그 아래 블록 */}
+          {/* 좌측: 카테고리 + 미리보기만 (삽입 블록은 우측 본문 옆으로 이동) */}
           <div
             className="template-editor__left shrink-0 flex flex-col gap-4 p-4 overflow-hidden"
             style={{ width: 300 }}
@@ -175,27 +175,19 @@ export default function TemplateEditModal({
                 {activeTab === "message" ? "아이폰 메시지 예시" : "카카오톡 알림톡 예시"} (치환 변수는 샘플 값)
               </p>
             </section>
-
-            <section>
-              <div className="template-editor__blocks-title mb-2">삽입 블록</div>
-              <div className="flex flex-wrap gap-2">
-                {blocks.map((block) => (
-                  <button
-                    key={block.id}
-                    type="button"
-                    onClick={() => insertBlock(block.insertText)}
-                    disabled={locked}
-                    className="template-editor__block-btn px-2.5 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {block.label}
-                  </button>
-                ))}
-              </div>
-            </section>
           </div>
 
-          {/* 우측: 본문 영역 (이름, 탭, 제목, 본문) — 게시판 글쓰기처럼 큼 */}
+          {/* 우측: 메시지|알림톡 탭 상단 → 이름·제목 → 본문 2패널(입력 | 삽입 블록) */}
           <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-4 p-4">
+            {/* 메시지/알림톡 탭 — 상단 배치 */}
+            <div className="modal-tabs-elevated template-editor__tabs template-editor__tabs--top">
+              <Tabs
+                value={activeTab}
+                onChange={(k) => setActiveTab(k as EditorTab)}
+                items={editorTabItems}
+              />
+            </div>
+
             <div>
               <label className="template-editor__editor-title block mb-1">템플릿 이름</label>
               <Input
@@ -204,14 +196,6 @@ export default function TemplateEditModal({
                 onChange={(e) => setName(e.target.value)}
                 disabled={locked}
                 className="template-editor__textarea"
-              />
-            </div>
-
-            <div className="modal-tabs-elevated template-editor__tabs">
-              <Tabs
-                value={activeTab}
-                onChange={(k) => setActiveTab(k as EditorTab)}
-                items={editorTabItems}
               />
             </div>
 
@@ -235,20 +219,39 @@ export default function TemplateEditModal({
               )}
             </div>
 
-            <div className="flex-1 min-h-0 flex flex-col">
-              <label className="template-editor__editor-title block mb-1">
-                본문 (직접 입력 또는 왼쪽 블록 클릭하여 삽입)
-              </label>
-              <Input.TextArea
-                ref={bodyRef}
-                placeholder="내용을 입력하세요. 왼쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                rows={14}
-                disabled={locked}
-                className="template-editor__textarea w-full p-3"
-                style={{ resize: "vertical", fontFamily: "inherit", minHeight: 280 }}
-              />
+            {/* 본문 영역 — 2패널: 좌측 입력 | 우측 삽입 블록 */}
+            <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
+              <div className="template-editor__body-input flex-1 min-w-0 flex flex-col">
+                <label className="template-editor__editor-title block mb-1">
+                  본문 (직접 입력 또는 오른쪽 블록 클릭하여 삽입)
+                </label>
+                <Input.TextArea
+                  ref={bodyRef}
+                  placeholder="내용을 입력하세요. 오른쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={14}
+                  disabled={locked}
+                  className="template-editor__textarea w-full p-3"
+                  style={{ resize: "vertical", fontFamily: "inherit", minHeight: 280 }}
+                />
+              </div>
+              <div className="template-editor__body-blocks shrink-0 flex flex-col" style={{ width: 220 }}>
+                <div className="template-editor__blocks-title mb-2">삽입 블록</div>
+                <div className="template-editor__block-list flex flex-wrap gap-2 content-start overflow-auto p-1">
+                  {blocks.map((block, idx) => (
+                    <button
+                      key={block.id}
+                      type="button"
+                      onClick={() => insertBlock(block.insertText)}
+                      disabled={locked}
+                      className={`template-editor__block-tag template-editor__block-tag--${selectedCategory} template-editor__block-tag--n${idx % 3}`}
+                    >
+                      {block.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
