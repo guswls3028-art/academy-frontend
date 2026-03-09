@@ -129,6 +129,8 @@ export default function SubmitAssignmentPage() {
         >
           {uploadMut.isPending ? "업로드 중…" : "제출하기"}
         </button>
+        </>
+        )}
       </div>
     </StudentPageShell>
   );

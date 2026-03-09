@@ -13,10 +13,13 @@ import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../shared/ui/layout/EmptyState";
 import { useStudentExam } from "@/student/domains/exams/hooks/useStudentExams";
 import { useMyExamResult } from "@/student/domains/exams/hooks/useMyExamResult";
+import { useAuthContext } from "@/features/auth/context/AuthContext";
 
 export default function ExamDetailPage() {
   const { examId } = useParams();
   const safeId = Number(examId);
+  const { user } = useAuthContext();
+  const isParent = user?.tenantRole === "parent";
 
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
 
@@ -82,8 +85,10 @@ export default function ExamDetailPage() {
               결과 보기
             </Link>
 
-            {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시) */}
-            {canRetake === null ? (
+            {/* ✅ can_retake만 신뢰. null = 로딩 중(버튼 미표시). 학부모는 응시 불가 */}
+            {isParent ? (
+              <div className="stu-muted" style={{ fontSize: 13 }}>학부모는 시험에 응시할 수 없습니다.</div>
+            ) : canRetake === null ? (
               <div className="stu-muted" style={{ fontSize: 13 }}>확인 중…</div>
             ) : canRetake ? (
               <Link to={`/student/exams/${exam.id}/submit`} className="stu-cta-link">

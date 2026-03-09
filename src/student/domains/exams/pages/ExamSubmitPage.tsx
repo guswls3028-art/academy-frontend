@@ -12,11 +12,14 @@ import {
   fetchStudentExamQuestions,
   submitStudentExamAnswers,
 } from "@/student/domains/exams/api/exams";
+import { useAuthContext } from "@/features/auth/context/AuthContext";
 
 export default function ExamSubmitPage() {
   const { examId } = useParams();
   const safeId = Number(examId);
   const navigate = useNavigate();
+  const { user } = useAuthContext();
+  const isParent = user?.tenantRole === "parent";
 
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
   const questionsQ = useQuery({
@@ -90,6 +93,17 @@ export default function ExamSubmitPage() {
   }
 
   const exam = examQ.data;
+
+  if (isParent) {
+    return (
+      <StudentPageShell title={exam.title} description="학부모는 시험에 응시할 수 없습니다.">
+        <EmptyState
+          title="학부모는 시험에 응시할 수 없습니다."
+          description="자녀(학생) 계정으로 로그인한 뒤 응시해 주세요."
+        />
+      </StudentPageShell>
+    );
+  }
 
   return (
     <StudentPageShell

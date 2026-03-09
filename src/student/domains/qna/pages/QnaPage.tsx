@@ -41,6 +41,11 @@ export default function QnaPage() {
     queryFn: () => fetchMyQnaQuestions({ pageSize: 50 }),
   });
 
+  const { data: profile } = useQuery({
+    queryKey: ["student", "me"],
+    queryFn: fetchMyProfile,
+  });
+
   // 선생앱과 동일한 필터: 전체 / 답변 필요 / 해결됨
   const filtered = useMemo(() => {
     if (filter === "pending") return questions.filter((q) => isPendingAnswer(q));
@@ -95,7 +100,8 @@ export default function QnaPage() {
         description="내가 작성한 질문과 답변을 확인하세요."
       >
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-6)" }}>
-        {/* 선생앱과 동일: 질문하기 버튼 */}
+        {/* 선생앱과 동일: 질문하기 버튼 (학부모는 숨김) */}
+        {!profile?.isParentReadOnly && (
         <button
           type="button"
           className="stu-btn stu-btn--primary"
@@ -110,6 +116,7 @@ export default function QnaPage() {
           <IconPlus style={{ width: 18, height: 18 }} />
           질문하기
         </button>
+        )}
 
         {/* 선생앱 QnA와 동일한 필터 탭: 전체 질문 / 답변 필요 / 해결됨 */}
         <div
