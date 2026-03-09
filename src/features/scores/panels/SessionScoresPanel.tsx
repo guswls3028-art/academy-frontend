@@ -285,6 +285,7 @@ export default function SessionScoresPanel({
           onRequestMoveDown={onRequestMoveDown}
           onRequestMoveUp={onRequestMoveUp}
           onSelectCell={isEditMode
+            ? (row, type, id, questionIdOrSub) => {
                 setSelectedEnrollmentId(row.enrollment_id);
                 const rIdx = rows.findIndex((r) => r.enrollment_id === row.enrollment_id);
                 if (type === "exam") {

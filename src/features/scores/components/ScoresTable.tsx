@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
+import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
 import { patchExamItemScore } from "../api/patchItemScore";
 import { getHomeworkStatus } from "../utils/homeworkStatus";
 import ScoreInputCell from "./ScoreInputCell";
@@ -101,7 +102,7 @@ export type ScoreColumnDef =
       examId: number;
       questionId?: number;
       title: string;
-      sub: "score" | "pass";
+      sub: "total" | "objective" | "subjective" | "item" | "pass";
       key: string;
       width: number;
       editable: boolean;
@@ -124,21 +125,27 @@ type Props = {
   sessionId: number;
   attendanceMap?: Record<number, string>;
 
-  /** 편집 모드일 때만 점수 셀 입력 가능. 기본은 읽기 전용 */
+  /** 편집 모드일 때만 점수 셀 입력 가능 */
   isEditMode?: boolean;
-  /** 시험 점수 입력 모드: 합산(한 칸 총점) | 주관식(문항별) */
-  examScoreInputMode?: "total" | "item";
+  examEditTotal?: boolean;
+  examEditObjective?: boolean;
+  examEditSubjective?: boolean;
+  homeworkEdit?: boolean;
+  /** 읽기 모드 시험 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
+  scoreDisplayMode?: "total" | "breakdown";
 
   selectedEnrollmentId: number | null;
   selectedCell?: ({ enrollmentId: number } & (
-    | { type: "exam"; examId: number; questionId?: number }
+    | { type: "exam"; examId: number; sub: "total" | "objective"; questionId?: undefined }
+    | { type: "exam"; examId: number; sub: "item"; questionId: number }
     | { type: "homework"; homeworkId: number }
   )) | null;
-  onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionId?: number) => void;
+  onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective") => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
   focusCell?: ({ enrollmentId: number } & (
-    | { type: "exam"; examId: number; questionId?: number }
+    | { type: "exam"; examId: number; sub: "total" | "objective"; questionId?: undefined }
+    | { type: "exam"; examId: number; sub: "item"; questionId: number }
     | { type: "homework"; homeworkId: number }
   )) | null;
   onFocusDone?: () => void;
@@ -159,7 +166,11 @@ export default function ScoresTable({
   sessionId,
   attendanceMap = {},
   isEditMode = false,
-  examScoreInputMode = "total",
+  examEditTotal = false,
+  examEditObjective = false,
+  examEditSubjective = false,
+  homeworkEdit = false,
+  scoreDisplayMode = "total",
   selectedEnrollmentId,
   selectedCell = null,
   onSelectCell,
