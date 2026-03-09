@@ -30,7 +30,7 @@ export default function ExamResultPage() {
   if (resultQ.isLoading) {
     return (
       <StudentPageShell title="시험 결과" description="불러오는 중...">
-        <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>
+        <div className="stu-muted" style={{ fontSize: 14 }}>불러오는 중...</div>
       </StudentPageShell>
     );
   }
@@ -119,7 +119,7 @@ export default function ExamResultPage() {
                         fontWeight: 600,
                         padding: "2px 8px",
                         borderRadius: 999,
-                        background: it.is_correct ? "var(--stu-success-bg)" : "rgba(239,68,68,0.12)",
+                        background: it.is_correct ? "var(--stu-success-bg)" : "var(--stu-danger-bg)",
                         color: it.is_correct ? "var(--stu-success-text)" : "var(--stu-danger)",
                       }}
                     >

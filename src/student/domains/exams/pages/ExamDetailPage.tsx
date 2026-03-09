@@ -37,7 +37,7 @@ export default function ExamDetailPage() {
   if (examQ.isLoading) {
     return (
       <StudentPageShell title="시험" description="불러오는 중...">
-        <div style={{ fontSize: 14, color: "#666" }}>불러오는 중...</div>
+        <div className="stu-muted" style={{ fontSize: 14 }}>불러오는 중...</div>
       </StudentPageShell>
     );
   }
