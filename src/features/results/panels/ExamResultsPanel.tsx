@@ -2,6 +2,7 @@
  * PATH: src/features/results/panels/ExamResultsPanel.tsx
  *
  * ✅ STEP 1 — Results 자동 진입 & 자동 선택 처리
+ * ✅ 학생 클릭 시 우측 상세 오버레이(드로어)로 답안지/오답노트 표시
  *
  * 설계 계약:
  * - Session → Exam 진입 시 자동 선택은 Results 도메인 책임
@@ -19,11 +20,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
 import AdminExamResultsTable from "../components/AdminExamResultsTable";
-import StudentResultPanel from "./StudentResultPanel";
+import StudentResultDrawer from "../components/StudentResultDrawer";
 
 import api from "@/shared/api/axios";
 import type { AdminExamResultRow } from "../types/results.types";
 import { EmptyState } from "@/shared/ui/ds";
+import { useAdminExam } from "@/features/exams/hooks/useAdminExam";
 
 type Props = {
   examId: number;
@@ -83,6 +85,11 @@ export default function ExamResultsPanel({ examId }: Props) {
     return <EmptyState scope="panel" tone="empty" title="제출된 성적이 없습니다." />;
   }
 
+  const selectedRow = selectedEnrollmentId != null
+    ? rows.find((r) => r.enrollment_id === selectedEnrollmentId) ?? null
+    : null;
+  const examTitle = exam?.title ?? "시험";
+
   return (
     <div className="flex h-[calc(100vh-260px)] gap-4">
       {/* ================= LEFT: 학생 리스트 ================= */}
@@ -93,23 +100,28 @@ export default function ExamResultsPanel({ examId }: Props) {
         />
       </div>
 
-      {/* ================= RIGHT: 학생 상세 ================= */}
-      <div className="flex-1 overflow-auto">
-        {selectedEnrollmentId ? (
-          <StudentResultPanel
-            examId={examId}
-            enrollmentId={selectedEnrollmentId}
-          />
-        ) : (
+      {/* ================= RIGHT: 빈 안내 또는 드로어 오버레이 ================= */}
+      {selectedEnrollmentId == null ? (
+        <div className="flex-1 flex items-center justify-center overflow-auto">
           <EmptyState
             scope="panel"
             tone="empty"
             mode="embedded"
             title="학생을 선택하세요"
-            description="좌측 목록에서 학생을 클릭하면 상세 결과가 표시됩니다."
+            description="목록에서 학생을 클릭하면 우측에 답안지·오답노트 상세가 드로어로 열립니다."
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        selectedRow && (
+          <StudentResultDrawer
+            examId={examId}
+            enrollmentId={selectedEnrollmentId}
+            studentName={selectedRow.student_name ?? "학생"}
+            examTitle={examTitle}
+            onClose={() => setSelectedEnrollmentId(null)}
+          />
+        )
+      )}
     </div>
   );
 }

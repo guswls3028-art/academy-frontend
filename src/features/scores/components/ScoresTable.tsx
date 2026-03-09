@@ -979,6 +979,32 @@ export default function ScoresTable({
                                 }
                                 if (e.key === "Tab") {
                                   e.preventDefault();
+                                  const rawToSave = el?.innerText?.trim() ?? "";
+                                  if (rawToSave === "" || rawToSave === "미제출") {
+                                    if (rawToSave === "미제출") {
+                                      await patchHomeworkQuick({
+                                        sessionId,
+                                        enrollmentId: row.enrollment_id,
+                                        homeworkId: hw.homework_id,
+                                        score: null,
+                                        metaStatus: "NOT_SUBMITTED",
+                                      });
+                                      qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                    }
+                                    if (e.shiftKey) onRequestMovePrev?.();
+                                    else onRequestMoveNext?.();
+                                    return;
+                                  }
+                                  const parsed = parseScoreInput(rawToSave, block?.max_score ?? null);
+                                  if (parsed != null && validateScore(parsed, block?.max_score)) {
+                                    await patchHomeworkQuick({
+                                      sessionId,
+                                      enrollmentId: row.enrollment_id,
+                                      homeworkId: hw.homework_id,
+                                      score: parsed,
+                                    });
+                                    qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+                                  }
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
                                   return;

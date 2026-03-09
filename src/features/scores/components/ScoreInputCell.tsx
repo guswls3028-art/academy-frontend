@@ -98,6 +98,16 @@ export default function ScoreInputCell({
           return;
         }
 
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const ok = await commit();
+          if (ok) {
+            if (e.shiftKey) onMovePrev?.();
+            else onMoveNext?.();
+          }
+          return;
+        }
+
         if (e.key === "ArrowLeft") {
           e.preventDefault();
           onMovePrev?.();
