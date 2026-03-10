@@ -1,5 +1,5 @@
 // PATH: src/features/messages/pages/MessageAutoSendPage.tsx
-// 자동발송 — 트리거별 카드형 설정 (가입 완료, 클리닉 알림 등)
+// 자동발송 — 좌측 구간 폴더 트리 + 우측 설정 (템플릿 저장과 동일한 흐름)
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,11 @@ import {
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import AutoSendSectionTree, {
+  AUTO_SEND_SECTIONS,
+  type AutoSendSectionId,
+} from "../components/AutoSendSectionTree";
+import styles from "./MessageAutoSendPage.module.css";
 
 const QUERY_KEY = ["messaging", "auto-send"] as const;
 
@@ -26,6 +31,11 @@ const TRIGGER_DESCRIPTIONS: Record<AutoSendTrigger, string> = {
   clinic_reminder: "클리닉 세션 N분 전에 자동으로 알림을 발송합니다. 스케줄러 연동 시 사용됩니다.",
   clinic_reservation_created: "클리닉 예약이 생성될 때 발송합니다. (추후 지원 예정)",
   clinic_reservation_changed: "클리닉 예약이 변경될 때 발송합니다. (추후 지원 예정)",
+};
+
+const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
+  signup: "가입 완료 시 자동 발송 메시지를 설정합니다.",
+  clinic: "클리닉 알림(N분 전), 예약 생성·변경 시 자동 발송을 이 구간에서 한 번에 관리할 수 있습니다.",
 };
 
 function TriggerCard({
@@ -289,6 +299,7 @@ function TriggerCard({
 
 export default function MessageAutoSendPage() {
   const qc = useQueryClient();
+  const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("clinic");
   const { data: messagingInfo } = useMessagingInfo();
   const smsAllowed = messagingInfo?.sms_allowed ?? true;
 
@@ -348,59 +359,38 @@ export default function MessageAutoSendPage() {
 
   if (isLoading) {
     return (
-      <div
-        style={{
-          borderRadius: "var(--radius-lg)",
-          padding: "var(--space-5)",
-          border: "1px solid var(--color-border-divider)",
-          background: "var(--color-bg-surface)",
-        }}
-      >
-        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 10 }}>
-          자동발송
+      <div className={styles.root}>
+        <div className={styles.header}>
+          <h2 className={styles.headerTitle}>자동발송</h2>
+          <p className={styles.headerDesc}>특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.</p>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-3)",
-            padding: "var(--space-2) 0",
-          }}
-        >
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              style={{
-                height: 120,
-                borderRadius: "var(--radius-lg)",
-                background:
-                  "linear-gradient(90deg, var(--color-bg-surface-soft) 25%, color-mix(in srgb, var(--color-border-divider) 60%, var(--color-bg-surface-soft)) 50%, var(--color-bg-surface-soft) 75%)",
-                backgroundSize: "200% 100%",
-                animation: "shimmer 1.5s ease-in-out infinite",
-              }}
-            />
-          ))}
+        <div className={styles.body}>
+          <aside className={styles.tree}>
+            <AutoSendSectionTree selectedSection="clinic" onSelectSection={() => {}} />
+          </aside>
+          <div className={styles.content}>
+            <div className={styles.contentInner}>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className={styles.skeletonCard} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
+  const section = AUTO_SEND_SECTIONS.find((s) => s.id === selectedSection);
+  const sectionTriggers = section?.triggers ?? [];
+  const configsInSection = localConfigs.filter((c) =>
+    sectionTriggers.includes(c.trigger as AutoSendTrigger)
+  );
+
   return (
-    <div className="flex flex-col gap-5">
-      <div
-        style={{
-          borderRadius: "var(--radius-lg)",
-          padding: "var(--space-5)",
-          border: "1px solid var(--color-border-divider)",
-          background: "var(--color-bg-surface)",
-        }}
-      >
-        <div style={{ fontWeight: 600, color: "var(--color-text-primary)", marginBottom: 4 }}>
-          자동발송
-        </div>
-        <p style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: "var(--space-4)" }}>
-          특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.
-        </p>
+    <div className={styles.root}>
+      <div className={styles.header}>
+        <h2 className={styles.headerTitle}>자동발송</h2>
+        <p className={styles.headerDesc}>특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.</p>
         {!smsAllowed && (
           <div
             style={{
@@ -413,7 +403,7 @@ export default function MessageAutoSendPage() {
                 "color-mix(in srgb, var(--color-status-warning, #d97706) 8%, transparent)",
               border:
                 "1px solid color-mix(in srgb, var(--color-status-warning, #d97706) 20%, transparent)",
-              marginBottom: 4,
+              marginTop: "var(--space-3)",
             }}
           >
             <FiInfo
@@ -435,17 +425,35 @@ export default function MessageAutoSendPage() {
             </span>
           </div>
         )}
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-          {localConfigs.map((config) => (
-            <TriggerCard
-              key={config.trigger}
-              config={config}
-              templates={templates}
-              onUpdate={handleUpdate}
-              saving={updateMut.isPending}
-              smsAllowed={smsAllowed}
-            />
-          ))}
+      </div>
+
+      <div className={styles.body}>
+        <aside className={styles.tree}>
+          <AutoSendSectionTree
+            selectedSection={selectedSection}
+            onSelectSection={setSelectedSection}
+          />
+        </aside>
+        <div className={styles.content}>
+          <div className={styles.contentInner}>
+            {section && (
+              <>
+                <p className={styles.sectionTitle}>
+                  {section.label} — {SECTION_DESCRIPTIONS[section.id]}
+                </p>
+                {configsInSection.map((config) => (
+                  <TriggerCard
+                    key={config.trigger}
+                    config={config}
+                    templates={templates}
+                    onUpdate={handleUpdate}
+                    saving={updateMut.isPending}
+                    smsAllowed={smsAllowed}
+                  />
+                ))}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

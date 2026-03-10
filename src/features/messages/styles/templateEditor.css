@@ -249,12 +249,16 @@
 
 /* 제목(알림톡) 슬롯 — 탭 전환 시 높이 고정 */
 .template-editor__subject-slot {
-  min-height: 56px;
+  min-height: 0;
   flex-shrink: 0;
 }
 
+.template-editor__subject-slot--has-subject {
+  min-height: 56px;
+}
+
 .template-editor__subject-placeholder {
-  height: 56px;
+  height: 8px;
   pointer-events: none;
 }
 

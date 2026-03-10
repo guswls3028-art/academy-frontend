@@ -178,7 +178,7 @@ export default function TemplateEditModal({
           </div>
 
           {/* 우측: 메시지|알림톡 탭 상단 → 이름·제목 → 본문 2패널(입력 | 삽입 블록) */}
-          <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-4 p-4">
+          <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-2 p-4">
             {/* 메시지/알림톡 탭 — 상단 배치 */}
             <div className="modal-tabs-elevated template-editor__tabs template-editor__tabs--top">
               <Tabs
@@ -200,7 +200,7 @@ export default function TemplateEditModal({
             </div>
 
             {/* 제목 영역 고정 높이 — 메시지↔알림톡 전환 시 레이아웃 흔들림 방지 */}
-            <div className="template-editor__subject-slot">
+            <div className={`template-editor__subject-slot ${showSubject ? "template-editor__subject-slot--has-subject" : ""}`}>
               {showSubject ? (
                 <>
                   <label className="template-editor__editor-title block mb-1">
