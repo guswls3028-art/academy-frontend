@@ -165,34 +165,36 @@ export default function HomeworkPolicyCard({
           </div>
         </div>
 
-        <div>
-          <div className="mb-1 text-sm text-[var(--text-muted)]">반올림 단위</div>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              min={1}
-              max={50}
-              step={1}
-              className="w-[180px] rounded border border-[var(--border-divider)] px-3 py-2 text-sm bg-[var(--bg-app)] text-[var(--text-primary)]"
-              value={roundUnit}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "") return;
-                const num = parseInt(v, 10);
-                setRoundUnit(Number.isFinite(num) ? Math.max(1, Math.min(50, num)) : 5);
-              }}
-              onBlur={(e) => {
-                const v = e.target.value;
-                if (v === "") return;
-                const num = parseInt(v, 10);
-                if (Number.isFinite(num)) setRoundUnit(Math.max(1, Math.min(50, num)));
-              }}
-              disabled={!canEdit || mode !== "PERCENT"}
-              aria-label="반올림 단위"
-            />
-            <span className="text-sm text-[var(--text-muted)]">%</span>
+        {mode === "PERCENT" && (
+          <div>
+            <div className="mb-1 text-sm text-[var(--text-muted)]">반올림 단위</div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={50}
+                step={1}
+                className="w-[180px] rounded border border-[var(--border-divider)] px-3 py-2 text-sm bg-[var(--bg-app)] text-[var(--text-primary)]"
+                value={roundUnit}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") return;
+                  const num = parseInt(v, 10);
+                  setRoundUnit(Number.isFinite(num) ? Math.max(1, Math.min(50, num)) : 5);
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value;
+                  if (v === "") return;
+                  const num = parseInt(v, 10);
+                  if (Number.isFinite(num)) setRoundUnit(Math.max(1, Math.min(50, num)));
+                }}
+                disabled={!canEdit}
+                aria-label="반올림 단위"
+              />
+              <span className="text-sm text-[var(--text-muted)]">%</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Footer */}
