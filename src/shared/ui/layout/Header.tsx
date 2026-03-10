@@ -21,7 +21,7 @@ import { HeaderCenterStaffClock } from "@/features/staff/components/HeaderCenter
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { resolveTenantCode } from "@/shared/tenant";
 import { getTenantIdFromCode } from "@/shared/tenant";
-import TchulLogoTransparent from "@/features/auth/pages/logos/TchulLogoTransparent.png";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon";
 import CommonLogoIcon from "@/features/auth/pages/logos/CommonLogoIcon";
 
 function IconMenu() {
@@ -220,8 +220,8 @@ export default function Header() {
   const tenantResult = resolveTenantCode();
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
   const isTchul = tenantResult.ok && (tenantResult.code === "tchul" || tenantResult.code === "9999" || tenantId === 2);
-  
-  const logoUrl = program?.ui_config?.logo_url || (isTchul ? TchulLogoTransparent : null);
+
+  const logoUrl = program?.ui_config?.logo_url ?? null;
 
   const userMenu = {
     items: [
@@ -269,6 +269,8 @@ export default function Header() {
             <span className="app-header__brandMark" aria-hidden>
               {logoUrl ? (
                 <img src={logoUrl} alt="logo" />
+              ) : isTchul ? (
+                <TchulLogoIcon height={24} />
               ) : (
                 <CommonLogoIcon
                   height={24}

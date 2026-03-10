@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { login } from "@/features/auth/api/auth";
 import useAuth from "@/features/auth/hooks/useAuth";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
-import TchulLogoTransparent from "../logos/TchulLogoTransparent.png";
+import TchulLogoIcon from "../logos/TchulLogoIcon";
 import "@/features/auth/themes/tchul.css";
 import styles from "./TchulLoginPage.module.css";
 
@@ -39,7 +39,7 @@ export default function TchulLoginPage() {
   return (
     <div data-app="auth" data-tenant="tchul" className={styles.root}>
       <div className={styles.center}>
-        <img src={TchulLogoTransparent} alt="박철과학" className={styles.logo} />
+        <TchulLogoIcon height={120} className={styles.logo} style={{ margin: "0 auto 1.5rem" }} />
         {!formExpanded ? (
           <>
             <button

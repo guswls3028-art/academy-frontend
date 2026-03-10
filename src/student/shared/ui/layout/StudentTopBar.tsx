@@ -12,6 +12,7 @@ import { logout } from "@/features/auth/api/auth";
 import { useAuthContext } from "@/features/auth/context/AuthContext";
 import { setParentStudentId, getParentStudentId } from "@/student/shared/api/parentStudentSelection";
 import CommonLogoIcon from "@/features/auth/pages/logos/CommonLogoIcon";
+import TchulLogoIcon from "@/features/auth/pages/logos/TchulLogoIcon";
 import "@/student/shared/ui/theme/student-topbar.css";
 
 type Props = { tenantCode: string | null };
@@ -57,9 +58,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
   const isTchulTheme = currentTenantCode != null && currentTenantCode === "tchul";
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   useEffect(() => {
-    if (isTchulTheme) {
-      import("@/features/auth/pages/logos/TchulLogoIcon.png").then((m) => setLogoSrc(m.default));
-    } else if (branding.logoUrl) {
+    if (!isTchulTheme && branding.logoUrl) {
       setLogoSrc(branding.logoUrl);
     } else {
       setLogoSrc(null);
@@ -67,7 +66,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
   }, [isTchulTheme, branding.logoUrl]);
 
   const useCommonSvgLogo = branding.useCommonLogo && !isTchulTheme;
-  const showImgLogo = logoSrc != null && (isTchulTheme || branding.logoUrl);
+  const showImgLogo = logoSrc != null && !isTchulTheme;
 
   const profileDropdownContent = (
     <div className="stu-topbar__profileDropdown">
@@ -157,6 +156,12 @@ export default function StudentTopBar({ tenantCode }: Props) {
       >
         {useCommonSvgLogo ? (
           <CommonLogoIcon height={32} style={{ width: "auto", maxWidth: 120 }} />
+        ) : isTchulTheme ? (
+          <TchulLogoIcon
+            height={32}
+            style={{ width: 32, flexShrink: 0, display: "block" }}
+            className="stu-topbar__logo"
+          />
         ) : showImgLogo ? (
           <img
             src={logoSrc!}
@@ -171,7 +176,8 @@ export default function StudentTopBar({ tenantCode }: Props) {
               flexShrink: 0,
             }}
           />
-        ) : (
+        ) : null}
+        {!useCommonSvgLogo && !isTchulTheme && !showImgLogo ? (
           <div
             style={{
               width: 32,
