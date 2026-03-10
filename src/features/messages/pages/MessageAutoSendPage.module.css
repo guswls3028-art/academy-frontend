@@ -1,85 +1,36 @@
 /* PATH: src/features/messages/pages/MessageAutoSendPage.module.css
- * 자동발송 — 좌측 구간 트리 + 우측 설정 (템플릿 저장과 동일 레이아웃)
+ * 자동발송 — SSOT PanelWithTreeLayout 기반, 로컬 보조만 유지
  */
 
+@import "@/shared/ui/domain/PanelWithTreeLayout.module.css" layer(panel);
+
 .root {
-  display: flex;
-  flex-direction: column;
-  min-height: 400px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
-  overflow: hidden;
+  composes: root from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .header {
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--color-border-divider);
-  background: var(--color-bg-surface);
+  composes: header from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .headerTitle {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-1) 0;
+  composes: headerTitle from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .headerDesc {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin: 0;
+  composes: headerDesc from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
+  composes: body from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .tree {
-  width: 220px;
-  min-width: 220px;
-  border-right: 1px solid var(--color-border-divider);
-  overflow: auto;
+  composes: tree from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .content {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 200px;
-  padding: var(--space-5);
+  composes: content from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .contentInner {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: 720px;
+  composes: contentInner from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .sectionTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  letter-spacing: 0.02em;
-  margin-bottom: var(--space-2);
+  composes: sectionTitle from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
-
 .skeletonCard {
-  height: 140px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(
-    90deg,
-    var(--color-bg-surface-soft) 25%,
-    color-mix(in srgb, var(--color-border-divider) 60%, var(--color-bg-surface-soft)) 50%,
-    var(--color-bg-surface-soft) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  composes: skeletonCard from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 }
