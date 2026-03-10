@@ -9,7 +9,6 @@ import {
   fetchMessageTemplates,
   updateAutoSendConfigs,
   type AutoSendConfigItem,
-  type AutoSendTrigger,
   AUTO_SEND_TRIGGER_LABELS,
   type MessageTemplateItem,
 } from "../api/messages.api";
