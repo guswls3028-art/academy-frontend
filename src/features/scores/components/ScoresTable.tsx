@@ -764,9 +764,21 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   const block = entry?.block;
                   const questions = (ex as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
                   const examColsList = (examColsMap[ex.exam_id] ?? []) as Extract<ScoreColumnDef, { type: "exam" }>[];
+                  const notEnrolledForExam = !entry;
                   return (
                     <Fragment key={ex.exam_id}>
                       {examColsList.map((col) => {
+                        /* 시험 대상 미등록 → 회색 비활성 셀 */
+                        if (notEnrolledForExam) {
+                          return (
+                            <td
+                              key={col.key}
+                              className="min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]"
+                            >
+                              <span className="text-[var(--color-text-muted)] select-none">-</span>
+                            </td>
+                          );
+                        }
                         const isSelected =
                           !!selectedCell &&
                           selectedCell.enrollmentId === row.enrollment_id &&
@@ -1015,16 +1027,27 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       (h) => h.homework_id === hw.homework_id
                     ) ?? null;
                   const block = entry?.block;
+                  const notEnrolledForHw = !entry;
                   const isSelected =
                     !!selectedCell &&
                     selectedCell.enrollmentId === row.enrollment_id &&
                     selectedCell.type === "homework" &&
                     selectedCell.homeworkId === hw.homework_id;
-                  const canEditScore = isEditMode && homeworkEdit;
+                  const canEditScore = isEditMode && homeworkEdit && !notEnrolledForHw;
                   const isNotSubmitted = block?.meta?.status === "NOT_SUBMITTED";
 
                   return (
                     <Fragment key={hw.homework_id}>
+                      {notEnrolledForHw ? (
+                        <>
+                          <td className="min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]">
+                            <span className="text-[var(--color-text-muted)] select-none">-</span>
+                          </td>
+                          <td className="min-w-0 align-middle py-2.5 px-3 bg-[var(--color-bg-surface-hover)]">
+                            <span className="text-[var(--color-text-muted)] select-none">-</span>
+                          </td>
+                        </>
+                      ) : (
                       <td
                         className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         onClick={(e) => {
@@ -1209,6 +1232,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       >
                         <PassFailText passed={block?.passed} />
                       </td>
+                      )}
                     </Fragment>
                   );
                 })}
