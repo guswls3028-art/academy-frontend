@@ -123,7 +123,7 @@ export default function HomeworkPolicyCard({
             }}
             className="ds-segment__btn"
           >
-            문항 수
+            점수
           </button>
         </div>
       </div>
@@ -160,7 +160,7 @@ export default function HomeworkPolicyCard({
               aria-label="커트라인 값"
             />
             <span className="text-sm text-[var(--text-muted)]">
-              {mode === "PERCENT" ? "%" : "문항"}
+              {mode === "PERCENT" ? "%" : "점"}
             </span>
           </div>
         </div>
