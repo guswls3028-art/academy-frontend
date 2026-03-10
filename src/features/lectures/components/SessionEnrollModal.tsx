@@ -228,13 +228,30 @@ export default function SessionEnrollModal({
   const [excelInitialPassword, setExcelInitialPassword] = useState("");
   const [copyFromPrevLoading, setCopyFromPrevLoading] = useState(false);
 
-  // Debounced search — "N학년" 패턴이면 grade 필터로 자동 전환
+  // Debounced search — 학년/구분 키워드 패턴을 필터로 자동 전환
+  // 지원 패턴: "1학년"/"2학년"/"3학년", "고1"/"고2"/"고3", "중1"/"중2"/"중3"
   useEffect(() => {
     const t = setTimeout(() => {
       const trimmed = keyword.trim();
-      const gradeMatch = trimmed.match(/^([1-3])\s*학년?$/);
-      if (gradeMatch) {
-        setGrade(Number(gradeMatch[1]));
+      // "N학년" 패턴
+      const gradeOnlyMatch = trimmed.match(/^([1-3])\s*학년?$/);
+      // "고N" 패턴 (고등)
+      const highMatch = trimmed.match(/^고\s*([1-3])$/);
+      // "중N" 패턴 (중등)
+      const midMatch = trimmed.match(/^중\s*([1-3])$/);
+
+      if (gradeOnlyMatch) {
+        setGrade(Number(gradeOnlyMatch[1]));
+        setSearch("");
+        setPage(1);
+      } else if (highMatch) {
+        setSchoolType("HIGH");
+        setGrade(Number(highMatch[1]));
+        setSearch("");
+        setPage(1);
+      } else if (midMatch) {
+        setSchoolType("MIDDLE");
+        setGrade(Number(midMatch[1]));
         setSearch("");
         setPage(1);
       } else {
@@ -600,7 +617,7 @@ export default function SessionEnrollModal({
                           <div className="flex items-center gap-2 flex-1 min-w-0" style={{ maxWidth: 420 }}>
                             <input
                               className="ds-input flex-1 min-w-0"
-                              placeholder="이름 / 전화번호 검색"
+                              placeholder="이름 / 전화번호 / 학교명 / 학년(예: 고1, 중2, 3학년)"
                               value={keyword}
                               onChange={(e) => setKeyword(e.target.value)}
                               style={{ maxWidth: 360 }}
