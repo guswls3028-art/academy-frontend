@@ -7,6 +7,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 
 const CLINIC_TABS = [
   { key: "home", label: "홈", path: "/admin/clinic/home" },
+  { key: "schedule", label: "일정", path: "/admin/clinic/schedule" },
   { key: "operations", label: "운영", path: "/admin/clinic/operations" },
   { key: "bookings", label: "예약대상자", path: "/admin/clinic/bookings" },
   { key: "reports", label: "리포트", path: "/admin/clinic/reports" },

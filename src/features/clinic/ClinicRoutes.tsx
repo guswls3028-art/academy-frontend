@@ -4,6 +4,7 @@ import ClinicLayout from "./ClinicLayout";
 import ClinicBookingsPage from "./pages/BookingsPage/ClinicBookingsPage";
 import ClinicHomePage from "./pages/HomePage/ClinicHomePage";
 import ClinicOperationsPage from "./pages/OperationsPage/ClinicOperationsPage";
+import ClinicOperationsConsolePage from "./pages/OperationsConsolePage/ClinicOperationsConsolePage";
 import ClinicReportsPage from "./pages/ReportsPage/ClinicReportsPage";
 import ClinicSettingsPage from "./pages/SettingsPage/ClinicSettingsPage";
 
@@ -13,7 +14,8 @@ export default function ClinicRoutes() {
       <Route element={<ClinicLayout />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<ClinicHomePage />} />
-        <Route path="operations" element={<ClinicOperationsPage />} />
+        <Route path="schedule" element={<ClinicOperationsPage />} />
+        <Route path="operations" element={<ClinicOperationsConsolePage />} />
         <Route path="bookings" element={<ClinicBookingsPage />} />
         <Route path="reports" element={<ClinicReportsPage />} />
         <Route path="settings" element={<ClinicSettingsPage />} />
