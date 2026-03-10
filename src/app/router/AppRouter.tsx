@@ -5,6 +5,7 @@ import ProtectedRoute from "./ProtectedRoute";
 
 import StudentRouter from "@/student/app/StudentRouter";
 import AuthRouter from "./AuthRouter";
+import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
 
 import TenantRequiredPage from "@/features/auth/pages/TenantRequiredPage";
 import MaintenancePage from "@/features/maintenance/pages/MaintenancePage";
@@ -139,24 +140,26 @@ export default function AppRouter() {
           <Route
             path="/admin/*"
             element={
-              <Suspense
-                fallback={
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minHeight: 200,
-                      color: "#666",
-                      fontSize: 14,
-                    }}
-                  >
-                    불러오는 중…
-                  </div>
-                }
-              >
-                <AdminRouter />
-              </Suspense>
+              <SendMessageModalProvider>
+                <Suspense
+                  fallback={
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 200,
+                        color: "#666",
+                        fontSize: 14,
+                      }}
+                    >
+                      불러오는 중…
+                    </div>
+                  }
+                >
+                  <AdminRouter />
+                </Suspense>
+              </SendMessageModalProvider>
             }
           />
         </Route>
