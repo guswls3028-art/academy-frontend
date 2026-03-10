@@ -107,11 +107,16 @@ export default function ResultsExplorerPage() {
 
         <div className={panelStyles.body}>
           <aside className={panelStyles.tree}>
-            <LectureSessionTree
+            <div className={panelStyles.treeNavHeader}>
+              <span className={panelStyles.treeNavTitle}>강의 · 차시</span>
+            </div>
+            <div className={panelStyles.treeScroll}>
+              <LectureSessionTree
               lectures={lecturesWithSessions}
               currentSessionId={selectedSessionId}
-              onSelectSession={setSelectedSessionId}
-            />
+                onSelectSession={setSelectedSessionId}
+              />
+            </div>
           </aside>
 
           <div className={panelStyles.gridWrap}>

@@ -348,12 +348,17 @@ export default function VideoExplorerPage() {
 
         <div className={panelStyles.body}>
           <aside className={panelStyles.tree}>
-            <VideoExplorerTree
+            <div className={panelStyles.treeNavHeader}>
+              <span className={panelStyles.treeNavTitle}>폴더</span>
+            </div>
+            <div className={panelStyles.treeScroll}>
+              <VideoExplorerTree
               lectures={lecturesWithSessions}
               publicFolders={publicFolders}
               currentFolderId={selectedFolderId}
               onSelectFolder={setSelectedFolderId}
             />
+            </div>
           </aside>
 
           <div

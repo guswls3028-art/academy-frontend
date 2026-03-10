@@ -246,11 +246,16 @@ export default function MyStorageExplorer() {
 
       <div className={panelStyles.body}>
         <aside className={panelStyles.tree}>
-          <FolderTree
+          <div className={panelStyles.treeNavHeader}>
+            <span className={panelStyles.treeNavTitle}>폴더</span>
+          </div>
+          <div className={panelStyles.treeScroll}>
+            <FolderTree
             folders={allFoldersForTree}
             currentFolderId={currentFolderId}
             onSelect={setCurrentFolderId}
           />
+          </div>
         </aside>
         <div className={panelStyles.gridWrap}>
           {isLoading ? (
