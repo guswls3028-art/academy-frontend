@@ -5,6 +5,7 @@
  * 책임:
  * - sessions 탭에서 scores 도메인 화면을 연결
  * - Excel-like 편집 모드 툴바 제공 (편집 타입 선택, 검색, 표시 방식)
+ * - 편집 중 임시 저장(draft) 자동 저장·복원·상태 표시
  *
  * 원칙:
  * - sessionId는 useSessionParams에서 직접 획득
@@ -12,9 +13,11 @@
  * - scores 도메인의 SessionScoresPanel이 실제 렌더링 단일 진실
  */
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSessionParams } from "../hooks/useSessionParams";
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
+import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
+import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
 
 type EditConfig = {
   examEditTotal: boolean;
@@ -42,6 +45,21 @@ export default function SessionScoresTab() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const panelRef = useRef<SessionScoresPanelHandle>(null);
 
+  const numericSessionId = sessionId != null ? Number(sessionId) : 0;
+  const draft = useScoreEditDraft({
+    sessionId: numericSessionId,
+    panelRef,
+    isEditMode: !!isEditMode && numericSessionId > 0,
+  });
+
+  // "n초 전" 갱신용
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!isEditMode || draft.draftStatus !== "saved") return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [isEditMode, draft.draftStatus]);
+
   if (!sessionId) {
     return (
       <div className="text-sm text-red-600">
@@ -52,10 +70,14 @@ export default function SessionScoresTab() {
 
   function handleToggleEditMode() {
     if (isEditMode) {
-      // 편집 종료: 대기 중인 변경 한 번에 저장 후 모드 해제
-      void panelRef.current?.flushPendingChanges?.().then(() => {
-        setIsEditMode(false);
-        setEditConfig(DEFAULT_EDIT_CONFIG);
+      // 편집 종료: 최종 반영(flush) 후 draft 삭제(commit), 모드 해제
+      void panelRef.current?.flushPendingChanges?.().then(async () => {
+        try {
+          await postScoreDraftCommit(numericSessionId);
+        } finally {
+          setIsEditMode(false);
+          setEditConfig(DEFAULT_EDIT_CONFIG);
+        }
       });
       return;
     }
@@ -194,7 +216,68 @@ export default function SessionScoresTab() {
             "w-[180px] min-w-[120px]",
           ].join(" ")}
         />
+
+        {/* 편집 모드: 임시 저장 상태 */}
+        {isEditMode && (
+          <span className="text-xs text-[var(--color-text-muted)] ml-1">
+            {draft.draftStatus === "saving" && "임시저장 중..."}
+            {draft.draftStatus === "saved" && draft.lastSavedAt != null && (
+              `임시저장됨 · ${Math.max(0, Math.floor((Date.now() - draft.lastSavedAt) / 1000))}초 전`
+            )}
+            {draft.draftStatus === "error" && (
+              <>
+                <span className="text-[var(--color-error)]">임시저장 실패</span>
+                {" "}
+                <button
+                  type="button"
+                  className="underline text-[var(--color-brand-primary)]"
+                  onClick={() => void draft.performSave()}
+                >
+                  다시 시도
+                </button>
+              </>
+            )}
+            {draft.draftStatus === "idle" && (
+              <span className="text-[var(--color-text-muted)]">저장 안 됨</span>
+            )}
+          </span>
+        )}
       </div>
+
+      {/* 복원 확인 모달 */}
+      {draft.hasDraftToRestore && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="draft-restore-title"
+        >
+          <div className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg p-6 max-w-md mx-4 border border-[var(--color-border-divider)]">
+            <h2 id="draft-restore-title" className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
+              이전에 임시저장된 편집 내용이 있습니다. 복원할까요?
+            </h2>
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">
+              복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => void draft.discardDraft()}
+                className="h-9 px-4 rounded text-sm font-medium border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-soft)]"
+              >
+                버리기
+              </button>
+              <button
+                type="button"
+                onClick={draft.restoreDraft}
+                className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-white hover:opacity-90"
+              >
+                복원
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Scores Panel ── */}
       <SessionScoresPanel
