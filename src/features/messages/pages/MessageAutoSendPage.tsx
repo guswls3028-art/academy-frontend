@@ -25,18 +25,44 @@ const QUERY_KEY = ["messaging", "auto-send"] as const;
 
 const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 
-const TRIGGER_DESCRIPTIONS: Record<AutoSendTrigger, string> = {
+const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   student_signup: "학생이 가입 완료하면 자동 발송합니다. 학부모 정보가 있으면 학부모에게도 발송합니다.",
-  lecture_session_reminder: "강의(차시) 시작 N분 전에 자동으로 알림을 발송합니다. (추후 지원 예정)",
-  clinic_reminder: "클리닉 세션 N분 전에 자동으로 알림을 발송합니다. 스케줄러 연동 시 사용됩니다.",
-  clinic_reservation_created: "클리닉 예약이 생성될 때 발송합니다. (추후 지원 예정)",
-  clinic_reservation_changed: "클리닉 예약이 변경될 때 발송합니다. (추후 지원 예정)",
+  registration_approved_student: "가입 승인 시 학생에게 발송합니다.",
+  registration_approved_parent: "가입 승인 시 학부모에게 발송합니다.",
+  class_enrollment_complete: "반 등록이 완료되면 발송합니다.",
+  enrollment_expiring_soon: "등록 만료 예정일 도래 시 발송합니다.",
+  withdrawal_complete: "퇴원 처리 완료 시 발송합니다.",
+  lecture_session_reminder: "수업 시작 N분 전에 알림을 발송합니다.",
+  check_in_complete: "입실 처리 완료 시 발송합니다.",
+  absent_occurred: "결석 발생 시 발송합니다.",
+  exam_scheduled_days_before: "시험 예정 N일 전에 안내합니다.",
+  exam_start_minutes_before: "시험 시작 N분 전에 안내합니다.",
+  exam_not_taken: "시험 미응시 시 발송합니다.",
+  exam_score_published: "성적 공개 시 발송합니다.",
+  retake_assigned: "재시험 대상 지정 시 발송합니다.",
+  assignment_registered: "과제가 등록되면 발송합니다.",
+  assignment_due_hours_before: "과제 마감 N시간 전에 리마인드합니다.",
+  assignment_not_submitted: "과제 미제출 시 발송합니다.",
+  monthly_report_generated: "월간 성적 리포트 생성 시 발송합니다.",
+  clinic_reminder: "클리닉 시작 N분 전에 알림을 발송합니다.",
+  clinic_reservation_created: "클리닉 예약이 완료되면 발송합니다.",
+  clinic_reservation_changed: "클리닉 예약이 변경되면 발송합니다.",
+  counseling_reservation_created: "상담 예약이 완료되면 발송합니다.",
+  payment_complete: "결제 완료 시 발송합니다.",
+  payment_due_days_before: "납부 예정일 N일 전에 안내합니다.",
+  urgent_notice: "긴급 공지 발송 시 사용합니다.",
 };
 
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
-  signup: "가입 완료 시 자동 발송 메시지를 설정합니다.",
-  lecture: "강의(차시) 시작 알림 등 강의 관련 자동 발송을 이 구간에서 관리할 수 있습니다.",
-  clinic: "클리닉 알림(N분 전), 예약 생성·변경 시 자동 발송을 이 구간에서 한 번에 관리할 수 있습니다.",
+  signup: "가입·반 등록·수강 변경·만료 예정 등 등록 관련 이벤트의 자동 발송을 설정합니다.",
+  attendance: "수업 시작 N분 전, 입실/결석 등 출결 이벤트의 자동 발송을 설정합니다.",
+  lecture: "강의(차시) 관련 알림을 설정합니다.",
+  exam: "시험 예정·시작 전·미응시·성적 공개·재시험 대상 등 시험 lifecycle 자동 발송을 설정합니다.",
+  assignment: "과제 등록·마감 전·미제출 등 과제 관련 자동 발송을 설정합니다.",
+  grades: "성적 공개·월간 리포트 등 성적/리포트 자동 발송을 설정합니다.",
+  clinic: "클리닉·상담 예약/변경/시작 전 알림을 설정합니다.",
+  payment: "결제 완료·납부 예정일 등 결제/행정 자동 발송을 설정합니다.",
+  notice: "휴강·보강·긴급 공지 등 운영 공지 발송을 설정합니다.",
 };
 
 function TriggerCard({
@@ -57,10 +83,7 @@ function TriggerCard({
       ? "alimtalk"
       : config.message_mode;
 
-  const isComingSoon =
-    config.trigger === "lecture_session_reminder" ||
-    config.trigger === "clinic_reservation_created" ||
-    config.trigger === "clinic_reservation_changed";
+  const isComingSoon = false;
 
   return (
     <div
@@ -103,7 +126,7 @@ function TriggerCard({
                 letterSpacing: "-0.1px",
               }}
             >
-              {AUTO_SEND_TRIGGER_LABELS[config.trigger as AutoSendTrigger]}
+              {AUTO_SEND_TRIGGER_LABELS[config.trigger] ?? config.trigger}
             </div>
             <div
               style={{
@@ -113,7 +136,7 @@ function TriggerCard({
                 lineHeight: 1.45,
               }}
             >
-              {TRIGGER_DESCRIPTIONS[config.trigger as AutoSendTrigger]}
+              {TRIGGER_DESCRIPTIONS[config.trigger] ?? "해당 이벤트 발생 시 자동 발송합니다."}
             </div>
           </div>
         </div>
@@ -374,9 +397,7 @@ export default function MessageAutoSendPage() {
 
   const section = AUTO_SEND_SECTIONS.find((s) => s.id === selectedSection);
   const sectionTriggers = section?.triggers ?? [];
-  const configsInSection = localConfigs.filter((c) =>
-    sectionTriggers.includes(c.trigger as AutoSendTrigger)
-  );
+  const configsInSection = localConfigs.filter((c) => sectionTriggers.includes(c.trigger));
 
   return (
     <div className={panelStyles.root}>
