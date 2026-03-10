@@ -24,7 +24,7 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
   useEffect(() => {
     if (!exam) return;
     const ps = Number(exam.pass_score);
-    const value = Number.isFinite(ps) && ps > 0 ? ps : "";
+    const value = Number.isFinite(ps) && ps >= 0 ? ps : "";
     setPassScore(value);
     setSavedScore(value);
   }, [exam?.id]);
@@ -91,7 +91,12 @@ export default function ExamPolicyPanel({ examId }: { examId: number }) {
               value={passScore === "" ? "" : passScore}
               onChange={(e) => {
                 const v = e.target.value;
-                setPassScore(v === "" ? "" : Number(e.target.value));
+                if (v === "") {
+                  setPassScore("");
+                  return;
+                }
+                const num = parseInt(v, 10);
+                setPassScore(Number.isFinite(num) ? num : "");
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (isDirty && !patchMut.isPending)) {
