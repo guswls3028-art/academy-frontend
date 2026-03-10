@@ -648,7 +648,7 @@ export default function SessionEnrollModal({
                           />
                           <Dropdown
                             trigger={["click"]}
-                            dropdownRender={() => (
+                            popupRender={() => (
                               <div
                                 className="rounded-xl border p-3 shadow-lg"
                                 style={{
@@ -670,9 +670,11 @@ export default function SessionEnrollModal({
                               </div>
                             )}
                           >
-                            <Button intent="secondary">
-                              고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
-                            </Button>
+                            <span>
+                              <Button intent="secondary">
+                                고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
+                              </Button>
+                            </span>
                           </Dropdown>
                         </div>
                         {selectedItems.length > 0 && (
