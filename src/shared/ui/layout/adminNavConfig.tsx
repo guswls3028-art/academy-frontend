@@ -22,6 +22,8 @@ export type AdminNavItem = {
   to: string;
   label: string;
   iconPath: string;
+  /** true면 is_payroll_manager(관리자 권한 on)일 때만 메뉴 노출 */
+  requiresStaffAdmin?: boolean;
 };
 
 export type AdminNavGroup = {
@@ -50,7 +52,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     items: [
       { to: `${ADMIN_NAV_BASE}/community`, label: "커뮤니티", iconPath: "M4 4h16v12H7l-3 3z" },
-      { to: `${ADMIN_NAV_BASE}/staff`, label: "직원관리", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0" },
+      { to: `${ADMIN_NAV_BASE}/staff`, label: "직원관리", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0", requiresStaffAdmin: true },
     ],
   },
   {

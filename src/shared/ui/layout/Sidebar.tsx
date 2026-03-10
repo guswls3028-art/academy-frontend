@@ -1,11 +1,13 @@
 // PATH: src/shared/ui/layout/Sidebar.tsx
 import { NavLink, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ADMIN_NAV_BASE,
   ADMIN_NAV_GROUPS,
   NavIcon,
 } from "./adminNavConfig";
+import { fetchStaffMe } from "@/features/staff/api/staffMe.api";
 
 const SIDEBAR_STORAGE_KEY = "ui.sidebar.collapsed";
 
@@ -38,6 +40,20 @@ function applySidebarLayout(collapsed: boolean) {
 export default function Sidebar() {
   const loc = useLocation();
   const [collapsed, setCollapsed] = useState<boolean>(() => safeGetCollapsed());
+  const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
+
+  const groups = useMemo(() => {
+    const isStaffAdmin = !!staffMe?.is_payroll_manager;
+    return ADMIN_NAV_GROUPS.map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (it) => !it.requiresStaffAdmin || (it.requiresStaffAdmin && isStaffAdmin)
+      ),
+    })).filter((g) => g.items.length > 0);
+  }, [staffMe?.is_payroll_manager]);
+
+  const isActive = (to: string) =>
+    loc.pathname === to || loc.pathname.startsWith(to + "/");
 
   useEffect(() => {
     applySidebarLayout(collapsed);
@@ -49,11 +65,6 @@ export default function Sidebar() {
     document.addEventListener("ui:sidebar:toggle", onToggle);
     return () => document.removeEventListener("ui:sidebar:toggle", onToggle);
   }, []);
-
-  const groups = ADMIN_NAV_GROUPS;
-
-  const isActive = (to: string) =>
-    loc.pathname === to || loc.pathname.startsWith(to + "/");
 
   return (
     <aside
