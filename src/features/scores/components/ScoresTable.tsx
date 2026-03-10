@@ -62,12 +62,13 @@ function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
 
-/** 합불 표시 — 시험/과제 셀: 글자 색만(초/빨). 최종 판정은 배지 사용하지 않고 별도 렌더 */
+/** 합불 표시 — 시험/과제 셀: 합=초록 배지, 불=빨강 배지. 긍정은 초록색 */
 function PassFailText({ passed }: { passed: boolean | null | undefined }) {
   if (passed == null) return <span className="text-[var(--color-text-muted)]">-</span>;
   return (
     <span
-      className={`text-xs font-semibold ${passed ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}
+      className="ds-scores-pass-fail-badge"
+      data-tone={passed ? "success" : "danger"}
     >
       {passed ? "합" : "불"}
     </span>
@@ -1169,11 +1170,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   onClick={() => onSelectRow(row)}
                 >
                   {clinicTarget ? (
-                    <span className="text-xs font-semibold text-[var(--color-danger)]">
+                    <span className="ds-scores-pass-fail-badge" data-tone="danger">
                       불합격
                     </span>
                   ) : (
-                    <span className="text-xs font-semibold text-[var(--color-success)]">
+                    <span className="ds-scores-pass-fail-badge" data-tone="success">
                       합격
                     </span>
                   )}

@@ -36,14 +36,29 @@ export default function HomeworkPolicyCard({
 
   useEffect(() => {
     setMode(policy?.cutline_mode ?? "PERCENT");
-    setCutlineValue(policy?.cutline_value ?? 80);
-    setRoundUnit(policy?.round_unit_percent ?? 5);
+    setCutlineValue(normalizeCutlineValue(policy?.cutline_value ?? 80, policy?.cutline_mode ?? "PERCENT"));
+    setRoundUnit(normalizeRoundUnit(policy?.round_unit_percent ?? 5));
   }, [
     policy?.id,
     policy?.cutline_mode,
     policy?.cutline_value,
     policy?.round_unit_percent,
   ]);
+
+  function normalizeCutlineValue(
+    raw: number | string | undefined,
+    nextMode: HomeworkCutlineMode
+  ): number {
+    const n = parseInt(String(raw ?? 0), 10);
+    if (!Number.isFinite(n)) return 0;
+    if (nextMode === "PERCENT") return Math.max(0, Math.min(100, n));
+    return Math.max(0, n);
+  }
+
+  function normalizeRoundUnit(raw: number | string | undefined): number {
+    const n = parseInt(String(raw ?? 5), 10);
+    return Number.isFinite(n) ? Math.max(1, Math.min(50, n)) : 5;
+  }
 
   const dirty = useMemo(() => {
     if (!policy) return false;
@@ -75,7 +90,7 @@ export default function HomeworkPolicyCard({
     <div className="space-y-4">
       {/* 커트라인 기준 */}
       <div className="space-y-2">
-        <div className="text-sm font-medium text-[var(--color-text-secondary)]">
+        <div className="text-sm font-medium text-[var(--text-muted)]">
           커트라인 기준
         </div>
 
