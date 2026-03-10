@@ -238,7 +238,7 @@ export default function Header() {
   };
 
   const profileDropdownContent = (
-    <div className="app-header__profileDropdown">
+    <div className="ds-header-dropdown app-header__profileDropdown">
       <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "profile" })}>내정보</button>
       <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "settings" })}>설정</button>
       <div className="app-header__profileDropdownDivider" />
@@ -309,7 +309,7 @@ export default function Header() {
               trigger={["click"]}
               placement="bottomRight"
               popupRender={() => (
-                <div className="app-header__alarmDropdown alarm-panel--workbox-style">
+                <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                   <WorkboxPanelContent onClose={() => workbox.setWorkboxOpen(false)} />
                 </div>
               )}
@@ -344,7 +344,7 @@ export default function Header() {
             trigger={["click"]}
             placement="bottomRight"
             popupRender={() => (
-              <div className="app-header__alarmDropdown alarm-panel--workbox-style">
+              <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                 <div className="alarm-panel__header">
                   <span>알림</span>
                   <button

@@ -216,6 +216,7 @@
 }
 
 /* 근무자 클릭 시 드롭다운 — 직급·이름·근무시간 (알림/프로필과 비슷한 톤) */
+/* 근무자 클릭 시 드롭다운 — SSOT: .ds-header-dropdown과 동일 토큰 */
 .app-header__workingStaffDropdownWrap,
 [data-app="admin"] .app-header__workingStaffDropdownWrap {
   min-width: 200px;

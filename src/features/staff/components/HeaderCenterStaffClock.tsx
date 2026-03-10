@@ -92,7 +92,7 @@ function WorkingAvatar({ item }: { item: CurrentlyWorkingItem }) {
       trigger={["click"]}
       placement="bottomLeft"
       popupRender={() => (
-        <div className="app-header__workingStaffDropdownWrap">
+        <div className="ds-header-dropdown app-header__workingStaffDropdownWrap">
           <WorkingStaffDropdownContent item={item} />
         </div>
       )}
