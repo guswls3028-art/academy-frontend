@@ -367,13 +367,20 @@ export default function VideoExplorerPage() {
             {isLoading ? (
               <div className={panelStyles.placeholder}>불러오는 중…</div>
             ) : selectedFolderId === null ? (
-              <div className={panelStyles.placeholder}>좌측에서 폴더를 선택하세요</div>
+              <div className={panelStyles.placeholder}>
+                <p className={panelStyles.placeholderTitle}>좌측에서 폴더를 선택하세요</p>
+                <p className={panelStyles.placeholderDesc}>
+                  왼쪽 목록에서 전체공개영상 또는 강의·차시를 선택하면 여기에 영상 목록이 표시됩니다.
+                </p>
+              </div>
             ) : selectedFolderId === "public" && publicSessionError ? (
               <div className={panelStyles.placeholder} style={{ color: "var(--color-text-error, #b91c1c)" }}>
                 전체공개영상 영역을 불러오지 못했습니다. 같은 도메인(예: tchul.com)으로 로그인했는지, 관리자·스태프 권한이 있는지 확인하세요.
               </div>
             ) : videosLoading ? (
-              <div className={panelStyles.placeholder}>영상 목록 불러오는 중…</div>
+              <div className={panelStyles.placeholder}>
+                <p className={panelStyles.placeholderTitle}>영상 목록 불러오는 중…</p>
+              </div>
             ) : videos.length === 0 ? (
               <div
                 className={selectedFolderId === "public" ? styles.emptyStateWrapper : ""}

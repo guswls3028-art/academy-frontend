@@ -121,11 +121,20 @@ export default function ResultsExplorerPage() {
 
           <div className={panelStyles.gridWrap}>
             {isLoading ? (
-              <div className={panelStyles.placeholder}>불러오는 중…</div>
+              <div className={panelStyles.placeholder}>
+                <p className={panelStyles.placeholderTitle}>불러오는 중…</p>
+              </div>
             ) : !selectedSessionId ? (
-              <div className={panelStyles.placeholder}>좌측에서 차시를 선택하세요</div>
+              <div className={panelStyles.placeholder}>
+                <p className={panelStyles.placeholderTitle}>좌측에서 차시를 선택하세요</p>
+                <p className={panelStyles.placeholderDesc}>
+                  왼쪽 목록에서 강의·차시를 선택하면 여기에 해당 차시의 성적 정보가 표시됩니다.
+                </p>
+              </div>
             ) : !selectedSession ? (
-              <div className={panelStyles.placeholder}>차시를 선택하세요</div>
+              <div className={panelStyles.placeholder}>
+                <p className={panelStyles.placeholderTitle}>차시를 선택하세요</p>
+              </div>
             ) : (
               <div className={styles.grid}>
                 <div
