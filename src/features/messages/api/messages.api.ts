@@ -113,7 +113,17 @@ export async function fetchNotificationLog(
 // 메시지 템플릿 (양식 저장)
 // ----------------------------------------
 
-export type MessageTemplateCategory = "default" | "lecture" | "clinic";
+export type MessageTemplateCategory =
+  | "default"
+  | "signup"
+  | "attendance"
+  | "lecture"
+  | "exam"
+  | "assignment"
+  | "grades"
+  | "clinic"
+  | "payment"
+  | "notice";
 
 export type SolapiStatus = "" | "PENDING" | "APPROVED" | "REJECTED";
 

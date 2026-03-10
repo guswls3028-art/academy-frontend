@@ -46,7 +46,17 @@ const CLINIC_EXTRA_BLOCKS: TemplateBlock[] = [
   { id: "clinic_date", label: "클리닉 날짜", insertText: "#{clinic_date}", previewValue: "12/25(목) 14:00" },
 ];
 
-export type TemplateCategory = "default" | "lecture" | "clinic";
+export type TemplateCategory =
+  | "default"
+  | "signup"
+  | "attendance"
+  | "lecture"
+  | "exam"
+  | "assignment"
+  | "grades"
+  | "clinic"
+  | "payment"
+  | "notice";
 
 export const LECTURE_BLOCKS: TemplateBlock[] = [...DEFAULT_BLOCKS, ...LECTURE_EXTRA_BLOCKS];
 export const CLINIC_BLOCKS: TemplateBlock[] = [...DEFAULT_BLOCKS, ...CLINIC_EXTRA_BLOCKS];
@@ -54,6 +64,7 @@ export const CLINIC_BLOCKS: TemplateBlock[] = [...DEFAULT_BLOCKS, ...CLINIC_EXTR
 const PREVIEW_MAP: Record<string, string> = Object.fromEntries(
   [
     ...DEFAULT_BLOCKS,
+    ...SIGNUP_BLOCKS.filter((b) => !DEFAULT_BLOCKS.some((d) => d.id === b.id)),
     ...LECTURE_EXTRA_BLOCKS,
     ...CLINIC_EXTRA_BLOCKS,
   ].map((b) => [b.insertText, b.previewValue])
@@ -61,10 +72,18 @@ const PREVIEW_MAP: Record<string, string> = Object.fromEntries(
 
 export function getBlocksForCategory(category: TemplateCategory): TemplateBlock[] {
   switch (category) {
+    case "signup":
+      return SIGNUP_BLOCKS;
     case "lecture":
       return LECTURE_BLOCKS;
     case "clinic":
       return CLINIC_BLOCKS;
+    case "attendance":
+    case "exam":
+    case "assignment":
+    case "grades":
+    case "payment":
+    case "notice":
     default:
       return DEFAULT_BLOCKS;
   }
@@ -76,6 +95,13 @@ export function renderPreviewText(text: string): string {
 
 export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   default: "기본",
+  signup: "가입/등록",
+  attendance: "출결",
   lecture: "강의",
+  exam: "시험",
+  assignment: "과제",
+  grades: "성적",
   clinic: "클리닉",
+  payment: "결제",
+  notice: "운영공지",
 };

@@ -435,6 +435,7 @@ export default function MessageAutoSendPage() {
   const configsInSection = localConfigs.filter((c) => sectionTriggers.includes(c.trigger));
 
   return (
+    <>
     <div className={panelStyles.root}>
       <div className={panelStyles.header}>
         <h2 className={panelStyles.headerTitle}>자동발송</h2>

@@ -4,18 +4,17 @@
  * SSOT: PanelWithTreeLayout (메시지 자동발송과 동일)
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Clock, MapPin, FileQuestion, BookOpen, User } from "lucide-react";
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { useSearchParams } from "react-router-dom";
 import { fetchClinicSessionTree } from "../../api/clinicSessions.api";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
-import OperationsSessionTree from "../../components/OperationsSessionTree";
+import ClinicConsoleSidebar from "./ClinicConsoleSidebar";
 import ClinicConsoleWorkspace from "./ClinicConsoleWorkspace";
 
 dayjs.locale("ko");
@@ -25,8 +24,17 @@ function todayISO() {
 }
 
 export default function ClinicOperationsConsolePage() {
-  const [selectedDate, setSelectedDate] = useState(() => todayISO());
+  const [sp] = useSearchParams();
+  const dateParam = sp.get("date");
+  const initialDate =
+    dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : todayISO();
+  const [selectedDate, setSelectedDate] = useState(() => initialDate);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+
+  // URL date 쿼리와 동기화 (다른 화면에서 날짜와 함께 진입 시)
+  React.useEffect(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) setSelectedDate(dateParam);
+  }, [dateParam]);
 
   const ym = useMemo(() => {
     const d = dayjs(selectedDate);
@@ -71,12 +79,12 @@ export default function ClinicOperationsConsolePage() {
               <span className={panelStyles.treeNavTitle}>일정</span>
             </div>
             <div className={panelStyles.treeScroll}>
-              <OperationsSessionTree
+              <ClinicConsoleSidebar
                 sessions={treeQ.data ?? []}
                 selectedDay={selectedDate}
+                todayISO={todayISO()}
                 year={ym.year}
                 month={ym.month}
-                todayISO={todayISO()}
                 onSelectDay={(date) => {
                   setSelectedDate(date);
                   setSelectedSessionId(null);
@@ -91,63 +99,9 @@ export default function ClinicOperationsConsolePage() {
                   setSelectedDate(d.startOf("month").format("YYYY-MM-DD"));
                   setSelectedSessionId(null);
                 }}
+                selectedSessionId={selectedSessionId}
+                onSelectSession={setSelectedSessionId}
               />
-            </div>
-            <div className={panelStyles.treeNavHeader} style={{ borderTop: "1px solid var(--color-border-divider)" }}>
-              <span className={panelStyles.treeNavTitle}>클리닉 수업</span>
-            </div>
-            <div className={panelStyles.treeScroll}>
-              {treeQ.isLoading ? (
-                <p className="clinic-empty-state__text" style={{ padding: "var(--space-4)", fontSize: 13 }}>
-                  불러오는 중…
-                </p>
-              ) : sessionsForDay.length === 0 ? (
-                <p className="clinic-empty-state__text" style={{ padding: "var(--space-4)", fontSize: 13 }}>
-                  {selectedDate === todayISO() ? "오늘 일정이 없습니다." : "해당 날짜에 클리닉이 없습니다."}
-                </p>
-              ) : (
-                <ul style={{ listStyle: "none", margin: 0, padding: "var(--space-2) 0" }}>
-                  {sessionsForDay.map((s) => {
-                    const time = (s.start_time || "").slice(0, 5) || "—";
-                    const isActive = selectedSessionId === s.id;
-                    return (
-                      <li key={s.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSessionId(s.id)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            width: "100%",
-                            padding: "var(--space-2) var(--space-4)",
-                            border: "none",
-                            borderRadius: 0,
-                            background: isActive
-                              ? "color-mix(in srgb, var(--color-primary) 10%, var(--color-bg-surface))"
-                              : "transparent",
-                            color: isActive ? "var(--color-primary)" : "var(--color-text-secondary)",
-                            fontWeight: isActive ? 600 : 500,
-                            fontSize: 13,
-                            textAlign: "left",
-                            cursor: "pointer",
-                            borderLeft: `3px solid ${isActive ? "var(--color-primary)" : "transparent"}`,
-                          }}
-                        >
-                          <Clock size={14} aria-hidden />
-                          <span>{time}</span>
-                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {s.location || "—"}
-                          </span>
-                          <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
-                            {s.booked_count ?? 0}명
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
             </div>
           </aside>
 
