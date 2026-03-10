@@ -89,6 +89,11 @@ export default function EnrollmentManageModal({
     );
   }, [rows, keyword]);
 
+  const selectedRows = useMemo(
+    () => rows.filter((r) => selectedIds.has(r.enrollment_id)),
+    [rows, selectedIds]
+  );
+
   const readOnly = !onSave;
 
   useEffect(() => {
@@ -141,11 +146,6 @@ export default function EnrollmentManageModal({
       onToggle?.(enrollmentId);
     }
   };
-
-  const selectedRows = useMemo(
-    () => rows.filter((r) => selectedIds.has(r.enrollment_id)),
-    [rows, selectedIds]
-  );
 
   return (
     <AdminModal open={true} onClose={safeClose} type="action" width={840}>
