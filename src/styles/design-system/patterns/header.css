@@ -2,7 +2,16 @@
 /* App Header Pattern (SSOT) — Premium SaaS style
    - colors are role/layout tokens only
    - layout uses CSS, not inline color styling
+   - 상단 헤더 드롭다운 SSOT: .cursor/rules/header-dropdown-ssot.mdc
 */
+
+/* ========== 헤더 드롭다운 SSOT: 공통 패널 껍데기 (알림·작업박스·프로필 공통) ========== */
+.ds-header-dropdown {
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--elevation-dropdown, 0 8px 24px rgba(0, 0, 0, 0.12));
+  border: 1px solid var(--color-border-divider);
+}
 
 [data-app="admin"] .app-header {
   position: relative;
@@ -394,10 +403,10 @@
   min-width: 280px;
   max-width: min(360px, calc(100vw - 24px));
   max-height: 400px;
-  background: var(--color-bg-surface, #fff);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--color-border-divider, #e5e7eb);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--elevation-dropdown, 0 8px 24px rgba(0, 0, 0, 0.12));
+  border: 1px solid var(--color-border-divider);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -671,7 +680,8 @@
 }
 
 /* ----- 프로필 드롭다운 (모바일/PC뷰 · 설정 · 로그아웃) ----- */
-[data-app="admin"] .app-header__profileDropdown {
+[data-app="admin"] .app-header__profileDropdown,
+.ds-header-dropdown.app-header__profileDropdown {
   min-width: 200px;
   padding: var(--space-2);
   background: var(--color-bg-surface);
@@ -744,8 +754,9 @@
   background: color-mix(in srgb, var(--color-status-error, #ef4444) 10%, transparent);
 }
 
-/* 프로필 드롭다운: Ant Design이 overlay를 body 포탈로 렌더하므로 [data-app] 밖에 있음. 동일 스타일을 overlay 클래스로 적용 */
-.app-header__profileDropdownOverlay .app-header__profileDropdown {
+/* 프로필 드롭다운: Ant Design이 overlay를 body 포탈로 렌더하므로 [data-app] 밖에 있음. 동일 스타일을 SSOT 토큰으로 적용 */
+.app-header__profileDropdownOverlay .app-header__profileDropdown,
+.app-header__profileDropdownOverlay .ds-header-dropdown.app-header__profileDropdown {
   min-width: 200px;
   padding: var(--space-2);
   background: var(--color-bg-surface);
