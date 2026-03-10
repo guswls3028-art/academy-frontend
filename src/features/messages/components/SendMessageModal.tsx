@@ -7,6 +7,7 @@ import { Input } from "antd";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import {
   fetchMessageTemplates,
   sendMessage,
@@ -151,6 +152,8 @@ export default function SendMessageModal({
   const handleSend = async () => {
     if (!canSend) return;
     setSending(true);
+    const taskId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    asyncStatusStore.addWorkerJob("문자 발송", taskId, "messaging");
     try {
       let totalEnqueued = 0;
       let totalSkipped = 0;
@@ -196,13 +199,16 @@ export default function SendMessageModal({
       if (totalSkipped > 0) {
         feedback.info(`전화번호 없음으로 ${totalSkipped}건 제외되었습니다.`);
       }
+      asyncStatusStore.completeTask(taskId, "success");
       onClose();
     } catch (e: unknown) {
       const msg =
         e && typeof e === "object" && "response" in e
           ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
           : null;
-      feedback.error(msg || "발송 요청에 실패했습니다.");
+      const errMsg = (msg && typeof msg === "string" ? msg : "발송 요청에 실패했습니다.") as string;
+      asyncStatusStore.completeTask(taskId, "error", errMsg);
+      feedback.error(errMsg);
     } finally {
       setSending(false);
     }
