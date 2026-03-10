@@ -239,6 +239,7 @@ export default function SessionEnrollModal({
         setPage(1);
       } else {
         setSearch(trimmed);
+        setPage(1);
       }
     }, 300);
     return () => clearTimeout(t);
@@ -576,9 +577,11 @@ export default function SessionEnrollModal({
 
               {activeTab === "existing" && (
                 <>
-                  {/* 툴바 — 학생 도메인과 동일한 디자인: 총계 | 검색 | 고급 필터 */}
+                  {/* 툴바 — 학생 도메인과 동일: 총계 | 검색+필터 */}
                   {(() => {
                     const activeFilterCount = [sort !== "name", schoolType !== "", grade !== 0].filter(Boolean).length;
+                    const total = typeof totalCount === "number" ? totalCount : 0;
+                    const showCount = Array.isArray(studentsToShow) ? studentsToShow.length : 0;
                     return (
                       <div className="flex flex-col gap-3" style={{ marginBottom: 12 }}>
                         <div className="flex flex-wrap items-center gap-3">
@@ -592,12 +595,12 @@ export default function SessionEnrollModal({
                               marginRight: 4,
                             }}
                           >
-                            총 {totalCount > 0 ? totalCount.toLocaleString() : studentsToShow.length}명
+                            총 {total > 0 ? total.toLocaleString() : showCount}명
                           </span>
                           <div className="flex items-center gap-2 flex-1 min-w-0" style={{ maxWidth: 420 }}>
                             <input
                               className="ds-input flex-1 min-w-0"
-                              placeholder="이름 / 전화번호 / 학교명 / 학년(예: 3학년)"
+                              placeholder="이름 / 전화번호 검색"
                               value={keyword}
                               onChange={(e) => setKeyword(e.target.value)}
                               style={{ maxWidth: 360 }}
