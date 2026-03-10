@@ -21,14 +21,12 @@ import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
 
 type EditConfig = {
   examEditTotal: boolean;
-  examEditObjective: boolean;
   examEditSubjective: boolean;
   homeworkEdit: boolean;
 };
 
 const DEFAULT_EDIT_CONFIG: EditConfig = {
   examEditTotal: true,
-  examEditObjective: false,
   examEditSubjective: false,
   homeworkEdit: true,
 };
@@ -87,40 +85,32 @@ export default function SessionScoresTab() {
 
   function handleEditTypeClick(type: keyof EditConfig) {
     setEditConfig((prev) => {
-      // homeworkEdit은 독립적으로 토글
       if (type === "homeworkEdit") {
         return { ...prev, homeworkEdit: !prev.homeworkEdit };
       }
-
-      // 합산 직접 입력: 객관식/주관식 OFF
       if (type === "examEditTotal") {
         const next = !prev.examEditTotal;
         return {
           ...prev,
           examEditTotal: next,
-          examEditObjective: next ? false : prev.examEditObjective,
           examEditSubjective: next ? false : prev.examEditSubjective,
         };
       }
-
-      // 객관식 또는 주관식: 합산 OFF
-      if (type === "examEditObjective" || type === "examEditSubjective") {
-        const next = !prev[type];
+      if (type === "examEditSubjective") {
+        const next = !prev.examEditSubjective;
         return {
           ...prev,
+          examEditSubjective: next,
           examEditTotal: next ? false : prev.examEditTotal,
-          [type]: next,
         };
       }
-
       return prev;
     });
   }
 
   const editTypes: { key: keyof EditConfig; label: string }[] = [
-    { key: "examEditTotal", label: "합산직접입력" },
-    { key: "examEditObjective", label: "객관식" },
-    { key: "examEditSubjective", label: "주관식" },
+    { key: "examEditTotal", label: "합산" },
+    { key: "examEditSubjective", label: "주관식만" },
     { key: "homeworkEdit", label: "과제" },
   ];
 
@@ -286,7 +276,7 @@ export default function SessionScoresTab() {
         search={search}
         isEditMode={isEditMode}
         examEditTotal={editConfig.examEditTotal}
-        examEditObjective={editConfig.examEditObjective}
+        examEditObjective={false}
         examEditSubjective={editConfig.examEditSubjective}
         homeworkEdit={editConfig.homeworkEdit}
         scoreDisplayMode={scoreDisplayMode}

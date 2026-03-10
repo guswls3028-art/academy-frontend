@@ -36,7 +36,6 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [isEditMode, setIsEditMode] = useState(false);
   /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
   const [examEditTotal, setExamEditTotal] = useState(false);
-  const [examEditObjective, setExamEditObjective] = useState(false);
   const [examEditSubjective, setExamEditSubjective] = useState(false);
   const [homeworkEdit, setHomeworkEdit] = useState(false);
   /** 읽기 모드에서 시험 점수 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
@@ -59,56 +58,38 @@ export default function SessionScoresEntryPage(_props: Props) {
 
   const setPresetTotalHw = () => {
     setExamEditTotal(true);
-    setExamEditObjective(false);
     setExamEditSubjective(false);
     setHomeworkEdit(true);
   };
   const setPresetSubjectiveHw = () => {
     setExamEditTotal(false);
-    setExamEditObjective(false);
     setExamEditSubjective(true);
     setHomeworkEdit(true);
   };
 
-  /** 합산 선택 시: 이미 객관식/주관식이 켜져 있으면 경고 후 전환. 합산 버튼은 항상 클릭 가능 */
   const handleSelectTotal = () => {
     if (examEditTotal) {
       setExamEditTotal(false);
       return;
     }
-    if (examEditObjective || examEditSubjective) {
-      const ok = window.confirm(
-        "합산점수로 입력시 객관식 점수와 주관식 점수는 제거됩니다. 합산점수로 입력하시겠습니까?"
-      );
+    if (examEditSubjective) {
+      const ok = window.confirm("주관식만 입력이 해제됩니다. 합산으로 입력하시겠습니까?");
       if (!ok) return;
+      setExamEditSubjective(false);
     }
     setExamEditTotal(true);
-    setExamEditObjective(false);
-    setExamEditSubjective(false);
-  };
-
-  /** 객관식/주관식 선택 시: 합산이 켜져 있으면 경고 후 전환. 객관식/주관식 버튼은 항상 클릭 가능 */
-  const handleSelectObjective = () => {
-    if (examEditTotal) {
-      const ok = window.confirm(
-        "합산 입력이 해제됩니다. 객관식 방식으로 입력하시겠습니까?"
-      );
-      if (!ok) return;
-      setExamEditTotal(false);
-    }
-    setExamEditObjective((v) => !v);
-    setExamEditTotal(false);
   };
   const handleSelectSubjective = () => {
+    if (examEditSubjective) {
+      setExamEditSubjective(false);
+      return;
+    }
     if (examEditTotal) {
-      const ok = window.confirm(
-        "합산 입력이 해제됩니다. 주관식 방식으로 입력하시겠습니까?"
-      );
+      const ok = window.confirm("합산 입력이 해제됩니다. 주관식만으로 입력하시겠습니까?");
       if (!ok) return;
       setExamEditTotal(false);
     }
-    setExamEditSubjective((v) => !v);
-    setExamEditTotal(false);
+    setExamEditSubjective(true);
   };
   const handleSelectHomework = () => setHomeworkEdit((v) => !v);
 
@@ -313,7 +294,7 @@ export default function SessionScoresEntryPage(_props: Props) {
               className="scores-edit-segment__btn scores-edit-segment__btn--wide"
               aria-pressed={examEditSubjective && homeworkEdit && !examEditTotal}
             >
-              주관식 + 과제
+              주관식만 + 과제
             </button>
           </div>
           <span className="scores-edit-bar__divider" aria-hidden="true">|</span>
@@ -328,19 +309,11 @@ export default function SessionScoresEntryPage(_props: Props) {
             </button>
             <button
               type="button"
-              onClick={handleSelectObjective}
-              className="scores-edit-segment__btn"
-              aria-pressed={examEditObjective}
-            >
-              객관식
-            </button>
-            <button
-              type="button"
               onClick={handleSelectSubjective}
               className="scores-edit-segment__btn"
               aria-pressed={examEditSubjective}
             >
-              주관식
+              주관식만
             </button>
           </div>
           <span className="scores-edit-bar__divider" aria-hidden="true">|</span>
@@ -396,7 +369,7 @@ export default function SessionScoresEntryPage(_props: Props) {
           search={searchInput}
           isEditMode={isEditMode}
           examEditTotal={examEditTotal}
-          examEditObjective={examEditObjective}
+          examEditObjective={false}
           examEditSubjective={examEditSubjective}
           homeworkEdit={homeworkEdit}
           scoreDisplayMode={scoreDisplayMode}
