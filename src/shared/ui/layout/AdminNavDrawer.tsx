@@ -1,16 +1,30 @@
 /**
  * 선생앱 모바일: 좌측 드로어에 표시할 전체 메뉴. 링크 클릭 시 드로어 닫힘.
  */
+import { useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Drawer } from "antd";
 import { useAdminLayout } from "./AdminLayoutContext";
 import { ADMIN_NAV_GROUPS, NavIcon } from "./adminNavConfig";
+import { fetchStaffMe } from "@/features/staff/api/staffMe.api";
 
 export default function AdminNavDrawer() {
   const layout = useAdminLayout();
   const loc = useLocation();
   const open = layout?.drawerOpen ?? false;
   const onClose = layout?.closeDrawer ?? (() => {});
+  const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
+
+  const groups = useMemo(() => {
+    const isStaffAdmin = !!staffMe?.is_payroll_manager;
+    return ADMIN_NAV_GROUPS.map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (it) => !it.requiresStaffAdmin || (it.requiresStaffAdmin && isStaffAdmin)
+      ),
+    })).filter((g) => g.items.length > 0);
+  }, [staffMe?.is_payroll_manager]);
 
   const isActive = (to: string) =>
     to !== "" && (loc.pathname === to || loc.pathname.startsWith(to + "/"));
@@ -25,7 +39,7 @@ export default function AdminNavDrawer() {
       styles={{ body: { padding: "8px 0" } }}
     >
       <div className="nav" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {ADMIN_NAV_GROUPS.map((g, gi) => (
+        {groups.map((g, gi) => (
           <div key={gi} className="sidebar-group">
             {g.title ? (
               <div className="sidebar-group-title">{g.title}</div>

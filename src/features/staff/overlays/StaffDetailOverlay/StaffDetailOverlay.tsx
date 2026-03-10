@@ -120,6 +120,10 @@ export default function StaffDetailOverlay() {
   const locked = isLockedFromLocks(locksQ.data);
   const canManage = !!meQ.data?.is_payroll_manager;
 
+  if (meQ.data && !meQ.data.is_payroll_manager) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
   const tabItems = [
     { key: "summary", label: "요약", children: <StaffSummaryTab staffId={sid} /> },
     { key: "worktype", label: "시급·근무유형", children: <StaffWorkTypeTab staffId={sid} /> },
