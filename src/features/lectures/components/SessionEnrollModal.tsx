@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dropdown } from "antd";
 import { fetchSessionEnrollments, lectureEnrollFromExcelUpload } from "../api/enrollments";
 import type { SessionEnrollmentRow } from "../api/enrollments";
 import { fetchSessions } from "../api/sessions";
@@ -606,36 +607,69 @@ export default function SessionEnrollModal({
 
               {activeTab === "existing" && (
                 <>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
-                      전체 학생 명단
-                    </span>
-                    {selectedItems.length > 0 && (
-                      <span className="text-[13px] font-semibold text-[var(--color-brand-primary)]">
-                        {selectedItems.length}명 선택됨
-                      </span>
-                    )}
-                  </div>
-
-                  {/* 필터 바 */}
-                  <FilterSortBar
-                    sort={sort}
-                    schoolType={schoolType}
-                    grade={grade}
-                    onSortChange={handleSortChange}
-                    onSchoolTypeChange={handleSchoolTypeChange}
-                    onGradeChange={handleGradeChange}
-                    onReset={handleFilterReset}
-                  />
-
-                  <input
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    placeholder="검색어 입력 (이름·전화번호)"
-                    className="ds-input w-full text-sm"
-                    autoFocus
-                    aria-label="이름 또는 전화번호로 검색"
-                  />
+                  {/* 툴바 — 학생 도메인과 동일한 디자인: 총계 | 검색 | 고급 필터 */}
+                  {(() => {
+                    const hasNonDefault = sort !== "name" || schoolType !== "" || grade !== 0;
+                    const activeFilterCount = [sort !== "name", schoolType !== "", grade !== 0].filter(Boolean).length;
+                    return (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 700,
+                              color: "var(--color-text-primary)",
+                              paddingRight: 12,
+                              borderRight: "1px solid var(--color-border-divider)",
+                              marginRight: 4,
+                            }}
+                          >
+                            총 {totalCount > 0 ? totalCount.toLocaleString() : studentsToShow.length}명
+                          </span>
+                          <input
+                            className="ds-input"
+                            placeholder="이름 / 전화번호 검색"
+                            value={keyword}
+                            onChange={(e) => setKeyword(e.target.value)}
+                            style={{ maxWidth: 360 }}
+                            aria-label="이름 또는 전화번호로 검색"
+                          />
+                          <Dropdown
+                            trigger={["click"]}
+                            dropdownRender={() => (
+                              <div
+                                className="rounded-xl border p-3 shadow-lg"
+                                style={{
+                                  borderColor: "var(--color-border-divider)",
+                                  background: "var(--color-bg-surface)",
+                                  minWidth: 280,
+                                }}
+                              >
+                                <FilterSortBar
+                                  sort={sort}
+                                  schoolType={schoolType}
+                                  grade={grade}
+                                  onSortChange={handleSortChange}
+                                  onSchoolTypeChange={handleSchoolTypeChange}
+                                  onGradeChange={handleGradeChange}
+                                  onReset={handleFilterReset}
+                                />
+                              </div>
+                            )}
+                          >
+                            <Button intent="secondary">
+                              고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
+                            </Button>
+                          </Dropdown>
+                        </div>
+                        {selectedItems.length > 0 && (
+                          <span className="text-[13px] font-semibold text-[var(--color-brand-primary)]">
+                            {selectedItems.length}명 선택됨
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div
                     className="rounded-xl border overflow-hidden flex flex-col"
