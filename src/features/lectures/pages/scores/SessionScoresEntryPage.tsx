@@ -5,11 +5,13 @@
  * - 학생 체크박스 선택 시 메시지 발송·수업결과 발송·성적일괄변경·엑셀 다운로드 (students 도메인 참고)
  */
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
+import { useScoreEditDraft } from "@/features/scores/hooks/useScoreEditDraft";
+import { postScoreDraftCommit } from "@/features/scores/api/scoreDraft";
 import {
   fetchSessionScores,
   type SessionScoreRow,
@@ -41,6 +43,19 @@ export default function SessionScoresEntryPage(_props: Props) {
   const [scoreDisplayMode, setScoreDisplayMode] = useState<"total" | "breakdown">("total");
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
+
+  const sessionIdForDraft = Number.isFinite(numericSessionId) ? numericSessionId : 0;
+  const draft = useScoreEditDraft({
+    sessionId: sessionIdForDraft,
+    panelRef,
+    isEditMode: !!isEditMode && sessionIdForDraft > 0,
+  });
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!isEditMode || draft.draftStatus !== "saved") return;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [isEditMode, draft.draftStatus]);
 
   const setPresetTotalHw = () => {
     setExamEditTotal(true);
@@ -189,7 +204,13 @@ export default function SessionScoresEntryPage(_props: Props) {
       size="sm"
       onClick={() => {
         if (isEditMode) {
-          void panelRef.current?.flushPendingChanges?.().then(() => setIsEditMode(false));
+          void panelRef.current?.flushPendingChanges?.().then(async () => {
+            try {
+              await postScoreDraftCommit(sessionIdForDraft);
+            } finally {
+              setIsEditMode(false);
+            }
+          });
           return;
         }
         setIsEditMode(true);
@@ -215,9 +236,64 @@ export default function SessionScoresEntryPage(_props: Props) {
           />
         }
         filterSlot={null}
-        primaryAction={primaryAction}
+        primaryAction={
+          <div className="flex items-center gap-2">
+            {primaryAction}
+            {isEditMode && (
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {draft.draftStatus === "saving" && "임시저장 중..."}
+                {draft.draftStatus === "saved" && draft.lastSavedAt != null &&
+                  `임시저장됨 · ${Math.max(0, Math.floor((Date.now() - draft.lastSavedAt) / 1000))}초 전`}
+                {draft.draftStatus === "error" && (
+                  <>
+                    <span className="text-[var(--color-error)]">임시저장 실패</span>
+                    {" "}
+                    <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={() => void draft.performSave()}>
+                      다시 시도
+                    </button>
+                  </>
+                )}
+                {draft.draftStatus === "idle" && <span className="text-[var(--color-text-muted)]">저장 안 됨</span>}
+              </span>
+            )}
+          </div>
+        }
         belowSlot={selectionBar}
       />
+
+      {draft.hasDraftToRestore && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="draft-restore-title-entry"
+        >
+          <div className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg p-6 max-w-md mx-4 border border-[var(--color-border-divider)]">
+            <h2 id="draft-restore-title-entry" className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
+              이전에 임시저장된 편집 내용이 있습니다. 복원할까요?
+            </h2>
+            <p className="text-sm text-[var(--color-text-muted)] mb-4">
+              복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => void draft.discardDraft()}
+                className="h-9 px-4 rounded text-sm font-medium border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-soft)]"
+              >
+                버리기
+              </button>
+              <button
+                type="button"
+                onClick={draft.restoreDraft}
+                className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-white hover:opacity-90"
+              >
+                복원
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isEditMode && (
         <div className="scores-edit-bar">
