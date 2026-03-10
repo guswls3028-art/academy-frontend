@@ -1,6 +1,7 @@
 /**
  * 공통 학원 로고 (2번 테넌트 제외) — SVG 인라인, 배경 없음
- * 별 + 졸업모자(3D 입체). 로그인·학생 상단바·관리자 헤더에서 사용.
+ * 별 + 졸업모자(3D 입체). 로고·학생 상단바·관리자 헤더에서 사용.
+ * 참고: SVG width/height attribute에는 "auto" 불가 — 숫자 또는 "100%" 등 length만 사용.
  */
 type Props = {
   width?: number | string;
@@ -10,6 +11,9 @@ type Props = {
   "aria-hidden"?: boolean;
 };
 
+const isValidSvgLength = (v: number | string): v is number | string =>
+  typeof v === "number" || (typeof v === "string" && v !== "auto");
+
 export default function CommonLogoIcon({
   width = "auto",
   height = 32,
@@ -17,14 +21,18 @@ export default function CommonLogoIcon({
   style,
   "aria-hidden": ariaHidden = true,
 }: Props) {
+  const svgWidth = isValidSvgLength(width) ? width : undefined;
+  const svgHeight = typeof height === "number" ? height : undefined;
+  const styleWithAuto = width === "auto" ? { width: "auto" as const, ...style } : style;
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 40 40"
-      width={width}
-      height={height}
+      {...(svgWidth != null && { width: svgWidth })}
+      {...(svgHeight != null && { height: svgHeight })}
       className={className}
-      style={{ display: "block", flexShrink: 0, ...style }}
+      style={{ display: "block", flexShrink: 0, ...styleWithAuto }}
       fill="none"
       aria-hidden={ariaHidden}
     >
