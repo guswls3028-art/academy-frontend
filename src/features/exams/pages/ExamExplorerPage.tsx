@@ -9,6 +9,7 @@ import { useQuery, useQueries } from "@tanstack/react-query";
 import { FileText, FilePlus } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
+import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
 import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, type Session } from "@/features/lectures/api/sessions";
 import { fetchExams } from "../api/exams";
@@ -65,6 +66,34 @@ export default function ExamExplorerPage() {
     return null;
   }, [lecturesWithSessions, selectedSessionId]);
 
+  const breadcrumbPath = useMemo(() => {
+    const path: { id: string | null; name: string }[] = [{ id: null, name: "시험" }];
+    if (selectedSession) {
+      path.push({
+        id: String(selectedSession.lecture.id),
+        name: selectedSession.lecture.title || selectedSession.lecture.name || "강의",
+      });
+      path.push({ id: String(selectedSession.session.id), name: `${selectedSession.session.order}차시` });
+    }
+    return path;
+  }, [selectedSession]);
+
+  const handleBreadcrumbSelect = (id: string | null) => {
+    if (!id) {
+      setSelectedSessionId(null);
+      return;
+    }
+    const num = Number(id);
+    const asSession = lecturesWithSessions.some((l) => l.sessions.some((s) => s.id === num));
+    if (asSession) {
+      setSelectedSessionId(num);
+    } else {
+      const lec = lecturesWithSessions.find((l) => l.id === num);
+      const firstSession = lec?.sessions?.[0];
+      setSelectedSessionId(firstSession ? firstSession.id : null);
+    }
+  };
+
   return (
     <DomainLayout
       title="시험"
@@ -72,12 +101,10 @@ export default function ExamExplorerPage() {
     >
       <div className={panelStyles.root}>
         <div className={panelStyles.toolbar}>
-          <div>
-            <h2 className={panelStyles.headerTitle}>강의 · 차시</h2>
-            <p className={panelStyles.headerDesc} style={{ margin: 0 }}>
-              좌측에서 차시를 선택하면 해당 차시의 시험 목록이 우측에 표시됩니다.
-            </p>
-          </div>
+          <Breadcrumb
+            path={breadcrumbPath.length > 1 ? breadcrumbPath : [{ id: null, name: "시험" }]}
+            onSelect={(id) => handleBreadcrumbSelect(id)}
+          />
           <div className={panelStyles.actions}>
             <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
               강의 목록
