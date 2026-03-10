@@ -62,6 +62,20 @@ function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
 
+/** 편집 모드에서 셀 변경 시 한 번에 반영하기 위한 대기 항목 */
+type PendingChange =
+  | { type: "examTotal"; examId: number; enrollmentId: number; score: number }
+  | { type: "examObjective"; examId: number; enrollmentId: number; score: number }
+  | { type: "examSubjective"; examId: number; enrollmentId: number; score: number }
+  | { type: "homework"; enrollmentId: number; homeworkId: number; score: number | null; metaStatus?: "NOT_SUBMITTED" };
+
+function pendingKey(p: PendingChange): string {
+  if (p.type === "examTotal") return `examTotal:${p.enrollmentId}:${p.examId}`;
+  if (p.type === "examObjective") return `examObjective:${p.enrollmentId}:${p.examId}`;
+  if (p.type === "examSubjective") return `examSubjective:${p.enrollmentId}:${p.examId}`;
+  return `homework:${p.enrollmentId}:${p.homeworkId}`;
+}
+
 /** 합불 표시 — 시험/과제 셀: 합=초록 배지, 불=빨강 배지. 긍정은 초록색 */
 function PassFailText({ passed }: { passed: boolean | null | undefined }) {
   if (passed == null) return <span className="text-[var(--color-text-muted)]">-</span>;
@@ -205,6 +219,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   /** ESC 복원용 — 포커스 진입 시점의 값 */
   const scoreValueOnFocusRef = useRef<Record<string, string>>({});
   const examScoreValueOnFocusRef = useRef<Record<string, string>>({});
+  /** 편집 종료 시 한 번에 저장: 셀별 최종 변경만 유지 */
+  const pendingRef = useRef<Map<string, PendingChange>>(new Map());
+  /** pending에 있는 셀은 sync effect에서 innerText 덮어쓰지 않음 */
+  const dirtyKeysRef = useRef<Set<string>>(new Set());
 
   /** 시험/과제 저장 + 무효화, 실패 시 feedback */
   const saveExamTotal = useCallback(
@@ -277,15 +295,48 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     [qc, sessionId]
   );
 
+  /** 편집 종료 시 한 번에 저장 — pending 항목 전부 API 호출 후 한 번만 invalidate */
+  const flushPendingChanges = useCallback(async () => {
+    const list = Array.from(pendingRef.current.values());
+    pendingRef.current.clear();
+    dirtyKeysRef.current.clear();
+    if (list.length === 0) return;
+    let hasError = false;
+    for (const p of list) {
+      try {
+        if (p.type === "examTotal") {
+          await patchExamTotalScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score, maxScore: 100 });
+        } else if (p.type === "examObjective") {
+          await patchExamObjectiveScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
+        } else if (p.type === "examSubjective") {
+          await patchExamSubjectiveScoreQuick({ examId: p.examId, enrollmentId: p.enrollmentId, score: p.score });
+        } else {
+          await patchHomeworkQuick({
+            sessionId,
+            enrollmentId: p.enrollmentId,
+            homeworkId: p.homeworkId,
+            score: p.score,
+            metaStatus: p.metaStatus ?? undefined,
+          });
+        }
+      } catch {
+        hasError = true;
+      }
+    }
+    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+    if (hasError) feedback.error("일부 점수 저장에 실패했습니다.");
+  }, [qc, sessionId]);
+
   const examOptions = meta?.exams ?? [];
   const homeworkOptions = meta?.homeworks ?? [];
 
-  /** 편집 모드 시 점수 셀 동기화: 포커스 아닐 때만 서버 값으로 contenteditable 텍스트 갱신 */
+  /** 편집 모드 시 점수 셀 동기화: 포커스 아닐 때만 서버 값으로 contenteditable 텍스트 갱신 (pending 셀은 건드리지 않음) */
   useEffect(() => {
     if (!rows.length) return;
     homeworkOptions.forEach((hw) => {
       rows.forEach((row) => {
         const key = `${row.enrollment_id}-${hw.homework_id}`;
+        if (dirtyKeysRef.current.has(`homework:${row.enrollment_id}:${hw.homework_id}`)) return;
         const el = homeworkInputRefs.current[key];
         if (!el || el === document.activeElement) return;
         const entry = row.homeworks?.find((h) => h.homework_id === hw.homework_id);
@@ -306,6 +357,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     examOptions.forEach((ex) => {
       rows.forEach((row) => {
         const key = `${row.enrollment_id}-${ex.exam_id}`;
+        if (dirtyKeysRef.current.has(`examTotal:${row.enrollment_id}:${ex.exam_id}`)) return;
         const el = examInputRefs.current[key];
         if (!el || el === document.activeElement) return;
         const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
@@ -319,7 +371,23 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     if (!rows.length) return;
     examOptions.forEach((ex) => {
       rows.forEach((row) => {
+        const key = `${row.enrollment_id}-${ex.exam_id}-objective`;
+        if (dirtyKeysRef.current.has(`examObjective:${row.enrollment_id}:${ex.exam_id}`)) return;
+        const el = examObjectiveInputRefs.current[key];
+        if (!el || el === document.activeElement) return;
+        const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);
+        const score = entry?.block?.objective_score ?? entry?.block?.score;
+        el.innerText = score != null ? String(Math.round(score)) : "";
+      });
+    });
+  }, [rows, examOptions]);
+
+  useEffect(() => {
+    if (!rows.length) return;
+    examOptions.forEach((ex) => {
+      rows.forEach((row) => {
         const key = `${row.enrollment_id}-${ex.exam_id}-subjective`;
+        if (dirtyKeysRef.current.has(`examSubjective:${row.enrollment_id}:${ex.exam_id}`)) return;
         const el = examSubjectiveInputRefs.current[key];
         if (!el || el === document.activeElement) return;
         const entry = row.exams?.find((e) => e.exam_id === ex.exam_id);

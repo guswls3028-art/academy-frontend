@@ -272,7 +272,7 @@ export default function SendMessageModal({
             )}
           </section>
 
-          {/* 발송 유형: SMS·알림톡 둘 다 선택 가능 */}
+          {/* 발송 유형: SMS + 알림톡, SMS만, 알림톡만 (기본값 = SMS + 알림톡) */}
           <section>
             <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">발송 유형</div>
             <div className="flex flex-wrap items-center gap-6">
@@ -310,7 +310,7 @@ export default function SendMessageModal({
             )}
             {(useAlimtalk || useSms) && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                둘 다 선택하면 동일 내용을 SMS와 알림톡 각각 발송합니다. 알림톡은 검수 승인된 템플릿이 필요합니다.
+                기본: SMS + 알림톡, SMS만, 알림톡만. 둘 다 선택하면 동일 내용을 SMS와 알림톡 각각 발송합니다. 알림톡은 검수 승인된 템플릿이 필요합니다.
               </p>
             )}
           </section>

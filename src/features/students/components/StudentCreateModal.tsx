@@ -525,7 +525,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                         onClick={() => handleSetSignupMessageMode("sms")}
                         disabled={updateAutoSendMut.isPending}
                       >
-                        메시지
+                        SMS
                       </button>
                       <button
                         type="button"
@@ -822,7 +822,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                         onClick={() => handleSetSignupMessageMode("sms")}
                         disabled={updateAutoSendMut.isPending}
                       >
-                        메시지
+                        SMS
                       </button>
                       <button
                         type="button"
