@@ -125,7 +125,7 @@ export default function SessionScoresTab() {
               : "border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:border-[var(--color-brand-primary)] hover:text-[var(--color-brand-primary)]",
           ].join(" ")}
         >
-          편집 모드
+          {isEditMode ? "편집 종료" : "편집 모드"}
         </button>
 
         {/* 구분선 */}
@@ -198,6 +198,7 @@ export default function SessionScoresTab() {
 
       {/* ── Scores Panel ── */}
       <SessionScoresPanel
+        ref={panelRef}
         sessionId={sessionId}
         search={search}
         isEditMode={isEditMode}

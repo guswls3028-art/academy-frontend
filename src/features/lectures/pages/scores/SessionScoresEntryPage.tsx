@@ -5,11 +5,11 @@
  * - 학생 체크박스 선택 시 메시지 발송·수업결과 발송·성적일괄변경·엑셀 다운로드 (students 도메인 참고)
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 
-import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
+import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
 import {
   fetchSessionScores,
   type SessionScoreRow,
@@ -40,6 +40,7 @@ export default function SessionScoresEntryPage(_props: Props) {
   /** 읽기 모드에서 시험 점수 표시: 합산(한 칸) | 객관식+주관식(두 칸) */
   const [scoreDisplayMode, setScoreDisplayMode] = useState<"total" | "breakdown">("total");
   const { openSendMessageModal } = useSendMessageModal();
+  const panelRef = useRef<SessionScoresPanelHandle>(null);
 
   const setPresetTotalHw = () => {
     setExamEditTotal(true);
@@ -186,7 +187,13 @@ export default function SessionScoresEntryPage(_props: Props) {
       type="button"
       intent="primary"
       size="sm"
-      onClick={() => setIsEditMode((v) => !v)}
+      onClick={() => {
+        if (isEditMode) {
+          void panelRef.current?.flushPendingChanges?.().then(() => setIsEditMode(false));
+          return;
+        }
+        setIsEditMode(true);
+      }}
     >
       {isEditMode ? "편집 종료" : "편집 모드"}
     </Button>
@@ -308,6 +315,7 @@ export default function SessionScoresEntryPage(_props: Props) {
 
       {!isLoading && !isError && (
         <SessionScoresPanel
+          ref={panelRef}
           sessionId={numericSessionId}
           search={searchInput}
           isEditMode={isEditMode}
