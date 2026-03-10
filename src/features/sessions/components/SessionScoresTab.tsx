@@ -12,9 +12,9 @@
  * - scores 도메인의 SessionScoresPanel이 실제 렌더링 단일 진실
  */
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useSessionParams } from "../hooks/useSessionParams";
-import SessionScoresPanel from "@/features/scores/panels/SessionScoresPanel";
+import SessionScoresPanel, { type SessionScoresPanelHandle } from "@/features/scores/panels/SessionScoresPanel";
 
 type EditConfig = {
   examEditTotal: boolean;
@@ -40,6 +40,7 @@ export default function SessionScoresTab() {
   const [scoreDisplayMode, setScoreDisplayMode] = useState<ScoreDisplayMode>("total");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const panelRef = useRef<SessionScoresPanelHandle>(null);
 
   if (!sessionId) {
     return (
@@ -50,14 +51,16 @@ export default function SessionScoresTab() {
   }
 
   function handleToggleEditMode() {
-    setIsEditMode((prev) => {
-      const next = !prev;
-      if (next) {
-        // 편집 모드 진입 시 기본값으로 리셋
+    if (isEditMode) {
+      // 편집 종료: 대기 중인 변경 한 번에 저장 후 모드 해제
+      void panelRef.current?.flushPendingChanges?.().then(() => {
+        setIsEditMode(false);
         setEditConfig(DEFAULT_EDIT_CONFIG);
-      }
-      return next;
-    });
+      });
+      return;
+    }
+    setIsEditMode(true);
+    setEditConfig(DEFAULT_EDIT_CONFIG);
   }
 
   function handleEditTypeClick(type: keyof EditConfig) {

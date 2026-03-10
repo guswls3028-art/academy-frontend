@@ -1,7 +1,8 @@
 // PATH: src/features/scores/panels/SessionScoresPanel.tsx
 // 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 입력은 테이블 셀에서만
+// 편집 종료 시 한 번에 저장(flushPendingChanges)
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -29,6 +30,11 @@ type Props = {
   onSelectionChange?: (enrollmentIds: number[]) => void;
 };
 
+export type SessionScoresPanelHandle = {
+  /** 편집 모드 종료 전 호출 — 대기 중인 점수 변경을 한 번에 저장 */
+  flushPendingChanges: () => Promise<void>;
+};
+
 type ScoreCellRef =
   | { type: "exam"; examId: number; sub: "total" }
   | { type: "exam"; examId: number; sub: "objective" }
@@ -40,7 +46,7 @@ type FocusScoreCell = {
   enrollmentId: number;
 } & ScoreCellRef;
 
-export default function SessionScoresPanel({
+export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScoresPanel({
   sessionId,
   search = "",
   isEditMode = false,
@@ -51,9 +57,13 @@ export default function SessionScoresPanel({
   scoreDisplayMode = "total",
   selectedEnrollmentIds = [],
   onSelectionChange,
-}: Props) {
+}, ref) {
   /** Direct DOM focus — no React state cycle needed */
   const tableRef = useRef<ScoresTableHandle>(null);
+
+  useImperativeHandle(ref, () => ({
+    flushPendingChanges: () => tableRef.current?.flushPendingChanges?.() ?? Promise.resolve(),
+  }), []);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
@@ -319,4 +329,4 @@ export default function SessionScoresPanel({
       </div>
     </div>
   );
-}
+});
