@@ -14,6 +14,7 @@ import type { EnrollmentRow } from "./types";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { TABLE_COL } from "@/shared/ui/domain";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 
 function TrashIcon({ className }: { className?: string }) {
   return (
@@ -338,7 +339,13 @@ export default function EnrollmentManageModal({
                                 )}
                               </td>
                               <td className="modal-inner-table__name py-1.5 px-3 text-[var(--color-text-primary)] truncate font-medium">
-                                {r.student_name || "(이름 없음)"}
+                                <StudentNameWithLectureChip
+                                  name={r.student_name || "(이름 없음)"}
+                                  profilePhotoUrl={r.profile_photo_url ?? undefined}
+                                  avatarSize={20}
+                                  lectures={r.lectures ?? undefined}
+                                  chipSize={14}
+                                />
                               </td>
                               <td className="py-1.5 px-3 text-[var(--color-text-muted)]">
                                 {r.enrollment_id}

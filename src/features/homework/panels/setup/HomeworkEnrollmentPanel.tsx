@@ -66,6 +66,17 @@ export default function HomeworkEnrollmentPanel({
     const normalizedRows: EnrollmentRow[] = items.map((x) => ({
       enrollment_id: x.enrollment_id,
       student_name: x.student_name,
+      profile_photo_url: x.profile_photo_url ?? undefined,
+      lectures:
+        x.lecture_title != null && x.lecture_title !== ""
+          ? [
+              {
+                lectureName: x.lecture_title,
+                color: x.lecture_color ?? undefined,
+                chipLabel: x.lecture_chip_label ?? undefined,
+              },
+            ]
+          : undefined,
     }));
     const initSelected = new Set<number>(q?.selected_ids ?? []);
     setRows(normalizedRows);

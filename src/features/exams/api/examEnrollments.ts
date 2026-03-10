@@ -4,6 +4,10 @@ export type ExamEnrollmentRow = {
   enrollment_id: number;
   student_name: string;
   is_selected: boolean;
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
 };
 
 export type ExamEnrollmentManageResponse = {

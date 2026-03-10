@@ -16,6 +16,10 @@ export type HomeworkAssignmentItem = {
   enrollment_id: number;
   student_name: string;
   is_selected: boolean;
+  profile_photo_url?: string | null;
+  lecture_title?: string | null;
+  lecture_color?: string | null;
+  lecture_chip_label?: string | null;
 };
 
 export type HomeworkAssignmentsResponse = {
@@ -29,6 +33,10 @@ function normalizeItems(raw: any): HomeworkAssignmentItem[] {
     enrollment_id: Number(r?.enrollment_id),
     student_name: String(r?.student_name ?? ""),
     is_selected: Boolean(r?.is_selected),
+    profile_photo_url: r?.profile_photo_url ?? undefined,
+    lecture_title: r?.lecture_title ?? undefined,
+    lecture_color: r?.lecture_color ?? undefined,
+    lecture_chip_label: r?.lecture_chip_label ?? undefined,
   }));
 }
 
