@@ -17,6 +17,7 @@ import {
 } from "../api/messages.api";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { TEMPLATE_CATEGORY_LABELS, DEFAULT_BLOCKS } from "../constants/templateBlocks";
+import { getDefaultSendModalModes } from "../constants/messageSendOptions";
 import type { MessageTemplateCategory } from "../api/messages.api";
 import "../styles/templateEditor.css";
 
@@ -60,9 +61,9 @@ export default function SendMessageModal({
   /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개). 직원 모드일 때는 사용 안 함 */
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(false);
-  /** 발송 유형: SMS·알림톡 둘 다 선택 가능 (최소 1개). 선택한 각각에 대해 API 호출 */
+  /** 발송 유형: SMS·알림톡 둘 다 선택 가능 (최소 1개). 기본값 = SMS + 알림톡 */
   const [useSms, setUseSms] = useState(true);
-  const [useAlimtalk, setUseAlimtalk] = useState(false);
+  const [useAlimtalk, setUseAlimtalk] = useState(true);
   const [sending, setSending] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -99,10 +100,11 @@ export default function SendMessageModal({
       setContentMode("free");
       setSendToParent(true);
       setSendToStudent(false);
-      setUseSms(true);
-      setUseAlimtalk(false);
+      const defaults = getDefaultSendModalModes(smsAllowed);
+      setUseSms(defaults.useSms);
+      setUseAlimtalk(defaults.useAlimtalk);
     }
-  }, [open]);
+  }, [open, smsAllowed]);
 
   useEffect(() => {
     if (open && !smsAllowed && useSms) {

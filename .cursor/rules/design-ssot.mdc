@@ -29,6 +29,12 @@ alwaysApply: false
 - **클래스**: `.root`, `.header` / `.headerTitle` / `.headerDesc`, `.toolbar` / `.actions`, `.body`, `.tree`, `.treeNavHeader` / `.treeNavTitle`, `.treeScroll`, `.content` / `.contentInner` / `.gridWrap`, `.sectionTitle`, `.skeletonCard`, `.placeholder`
 - **적용**: 해당 페이지는 반드시 `PanelWithTreeLayout.module.css`를 import하여 사용. 트리 너비·패딩·배경 등 레이아웃 변경은 이 파일만 수정.
 
+## 상단 헤더 드롭다운 (Header Dropdown)
+
+- **SSOT**: `src/styles/design-system/patterns/header.css` + `.cursor/rules/header-dropdown-ssot.mdc`
+- **공통 클래스**: `.ds-header-dropdown` — 알림·작업박스·프로필·근무자 등 모든 헤더 드롭다운 패널에 적용. 배경·테두리·둥근모서리·그림자는 이 클래스/토큰만 사용.
+- **적용**: `Header.tsx` 및 헤더에서 열리는 모든 드롭다운은 `ds-header-dropdown` + 용도별 클래스(`app-header__alarmDropdown`, `app-header__profileDropdown` 등) 사용. 변경 시 `header.css`만 수정.
+
 ## 엑셀 업로드 영역 (ExcelUploadZone)
 
 - **SSOT**: `src/styles/design-system/modal.css` — `.excel-upload-zone`, `.excel-upload-zone--filled`
