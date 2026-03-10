@@ -20,7 +20,7 @@ import AutoSendSectionTree, {
   AUTO_SEND_SECTIONS,
   type AutoSendSectionId,
 } from "../components/AutoSendSectionTree";
-import styles from "./MessageAutoSendPage.module.css";
+import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 const QUERY_KEY = ["messaging", "auto-send"] as const;
 
@@ -359,19 +359,19 @@ export default function MessageAutoSendPage() {
 
   if (isLoading) {
     return (
-      <div className={styles.root}>
-        <div className={styles.header}>
-          <h2 className={styles.headerTitle}>자동발송</h2>
-          <p className={styles.headerDesc}>특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.</p>
+      <div className={panelStyles.root}>
+        <div className={panelStyles.header}>
+          <h2 className={panelStyles.headerTitle}>자동발송</h2>
+          <p className={panelStyles.headerDesc}>특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.</p>
         </div>
-        <div className={styles.body}>
-          <aside className={styles.tree}>
+        <div className={panelStyles.body}>
+          <aside className={panelStyles.tree}>
             <AutoSendSectionTree selectedSection="clinic" onSelectSection={() => {}} />
           </aside>
-          <div className={styles.content}>
-            <div className={styles.contentInner}>
+          <div className={panelStyles.content}>
+            <div className={panelStyles.contentInner}>
               {[1, 2, 3].map((i) => (
-                <div key={i} className={styles.skeletonCard} />
+                <div key={i} className={panelStyles.skeletonCard} />
               ))}
             </div>
           </div>
@@ -387,10 +387,10 @@ export default function MessageAutoSendPage() {
   );
 
   return (
-    <div className={styles.root}>
-      <div className={styles.header}>
-        <h2 className={styles.headerTitle}>자동발송</h2>
-        <p className={styles.headerDesc}>특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.</p>
+    <div className={panelStyles.root}>
+      <div className={panelStyles.header}>
+        <h2 className={panelStyles.headerTitle}>자동발송</h2>
+        <p className={panelStyles.headerDesc}>특정 상황 발생 시 설정한 템플릿으로 자동 발송됩니다.</p>
         {!smsAllowed && (
           <div
             style={{
@@ -427,18 +427,18 @@ export default function MessageAutoSendPage() {
         )}
       </div>
 
-      <div className={styles.body}>
-        <aside className={styles.tree}>
+      <div className={panelStyles.body}>
+        <aside className={panelStyles.tree}>
           <AutoSendSectionTree
             selectedSection={selectedSection}
             onSelectSection={setSelectedSection}
           />
         </aside>
-        <div className={styles.content}>
-          <div className={styles.contentInner}>
+        <div className={panelStyles.content}>
+          <div className={panelStyles.contentInner}>
             {section && (
               <>
-                <p className={styles.sectionTitle}>
+                <p className={panelStyles.sectionTitle}>
                   {section.label} — {SECTION_DESCRIPTIONS[section.id]}
                 </p>
                 {configsInSection.map((config) => (
