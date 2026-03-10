@@ -4,13 +4,16 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiZap, FiInfo } from "react-icons/fi";
+import { Switch } from "antd";
 import {
   fetchAutoSendConfigs,
   fetchMessageTemplates,
   updateAutoSendConfigs,
+  createMessageTemplate,
   type AutoSendConfigItem,
   AUTO_SEND_TRIGGER_LABELS,
   type MessageTemplateItem,
+  type MessageTemplatePayload,
 } from "../api/messages.api";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { Button } from "@/shared/ui/ds";
@@ -19,6 +22,7 @@ import AutoSendSectionTree, {
   AUTO_SEND_SECTIONS,
   type AutoSendSectionId,
 } from "../components/AutoSendSectionTree";
+import TemplateEditModal from "../components/TemplateEditModal";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
 const QUERY_KEY = ["messaging", "auto-send"] as const;
@@ -71,12 +75,14 @@ function TriggerCard({
   onUpdate,
   saving,
   smsAllowed,
+  onOpenCreateTemplate,
 }: {
   config: AutoSendConfigItem;
   templates: MessageTemplateItem[];
   onUpdate: (c: Partial<AutoSendConfigItem>, debounce?: boolean) => void;
   saving: boolean;
   smsAllowed: boolean;
+  onOpenCreateTemplate?: (trigger: string) => void;
 }) {
   const effectiveMode =
     !smsAllowed && (config.message_mode === "sms" || config.message_mode === "both")
@@ -142,20 +148,12 @@ function TriggerCard({
         </div>
 
         {/* 활성화 토글 */}
-        <label
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            cursor: isComingSoon || saving ? "not-allowed" : "pointer",
-            flexShrink: 0,
-          }}
-        >
-          <input
-            type="checkbox"
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <Switch
             checked={config.enabled}
-            onChange={(e) => onUpdate({ ...config, enabled: e.target.checked })}
+            onChange={(checked) => onUpdate({ ...config, enabled: checked })}
             disabled={saving || isComingSoon}
+            size="small"
           />
           <span
             style={{
@@ -168,7 +166,7 @@ function TriggerCard({
           >
             {config.enabled ? "활성화" : "비활성화"}
           </span>
-        </label>
+        </div>
       </div>
 
       {/* 컨트롤 영역 */}
@@ -196,28 +194,39 @@ function TriggerCard({
             >
               템플릿
             </label>
-            <select
-              className="ds-input"
-              style={{ width: "100%", fontSize: 13 }}
-              value={config.template ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                onUpdate({ ...config, template: v ? Number(v) : null });
-              }}
-              disabled={saving}
-            >
-              <option value="">— 템플릿 선택 —</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.solapi_status === "APPROVED"
-                    ? " ✓"
-                    : t.solapi_status === "PENDING"
-                    ? " (검수대기)"
-                    : ""}
-                </option>
-              ))}
-            </select>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select
+                className="ds-input"
+                style={{ flex: 1, fontSize: 13 }}
+                value={config.template ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  onUpdate({ ...config, template: v ? Number(v) : null });
+                }}
+                disabled={saving}
+              >
+                <option value="">— 템플릿 선택 —</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {t.solapi_status === "APPROVED"
+                      ? " ✓"
+                      : t.solapi_status === "PENDING"
+                      ? " (검수대기)"
+                      : ""}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                onClick={() => onOpenCreateTemplate?.(config.trigger)}
+                disabled={saving}
+              >
+                템플릿 생성하기
+              </Button>
+            </div>
           </div>
 
           {/* 발송 시점 (N분 전) */}
@@ -315,6 +324,7 @@ function TriggerCard({
 export default function MessageAutoSendPage() {
   const qc = useQueryClient();
   const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("signup");
+  const [createTemplateForTrigger, setCreateTemplateForTrigger] = useState<string | null>(null);
   const { data: messagingInfo } = useMessagingInfo();
   const smsAllowed = messagingInfo?.sms_allowed ?? true;
 
@@ -347,6 +357,25 @@ export default function MessageAutoSendPage() {
           ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
           : null;
       feedback.error(msg || "저장에 실패했습니다.");
+    },
+  });
+
+  const createTemplateMut = useMutation({
+    mutationFn: (payload: MessageTemplatePayload) => createMessageTemplate(payload),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
+      qc.invalidateQueries({ queryKey: QUERY_KEY });
+      if (createTemplateForTrigger && created?.id) {
+        const prev = localConfigs.find((c) => c.trigger === createTemplateForTrigger);
+        if (prev) {
+          handleUpdate({ ...prev, template: created.id });
+        }
+      }
+      setCreateTemplateForTrigger(null);
+      feedback.success("템플릿이 생성되었습니다.");
+    },
+    onError: () => {
+      feedback.error("템플릿 생성에 실패했습니다.");
     },
   });
 
