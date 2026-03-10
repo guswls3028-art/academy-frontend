@@ -140,6 +140,14 @@ export type CurrentlyWorkingItem = {
 };
 
 export async function fetchCurrentlyWorkingStaff(): Promise<CurrentlyWorkingItem[]> {
-  const res = await api.get<CurrentlyWorkingItem[]>("/staffs/currently-working/");
-  return Array.isArray(res.data) ? res.data : [];
+  try {
+    const res = await api.get<CurrentlyWorkingItem[]>("/staffs/currently-working/");
+    return Array.isArray(res.data) ? res.data : [];
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status;
+    if (status === 404) {
+      return [];
+    }
+    throw err;
+  }
 }
