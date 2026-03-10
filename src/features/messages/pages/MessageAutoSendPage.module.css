@@ -61,9 +61,8 @@
 .sectionTitle {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.02em;
   margin-bottom: var(--space-2);
 }
 
