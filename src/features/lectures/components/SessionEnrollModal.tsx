@@ -49,8 +49,20 @@ const GRADE_OPTIONS = [
   { value: 3, label: "3학년" },
 ] as const;
 
-// ─── FilterSortBar ───────────────────────────────────────────────────────────
-type FilterSortBarProps = {
+/** 정렬 옵션 (드롭다운용 단일 select) */
+const SORT_SELECT_OPTIONS = [
+  { value: "name", label: "이름순 (가나다)" },
+  { value: "-name", label: "이름순 (가나다역)" },
+  { value: "school", label: "학교순 (가나다)" },
+  { value: "-school", label: "학교순 (가나다역)" },
+  { value: "grade", label: "학년순 (낮은순)" },
+  { value: "-grade", label: "학년순 (높은순)" },
+  { value: "parentPhone", label: "부모전화순 (가나다)" },
+  { value: "-parentPhone", label: "부모전화순 (가나다역)" },
+] as const;
+
+// ─── FilterDropdownContent (학생 도메인 필터 모달과 동일한 폼 디자인) ───────
+type FilterDropdownContentProps = {
   sort: string;
   schoolType: string;
   grade: number;
@@ -58,11 +70,9 @@ type FilterSortBarProps = {
   onSchoolTypeChange: (v: string) => void;
   onGradeChange: (v: number) => void;
   onReset: () => void;
-  /** true면 외부 테두리·배경 없이 내용만 (드롭다운 내부용) */
-  embedded?: boolean;
 };
 
-function FilterSortBar({
+function FilterDropdownContent({
   sort,
   schoolType,
   grade,
@@ -70,117 +80,59 @@ function FilterSortBar({
   onSchoolTypeChange,
   onGradeChange,
   onReset,
-  embedded = false,
-}: FilterSortBarProps) {
+}: FilterDropdownContentProps) {
   const hasNonDefault = sort !== "name" || schoolType !== "" || grade !== 0;
 
-  const content = (
-    <>
-      {/* 정렬 */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-[11px] font-semibold text-[var(--color-text-muted)] shrink-0 w-[2.5rem]">정렬</span>
-        <div className="flex items-center gap-1 flex-wrap">
-          {SORT_OPTIONS.map((opt) => {
-            const isAsc = sort === opt.key;
-            const isDesc = sort === `-${opt.key}`;
-            const active = isAsc || isDesc;
-            return (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => onSortChange(opt.key)}
-                className={[
-                  "inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors",
-                  active
-                    ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)] text-[var(--color-primary)]"
-                    : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface)]",
-                ].join(" ")}
-                aria-pressed={active}
-              >
-                {opt.label}
-                {active && (
-                  <span className="text-[9px]" aria-hidden>{isAsc ? "▲" : "▼"}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 구분 + 학년 + 초기화 */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] font-semibold text-[var(--color-text-muted)] shrink-0 w-[2.5rem]">구분</span>
-        <div className="flex items-center gap-1">
-          {SCHOOL_OPTIONS.map((opt) => {
-            const active = opt.value === "" ? schoolType === "" : schoolType === opt.value;
-            return (
-              <button
-                key={opt.value || "all"}
-                type="button"
-                onClick={() => onSchoolTypeChange(opt.value)}
-                className={[
-                  "px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors",
-                  active
-                    ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)] text-[var(--color-primary)]"
-                    : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface)]",
-                ].join(" ")}
-                aria-pressed={active}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <span
-          className="text-[11px] font-semibold text-[var(--color-text-muted)] shrink-0"
-          style={{ marginLeft: "0.25rem" }}
-        >학년</span>
-        <div className="flex items-center gap-1">
-          {GRADE_OPTIONS.map((opt) => {
-            const active = opt.value === 0 ? grade === 0 : grade === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onGradeChange(opt.value)}
-                className={[
-                  "px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors",
-                  active
-                    ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)] text-[var(--color-primary)]"
-                    : "border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface)]",
-                ].join(" ")}
-                aria-pressed={active}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {hasNonDefault && (
-          <button
-            type="button"
-            onClick={onReset}
-            className="ml-auto px-2 py-0.5 rounded-full text-[11px] font-semibold border border-[var(--color-border-divider)] text-[var(--color-text-secondary)] hover:text-[var(--color-error)] hover:border-[var(--color-error)] transition-colors"
-          >
-            초기화
-          </button>
-        )}
-      </div>
-    </>
-  );
-
-  if (embedded) {
-    return <div className="flex flex-col gap-1.5">{content}</div>;
-  }
-
   return (
-    <div
-      className="flex flex-col gap-1.5 rounded-xl border px-3 py-2"
-      style={{ borderColor: "var(--color-border-divider)", background: "var(--color-bg-surface-soft)" }}
-    >
-      {content}
+    <div className="modal-scroll-body modal-scroll-body--compact" style={{ minWidth: 260, maxHeight: 320 }}>
+      <div className="modal-form-row modal-form-row--3">
+        <select
+          className="ds-select"
+          value={sort}
+          onChange={(e) => onSortChange(e.target.value)}
+          aria-label="정렬"
+        >
+          {SORT_SELECT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className="ds-select"
+          value={schoolType}
+          onChange={(e) => onSchoolTypeChange(e.target.value)}
+          aria-label="구분"
+        >
+          {SCHOOL_OPTIONS.map((opt) => (
+            <option key={opt.value || "all"} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className="ds-select"
+          value={grade}
+          onChange={(e) => onGradeChange(Number(e.target.value))}
+          aria-label="학년"
+        >
+          {GRADE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {hasNonDefault && (
+        <div className="modal-form-row modal-form-row--1-auto">
+          <span className="modal-hint" style={{ marginBottom: 0 }}>
+            조건에 맞는 학생만 목록에 표시됩니다.
+          </span>
+          <Button intent="ghost" size="sm" onClick={onReset}>
+            초기화
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -638,44 +590,45 @@ export default function SessionEnrollModal({
                           >
                             총 {totalCount > 0 ? totalCount.toLocaleString() : studentsToShow.length}명
                           </span>
-                          <input
-                            className="ds-input"
-                            placeholder="이름 / 전화번호 검색"
-                            value={keyword}
-                            onChange={(e) => setKeyword(e.target.value)}
-                            style={{ maxWidth: 360 }}
-                            aria-label="이름 또는 전화번호로 검색"
-                          />
-                          <Dropdown
-                            trigger={["click"]}
-                            popupRender={() => (
-                              <div
-                                className="rounded-xl border p-3 shadow-lg"
-                                style={{
-                                  borderColor: "var(--color-border-divider)",
-                                  background: "var(--color-bg-surface)",
-                                  minWidth: 280,
-                                }}
-                              >
-                                <FilterSortBar
-                                  embedded
-                                  sort={sort}
-                                  schoolType={schoolType}
-                                  grade={grade}
-                                  onSortChange={handleSortChange}
-                                  onSchoolTypeChange={handleSchoolTypeChange}
-                                  onGradeChange={handleGradeChange}
-                                  onReset={handleFilterReset}
-                                />
-                              </div>
-                            )}
-                          >
-                            <span>
-                              <Button intent="secondary">
-                                고급 필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
-                              </Button>
-                            </span>
-                          </Dropdown>
+                          <div className="flex items-center gap-2 flex-1 min-w-0" style={{ maxWidth: 420 }}>
+                            <input
+                              className="ds-input flex-1 min-w-0"
+                              placeholder="이름 / 전화번호 검색"
+                              value={keyword}
+                              onChange={(e) => setKeyword(e.target.value)}
+                              style={{ maxWidth: 360 }}
+                              aria-label="이름 또는 전화번호로 검색"
+                            />
+                            <Dropdown
+                              trigger={["click"]}
+                              popupRender={() => (
+                                <div
+                                  className="rounded-xl border p-3 shadow-lg"
+                                  style={{
+                                    borderColor: "var(--color-border-divider)",
+                                    background: "var(--color-bg-surface)",
+                                    minWidth: 280,
+                                  }}
+                                >
+                                  <FilterDropdownContent
+                                    sort={sort}
+                                    schoolType={schoolType}
+                                    grade={grade}
+                                    onSortChange={handleSortChange}
+                                    onSchoolTypeChange={handleSchoolTypeChange}
+                                    onGradeChange={handleGradeChange}
+                                    onReset={handleFilterReset}
+                                  />
+                                </div>
+                              )}
+                            >
+                              <span>
+                                <Button intent="secondary">
+                                  필터{activeFilterCount ? ` (${activeFilterCount})` : ""}
+                                </Button>
+                              </span>
+                            </Dropdown>
+                          </div>
                         </div>
                         {selectedItems.length > 0 && (
                           <span className="text-[13px] font-semibold text-[var(--color-brand-primary)]">
