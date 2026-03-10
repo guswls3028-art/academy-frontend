@@ -340,6 +340,8 @@ export default function MessageAutoSendPage() {
   });
 
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
+  const localConfigsRef = useRef<AutoSendConfigItem[]>([]);
+  localConfigsRef.current = localConfigs;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     setLocalConfigs(configs);
@@ -366,13 +368,18 @@ export default function MessageAutoSendPage() {
       qc.invalidateQueries({ queryKey: ["messaging", "templates"] });
       qc.invalidateQueries({ queryKey: QUERY_KEY });
       if (createTemplateForTrigger && created?.id) {
-        const prev = localConfigs.find((c) => c.trigger === createTemplateForTrigger);
+        const configs = localConfigsRef.current;
+        const prev = configs.find((c) => c.trigger === createTemplateForTrigger);
         if (prev) {
-          handleUpdate({ ...prev, template: created.id });
+          const next = configs.map((c) =>
+            c.trigger === createTemplateForTrigger ? { ...c, template: created.id } : c
+          );
+          setLocalConfigs(next);
+          updateMut.mutate(next);
         }
       }
       setCreateTemplateForTrigger(null);
-      feedback.success("템플릿이 생성되었습니다.");
+      feedback.success("템플릿이 생성되었습니다. 해당 트리거에 연결했습니다.");
     },
     onError: () => {
       feedback.error("템플릿 생성에 실패했습니다.");
@@ -490,6 +497,7 @@ export default function MessageAutoSendPage() {
                     onUpdate={handleUpdate}
                     saving={updateMut.isPending}
                     smsAllowed={smsAllowed}
+                    onOpenCreateTemplate={(trigger) => setCreateTemplateForTrigger(trigger)}
                   />
                 ))}
               </>
@@ -498,5 +506,15 @@ export default function MessageAutoSendPage() {
         </div>
       </div>
     </div>
+
+    <TemplateEditModal
+      open={createTemplateForTrigger !== null}
+      onClose={() => setCreateTemplateForTrigger(null)}
+      category="default"
+      initial={null}
+      onSubmit={(payload) => createTemplateMut.mutate(payload)}
+      isPending={createTemplateMut.isPending}
+    />
+  </>
   );
 }
