@@ -337,8 +337,7 @@ export default function MessageAutoSendPage() {
 
   const updateMut = useMutation({
     mutationFn: updateAutoSendConfigs,
-    onSuccess: (data) => {
-      setLocalConfigs(data);
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: QUERY_KEY });
       feedback.success("자동발송 설정이 저장되었습니다.");
     },
