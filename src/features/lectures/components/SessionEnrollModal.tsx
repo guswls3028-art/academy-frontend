@@ -58,6 +58,8 @@ type FilterSortBarProps = {
   onSchoolTypeChange: (v: string) => void;
   onGradeChange: (v: number) => void;
   onReset: () => void;
+  /** true면 외부 테두리·배경 없이 내용만 (드롭다운 내부용) */
+  embedded?: boolean;
 };
 
 function FilterSortBar({
@@ -68,14 +70,12 @@ function FilterSortBar({
   onSchoolTypeChange,
   onGradeChange,
   onReset,
+  embedded = false,
 }: FilterSortBarProps) {
   const hasNonDefault = sort !== "name" || schoolType !== "" || grade !== 0;
 
-  return (
-    <div
-      className="flex flex-col gap-1.5 rounded-xl border px-3 py-2"
-      style={{ borderColor: "var(--color-border-divider)", background: "var(--color-bg-surface-soft)" }}
-    >
+  const content = (
+    <>
       {/* 정렬 */}
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="text-[11px] font-semibold text-[var(--color-text-muted)] shrink-0 w-[2.5rem]">정렬</span>
@@ -168,6 +168,19 @@ function FilterSortBar({
           </button>
         )}
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="flex flex-col gap-1.5">{content}</div>;
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-1.5 rounded-xl border px-3 py-2"
+      style={{ borderColor: "var(--color-border-divider)", background: "var(--color-bg-surface-soft)" }}
+    >
+      {content}
     </div>
   );
 }
@@ -609,10 +622,9 @@ export default function SessionEnrollModal({
                 <>
                   {/* 툴바 — 학생 도메인과 동일한 디자인: 총계 | 검색 | 고급 필터 */}
                   {(() => {
-                    const hasNonDefault = sort !== "name" || schoolType !== "" || grade !== 0;
                     const activeFilterCount = [sort !== "name", schoolType !== "", grade !== 0].filter(Boolean).length;
                     return (
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-3" style={{ marginBottom: 12 }}>
                         <div className="flex flex-wrap items-center gap-3">
                           <span
                             style={{
@@ -646,6 +658,7 @@ export default function SessionEnrollModal({
                                 }}
                               >
                                 <FilterSortBar
+                                  embedded
                                   sort={sort}
                                   schoolType={schoolType}
                                   grade={grade}
