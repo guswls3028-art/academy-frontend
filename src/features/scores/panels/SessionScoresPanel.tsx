@@ -3,7 +3,7 @@
 // 편집 종료 시 한 번에 저장(flushPendingChanges)
 
 import { useEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   fetchSessionScores,
@@ -15,6 +15,7 @@ import { fetchAttendance } from "@/features/lectures/api/attendance";
 
 import ScoresTable, { type ScoresTableHandle } from "../components/ScoresTable";
 import { EmptyState } from "@/shared/ui/ds";
+import AdminOmrBatchUploadBox from "@/features/submissions/components/AdminOmrBatchUploadBox";
 
 type Props = {
   sessionId: number;
@@ -64,6 +65,17 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 }, ref) {
   /** Direct DOM focus — no React state cycle needed */
   const tableRef = useRef<ScoresTableHandle>(null);
+  const qc = useQueryClient();
+  const [openOmrForExam, setOpenOmrForExam] = useState<{ examId: number; title: string } | null>(null);
+
+  const handleOpenOmrModal = useCallback((examId: number, title: string) => {
+    setOpenOmrForExam({ examId, title });
+  }, []);
+
+  const handleCloseOmrModal = useCallback(() => {
+    setOpenOmrForExam(null);
+    qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+  }, [qc, sessionId]);
 
   useImperativeHandle(ref, () => ({
     flushPendingChanges: () => tableRef.current?.flushPendingChanges?.() ?? Promise.resolve(),
@@ -331,8 +343,49 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           onSelectRow={isEditMode ? (r) => setSelectedEnrollmentId(r.enrollment_id) : () => {}}
           selectedEnrollmentIds={selectedEnrollmentIds}
           onSelectionChange={onSelectionChange}
+          onOpenOmrModal={handleOpenOmrModal}
         />
       </div>
+
+      {openOmrForExam && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="omr-upload-modal-title"
+        >
+          <div className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg border border-[var(--color-border-divider)] max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border-divider)]">
+              <h2 id="omr-upload-modal-title" className="text-base font-semibold text-[var(--color-text-primary)]">
+                OMR 업로드 — {openOmrForExam.title}
+              </h2>
+              <button
+                type="button"
+                onClick={handleCloseOmrModal}
+                className="p-2 rounded text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-hover)]"
+                aria-label="닫기"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <AdminOmrBatchUploadBox examId={openOmrForExam.examId} />
+            </div>
+            <div className="px-4 py-3 border-t border-[var(--color-border-divider)] flex justify-end">
+              <button
+                type="button"
+                onClick={handleCloseOmrModal}
+                className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-white hover:opacity-90"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

@@ -63,6 +63,16 @@ function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
 
+/** 시험 헤더용 OMR 아이콘 — 클릭 시 OMR 업로드 모달 */
+function OmrIcon({ className, size = 18 }: { className?: string; size?: number }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  );
+}
+
 /** 셀 키 생성 — pending/dirty 맵 키와 ref 키 일치 */
 function pendingKeyForChange(p: PendingChange): string {
   if (p.type === "examTotal") return `examTotal:${p.enrollmentId}:${p.examId}`;
@@ -185,6 +195,9 @@ type Props = {
 
   selectedEnrollmentIds?: number[];
   onSelectionChange?: (enrollmentIds: number[]) => void;
+
+  /** 시험 컬럼 헤더에서 OMR 업로드 모달 열기 */
+  onOpenOmrModal?: (examId: number, title: string) => void;
 };
 
 const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
@@ -208,6 +221,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   onRequestMoveUp,
   selectedEnrollmentIds = [],
   onSelectionChange,
+  onOpenOmrModal,
 }: Props, ref) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
@@ -564,6 +578,20 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     시
                   </span>
                   <span className="truncate">{ex.title}</span>
+                  {onOpenOmrModal && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenOmrModal(ex.exam_id, ex.title ?? "");
+                      }}
+                      className="inline-flex items-center justify-center w-7 h-7 rounded border-0 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)]"
+                      title="OMR 스캔 업로드"
+                      aria-label="OMR 업로드"
+                    >
+                      <OmrIcon size={16} />
+                    </button>
+                  )}
                 </span>
               </th>
             );
