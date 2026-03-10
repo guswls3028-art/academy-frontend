@@ -1,10 +1,11 @@
 // PATH: src/features/messages/components/AutoSendSectionTree.tsx
-// 자동발송 — 좌측 섹션 폴더 트리 (가입 / 클리닉 등 구간별 관리)
+// 자동발송 — 좌측 섹션 폴더 트리 (PanelWithTreeLayout SSOT: treeNavHeader + treeScroll)
 
 import { useState } from "react";
 import { UserPlus, Stethoscope, Bell, CalendarPlus, CalendarSync } from "lucide-react";
 import type { AutoSendTrigger } from "../api/messages.api";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
+import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./AutoSendSectionTree.module.css";
 
 export type AutoSendSectionId = "signup" | "clinic";
@@ -48,10 +49,11 @@ export default function AutoSendSectionTree({
 
   return (
     <div className={styles.root}>
-      <div className={styles.navHeader}>
-        <span className={styles.navTitle}>구간</span>
+      <div className={panelStyles.treeNavHeader}>
+        <span className={panelStyles.treeNavTitle}>구간</span>
       </div>
-      <nav className={styles.tabs}>
+      <div className={panelStyles.treeScroll}>
+        <nav className={styles.tabs}>
         {AUTO_SEND_SECTIONS.map((section) => {
           const isActive = selectedSection === section.id;
           const isExpanded = expandedSection === section.id;
@@ -103,7 +105,8 @@ export default function AutoSendSectionTree({
             </div>
           );
         })}
-      </nav>
+        </nav>
+      </div>
     </div>
   );
 }
