@@ -14,7 +14,6 @@ import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, typ
 import { fetchExams } from "../api/exams";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/ExamExplorer.module.css";
-import "../exam-explorer-inbox.css";
 
 type LectureWithSessions = Lecture & { sessions: Session[] };
 
@@ -72,11 +71,18 @@ export default function ExamExplorerPage() {
       description="강의·차시 단위 시험을 한 화면에서 조회합니다. 좌측에서 차시를 선택하면 해당 차시 시험 목록이 우측에 표시됩니다."
     >
       <div className={panelStyles.root}>
-        <div className={panelStyles.header}>
-          <h2 className={panelStyles.headerTitle}>강의 · 차시</h2>
-          <p className={panelStyles.headerDesc}>
-            좌측에서 차시를 선택하면 해당 차시의 시험 목록이 우측에 표시됩니다.
-          </p>
+        <div className={panelStyles.toolbar}>
+          <div>
+            <h2 className={panelStyles.headerTitle}>강의 · 차시</h2>
+            <p className={panelStyles.headerDesc} style={{ margin: 0 }}>
+              좌측에서 차시를 선택하면 해당 차시의 시험 목록이 우측에 표시됩니다.
+            </p>
+          </div>
+          <div className={panelStyles.actions}>
+            <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
+              강의 목록
+            </Button>
+          </div>
         </div>
         <div className={panelStyles.body}>
           <aside className={panelStyles.tree}>
@@ -85,13 +91,13 @@ export default function ExamExplorerPage() {
             </div>
             <div className={panelStyles.treeScroll}>
               {lecturesLoading ? (
-                <div className="exam-explorer__empty">
-                  <p className="exam-explorer__empty-title">불러오는 중…</p>
+                <div className={panelStyles.placeholder}>
+                  <p className={panelStyles.placeholderTitle}>불러오는 중…</p>
                 </div>
               ) : lecturesWithSessions.length === 0 ? (
-                <div className="exam-explorer__empty">
-                  <p className="exam-explorer__empty-title">강의가 없습니다</p>
-                  <p className="exam-explorer__empty-desc">
+                <div className={panelStyles.placeholder}>
+                  <p className={panelStyles.placeholderTitle}>강의가 없습니다</p>
+                  <p className={panelStyles.placeholderDesc}>
                     강의를 만든 뒤 차시를 추가하면 여기에 표시됩니다.
                   </p>
                 </div>
@@ -107,18 +113,18 @@ export default function ExamExplorerPage() {
 
           <div className={panelStyles.gridWrap}>
             {!selectedSessionId ? (
-              <div className="exam-explorer__empty">
-                <p className="exam-explorer__empty-title">차시를 선택하세요</p>
-                <p className="exam-explorer__empty-desc">
+              <div className={panelStyles.placeholder}>
+                <p className={panelStyles.placeholderTitle}>차시를 선택하세요</p>
+                <p className={panelStyles.placeholderDesc}>
                   왼쪽 목록에서 강의·차시를 선택하면 여기에 해당 차시의 시험 목록이 표시됩니다.
                 </p>
-                <p className="exam-explorer__keyboard-hint">
+                <p className={panelStyles.placeholderHint}>
                   시험 추가·관리는 강의 → 차시 → 시험 탭에서 진행하세요.
                 </p>
               </div>
             ) : examsLoading ? (
-              <div className="exam-explorer__empty">
-                <p className="exam-explorer__empty-title">시험 목록 불러오는 중…</p>
+              <div className={panelStyles.placeholder}>
+                <p className={panelStyles.placeholderTitle}>시험 목록 불러오는 중…</p>
               </div>
             ) : exams.length === 0 ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200 }}>
