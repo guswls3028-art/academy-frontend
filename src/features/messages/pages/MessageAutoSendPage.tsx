@@ -22,6 +22,7 @@ import AutoSendSectionTree, {
   AUTO_SEND_SECTIONS,
   type AutoSendSectionId,
 } from "../components/AutoSendSectionTree";
+import { MESSAGE_MODE_LABELS } from "../constants/messageSendOptions";
 import TemplateEditModal from "../components/TemplateEditModal";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 
@@ -307,11 +308,11 @@ function TriggerCard({
               disabled={saving}
             >
               <option value="sms" disabled={!smsAllowed}>
-                SMS만
+                {MESSAGE_MODE_LABELS.sms}
               </option>
-              <option value="alimtalk">알림톡만</option>
+              <option value="alimtalk">{MESSAGE_MODE_LABELS.alimtalk}</option>
               <option value="both" disabled={!smsAllowed}>
-                알림톡→SMS 폴백
+                {MESSAGE_MODE_LABELS.both}
               </option>
             </select>
           </div>
