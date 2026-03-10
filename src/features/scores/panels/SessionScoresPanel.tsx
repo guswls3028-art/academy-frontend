@@ -33,6 +33,10 @@ type Props = {
 export type SessionScoresPanelHandle = {
   /** 편집 모드 종료 전 호출 — 대기 중인 점수 변경을 한 번에 저장 */
   flushPendingChanges: () => Promise<void>;
+  /** 자동 저장용: 현재 pending 스냅샷 */
+  getPendingSnapshot: () => import("../api/scoreDraft").PendingChange[];
+  /** 드래프트 복원 시 호출 */
+  applyDraftPatch: (changes: import("../api/scoreDraft").PendingChange[]) => void;
 };
 
 type ScoreCellRef =
@@ -63,6 +67,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   useImperativeHandle(ref, () => ({
     flushPendingChanges: () => tableRef.current?.flushPendingChanges?.() ?? Promise.resolve(),
+    getPendingSnapshot: () => tableRef.current?.getPendingSnapshot?.() ?? [],
+    applyDraftPatch: (changes) => tableRef.current?.applyDraftPatch?.(changes),
   }), []);
 
   const { data, isLoading, isError } = useQuery({

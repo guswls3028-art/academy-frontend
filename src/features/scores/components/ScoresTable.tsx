@@ -147,6 +147,10 @@ export type ScoresTableHandle = {
   }) => void;
   /** 편집 모드 종료 시 호출 — 대기 중인 변경을 한 번에 저장 */
   flushPendingChanges: () => Promise<void>;
+  /** 자동 저장/복원용: 현재 pending 스냅샷 */
+  getPendingSnapshot: () => PendingChange[];
+  /** 드래프트 복원 시 호출 — pending+dirty 반영 후 셀 DOM 갱신 */
+  applyDraftPatch: (changes: PendingChange[]) => void;
 };
 
 type Props = {
@@ -392,7 +396,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       }
     },
     flushPendingChanges,
-  }), [selectAllScoreCell, flushPendingChanges]);
+    getPendingSnapshot,
+    applyDraftPatch,
+  }), [selectAllScoreCell, flushPendingChanges, getPendingSnapshot, applyDraftPatch]);
 
   const columns = useMemo((): ScoreColumnDef[] => {
     const list: ScoreColumnDef[] = [
