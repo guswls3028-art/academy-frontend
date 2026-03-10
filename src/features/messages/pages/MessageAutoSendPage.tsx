@@ -359,7 +359,7 @@ export default function MessageAutoSendPage() {
         </div>
         <div className={panelStyles.body}>
           <aside className={panelStyles.tree}>
-            <AutoSendSectionTree selectedSection="clinic" onSelectSection={() => {}} />
+            <AutoSendSectionTree selectedSection="signup" onSelectSection={() => {}} />
           </aside>
           <div className={panelStyles.content}>
             <div className={panelStyles.contentInner}>
