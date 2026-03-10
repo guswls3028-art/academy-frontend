@@ -124,6 +124,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
   }, [data]);
 
   const [settingsLecture, setSettingsLecture] = useState<LectureItem | null>(null);
+  const [editLectureId, setEditLectureId] = useState<number | null>(null);
   const qc = useQueryClient();
 
   function isLightColor(hex: string): boolean {
@@ -364,6 +365,15 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
         />
       )}
 
+      {editLectureId != null && (
+        <LectureCreateModal
+          isOpen
+          lectureId={editLectureId}
+          onClose={() => setEditLectureId(null)}
+          usedColors={data?.map((l) => l.color).filter(Boolean) ?? []}
+        />
+      )}
+
       {settingsLecture && (
         <LectureSettingsModal
           open
@@ -372,7 +382,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps = {})
           isPast={tab === "past"}
           onEdit={(id) => {
             setSettingsLecture(null);
-            navigate(`/admin/lectures/${id}`);
+            setEditLectureId(id);
           }}
           onAfterEnd={() => {
             qc.invalidateQueries({ queryKey: ["lectures"] });

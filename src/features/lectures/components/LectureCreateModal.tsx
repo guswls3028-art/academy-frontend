@@ -406,10 +406,15 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
       <ModalBody>
         {isError && (
           <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 900, color: "var(--color-error)" }}>
-            등록 중 오류가 발생했습니다.
+            {isEditMode ? "수정 중 오류가 발생했습니다." : "등록 중 오류가 발생했습니다."}
           </div>
         )}
 
+        {isEditMode && isLoadingLecture ? (
+          <div className="flex items-center justify-center py-12 text-[var(--color-text-muted)] font-medium">
+            불러오는 중…
+          </div>
+        ) : (
         <div className="lecture-create-modal-form" style={{ display: "grid", gap: 10, maxWidth: 400 }}>
           {/* 딱지 영역 */}
           <div
@@ -610,6 +615,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
             />
           </div>
         </div>
+        )}
       </ModalBody>
 
       <ModalFooter
