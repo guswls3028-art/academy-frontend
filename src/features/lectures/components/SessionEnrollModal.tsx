@@ -228,9 +228,19 @@ export default function SessionEnrollModal({
   const [excelInitialPassword, setExcelInitialPassword] = useState("");
   const [copyFromPrevLoading, setCopyFromPrevLoading] = useState(false);
 
-  // Debounced search
+  // Debounced search — "N학년" 패턴이면 grade 필터로 자동 전환
   useEffect(() => {
-    const t = setTimeout(() => setSearch(keyword.trim()), 300);
+    const t = setTimeout(() => {
+      const trimmed = keyword.trim();
+      const gradeMatch = trimmed.match(/^([1-3])\s*학년?$/);
+      if (gradeMatch) {
+        setGrade(Number(gradeMatch[1]));
+        setSearch("");
+        setPage(1);
+      } else {
+        setSearch(trimmed);
+      }
+    }, 300);
     return () => clearTimeout(t);
   }, [keyword]);
 
@@ -587,7 +597,7 @@ export default function SessionEnrollModal({
                           <div className="flex items-center gap-2 flex-1 min-w-0" style={{ maxWidth: 420 }}>
                             <input
                               className="ds-input flex-1 min-w-0"
-                              placeholder="이름 / 전화번호 검색"
+                              placeholder="이름 / 전화번호 / 학교명 / 학년(예: 3학년)"
                               value={keyword}
                               onChange={(e) => setKeyword(e.target.value)}
                               style={{ maxWidth: 360 }}
