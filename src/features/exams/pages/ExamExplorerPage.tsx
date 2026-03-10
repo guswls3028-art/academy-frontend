@@ -80,40 +80,32 @@ export default function ExamExplorerPage() {
         </div>
         <div className={panelStyles.body}>
           <aside className={panelStyles.tree}>
-            <div className={styles.toolbar} style={{ padding: "var(--space-3) var(--space-4)", borderBottom: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)" }}>
-              <div className="exam-explorer__search" style={{ width: "100%" }}>
-                <input
-                  type="search"
-                  className="ds-input"
-                  placeholder="강의명 · 차시 검색"
-                  aria-label="검색"
-                  style={{ width: "100%", padding: "var(--space-2) var(--space-3)", fontSize: 13 }}
-                />
-              </div>
+            <div className={panelStyles.treeNavHeader}>
+              <span className={panelStyles.treeNavTitle}>강의 · 차시</span>
             </div>
-            <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-2)" }}>
-            {lecturesLoading ? (
-              <div className="exam-explorer__empty">
-                <p className="exam-explorer__empty-title">불러오는 중…</p>
-              </div>
-            ) : lecturesWithSessions.length === 0 ? (
-              <div className="exam-explorer__empty">
-                <p className="exam-explorer__empty-title">강의가 없습니다</p>
-                <p className="exam-explorer__empty-desc">
-                  강의를 만든 뒤 차시를 추가하면 여기에 표시됩니다.
-                </p>
-              </div>
-            ) : (
-              <LectureSessionTree
-                lectures={lecturesWithSessions}
-                currentSessionId={selectedSessionId}
-                onSelectSession={setSelectedSessionId}
-              />
-            )}
-          </div>
-        </aside>
+            <div className={panelStyles.treeScroll}>
+              {lecturesLoading ? (
+                <div className="exam-explorer__empty">
+                  <p className="exam-explorer__empty-title">불러오는 중…</p>
+                </div>
+              ) : lecturesWithSessions.length === 0 ? (
+                <div className="exam-explorer__empty">
+                  <p className="exam-explorer__empty-title">강의가 없습니다</p>
+                  <p className="exam-explorer__empty-desc">
+                    강의를 만든 뒤 차시를 추가하면 여기에 표시됩니다.
+                  </p>
+                </div>
+              ) : (
+                <LectureSessionTree
+                  lectures={lecturesWithSessions}
+                  currentSessionId={selectedSessionId}
+                  onSelectSession={setSelectedSessionId}
+                />
+              )}
+            </div>
+          </aside>
 
-        <div className={panelStyles.gridWrap}>
+          <div className={panelStyles.gridWrap}>
             {!selectedSessionId ? (
               <div className="exam-explorer__empty">
                 <p className="exam-explorer__empty-title">차시를 선택하세요</p>
