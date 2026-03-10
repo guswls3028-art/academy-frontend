@@ -29,14 +29,7 @@ const ENROLL_TABS = [
   { key: "new", label: "신규 학생 추가" },
 ];
 
-const SORT_OPTIONS = [
-  { key: "name", label: "이름순" },
-  { key: "school", label: "학교순" },
-  { key: "grade", label: "학년순" },
-  { key: "parentPhone", label: "부모전화" },
-] as const;
-
-const SCHOOL_OPTIONS = [
+const SORT_SELECT_OPTIONS = [
   { value: "", label: "전체" },
   { value: "HIGH", label: "고등" },
   { value: "MIDDLE", label: "중등" },
@@ -344,12 +337,9 @@ export default function SessionEnrollModal({
   });
 
   // ── Handlers ───────────────────────────────────────────────────────────────
+  /** 필터 드롭다운에서 정렬 선택 시 (값 그대로 설정) */
   const handleSortChange = useCallback((key: string) => {
-    setSort((prev) => {
-      if (prev === key) return `-${key}`;
-      if (prev === `-${key}`) return "name";
-      return key;
-    });
+    setSort(key);
     setPage(1);
   }, []);
 
