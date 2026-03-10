@@ -69,13 +69,6 @@ type PendingChange =
   | { type: "examSubjective"; examId: number; enrollmentId: number; score: number }
   | { type: "homework"; enrollmentId: number; homeworkId: number; score: number | null; metaStatus?: "NOT_SUBMITTED" };
 
-function pendingKey(p: PendingChange): string {
-  if (p.type === "examTotal") return `examTotal:${p.enrollmentId}:${p.examId}`;
-  if (p.type === "examObjective") return `examObjective:${p.enrollmentId}:${p.examId}`;
-  if (p.type === "examSubjective") return `examSubjective:${p.enrollmentId}:${p.examId}`;
-  return `homework:${p.enrollmentId}:${p.homeworkId}`;
-}
-
 /** 합불 표시 — 시험/과제 셀: 합=초록 배지, 불=빨강 배지. 긍정은 초록색 */
 function PassFailText({ passed }: { passed: boolean | null | undefined }) {
   if (passed == null) return <span className="text-[var(--color-text-muted)]">-</span>;
@@ -223,77 +216,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   const pendingRef = useRef<Map<string, PendingChange>>(new Map());
   /** pending에 있는 셀은 sync effect에서 innerText 덮어쓰지 않음 */
   const dirtyKeysRef = useRef<Set<string>>(new Set());
-
-  /** 시험/과제 저장 + 무효화, 실패 시 feedback */
-  const saveExamTotal = useCallback(
-    async (examId: number, enrollmentId: number, score: number) => {
-      try {
-        await patchExamTotalScoreQuick({ examId, enrollmentId, score, maxScore: 100 });
-        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-        return true;
-      } catch {
-        feedback.error("합산 점수 저장에 실패했습니다.");
-        return false;
-      }
-    },
-    [qc, sessionId]
-  );
-  const saveExamObjective = useCallback(
-    async (examId: number, enrollmentId: number, score: number) => {
-      try {
-        await patchExamObjectiveScoreQuick({ examId, enrollmentId, score });
-        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-        return true;
-      } catch {
-        feedback.error("객관식 점수 저장에 실패했습니다.");
-        return false;
-      }
-    },
-    [qc, sessionId]
-  );
-  const saveExamSubjective = useCallback(
-    async (examId: number, enrollmentId: number, score: number) => {
-      try {
-        await patchExamSubjectiveScoreQuick({ examId, enrollmentId, score });
-        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-        return true;
-      } catch {
-        feedback.error("주관식 점수 저장에 실패했습니다.");
-        return false;
-      }
-    },
-    [qc, sessionId]
-  );
-
-  /** 과제 점수/미제출 저장 + 무효화, 실패 시 feedback */
-  const saveHomework = useCallback(
-    async (params: {
-      enrollmentId: number;
-      homeworkId: number;
-      score: number | null;
-      metaStatus?: "NOT_SUBMITTED" | null;
-    }) => {
-      try {
-        await patchHomeworkQuick({
-          sessionId,
-          enrollmentId: params.enrollmentId,
-          homeworkId: params.homeworkId,
-          score: params.score,
-          metaStatus: params.metaStatus ?? undefined,
-        });
-        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-        return true;
-      } catch {
-        feedback.error(
-          params.metaStatus === "NOT_SUBMITTED"
-            ? "과제 미제출 저장에 실패했습니다."
-            : "과제 점수 저장에 실패했습니다."
-        );
-        return false;
-      }
-    },
-    [qc, sessionId]
-  );
 
   /** 편집 종료 시 한 번에 저장 — pending 항목 전부 API 호출 후 한 번만 invalidate */
   const flushPendingChanges = useCallback(async () => {
@@ -1072,24 +994,18 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               }}
                               onBlur={async () => {
                                 const key = `${row.enrollment_id}-${hw.homework_id}`;
+                                const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
                                 const el = homeworkInputRefs.current[key];
                                 if (!el) return;
                                 const raw = el.innerText.trim();
                                 if (raw === "미제출") {
-                                  await saveHomework({
-                                    enrollmentId: row.enrollment_id,
-                                    homeworkId: hw.homework_id,
-                                    score: null,
-                                    metaStatus: "NOT_SUBMITTED",
-                                  });
+                                  pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" });
+                                  dirtyKeysRef.current.add(cellKey);
                                   return;
                                 }
                                 if (raw === "") {
-                                  await saveHomework({
-                                    enrollmentId: row.enrollment_id,
-                                    homeworkId: hw.homework_id,
-                                    score: null,
-                                  });
+                                  pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null });
+                                  dirtyKeysRef.current.add(cellKey);
                                   return;
                                 }
                                 const parsed = parseScoreInput(raw, block?.max_score ?? null);
@@ -1098,11 +1014,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                     return;
                                   }
-                                  await saveHomework({
-                                    enrollmentId: row.enrollment_id,
-                                    homeworkId: hw.homework_id,
-                                    score: parsed,
-                                  });
+                                  pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: parsed });
+                                  dirtyKeysRef.current.add(cellKey);
                                 } else {
                                   el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                 }
@@ -1133,24 +1046,17 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     return;
                                   }
                                   if (raw === "/") {
-                                    // Optimistic: show 미제출 immediately, fire save in background
                                     if (el) el.innerText = "미제출";
-                                    void saveHomework({
-                                      enrollmentId: row.enrollment_id,
-                                      homeworkId: hw.homework_id,
-                                      score: null,
-                                      metaStatus: "NOT_SUBMITTED",
-                                    });
+                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                    pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" });
+                                    dirtyKeysRef.current.add(cellKey);
                                     onRequestMoveDown?.();
                                     return;
                                   }
                                   if (raw === "미제출") {
-                                    void saveHomework({
-                                      enrollmentId: row.enrollment_id,
-                                      homeworkId: hw.homework_id,
-                                      score: null,
-                                      metaStatus: "NOT_SUBMITTED",
-                                    });
+                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                    pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" });
+                                    dirtyKeysRef.current.add(cellKey);
                                     onRequestMoveDown?.();
                                     return;
                                   }
@@ -1160,11 +1066,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       if (el) el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                       return;
                                     }
-                                    void saveHomework({
-                                      enrollmentId: row.enrollment_id,
-                                      homeworkId: hw.homework_id,
-                                      score: parsed,
-                                    });
+                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
+                                    pendingRef.current.set(cellKey, { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: parsed });
+                                    dirtyKeysRef.current.add(cellKey);
                                   }
                                   onRequestMoveDown?.();
                                   return;
