@@ -16,6 +16,9 @@ function mapRetryErrorForUser(backendMessage: string): string {
   if (s.includes("already in backlog") || s.includes("job queued") || s.includes("retry wait")) {
     return "이미 처리 중이거나 대기 중입니다. 잠시 후 다시 시도해 주세요.";
   }
+  if (s.includes("대기열이 가득") || s.includes("처리 중인 영상이 많아")) {
+    return "처리 대기열이 가득 찼습니다. 잠시 후 자동으로 처리됩니다.";
+  }
   if (s.includes("cannot retry") || s.includes("status must be")) {
     return "현재 상태에서는 재시도할 수 없습니다.";
   }
