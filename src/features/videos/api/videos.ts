@@ -19,6 +19,9 @@ function mapRetryErrorForUser(backendMessage: string): string {
   if (s.includes("cannot retry") || s.includes("status must be")) {
     return "현재 상태에서는 재시도할 수 없습니다.";
   }
+  if (s.includes("업로드된 파일 정보가 없습니다") || s.includes("파일 정보가 없습니다")) {
+    return "업로드된 파일을 찾을 수 없습니다. 삭제 후 다시 업로드해 주세요.";
+  }
   if (s.includes("업로드가 완료되지 않았습니다") || s.includes("파일을 먼저 업로드")) {
     return "업로드가 완료되지 않았습니다. 파일을 먼저 업로드해 주세요.";
   }
