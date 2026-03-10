@@ -1,5 +1,5 @@
 // PATH: src/features/staff/components/HeaderCenterStaffClock.tsx
-// 헤더 중앙: 근무 중인 직원(직급아이콘+이름) + 총근무 시간 + 출근(초록)/휴식(노랑)/근무(노랑)/퇴근(빨강)
+// 헤더 중앙: 근무 중인 직원(직급 아바타 + 이름) + 총근무 시간 + 출근(초록)/휴식(노랑)/퇴근(빨강)
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,8 +12,11 @@ import {
   endBreak,
   fetchCurrentlyWorkingStaff,
 } from "../api/workRecords.api";
-import type { WorkCurrentStatus } from "../api/workRecords.api";
+import type { WorkCurrentStatus, CurrentlyWorkingItem } from "../api/workRecords.api";
+import { Dropdown } from "antd";
 import { Button } from "@/shared/ui/ds";
+import { StaffRoleAvatar } from "@/shared/ui/avatars";
+import type { StaffRoleType } from "@/shared/ui/avatars";
 
 function formatElapsed(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -31,31 +34,85 @@ function parseStartedAt(dateStr: string, timeStr: string): number {
   return new Date(iso).getTime();
 }
 
-/** 직급 라벨 (아이콘 대신 한글) */
-function RoleLabel({ role }: { role?: "TEACHER" | "ASSISTANT" }) {
-  const label = role === "TEACHER" ? "선생" : role === "ASSISTANT" ? "직원" : "";
-  if (!label) return null;
+/** 직급 순서: 높은 순 좌측 배치 (대표 → 강사 → 조교) */
+const ROLE_ORDER: Record<string, number> = { owner: 0, OWNER: 0, TEACHER: 1, ASSISTANT: 2 };
+
+/** 드롭다운 내용: 직급 아이콘 + 이름 + 근무시간 (해당 직원의 date/started_at/break 기준 경과 시간) */
+function WorkingStaffDropdownContent({ item }: { item: CurrentlyWorkingItem }) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const normalized = item.role === "owner" || item.role === "OWNER" ? "owner" : item.role === "TEACHER" ? "TEACHER" : "ASSISTANT";
+  const roleForAvatar: StaffRoleType = normalized as StaffRoleType;
+
+  useEffect(() => {
+    if (!item.date || !item.started_at) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = parseStartedAt(item.date, item.started_at);
+    const breakSeconds = item.break_total_seconds ?? ((item.break_minutes ?? 0) * 60);
+    if (item.break_started_at) {
+      const breakStartedAt = new Date(item.break_started_at).getTime();
+      const frozen = Math.max(0, Math.floor((breakStartedAt - startedAt) / 1000) - breakSeconds);
+      setElapsedSeconds(frozen);
+      return;
+    }
+    const tick = () => {
+      const now = Date.now();
+      const raw = Math.floor((now - startedAt) / 1000);
+      setElapsedSeconds(Math.max(0, raw - breakSeconds));
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [item.date, item.started_at, item.break_minutes, item.break_total_seconds, item.break_started_at]);
+
+  const timeLabel = item.date && item.started_at ? formatElapsed(elapsedSeconds) : "—";
+
   return (
-    <span
-      className="app-header__centerClockRole"
-      title={role === "TEACHER" ? "선생님" : "직원"}
-    >
-      {label}
-    </span>
+    <div className="app-header__workingStaffDropdown">
+      <div className="app-header__workingStaffDropdownRow">
+        <StaffRoleAvatar role={roleForAvatar} size={20} className="text-[var(--color-primary)] shrink-0" />
+        <span className="app-header__workingStaffDropdownName">{item.staff_name}</span>
+      </div>
+      <div className="app-header__workingStaffDropdownMeta">
+        <span className="app-header__workingStaffDropdownLabel">근무시간</span>
+        <span className="app-header__workingStaffDropdownValue">{timeLabel}</span>
+      </div>
+    </div>
   );
 }
 
-function WorkingAvatar({ name, role }: { name: string; role?: "TEACHER" | "ASSISTANT" }) {
-  const initial = (name || "?").charAt(0).toUpperCase();
+/** 직급 아바타 위, 이름 아래 + 온라인 느낌 초록 애니메이션.
+ * role은 API(직원관리와 동일한 실제 데이터) 기준: owner=대표(왕관), TEACHER=강사(학사모), ASSISTANT=조교. */
+function WorkingAvatar({ item }: { item: CurrentlyWorkingItem }) {
+  const normalized = item.role === "owner" || item.role === "OWNER" ? "owner" : item.role === "TEACHER" ? "TEACHER" : "ASSISTANT";
+  const roleForAvatar: StaffRoleType = normalized as StaffRoleType;
   return (
-    <span
-      className="app-header__centerClockAvatar app-header__centerClockAvatar--withRole"
-      title={name}
-      aria-label={name}
+    <Dropdown
+      trigger={["click"]}
+      placement="bottomLeft"
+      popupRender={() => (
+        <div className="app-header__workingStaffDropdownWrap">
+          <WorkingStaffDropdownContent item={item} />
+        </div>
+      )}
     >
-      <RoleLabel role={role} />
-      <span className="app-header__centerClockAvatarName">{name}</span>
-    </span>
+      <span
+        role="button"
+        tabIndex={0}
+        className="app-header__centerClockAvatarCard app-header__centerClockAvatarCard--online app-header__centerClockAvatarCard--clickable"
+        title={item.staff_name}
+        aria-label={`${item.staff_name} 근무 정보 보기`}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") e.preventDefault();
+        }}
+      >
+        <span className="app-header__centerClockAvatarIcon">
+          <StaffRoleAvatar role={roleForAvatar} size={12} className="text-[var(--color-primary)]" />
+        </span>
+        <span className="app-header__centerClockAvatarName">{item.staff_name}</span>
+      </span>
+    </Dropdown>
   );
 }
 
@@ -117,31 +174,42 @@ export function HeaderCenterStaffClock() {
   });
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  /** 휴식 클릭 직후 서버 응답 전까지 표시할 일시정지 시간(초). 있으면 시계를 이 값으로 고정. */
+  const [optimisticPausedElapsed, setOptimisticPausedElapsed] = useState<number | null>(null);
 
   useEffect(() => {
     if (!current || current.status === "OFF" || !("date" in current) || !("started_at" in current)) {
       setElapsedSeconds(0);
+      setOptimisticPausedElapsed(null);
       return;
     }
+    if (current.status === "WORKING") {
+      setOptimisticPausedElapsed(null);
+    }
     const startedAt = parseStartedAt(current.date, current.started_at);
-    const breakMins = current.break_minutes ?? 0;
+    const breakSeconds = current.break_total_seconds ?? ((current.break_minutes ?? 0) * 60);
 
     if (current.status === "BREAK" && "break_started_at" in current && current.break_started_at) {
       const breakStartedAt = new Date(current.break_started_at).getTime();
-      const frozen = Math.max(0, Math.floor((breakStartedAt - startedAt) / 1000) - breakMins * 60);
+      const frozen = Math.max(0, Math.floor((breakStartedAt - startedAt) / 1000) - breakSeconds);
       setElapsedSeconds(frozen);
+      setOptimisticPausedElapsed(null);
+      return;
+    }
+
+    if (optimisticPausedElapsed !== null) {
       return;
     }
 
     const tick = () => {
       const now = Date.now();
       const raw = Math.floor((now - startedAt) / 1000);
-      setElapsedSeconds(Math.max(0, raw - breakMins * 60));
+      setElapsedSeconds(Math.max(0, raw - breakSeconds));
     };
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [current]);
+  }, [current, optimisticPausedElapsed]);
 
   const isWorking = current?.status === "WORKING" || current?.status === "BREAK";
   const isOnBreak = (current as WorkCurrentStatus)?.status === "BREAK";
@@ -154,15 +222,19 @@ export function HeaderCenterStaffClock() {
   const timeLabel = currentLoading
     ? "확인 중..."
     : isWorking
-      ? formatElapsed(elapsedSeconds)
+      ? formatElapsed(optimisticPausedElapsed ?? elapsedSeconds)
       : "0:00";
+
+  const sortedWorkingList = [...workingList].sort(
+    (a, b) => (ROLE_ORDER[a.role ?? ""] ?? 99) - (ROLE_ORDER[b.role ?? ""] ?? 99)
+  );
 
   return (
     <div className="app-header__centerClock">
-      {workingList.length > 0 && (
+      {sortedWorkingList.length > 0 && (
         <div className="app-header__centerClockAvatars" aria-label="근무 중인 직원">
-          {workingList.map((s) => (
-            <WorkingAvatar key={s.staff_id} name={s.staff_name} role={s.role} />
+          {sortedWorkingList.map((s) => (
+            <WorkingAvatar key={s.staff_id} item={s} />
           ))}
         </div>
       )}
@@ -191,7 +263,11 @@ export function HeaderCenterStaffClock() {
                   type="button"
                   size="md"
                   disabled={isBreakStarting}
-                  onClick={() => workRecordId != null && startBreakMutation.mutate(workRecordId)}
+                  onClick={() => {
+                    if (workRecordId == null) return;
+                    setOptimisticPausedElapsed(elapsedSeconds);
+                    startBreakMutation.mutate(workRecordId);
+                  }}
                   className="app-header__clockBtn app-header__clockBtn--break"
                 >
                   {isBreakStarting ? "처리 중…" : "휴식"}

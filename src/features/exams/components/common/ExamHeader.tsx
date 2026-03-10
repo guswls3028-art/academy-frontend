@@ -29,7 +29,12 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
     mutationFn: (status: "OPEN" | "CLOSED") => updateAdminExam(exam.id, { status }),
     onSuccess: async (_, status) => {
       await qc.invalidateQueries({ queryKey: ["admin-exam", exam.id] });
-      feedback.success(status === "OPEN" ? "진행 중으로 변경했습니다." : "마감 처리했습니다.");
+      if (sessionId != null) {
+        await qc.invalidateQueries({ queryKey: ["admin-session-exams", sessionId] });
+        await qc.invalidateQueries({ queryKey: ["session-exams-summary", sessionId] });
+        await qc.invalidateQueries({ queryKey: ["session-scores", sessionId] });
+      }
+      feedback.success(status === "OPEN" ? "진행 중으로 변경했습니다." : "시험을 종료했습니다.");
     },
     onError: (e: any) => {
       feedback.error(e?.response?.data?.detail ?? "상태 변경에 실패했습니다.");
@@ -63,12 +68,20 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
   const statusLabel = isDraft ? "초안" : isOpen ? "진행 중" : isClosed ? "마감" : exam.status;
   const statusTone = isOpen ? "success" : "neutral";
 
+  const handleCloseExam = () => {
+    if (!window.confirm("시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.")) return;
+    statusMut.mutate("CLOSED");
+  };
+
   const handleTemplateSaveConfirm = () => {
     saveAsTemplateMut.mutate();
   };
 
   return (
-    <div className="space-y-2">
+    <div
+      className={`space-y-2 ${isOpen ? "rounded-lg border-l-4 border-l-[var(--color-success)] pl-3 py-2" : ""}`}
+      style={isOpen ? { background: "color-mix(in srgb, var(--color-success) 12%, var(--color-bg-surface))" } : undefined}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -138,16 +151,32 @@ export default function ExamHeader({ exam }: { exam: Exam; sessionId?: number | 
           )}
 
           {isRegular && (
-            <Button
-              type="button"
-              intent={isOpen ? "secondary" : "primary"}
-              size="xl"
-              onClick={() => statusMut.mutate(isOpen ? "CLOSED" : "OPEN")}
-              disabled={statusMut.isPending}
-              className="min-w-[140px]"
-            >
-              {isOpen ? "마감" : "진행"}
-            </Button>
+            <>
+              {isDraft && (
+                <Button
+                  type="button"
+                  intent="primary"
+                  size="xl"
+                  onClick={() => statusMut.mutate("OPEN")}
+                  disabled={statusMut.isPending}
+                  className="min-w-[140px]"
+                >
+                  {statusMut.isPending ? "처리 중…" : "진행"}
+                </Button>
+              )}
+              {isOpen && (
+                <Button
+                  type="button"
+                  intent="danger"
+                  size="xl"
+                  onClick={handleCloseExam}
+                  disabled={statusMut.isPending}
+                  className="min-w-[140px]"
+                >
+                  {statusMut.isPending ? "처리 중…" : "종료하기"}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

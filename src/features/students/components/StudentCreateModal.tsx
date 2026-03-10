@@ -508,7 +508,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               onOpenChange={setMessageDropdownOpen}
               trigger={["click"]}
               getPopupContainer={() => document.getElementById("student-create-modal-dropdown-root") || document.body}
-              dropdownRender={() => (
+              popupRender={() => (
                 <div
                   className="modal-form-group"
                   style={{ minWidth: 280, padding: "var(--space-4)" }}
@@ -805,7 +805,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
               onOpenChange={setMessageDropdownOpen}
               trigger={["click"]}
               getPopupContainer={() => document.getElementById("student-create-modal-dropdown-root") || document.body}
-              dropdownRender={() => (
+              popupRender={() => (
                 <div
                   className="modal-form-group"
                   style={{ minWidth: 280, padding: "var(--space-4)" }}

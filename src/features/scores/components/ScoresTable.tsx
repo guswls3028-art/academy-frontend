@@ -7,7 +7,7 @@
  * - 디자인 토큰만 사용, DomainTable 기반
  */
 
-import { useMemo, useRef, useEffect, Fragment, useCallback } from "react";
+import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
@@ -36,10 +36,6 @@ const COL_PASS = 64;
 const COL_CLINIC_TARGET = 80;
 const COL_REASON = 180;
 
-/** 시험 블록 배경 — flat 테이블과 동일 토큰(--color-primary), 5% */
-const BG_EXAM = "color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface))";
-/** 과제 블록 배경 — flat 테이블과 동일 토큰, 4% */
-const BG_HOMEWORK = "color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface))";
 
 function parseScoreInput(input: string, maxScore?: number | null): number | null {
   const v = input.trim();
@@ -66,16 +62,14 @@ function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
 
-/** 합불 뱃지 — 시험/과제 컬럼용. 불(빨강)과 동일 디자인으로 합(초록) solid 배경 + 흰 글자 */
-function PassFailBadge({ passed }: { passed: boolean | null | undefined }) {
+/** 합불 표시 — 시험/과제 셀: 글자 색만(초/빨). 최종 판정은 배지 사용하지 않고 별도 렌더 */
+function PassFailText({ passed }: { passed: boolean | null | undefined }) {
   if (passed == null) return <span className="text-[var(--color-text-muted)]">-</span>;
-  const tone = passed ? "success" : "danger";
   return (
     <span
-      className="ds-status-badge ds-scores-pass-fail-badge inline-flex items-center justify-center min-w-[2rem] px-1.5 py-0.5 rounded-md text-xs font-semibold"
-      data-tone={tone}
+      className={`text-xs font-semibold ${passed ? "text-[var(--color-success)]" : "text-[var(--color-danger)]"}`}
     >
-      {passed ? "합격" : "불"}
+      {passed ? "합" : "불"}
     </span>
   );
 }
@@ -122,6 +116,27 @@ export type ScoreColumnDef =
   | { type: "clinic_target"; key: "clinic_target"; width: number; editable: false }
   | { type: "clinic_reason"; key: "clinic_reason"; width: number; editable: false };
 
+/** Imperative handle — focus a cell directly without a React state cycle */
+export type ScoresTableHandle = {
+  imperativeFocusCell: (cell: {
+    enrollmentId: number;
+    type: "exam";
+    examId: number;
+    sub: "total" | "objective" | "subjective";
+    questionId?: undefined;
+  } | {
+    enrollmentId: number;
+    type: "exam";
+    examId: number;
+    sub: "item";
+    questionId: number;
+  } | {
+    enrollmentId: number;
+    type: "homework";
+    homeworkId: number;
+  }) => void;
+};
+
 type Props = {
   rows: SessionScoreRow[];
   meta: SessionScoreMeta | null;
@@ -146,13 +161,6 @@ type Props = {
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
-  focusCell?: ({ enrollmentId: number } & (
-    | { type: "exam"; examId: number; sub: "total" | "objective" | "subjective"; questionId?: undefined }
-    | { type: "exam"; examId: number; sub: "item"; questionId: number }
-    | { type: "homework"; homeworkId: number }
-  )) | null;
-  onFocusDone?: () => void;
-
   /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 */
   onRequestMoveNext?: () => void;
   onRequestMovePrev?: () => void;
@@ -163,7 +171,7 @@ type Props = {
   onSelectionChange?: (enrollmentIds: number[]) => void;
 };
 
-export default function ScoresTable({
+const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   rows,
   meta,
   sessionId,
@@ -178,15 +186,13 @@ export default function ScoresTable({
   selectedCell = null,
   onSelectCell,
   onSelectRow,
-  focusCell,
-  onFocusDone,
   onRequestMoveNext,
   onRequestMovePrev,
   onRequestMoveDown,
   onRequestMoveUp,
   selectedEnrollmentIds = [],
   onSelectionChange,
-}: Props) {
+}: Props, ref) {
   const qc = useQueryClient();
   const homeworkInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
   const examInputRefs = useRef<Record<string, HTMLSpanElement | null>>({});
@@ -331,55 +337,35 @@ export default function ScoresTable({
     sel.addRange(range);
   }, []);
 
-  useEffect(() => {
-    if (!focusCell || !onFocusDone) return;
-    if (focusCell.type === "homework") {
-      const key = `${focusCell.enrollmentId}-${focusCell.homeworkId}`;
-      const el = homeworkInputRefs.current[key];
-      if (el) {
-        el.focus();
-        selectAllScoreCell(el);
-      }
-      onFocusDone();
-      return;
-    }
-    if (focusCell.type === "exam") {
-      if (focusCell.sub === "item" && "questionId" in focusCell) {
-        const key = `${focusCell.enrollmentId}-${focusCell.examId}-${focusCell.questionId}`;
-        const el = examItemInputRefs.current[key];
-        if (el) el.focus();
-        onFocusDone();
+  /** Imperative focus — called directly by SessionScoresPanel; no React state cycle */
+  useImperativeHandle(ref, () => ({
+    imperativeFocusCell(cell) {
+      if (cell.type === "homework") {
+        const el = homeworkInputRefs.current[`${cell.enrollmentId}-${cell.homeworkId}`];
+        if (el) { el.focus(); selectAllScoreCell(el); }
         return;
       }
-      if (focusCell.sub === "objective") {
-        const key = `${focusCell.enrollmentId}-${focusCell.examId}-objective`;
-        const el = examObjectiveInputRefs.current[key];
-        if (el) {
-          el.focus();
-          selectAllScoreCell(el);
+      if (cell.type === "exam") {
+        if (cell.sub === "item" && cell.questionId != null) {
+          const el = examItemInputRefs.current[`${cell.enrollmentId}-${cell.examId}-${cell.questionId}`];
+          if (el) el.focus();
+          return;
         }
-        onFocusDone();
-        return;
-      }
-      if (focusCell.sub === "subjective") {
-        const key = `${focusCell.enrollmentId}-${focusCell.examId}-subjective`;
-        const el = examSubjectiveInputRefs.current[key];
-        if (el) {
-          el.focus();
-          selectAllScoreCell(el);
+        if (cell.sub === "objective") {
+          const el = examObjectiveInputRefs.current[`${cell.enrollmentId}-${cell.examId}-objective`];
+          if (el) { el.focus(); selectAllScoreCell(el); }
+          return;
         }
-        onFocusDone();
-        return;
+        if (cell.sub === "subjective") {
+          const el = examSubjectiveInputRefs.current[`${cell.enrollmentId}-${cell.examId}-subjective`];
+          if (el) { el.focus(); selectAllScoreCell(el); }
+          return;
+        }
+        const el = examInputRefs.current[`${cell.enrollmentId}-${cell.examId}`];
+        if (el) { el.focus(); selectAllScoreCell(el); }
       }
-      const key = `${focusCell.enrollmentId}-${focusCell.examId}`;
-      const el = examInputRefs.current[key];
-      if (el) {
-        el.focus();
-        selectAllScoreCell(el);
-      }
-      onFocusDone();
-    }
-  }, [focusCell, onFocusDone, selectAllScoreCell]);
+    },
+  }), [selectAllScoreCell]);
 
   const columns = useMemo((): ScoreColumnDef[] => {
     const list: ScoreColumnDef[] = [
@@ -392,11 +378,7 @@ export default function ScoresTable({
         if (examEditTotal) list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "total", key: `exam_${e.exam_id}_total`, width: COL_SCORE, editable: true });
         if (examEditObjective) list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "objective", key: `exam_${e.exam_id}_objective`, width: COL_SCORE, editable: true });
         if (examEditSubjective) {
-          if (questions.length > 0) {
-            questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, questionId: q.question_id, title: e.title, sub: "item", key: `exam_${e.exam_id}_q_${q.question_id}`, width: COL_SCORE, editable: true }));
-          } else {
-            list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: isEditMode });
-          }
+          list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "subjective", key: `exam_${e.exam_id}_subjective`, width: COL_SCORE, editable: true });
         }
         list.push({ type: "exam", examId: e.exam_id, title: e.title, sub: "pass", key: `exam_${e.exam_id}_pass`, width: COL_PASS, editable: false });
       } else {
@@ -422,6 +404,18 @@ export default function ScoresTable({
     );
     return list;
   }, [examOptions, homeworkOptions, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
+
+  /** Pre-computed O(1) lookup — replaces columns.filter() in the per-row render hot path */
+  const examColsMap = useMemo((): Record<number, Extract<ScoreColumnDef, { type: "exam" }>[]> => {
+    const map: Record<number, Extract<ScoreColumnDef, { type: "exam" }>[]> = {};
+    for (const c of columns) {
+      if (c.type === "exam") {
+        if (!map[c.examId]) map[c.examId] = [];
+        map[c.examId].push(c);
+      }
+    }
+    return map;
+  }, [columns]);
 
   const columnDefs = useMemo((): TableColumnDef[] => {
     return [
@@ -522,7 +516,7 @@ export default function ScoresTable({
             출석
           </ResizableTh>
           {examOptions.map((ex) => {
-            const examColsList = columns.filter((c) => c.type === "exam" && c.examId === ex.exam_id);
+            const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
             return (
               <th
@@ -530,7 +524,6 @@ export default function ScoresTable({
                 scope="col"
                 colSpan={colSpan}
                 className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
-                style={{ backgroundColor: BG_EXAM }}
                 title={ex.title}
               >
                 <span className="inline-flex items-center gap-1.5">
@@ -548,7 +541,6 @@ export default function ScoresTable({
               scope="col"
               colSpan={2}
               className="text-left font-medium text-[var(--color-text-primary)] py-2 px-3 truncate"
-              style={{ backgroundColor: BG_HOMEWORK }}
               title={hw.title}
             >
               <span className="inline-flex items-center gap-1.5">
@@ -585,7 +577,7 @@ export default function ScoresTable({
         {/* Row2: 시험별 서브헤더(합산/객관식/주관식/N번/합불) | 과제 점수/합불 */}
         <tr className="border-b-2 border-[var(--color-border-divider)]">
           {examOptions.map((ex) => {
-            const examColsList = columns.filter((c) => c.type === "exam" && c.examId === ex.exam_id) as Extract<ScoreColumnDef, { type: "exam" }>[];
+            const examColsList = (examColsMap[ex.exam_id] ?? []) as Extract<ScoreColumnDef, { type: "exam" }>[];
             const questions = (ex as { questions?: { question_id: number; number: number }[] }).questions ?? [];
             return (
               <Fragment key={ex.exam_id}>
@@ -594,7 +586,7 @@ export default function ScoresTable({
                     key={c.key}
                     scope="col"
                     className="text-left text-xs font-medium text-[var(--color-text-secondary)] py-2 px-3"
-                    style={{ backgroundColor: BG_EXAM, width: c.sub === "pass" ? COL_PASS : COL_SCORE, minWidth: 48 }}
+                    style={{ width: c.sub === "pass" ? COL_PASS : COL_SCORE, minWidth: 48 }}
                   >
                     {c.sub === "total" ? "합산" : c.sub === "objective" ? "객관식" : c.sub === "subjective" ? "주관식" : c.sub === "item" && c.questionId != null
                       ? `${questions.find((q) => q.question_id === c.questionId)?.number ?? c.questionId}번`
@@ -613,7 +605,6 @@ export default function ScoresTable({
                   width: columnWidths[`hw_${hw.homework_id}_score`] ?? COL_SCORE,
                   minWidth: 48,
                   maxWidth: 200,
-                  backgroundColor: BG_HOMEWORK,
                 }}
               >
                 점수
@@ -625,7 +616,6 @@ export default function ScoresTable({
                   width: columnWidths[`hw_${hw.homework_id}_pass`] ?? COL_PASS,
                   minWidth: 48,
                   maxWidth: 100,
-                  backgroundColor: BG_HOMEWORK,
                 }}
               >
                 합불
@@ -693,7 +683,7 @@ export default function ScoresTable({
                   />
                 </td>
 
-                <td className="text-left py-2.5 px-3 align-middle" onClick={() => onSelectRow(row)}>
+                <td className="ds-scores-cell-attendance text-left py-2.5 px-3 align-middle" onClick={() => onSelectRow(row)}>
                   {(() => {
                     const status = attendanceMap[row.enrollment_id];
                     if (!status)
@@ -712,7 +702,7 @@ export default function ScoresTable({
                   const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
                   const block = entry?.block;
                   const questions = (ex as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
-                  const examColsList = columns.filter((c) => c.type === "exam" && c.examId === ex.exam_id) as Extract<ScoreColumnDef, { type: "exam" }>[];
+                  const examColsList = (examColsMap[ex.exam_id] ?? []) as Extract<ScoreColumnDef, { type: "exam" }>[];
                   return (
                     <Fragment key={ex.exam_id}>
                       {examColsList.map((col) => {
@@ -722,12 +712,11 @@ export default function ScoresTable({
                           selectedCell.type === "exam" &&
                           selectedCell.examId === ex.exam_id &&
                           (col.sub === "total" ? selectedCell.sub === "total" : col.sub === "objective" ? selectedCell.sub === "objective" : col.sub === "subjective" ? selectedCell.sub === "subjective" : col.sub === "item" && col.questionId != null ? selectedCell.sub === "item" && selectedCell.questionId === col.questionId : false);
-                        const bg = rowChecked ? undefined : { backgroundColor: isSelected ? "var(--color-bg-surface)" : BG_EXAM };
 
                         if (col.sub === "pass") {
                           return (
-                            <td key={col.key} className="min-w-0 text-left align-middle py-2.5 px-3" style={bg} onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id); }}>
-                              <PassFailBadge passed={block?.passed} />
+                            <td key={col.key} className="min-w-0 text-left align-middle py-2.5 px-3" onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id); }}>
+                              <PassFailText passed={block?.passed} />
                             </td>
                           );
                         }
@@ -739,7 +728,6 @@ export default function ScoresTable({
                             <td
                               key={col.key}
                               className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              style={bg}
                               onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "total"); }}
                             >
                               {canEdit ? (
@@ -766,7 +754,7 @@ export default function ScoresTable({
                                       await saveExamTotal(ex.exam_id, row.enrollment_id, parsed);
                                     } else if (raw !== "") el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                   }}
-                                  onKeyDown={async (e) => {
+                                  onKeyDown={(e) => {
                                     const el = examInputRefs.current[`${row.enrollment_id}-${ex.exam_id}`];
                                     if (e.key === "Escape") {
                                       e.preventDefault();
@@ -775,18 +763,10 @@ export default function ScoresTable({
                                       el?.blur();
                                     } else if (e.key === "Enter") {
                                       e.preventDefault();
-                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
-                                      if (parsed != null && validateScore(parsed, 100)) {
-                                        await saveExamTotal(ex.exam_id, row.enrollment_id, parsed);
-                                      }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveDown?.(); // blur fires on focus move → onBlur saves
                                     } else if (e.key === "Tab") {
                                       e.preventDefault();
-                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
-                                      if (parsed != null && validateScore(parsed, 100)) {
-                                        await saveExamTotal(ex.exam_id, row.enrollment_id, parsed);
-                                      }
-                                      if (e.shiftKey) onRequestMovePrev?.();
+                                      if (e.shiftKey) onRequestMovePrev?.(); // blur fires → onBlur saves
                                       else onRequestMoveNext?.();
                                     } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
                                     else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
@@ -809,7 +789,6 @@ export default function ScoresTable({
                             <td
                               key={col.key}
                               className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              style={bg}
                               onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
                               {canEdit ? (
@@ -836,7 +815,7 @@ export default function ScoresTable({
                                       await saveExamObjective(ex.exam_id, row.enrollment_id, parsed);
                                     } else if (raw !== "") el.innerText = objScore != null ? String(Math.round(objScore)) : "";
                                   }}
-                                  onKeyDown={async (e) => {
+                                  onKeyDown={(e) => {
                                     const el = examObjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-objective`];
                                     if (e.key === "Escape") {
                                       e.preventDefault();
@@ -845,18 +824,10 @@ export default function ScoresTable({
                                       el?.blur();
                                     } else if (e.key === "Enter") {
                                       e.preventDefault();
-                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
-                                      if (parsed != null && validateScore(parsed, 100)) {
-                                        await saveExamObjective(ex.exam_id, row.enrollment_id, parsed);
-                                      }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveDown?.(); // blur fires → onBlur saves
                                     } else if (e.key === "Tab") {
                                       e.preventDefault();
-                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
-                                      if (parsed != null && validateScore(parsed, 100)) {
-                                        await saveExamObjective(ex.exam_id, row.enrollment_id, parsed);
-                                      }
-                                      if (e.shiftKey) onRequestMovePrev?.();
+                                      if (e.shiftKey) onRequestMovePrev?.(); // blur fires → onBlur saves
                                       else onRequestMoveNext?.();
                                     } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
                                     else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
@@ -879,7 +850,6 @@ export default function ScoresTable({
                             <td
                               key={col.key}
                               className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                              style={bg}
                               onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
                               {canEdit ? (
@@ -906,7 +876,7 @@ export default function ScoresTable({
                                       await saveExamSubjective(ex.exam_id, row.enrollment_id, parsed);
                                     } else if (raw !== "") el.innerText = subScore != null ? String(Math.round(subScore)) : "";
                                   }}
-                                  onKeyDown={async (e) => {
+                                  onKeyDown={(e) => {
                                     const el = examSubjectiveInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-subjective`];
                                     if (e.key === "Escape") {
                                       e.preventDefault();
@@ -915,18 +885,10 @@ export default function ScoresTable({
                                       el?.blur();
                                     } else if (e.key === "Enter") {
                                       e.preventDefault();
-                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
-                                      if (parsed != null && validateScore(parsed, 100)) {
-                                        await saveExamSubjective(ex.exam_id, row.enrollment_id, parsed);
-                                      }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveDown?.(); // blur fires → onBlur saves
                                     } else if (e.key === "Tab") {
                                       e.preventDefault();
-                                      const parsed = parseScoreInput(firstLine(el?.innerText ?? ""), 100);
-                                      if (parsed != null && validateScore(parsed, 100)) {
-                                        await saveExamSubjective(ex.exam_id, row.enrollment_id, parsed);
-                                      }
-                                      if (e.shiftKey) onRequestMovePrev?.();
+                                      if (e.shiftKey) onRequestMovePrev?.(); // blur fires → onBlur saves
                                       else onRequestMoveNext?.();
                                     } else if (e.key === "ArrowUp") { e.preventDefault(); onRequestMoveUp?.(); }
                                     else if (e.key === "ArrowDown") { e.preventDefault(); onRequestMoveDown?.(); }
@@ -951,7 +913,6 @@ export default function ScoresTable({
                             <td
                               key={col.key}
                               className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "outline-2 outline-[var(--color-brand-primary)] outline-offset-[-2px]" : ""}`}
-                              style={bg}
                               onClick={(e) => { e.stopPropagation(); onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
                               {canEdit ? (
@@ -999,7 +960,6 @@ export default function ScoresTable({
                     <Fragment key={hw.homework_id}>
                       <td
                         className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
-                        style={rowChecked ? undefined : { backgroundColor: isNotSubmitted ? "var(--color-bg-surface-soft)" : isSelected ? "var(--color-bg-surface)" : BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
@@ -1083,29 +1043,7 @@ export default function ScoresTable({
                                 }
                                 if (e.key === "Tab") {
                                   e.preventDefault();
-                                  const targetEl = e.target instanceof HTMLElement ? e.target : el;
-                                  const rawToSave = targetEl?.innerText?.trim() ?? "";
-                                  if (rawToSave === "" || rawToSave === "미제출") {
-                                    if (rawToSave === "미제출") {
-                                      await saveHomework({
-                                        enrollmentId: row.enrollment_id,
-                                        homeworkId: hw.homework_id,
-                                        score: null,
-                                        metaStatus: "NOT_SUBMITTED",
-                                      });
-                                    }
-                                    if (e.shiftKey) onRequestMovePrev?.();
-                                    else onRequestMoveNext?.();
-                                    return;
-                                  }
-                                  const parsed = parseScoreInput(rawToSave, block?.max_score ?? null);
-                                  if (parsed != null && validateScore(parsed, block?.max_score)) {
-                                    await saveHomework({
-                                      enrollmentId: row.enrollment_id,
-                                      homeworkId: hw.homework_id,
-                                      score: parsed,
-                                    });
-                                  }
+                                  // blur fires on focus move → onBlur handles save
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
                                   return;
@@ -1117,18 +1055,19 @@ export default function ScoresTable({
                                     return;
                                   }
                                   if (raw === "/") {
-                                    const ok = await saveHomework({
+                                    // Optimistic: show 미제출 immediately, fire save in background
+                                    if (el) el.innerText = "미제출";
+                                    void saveHomework({
                                       enrollmentId: row.enrollment_id,
                                       homeworkId: hw.homework_id,
                                       score: null,
                                       metaStatus: "NOT_SUBMITTED",
                                     });
-                                    if (ok && el) el.innerText = "미제출";
                                     onRequestMoveDown?.();
                                     return;
                                   }
                                   if (raw === "미제출") {
-                                    await saveHomework({
+                                    void saveHomework({
                                       enrollmentId: row.enrollment_id,
                                       homeworkId: hw.homework_id,
                                       score: null,
@@ -1143,7 +1082,7 @@ export default function ScoresTable({
                                       if (el) el.innerText = isNotSubmitted ? "미제출" : (block?.score != null ? String(block.score) : "");
                                       return;
                                     }
-                                    await saveHomework({
+                                    void saveHomework({
                                       enrollmentId: row.enrollment_id,
                                       homeworkId: hw.homework_id,
                                       score: parsed,
@@ -1214,13 +1153,12 @@ export default function ScoresTable({
                       </td>
                       <td
                         className="min-w-0 text-left align-middle py-2.5 px-3"
-                        style={rowChecked ? undefined : { backgroundColor: BG_HOMEWORK }}
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectCell(row, "homework", hw.homework_id);
                         }}
                       >
-                        <PassFailBadge passed={block?.passed} />
+                        <PassFailText passed={block?.passed} />
                       </td>
                     </Fragment>
                   );
@@ -1230,20 +1168,28 @@ export default function ScoresTable({
                   className="text-left align-middle py-2.5 px-3"
                   onClick={() => onSelectRow(row)}
                 >
-                  <span className="inline-flex items-center gap-1.5">
-                    {row.clinic_required === true ? (
-                      <span className="text-[var(--color-text-secondary)] font-medium">대상</span>
-                    ) : (
-                      <span className="text-[var(--color-text-secondary)] font-medium">합격</span>
-                    )}
-                  </span>
+                  {clinicTarget ? (
+                    <span className="text-xs font-semibold text-[var(--color-danger)]">
+                      불합격
+                    </span>
+                  ) : (
+                    <span className="text-xs font-semibold text-[var(--color-success)]">
+                      합격
+                    </span>
+                  )}
                 </td>
 
                 <td
-                  className="text-left align-middle py-2.5 px-3 text-[var(--color-text-secondary)] text-sm min-w-0"
+                  className="text-left align-middle py-2.5 px-3 min-w-0"
                   onClick={() => onSelectRow(row)}
                 >
-                  {clinicReason || "-"}
+                  {clinicReason ? (
+                    <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
+                      {clinicReason}
+                    </span>
+                  ) : (
+                    <span className="text-[var(--color-text-muted)]">-</span>
+                  )}
                 </td>
               </tr>
 
@@ -1253,4 +1199,6 @@ export default function ScoresTable({
       </tbody>
     </DomainTable>
   );
-}
+});
+
+export default ScoresTable;

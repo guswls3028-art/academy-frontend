@@ -81,6 +81,8 @@ export type WorkCurrentStatus =
       date: string;
       started_at: string;
       break_minutes?: number;
+      /** 휴식 누적 초 (실시간 시계 일시정지 반영). 없으면 break_minutes*60 사용 */
+      break_total_seconds?: number;
       break_started_at?: string;
     };
 
@@ -120,11 +122,21 @@ export async function endBreak(workRecordId: number) {
   return res.data;
 }
 
-/** GET /staffs/currently-working/ — 현재 근무 중인 직원 목록 (헤더 중앙 아바타용) */
+/** GET /staffs/currently-working/ — 현재 근무 중인 직원 목록 (헤더 중앙 아바타·드롭다운용) */
 export type CurrentlyWorkingItem = {
   staff_id: number;
   staff_name: string;
-  role?: "TEACHER" | "ASSISTANT";
+  role?: "owner" | "TEACHER" | "ASSISTANT";
+  /** 근무 시작일 (YYYY-MM-DD) — 드롭다운 근무시간 계산용 */
+  date?: string;
+  /** 근무 시작 시각 (HH:MM:SS) */
+  started_at?: string;
+  /** 휴식 누적 분 */
+  break_minutes?: number;
+  /** 휴식 누적 초 (실시간 시계용). 없으면 break_minutes*60 사용 */
+  break_total_seconds?: number;
+  /** 휴식 시작 시각 (ISO) — 휴식 중이면 경과 시간 정지 */
+  break_started_at?: string;
 };
 
 export async function fetchCurrentlyWorkingStaff(): Promise<CurrentlyWorkingItem[]> {

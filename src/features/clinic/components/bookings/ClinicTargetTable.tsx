@@ -96,6 +96,7 @@ export default function ClinicTargetTable({
           <div className="ds-section__empty py-10">대상자가 없습니다.</div>
         )}
       </div>
+      </div>
     </div>
   );
 }

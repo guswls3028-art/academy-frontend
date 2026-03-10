@@ -198,7 +198,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
         onOpenChange={setProfileOpen}
         trigger={["click"]}
         placement="bottomRight"
-        dropdownRender={() => profileDropdownContent}
+        popupRender={() => profileDropdownContent}
         classNames={{
           root: `stu-topbar__profileDropdownOverlay${isVideoPage ? " stu-topbar__profileDropdownOverlay--video" : ""}`,
         }}

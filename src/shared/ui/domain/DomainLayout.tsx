@@ -121,10 +121,10 @@ export default function DomainLayout({
         )}
       </div>
 
-      {/* DOMAIN CONTENT (ds-panel) */}
+      {/* DOMAIN CONTENT (ds-panel) — 편집/시험점수 표시 바와 동일한 수치(space-4) */}
       <div
         style={{
-          padding: "var(--space-6)",
+          padding: "var(--space-4)",
         }}
       >
         <DomainPanel>{children}</DomainPanel>

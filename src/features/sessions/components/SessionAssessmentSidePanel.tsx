@@ -180,6 +180,7 @@ export default function SessionAssessmentSidePanel({
   };
 
   const handleExamClose = async (id: number) => {
+    if (!window.confirm("시험을 종료하시겠습니까? 종료 이후엔 답안 제출이 불가합니다.")) return;
     setExamBusy({ id, action: "end" });
     try {
       await updateAdminExam(id, { status: "CLOSED" });
@@ -344,7 +345,9 @@ function ExamItemRow({
         group rounded-xl border-l-4 px-3 py-2.5 text-left transition-all
         ${active
           ? "border-l-[var(--color-primary)] ring-1 ring-[var(--color-primary)]/20"
-          : "border-l-transparent hover:opacity-90"
+          : isOpen
+            ? "border-l-[var(--color-success)]"
+            : "border-l-transparent hover:opacity-90"
         }
       `}
       style={{
@@ -352,9 +355,17 @@ function ExamItemRow({
       }}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
-          {sub && <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{sub}</div>}
+        <div className="min-w-0 flex-1 flex items-start gap-2">
+          {isOpen && (
+            <span
+              className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-[var(--color-success)]"
+              aria-hidden
+            />
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
+            {sub && <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{sub}</div>}
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
           {isDraft && (
@@ -373,12 +384,12 @@ function ExamItemRow({
             <Button
               type="button"
               size="lg"
-              intent="secondary"
+              intent="danger"
               onClick={onEnd}
               disabled={busy != null}
               className="!py-2 !px-4 !text-sm !min-h-[44px]"
             >
-              {busy === "end" ? "처리 중…" : "종료"}
+              {busy === "end" ? "처리 중…" : "종료하기"}
             </Button>
           )}
         </div>

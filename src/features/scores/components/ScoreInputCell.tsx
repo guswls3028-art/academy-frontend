@@ -90,23 +90,21 @@ export default function ScoreInputCell({
       onBlur={() => {
         void commit();
       }}
-      onKeyDown={async (e) => {
+      onKeyDown={(e) => {
         if (disabled) return;
 
         if (e.key === "Enter") {
           e.preventDefault();
-          const ok = await commit();
-          if (ok) onMoveNext?.();
+          // blur fires on focus move → commit() called there
+          onMoveNext?.();
           return;
         }
 
         if (e.key === "Tab") {
           e.preventDefault();
-          const ok = await commit();
-          if (ok) {
-            if (e.shiftKey) onMovePrev?.();
-            else onMoveNext?.();
-          }
+          // blur fires on focus move → commit() called there
+          if (e.shiftKey) onMovePrev?.();
+          else onMoveNext?.();
           return;
         }
 

@@ -12,7 +12,7 @@ import {
 import { scoresQueryKeys } from "../api/queryKeys";
 import { fetchAttendance } from "@/features/lectures/api/attendance";
 
-import ScoresTable from "../components/ScoresTable";
+import ScoresTable, { type ScoresTableHandle } from "../components/ScoresTable";
 import { EmptyState } from "@/shared/ui/ds";
 
 type Props = {
@@ -52,7 +52,8 @@ export default function SessionScoresPanel({
   selectedEnrollmentIds = [],
   onSelectionChange,
 }: Props) {
-  const [focusCell, setFocusCell] = useState<FocusScoreCell | null>(null);
+  /** Direct DOM focus — no React state cycle needed */
+  const tableRef = useRef<ScoresTableHandle>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: scoresQueryKeys.sessionScores(sessionId),
@@ -99,14 +100,7 @@ export default function SessionScoresPanel({
       examCols.forEach((e) => {
         if (examEditTotal) list.push({ type: "exam", examId: e.exam_id, sub: "total" });
         if (examEditObjective) list.push({ type: "exam", examId: e.exam_id, sub: "objective" });
-        if (examEditSubjective) {
-          const questions = (e as { questions?: { question_id: number }[] }).questions ?? [];
-          if (questions.length > 0) {
-            questions.forEach((q) => list.push({ type: "exam", examId: e.exam_id, sub: "item", questionId: q.question_id }));
-          } else {
-            list.push({ type: "exam", examId: e.exam_id, sub: "subjective" });
-          }
-        }
+        if (examEditSubjective) list.push({ type: "exam", examId: e.exam_id, sub: "subjective" });
       });
       if (homeworkEdit) homeworkCols.forEach((h) => list.push({ type: "homework", homeworkId: h.homework_id }));
     }
@@ -137,7 +131,8 @@ export default function SessionScoresPanel({
     if (!row || !col) return;
     setSelectedEnrollmentId(row.enrollment_id);
     setSelectedColIndex(clampCol(c));
-    setFocusCell({ enrollmentId: row.enrollment_id, ...col });
+    // Focus synchronously — no state→rerender→effect cycle
+    tableRef.current?.imperativeFocusCell({ enrollmentId: row.enrollment_id, ...col } as Parameters<ScoresTableHandle["imperativeFocusCell"]>[0]);
   }, [rows, editableCols, clampCol]);
 
   const handleGridKeyDown = (e: React.KeyboardEvent) => {
@@ -206,7 +201,6 @@ export default function SessionScoresPanel({
     if (!isEditMode) {
       prevEditModeRef.current = false;
       setSelectedEnrollmentId(null);
-      setFocusCell(null);
       return;
     }
     // 편집 모드 진입 시에만 첫 점수 셀 자동 포커스
@@ -242,6 +236,13 @@ export default function SessionScoresPanel({
     setSelectedColIndex((prev) => clampCol(prev));
   }, [rows, selectedEnrollmentId, isEditMode, clampCol]);
 
+  /** Stable object — prevents ScoresTable from seeing a new prop reference every render */
+  const selectedCell = useMemo(() => {
+    if (selectedEnrollmentId == null) return null;
+    const col = editableCols[clampCol(selectedColIndex)];
+    return col ? ({ enrollmentId: selectedEnrollmentId, ...col } as FocusScoreCell) : null;
+  }, [selectedEnrollmentId, selectedColIndex, editableCols, clampCol]);
+
   if (isLoading) {
     return <EmptyState scope="panel" tone="loading" title="성적 불러오는 중…" />;
   }
@@ -269,6 +270,7 @@ export default function SessionScoresPanel({
         onKeyDown={handleGridKeyDown}
       >
         <ScoresTable
+          ref={tableRef}
           rows={rows}
           meta={meta}
           sessionId={sessionId}
@@ -280,12 +282,7 @@ export default function SessionScoresPanel({
           homeworkEdit={homeworkEdit}
           scoreDisplayMode={scoreDisplayMode}
           selectedEnrollmentId={selectedEnrollmentId}
-          selectedCell={selectedEnrollmentId != null ? (() => {
-            const col = editableCols[clampCol(selectedColIndex)];
-            return col ? ({ enrollmentId: selectedEnrollmentId, ...col } as FocusScoreCell) : null;
-          })() : null}
-          focusCell={focusCell}
-          onFocusDone={() => setFocusCell(null)}
+          selectedCell={selectedCell}
           onRequestMoveNext={onRequestMoveNext}
           onRequestMovePrev={onRequestMovePrev}
           onRequestMoveDown={onRequestMoveDown}

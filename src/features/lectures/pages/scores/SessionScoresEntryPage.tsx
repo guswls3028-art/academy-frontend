@@ -111,64 +111,67 @@ export default function SessionScoresEntryPage(_props: Props) {
       .filter((id): id is number => id != null && Number.isFinite(id));
   }, [data?.rows, selectedEnrollmentIds]);
 
-  const selectionBar =
-    selectedEnrollmentIds.length > 0 ? (
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2 pl-1">
-          <span
-            className="text-[13px] font-semibold"
-            style={{
-              color: "var(--color-brand-primary)",
-            }}
-          >
-            {selectedEnrollmentIds.length}명 선택됨
-          </span>
-          <span className="text-[var(--color-border-divider)]">|</span>
-          <Button
-            intent="secondary"
-            size="sm"
-            onClick={() => setSelectedEnrollmentIds([])}
-            disabled={selectedEnrollmentIds.length === 0}
-          >
-            선택 해제
-          </Button>
-          <span className="text-[var(--color-border-divider)]">|</span>
-          <Button
-            intent="secondary"
-            size="sm"
-            onClick={() =>
-              openSendMessageModal({
-                studentIds: selectedStudentIds,
-                recipientLabel: `선택한 수강생 ${selectedEnrollmentIds.length}명`,
-              })
-            }
-          >
-            메시지 발송
-          </Button>
-          <Button
-            intent="secondary"
-            size="sm"
-            onClick={() => feedback.info("수업결과 발송 기능 준비 중입니다.")}
-          >
-            수업결과 발송
-          </Button>
-          <Button
-            intent="secondary"
-            size="sm"
-            onClick={() => feedback.info("성적 일괄 변경 기능 준비 중입니다.")}
-          >
-            성적 일괄 변경
-          </Button>
-          <Button
-            intent="secondary"
-            size="sm"
-            onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}
-          >
-            엑셀 다운로드
-          </Button>
-        </div>
+  const selectionBar = (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2 pl-1">
+        <span
+          className="text-[13px] font-semibold"
+          style={{
+            color: "var(--color-brand-primary)",
+          }}
+        >
+          {selectedEnrollmentIds.length}명 선택됨
+        </span>
+        <span className="text-[var(--color-border-divider)]">|</span>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => setSelectedEnrollmentIds([])}
+          disabled={selectedEnrollmentIds.length === 0}
+        >
+          선택 해제
+        </Button>
+        <span className="text-[var(--color-border-divider)]">|</span>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() =>
+            openSendMessageModal({
+              studentIds: selectedStudentIds,
+              recipientLabel: `선택한 수강생 ${selectedEnrollmentIds.length}명`,
+            })
+          }
+          disabled={selectedEnrollmentIds.length === 0}
+        >
+          메시지 발송
+        </Button>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => feedback.info("수업결과 발송 기능 준비 중입니다.")}
+          disabled={selectedEnrollmentIds.length === 0}
+        >
+          수업결과 발송
+        </Button>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => feedback.info("성적 일괄 변경 기능 준비 중입니다.")}
+          disabled={selectedEnrollmentIds.length === 0}
+        >
+          성적 일괄 변경
+        </Button>
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => feedback.info("엑셀 다운로드 기능 준비 중입니다.")}
+          disabled={selectedEnrollmentIds.length === 0}
+        >
+          엑셀 다운로드
+        </Button>
       </div>
-    ) : null;
+    </div>
+  );
 
   if (!Number.isFinite(numericSessionId)) {
     return (
@@ -210,82 +213,63 @@ export default function SessionScoresEntryPage(_props: Props) {
       />
 
       {isEditMode && (
-        <div className="scores-edit-card">
-          <div className="scores-edit-card__header">
-            <h2 className="scores-edit-card__title">편집할 항목 선택</h2>
-            <p className="scores-edit-card__desc">
-              셀 쓰기를 허용할 시험·과제 항목을 블록을 눌러 선택하세요. 합산과 객관식/주관식은 동시에 선택할 수 없습니다.
-            </p>
+        <div className="scores-edit-bar">
+          <span className="scores-edit-bar__label">편집 항목</span>
+          <div className="scores-edit-bar__group" role="group" aria-label="빠른 선택">
+            <button
+              type="button"
+              onClick={setPresetTotalHw}
+              className="scores-edit-segment__btn scores-edit-segment__btn--wide"
+              aria-pressed={examEditTotal && homeworkEdit && !examEditSubjective}
+            >
+              합산 + 과제
+            </button>
+            <button
+              type="button"
+              onClick={setPresetSubjectiveHw}
+              className="scores-edit-segment__btn scores-edit-segment__btn--wide"
+              aria-pressed={examEditSubjective && homeworkEdit && !examEditTotal}
+            >
+              주관식 + 과제
+            </button>
           </div>
-          <div className="scores-edit-card__body">
-            <div className="scores-edit-section">
-              <span className="scores-edit-section__label">빠른 선택</span>
-              <div className="scores-edit-segment">
-                <button
-                  type="button"
-                  onClick={setPresetTotalHw}
-                  className="scores-edit-segment__btn scores-edit-segment__btn--wide"
-                  aria-pressed={examEditTotal && homeworkEdit && !examEditSubjective}
-                >
-                  합산 + 과제
-                </button>
-                <button
-                  type="button"
-                  onClick={setPresetSubjectiveHw}
-                  className="scores-edit-segment__btn scores-edit-segment__btn--wide"
-                  aria-pressed={examEditSubjective && homeworkEdit && !examEditTotal}
-                >
-                  주관식 + 과제
-                </button>
-              </div>
-            </div>
-
-            <div className="scores-edit-section">
-              <span className="scores-edit-section__label">시험</span>
-              <div className="scores-edit-segment">
-                <button
-                  type="button"
-                  onClick={handleSelectTotal}
-                  className="scores-edit-segment__btn"
-                  aria-pressed={examEditTotal}
-                >
-                  합산
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSelectObjective}
-                  className="scores-edit-segment__btn"
-                  aria-pressed={examEditObjective}
-                >
-                  객관식
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSelectSubjective}
-                  className="scores-edit-segment__btn"
-                  aria-pressed={examEditSubjective}
-                >
-                  주관식
-                </button>
-              </div>
-            </div>
-
-            <div className="scores-edit-section">
-              <span className="scores-edit-section__label">과제</span>
-              <div className="scores-edit-segment">
-                <button
-                  type="button"
-                  onClick={handleSelectHomework}
-                  className="scores-edit-segment__btn"
-                  aria-pressed={homeworkEdit}
-                >
-                  과제
-                </button>
-              </div>
-            </div>
+          <span className="scores-edit-bar__divider" aria-hidden="true">|</span>
+          <div className="scores-edit-bar__group" role="group" aria-label="시험">
+            <button
+              type="button"
+              onClick={handleSelectTotal}
+              className="scores-edit-segment__btn"
+              aria-pressed={examEditTotal}
+            >
+              합산
+            </button>
+            <button
+              type="button"
+              onClick={handleSelectObjective}
+              className="scores-edit-segment__btn"
+              aria-pressed={examEditObjective}
+            >
+              객관식
+            </button>
+            <button
+              type="button"
+              onClick={handleSelectSubjective}
+              className="scores-edit-segment__btn"
+              aria-pressed={examEditSubjective}
+            >
+              주관식
+            </button>
           </div>
-          <div className="scores-edit-card__hint">
-            Tab / Enter / 방향키로 셀 이동 · 미제출: <kbd>/</kbd> + Enter
+          <span className="scores-edit-bar__divider" aria-hidden="true">|</span>
+          <div className="scores-edit-bar__group" role="group" aria-label="과제">
+            <button
+              type="button"
+              onClick={handleSelectHomework}
+              className="scores-edit-segment__btn"
+              aria-pressed={homeworkEdit}
+            >
+              과제
+            </button>
           </div>
         </div>
       )}

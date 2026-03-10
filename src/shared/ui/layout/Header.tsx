@@ -3,13 +3,11 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Dropdown, Badge } from "antd";
-import ThemeOverlay from "@/features/settings/overlays/ThemeOverlay";
 import NoticeOverlay from "@/features/notice/overlays/NoticeOverlay";
 import { useNotices } from "@/features/notice/context/NoticeContext";
 import { useAdminNotificationCounts } from "@/features/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@/shared/ui/layout/AdminLayoutContext";
-import { useTeacherView } from "@/shared/ui/layout/TeacherViewContext";
 import { useWorkbox } from "@/shared/ui/layout/WorkboxContext";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
 import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
@@ -164,13 +162,11 @@ export default function Header() {
   const loc = useLocation();
   const nav = useNavigate();
   const adminLayout = useAdminLayout();
-  const teacherView = useTeacherView();
   const isMobile = adminLayout != null;
   const { program } = useProgram();
   const { data: messagingInfo } = useMessagingInfo();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: fetchMe });
 
-  const [openTheme, setOpenTheme] = useState(false);
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -229,41 +225,22 @@ export default function Header() {
 
   const userMenu = {
     items: [
+      { key: "profile", label: "내정보" },
       { key: "settings", label: "설정" },
-      { key: "theme", label: "테마" },
-      { key: "divider-1", type: "divider" as const },
       { key: "logout", label: "로그아웃" },
     ],
     onClick: ({ key }: { key: string }) => {
       setProfileDropdownOpen(false);
+      if (key === "profile") nav("/admin/settings/profile");
       if (key === "settings") nav("/admin/settings");
-      if (key === "theme") setOpenTheme(true);
       if (key === "logout") nav("/login");
     },
   };
 
   const profileDropdownContent = (
     <div className="app-header__profileDropdown">
-      {teacherView && (
-        <>
-          <div className="app-header__profileDropdownRow app-header__profileDropdownRow--view">
-            <span className="app-header__profileDropdownLabel">뷰 전환</span>
-            <button
-              type="button"
-              className="app-header__profileDropdownViewBtn"
-              onClick={() => {
-                teacherView.setForceView(isMobile ? "desktop" : "mobile");
-                setProfileDropdownOpen(false);
-              }}
-            >
-              {isMobile ? "PC뷰로 보기" : "모바일뷰로 보기"}
-            </button>
-          </div>
-          <div className="app-header__profileDropdownDivider" />
-        </>
-      )}
+      <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "profile" })}>내정보</button>
       <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "settings" })}>설정</button>
-      <button type="button" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "theme" })}>테마</button>
       <div className="app-header__profileDropdownDivider" />
       <button type="button" className="app-header__profileDropdownItem app-header__profileDropdownItem--danger" onClick={() => userMenu.onClick({ key: "logout" })}>로그아웃</button>
     </div>
@@ -449,7 +426,7 @@ export default function Header() {
                   me ? (
                     <StaffRoleAvatar
                       role={meToStaffRole(me)}
-                      size={20}
+                      size={16}
                       className="text-[var(--color-text-secondary)]"
                     />
                   ) : (
@@ -464,7 +441,6 @@ export default function Header() {
         </div>
       </div>
 
-      {openTheme && <ThemeOverlay onClose={() => setOpenTheme(false)} />}
       {openNotice && <NoticeOverlay onClose={() => setOpenNotice(false)} />}
     </>
   );
