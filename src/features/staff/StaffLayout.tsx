@@ -1,9 +1,11 @@
 // PATH: src/features/staff/StaffLayout.tsx
 // 직원 관리: 홈 | 급여. 급여 구간은 staff-centered workspace (좌 패널 + 우 헤더/탭/콘텐츠)
 import "./styles/staff-area.css";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { DomainLayout } from "@/shared/ui/layout";
 import { StaffWorkspace } from "./components/StaffWorkspace";
+import { fetchStaffMe } from "./api/staffMe.api";
 
 const STAFF_MAIN_TABS = [
   { key: "home", label: "홈", path: "/admin/staff/home" },
@@ -31,7 +33,12 @@ function isPayrollRoute(pathname: string) {
 
 export default function StaffLayout() {
   const location = useLocation();
+  const { data: staffMe } = useQuery({ queryKey: ["staff-me"], queryFn: fetchStaffMe });
   const payroll = isPayrollRoute(location.pathname);
+
+  if (staffMe && !staffMe.is_payroll_manager) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
 
   return (
     <DomainLayout

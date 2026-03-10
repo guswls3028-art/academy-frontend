@@ -13,6 +13,7 @@ import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@/features/lectures/api/sessions";
+import { fetchStaffMe } from "@/features/staff/api/staffMe.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
 import "./LectureCreateModal.css";
@@ -104,6 +105,13 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
     queryFn: fetchLectureInstructorOptions,
     enabled: isOpen,
   });
+
+  const { data: staffMe } = useQuery({
+    queryKey: ["staff-me"],
+    queryFn: fetchStaffMe,
+    enabled: isOpen,
+  });
+  const isPayrollManager = !!staffMe?.is_payroll_manager;
 
   const { data: existingLecture, isLoading: isLoadingLecture } = useQuery({
     queryKey: ["lecture", lectureId],
@@ -342,17 +350,19 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
         <div className="saved-list-field-popover-empty">
           <p className="text-xs text-[var(--color-text-muted)] mb-2">등록된 담당 강사가 없습니다.</p>
           <p className="text-xs text-[var(--color-text-muted)] mb-2">직원관리에서 강사를 추가해 주세요.</p>
-          <Button
-            size="sm"
-            intent="primary"
-            onClick={() => {
-              setInstructorPopoverOpen(false);
-              onClose();
-              navigate("/admin/staff");
-            }}
-          >
-            직원관리로 이동
-          </Button>
+          {isPayrollManager && (
+            <Button
+              size="sm"
+              intent="primary"
+              onClick={() => {
+                setInstructorPopoverOpen(false);
+                onClose();
+                navigate("/admin/staff");
+              }}
+            >
+              직원관리로 이동
+            </Button>
+          )}
         </div>
       ) : (
         <div className="saved-list-field-popover-list">
@@ -381,18 +391,20 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [], l
           ))}
           <div className="border-t border-[var(--color-border-divider)] mt-2 pt-2">
             <p className="text-[11px] text-[var(--color-text-muted)] mb-1">담당 강사 추가·삭제는 직원관리에서 합니다.</p>
-            <Button
-              size="sm"
-              intent="secondary"
-              className="w-full"
-              onClick={() => {
-                setInstructorPopoverOpen(false);
-                onClose();
-                navigate("/admin/staff");
-              }}
-            >
-              직원관리로 이동
-            </Button>
+            {isPayrollManager && (
+              <Button
+                size="sm"
+                intent="secondary"
+                className="w-full"
+                onClick={() => {
+                  setInstructorPopoverOpen(false);
+                  onClose();
+                  navigate("/admin/staff");
+                }}
+              >
+                직원관리로 이동
+              </Button>
+            )}
           </div>
         </div>
       )}

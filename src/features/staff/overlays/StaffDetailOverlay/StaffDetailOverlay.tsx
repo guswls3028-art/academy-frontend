@@ -1,7 +1,7 @@
 // PATH: src/features/staff/overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
 // Design SSOT: 학생 상세 오버레이와 동일한 ds-overlay-* 구조 (overlay.css)
 
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { createPortal } from "react-dom";
