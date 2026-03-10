@@ -29,7 +29,7 @@ const ENROLL_TABS = [
   { key: "new", label: "신규 학생 추가" },
 ];
 
-const SORT_SELECT_OPTIONS = [
+const SCHOOL_OPTIONS = [
   { value: "", label: "전체" },
   { value: "HIGH", label: "고등" },
   { value: "MIDDLE", label: "중등" },
@@ -77,7 +77,11 @@ function FilterDropdownContent({
   const hasNonDefault = sort !== "name" || schoolType !== "" || grade !== 0;
 
   return (
-    <div className="modal-scroll-body modal-scroll-body--compact" style={{ minWidth: 260, maxHeight: 320 }}>
+    <div
+      className="modal-scroll-body modal-scroll-body--compact"
+      style={{ minWidth: 260, maxHeight: 320 }}
+      data-app="admin"
+    >
       <div className="modal-form-row modal-form-row--3">
         <select
           className="ds-select"
