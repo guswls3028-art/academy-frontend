@@ -672,6 +672,7 @@ export default function AnswerKeyRegisterModal({
                   <table className="answer-key-explanation-table">
                     <thead>
                       <tr>
+                        <th className="answer-key-explanation-table__th--num">문항</th>
                         <th className="answer-key-explanation-table__th--problem">문제 이미지</th>
                         <th className="answer-key-explanation-table__th--explanation">해설 이미지</th>
                         <th className="answer-key-explanation-table__th--explanation-text">해설 텍스트</th>
@@ -979,9 +980,11 @@ function ExplanationRow({
 
   return (
     <tr className="answer-key-explanation-row">
+      <td className="answer-key-explanation-table__td--num">
+        <span className="answer-key-explanation-cell__num">{label}</span>
+      </td>
       <td className="answer-key-explanation-table__td--problem">
-        <div className="answer-key-explanation-cell answer-key-explanation-cell--problem">
-          <span className="answer-key-explanation-cell__num">{label}</span>
+        <div className="answer-key-explanation-cell">
           <ImageCell
             label="문제 이미지"
             imageUrl={problemUrl}
