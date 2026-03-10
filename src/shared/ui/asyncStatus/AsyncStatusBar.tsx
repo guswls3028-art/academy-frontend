@@ -604,6 +604,11 @@ export default function AsyncStatusBar() {
       queryClient.invalidateQueries({ queryKey: ["lecture"] });
       queryClient.invalidateQueries({ queryKey: ["students"] });
     },
+    onExcelProgress: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["lecture-enrollments"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    },
     onVideoSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["session-videos"] });
     },

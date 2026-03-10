@@ -14,7 +14,8 @@ const BACKOFF_MID_AFTER_MS = 10 * 60 * 1000; // 10 min
 
 function pollExcelJob(
   taskId: string,
-  onSuccess?: () => void
+  onSuccess?: () => void,
+  onProgress?: () => void
 ) {
   // ✅ Redis-only 엔드포인트 사용 (DB 부하 0)
   api
@@ -61,6 +62,7 @@ function pollExcelJob(
       
       // ✅ RUNNING 상태에서 진행률 업데이트 (단계 정보가 있으면 항상 전달)
       if (status === "RUNNING") {
+        onProgress?.();
         // percent가 없어도 단계 정보만 있으면 업데이트 (단계별 진행률 표시)
         const finalPercent = typeof percent === "number" ? percent : (encodingStep ? Math.round((encodingStep.index - 1) / encodingStep.total * 100 + (encodingStep.percent / encodingStep.total)) : undefined);
         if (finalPercent !== undefined || encodingStep) {
@@ -176,7 +178,7 @@ function pollVideoJob(taskId: string, videoId: string, onSuccess?: () => void) {
 
 export function useWorkerJobPoller(
   tasks: { id: string; status: string; meta?: { jobId: string; jobType: string } }[],
-  options?: { onExcelSuccess?: () => void; onVideoSuccess?: () => void }
+  options?: { onExcelSuccess?: () => void; onVideoSuccess?: () => void; onExcelProgress?: () => void }
 ) {
   const pending = tasks.filter(
     (t) => t.status === "pending" && t.meta?.jobId
@@ -184,8 +186,10 @@ export function useWorkerJobPoller(
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onExcelSuccessRef = useRef(options?.onExcelSuccess);
   const onVideoSuccessRef = useRef(options?.onVideoSuccess);
+  const onExcelProgressRef = useRef(options?.onExcelProgress);
   onExcelSuccessRef.current = options?.onExcelSuccess;
   onVideoSuccessRef.current = options?.onVideoSuccess;
+  onExcelProgressRef.current = options?.onExcelProgress;
 
   const currentTenant = getTenantCodeForApiRequest() ?? "";
   const pollStartedAtRef = useRef<number | null>(null);
@@ -221,14 +225,17 @@ export function useWorkerJobPoller(
       );
       if (forCurrentTenant.length === 0) return;
       const excelCb = onExcelSuccessRef.current;
+      const excelProgressCb = onExcelProgressRef.current;
       const videoCb = onVideoSuccessRef.current;
       forCurrentTenant.forEach((t) => {
         if (t.meta!.jobType === "excel_parsing") {
-          pollExcelJob(t.id, excelCb);
+          pollExcelJob(t.id, excelCb, excelProgressCb);
         } else if (t.meta!.jobType === "video_processing") {
           pollVideoJob(t.id, t.meta!.jobId, videoCb);
+        } else if (t.meta!.jobType === "messaging") {
+          // 메시지 발송은 동기 API 완료로만 완료 처리, 폴링 없음
         } else {
-          pollExcelJob(t.id);
+          pollExcelJob(t.id, excelCb, excelProgressCb);
         }
       });
     };
