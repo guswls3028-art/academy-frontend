@@ -117,7 +117,7 @@ export type ScoreColumnDef =
   | { type: "clinic_target"; key: "clinic_target"; width: number; editable: false }
   | { type: "clinic_reason"; key: "clinic_reason"; width: number; editable: false };
 
-/** Imperative handle — focus a cell directly without a React state cycle */
+/** Imperative handle — focus a cell directly without a React state cycle; 편집 종료 시 한 번에 저장 */
 export type ScoresTableHandle = {
   imperativeFocusCell: (cell: {
     enrollmentId: number;
@@ -136,6 +136,8 @@ export type ScoresTableHandle = {
     type: "homework";
     homeworkId: number;
   }) => void;
+  /** 편집 모드 종료 시 호출 — 대기 중인 변경을 한 번에 저장 */
+  flushPendingChanges: () => Promise<void>;
 };
 
 type Props = {

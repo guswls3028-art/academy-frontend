@@ -24,6 +24,7 @@ import {
   type MessageTemplatePayload,
   type MessageMode,
 } from "@/features/messages/api/messages.api";
+import { DEFAULT_MESSAGE_MODE } from "@/features/messages/constants/messageSendOptions";
 import TemplateEditModal from "@/features/messages/components/TemplateEditModal";
 
 interface Props {
@@ -45,8 +46,8 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [messageDropdownOpen, setMessageDropdownOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
-  /** 드롭다운 내 표시용 — 클릭 즉시 반영 후 API 호출 */
-  const [localSignupMessageMode, setLocalSignupMessageMode] = useState<MessageMode>("alimtalk");
+  /** 드롭다운 내 표시용 — 클릭 즉시 반영 후 API 호출. 기본값: SMS + 알림톡(폴백) */
+  const [localSignupMessageMode, setLocalSignupMessageMode] = useState<MessageMode>(DEFAULT_MESSAGE_MODE);
   const [localSignupTemplateId, setLocalSignupTemplateId] = useState<number | null>(null);
   const [form, setForm] = useState({
     name: "",
@@ -133,7 +134,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
 
   useEffect(() => {
     if (messageDropdownOpen) {
-      setLocalSignupMessageMode(signupConfig?.message_mode ?? "alimtalk");
+      setLocalSignupMessageMode(signupConfig?.message_mode ?? DEFAULT_MESSAGE_MODE);
       setLocalSignupTemplateId(signupConfig?.template ?? null);
     }
   }, [messageDropdownOpen, signupConfig?.message_mode, signupConfig?.template]);
@@ -536,7 +537,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                       </button>
                     </div>
                     <span className="modal-hint" style={{ display: "block", marginTop: "var(--space-1)" }}>
-                      메시지만 선택 시 문자만, 알림톡만 선택 시 알림톡만, 둘 다 선택 시 둘 다 발송
+                      SMS + 알림톡, SMS만, 알림톡만. 둘 다 선택 시 알림톡→SMS 폴백으로 발송됩니다.
                     </span>
                   </div>
                   <div style={{ marginBottom: "var(--space-2)" }}>
@@ -833,7 +834,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                       </button>
                     </div>
                     <span className="modal-hint" style={{ display: "block", marginTop: "var(--space-1)" }}>
-                      메시지만 선택 시 문자만, 알림톡만 선택 시 알림톡만, 둘 다 선택 시 둘 다 발송
+                      SMS + 알림톡, SMS만, 알림톡만. 둘 다 선택 시 알림톡→SMS 폴백으로 발송됩니다.
                     </span>
                   </div>
                   <div style={{ marginBottom: "var(--space-2)" }}>
