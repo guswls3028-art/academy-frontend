@@ -193,7 +193,7 @@ export default function StudentTopBar({ tenantCode }: Props) {
           >
             H
           </div>
-        )}
+        ) : null}
         <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: "-0.3px" }}>
           {branding.title}
         </span>
