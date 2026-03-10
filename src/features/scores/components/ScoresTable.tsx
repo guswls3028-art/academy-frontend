@@ -11,6 +11,7 @@ import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImper
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { SessionScoreRow, SessionScoreMeta } from "../api/sessionScores";
+import type { PendingChange } from "../api/scoreDraft";
 import { scoresQueryKeys } from "../api/queryKeys";
 import { patchHomeworkQuick } from "../api/patchHomeworkQuick";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
@@ -62,12 +63,13 @@ function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
 
-/** 편집 모드에서 셀 변경 시 한 번에 반영하기 위한 대기 항목 */
-type PendingChange =
-  | { type: "examTotal"; examId: number; enrollmentId: number; score: number }
-  | { type: "examObjective"; examId: number; enrollmentId: number; score: number }
-  | { type: "examSubjective"; examId: number; enrollmentId: number; score: number }
-  | { type: "homework"; enrollmentId: number; homeworkId: number; score: number | null; metaStatus?: "NOT_SUBMITTED" };
+/** 셀 키 생성 — pending/dirty 맵 키와 ref 키 일치 */
+function pendingKeyForChange(p: PendingChange): string {
+  if (p.type === "examTotal") return `examTotal:${p.enrollmentId}:${p.examId}`;
+  if (p.type === "examObjective") return `examObjective:${p.enrollmentId}:${p.examId}`;
+  if (p.type === "examSubjective") return `examSubjective:${p.enrollmentId}:${p.examId}`;
+  return `homework:${p.enrollmentId}:${p.homeworkId}`;
+}
 
 /** 합불 표시 — 시험/과제 셀: 합=초록 배지, 불=빨강 배지. 긍정은 초록색 */
 function PassFailText({ passed }: { passed: boolean | null | undefined }) {
@@ -248,6 +250,37 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
     if (hasError) feedback.error("일부 점수 저장에 실패했습니다.");
   }, [qc, sessionId]);
+
+  /** 현재 pending 변경 목록 스냅샷 — 자동 저장/복원용 */
+  const getPendingSnapshot = useCallback((): PendingChange[] => {
+    return Array.from(pendingRef.current.values());
+  }, []);
+
+  /** 드래프트 복원: pending+dirty 설정 후 해당 셀 DOM 텍스트 갱신 */
+  const applyDraftPatch = useCallback((changes: PendingChange[]) => {
+    pendingRef.current.clear();
+    dirtyKeysRef.current.clear();
+    for (const p of changes) {
+      const key = pendingKeyForChange(p);
+      pendingRef.current.set(key, p);
+      dirtyKeysRef.current.add(key);
+    }
+    for (const p of changes) {
+      if (p.type === "examTotal") {
+        const el = examInputRefs.current[`${p.enrollmentId}-${p.examId}`];
+        if (el) el.innerText = String(Math.round(p.score));
+      } else if (p.type === "examObjective") {
+        const el = examObjectiveInputRefs.current[`${p.enrollmentId}-${p.examId}-objective`];
+        if (el) el.innerText = String(Math.round(p.score));
+      } else if (p.type === "examSubjective") {
+        const el = examSubjectiveInputRefs.current[`${p.enrollmentId}-${p.examId}-subjective`];
+        if (el) el.innerText = String(Math.round(p.score));
+      } else if (p.type === "homework") {
+        const el = homeworkInputRefs.current[`${p.enrollmentId}-${p.homeworkId}`];
+        if (el) el.innerText = p.metaStatus === "NOT_SUBMITTED" ? "미제출" : (p.score != null ? String(p.score) : "");
+      }
+    }
+  }, []);
 
   const examOptions = meta?.exams ?? [];
   const homeworkOptions = meta?.homeworks ?? [];
