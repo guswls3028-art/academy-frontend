@@ -83,6 +83,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     );
   }
 
+  // sswe.co.kr / www.sswe.co.kr → SSWE
+  if (host === "sswe.co.kr" || host === "www.sswe.co.kr") {
+    const title = "SSWE";
+    const desc = "SSWE 학습 플랫폼 – 학생·선생님 로그인";
+    html = html.replace(/<title>HakwonPlus<\/title>/, `<title>${title}</title>`);
+    html = html.replace(
+      /<meta property="og:title" content="HakwonPlus" \/>/,
+      `<meta property="og:title" content="${title}" />`
+    );
+    html = html.replace(
+      /<meta property="og:description" content="[^"]*" \/>/,
+      `<meta property="og:description" content="${desc}" />`
+    );
+    html = html.replace(
+      /<meta name="twitter:title" content="HakwonPlus" \/>/,
+      `<meta name="twitter:title" content="${title}" />`
+    );
+    html = html.replace(
+      /<meta name="twitter:description" content="[^"]*" \/>/,
+      `<meta name="twitter:description" content="${desc}" />`
+    );
+  }
+
   return new Response(html, {
     status: 200,
     headers: {

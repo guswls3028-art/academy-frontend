@@ -1,6 +1,6 @@
 // PATH: src/shared/tenant/tenants/index.ts
 /**
- * 테넌트 레지스트리 SSOT — 5개 테넌트 정의 집계
+ * 테넌트 레지스트리 SSOT — 6개 테넌트 정의 집계
  * 추가/분리 시 이 디렉터리 내 파일만 수정.
  */
 import type { TenantId, TenantBranding, TenantDef } from "./types";
@@ -8,6 +8,7 @@ import { hakwonplus } from "./hakwonplus";
 import { tchul } from "./tchul";
 import { limglish } from "./limglish";
 import { ymath } from "./ymath";
+import { sswe } from "./sswe";
 import { local } from "./local";
 
 export type { TenantId, TenantBranding, TenantDef };
@@ -17,6 +18,7 @@ export const TENANTS: readonly TenantDef[] = [
   tchul,
   limglish,
   ymath,
+  sswe,
   local,
 ] as const;
 

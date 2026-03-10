@@ -19,7 +19,7 @@ import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 /** 2번(박철과학) 전용 테마 */
 const TCHUL_THEME_TENANTS = ["tchul"];
 /** 1,3,4,9999번 공통 — commonlogo + 2번 색상 (common=9999 로컬 경로) */
-const COMMON_THEME_TENANTS = ["hakwonplus", "limglish", "ymath", "9999", "common"];
+const COMMON_THEME_TENANTS = ["hakwonplus", "limglish", "ymath", "sswe", "9999", "common"];
 
 export default function StudentLayout() {
   const location = useLocation();

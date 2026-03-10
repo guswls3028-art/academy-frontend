@@ -15,7 +15,7 @@ function TenantLoginOrRedirect({
   tenantId,
   children,
 }: {
-  tenantId: 2 | 3 | 4;
+  tenantId: 2 | 3 | 4 | 5;
   children: ReactNode;
 }) {
   const fromHost = getTenantCodeFromHostname();
@@ -29,7 +29,7 @@ function TenantLoginOrRedirect({
 /** 로그인 경로가 있는 프로덕션 테넌트만 (1 제외, 9999 제외) — 학원플러스는 별도 Route */
 const LOGIN_ROUTE_TENANTS = TENANTS.filter(
   (t) => t.id !== 1 && t.id !== 9999
-) as readonly { id: 2 | 3 | 4; code: string; loginPath: string; dedicatedLoginPage: boolean }[];
+) as readonly { id: 2 | 3 | 4 | 5; code: string; loginPath: string; dedicatedLoginPage: boolean }[];
 
 export default function AuthRouter() {
   return (

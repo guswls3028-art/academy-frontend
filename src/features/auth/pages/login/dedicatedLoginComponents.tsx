@@ -10,5 +10,6 @@ export const DEDICATED_LOGIN_COMPONENTS: Partial<Record<TenantId, ComponentType>
   2: EnhancedCommonLoginPage,
   3: EnhancedCommonLoginPage,
   4: EnhancedCommonLoginPage,
+  5: EnhancedCommonLoginPage,
   9999: EnhancedCommonLoginPage,
 };
