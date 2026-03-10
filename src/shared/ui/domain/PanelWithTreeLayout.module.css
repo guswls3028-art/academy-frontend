@@ -122,6 +122,22 @@
   margin-bottom: var(--space-2);
 }
 
+/* ── 구간 내 카드 (자동발송 트리거 카드 등) ── */
+.contentCard {
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-divider);
+  background: var(--color-bg-surface);
+}
+
+.contentCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
 /* ── 로딩 스켈레톤 ── */
 .skeletonCard {
   height: 140px;

@@ -62,27 +62,17 @@ function TriggerCard({
 
   return (
     <div
+      className={panelStyles.contentCard}
       style={{
-        borderRadius: "var(--radius-lg)",
-        border: `1px solid ${config.enabled ? "var(--color-border-divider)" : "var(--color-border-divider)"}`,
         background: config.enabled
           ? "var(--color-bg-surface)"
           : "var(--color-bg-surface-soft)",
-        padding: "var(--space-5)",
         opacity: isComingSoon ? 0.65 : 1,
         transition: "background 0.15s, opacity 0.15s",
       }}
     >
       {/* 헤더: 트리거 이름 + 활성화 토글 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "var(--space-4)",
-          marginBottom: "var(--space-4)",
-        }}
-      >
+      <div className={panelStyles.contentCardHeader}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
           <div
             style={{
