@@ -1048,6 +1048,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           </td>
                         </>
                       ) : (
+                      <>
                       <td
                         className={`min-w-0 text-left align-middle py-2.5 px-3 ${isSelected ? "ds-scores-cell-active" : ""} ${isEditMode ? "hover:bg-[var(--color-bg-surface-hover)]" : ""}`}
                         onClick={(e) => {
@@ -1232,6 +1233,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       >
                         <PassFailText passed={block?.passed} />
                       </td>
+                      </>
                       )}
                     </Fragment>
                   );
