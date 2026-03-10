@@ -19,11 +19,12 @@
   text-align: center;
 }
 
-/* 로고: 상용화 서비스 느낌 — 2번 테넌트 요청으로 1.5배 확대 (max-height 15rem) */
+/* 로고: 상용화 서비스 느낌 — 2번 테넌트 요청으로 1.5배 확대 (max-height 15rem)
+ * max-width: 100% 로 부모(.center)를 넘지 않게 해 모바일에서도 중앙 정렬 유지 */
 .logo {
   display: block;
   width: auto;
-  max-width: 48rem;
+  max-width: min(48rem, 100%);
   height: auto;
   max-height: 15rem;
   object-fit: contain;
