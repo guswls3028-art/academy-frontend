@@ -89,6 +89,17 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
       serverRows.map((r) => ({
         enrollment_id: r.enrollment_id,
         student_name: r.student_name,
+        profile_photo_url: r.profile_photo_url ?? undefined,
+        lectures:
+          r.lecture_title != null && r.lecture_title !== ""
+            ? [
+                {
+                  lectureName: r.lecture_title,
+                  color: r.lecture_color ?? undefined,
+                  chipLabel: r.lecture_chip_label ?? undefined,
+                },
+              ]
+            : undefined,
       })),
     [serverRows]
   );
