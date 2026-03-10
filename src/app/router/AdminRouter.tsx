@@ -43,8 +43,8 @@ const LectureDdayPage = lazy(() => import("@/features/lectures/pages/ddays/Lectu
 const LectureAttendanceMatrixPage = lazy(() => import("@/features/lectures/pages/attendance/LectureAttendanceMatrixPage"));
 
 /* ================= Lazy: Sessions ================= */
-const SessionLayout = lazy(() => import("@/features/sessions/layout/SessionLayout"));
-// SessionDetailPage: 동적 import 시 청크 fetch 실패(#310) 방지를 위해 정적 import
+// SessionLayout, SessionDetailPage: 동적 import 시 청크 fetch 실패(#310) 방지를 위해 정적 import
+import SessionLayout from "@/features/sessions/layout/SessionLayout";
 import SessionDetailPage from "@/features/sessions/pages/SessionDetailPage";
 
 /* ================= Lazy: Video ================= */
@@ -149,7 +149,7 @@ export default function AdminRouter() {
         {/* ================= Sessions ================= */}
         <Route
           path="lectures/:lectureId/sessions/:sessionId/*"
-          element={wrapLazy(SessionLayout)}
+          element={<SessionLayout />}
         >
           <Route index element={<SessionDetailPage />} />
           <Route path="attendance" element={<SessionDetailPage />} />
