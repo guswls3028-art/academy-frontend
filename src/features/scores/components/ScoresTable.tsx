@@ -436,7 +436,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         if (el) { el.focus(); selectAllScoreCell(el); }
       }
     },
-  }), [selectAllScoreCell]);
+    flushPendingChanges,
+  }), [selectAllScoreCell, flushPendingChanges]);
 
   const columns = useMemo((): ScoreColumnDef[] => {
     const list: ScoreColumnDef[] = [
@@ -822,7 +823,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const raw = firstLine(el.innerText);
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
-                                      await saveExamTotal(ex.exam_id, row.enrollment_id, parsed);
+                                      const key = `examTotal:${row.enrollment_id}:${ex.exam_id}`;
+                                      pendingRef.current.set(key, { type: "examTotal", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
+                                      dirtyKeysRef.current.add(key);
                                     } else if (raw !== "") el.innerText = block?.score != null ? String(Math.round(block.score)) : "";
                                   }}
                                   onKeyDown={(e) => {
@@ -883,7 +886,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const raw = firstLine(el.innerText);
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
-                                      await saveExamObjective(ex.exam_id, row.enrollment_id, parsed);
+                                      const key = `examObjective:${row.enrollment_id}:${ex.exam_id}`;
+                                      pendingRef.current.set(key, { type: "examObjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
+                                      dirtyKeysRef.current.add(key);
                                     } else if (raw !== "") el.innerText = objScore != null ? String(Math.round(objScore)) : "";
                                   }}
                                   onKeyDown={(e) => {
@@ -944,7 +949,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     const raw = firstLine(el.innerText);
                                     const parsed = parseScoreInput(raw, 100);
                                     if (parsed != null && validateScore(parsed, 100)) {
-                                      await saveExamSubjective(ex.exam_id, row.enrollment_id, parsed);
+                                      const key = `examSubjective:${row.enrollment_id}:${ex.exam_id}`;
+                                      pendingRef.current.set(key, { type: "examSubjective", examId: ex.exam_id, enrollmentId: row.enrollment_id, score: parsed });
+                                      dirtyKeysRef.current.add(key);
                                     } else if (raw !== "") el.innerText = subScore != null ? String(Math.round(subScore)) : "";
                                   }}
                                   onKeyDown={(e) => {

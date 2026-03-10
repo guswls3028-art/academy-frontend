@@ -97,10 +97,13 @@ function TriggerCard({
       className={panelStyles.contentCard}
       style={{
         background: config.enabled
-          ? "var(--color-bg-surface)"
+          ? "color-mix(in srgb, var(--color-primary) 6%, var(--color-bg-surface))"
           : "var(--color-bg-surface-soft)",
+        boxShadow: config.enabled
+          ? "inset 3px 0 0 var(--color-primary)"
+          : undefined,
         opacity: isComingSoon ? 0.65 : 1,
-        transition: "background 0.15s, opacity 0.15s",
+        transition: "background 0.15s, box-shadow 0.15s, opacity 0.15s",
       }}
     >
       {/* 헤더: 트리거 이름 + 활성화 토글 */}
