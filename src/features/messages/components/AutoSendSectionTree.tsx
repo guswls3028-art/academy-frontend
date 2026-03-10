@@ -2,13 +2,13 @@
 // 자동발송 — 좌측 섹션 폴더 트리 (PanelWithTreeLayout SSOT: treeNavHeader + treeScroll)
 
 import { useState } from "react";
-import { UserPlus, Stethoscope, Bell, CalendarPlus, CalendarSync } from "lucide-react";
+import { UserPlus, BookOpen, Stethoscope, Bell, CalendarPlus, CalendarSync } from "lucide-react";
 import type { AutoSendTrigger } from "../api/messages.api";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./AutoSendSectionTree.module.css";
 
-export type AutoSendSectionId = "signup" | "clinic";
+export type AutoSendSectionId = "signup" | "lecture" | "clinic";
 
 export const AUTO_SEND_SECTIONS: {
   id: AutoSendSectionId;
@@ -22,6 +22,15 @@ export const AUTO_SEND_SECTIONS: {
     label: "가입",
     icon: <UserPlus size={16} aria-hidden />,
     triggers: ["student_signup"],
+  },
+  {
+    id: "lecture",
+    label: "강의",
+    icon: <BookOpen size={16} aria-hidden />,
+    triggers: ["lecture_session_reminder"],
+    children: [
+      { trigger: "lecture_session_reminder", label: AUTO_SEND_TRIGGER_LABELS.lecture_session_reminder, icon: <Bell size={14} aria-hidden /> },
+    ],
   },
   {
     id: "clinic",
@@ -45,7 +54,7 @@ export default function AutoSendSectionTree({
   selectedSection,
   onSelectSection,
 }: AutoSendSectionTreeProps) {
-  const [expandedSection, setExpandedSection] = useState<AutoSendSectionId | null>("clinic");
+  const [expandedSection, setExpandedSection] = useState<AutoSendSectionId | null>("lecture");
 
   return (
     <div className={styles.root}>

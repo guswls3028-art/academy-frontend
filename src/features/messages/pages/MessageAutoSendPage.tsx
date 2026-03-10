@@ -28,6 +28,7 @@ const EMPTY_CONFIGS: AutoSendConfigItem[] = [];
 
 const TRIGGER_DESCRIPTIONS: Record<AutoSendTrigger, string> = {
   student_signup: "학생이 가입 완료하면 자동 발송합니다. 학부모 정보가 있으면 학부모에게도 발송합니다.",
+  lecture_session_reminder: "강의(차시) 시작 N분 전에 자동으로 알림을 발송합니다. (추후 지원 예정)",
   clinic_reminder: "클리닉 세션 N분 전에 자동으로 알림을 발송합니다. 스케줄러 연동 시 사용됩니다.",
   clinic_reservation_created: "클리닉 예약이 생성될 때 발송합니다. (추후 지원 예정)",
   clinic_reservation_changed: "클리닉 예약이 변경될 때 발송합니다. (추후 지원 예정)",
@@ -35,6 +36,7 @@ const TRIGGER_DESCRIPTIONS: Record<AutoSendTrigger, string> = {
 
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
   signup: "가입 완료 시 자동 발송 메시지를 설정합니다.",
+  lecture: "강의(차시) 시작 알림 등 강의 관련 자동 발송을 이 구간에서 관리할 수 있습니다.",
   clinic: "클리닉 알림(N분 전), 예약 생성·변경 시 자동 발송을 이 구간에서 한 번에 관리할 수 있습니다.",
 };
 
@@ -57,6 +59,7 @@ function TriggerCard({
       : config.message_mode;
 
   const isComingSoon =
+    config.trigger === "lecture_session_reminder" ||
     config.trigger === "clinic_reservation_created" ||
     config.trigger === "clinic_reservation_changed";
 
@@ -289,7 +292,7 @@ function TriggerCard({
 
 export default function MessageAutoSendPage() {
   const qc = useQueryClient();
-  const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("clinic");
+  const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("signup");
   const { data: messagingInfo } = useMessagingInfo();
   const smsAllowed = messagingInfo?.sms_allowed ?? true;
 

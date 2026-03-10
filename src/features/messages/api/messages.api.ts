@@ -212,6 +212,7 @@ export async function sendMessage(payload: SendMessagePayload): Promise<SendMess
 
 export type AutoSendTrigger =
   | "student_signup"
+  | "lecture_session_reminder"
   | "clinic_reminder"
   | "clinic_reservation_created"
   | "clinic_reservation_changed";
@@ -232,6 +233,7 @@ export interface AutoSendConfigItem {
 
 export const AUTO_SEND_TRIGGER_LABELS: Record<AutoSendTrigger, string> = {
   student_signup: "가입 완료",
+  lecture_session_reminder: "강의 시작 알림",
   clinic_reminder: "클리닉 알림",
   clinic_reservation_created: "클리닉 예약 생성",
   clinic_reservation_changed: "클리닉 예약 변경",
