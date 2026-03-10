@@ -101,7 +101,8 @@ export default function TimeRangeInput({
   const endTriggerPlaceholder =
     endLabel === "종료" ? "종료 시간" : endPlaceholder === "00:00" ? "오전 12:00" : endPlaceholder;
 
-  const setStart = (v: string) => onChange(formatRange(toHHmm(v) || v, end));
+  /** 시작 시간 변경 시 종료 시간 리셋 — 사용자가 +/- 로 다시 설정 */
+  const setStart = (v: string) => onChange(formatRange(toHHmm(v) || v, ""));
   const setEnd = (v: string) => onChange(formatRange(start, toHHmm(v) || v));
 
   const addToEnd = (deltaMinutes: number) => {
