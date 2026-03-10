@@ -14,6 +14,7 @@ export interface Lecture {
   end_date?: string | null;
   lecture_time?: string | null;
   color?: string | null;
+  chip_label?: string | null;
   is_active: boolean;
   tenant: number;
   created_at: string;

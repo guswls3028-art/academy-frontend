@@ -12,7 +12,7 @@ import { TimeRangeInput } from "@/shared/ui/time";
 import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-import { fetchLectureInstructorOptions } from "@/features/lectures/api/sessions";
+import { fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@/features/lectures/api/sessions";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { validateRequiredFields } from "@/shared/utils/modalValidation";
 import "./LectureCreateModal.css";
@@ -58,6 +58,8 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   usedColors?: string[];
+  /** 있으면 수정 모드: 해당 강의 로드 후 같은 폼으로 수정 */
+  lectureId?: number;
 }
 
 interface CreateLecturePayload {
@@ -73,9 +75,10 @@ interface CreateLecturePayload {
   is_active: boolean;
 }
 
-export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }: Props) {
+export default function LectureCreateModal({ isOpen, onClose, usedColors = [], lectureId }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const isEditMode = lectureId != null;
 
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
@@ -94,7 +97,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
   const [addSubjectInput, setAddSubjectInput] = useState("");
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-  const modalTitle = useMemo(() => "강의 추가", []);
+  const modalTitle = useMemo(() => (isEditMode ? "강의 수정" : "강의 추가"), [isEditMode]);
 
   const { data: instructorOptions = [] } = useQuery({
     queryKey: ["lecture-instructor-options"],
@@ -102,19 +105,46 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     enabled: isOpen,
   });
 
+  const { data: existingLecture, isLoading: isLoadingLecture } = useQuery({
+    queryKey: ["lecture", lectureId],
+    queryFn: () => fetchLecture(lectureId!),
+    enabled: isOpen && isEditMode && lectureId != null,
+  });
+
   useEffect(() => {
-    if (isOpen && instructorOptions.length > 0 && !name) {
+    if (!isOpen || !isEditMode || !existingLecture) return;
+    setTitle(existingLecture.title ?? "");
+    setName(existingLecture.name ?? "");
+    setSubject(existingLecture.subject ?? "");
+    setDescription(existingLecture.description ?? "");
+    setStartDate(existingLecture.start_date ?? "");
+    setEndDate(existingLecture.end_date ?? "");
+    setLectureTime(existingLecture.lecture_time ?? "");
+    setColor(existingLecture.color ?? getDefaultColorForPicker(usedColors));
+    const chip = (existingLecture as { chip_label?: string | null }).chip_label;
+    setChipLabel(chip ?? (existingLecture.title ?? "").slice(0, 2));
+    const opt = instructorOptions.find((o) => o.name === existingLecture.name);
+    setSelectedInstructor(opt ?? { name: existingLecture.name ?? "", type: "teacher" });
+  }, [isOpen, isEditMode, existingLecture, instructorOptions, usedColors]);
+
+  useEffect(() => {
+    if (isOpen && !isEditMode && instructorOptions.length > 0 && !name) {
       const first = instructorOptions[0];
       if (first) {
         setName(first.name);
         setSelectedInstructor(first);
       }
     }
-  }, [isOpen, instructorOptions, name]);
+  }, [isOpen, isEditMode, instructorOptions, name]);
 
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async (payload: CreateLecturePayload) => {
-      await api.post("/lectures/lectures/", payload);
+      if (isEditMode && lectureId != null) {
+        const { is_active, ...rest } = payload;
+        await updateLecture(lectureId, { ...rest });
+      } else {
+        await api.post("/lectures/lectures/", payload);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lectures"] });
@@ -124,6 +154,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
 
   useEffect(() => {
     if (!isOpen) return;
+    if (isEditMode) return;
     setTitle("");
     setName("");
     setSelectedInstructor(null);
@@ -136,7 +167,7 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
     setChipLabel("");
     setAddSubjectInput("");
     setHasAttemptedSubmit(false);
-  }, [isOpen, usedColors]);
+  }, [isOpen, isEditMode, usedColors]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -587,8 +618,8 @@ export default function LectureCreateModal({ isOpen, onClose, usedColors = [] }:
             <Button intent="secondary" onClick={onClose} disabled={isPending}>
               취소
             </Button>
-            <Button intent="primary" onClick={submit} disabled={isPending}>
-              {isPending ? "등록 중…" : "등록"}
+            <Button intent="primary" onClick={submit} disabled={isPending || (isEditMode && isLoadingLecture)}>
+              {isPending ? (isEditMode ? "수정 중…" : "등록 중…") : isEditMode ? "수정" : "등록"}
             </Button>
           </>
         }

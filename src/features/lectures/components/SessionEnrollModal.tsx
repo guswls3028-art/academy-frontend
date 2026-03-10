@@ -829,22 +829,25 @@ export default function SessionEnrollModal({
               }}
             >
               <section className="shrink-0 space-y-5">
-                <div className="py-0.5">
+                <div className="py-0.5 space-y-1">
+                  <p className="text-[11px] font-medium text-[var(--color-text-secondary)]">
+                    직전 차시에 등록된 수강생을 한 번에 불러올 수 있습니다.
+                  </p>
                   <Button
                     type="button"
-                    intent="secondary"
+                    intent="primary"
                     size="sm"
-                    className="w-full"
-                  disabled={!prevSession || copyFromPrevLoading}
-                  onClick={() => prevSession && handleCopyFromPrevToSelection()}
-                  title={prevSession ? `직전 차시(${prevSession.order ?? "?"}차시) 수강생을 선택 목록에만 넣습니다.` : undefined}
-                  aria-label={prevSession ? `직전 차시 ${prevSession.order ?? "?"}차시 수강생 선택 목록에 추가` : "직전 차시에서 (1차시는 해당 없음)"}
-                >
-                  {copyFromPrevLoading
-                    ? "가져오는 중…"
-                    : prevSession
-                      ? `직전 차시(${prevSession.order ?? "?"}차시)에서 불러오기`
-                      : "직전 차시에서 불러오기"}
+                    className="w-full font-semibold"
+                    disabled={!prevSession || copyFromPrevLoading}
+                    onClick={() => prevSession && handleCopyFromPrevToSelection()}
+                    title={prevSession ? `직전 차시(${prevSession.order ?? "?"}차시) 수강생을 선택 목록에만 넣습니다.` : undefined}
+                    aria-label={prevSession ? `직전 차시 ${prevSession.order ?? "?"}차시 수강생 선택 목록에 추가` : "직전 차시에서 (1차시는 해당 없음)"}
+                  >
+                    {copyFromPrevLoading
+                      ? "직전 차시에서 가져오는 중…"
+                      : prevSession
+                        ? `직전 차시(${prevSession.order ?? "?"}차시)에서 불러오기`
+                        : "직전 차시에서 불러오기"}
                   </Button>
                 </div>
                 {excelPendingFile ? (
