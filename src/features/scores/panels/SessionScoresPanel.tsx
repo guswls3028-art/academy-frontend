@@ -95,7 +95,11 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     enabled: Number.isFinite(sessionId) && sessionId > 0,
   });
 
-  const allRows = useMemo<SessionScoreRow[]>(() => data?.rows ?? [], [data]);
+  const allRows = useMemo<SessionScoreRow[]>(() => {
+    const raw = data?.rows ?? [];
+    // 시험·과제 둘 다 대상 등록이 안 된 학생은 성적탭에서 제외
+    return raw.filter((r) => (r.exams?.length ?? 0) > 0 || (r.homeworks?.length ?? 0) > 0);
+  }, [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
 
   const attendanceMap = useMemo(() => {
