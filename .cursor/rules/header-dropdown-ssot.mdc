@@ -1,0 +1,33 @@
+---
+description: 상단 헤더 드롭다운 디자인 SSOT — 알림·작업박스·프로필 등 동일 톤
+globs: src/shared/ui/layout/**/*.tsx, src/styles/design-system/patterns/header.css
+alwaysApply: false
+---
+
+# 상단 헤더 드롭다운 SSOT
+
+- **SSOT 파일**: `src/styles/design-system/patterns/header.css`
+- **용도**: Admin 앱 상단 헤더에서 열리는 모든 드롭다운(알림, 작업박스, 프로필, 근무자 등)은 이 파일의 클래스와 디자인 토큰만 사용한다.
+
+## 공통 패널 (필수)
+
+- **클래스**: `.ds-header-dropdown` — 모든 헤더 드롭다운 패널의 공통 껍데기.
+- **스타일**: `--color-bg-surface`, `--color-border-divider`, `--elevation-dropdown`, `--radius-lg` 사용. 패딩·최소 너비·border-radius·box-shadow는 이 클래스에서만 정의.
+
+## 용도별 클래스
+
+| 용도 | 패널 클래스 | 내부 구조 |
+|------|-------------|-----------|
+| 알림 / 작업박스 | `.ds-header-dropdown` + `.app-header__alarmDropdown` | `.alarm-panel__header`, `.alarm-panel__list`, `.alarm-panel__item` |
+| 프로필(내정보·설정·로그아웃) | `.ds-header-dropdown` + `.app-header__profileDropdown` | `.app-header__profileDropdownItem`, `.app-header__profileDropdownDivider` |
+| 근무자 툴팁 | `.app-header__workingStaffDropdownWrap` (동일 토큰) |
+
+## 적용 규칙
+
+1. **새 헤더 드롭다운 추가 시**: `header.css`에 정의된 `.ds-header-dropdown`을 루트에 적용하고, 필요 시 위 용도별 클래스 또는 동일 토큰으로 확장. `header.css` 밖에 인라인 색상/그림자 정의 금지.
+2. **Ant Design Dropdown 사용 시**: `popupRender`로 렌더하는 내용의 최상위에 `.ds-header-dropdown` + 용도별 클래스 적용. 포털로 나가도 스타일이 적용되도록 overlay용 래퍼 클래스에서 동일 스타일 재선언 가능.
+3. **변경 시**: 드롭다운 껍데기(배경·테두리·둥근모서리·그림자)를 바꿀 때는 `header.css`의 `.ds-header-dropdown`만 수정.
+
+## 참조 구현
+
+- `src/shared/ui/layout/Header.tsx` — 알림, 작업박스, 프로필 드롭다운이 `popupRender` 내부에서 위 클래스 사용.
