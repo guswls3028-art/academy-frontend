@@ -42,7 +42,9 @@ export default function ClinicConsoleWorkspace({
 
   return (
     <>
-      <p className={undefined} style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "var(--space-4)" }}>
+      <p
+        style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "var(--space-4)" }}
+      >
         {selectedDate} · {sessionLabel} — 예약 {participants.length}명
       </p>
 

@@ -32,7 +32,7 @@ export default function ClinicOperationsConsolePage() {
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   // URL date 쿼리와 동기화 (다른 화면에서 날짜와 함께 진입 시)
-  React.useEffect(() => {
+  useEffect(() => {
     if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) setSelectedDate(dateParam);
   }, [dateParam]);
 

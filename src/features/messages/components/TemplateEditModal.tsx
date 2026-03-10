@@ -13,7 +13,18 @@ import {
 } from "../constants/templateBlocks";
 import type { MessageTemplateItem, MessageTemplatePayload } from "../api/messages.api";
 
-const CATEGORIES: TemplateCategory[] = ["default", "lecture", "clinic"];
+const CATEGORIES: TemplateCategory[] = [
+  "default",
+  "signup",
+  "attendance",
+  "lecture",
+  "exam",
+  "assignment",
+  "grades",
+  "clinic",
+  "payment",
+  "notice",
+];
 import "../styles/templateEditor.css";
 
 export type TemplateEditModalProps = {
