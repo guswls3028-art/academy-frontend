@@ -2,7 +2,7 @@
 // 자동발송 — 좌측 섹션 폴더 트리 (가입 / 클리닉 등 구간별 관리)
 
 import { useState } from "react";
-import { UserPlus, Stethoscope, Bell, CalendarPlus, CalendarRepeat } from "lucide-react";
+import { UserPlus, Stethoscope, Bell, CalendarPlus, CalendarSync } from "lucide-react";
 import type { AutoSendTrigger } from "../api/messages.api";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import styles from "./AutoSendSectionTree.module.css";
@@ -30,7 +30,7 @@ export const AUTO_SEND_SECTIONS: {
     children: [
       { trigger: "clinic_reminder", label: AUTO_SEND_TRIGGER_LABELS.clinic_reminder, icon: <Bell size={14} aria-hidden /> },
       { trigger: "clinic_reservation_created", label: AUTO_SEND_TRIGGER_LABELS.clinic_reservation_created, icon: <CalendarPlus size={14} aria-hidden /> },
-      { trigger: "clinic_reservation_changed", label: AUTO_SEND_TRIGGER_LABELS.clinic_reservation_changed, icon: <CalendarRepeat size={14} aria-hidden /> },
+      { trigger: "clinic_reservation_changed", label: AUTO_SEND_TRIGGER_LABELS.clinic_reservation_changed, icon: <CalendarSync size={14} aria-hidden /> },
     ],
   },
 ];
