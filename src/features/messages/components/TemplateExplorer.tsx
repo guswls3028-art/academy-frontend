@@ -21,6 +21,7 @@ import {
   type MessageTemplateCategory,
 } from "../api/messages.api";
 import { TEMPLATE_CATEGORY_LABELS, renderPreviewText } from "../constants/templateBlocks";
+import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./TemplateExplorer.module.css";
 
 const QUERY_KEY = ["messaging", "templates"] as const;
@@ -173,14 +174,19 @@ export default function TemplateExplorer() {
   };
 
   return (
-    <div className={styles.root}>
-      {/* 툴바 */}
-      <div className={styles.toolbar}>
+    <div className={panelStyles.root}>
+      <div className={panelStyles.header}>
+        <h2 className={panelStyles.headerTitle}>템플릿 저장</h2>
+        <p className={panelStyles.headerDesc}>
+          알림톡·문자 발송 시 사용할 메시지 템플릿을 카테고리별로 관리합니다.
+        </p>
+      </div>
+      <div className={panelStyles.toolbar}>
         <Breadcrumb
           path={breadcrumbPath}
           onSelect={(id) => setActiveCategory((id as MessageTemplateCategory) ?? "default")}
         />
-        <div className={styles.actions}>
+        <div className={panelStyles.actions}>
           <Button intent="primary" size="sm" onClick={() => setModalOpen("create")}>
             <FilePlus size={14} style={{ marginRight: 5 }} />
             새 템플릿
@@ -188,14 +194,14 @@ export default function TemplateExplorer() {
         </div>
       </div>
 
-      <div className={styles.body}>
+      <div className={panelStyles.body}>
         {/* 좌측 카테고리 트리 */}
-        <aside className={styles.tree}>
+        <aside className={panelStyles.tree}>
           <TemplateCategoryTree currentCategory={activeCategory} onSelect={setActiveCategory} />
         </aside>
 
         {/* 우측 목록 */}
-        <div className={styles.listWrap}>
+        <div className={panelStyles.content}>
           {isLoading ? (
             <div className={styles.placeholder}>
               <div className={styles.loadingRows}>

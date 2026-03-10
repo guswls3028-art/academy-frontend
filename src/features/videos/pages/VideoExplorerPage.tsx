@@ -38,6 +38,7 @@ import {
 } from "@/features/lectures/api/sessions";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
+import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/VideoExplorer.module.css";
 
 type LectureWithSessions = Lecture & { sessions: Session[] };
@@ -332,21 +333,21 @@ export default function VideoExplorerPage() {
       title="영상"
       description="강의·차시 단위 영상을 관리합니다. 전체공개영상은 프로그램에 등록된 모든 학생이 시청할 수 있는 영상입니다."
     >
-      <div className={styles.root}>
-        <div className={styles.toolbar}>
+      <div className={panelStyles.root}>
+        <div className={panelStyles.toolbar}>
           <Breadcrumb
             path={breadcrumbPath.length > 1 ? breadcrumbPath : [{ id: null, name: "영상" }]}
             onSelect={(id) => handleBreadcrumbSelect(id)}
           />
-          <div className={styles.actions}>
+          <div className={panelStyles.actions}>
             <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
               강의 목록
             </Button>
           </div>
         </div>
 
-        <div className={styles.body}>
-          <aside className={styles.tree}>
+        <div className={panelStyles.body}>
+          <aside className={panelStyles.tree}>
             <VideoExplorerTree
               lectures={lecturesWithSessions}
               publicFolders={publicFolders}
@@ -356,12 +357,12 @@ export default function VideoExplorerPage() {
           </aside>
 
           <div
-            className={`${styles.gridWrap} ${selectedFolderId === "public" ? styles.gridWrapPublic : ""}`}
+            className={`${panelStyles.gridWrap} ${selectedFolderId === "public" ? styles.gridWrapPublic : ""}`}
           >
             {isLoading ? (
-              <div className={styles.placeholder}>불러오는 중…</div>
+              <div className={panelStyles.placeholder}>불러오는 중…</div>
             ) : selectedFolderId === null ? (
-              <div className={styles.placeholder}>좌측에서 폴더를 선택하세요</div>
+              <div className={panelStyles.placeholder}>좌측에서 폴더를 선택하세요</div>
             ) : selectedFolderId === "public" && publicSessionError ? (
               <div className={styles.placeholder} style={{ color: "var(--color-text-error, #b91c1c)" }}>
                 전체공개영상 영역을 불러오지 못했습니다. 같은 도메인(예: tchul.com)으로 로그인했는지, 관리자·스태프 권한이 있는지 확인하세요.

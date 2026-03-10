@@ -18,6 +18,7 @@ import {
   type Lecture,
   type Session,
 } from "@/features/lectures/api/sessions";
+import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/ResultsExplorer.module.css";
 
 type LectureWithSessions = Lecture & { sessions: Session[] };
@@ -91,21 +92,21 @@ export default function ResultsExplorerPage() {
       title="성적"
       description="강의·차시 단위 성적을 통합 조회합니다. 차시별 시험·과제 성적은 각 강의 > 차시에서 확인하세요."
     >
-      <div className={styles.root}>
-        <div className={styles.toolbar}>
+      <div className={panelStyles.root}>
+        <div className={panelStyles.toolbar}>
           <Breadcrumb
             path={breadcrumbPath.length > 1 ? breadcrumbPath : [{ id: null, name: "성적" }]}
             onSelect={(id) => handleBreadcrumbSelect(id)}
           />
-          <div className={styles.actions}>
+          <div className={panelStyles.actions}>
             <Button intent="primary" size="sm" onClick={() => navigate("/admin/lectures")}>
               강의 목록
             </Button>
           </div>
         </div>
 
-        <div className={styles.body}>
-          <aside className={styles.tree}>
+        <div className={panelStyles.body}>
+          <aside className={panelStyles.tree}>
             <LectureSessionTree
               lectures={lecturesWithSessions}
               currentSessionId={selectedSessionId}
@@ -113,13 +114,13 @@ export default function ResultsExplorerPage() {
             />
           </aside>
 
-          <div className={styles.gridWrap}>
+          <div className={panelStyles.gridWrap}>
             {isLoading ? (
-              <div className={styles.placeholder}>불러오는 중…</div>
+              <div className={panelStyles.placeholder}>불러오는 중…</div>
             ) : !selectedSessionId ? (
-              <div className={styles.placeholder}>좌측에서 차시를 선택하세요</div>
+              <div className={panelStyles.placeholder}>좌측에서 차시를 선택하세요</div>
             ) : !selectedSession ? (
-              <div className={styles.placeholder}>차시를 선택하세요</div>
+              <div className={panelStyles.placeholder}>차시를 선택하세요</div>
             ) : (
               <div className={styles.grid}>
                 <div
