@@ -130,7 +130,7 @@ export function PhoneInput010Blocks({
     [first4, last4, setRaw]
   );
 
-  const invalid = dataInvalid === true || dataInvalid === "true";
+  const invalid = !!dataInvalid;
 
   return (
     <div
