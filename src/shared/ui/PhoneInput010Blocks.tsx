@@ -19,17 +19,14 @@ type Props = {
 };
 
 /**
- * value는 "010" + (앞 4자리) + (뒤 4자리)로 저장되며, 앞/뒤가 4자리 미만일 수 있음.
- * 복원 시: 뒤 4자리는 항상 마지막 4자리(부족하면 앞 0 패딩), 나머지는 앞 4자리.
- * 단, 8자리 부분이 비어 있으면 뒷자리도 빈 문자열로 두어 입력이 가능하도록 함.
- * 예: "01010000" → tail "10000" → last4="0000", first4="1" (더블클릭 후 한 자 입력 시 깨짐 방지)
+ * value는 "010" + (앞 4자리) + (뒤 4자리)로 저장.
+ * 숫자는 왼쪽(앞 4자리)부터 채워나감 — 4자리 미만이면 뒷칸은 비어 있음.
+ * 예: "0101" → first4="1", last4=""  / "01012345" → first4="1234", last4="5"
  */
 function getParts(raw: string): { first4: string; last4: string } {
   const d = String(raw).replace(/\D/g, "");
-  const eight = d.startsWith("010") ? d.slice(3).slice(0, 8) : d.slice(0, 8);
-  const last4 = eight.length === 0 ? "" : eight.slice(-4).padStart(4, "0");
-  const first4 = eight.slice(0, -4);
-  return { first4, last4 };
+  const eight = d.startsWith("010") ? d.slice(3, 11) : d.slice(0, 8);
+  return { first4: eight.slice(0, 4), last4: eight.slice(4, 8) };
 }
 
 export function PhoneInput010Blocks({
@@ -105,10 +102,29 @@ export function PhoneInput010Blocks({
 
   const handleSecondKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Backspace" && last4 === "" && first4.length > 0) {
+      if (e.key !== "Backspace") return;
+      if (last4 === "") {
+        // 이미 비어 있음 — 앞 칸 마지막 글자 삭제 후 앞 칸으로 포커스
+        if (first4.length > 0) {
+          e.preventDefault();
+          setRaw(first4.slice(0, -1), "");
+          requestAnimationFrame(() => {
+            const el = firstInputRef.current;
+            if (!el) return;
+            el.focus();
+            el.setSelectionRange(el.value.length, el.value.length);
+          });
+        }
+      } else if (last4.length === 1) {
+        // 마지막 한 자리 삭제 → 뒷칸이 비게 되므로 앞 칸으로 바로 이동
         e.preventDefault();
-        setRaw(first4.slice(0, -1), "");
-        firstInputRef.current?.focus();
+        setRaw(first4, "");
+        requestAnimationFrame(() => {
+          const el = firstInputRef.current;
+          if (!el) return;
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+        });
       }
     },
     [first4, last4, setRaw]
