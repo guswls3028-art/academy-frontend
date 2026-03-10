@@ -26,7 +26,7 @@ alwaysApply: false
 
 - **SSOT**: `src/shared/ui/domain/PanelWithTreeLayout.module.css`
 - **용도**: 메시지(자동발송·템플릿 저장), 저장소, 시험 탐색, 성적 탐색, 영상 탐색 — 동일한 카드형 패널(좌 트리 220px + 우 콘텐츠).
-- **클래스**: `.root`, `.header` / `.headerTitle` / `.headerDesc`, `.toolbar` / `.actions`, `.body`, `.tree`, `.content` / `.contentInner` / `.gridWrap`, `.sectionTitle`, `.skeletonCard`, `.placeholder`
+- **클래스**: `.root`, `.header` / `.headerTitle` / `.headerDesc`, `.toolbar` / `.actions`, `.body`, `.tree`, `.treeNavHeader` / `.treeNavTitle`, `.treeScroll`, `.content` / `.contentInner` / `.gridWrap`, `.sectionTitle`, `.skeletonCard`, `.placeholder`
 - **적용**: 해당 페이지는 반드시 `PanelWithTreeLayout.module.css`를 import하여 사용. 트리 너비·패딩·배경 등 레이아웃 변경은 이 파일만 수정.
 
 ## 엑셀 업로드 영역 (ExcelUploadZone)
