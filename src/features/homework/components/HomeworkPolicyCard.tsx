@@ -2,8 +2,8 @@
 /**
  * HomeworkPolicyCard
  *
- * ⚠️ 로직 / 상태 / API 변경 없음
- * ✅ 전역 디자인 토큰 적용만 수행
+ * - 시험 정책(ExamPolicyPanel)과 커트라인 영역 사이즈/레이아웃 일치
+ * - 숫자 입력 시 앞에 0이 표시되지 않도록 parseInt 정규화
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -34,17 +34,6 @@ export default function HomeworkPolicyCard({
     policy?.round_unit_percent ?? 5
   );
 
-  useEffect(() => {
-    setMode(policy?.cutline_mode ?? "PERCENT");
-    setCutlineValue(normalizeCutlineValue(policy?.cutline_value ?? 80, policy?.cutline_mode ?? "PERCENT"));
-    setRoundUnit(normalizeRoundUnit(policy?.round_unit_percent ?? 5));
-  }, [
-    policy?.id,
-    policy?.cutline_mode,
-    policy?.cutline_value,
-    policy?.round_unit_percent,
-  ]);
-
   function normalizeCutlineValue(
     raw: number | string | undefined,
     nextMode: HomeworkCutlineMode
@@ -59,6 +48,17 @@ export default function HomeworkPolicyCard({
     const n = parseInt(String(raw ?? 5), 10);
     return Number.isFinite(n) ? Math.max(1, Math.min(50, n)) : 5;
   }
+
+  useEffect(() => {
+    setMode(policy?.cutline_mode ?? "PERCENT");
+    setCutlineValue(normalizeCutlineValue(policy?.cutline_value ?? 80, policy?.cutline_mode ?? "PERCENT"));
+    setRoundUnit(normalizeRoundUnit(policy?.round_unit_percent ?? 5));
+  }, [
+    policy?.id,
+    policy?.cutline_mode,
+    policy?.cutline_value,
+    policy?.round_unit_percent,
+  ]);
 
   const dirty = useMemo(() => {
     if (!policy) return false;
@@ -88,7 +88,7 @@ export default function HomeworkPolicyCard({
 
   return (
     <div className="space-y-4">
-      {/* 커트라인 기준 */}
+      {/* 커트라인 기준 — 시험 정책과 동일 레이블 스타일 */}
       <div className="space-y-2">
         <div className="text-sm font-medium text-[var(--text-muted)]">
           커트라인 기준
@@ -128,53 +128,71 @@ export default function HomeworkPolicyCard({
         </div>
       </div>
 
-      {/* 값 설정 */}
-      <div className="grid grid-cols-2 gap-3">
-        <label className="text-sm">
-          <div className="mb-1 text-xs font-medium text-[var(--color-text-secondary)]">
-            커트라인 값
-          </div>
-
+      {/* 커트라인 값 · 반올림 단위 — 시험 정책과 동일 입력 영역( w-[180px], border, px-3 py-2 ) */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <div className="mb-1 text-sm text-[var(--text-muted)]">커트라인 값</div>
           <div className="flex items-center gap-2">
             <input
               type="number"
               min={0}
               max={mode === "PERCENT" ? 100 : undefined}
-              className="w-full rounded-lg border border-[var(--color-border-divider)] px-3 py-2 text-sm bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
-              value={Number.isFinite(cutlineValue) ? cutlineValue : 0}
-              onChange={(e) =>
-                setCutlineValue(
-                  clampCutline(Number(e.target.value), mode)
-                )
-              }
+              step={1}
+              className="w-[180px] rounded border border-[var(--border-divider)] px-3 py-2 text-4xl font-bold bg-[var(--bg-app)] text-[var(--text-primary)]"
+              value={cutlineValue}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "") {
+                  setCutlineValue(0);
+                  return;
+                }
+                const num = parseInt(v, 10);
+                setCutlineValue(clampCutline(Number.isFinite(num) ? num : 0, mode));
+              }}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v === "") return;
+                const num = parseInt(v, 10);
+                if (Number.isFinite(num)) setCutlineValue(clampCutline(num, mode));
+              }}
               disabled={!canEdit}
+              placeholder="입력"
+              aria-label="커트라인 값"
             />
-            <span className="text-xs text-[var(--color-text-muted)]">
+            <span className="text-sm text-[var(--text-muted)]">
               {mode === "PERCENT" ? "%" : "문항"}
             </span>
           </div>
-        </label>
+        </div>
 
-        <label className="text-sm">
-          <div className="mb-1 text-xs font-medium text-[var(--color-text-secondary)]">
-            반올림 단위
-          </div>
-
+        <div>
+          <div className="mb-1 text-sm text-[var(--text-muted)]">반올림 단위</div>
           <div className="flex items-center gap-2">
             <input
               type="number"
               min={1}
               max={50}
-              className="w-full rounded-lg border border-[var(--color-border-divider)] px-3 py-2 text-sm bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
-              value={Number.isFinite(roundUnit) ? roundUnit : 5}
-              onChange={(e) =>
-                setRoundUnit(Math.max(1, Number(e.target.value)))
-              }
+              step={1}
+              className="w-[180px] rounded border border-[var(--border-divider)] px-3 py-2 text-sm bg-[var(--bg-app)] text-[var(--text-primary)]"
+              value={roundUnit}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "") return;
+                const num = parseInt(v, 10);
+                setRoundUnit(Number.isFinite(num) ? Math.max(1, Math.min(50, num)) : 5);
+              }}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v === "") return;
+                const num = parseInt(v, 10);
+                if (Number.isFinite(num)) setRoundUnit(Math.max(1, Math.min(50, num)));
+              }}
               disabled={!canEdit || mode !== "PERCENT"}
+              aria-label="반올림 단위"
             />
-            <span className="text-xs text-[var(--color-text-muted)]">%</span>
+            <span className="text-sm text-[var(--text-muted)]">%</span>
           </div>
-        </label>
+        </div>
       </div>
 
       {/* Footer */}
