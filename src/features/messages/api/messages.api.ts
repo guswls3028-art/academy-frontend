@@ -207,36 +207,76 @@ export async function sendMessage(payload: SendMessagePayload): Promise<SendMess
 }
 
 // ----------------------------------------
-// 자동발송 설정
+// 자동발송 설정 — SSOT: backend/docs/AUTO-SEND-EVENT-SPEC.md
 // ----------------------------------------
 
 export type AutoSendTrigger =
   | "student_signup"
+  | "registration_approved_student"
+  | "registration_approved_parent"
+  | "class_enrollment_complete"
+  | "enrollment_expiring_soon"
+  | "withdrawal_complete"
   | "lecture_session_reminder"
+  | "check_in_complete"
+  | "absent_occurred"
+  | "exam_scheduled_days_before"
+  | "exam_start_minutes_before"
+  | "exam_not_taken"
+  | "exam_score_published"
+  | "retake_assigned"
+  | "assignment_registered"
+  | "assignment_due_hours_before"
+  | "assignment_not_submitted"
+  | "monthly_report_generated"
   | "clinic_reminder"
   | "clinic_reservation_created"
-  | "clinic_reservation_changed";
+  | "clinic_reservation_changed"
+  | "counseling_reservation_created"
+  | "payment_complete"
+  | "payment_due_days_before"
+  | "urgent_notice";
 
 export interface AutoSendConfigItem {
   id: number | null;
-  trigger: AutoSendTrigger;
+  trigger: string;
   template: number | null;
   template_name: string;
   template_solapi_status: string;
   enabled: boolean;
   message_mode: MessageMode;
-  /** N분 전 발송 (null = 이벤트 시점). 사용자 설정 가능. */
+  /** N분 전/후 발송 (null = 이벤트 시점). 사용자 설정 가능. */
   minutes_before: number | null;
   created_at: string | null;
   updated_at: string | null;
 }
 
-export const AUTO_SEND_TRIGGER_LABELS: Record<AutoSendTrigger, string> = {
+export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   student_signup: "가입 완료",
-  lecture_session_reminder: "강의 시작 알림",
-  clinic_reminder: "클리닉 알림",
-  clinic_reservation_created: "클리닉 예약 생성",
+  registration_approved_student: "가입 승인(학생)",
+  registration_approved_parent: "가입 승인(학부모)",
+  class_enrollment_complete: "반 등록 완료",
+  enrollment_expiring_soon: "등록 만료 예정",
+  withdrawal_complete: "퇴원 처리 완료",
+  lecture_session_reminder: "수업 시작 N분 전",
+  check_in_complete: "입실 완료",
+  absent_occurred: "결석 발생",
+  exam_scheduled_days_before: "시험 예정 N일 전",
+  exam_start_minutes_before: "시험 시작 N분 전",
+  exam_not_taken: "시험 미응시",
+  exam_score_published: "성적 공개",
+  retake_assigned: "재시험 대상 지정",
+  assignment_registered: "과제 등록",
+  assignment_due_hours_before: "과제 마감 N시간 전",
+  assignment_not_submitted: "과제 미제출",
+  monthly_report_generated: "월간 성적 리포트 발송",
+  clinic_reminder: "클리닉 시작 N분 전",
+  clinic_reservation_created: "클리닉 예약 완료",
   clinic_reservation_changed: "클리닉 예약 변경",
+  counseling_reservation_created: "상담 예약 완료",
+  payment_complete: "결제 완료",
+  payment_due_days_before: "납부 예정일 N일 전",
+  urgent_notice: "긴급 공지",
 };
 
 export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {
