@@ -12,6 +12,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 import LectureSessionTree from "../components/LectureSessionTree";
 import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, type Session } from "@/features/lectures/api/sessions";
 import { fetchExams } from "../api/exams";
+import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "../components/ExamExplorer.module.css";
 import "../exam-explorer-inbox.css";
 
@@ -70,20 +71,27 @@ export default function ExamExplorerPage() {
       title="시험"
       description="강의·차시 단위 시험을 한 화면에서 조회합니다. 좌측에서 차시를 선택하면 해당 차시 시험 목록이 우측에 표시됩니다."
     >
-      <div className="exam-explorer">
-        <aside className="exam-explorer__list">
-          <div className="exam-explorer__list-header">
-            <h2 className="exam-explorer__list-title">강의 · 차시</h2>
-            <div className="exam-explorer__search">
-              <input
-                type="search"
-                className="ds-input"
-                placeholder="강의명 · 차시 검색"
-                aria-label="검색"
-              />
+      <div className={panelStyles.root}>
+        <div className={panelStyles.header}>
+          <h2 className={panelStyles.headerTitle}>강의 · 차시</h2>
+          <p className={panelStyles.headerDesc}>
+            좌측에서 차시를 선택하면 해당 차시의 시험 목록이 우측에 표시됩니다.
+          </p>
+        </div>
+        <div className={panelStyles.body}>
+          <aside className={panelStyles.tree}>
+            <div className={styles.toolbar} style={{ padding: "var(--space-3) var(--space-4)", borderBottom: "1px solid var(--color-border-divider)", background: "var(--color-bg-surface)" }}>
+              <div className="exam-explorer__search" style={{ width: "100%" }}>
+                <input
+                  type="search"
+                  className="ds-input"
+                  placeholder="강의명 · 차시 검색"
+                  aria-label="검색"
+                  style={{ width: "100%", padding: "var(--space-2) var(--space-3)", fontSize: 13 }}
+                />
+              </div>
             </div>
-          </div>
-          <div className="exam-explorer__list-body">
+            <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-2)" }}>
             {lecturesLoading ? (
               <div className="exam-explorer__empty">
                 <p className="exam-explorer__empty-title">불러오는 중…</p>
@@ -105,8 +113,7 @@ export default function ExamExplorerPage() {
           </div>
         </aside>
 
-        <main className="exam-explorer__main">
-          <div className="exam-explorer__main-content">
+        <div className={panelStyles.gridWrap}>
             {!selectedSessionId ? (
               <div className="exam-explorer__empty">
                 <p className="exam-explorer__empty-title">차시를 선택하세요</p>
@@ -208,7 +215,7 @@ export default function ExamExplorerPage() {
               </>
             )}
           </div>
-        </main>
+        </div>
       </div>
     </DomainLayout>
   );

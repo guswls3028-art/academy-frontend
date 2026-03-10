@@ -22,6 +22,7 @@ import Breadcrumb from "./Breadcrumb";
 import FolderTree from "./FolderTree";
 import UploadModal from "./UploadModal";
 import MoveDuplicateModal from "./MoveDuplicateModal";
+import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import styles from "./MyStorageExplorer.module.css";
 
 const DRAG_TYPE = "application/x-storage-move";
@@ -205,10 +206,10 @@ export default function MyStorageExplorer() {
   };
 
   return (
-    <div className={styles.root}>
-      <div className={styles.toolbar}>
+    <div className={panelStyles.root}>
+      <div className={panelStyles.toolbar}>
         <Breadcrumb path={breadcrumbPath} onSelect={setCurrentFolderId} />
-        <div className={styles.actions}>
+        <div className={panelStyles.actions}>
           <div className={styles.addWrap}>
             <Button
               type="button"
@@ -243,17 +244,17 @@ export default function MyStorageExplorer() {
         </div>
       </div>
 
-      <div className={styles.body}>
-        <aside className={styles.tree}>
+      <div className={panelStyles.body}>
+        <aside className={panelStyles.tree}>
           <FolderTree
             folders={allFoldersForTree}
             currentFolderId={currentFolderId}
             onSelect={setCurrentFolderId}
           />
         </aside>
-        <div className={styles.gridWrap}>
+        <div className={panelStyles.gridWrap}>
           {isLoading ? (
-            <div className={styles.placeholder}>로딩 중...</div>
+            <div className={panelStyles.placeholder}>로딩 중...</div>
           ) : (
             <div
               className={styles.grid}
