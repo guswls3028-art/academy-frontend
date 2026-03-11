@@ -178,6 +178,8 @@ export function PlayerToast({
 }) {
   const t = toast;
   const [show, setShow] = useState(!!t);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!t) {
@@ -185,9 +187,9 @@ export function PlayerToast({
       return;
     }
     setShow(true);
-    const id = window.setTimeout(() => onClose(), 2600);
+    const id = window.setTimeout(() => onCloseRef.current(), 2600);
     return () => window.clearTimeout(id);
-  }, [t, onClose]);
+  }, [t]);
 
   if (!t || !show) return null;
 

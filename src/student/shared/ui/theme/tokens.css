@@ -128,6 +128,7 @@
   --stu-space-12: 24px;
   --stu-space-16: 32px;
   /* Premium SaaS: 작은 radius (6-8px) */
+  --stu-radius: 8px;
   --stu-radius-sm: 6px;
   --stu-radius-md: 8px;
   --stu-radius-lg: 8px; /* 영상 플레이어 제외 일반 UI는 8px */
