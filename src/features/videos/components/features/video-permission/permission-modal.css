@@ -1,108 +1,126 @@
 /* PATH: src/features/videos/components/features/video-permission/permission-modal.css */
+/* ============================================================================
+ * PERMISSION MODAL — Design System 통합 (전역 토큰 SSOT)
+ * - 색상: --color-* role tokens only (하드코딩 금지)
+ * - 간격: --space-* density tokens
+ * - 반경: --radius-* tokens
+ * - 그림자: --elevation-* tokens
+ * ============================================================================ */
 @reference "tailwindcss";
 
-/* Overlay / Modal */
+/* ---- Overlay ---- */
 .permission-modal-overlay {
-  @apply fixed inset-0 z-[200] bg-black/50 flex items-center justify-center;
+  @apply fixed inset-0 z-[200] flex items-center justify-center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
+/* ---- Modal Container ---- */
 .permission-modal {
-  @apply w-[1400px] h-[880px]
-         bg-[var(--bg-surface)]
-         rounded-2xl shadow-2xl
-         flex flex-col;
+  @apply w-[1400px] h-[880px] flex flex-col overflow-hidden;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--elevation-3), 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
-/* Body (soft surface) */
+/* ---- Header ---- */
+.permission-modal-header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+
+/* ---- Body (soft surface) ---- */
 .permission-modal-body {
-  @apply flex-1 px-5 pb-5 min-h-0;
+  @apply flex-1 min-h-0;
+  padding: 0 var(--space-5) var(--space-5);
 }
 
 .permission-modal-surface {
-  @apply bg-[var(--bg-surface-soft)]
-         rounded-xl
-         p-4
-         h-full
-         min-h-0
-         overflow-hidden;
+  @apply h-full min-h-0 overflow-hidden;
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
 }
 
-/* Left panel */
+/* ---- Left panel ---- */
 .permission-left {
-  @apply flex-1
-         bg-[var(--bg-surface)]
-         rounded-xl
-         border border-[var(--border-divider)]
-         flex flex-col
-         min-h-0
-         overflow-hidden;
+  @apply flex-1 flex flex-col min-h-0 overflow-hidden;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .permission-header {
-  @apply px-4 py-3
-         flex items-center justify-between
-         border-b border-[var(--border-divider)];
+  @apply flex items-center justify-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
-/* Table */
+/* ---- Table ---- */
 .permission-table-header {
-  @apply px-4 py-2
-         flex items-center
-         text-xs font-semibold
-         text-[var(--text-secondary)]
-         border-b border-[var(--border-divider)]
-         bg-[var(--bg-surface-soft)];
+  @apply flex items-center;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
 }
 
 .permission-row {
-  @apply px-4 py-2
-         flex items-center
-         text-sm
-         border-b border-[var(--border-divider)]
-         transition
-         hover:bg-[var(--bg-surface-soft)];
+  @apply flex items-center;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm, 12px);
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.permission-row:hover {
+  background: var(--color-bg-surface-hover, var(--bg-surface-soft));
 }
 
 .permission-row-selected {
-  @apply bg-[var(--bg-surface-soft)];
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--color-bg-surface));
+}
+.permission-row-selected:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-bg-surface));
 }
 
-/* Right panel (NEW UX) */
+/* ---- Right panel ---- */
 .permission-right {
-  @apply w-[480px]
-         bg-[var(--bg-surface)]
-         rounded-xl
-         border border-[var(--border-divider)]
-         flex flex-col
-         min-h-0
-         overflow-hidden;
+  @apply w-[480px] flex flex-col min-h-0 overflow-hidden;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .permission-right-head {
-  @apply px-4 py-4
-         border-b border-[var(--border-divider)]
-         bg-[var(--bg-surface)];
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
 }
 
 .permission-right-actions {
-  @apply px-4 py-4
-         border-b border-[var(--border-divider)]
-         bg-[var(--bg-surface-soft)];
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
 }
 
 .permission-right-listWrap {
-  @apply flex-1 min-h-0
-         bg-[var(--bg-surface)]
-         flex flex-col;
+  @apply flex-1 min-h-0 flex flex-col;
+  background: var(--color-bg-surface);
 }
 
 .permission-right-listHeader {
-  @apply px-4 py-2
-         border-b border-[var(--border-divider)]
-         bg-[var(--bg-surface-soft)]
-         text-xs font-semibold
-         text-[var(--text-secondary)]
-         flex items-center gap-3;
+  @apply flex items-center gap-3;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  color: var(--color-text-tertiary);
 }
 
 .permission-right-listBody {
@@ -110,34 +128,138 @@
 }
 
 .permission-right-row {
-  @apply px-4 py-3
-         border-b border-[var(--border-divider)]
-         flex items-center gap-3
-         hover:bg-[var(--bg-surface-soft)]
-         transition;
+  @apply flex items-center gap-3;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background 120ms ease;
+}
+.permission-right-row:hover {
+  background: var(--color-bg-surface-hover, var(--bg-surface-soft));
 }
 
 .permission-right-footer {
-  @apply px-4 py-3
-         border-t border-[var(--border-divider)]
-         bg-[var(--bg-surface)];
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
 }
 
-/* === PATCH: checkbox / column alignment polish === */
-
+/* ---- Checkbox ---- */
 .permission-checkbox {
   @apply w-[28px] flex items-center justify-center;
 }
 
 .permission-checkbox input[type="checkbox"] {
-  @apply h-4 w-4 cursor-pointer;
-  accent-color: var(--color-primary);
+  @apply h-4 w-4 cursor-pointer rounded;
+  accent-color: var(--color-brand-primary);
 }
 
+/* ---- Column helpers ---- */
 .permission-name {
   @apply w-[130px] truncate font-medium;
 }
 
 .permission-text-xs {
-  @apply text-xs text-[var(--text-secondary)] truncate;
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-secondary);
+  @apply truncate;
+}
+
+/* ---- Tab bar ---- */
+.permission-tab-bar {
+  @apply flex items-center gap-1;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft, var(--bg-surface-soft));
+}
+
+.permission-tab {
+  @apply relative;
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.permission-tab:hover {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-bg-surface) 60%, transparent);
+}
+
+.permission-tab--active {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  background: var(--color-bg-surface);
+  box-shadow: var(--elevation-1);
+}
+
+/* ---- Search input ---- */
+.permission-search {
+  height: 32px;
+  width: 220px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm, 12px);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.permission-search::placeholder {
+  color: var(--color-text-muted);
+}
+.permission-search:focus {
+  outline: none;
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+}
+
+/* ---- Apply action buttons ---- */
+.permission-apply-btn {
+  @apply inline-flex items-center justify-center;
+  height: 30px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: background 140ms ease, transform 100ms ease, box-shadow 140ms ease;
+}
+.permission-apply-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.permission-apply-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.permission-apply-btn[data-tone="primary"] {
+  background: var(--color-brand-primary);
+  color: #fff;
+}
+.permission-apply-btn[data-tone="primary"]:hover:not(:disabled) {
+  background: var(--color-brand-primary-hover);
+  box-shadow: var(--elevation-1);
+}
+
+.permission-apply-btn[data-tone="warning"] {
+  background: var(--color-warning);
+  color: #fff;
+}
+.permission-apply-btn[data-tone="warning"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-warning) 85%, black);
+  box-shadow: var(--elevation-1);
+}
+
+.permission-apply-btn[data-tone="danger"] {
+  background: var(--color-danger, var(--color-error));
+  color: #fff;
+}
+.permission-apply-btn[data-tone="danger"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger, var(--color-error)) 85%, black);
+  box-shadow: var(--elevation-1);
 }
