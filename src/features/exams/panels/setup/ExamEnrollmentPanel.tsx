@@ -19,6 +19,7 @@ import BlockReason from "../../components/BlockReason";
 import type { EnrollmentRow } from "@/features/sessions/components/enrollment/types";
 import EnrollmentManageModal from "@/features/sessions/components/enrollment/EnrollmentManageModal";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
   const qc = useQueryClient();
@@ -135,14 +136,35 @@ export default function ExamEnrollmentPanel({ examId }: { examId: number }) {
             )}
           </div>
 
-          <Button
-            type="button"
-            intent="secondary"
-            size="sm"
-            onClick={() => setOpen(true)}
-          >
-            대상자 관리
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              disabled={rowsQ.isLoading || updateMut.isPending || serverRows.length === 0}
+              onClick={async () => {
+                const allIds = serverRows.map((r) => r.enrollment_id);
+                if (allIds.length === 0) return;
+                try {
+                  await updateMut.mutateAsync({ enrollment_ids: allIds });
+                  await qc.invalidateQueries({ queryKey: ["exam-enrollment", examId, sessionId] });
+                  feedback.success(`수강생 ${allIds.length}명 전체 등록 완료`);
+                } catch {
+                  feedback.error("전체 등록에 실패했습니다.");
+                }
+              }}
+            >
+              수강생 전체 등록
+            </Button>
+            <Button
+              type="button"
+              intent="secondary"
+              size="sm"
+              onClick={() => setOpen(true)}
+            >
+              대상자 관리
+            </Button>
+          </div>
         </div>
 
         <EnrollmentManageModal

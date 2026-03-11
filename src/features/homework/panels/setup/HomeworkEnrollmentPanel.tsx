@@ -15,6 +15,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import HomeworkEnrollmentManageModal from "@/features/homework/components/HomeworkEnrollmentManageModal";
 import type { EnrollmentRow } from "@/features/sessions/components/enrollment/types";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 import { QUERY_KEYS } from "@/features/homework/queryKeys";
 import { useAdminHomework } from "@/features/homework/hooks/useAdminHomework";
@@ -198,14 +199,39 @@ export default function HomeworkEnrollmentPanel({
                 )}
               </div>
 
-              <Button
-                type="button"
-                intent="secondary"
-                size="sm"
-                onClick={() => setOpen(true)}
-              >
-                대상자 관리
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="sm"
+                  disabled={loadingAssignments || saveMut.isPending || !assignments?.items?.length}
+                  onClick={async () => {
+                    const allIds = (assignments?.items ?? []).map((x) => x.enrollment_id);
+                    if (allIds.length === 0) return;
+                    try {
+                      await putHomeworkAssignments({ homeworkId: hid, enrollment_ids: allIds });
+                      await qc.invalidateQueries({ queryKey: QUERY_KEYS.HOMEWORK_ASSIGNMENTS(hid) });
+                      if (Number.isFinite(sessionId) && sessionId > 0) {
+                        await qc.invalidateQueries({ queryKey: QUERY_KEYS.SESSION_SCORES(sessionId) });
+                        await qc.invalidateQueries({ queryKey: QUERY_KEYS.HOMEWORK_SESSION_ENROLLMENTS(sessionId) });
+                      }
+                      feedback.success(`수강생 ${allIds.length}명 전체 등록 완료`);
+                    } catch {
+                      feedback.error("전체 등록에 실패했습니다.");
+                    }
+                  }}
+                >
+                  수강생 전체 등록
+                </Button>
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="sm"
+                  onClick={() => setOpen(true)}
+                >
+                  대상자 관리
+                </Button>
+              </div>
             </div>
           </>
         )}
