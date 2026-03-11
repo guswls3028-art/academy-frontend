@@ -8,6 +8,7 @@ import { useExpenses } from "../../hooks/useExpenses";
 import CreateExpenseModal from "./CreateExpenseModal";
 import { Button } from "@/shared/ui/ds";
 import { ExpenseStatusBadge, LockBadge } from "../../components/StatusBadge";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import "../../styles/staff-area.css";
 
 function cx(...xs: Array<string | false | null | undefined>) {
@@ -198,7 +199,7 @@ export default function ExpensesPanel() {
                                     (err as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.detail ||
                                     (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
                                     "메모 수정에 실패했습니다.";
-                                  alert(msg);
+                                  feedback.error(msg);
                                 },
                               }
                             );

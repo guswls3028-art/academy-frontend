@@ -58,6 +58,15 @@ const TRIGGER_DESCRIPTIONS: Record<string, string> = {
   payment_complete: "결제가 완료되면 학부모에게 결제 금액/내역을 확인 안내합니다.",
   payment_due_days_before: "납부 예정일 N일 전에 학부모에게 납부 금액/기한을 안내합니다.",
   urgent_notice: "긴급 공지 발송 시 전체 학생·학부모에게 즉시 안내합니다.",
+  // 커뮤니티
+  qna_answer_registered: "QnA 답변이 등록되면 질문 작성 학생·학부모에게 답변 안내를 발송합니다.",
+  counsel_approved: "상담 신청이 승인되면 신청 학생·학부모에게 승인 안내를 발송합니다.",
+  // 직원
+  staff_attendance_summary: "근태 요약이 생성되면 해당 직원에게 근무 시간/일수 요약을 발송합니다.",
+  staff_expense_report: "비용/경비 리포트가 생성되면 해당 직원에게 경비 내역을 발송합니다.",
+  staff_month_close: "월 마감이 완료되면 해당 직원에게 마감 확인 안내를 발송합니다.",
+  staff_payroll_snapshot: "급여 스냅샷이 생성되면 해당 직원에게 급여 요약을 발송합니다.",
+  staff_payroll_report: "급여 명세서가 발행되면 해당 직원에게 명세서를 발송합니다.",
 };
 
 const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
@@ -71,6 +80,8 @@ const SECTION_DESCRIPTIONS: Record<AutoSendSectionId, string> = {
   clinic: "클리닉 예약 완료/변경, 시작 전 리마인드, 상담 예약 완료 알림을 설정합니다.",
   payment: "결제 완료 확인, 납부 예정일 리마인드를 설정합니다.",
   notice: "휴강, 보강, 강의실 변경, 시간표 변경, 긴급 공지 등 운영 공지를 설정합니다.",
+  community: "QnA 답변 등록, 상담 신청 승인 시 학생·학부모에게 자동 발송합니다.",
+  staff: "근태 요약, 비용/경비, 월 마감, 급여 스냅샷, 급여 명세서 발송을 설정합니다.",
 };
 
 function TriggerCard({
@@ -230,7 +241,7 @@ function TriggerCard({
                   border: "1px solid var(--color-border-divider)",
                   borderRadius: "var(--radius-md)",
                   boxShadow: "inset 0 2px 4px rgba(0,0,0,.06), inset 0 -1px 0 0 rgba(255,255,255,.04)",
-                  cursor: hasTemplate ? "pointer" : "default",
+                  cursor: "pointer",
                   transition: "border-color 120ms, box-shadow 120ms",
                 }}
               >
@@ -343,6 +354,7 @@ export default function MessageAutoSendPage() {
   });
 
   const [localConfigs, setLocalConfigs] = useState<AutoSendConfigItem[]>([]);
+  const globalEnabled = localConfigs.length > 0 && localConfigs.some((c) => c.enabled);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     setLocalConfigs(configs);
@@ -464,11 +476,45 @@ export default function MessageAutoSendPage() {
     <>
     <div className={panelStyles.root}>
       <div className={panelStyles.header}>
-        <h2 className={panelStyles.headerTitle}>자동발송</h2>
-        <p className={panelStyles.headerDesc}>
-          학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제 등) 발생 시 학생·학부모에게 알림톡/SMS를 자동 발송합니다.
-          좌측에서 구간을 선택하고 각 트리거별로 템플릿·발송 시점·방식을 설정하세요.
-        </p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <div>
+            <h2 className={panelStyles.headerTitle}>자동발송</h2>
+            <p className={panelStyles.headerDesc}>
+              학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제·커뮤니티·직원 등) 발생 시 알림톡/SMS를 자동 발송합니다.
+              좌측에서 구간을 선택하고 각 트리거별로 템플릿·발송 시점·방식을 설정하세요.
+            </p>
+          </div>
+          {/* 전체 자동발송 ON/OFF 토글 */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 16px",
+              background: globalEnabled
+                ? "color-mix(in srgb, var(--color-status-success, #16a34a) 8%, var(--color-bg-surface))"
+                : "var(--color-bg-surface-soft)",
+              border: `1px solid ${globalEnabled ? "color-mix(in srgb, var(--color-status-success, #16a34a) 25%, var(--color-border-divider))" : "var(--color-border-divider)"}`,
+              borderRadius: "var(--radius-md)",
+              flexShrink: 0,
+              transition: "background 0.15s, border-color 0.15s",
+            }}
+          >
+            <Switch
+              checked={globalEnabled}
+              onChange={(checked) => {
+                const next = localConfigs.map((c) => ({ ...c, enabled: checked }));
+                setLocalConfigs(next);
+                updateMut.mutate(next);
+              }}
+              disabled={updateMut.isPending || localConfigs.length === 0}
+              size="small"
+            />
+            <span style={{ fontSize: 13, fontWeight: 700, color: globalEnabled ? "var(--color-status-success, #16a34a)" : "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+              {globalEnabled ? "전체 활성화" : "전체 비활성화"}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className={panelStyles.body}>

@@ -564,6 +564,328 @@
   background: rgba(0, 0, 0, 0.45);
 }
 
+/* ═══════════════════════════════════════════════
+   YouTube-style Watch Page (VideoPlayerPage)
+   ═══════════════════════════════════════════════ */
+
+.vpp-root {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--stu-space-4);
+  padding-bottom: var(--stu-space-8);
+  min-height: 100vh;
+  background-color: #000;
+  color: #fff;
+}
+
+.vpp-loading {
+  padding: var(--stu-space-4) 0;
+}
+
+.vpp-loading-player {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--svp-radius);
+  overflow: hidden;
+}
+
+.vpp-error {
+  padding: var(--stu-space-8) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--stu-space-4);
+}
+
+.vpp-back-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.vpp-back-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.vpp-player-section {
+  margin-top: var(--stu-space-2);
+}
+
+/* ── 영상 정보 ── */
+
+.vpp-info {
+  padding: var(--stu-space-4) 0 var(--stu-space-3) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vpp-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 var(--stu-space-2) 0;
+  line-height: 1.35;
+  letter-spacing: -0.3px;
+}
+
+.vpp-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--stu-space-3);
+  flex-wrap: wrap;
+}
+
+.vpp-back-link,
+.vpp-next-link {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  border: none;
+}
+
+.vpp-back-link {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vpp-back-link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.vpp-next-link {
+  background: var(--stu-primary, #3b82f6);
+  color: #fff;
+}
+
+.vpp-next-link:hover {
+  opacity: 0.88;
+}
+
+/* ── 재생목록 ── */
+
+.vpp-playlist {
+  margin-top: var(--stu-space-4);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.vpp-playlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px 16px;
+}
+
+.vpp-playlist-label {
+  font-size: 15px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.vpp-playlist-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.vpp-playlist-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 480px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.vpp-playlist-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vpp-playlist-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+/* ── 재생목록 아이템 ── */
+
+.vpp-pl-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 8px 8px;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.85);
+  transition: background 0.12s ease;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.vpp-pl-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.vpp-pl-item--active {
+  background: rgba(255, 255, 255, 0.08);
+  border-left-color: var(--stu-primary, #3b82f6);
+}
+
+.vpp-pl-item--active:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.vpp-pl-num {
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.vpp-pl-item--active .vpp-pl-num {
+  color: var(--stu-primary, #3b82f6);
+  font-size: 11px;
+}
+
+/* ── 썸네일 ── */
+
+.vpp-pl-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 168px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1a1a1e;
+}
+
+.vpp-pl-thumb-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vpp-pl-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.vpp-pl-dur {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.78);
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.2px;
+  z-index: 1;
+}
+
+/* 프로그레스 바 (파란 바) */
+.vpp-pl-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.vpp-pl-progress-bar {
+  height: 100%;
+  background: var(--stu-primary, #3b82f6);
+  border-radius: 0 1px 0 0;
+  transition: width 0.3s ease;
+}
+
+/* ── 아이템 정보 ── */
+
+.vpp-pl-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vpp-pl-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vpp-pl-item--active .vpp-pl-item-title {
+  color: #fff;
+}
+
+.vpp-pl-badge-done {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(74, 222, 128, 0.15);
+  color: rgba(74, 222, 128, 0.9);
+}
+
+/* ── 모바일 대응 ── */
+
+@media (max-width: 640px) {
+  .vpp-root {
+    padding: 0 var(--stu-space-2);
+  }
+
+  .vpp-title {
+    font-size: 17px;
+  }
+
+  .vpp-pl-thumb {
+    width: 120px;
+  }
+
+  .vpp-pl-item {
+    padding: 6px 10px 6px 4px;
+    gap: 8px;
+  }
+
+  .vpp-pl-num {
+    width: 22px;
+    font-size: 12px;
+  }
+
+  .vpp-pl-item-title {
+    font-size: 12px;
+  }
+
+  .vpp-playlist-list {
+    max-height: 360px;
+  }
+}
+
 /* --- YouTube-style double-tap seek overlay --- */
 .svpSeekOverlay {
   --svp-seek-ease: cubic-bezier(0.2, 0.8, 0.2, 1);

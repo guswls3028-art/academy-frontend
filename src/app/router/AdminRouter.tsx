@@ -60,6 +60,7 @@ const CommunityAdminPage = lazy(() => import("@/features/community/pages/Communi
 const BoardAdminPage = lazy(() => import("@/features/community/pages/BoardAdminPage"));
 const NoticeAdminPage = lazy(() => import("@/features/community/pages/NoticeAdminPage"));
 const CounselAdminPage = lazy(() => import("@/features/community/pages/CounselAdminPage"));
+const CommunitySettingsPage = lazy(() => import("@/features/community/pages/CommunitySettingsPage"));
 
 /* ================= Lazy: Clinic ================= */
 const ClinicRoutes = lazy(() => import("@/features/clinic/ClinicRoutes"));
@@ -89,8 +90,7 @@ const OrganizationSettingsPage = lazy(() => import("@/features/settings/pages/Or
 const AppearancePage = lazy(() => import("@/features/settings/pages/AppearancePage"));
 const SecuritySettingsPage = lazy(() => import("@/features/settings/pages/SecuritySettingsPage"));
 
-/* ================= Lazy: Learning (시험·성적·영상 통합 탭) ================= */
-import LearningLayout from "@/shared/ui/layout/LearningLayout";
+/* ================= Lazy: Learning (시험·성적·영상) ================= */
 const ExamExplorerPage = lazy(() => import("@/features/exams/pages/ExamExplorerPage"));
 const ResultsExplorerPage = lazy(() => import("@/features/results/pages/ResultsExplorerPage"));
 const VideoExplorerPage = lazy(() => import("@/features/videos/pages/VideoExplorerPage"));
@@ -175,12 +175,10 @@ export default function AdminRouter() {
         {/* ================= Clinic ================= */}
         <Route path="clinic/*" element={wrapLazy(ClinicRoutes)} />
 
-        {/* ================= Learning (시험·성적·영상 통합 탭) ================= */}
-        <Route element={<LearningLayout />}>
-          <Route path="exams" element={wrapLazy(ExamExplorerPage)} />
-          <Route path="results" element={wrapLazy(ResultsExplorerPage)} />
-          <Route path="videos" element={wrapLazy(VideoExplorerPage)} />
-        </Route>
+        {/* ================= Learning (시험·성적·영상) ================= */}
+        <Route path="exams" element={wrapLazy(ExamExplorerPage)} />
+        <Route path="results" element={wrapLazy(ResultsExplorerPage)} />
+        <Route path="videos" element={wrapLazy(VideoExplorerPage)} />
         <Route path="videos/:videoId" element={<VideoIdToSessionRedirect />} />
 
         <Route path="counsel" element={wrapLazy(CounselPage)} />
@@ -197,7 +195,7 @@ export default function AdminRouter() {
           <Route path="qna/read/:id" element={<QnaReadRedirect />} />
           <Route path="counsel" element={wrapLazy(CounselAdminPage)} />
           <Route path="materials" element={wrapLazy(MaterialsBoardPage)} />
-          <Route path="settings" element={<Navigate to="/admin/community/board" replace />} />
+          <Route path="settings" element={wrapLazy(CommunitySettingsPage)} />
         </Route>
 
         {/* ================= Staff ================= */}

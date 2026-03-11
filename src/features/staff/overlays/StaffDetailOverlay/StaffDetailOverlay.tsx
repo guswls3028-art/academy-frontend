@@ -20,6 +20,7 @@ import { fetchStaffMe } from "../../api/staffMe.api";
 import { LockBadge } from "../../components/StatusBadge";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
 import { Button, CloseButton } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 import StaffSummaryTab from "./StaffSummaryTab";
 import StaffWorkTypeTab from "./StaffWorkTypeTab";
@@ -233,7 +234,7 @@ export default function StaffDetailOverlay() {
                           )
                         )
                           return;
-                        alert(
+                        feedback.info(
                           "삭제 API 연결 필요 (StaffSettingsTab의 삭제 로직을 재사용하세요)."
                         );
                       }}

@@ -45,6 +45,7 @@ export type StudentVideoListItem = {
   duration?: number | null;
   progress?: number; // 0-100
   completed?: boolean;
+  last_position?: number; // seconds — 이어보기용
   allow_skip: boolean;
   max_speed: number;
   show_watermark: boolean;

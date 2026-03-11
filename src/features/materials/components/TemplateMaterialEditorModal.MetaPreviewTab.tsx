@@ -24,10 +24,10 @@ export function MetaPreviewTab() {
       </div>
 
       <div className="rounded border p-4 text-sm text-gray-600">
-        <div className="font-semibold mb-1">TODO</div>
+        <div className="font-semibold mb-1">예정 기능</div>
         <ul className="list-disc ml-5 space-y-1">
-          <li>exams/submissions에서 확정된 meta read-only 조회 연결</li>
-          <li>PDF 자산과 연결된 meta 버전 표시</li>
+          <li>확정된 메타데이터 조회</li>
+          <li>PDF 자산과 연결된 메타 버전 표시</li>
         </ul>
       </div>
     </div>

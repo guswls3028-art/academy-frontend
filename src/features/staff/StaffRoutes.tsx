@@ -8,6 +8,7 @@ import HomePage from "./pages/HomePage/HomePage";
 import MonthLockPage from "./pages/MonthLockPage/MonthLockPage";
 import PayrollSnapshotPage from "./pages/PayrollSnapshotPage/PayrollSnapshotPage";
 import ReportsPage from "./pages/ReportsPage/ReportsPage";
+import StaffSettingsPage from "./pages/SettingsPage/StaffSettingsPage";
 
 export default function StaffRoutes() {
   return (
@@ -21,6 +22,7 @@ export default function StaffRoutes() {
         <Route path="month-lock" element={<MonthLockPage />} />
         <Route path="payroll-snapshot" element={<PayrollSnapshotPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="settings" element={<StaffSettingsPage />} />
       </Route>
 
       {/* 직원 상세는 레이아웃 분리 (Overlay 성격) */}

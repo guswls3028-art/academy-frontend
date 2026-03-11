@@ -49,6 +49,12 @@ export default function LoginPage() {
     return <Navigate to="/error/tenant-required" replace />;
   }
 
+  // 홍보 테넌트(hakwonplus/9999)는 /login 대신 프로모 페이지의 로그인 모달 사용
+  const tc = program.tenantCode;
+  if ((tc === "hakwonplus" || tc === "9999") && !paramCode) {
+    return <Navigate to="/promo" state={{ openLogin: true }} replace />;
+  }
+
   const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
   const branding = tenantId ? getTenantBranding(tenantId) : null;
 

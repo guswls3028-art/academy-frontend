@@ -17,6 +17,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import { manualEditSubmissionApi } from "./submissions.api";
 
@@ -68,10 +69,10 @@ export default function SubmissionManualEditModal({
       });
     },
     onSuccess: () => {
-      alert("수동 수정이 반영되었습니다. 채점이 재시도되었을 수 있습니다(서버 로직).");
+      feedback.success("수동 수정이 반영되었습니다. 채점이 재시도되었을 수 있습니다(서버 로직).");
       onDone();
     },
-    onError: (e: any) => alert(e?.message || "수동 수정 실패"),
+    onError: (e: any) => feedback.error(e?.message || "수동 수정 실패"),
   });
 
   if (!open) return null;

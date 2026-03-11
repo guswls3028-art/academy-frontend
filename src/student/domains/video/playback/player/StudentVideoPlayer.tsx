@@ -55,6 +55,7 @@ type Props = {
   video: VideoMetaLite;
   bootstrap: PlaybackBootstrap;
   enrollmentId: number | null;
+  initialPosition?: number;
   onFatal?: (reason: string) => void;
   onLeaveProgress?: (data: LeaveProgressPayload) => void;
 };
@@ -101,6 +102,7 @@ export default function StudentVideoPlayer({
   video,
   bootstrap,
   enrollmentId,
+  initialPosition,
   onFatal,
   onLeaveProgress,
 }: Props) {
@@ -144,6 +146,7 @@ export default function StudentVideoPlayer({
       policy: bootstrap.policy,
       token: bootstrap.token,
       enrollmentId,
+      initialPosition,
       onFatal,
       onLeaveProgress,
     });

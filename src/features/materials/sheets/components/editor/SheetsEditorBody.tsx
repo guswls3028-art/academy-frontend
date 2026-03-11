@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import {
   getSheetApi,
   getSheetQuestionsApi,
@@ -89,25 +90,25 @@ export default function SheetsEditorBody({ sheetId }: { sheetId: number }) {
   const scoreMut = useMutation({
     mutationFn: patchSheetQuestionScoreApi,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-questions", id] }),
-    onError: (e: any) => alert(e?.message || "배점 저장 실패"),
+    onError: (e: any) => feedback.error(e?.message || "배점 저장 실패"),
   });
 
   const answerKeyMut = useMutation({
     mutationFn: upsertSheetAnswerKeyApi,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-answerkey", id] }),
-    onError: (e: any) => alert(e?.message || "정답 저장 실패"),
+    onError: (e: any) => feedback.error(e?.message || "정답 저장 실패"),
   });
 
   const autoGenMut = useMutation({
     mutationFn: autoGenerateQuestionsApi,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-questions", id] }),
-    onError: (e: any) => alert(e?.message || "문항 자동 복구 실패"),
+    onError: (e: any) => feedback.error(e?.message || "문항 자동 복구 실패"),
   });
 
   const genOmrMut = useMutation({
     mutationFn: generateOmrSheetAssetApi,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-sheet-assets", id] }),
-    onError: (e: any) => alert(e?.message || "OMR 생성 실패"),
+    onError: (e: any) => feedback.error(e?.message || "OMR 생성 실패"),
   });
 
   if (id <= 0) {

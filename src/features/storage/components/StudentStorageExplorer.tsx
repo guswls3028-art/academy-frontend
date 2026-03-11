@@ -5,6 +5,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2 } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import {
   fetchInventoryList,
   createFolder,
@@ -79,7 +80,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       setNewFolderName("");
       setNewFolderOpen(false);
     } catch (e) {
-      alert((e as Error).message);
+      feedback.error((e as Error).message);
     }
   }, [currentFolderId, newFolderName, studentPs, qc]);
 
@@ -98,7 +99,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
         qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
         setUploadModalOpen(false);
       } catch (e) {
-        alert((e as Error).message);
+        feedback.error((e as Error).message);
       }
     },
     [currentFolderId, studentPs, qc]
@@ -109,7 +110,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       try {
         await deleteFolder(SCOPE, id, studentPs);
       } catch (e) {
-        alert((e as Error).message);
+        feedback.error((e as Error).message);
         return;
       }
     }
@@ -117,7 +118,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
       try {
         await deleteFile(SCOPE, selectedFileId, studentPs);
       } catch (e) {
-        alert((e as Error).message);
+        feedback.error((e as Error).message);
         return;
       }
     }
@@ -177,7 +178,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
             existingName: ce.existing_name || "항목",
           });
         } else {
-          alert(ce?.message ?? "이동에 실패했습니다.");
+          feedback.error(ce?.message ?? "이동에 실패했습니다.");
         }
       } finally {
         setMovingId(null);
@@ -413,7 +414,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
                     await deleteFile(SCOPE, id, studentPs);
                     qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE, studentPs] });
                   } catch (e) {
-                    alert((e as Error).message);
+                    feedback.error((e as Error).message);
                   }
                 }}
               >

@@ -18,6 +18,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Attempt = {
   id: number;
@@ -86,7 +87,7 @@ export default function AttemptSelectorPanel({ examId, enrollmentId, onChanged }
     },
 
     onError: (e: any) => {
-      alert(e?.response?.data?.detail || "대표 attempt 변경 실패");
+      feedback.error(e?.response?.data?.detail || "대표 attempt 변경 실패");
     },
   });
 

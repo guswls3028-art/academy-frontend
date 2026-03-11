@@ -21,9 +21,11 @@ const STAFF_MAIN_TABS = [
       "/admin/staff/reports",
     ],
   },
+  { key: "settings", label: "설정", path: "/admin/staff/settings" },
 ];
 
 const PAYROLL_ROUTES = ["attendance", "expenses", "month-lock", "payroll-snapshot", "reports"];
+const SETTINGS_ROUTE = "settings";
 
 function isPayrollRoute(pathname: string) {
   return PAYROLL_ROUTES.some(

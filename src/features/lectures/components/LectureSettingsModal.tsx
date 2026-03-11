@@ -4,6 +4,7 @@
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import { updateLecture, deleteLecture } from "../api/sessions";
 
@@ -44,7 +45,7 @@ export default function LectureSettingsModal({
       onAfterEnd?.();
       onClose();
     } catch (e: any) {
-      alert(e?.response?.data?.detail ?? "강의 종료에 실패했습니다.");
+      feedback.error(e?.response?.data?.detail ?? "강의 종료에 실패했습니다.");
     }
   }
 
@@ -54,7 +55,7 @@ export default function LectureSettingsModal({
       onAfterRestore?.();
       onClose();
     } catch (e: any) {
-      alert(e?.response?.data?.detail ?? "강의 복원에 실패했습니다.");
+      feedback.error(e?.response?.data?.detail ?? "강의 복원에 실패했습니다.");
     }
   }
 
@@ -65,7 +66,7 @@ export default function LectureSettingsModal({
       onAfterDelete?.();
       onClose();
     } catch (e: any) {
-      alert(e?.response?.data?.detail ?? "강의 삭제에 실패했습니다.");
+      feedback.error(e?.response?.data?.detail ?? "강의 삭제에 실패했습니다.");
     }
   }
 

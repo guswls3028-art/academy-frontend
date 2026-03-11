@@ -12,6 +12,7 @@ const COMMUNITY_TABS = [
   { key: "materials", label: "자료실", path: "/admin/community/materials" },
   { key: "qna", label: "QnA", path: "/admin/community/qna" },
   { key: "counsel", label: "상담 신청", path: "/admin/community/counsel" },
+  { key: "settings", label: "설정", path: "/admin/community/settings" },
 ];
 
 function CommunityPageInner() {

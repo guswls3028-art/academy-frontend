@@ -11,6 +11,7 @@ import { Staff, type StaffListOwner } from "../../api/staff.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { patchStaffDetail } from "../../api/staff.detail.api";
 import { fetchWorkTypes, createStaffWorkType, type WorkType } from "../../api/staffWorkType.api";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 /** 직원 목록 선택 시 원장 행용 sentinel id (삭제 제외) */
 export const OWNER_SELECTION_ID = -1;
@@ -248,7 +249,7 @@ export function StaffHomeTable({
         (e as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.detail ||
         (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "급여 유형 변경에 실패했습니다.";
-      alert(msg);
+      feedback.error(msg);
     },
   });
 
@@ -264,7 +265,7 @@ export function StaffHomeTable({
         (e as { response?: { data?: { detail?: string; message?: string } } })?.response?.data?.detail ||
         (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "관리자 권한 변경에 실패했습니다.";
-      alert(msg);
+      feedback.error(msg);
     },
   });
 
@@ -286,7 +287,7 @@ export function StaffHomeTable({
       const msg =
         (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
         "시급태그 추가에 실패했습니다.";
-      alert(msg);
+      feedback.error(msg);
     },
   });
 

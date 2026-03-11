@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { createSheetApi, type SheetEntity } from "../sheets.api";
 
 type Props = {
@@ -46,7 +47,7 @@ export function SheetsCreateModal({ open, onClose, onCreated }: Props) {
       setQuestionCount(20);
     },
     onError: (e: any) => {
-      alert(e?.message || "시험지 생성 실패");
+      feedback.error(e?.message || "시험지 생성 실패");
     },
   });
 

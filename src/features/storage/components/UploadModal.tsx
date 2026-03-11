@@ -4,6 +4,7 @@
 import { useState, useRef } from "react";
 import { FileText, Image, File } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { compressImageToWebP } from "../utils/imageCompress";
 import styles from "./UploadModal.module.css";
 
@@ -52,7 +53,7 @@ export default function UploadModal({ onClose, onUpload }: UploadModalProps) {
 
   const handleSubmit = async () => {
     if (!file) {
-      alert("파일을 선택해 주세요.");
+      feedback.warning("파일을 선택해 주세요.");
       return;
     }
     setUploading(true);

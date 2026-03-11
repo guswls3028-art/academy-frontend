@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { FileText, FilePlus } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/domain";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import LectureSessionTree from "../components/LectureSessionTree";
 import { fetchLectures, fetchSessions, sortSessionsByDateDesc, type Lecture, type Session } from "@/features/lectures/api/sessions";
@@ -94,6 +95,7 @@ export default function ExamExplorerPage() {
   };
 
   return (
+    <DomainLayout title="시험">
       <div className={panelStyles.root}>
         <div className={panelStyles.toolbar}>
           <Breadcrumb
@@ -237,5 +239,6 @@ export default function ExamExplorerPage() {
           </div>
         </div>
       </div>
+    </DomainLayout>
   );
 }

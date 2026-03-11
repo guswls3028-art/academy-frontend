@@ -7,6 +7,7 @@ import ClinicOperationsPage from "./pages/OperationsPage/ClinicOperationsPage";
 import ClinicOperationsConsolePage from "./pages/OperationsConsolePage/ClinicOperationsConsolePage";
 import ClinicReportsPage from "./pages/ReportsPage/ClinicReportsPage";
 import ClinicSettingsPage from "./pages/SettingsPage/ClinicSettingsPage";
+import ClinicMsgSettingsPage from "./pages/MsgSettingsPage/ClinicMsgSettingsPage";
 
 export default function ClinicRoutes() {
   return (
@@ -19,6 +20,7 @@ export default function ClinicRoutes() {
         <Route path="bookings" element={<ClinicBookingsPage />} />
         <Route path="reports" element={<ClinicReportsPage />} />
         <Route path="settings" element={<ClinicSettingsPage />} />
+        <Route path="msg-settings" element={<ClinicMsgSettingsPage />} />
       </Route>
     </Routes>
   );

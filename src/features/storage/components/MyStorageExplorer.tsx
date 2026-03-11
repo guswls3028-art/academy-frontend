@@ -5,6 +5,7 @@ import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, FileText, Image, FilePlus, FolderPlus, X, Download, Trash2 } from "lucide-react";
 import { Button, CloseButton } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import {
   fetchInventoryList,
   fetchStorageQuota,
@@ -83,7 +84,7 @@ export default function MyStorageExplorer() {
       setNewFolderName("");
       setNewFolderOpen(false);
     } catch (e) {
-      alert((e as Error).message);
+      feedback.error((e as Error).message);
     }
   }, [currentFolderId, newFolderName, qc]);
 
@@ -101,7 +102,7 @@ export default function MyStorageExplorer() {
         qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
         setUploadModalOpen(false);
       } catch (e) {
-        alert((e as Error).message);
+        feedback.error((e as Error).message);
       }
     },
     [currentFolderId, qc]
@@ -112,7 +113,7 @@ export default function MyStorageExplorer() {
       try {
         await deleteFolder(SCOPE, id);
       } catch (e) {
-        alert((e as Error).message);
+        feedback.error((e as Error).message);
         return;
       }
     }
@@ -120,7 +121,7 @@ export default function MyStorageExplorer() {
       try {
         await deleteFile(SCOPE, selectedFileId);
       } catch (e) {
-        alert((e as Error).message);
+        feedback.error((e as Error).message);
         return;
       }
     }
@@ -178,7 +179,7 @@ export default function MyStorageExplorer() {
             existingName: ce.existing_name || "항목",
           });
         } else {
-          alert(ce?.message ?? "이동에 실패했습니다.");
+          feedback.error(ce?.message ?? "이동에 실패했습니다.");
         }
       } finally {
         setMovingId(null);
@@ -421,7 +422,7 @@ export default function MyStorageExplorer() {
                     await deleteFile(SCOPE, id);
                     qc.invalidateQueries({ queryKey: ["storage-inventory", SCOPE] });
                   } catch (e) {
-                    alert((e as Error).message);
+                    feedback.error((e as Error).message);
                   }
                 }}
               >

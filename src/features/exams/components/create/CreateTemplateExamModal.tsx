@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { createTemplateExam } from "../../api/exams";
 import ExamCreateErrorBox from "../ExamCreateErrorBox";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function CreateTemplateExamModal({
   open,
@@ -34,7 +35,7 @@ export default function CreateTemplateExamModal({
         0;
 
       if (!safeId) {
-        alert(
+        feedback.warning(
           "시험 생성은 되었지만 ID 확인 실패. 새로고침 후 다시 시도하세요."
         );
         return;

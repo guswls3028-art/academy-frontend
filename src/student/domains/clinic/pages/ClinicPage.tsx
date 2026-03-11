@@ -8,6 +8,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { studentToast } from "@/student/shared/ui/feedback/studentToast";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
 import ClinicCalendar from "@/student/shared/ui/components/ClinicCalendar";
 import {
@@ -76,7 +77,7 @@ export default function ClinicPage() {
         error?.response?.data?.detail ||
         error?.response?.data?.message ||
         "예약 신청에 실패했습니다. 다시 시도해주세요.";
-      alert(message);
+      studentToast.error(message);
     },
   });
 
@@ -87,10 +88,10 @@ export default function ClinicPage() {
       qc.invalidateQueries({ queryKey: ["student", "clinic", "bookings"] });
       qc.invalidateQueries({ queryKey: ["student", "clinic", "available-sessions"] });
       qc.invalidateQueries({ queryKey: ["student", "notifications", "counts"] });
-      alert("예약 신청이 취소되었습니다.");
+      studentToast.success("예약 신청이 취소되었습니다.");
     },
     onError: (error: any) => {
-      alert(error?.response?.data?.detail || "취소에 실패했습니다.");
+      studentToast.error(error?.response?.data?.detail || "취소에 실패했습니다.");
     },
   });
 
@@ -109,7 +110,7 @@ export default function ClinicPage() {
   // 예약 신청 핸들러 — 등록 가능한 클리닉(세션)만 신청 가능
   const handleBooking = () => {
     if (!selectedSessionId) {
-      alert("등록 가능한 클리닉 시간을 선택해주세요.");
+      studentToast.info("등록 가능한 클리닉 시간을 선택해주세요.");
       return;
     }
     bookingMutation.mutate({
@@ -121,18 +122,18 @@ export default function ClinicPage() {
   // 일정 변경 신청 핸들러
   const handleChangeRequest = () => {
     if (!selectedDate) {
-      alert("날짜를 선택해주세요.");
+      studentToast.info("날짜를 선택해주세요.");
       return;
     }
 
     const existingBooking = myRequests.find((r) => r.session_date === selectedDate);
     if (!existingBooking) {
-      alert("변경할 예약을 찾을 수 없습니다.");
+      studentToast.error("변경할 예약을 찾을 수 없습니다.");
       return;
     }
 
     if (!selectedSessionId) {
-      alert("변경할 클리닉 시간을 선택해주세요.");
+      studentToast.info("변경할 클리닉 시간을 선택해주세요.");
       return;
     }
 

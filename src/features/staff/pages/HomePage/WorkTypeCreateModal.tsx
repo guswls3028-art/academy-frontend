@@ -13,6 +13,7 @@ import {
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
 import { ColorPickerField } from "@/shared/ui/domain";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function WorkTypeCreateModal({
   open,
@@ -43,7 +44,7 @@ export default function WorkTypeCreateModal({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["work-types"] });
       qc.invalidateQueries({ queryKey: ["staffs", "work-types"] });
-      alert("시급태그가 생성되었습니다.");
+      feedback.success("시급태그가 생성되었습니다.");
       onClose();
       setForm({
         name: "",
@@ -53,7 +54,7 @@ export default function WorkTypeCreateModal({
       });
     },
     onError: (e: any) => {
-      alert(
+      feedback.error(
         e?.response?.data?.detail ||
           e?.response?.data?.message ||
           "시급태그 생성 실패"
@@ -62,7 +63,7 @@ export default function WorkTypeCreateModal({
   });
 
   return (
-    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={() => { if (!form.name.trim() || form.base_hourly_wage <= 0) { alert("필수 항목을 입력하세요."); return; } if (!createM.isPending) createM.mutate(); }}>
+    <AdminModal open={open} onClose={onClose} type="action" onEnterConfirm={() => { if (!form.name.trim() || form.base_hourly_wage <= 0) { feedback.warning("필수 항목을 입력하세요."); return; } if (!createM.isPending) createM.mutate(); }}>
       <ModalHeader
         title="시급태그 생성"
         description="직원 시급태그로 사용할 유형을 추가합니다. 생성 후 테이블 시급태그 영역에서 직원별로 적용할 수 있습니다."
@@ -124,7 +125,7 @@ export default function WorkTypeCreateModal({
               loading={createM.isPending}
               onClick={() => {
                 if (!form.name.trim() || form.base_hourly_wage <= 0) {
-                  alert("필수 항목을 입력하세요.");
+                  feedback.warning("필수 항목을 입력하세요.");
                   return;
                 }
                 createM.mutate();

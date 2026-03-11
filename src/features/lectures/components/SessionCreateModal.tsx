@@ -13,6 +13,7 @@ import {
   ModalTimeSection,
 } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { createSession } from "../api/sessions";
 import { SessionBlockView } from "@/shared/ui/session-block";
 
@@ -138,7 +139,7 @@ export default function SessionCreateModal({ lectureId, onClose }: Props) {
   async function handleSubmit() {
     if (busy) return;
     const err = validate();
-    if (err) return alert(err);
+    if (err) { feedback.warning(err); return; }
 
     let title = defaultTitle;
     const timeStr =

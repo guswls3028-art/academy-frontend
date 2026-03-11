@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { BarChart2 } from "lucide-react";
 import { Button } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/domain";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import LectureSessionTree from "@/features/exams/components/LectureSessionTree";
 import {
@@ -87,6 +88,7 @@ export default function ResultsExplorerPage() {
   const isLoading = lecturesLoading || sessionsLoading;
 
   return (
+    <DomainLayout title="성적">
       <div className={panelStyles.root}>
         <div className={panelStyles.toolbar}>
           <Breadcrumb
@@ -152,5 +154,6 @@ export default function ResultsExplorerPage() {
           </div>
         </div>
       </div>
+    </DomainLayout>
   );
 }

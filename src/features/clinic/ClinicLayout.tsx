@@ -12,6 +12,7 @@ const CLINIC_TABS = [
   { key: "bookings", label: "예약대상자", path: "/admin/clinic/bookings" },
   { key: "reports", label: "리포트", path: "/admin/clinic/reports" },
   { key: "settings", label: "패스카드", path: "/admin/clinic/settings" },
+  { key: "msg-settings", label: "메시지 설정", path: "/admin/clinic/msg-settings" },
 ];
 
 export default function ClinicLayout() {

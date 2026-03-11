@@ -190,9 +190,6 @@ export default function LectureStudentsPage() {
       <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)}>
         엑셀 다운로드
       </Button>
-      <Button intent="secondary" size="sm" onClick={() => feedback.info("태그 추가 기능 준비 중입니다.")}>
-        태그 추가
-      </Button>
       <Button intent="secondary" size="sm" onClick={() => feedback.info("비밀번호 변경 기능 준비 중입니다.")}>
         비밀번호 변경
       </Button>

@@ -6,6 +6,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import type { SheetQuestionEntity } from "../../sheets.api";
 import {
   listExamSubmissionsApi,
@@ -44,7 +45,7 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
   const retryMut = useMutation({
     mutationFn: (submissionId: number) => retrySubmissionApi(submissionId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["materials-submissions", examId] }),
-    onError: (e: any) => alert(e?.message || "재시도 실패"),
+    onError: (e: any) => feedback.error(e?.message || "재시도 실패"),
   });
 
   const batchMut = useMutation({
@@ -60,9 +61,9 @@ export default function SheetsSubmissionsTab({ examId, sheetTitle, questions }: 
       setBatchFiles([]);
       setBatchSheetId("");
       qc.invalidateQueries({ queryKey: ["materials-submissions", examId] });
-      alert("업로드 요청이 접수되었습니다. 처리 상태는 목록에서 확인하세요.");
+      feedback.success("업로드 요청이 접수되었습니다. 처리 상태는 목록에서 확인하세요.");
     },
-    onError: (e: any) => alert(e?.message || "다건 업로드 실패"),
+    onError: (e: any) => feedback.error(e?.message || "다건 업로드 실패"),
   });
 
   const items: ExamSubmissionRow[] = useMemo(() => {

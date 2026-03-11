@@ -16,6 +16,8 @@ import {
   CalendarPlus,
   CalendarSync,
   LayoutGrid,
+  MessageCircle,
+  Users,
 } from "lucide-react";
 import { AUTO_SEND_TRIGGER_LABELS } from "../api/messages.api";
 import { TEMPLATE_CATEGORY_LABELS } from "../constants/templateBlocks";
@@ -32,7 +34,9 @@ export type AutoSendSectionId =
   | "grades"
   | "clinic"
   | "payment"
-  | "notice";
+  | "notice"
+  | "community"
+  | "staff";
 
 type SectionDef = {
   id: AutoSendSectionId;
@@ -168,6 +172,35 @@ export const AUTO_SEND_SECTIONS: SectionDef[] = [
     icon: <Megaphone size={16} aria-hidden />,
     triggers: ["urgent_notice"],
     children: [triggerChild("urgent_notice", <Bell size={14} aria-hidden />)],
+  },
+  {
+    id: "community",
+    label: TEMPLATE_CATEGORY_LABELS.community,
+    icon: <MessageCircle size={16} aria-hidden />,
+    triggers: ["qna_answer_registered", "counsel_approved"],
+    children: [
+      triggerChild("qna_answer_registered", <Bell size={14} aria-hidden />),
+      triggerChild("counsel_approved", <Bell size={14} aria-hidden />),
+    ],
+  },
+  {
+    id: "staff",
+    label: TEMPLATE_CATEGORY_LABELS.staff,
+    icon: <Users size={16} aria-hidden />,
+    triggers: [
+      "staff_attendance_summary",
+      "staff_expense_report",
+      "staff_month_close",
+      "staff_payroll_snapshot",
+      "staff_payroll_report",
+    ],
+    children: [
+      triggerChild("staff_attendance_summary", <Bell size={14} aria-hidden />),
+      triggerChild("staff_expense_report", <Bell size={14} aria-hidden />),
+      triggerChild("staff_month_close", <Bell size={14} aria-hidden />),
+      triggerChild("staff_payroll_snapshot", <Bell size={14} aria-hidden />),
+      triggerChild("staff_payroll_report", <Bell size={14} aria-hidden />),
+    ],
   },
 ];
 

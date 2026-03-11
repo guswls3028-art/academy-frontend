@@ -20,6 +20,7 @@ import StudentFormModal from "../components/EditStudentModal";
 import TagCreateModal from "../components/TagCreateModal";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { EmptyState, Button, CloseButton } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 
 const TABS = [
@@ -226,7 +227,7 @@ export default function StudentsDetailOverlay(props?: StudentsDetailOverlayProps
     const toDeleteFolderIds = Array.from(inventorySelectedFolderIds);
     for (const fid of toDeleteFolderIds) {
       if (folderHasChildren(fid)) {
-        alert("비어있지 않은 폴더는 지울 수 없습니다. 먼저 하위 파일·폴더를 비우거나 삭제하세요.");
+        feedback.warning("비어있지 않은 폴더는 지울 수 없습니다. 먼저 하위 파일·폴더를 비우거나 삭제하세요.");
         return;
       }
     }

@@ -1,11 +1,11 @@
 // PATH: src/features/messages/components/SendMessageModal.tsx
-// 공용 메시지 발송 모달 — 직접 입력 또는 기존 템플릿 불러와서 발송
-// 수신자(학부모/학생), 발송 방식(메세지/알림톡/모두) 다중 선택 가능. SSOT: messageSendOptions.
+// 공용 메시지 발송 모달 — 좌: 수신자+미리보기 / 우: 탭+본문+삽입 블록
+// TemplateEditModal 디자인 패턴과 통일된 split-view 레이아웃. 단발성 발송 SSOT.
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "antd";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Button, Tabs } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import {
@@ -16,8 +16,12 @@ import {
   type SendToType,
 } from "../api/messages.api";
 import { useMessagingInfo } from "../hooks/useMessagingInfo";
-import { TEMPLATE_CATEGORY_LABELS, getBlocksForCategory } from "../constants/templateBlocks";
-import { getDefaultSendModalModes } from "../constants/messageSendOptions";
+import {
+  TEMPLATE_CATEGORY_LABELS,
+  getBlocksForCategory,
+  getBlockColor,
+  renderPreviewBadges,
+} from "../constants/templateBlocks";
 import type { MessageTemplateCategory } from "../api/messages.api";
 import "../styles/templateEditor.css";
 
@@ -46,6 +50,8 @@ export type SendMessageModalProps = {
 };
 
 type ContentMode = "free" | "template";
+type EditorTab = "message" | "alimtalk";
+type SendMode = "sms" | "alimtalk" | "both";
 
 export default function SendMessageModal({
   open,
@@ -58,17 +64,21 @@ export default function SendMessageModal({
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<EditorTab>("message");
   /** 수신자: 학부모·학생 둘 다 선택 가능 (최소 1개). 직원 모드일 때는 사용 안 함 */
   const [sendToParent, setSendToParent] = useState(true);
   const [sendToStudent, setSendToStudent] = useState(false);
-  /** 발송 방식: 메세지·알림톡 둘 다 선택 가능 (최소 1개). 기본값 = smsAllowed에 따라 결정 */
-  const [useSms, setUseSms] = useState(() => getDefaultSendModalModes(true).useSms);
-  const [useAlimtalk, setUseAlimtalk] = useState(true);
+  /** 발송 방식: 단일 sendMode 드롭다운 */
+  const [sendMode, setSendMode] = useState<SendMode>("both");
   const [sending, setSending] = useState(false);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyWrapRef = useRef<HTMLDivElement>(null);
+  const getNativeTextarea = useCallback(
+    () => bodyWrapRef.current?.querySelector("textarea") ?? null,
+    []
+  );
   const { data: messagingInfo } = useMessagingInfo();
-  const smsAllowed = messagingInfo?.sms_allowed ?? true;
+  const smsAllowed = messagingInfo?.sms_allowed ?? false;
 
   const isStaffMode = (initialStaffIds?.length ?? 0) > 0;
   const studentIds = initialStudentIds;
@@ -82,9 +92,15 @@ export default function SendMessageModal({
         if (sendToStudent) t.push("student");
         return t;
       })();
-  const messageModes: MessageMode[] = [];
-  if (useSms && smsAllowed) messageModes.push("sms");
-  if (useAlimtalk) messageModes.push("alimtalk");
+
+  // Derive messageModes from sendMode
+  const messageModes: MessageMode[] = (() => {
+    const modes: MessageMode[] = [];
+    if ((sendMode === "sms" || sendMode === "both") && smsAllowed) modes.push("sms");
+    if (sendMode === "alimtalk" || sendMode === "both") modes.push("alimtalk");
+    return modes;
+  })();
+
   const canSend =
     hasRecipients &&
     body.trim().length > 0 &&
@@ -92,27 +108,33 @@ export default function SendMessageModal({
     messageModes.length > 0 &&
     !sending;
 
+  const blocks = getBlocksForCategory("default");
+  const badgeBody = renderPreviewBadges(body);
+  const badgeSubject = renderPreviewBadges(subject);
+  const showSubject = activeTab === "alimtalk";
+
+  // Reset state when modal opens
   useEffect(() => {
     if (open) {
       setSubject("");
       setBody("");
       setSelectedTemplateId(null);
       setContentMode("free");
+      setActiveTab("message");
       setSendToParent(true);
       setSendToStudent(false);
-      const defaults = getDefaultSendModalModes(smsAllowed);
-      setUseSms(defaults.useSms);
-      setUseAlimtalk(defaults.useAlimtalk);
+      setSendMode(smsAllowed ? "both" : "alimtalk");
     }
   }, [open, smsAllowed]);
 
+  // Guard: if smsAllowed becomes false while sms-related mode is selected
   useEffect(() => {
-    if (open && !smsAllowed && useSms) {
-      setUseSms(false);
-      if (!useAlimtalk) setUseAlimtalk(true);
+    if (open && !smsAllowed && (sendMode === "sms" || sendMode === "both")) {
+      setSendMode("alimtalk");
     }
-  }, [open, smsAllowed, useSms, useAlimtalk]);
+  }, [open, smsAllowed, sendMode]);
 
+  // Load templates
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -128,21 +150,28 @@ export default function SendMessageModal({
     };
   }, [open]);
 
-  const insertBlock = (insertText: string) => {
-    const ta = bodyRef.current;
-    if (!ta) {
-      setBody((prev) => prev + insertText);
-      return;
-    }
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd ?? start;
-    setBody(body.slice(0, start) + insertText + body.slice(end));
-    setTimeout(() => {
-      ta.focus();
-      const pos = start + insertText.length;
-      ta.setSelectionRange(pos, pos);
-    }, 0);
-  };
+  const insertBlock = useCallback(
+    (insertText: string) => {
+      const ta = getNativeTextarea();
+      if (!ta) {
+        setBody((prev) => prev + insertText);
+        return;
+      }
+      const start = ta.selectionStart ?? ta.value.length;
+      const end = ta.selectionEnd ?? start;
+      setBody((prev) => {
+        const before = prev.slice(0, start);
+        const after = prev.slice(end);
+        return before + insertText + after;
+      });
+      const newPos = start + insertText.length;
+      requestAnimationFrame(() => {
+        ta.focus();
+        ta.setSelectionRange(newPos, newPos);
+      });
+    },
+    [getNativeTextarea]
+  );
 
   const handleLoadTemplate = (t: MessageTemplateItem) => {
     setSelectedTemplateId(t.id);
@@ -224,126 +253,201 @@ export default function SendMessageModal({
       ? (hasRecipients ? `선택한 직원 ${staffIds.length}명` : "수신자 없음")
       : (hasRecipients ? `선택한 학생 ${studentIds.length}명` : "수신자 없음"));
 
+  const editorTabItems = [
+    { key: "message", label: "메시지" },
+    { key: "alimtalk", label: "알림톡" },
+  ] as const;
+
   return (
     <AdminModal open={open} onClose={onClose} width={1000} onEnterConfirm={handleSend} className="send-message-modal">
       <ModalHeader title="메시지 발송" />
       <ModalBody>
-        <div className="flex flex-col gap-5 flex-1 min-h-0">
-          {/* 수신자: 직원 모드면 직원 N명만 표시, 아니면 학부모·학생 선택 */}
-          <section>
-            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">수신자</div>
-            {isStaffMode ? (
-              <p className="text-sm text-[var(--color-text-muted)]">
-                {label}
-              </p>
-            ) : hasRecipients ? (
-              <>
-                <p className="text-sm text-[var(--color-text-muted)] mb-2">
-                  {label}
-                </p>
-                <div className="flex flex-wrap items-center gap-6">
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={sendToParent}
-                      onChange={(e) => setSendToParent(e.target.checked)}
-                    />
-                    학부모
-                  </label>
-                  <label className="inline-flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={sendToStudent}
-                      onChange={(e) => setSendToStudent(e.target.checked)}
-                    />
-                    학생
-                  </label>
-                  {sendToTargets.length === 0 && (
-                    <span className="text-xs text-[var(--color-status-warning)]">
-                      학부모 또는 학생 중 최소 1개를 선택하세요.
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-[var(--color-status-warning)]">
-                학생·강의·출결·직원 페이지에서 수신자를 선택한 뒤 메시지 발송 버튼을 눌러 주세요.
-              </p>
-            )}
-          </section>
-
-          {/* 발송 방식: 메세지, 알림톡, 모두 (SSOT: messageSendOptions) */}
-          <section>
-            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">발송 방식</div>
-            <div className="flex flex-wrap items-center gap-6">
-              <label
-                className={
-                  smsAllowed ? "inline-flex items-center gap-2 cursor-pointer" : "inline-flex items-center gap-2 cursor-not-allowed opacity-60"
-                }
-              >
-                <input
-                  type="checkbox"
-                  checked={useSms}
-                  onChange={(e) => setUseSms(e.target.checked)}
-                  disabled={!smsAllowed}
-                />
-                <span>메세지</span>
-              </label>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useAlimtalk}
-                  onChange={(e) => setUseAlimtalk(e.target.checked)}
-                />
-                <span>알림톡</span>
-              </label>
-              {messageModes.length === 0 && (
-                <span className="text-xs text-[var(--color-status-warning)]">
-                  메세지 또는 알림톡 중 최소 1개를 선택하세요.
-                </span>
-              )}
-            </div>
-            {(useAlimtalk || useSms) && (
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                메세지, 알림톡, 모두. 둘 다 선택 시 모두(알림톡→메세지 폴백)로 발송됩니다. 알림톡은 검수 승인된 템플릿이 필요합니다.
-              </p>
-            )}
-          </section>
-
-          {/* 내용: 직접 입력 / 템플릿 불러오기 */}
-          <section className="flex-1 min-h-0 flex flex-col">
-            <div className="text-sm font-medium text-[var(--color-text-primary)] mb-2">내용</div>
-            <div className="flex gap-3 mb-3">
-              <button
-                type="button"
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  contentMode === "free"
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "bg-[var(--color-fill-secondary)] text-[var(--color-text-secondary)]"
-                }`}
-                onClick={() => {
-                  setContentMode("free");
-                  setSelectedTemplateId(null);
+        <div className="template-editor flex gap-5" style={{ minHeight: 420 }}>
+          {/* ── 좌측: 수신자 정보 + 미리보기 ── */}
+          <div
+            className="template-editor__left shrink-0 flex flex-col gap-4 p-4 overflow-hidden"
+            style={{ width: 300 }}
+          >
+            {/* 수신자 정보 */}
+            <section>
+              <div className="template-editor__blocks-title mb-1">수신자</div>
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "4px 14px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  background: "color-mix(in srgb, var(--color-primary) 10%, transparent)",
+                  color: "var(--color-primary)",
                 }}
               >
-                직접 입력
-              </button>
-              <button
-                type="button"
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  contentMode === "template"
-                    ? "bg-[var(--color-primary)] text-white"
-                    : "bg-[var(--color-fill-secondary)] text-[var(--color-text-secondary)]"
-                }`}
-                onClick={() => setContentMode("template")}
-              >
-                템플릿 불러오기
-              </button>
+                {label}
+              </span>
+              {!hasRecipients && (
+                <p className="mt-2 text-xs" style={{ color: "var(--color-status-warning)" }}>
+                  수신자를 선택한 뒤 메시지 발송 버튼을 눌러 주세요.
+                </p>
+              )}
+            </section>
+
+            {/* 미리보기 */}
+            <section>
+              <div className="template-editor__preview-title mb-2">
+                실제 수신자에게 이렇게 보입니다
+              </div>
+              {activeTab === "message" ? (
+                <div className="template-preview-phone" aria-label="아이폰 메시지 미리보기">
+                  <div className="template-preview-phone__screen">
+                    <div className="template-preview-phone__bubble" style={{ lineHeight: 1.7 }}>
+                      {body ? badgeBody : (
+                        <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
+                      )}
+                    </div>
+                    <div className="template-preview-phone__time">오전 9:00</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="template-preview-kakao" aria-label="카카오톡 알림톡 미리보기">
+                  <div className="template-preview-kakao__card">
+                    {subject && (
+                      <div className="template-preview-kakao__title" style={{ lineHeight: 1.7 }}>{badgeSubject}</div>
+                    )}
+                    <div className="template-preview-kakao__body" style={{ lineHeight: 1.7 }}>
+                      {body ? badgeBody : (
+                        <span className="template-editor__preview-placeholder">본문을 입력하면 미리보기가 표시됩니다.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
+                {activeTab === "message" ? "아이폰 메시지 예시" : "카카오톡 알림톡 예시"} (치환 변수는 샘플 값)
+              </p>
+            </section>
+          </div>
+
+          {/* ── 우측: 편집 영역 ── */}
+          <div className="template-editor__right flex-1 min-w-0 flex flex-col gap-2 p-4">
+            {/* 메시지/알림톡 탭 */}
+            <div className="modal-tabs-elevated template-editor__tabs template-editor__tabs--top">
+              <Tabs
+                value={activeTab}
+                onChange={(k) => setActiveTab(k as EditorTab)}
+                items={editorTabItems}
+              />
             </div>
 
+            {/* 발송 방식 + 수신 대상 — 가로 배치 */}
+            <div className="flex items-start gap-6">
+              {/* 발송 방식: select dropdown */}
+              <div className="shrink-0">
+                <label className="template-editor__editor-title block mb-1">발송 방식</label>
+                <select
+                  value={sendMode}
+                  onChange={(e) => setSendMode(e.target.value as SendMode)}
+                  disabled={sending}
+                  className="template-editor__textarea message-domain-input"
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: 14,
+                    minWidth: 140,
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="both" disabled={!smsAllowed}>
+                    둘 다 (모두){!smsAllowed ? " — SMS 미연동" : ""}
+                  </option>
+                  <option value="alimtalk">알림톡</option>
+                  <option value="sms" disabled={!smsAllowed}>
+                    SMS (메세지){!smsAllowed ? " — SMS 미연동" : ""}
+                  </option>
+                </select>
+              </div>
+
+              {/* 수신 대상 */}
+              <div>
+                <label className="template-editor__editor-title block mb-1">수신 대상</label>
+                {isStaffMode ? (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "6px 14px",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      borderRadius: 8,
+                      background: "color-mix(in srgb, var(--color-primary) 8%, transparent)",
+                      color: "var(--color-primary)",
+                    }}
+                  >
+                    직원
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-4" style={{ minHeight: 34 }}>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={sendToParent}
+                        onChange={(e) => setSendToParent(e.target.checked)}
+                        disabled={sending}
+                      />
+                      학부모
+                    </label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={sendToStudent}
+                        onChange={(e) => setSendToStudent(e.target.checked)}
+                        disabled={sending}
+                      />
+                      학생
+                    </label>
+                    {sendToTargets.length === 0 && (
+                      <span className="text-xs" style={{ color: "var(--color-status-warning)" }}>
+                        최소 1개 선택
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 내용 모드: 직접 입력 / 템플릿 불러오기 */}
+            <div className="flex items-center gap-3">
+              <label className="template-editor__editor-title shrink-0">내용</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    contentMode === "free"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "bg-[var(--color-fill-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-fill-tertiary)]"
+                  }`}
+                  onClick={() => {
+                    setContentMode("free");
+                    setSelectedTemplateId(null);
+                  }}
+                >
+                  직접 입력
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    contentMode === "template"
+                      ? "bg-[var(--color-primary)] text-white"
+                      : "bg-[var(--color-fill-secondary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-fill-tertiary)]"
+                  }`}
+                  onClick={() => setContentMode("template")}
+                >
+                  템플릿 불러오기
+                </button>
+              </div>
+            </div>
+
+            {/* 템플릿 선택 영역 */}
             {contentMode === "template" && templates.length > 0 && (
-              <div className="mb-3 p-3 rounded-lg bg-[var(--color-fill-secondary)]">
-                <div className="text-xs text-[var(--color-text-muted)] mb-2">저장된 템플릿 선택</div>
+              <div className="p-3 rounded-lg" style={{ background: "var(--color-fill-secondary)" }}>
+                <div className="text-xs mb-2" style={{ color: "var(--color-text-muted)" }}>저장된 템플릿 선택</div>
                 <div className="flex flex-wrap gap-2">
                   {templates.map((t) => (
                     <Button
@@ -364,66 +468,85 @@ export default function SendMessageModal({
               </div>
             )}
 
-            <div className="mb-2">
-              <label className="block text-xs text-[var(--color-text-muted)] mb-1">제목 (선택)</label>
-              <Input
-                placeholder="알림톡 제목"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                disabled={sending}
-                className="w-full message-domain-input"
-              />
-            </div>
-            <div className="flex-1 min-h-0 flex flex-col">
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs text-[var(--color-text-muted)]">본문</label>
-                {(() => {
-                  const info = getCharLabel(body.length);
-                  if (!info) return null;
-                  return (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color:
-                          info.tone === "ok"
-                            ? "var(--color-text-muted)"
-                            : info.tone === "lms"
-                            ? "var(--color-primary)"
-                            : "var(--color-error)",
-                      }}
-                    >
-                      {info.label}
-                    </span>
-                  );
-                })()}
-              </div>
-              {/* 변수 삽입 블록 */}
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {getBlocksForCategory("default").map((block) => (
-                  <button
-                    key={block.id}
-                    type="button"
-                    onClick={() => insertBlock(block.insertText)}
+            {/* 제목 (알림톡 탭에서만 표시) — 고정 높이 슬롯 */}
+            <div className={`template-editor__subject-slot ${showSubject ? "template-editor__subject-slot--has-subject" : ""}`}>
+              {showSubject ? (
+                <>
+                  <label className="template-editor__editor-title block mb-1">제목 (알림톡)</label>
+                  <Input
+                    placeholder="알림톡 제목"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
                     disabled={sending}
-                    className="template-editor__block-btn px-2 py-1 rounded text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {block.label}
-                  </button>
-                ))}
-              </div>
-              <Input.TextArea
-                ref={bodyRef}
-                placeholder="내용을 입력하거나 위에서 템플릿을 선택하세요. 위 버튼으로 변수를 삽입할 수 있습니다."
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                rows={12}
-                disabled={sending}
-                className="template-editor__textarea message-domain-input w-full p-3"
-                style={{ resize: "none", minHeight: 200 }}
-              />
+                    className="template-editor__textarea message-domain-input"
+                  />
+                </>
+              ) : (
+                <div className="template-editor__subject-placeholder" aria-hidden />
+              )}
             </div>
-          </section>
+
+            {/* 본문 — 2패널: 좌측 입력 | 우측 삽입 블록 (TemplateEditModal 패턴) */}
+            <div className="template-editor__body-row flex-1 min-h-0 flex gap-4">
+              <div ref={bodyWrapRef} className="template-editor__body-input flex-1 min-w-0 flex flex-col">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="template-editor__editor-title">
+                    본문
+                  </label>
+                  {(() => {
+                    const info = getCharLabel(body.length);
+                    if (!info) return null;
+                    return (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color:
+                            info.tone === "ok"
+                              ? "var(--color-text-muted)"
+                              : info.tone === "lms"
+                              ? "var(--color-primary)"
+                              : "var(--color-error)",
+                        }}
+                      >
+                        {info.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <Input.TextArea
+                  placeholder="내용을 입력하세요. 오른쪽 블록을 클릭하면 치환 변수가 삽입됩니다."
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={12}
+                  disabled={sending}
+                  className="template-editor__textarea message-domain-input w-full p-3"
+                  style={{ resize: "vertical", fontFamily: "inherit", minHeight: 200 }}
+                />
+              </div>
+              <div className="template-editor__body-blocks shrink-0 flex flex-col" style={{ width: 220 }}>
+                <div className="template-editor__blocks-title mb-2">삽입 블록</div>
+                <div className="template-editor__block-list flex flex-wrap gap-2 content-start overflow-auto p-1">
+                  {blocks.map((block) => {
+                    const bc = getBlockColor(block.id);
+                    return (
+                      <button
+                        key={block.id}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => insertBlock(block.insertText)}
+                        disabled={sending}
+                        className="template-editor__block-tag"
+                        style={{ background: bc.bg, color: bc.color, borderColor: bc.border }}
+                      >
+                        {block.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </ModalBody>
       <ModalFooter

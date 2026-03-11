@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FilePlus, Video, Folder } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { DomainLayout } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import Breadcrumb from "@/features/storage/components/Breadcrumb";
 import VideoExplorerTree, { type VideoFolderId } from "../components/VideoExplorerTree";
@@ -259,7 +260,7 @@ export default function VideoExplorerPage() {
       setNewFolderName("");
       setNewFolderOpen(false);
     } catch (e) {
-      alert((e as Error).message || "폴더 생성에 실패했습니다.");
+      feedback.error((e as Error).message || "폴더 생성에 실패했습니다.");
     }
   }, [newFolderName, publicSession, selectedPublicFolderId, selectedFolderId, queryClient]);
 
@@ -276,7 +277,7 @@ export default function VideoExplorerPage() {
           setSelectedFolderId("public");
         }
       } catch (e) {
-        alert((e as Error).message || "폴더 삭제에 실패했습니다.");
+        feedback.error((e as Error).message || "폴더 삭제에 실패했습니다.");
       }
     },
     [publicSession, selectedFolderId, queryClient]
@@ -313,7 +314,7 @@ export default function VideoExplorerPage() {
       asyncStatusStore.removeTask(String(videoId));
     },
     onError: (e) => {
-      alert((e as Error).message || "영상 삭제에 실패했습니다.");
+      feedback.error((e as Error).message || "영상 삭제에 실패했습니다.");
     },
   });
 
@@ -328,7 +329,7 @@ export default function VideoExplorerPage() {
   );
 
   return (
-    <>
+    <DomainLayout title="영상">
       <div className={panelStyles.root}>
         <div className={panelStyles.toolbar}>
           <Breadcrumb
@@ -609,6 +610,6 @@ export default function VideoExplorerPage() {
           </ModalFooter>
         </AdminModal>
       )}
-    </>
+    </DomainLayout>
   );
 }

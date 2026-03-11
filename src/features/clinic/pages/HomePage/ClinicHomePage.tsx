@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import { DatePicker } from "@/shared/ui/date";
 import { Button } from "@/shared/ui/ds";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSettings.api";
@@ -78,7 +79,7 @@ export default function ClinicHomePage() {
     onError: (err: any) => {
       const msg = err?.response?.data?.detail ?? err?.message ?? "자동 승인 설정 저장에 실패했습니다.";
       console.error("[Clinic] auto_approve_booking PATCH failed:", err?.response?.status, msg);
-      alert(`자동 승인 설정을 저장할 수 없습니다. ${typeof msg === "string" ? msg : ""}`);
+      feedback.error(`자동 승인 설정을 저장할 수 없습니다. ${typeof msg === "string" ? msg : ""}`);
     },
   });
 

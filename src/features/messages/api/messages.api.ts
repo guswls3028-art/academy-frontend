@@ -155,7 +155,9 @@ export type MessageTemplateCategory =
   | "grades"
   | "clinic"
   | "payment"
-  | "notice";
+  | "notice"
+  | "community"
+  | "staff";
 
 export type SolapiStatus = "" | "PENDING" | "APPROVED" | "REJECTED";
 
@@ -280,7 +282,16 @@ export type AutoSendTrigger =
   | "counseling_reservation_created"
   | "payment_complete"
   | "payment_due_days_before"
-  | "urgent_notice";
+  | "urgent_notice"
+  // 커뮤니티 자동발송
+  | "qna_answer_registered"
+  | "counsel_approved"
+  // 직원 자동발송
+  | "staff_attendance_summary"
+  | "staff_expense_report"
+  | "staff_month_close"
+  | "staff_payroll_snapshot"
+  | "staff_payroll_report";
 
 export interface AutoSendConfigItem {
   id: number | null;
@@ -320,6 +331,15 @@ export const AUTO_SEND_TRIGGER_LABELS: Record<string, string> = {
   payment_complete: "결제 완료",
   payment_due_days_before: "납부 예정일 N일 전",
   urgent_notice: "긴급 공지",
+  // 커뮤니티
+  qna_answer_registered: "QnA 답변 등록",
+  counsel_approved: "상담 신청 승인",
+  // 직원
+  staff_attendance_summary: "근태 요약 발송",
+  staff_expense_report: "비용/경비 리포트 발송",
+  staff_month_close: "월 마감 완료 안내",
+  staff_payroll_snapshot: "급여 스냅샷 발송",
+  staff_payroll_report: "급여 명세서 발송",
 };
 
 export async function fetchAutoSendConfigs(): Promise<AutoSendConfigItem[]> {

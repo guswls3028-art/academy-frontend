@@ -1,6 +1,6 @@
 // PATH: src/promo/layout/PromoLayout.tsx
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LoginModal from "../components/LoginModal";
 
 const NAV_ITEMS = [
@@ -164,6 +164,16 @@ function Footer() {
 
 export default function PromoLayout() {
   const [loginOpen, setLoginOpen] = useState(false);
+  const location = useLocation();
+
+  // /login → /promo 리다이렉트 시 로그인 모달 자동 오픈
+  useEffect(() => {
+    if ((location.state as any)?.openLogin) {
+      setLoginOpen(true);
+      // state 소비 후 제거 (뒤로가기 시 모달 다시 열리지 않도록)
+      window.history.replaceState({}, "");
+    }
+  }, [location.state]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">

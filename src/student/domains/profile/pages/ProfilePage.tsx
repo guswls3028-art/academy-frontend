@@ -9,6 +9,7 @@ import { fetchMyProfile, updateMyProfile } from "../api/profile";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { IconPencil } from "@/student/shared/ui/icons/Icons";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
+import { studentToast } from "@/student/shared/ui/feedback/studentToast";
 
 function formatPhone(phone: string | null | undefined): string {
   if (!phone || !phone.trim()) return "-";
@@ -145,7 +146,7 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!password.trim() || !newPassword.trim()) return;
     if (newPassword !== confirmPassword) {
-      alert("새 비밀번호가 일치하지 않습니다.");
+      studentToast.error("새 비밀번호가 일치하지 않습니다.");
       return;
     }
     updateProfileMutation.mutate({

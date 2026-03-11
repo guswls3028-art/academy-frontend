@@ -13,6 +13,7 @@ import {
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
   open: boolean;
@@ -55,7 +56,7 @@ export default function CreateWorkRecordModal({ open, onClose }: Props) {
 
   const handleSubmit = () => {
     if (!form.work_type || !form.start_time || !form.end_time) {
-      alert("필수 항목을 입력하세요.");
+      feedback.warning("필수 항목을 입력하세요.");
       return;
     }
     if (createM.isPending) return;

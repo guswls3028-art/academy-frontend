@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStaffDetail, patchStaffDetail, StaffDetail } from "../../api/staff.detail.api";
 import { fetchStaffMe } from "../../api/staffMe.api";
 import api from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export default function StaffSettingsTab() {
   const { staffId } = useParams();
@@ -30,7 +31,7 @@ export default function StaffSettingsTab() {
     mutationFn: (payload: Partial<StaffDetail>) => patchStaffDetail(sid, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff", sid] });
-      alert("저장되었습니다.");
+      feedback.success("저장되었습니다.");
     },
   });
 
@@ -39,7 +40,7 @@ export default function StaffSettingsTab() {
       await api.delete(`/staffs/${sid}/`);
     },
     onSuccess: async () => {
-      alert("직원이 삭제되었습니다.");
+      feedback.success("직원이 삭제되었습니다.");
       await qc.invalidateQueries({ queryKey: ["staffs"] });
       nav("/admin/staff");
     },

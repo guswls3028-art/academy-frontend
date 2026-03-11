@@ -10,6 +10,7 @@ import {
   ModalFooter,
 } from "@/shared/ui/modal";
 import { ActionButton } from "@/shared/ui/ds";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 type Props = {
   open: boolean;
@@ -43,7 +44,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staffs"] });
-      alert("직원이 생성되었습니다.");
+      feedback.success("직원이 생성되었습니다.");
       onClose();
       setForm({
         username: "",
@@ -58,7 +59,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
         e?.response?.data?.detail ||
         e?.response?.data?.message ||
         "직원 생성에 실패했습니다.";
-      alert(msg);
+      feedback.error(msg);
     },
   });
 
@@ -158,7 +159,7 @@ export default function StaffCreateModal({ open, onClose }: Props) {
               loading={createM.isPending}
               onClick={() => {
                 if (invalidUsername || invalidPassword || invalidName) {
-                  alert("필수 항목을 모두 입력하세요.");
+                  feedback.warning("필수 항목을 모두 입력하세요.");
                   return;
                 }
                 createM.mutate();

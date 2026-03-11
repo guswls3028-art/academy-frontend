@@ -99,6 +99,7 @@ export interface ControllerOptions {
   policy: any;
   token: string;
   enrollmentId: number | null;
+  initialPosition?: number;
   onFatal?: (reason: string) => void;
   onLeaveProgress?: (data: { progress?: number; last_position?: number; completed?: boolean }) => void;
 }
@@ -127,7 +128,7 @@ export class StudentHlsController {
 
   private maxWatchedRef = 0;
   private lastTimeRef = 0;
-  private seekGuardRef = { blocking: false, lastWarnAt: 0 };
+  private seekGuardRef = { blocking: false, lastWarnAt: 0, initialSeekActive: false };
   private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: any }> = [];
   private intervals: ReturnType<typeof setInterval>[] = [];
   private timeouts: ReturnType<typeof setTimeout>[] = [];
@@ -293,6 +294,10 @@ export class StudentHlsController {
   };
 
   private startIntervals() {
+    // 진행률 자동 저장 (30초마다, 모니터링 여부 무관, 5초 미만 변화 시 스킵)
+    const saveId = setInterval(() => this.guard(() => this.flushProgressIfChanged()), 30000);
+    this.intervals.push(saveId);
+
     const monitoringEnabled = this.policy.monitoring_enabled ?? false;
     if (!monitoringEnabled) return;
 
@@ -357,17 +362,31 @@ export class StudentHlsController {
     this.videoListeners = [];
   }
 
-  private flushProgress() {
-    if (this.disposed || !this.el || !this.opts.onLeaveProgress) return;
-    const lastPosition = Math.max(0, this.maxWatchedRef);
+  /**
+   * force: true → dispose 시에도 실행 (disposed 가드 무시)
+   */
+  private flushProgress(force = false) {
+    if ((!force && this.disposed) || !this.el || !this.opts.onLeaveProgress) return;
+    const currentTime = Number(this.el.currentTime || 0);
+    const maxWatched = Math.max(0, this.maxWatchedRef);
     const dur = Number(this.el.duration);
-    const progressPercent = dur > 0 && Number.isFinite(dur) ? Math.min(100, (lastPosition / dur) * 100) : 0;
-    const completed = dur > 0 && lastPosition >= dur - 0.5;
+    const progressPercent = dur > 0 && Number.isFinite(dur) ? Math.min(100, (maxWatched / dur) * 100) : 0;
+    const completed = dur > 0 && maxWatched >= dur - 0.5;
+    // last_position: 현재 재생 위치 (이어보기용), progress: 최대 시청 구간 기반 (진행률용)
     this.opts.onLeaveProgress({
       progress: progressPercent,
-      last_position: Math.round(lastPosition),
+      last_position: Math.round(currentTime),
       completed,
     });
+  }
+
+  private lastSavedPosition = -1;
+  private flushProgressIfChanged() {
+    if (this.disposed || !this.el) return;
+    const cur = Math.round(Number(this.el.currentTime || 0));
+    if (Math.abs(cur - this.lastSavedPosition) < 5) return; // 5초 미만 변화 무시
+    this.lastSavedPosition = cur;
+    this.flushProgress();
   }
 
   queueFullscreenEvent(entering: boolean) {
@@ -485,6 +504,20 @@ export class StudentHlsController {
       const d = Number(el.duration || 0);
       if (d && Number.isFinite(d)) this.setState({ duration: d });
       this.setState({ ready: true, buffering: false });
+
+      // 이어보기: initialPosition이 있으면 해당 위치로 이동 (seek 정책 가드 우회)
+      const initPos = this.opts.initialPosition;
+      if (initPos && initPos > 1 && d > 0 && Number.isFinite(d)) {
+        const safePos = Math.min(initPos, d - 1);
+        if (safePos > 1) {
+          this.seekGuardRef.initialSeekActive = true;
+          this.maxWatchedRef = Math.max(this.maxWatchedRef, safePos);
+          try { el.currentTime = safePos; } catch {}
+          // onSeeking 이벤트가 동기적으로 발생하므로 즉시 해제해도 안전
+          // 다만 비동기 발생 가능성 대비 짧은 타이머
+          setTimeout(() => { this.seekGuardRef.initialSeekActive = false; }, 200);
+        }
+      }
     };
 
     const onTime = () => {
@@ -526,6 +559,7 @@ export class StudentHlsController {
 
     const onSeeking = () => {
       if (this.disposed) return;
+      if (this.seekGuardRef.initialSeekActive) return; // 이어보기 초기 seek 시 가드 우회
       if (allowSeek && !boundedForward) return;
 
       const now = Date.now();
@@ -626,7 +660,7 @@ export class StudentHlsController {
       } catch {}
     }
 
-    this.flushProgress();
+    this.flushProgress(true);
     this.el = null;
   }
 }

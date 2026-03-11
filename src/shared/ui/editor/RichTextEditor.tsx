@@ -13,6 +13,7 @@ import Image from "@tiptap/extension-image";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Color from "@tiptap/extension-color";
 import Placeholder from "@tiptap/extension-placeholder";
+import { feedback } from "@/shared/ui/feedback/feedback";
 import "./rich-editor.css";
 
 // ---------------------------------------------------------------------------
@@ -169,7 +170,7 @@ export default function RichTextEditor({
       Array.from(files).forEach((file) => {
         if (!file.type.startsWith("image/")) return;
         if (file.size > MAX_IMAGE_SIZE) {
-          alert("이미지 크기는 5MB를 초과할 수 없습니다.");
+          feedback.warning("이미지 크기는 5MB를 초과할 수 없습니다.");
           return;
         }
         const reader = new FileReader();

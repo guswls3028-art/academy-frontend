@@ -25,11 +25,11 @@ export function AssetsTab({ templateExamId }: { templateExamId?: number }) {
       </div>
 
       <div className="rounded border p-4 text-sm text-gray-600">
-        <div className="font-semibold mb-1">TODO</div>
+        <div className="font-semibold mb-1">예정 기능</div>
         <ul className="list-disc ml-5 space-y-1">
-          <li>exams 자산 생성 API 상태 조회 표시</li>
-          <li>생성 이력(assets list) 바로가기</li>
-          <li>권한/락 상태에 따른 버튼 활성 제어</li>
+          <li>자산 생성 상태 조회</li>
+          <li>생성 이력 바로가기</li>
+          <li>권한 상태에 따른 버튼 활성 제어</li>
         </ul>
       </div>
 

@@ -51,6 +51,19 @@ const B = {
   // 클리닉
   clinic_name:       { id: "clinic_name",       label: "클리닉명",         insertText: "#{클리닉명}",          previewValue: "수학 보충 클리닉" },
   clinic_place:      { id: "clinic_place",      label: "클리닉 장소",      insertText: "#{장소}",              previewValue: "3층 세미나실" },
+  // 커뮤니티
+  post_title:        { id: "post_title",        label: "게시글 제목",      insertText: "#{게시글제목}",        previewValue: "수학 문제 질문" },
+  answer_summary:    { id: "answer_summary",    label: "답변 요약",        insertText: "#{답변요약}",          previewValue: "풀이 방법을 안내드립니다." },
+  counsel_type:      { id: "counsel_type",      label: "상담 유형",        insertText: "#{상담유형}",          previewValue: "학습 상담" },
+  // 직원
+  staff_name:        { id: "staff_name",        label: "직원명",           insertText: "#{직원명}",            previewValue: "김영희" },
+  department:        { id: "department",         label: "부서",             insertText: "#{부서}",              previewValue: "수학과" },
+  position:          { id: "position",           label: "직급",             insertText: "#{직급}",              previewValue: "강사" },
+  pay_period:        { id: "pay_period",         label: "급여 기간",        insertText: "#{급여기간}",          previewValue: "2026년 3월" },
+  pay_amount:        { id: "pay_amount",         label: "급여 금액",        insertText: "#{급여금액}",          previewValue: "3,200,000원" },
+  expense_amount:    { id: "expense_amount",     label: "경비 금액",        insertText: "#{경비금액}",          previewValue: "150,000원" },
+  work_hours:        { id: "work_hours",         label: "근무 시간",        insertText: "#{근무시간}",          previewValue: "160시간" },
+  work_days:         { id: "work_days",          label: "근무 일수",        insertText: "#{근무일수}",          previewValue: "22일" },
 } satisfies Record<string, TemplateBlock>;
 
 // ─── 카테고리별 블록 조합 ───
@@ -67,6 +80,8 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
   clinic:     [...COMMON, B.clinic_name, B.clinic_place],
   payment:    [...COMMON],
   notice:     [...COMMON],
+  community:  [...COMMON, B.post_title, B.answer_summary, B.counsel_type],
+  staff:      [...COMMON, B.staff_name, B.department, B.position, B.pay_period, B.pay_amount, B.expense_amount, B.work_hours, B.work_days],
 };
 
 // ─── 카테고리 타입 ───
@@ -81,9 +96,13 @@ export type TemplateCategory =
   | "grades"
   | "clinic"
   | "payment"
-  | "notice";
+  | "notice"
+  | "community"
+  | "staff";
 
+/** "default" (사용자) 카테고리는 모든 블록을 제공 */
 export function getBlocksForCategory(category: TemplateCategory): TemplateBlock[] {
+  if (category === "default") return Object.values(B);
   return CATEGORY_BLOCKS[category] ?? [...COMMON];
 }
 
@@ -108,6 +127,8 @@ export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   clinic: "클리닉/상담",
   payment: "결제",
   notice: "운영공지",
+  community: "커뮤니티",
+  staff: "직원",
 };
 
 // ─── 블록별 고유 색상 ───
@@ -140,6 +161,19 @@ const BLOCK_COLORS: Record<string, { bg: string; color: string; border: string }
   // 클리닉 — 핑크/퍼플 계열
   clinic_name:      { bg: "color-mix(in srgb, #d946ef 12%, transparent)", color: "#c026d3", border: "color-mix(in srgb, #d946ef 30%, transparent)" },
   clinic_place:     { bg: "color-mix(in srgb, #a78bfa 12%, transparent)", color: "#7c3aed", border: "color-mix(in srgb, #a78bfa 30%, transparent)" },
+  // 커뮤니티 — 인디고/블루 계열
+  post_title:       { bg: "color-mix(in srgb, #818cf8 12%, transparent)", color: "#6366f1", border: "color-mix(in srgb, #818cf8 30%, transparent)" },
+  answer_summary:   { bg: "color-mix(in srgb, #38bdf8 12%, transparent)", color: "#0284c7", border: "color-mix(in srgb, #38bdf8 30%, transparent)" },
+  counsel_type:     { bg: "color-mix(in srgb, #c084fc 12%, transparent)", color: "#9333ea", border: "color-mix(in srgb, #c084fc 30%, transparent)" },
+  // 직원 — 앰버/브라운 계열
+  staff_name:       { bg: "color-mix(in srgb, #fb923c 12%, transparent)", color: "#ea580c", border: "color-mix(in srgb, #fb923c 30%, transparent)" },
+  department:       { bg: "color-mix(in srgb, #fbbf24 12%, transparent)", color: "#d97706", border: "color-mix(in srgb, #fbbf24 30%, transparent)" },
+  position:         { bg: "color-mix(in srgb, #a3e635 12%, transparent)", color: "#65a30d", border: "color-mix(in srgb, #a3e635 30%, transparent)" },
+  pay_period:       { bg: "color-mix(in srgb, #34d399 12%, transparent)", color: "#059669", border: "color-mix(in srgb, #34d399 30%, transparent)" },
+  pay_amount:       { bg: "color-mix(in srgb, #f472b6 12%, transparent)", color: "#db2777", border: "color-mix(in srgb, #f472b6 30%, transparent)" },
+  expense_amount:   { bg: "color-mix(in srgb, #fb7185 12%, transparent)", color: "#e11d48", border: "color-mix(in srgb, #fb7185 30%, transparent)" },
+  work_hours:       { bg: "color-mix(in srgb, #22d3ee 12%, transparent)", color: "#0891b2", border: "color-mix(in srgb, #22d3ee 30%, transparent)" },
+  work_days:        { bg: "color-mix(in srgb, #a78bfa 12%, transparent)", color: "#7c3aed", border: "color-mix(in srgb, #a78bfa 30%, transparent)" },
 };
 
 const FALLBACK_COLOR = { bg: "color-mix(in srgb, var(--color-primary) 10%, transparent)", color: "var(--color-primary)", border: "color-mix(in srgb, var(--color-primary) 25%, transparent)" };

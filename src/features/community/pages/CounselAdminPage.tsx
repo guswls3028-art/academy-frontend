@@ -512,7 +512,7 @@ function CounselComposer({ postId, allowReply = true }: { postId: number; allowR
       qc.invalidateQueries({ queryKey: ["post-replies", postId] });
       qc.invalidateQueries({ queryKey: ["community-post", postId] });
       setContent("");
-      feedback.success("답변이 등록되었습니다.");
+      feedback.success("답변이 등록되었습니다. 자동발송이 설정되어 있으면 알림이 발송됩니다.");
     },
     onError: (e: unknown) => feedback.error((e as Error)?.message ?? "등록에 실패했습니다."),
   });
