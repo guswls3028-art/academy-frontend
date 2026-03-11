@@ -39,15 +39,6 @@ export default function StaffEditModal({
     });
   }, [open, staff]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
-
   const handleSubmit = async () => {
     if (!staff || busy) return;
     if (!String(form.name ?? "").trim()) {

@@ -56,12 +56,12 @@ export function useUpdateKakaoPfid() {
   });
 }
 
-/** 메시징 설정 수정 (발신번호, PFID 등) */
+/** 메시징 설정 수정 (발신번호, PFID, 공급자 등) */
 export function useUpdateMessagingInfo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (
-      payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender">>
+      payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender" | "messaging_provider">>
     ) => updateMessagingInfo(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
   });

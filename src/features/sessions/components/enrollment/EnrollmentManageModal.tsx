@@ -109,17 +109,6 @@ export default function EnrollmentManageModal({
 
   const readOnly = !onSave;
 
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      safeClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, safeClose]);
-
   if (!open) return null;
 
   const canInteract = !loading && !saving;

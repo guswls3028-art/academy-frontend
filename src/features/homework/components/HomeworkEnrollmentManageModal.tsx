@@ -96,18 +96,6 @@ export default function HomeworkEnrollmentManageModal({
     if (ok) onClose();
   }, [saving, dirty, onClose]);
 
-  // ESC 닫기 + dirty confirm
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      e.preventDefault();
-      safeClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, safeClose]);
-
   const filtered = useMemo(() => {
     const k = keyword.trim().toLowerCase();
     if (!k) return rows;

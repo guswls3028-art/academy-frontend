@@ -11,10 +11,17 @@ import {
   FiPhone,
   FiExternalLink,
   FiPlusCircle,
+  FiSettings,
 } from "react-icons/fi";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { useMessagingInfo, useUpdateKakaoPfid, useChargeCredits } from "../hooks/useMessagingInfo";
+import {
+  useMessagingInfo,
+  useUpdateKakaoPfid,
+  useChargeCredits,
+  useUpdateMessagingInfo,
+} from "../hooks/useMessagingInfo";
+import type { MessagingProvider } from "../api/messages.api";
 
 /** KPI용 상태 칩 (크레딧/발신번호/채널/서비스 상태) */
 function StatusChip({ ok, label }: { ok: boolean; label: string }) {
@@ -154,12 +161,18 @@ export default function MessageSettingsPage() {
   const { data: info } = useMessagingInfo();
   const { mutate: updatePfid, isPending } = useUpdateKakaoPfid();
   const { mutate: chargeCredits, isPending: isCharging } = useChargeCredits();
+  const { mutate: updateInfo, isPending: isUpdatingInfo } = useUpdateMessagingInfo();
   const [pfid, setPfid] = useState("");
   const [chargeAmount, setChargeAmount] = useState("");
+  const [provider, setProvider] = useState<MessagingProvider>("solapi");
 
   useEffect(() => {
     if (info?.kakao_pfid != null) setPfid(info.kakao_pfid);
   }, [info?.kakao_pfid]);
+
+  useEffect(() => {
+    if (info?.messaging_provider) setProvider(info.messaging_provider);
+  }, [info?.messaging_provider]);
 
   const handleSavePfid = () => {
     const value = pfid.trim();

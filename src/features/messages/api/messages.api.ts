@@ -9,6 +9,9 @@ const PREFIX = "/messaging";
 // 타입 (1~4단계 백엔드 스키마와 맞춤)
 // ----------------------------------------
 
+/** 메시징 공급자 (솔라피 또는 뿌리오) */
+export type MessagingProvider = "solapi" | "ppurio";
+
 export interface TenantMessagingInfo {
   /** 학원 개별 카카오 프로필 ID (연동 시 저장) */
   kakao_pfid: string | null;
@@ -24,6 +27,8 @@ export interface TenantMessagingInfo {
   sms_allowed?: boolean;
   /** 알림톡 채널 출처: 시스템 기본 채널 vs 학원 자체 연동 채널 */
   channel_source?: "system_default" | "tenant_override";
+  /** 메시징 공급자: solapi(기본) 또는 ppurio */
+  messaging_provider?: MessagingProvider;
 }
 
 export interface NotificationLogItem {
@@ -91,9 +96,9 @@ export async function verifySender(phoneNumber: string): Promise<{
   return res.data;
 }
 
-/** 메시징 설정 일부 수정 (발신번호, PFID 등) */
+/** 메시징 설정 일부 수정 (발신번호, PFID, 공급자 등) */
 export async function updateMessagingInfo(
-  payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender">>
+  payload: Partial<Pick<TenantMessagingInfo, "kakao_pfid" | "messaging_sender" | "messaging_provider">>
 ): Promise<TenantMessagingInfo> {
   const res = await api.patch<TenantMessagingInfo>(`${PREFIX}/info/`, payload);
   return res.data;
