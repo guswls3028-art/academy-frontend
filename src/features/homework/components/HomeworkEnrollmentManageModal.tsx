@@ -245,7 +245,6 @@ export default function HomeworkEnrollmentManageModal({
                     <colgroup>
                       <col style={{ width: TABLE_COL.checkbox }} />
                       <col style={{ width: TABLE_COL.nameCompactModal }} />
-                      <col style={{ width: TABLE_COL.mediumModal }} />
                     </colgroup>
                     <thead>
                       <tr
@@ -280,19 +279,13 @@ export default function HomeworkEnrollmentManageModal({
                         >
                           학생
                         </th>
-                        <th
-                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
-                          style={{ borderColor: "var(--color-border-divider)" }}
-                        >
-                          enrollment_id
-                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtered.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={3}
+                            colSpan={2}
                             className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                           >
                             {keyword.trim()
@@ -329,9 +322,6 @@ export default function HomeworkEnrollmentManageModal({
                                   lectures={r.lectures ?? undefined}
                                   chipSize={14}
                                 />
-                              </td>
-                              <td className="py-1.5 px-3 text-[var(--color-text-muted)]">
-                                {r.enrollment_id}
                               </td>
                             </tr>
                           );

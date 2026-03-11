@@ -223,17 +223,12 @@ export default function SessionAssessmentSidePanel({
             {!examsLoading && exams.length === 0 && <Empty>시험 없음</Empty>}
             {exams.map((exam: SessionExamRow) => {
               const active = examId != null && Number(exam.exam_id) === examId;
-              const stats = examStatsById[Number(exam.exam_id)];
-              const statusLine = stats
-                ? `채점 ${stats.participant_count} / 합격 ${stats.pass_count} / 불합 ${stats.fail_count}`
-                : "";
               const busy = examBusy?.id === Number(exam.exam_id) ? examBusy.action : null;
               return (
                 <ExamItemRow
                   key={exam.exam_id}
                   active={active}
                   label={exam.title}
-                  sub={statusLine}
                   status={exam.status}
                   onSelect={() => onSelectExam(Number(exam.exam_id))}
                   onStart={(e) => { e.stopPropagation(); handleExamProgress(Number(exam.exam_id)); }}
@@ -309,7 +304,6 @@ export default function SessionAssessmentSidePanel({
 function ExamItemRow({
   active,
   label,
-  sub,
   status,
   onSelect,
   onStart,
@@ -318,7 +312,6 @@ function ExamItemRow({
 }: {
   active: boolean;
   label: string;
-  sub: string;
   status: SessionExamRow["status"];
   onSelect: () => void;
   onStart: (e: React.MouseEvent) => void;
@@ -374,7 +367,6 @@ function ExamItemRow({
           )}
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{label}</div>
-            {sub && <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">{sub}</div>}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>

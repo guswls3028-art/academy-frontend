@@ -196,9 +196,6 @@ export default function HomeworkEnrollmentPanel({
                     (불러오기 실패)
                   </span>
                 )}
-                <span className="ml-2 text-xs text-[var(--text-muted)]">
-                  homework #{hid}
-                </span>
               </div>
 
               <Button
