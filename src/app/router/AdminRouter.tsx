@@ -4,6 +4,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AppLayout, DomainLayout } from "@/shared/ui/layout";
+import { SendMessageModalProvider } from "@/features/messages/context/SendMessageModalContext";
 
 function AdminRouteFallback() {
   return (
@@ -149,7 +150,11 @@ export default function AdminRouter() {
         {/* ================= Sessions ================= */}
         <Route
           path="lectures/:lectureId/sessions/:sessionId/*"
-          element={<SessionLayout />}
+          element={
+            <SendMessageModalProvider>
+              <SessionLayout />
+            </SendMessageModalProvider>
+          }
         >
           <Route index element={<SessionDetailPage />} />
           <Route path="attendance" element={<SessionDetailPage />} />
