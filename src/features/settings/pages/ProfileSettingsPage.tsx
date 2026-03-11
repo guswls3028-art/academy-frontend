@@ -95,6 +95,88 @@ function ProfileEditGroup({
   );
 }
 
+// ── Username inline edit group ───────────────────────────────────────────────
+function UsernameEditGroup({
+  initialUsername,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  initialUsername: string;
+  onSave: (username: string) => Promise<void>;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const [username, setUsername] = useState(initialUsername);
+  const [error, setError] = useState("");
+
+  const handleSave = async () => {
+    setError("");
+    const val = username.trim();
+    if (!val) { setError("아이디를 입력해주세요."); return; }
+    if (val === initialUsername) { onCancel(); return; }
+    try {
+      await onSave(val);
+    } catch (e: unknown) {
+      const detail =
+        e && typeof e === "object" && "response" in e
+          ? (e as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : undefined;
+      setError(detail || "아이디 변경에 실패했습니다.");
+    }
+  };
+
+  return (
+    <div className={s.rowEdit}>
+      <div className={s.rowLabel} style={{ paddingTop: 6 }}>계정 ID</div>
+      <div className={s.rowEditRight}>
+        <div className={s.rowEditInputs}>
+          <div>
+            <p className={s.fieldLabel}>새 아이디</p>
+            <input
+              type="text"
+              className="ds-input"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="새 아이디"
+              aria-label="새 아이디"
+              disabled={saving}
+              autoFocus
+              style={{ maxWidth: 260, fontFamily: "monospace" }}
+            />
+          </div>
+        </div>
+        {error && (
+          <div style={{
+            fontSize: 13, fontWeight: 600, color: "var(--color-error)",
+            background: "color-mix(in srgb, var(--color-error) 8%, var(--color-bg-surface))",
+            border: "1px solid color-mix(in srgb, var(--color-error) 20%, var(--color-border-divider))",
+            borderRadius: 6, padding: "8px 12px",
+          }}>
+            {error}
+          </div>
+        )}
+        <div className={s.rowEditActions}>
+          <Button
+            type="button"
+            intent="primary"
+            size="sm"
+            onClick={handleSave}
+            disabled={saving}
+            loading={saving}
+            leftIcon={saving ? undefined : <FiCheck size={13} />}
+          >
+            {saving ? "변경 중…" : "변경"}
+          </Button>
+          <Button type="button" intent="ghost" size="sm" onClick={onCancel} disabled={saving} leftIcon={<FiX size={13} />}>
+            취소
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Password inline change ────────────────────────────────────────────────────
 function PasswordChangeGroup({
   onDone,
@@ -185,6 +267,7 @@ export default function ProfileSettingsPage() {
   const { clearAuth } = useAuth();
 
   const [editingProfile, setEditingProfile] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
   const meQ = useQuery({ queryKey: ["me"], queryFn: fetchMe });
@@ -197,6 +280,15 @@ export default function ProfileSettingsPage() {
       setEditingProfile(false);
     },
     onError: () => feedback.error("저장에 실패했습니다."),
+  });
+
+  const usernameMut = useMutation({
+    mutationFn: (username: string) => updateProfile({ username }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["me"] });
+      feedback.success("아이디가 변경되었습니다.");
+      setEditingUsername(false);
+    },
   });
 
   if (meQ.isLoading) {
@@ -274,16 +366,29 @@ export default function ProfileSettingsPage() {
             </>
           )}
 
-          {/* Account ID — readonly */}
-          <div className={s.row}>
-            <span className={s.rowLabel}>계정 ID</span>
-            <span className={s.rowValue} style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 600 }}>
-              {displayId || "—"}
-            </span>
-            <div className={s.rowActions}>
-              <span className={s.readonlyBadge}>변경 불가</span>
+          {/* Account ID */}
+          {editingUsername ? (
+            <UsernameEditGroup
+              initialUsername={displayId}
+              onSave={async (username) => {
+                await usernameMut.mutateAsync(username);
+              }}
+              onCancel={() => setEditingUsername(false)}
+              saving={usernameMut.isPending}
+            />
+          ) : (
+            <div className={s.row}>
+              <span className={s.rowLabel}>계정 ID</span>
+              <span className={s.rowValue} style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 600 }}>
+                {displayId || "—"}
+              </span>
+              <div className={s.rowActions}>
+                <button className={s.editBtn} onClick={() => setEditingUsername(true)} type="button">
+                  <FiEdit2 size={11} aria-hidden />수정
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
