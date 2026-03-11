@@ -49,6 +49,7 @@ const MESSAGE_MODE_LABELS: Record<string, string> = {
 };
 
 type StatusFilter = "all" | "success" | "failure";
+const PAGE_SIZE = 30;
 
 const FILTER_OPTIONS: { key: StatusFilter; label: string; count?: number }[] = [
   { key: "all", label: "전체" },
@@ -612,8 +613,7 @@ export default function MessageLogPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<NotificationLogItem | null>(null);
-  const PAGE_SIZE = 30;
-  const { data, isLoading } = useNotificationLog({ page: currentPage, page_size: PAGE_SIZE });
+  const { data, isLoading, isError } = useNotificationLog({ page: currentPage, page_size: PAGE_SIZE });
   const results = data?.results ?? [];
   const count = data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
@@ -625,9 +625,10 @@ export default function MessageLogPage() {
           statusFilter === "success" ? r.success : !r.success
         );
 
-  // 통계 카운트
-  const successCount = results.filter((r) => r.success).length;
-  const failCount = results.filter((r) => !r.success).length;
+  const handleFilterChange = (key: StatusFilter) => {
+    setStatusFilter(key);
+    setCurrentPage(1);
+  };
 
   return (
     <div
@@ -674,63 +675,49 @@ export default function MessageLogPage() {
         {/* 필터 */}
         {!isLoading && results.length > 0 ? (
           <div style={{ display: "flex", gap: 4 }}>
-            {FILTER_OPTIONS.map((opt) => {
-              const cnt =
-                opt.key === "all"
-                  ? results.length
-                  : opt.key === "success"
-                  ? successCount
-                  : failCount;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => setStatusFilter(opt.key)}
-                  style={{
-                    padding: "5px 14px",
-                    borderRadius: 999,
-                    border: `1px solid ${
-                      statusFilter === opt.key
-                        ? "var(--color-primary)"
-                        : "var(--color-border-divider)"
-                    }`,
-                    background:
-                      statusFilter === opt.key
-                        ? "color-mix(in srgb, var(--color-primary) 10%, transparent)"
-                        : "transparent",
-                    color:
-                      statusFilter === opt.key
-                        ? "var(--color-primary)"
-                        : "var(--color-text-secondary)",
-                    fontSize: 13,
-                    fontWeight: statusFilter === opt.key ? 600 : 400,
-                    cursor: "pointer",
-                    transition: "all 0.12s",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  {opt.label}
-                  <span
-                    style={{
-                      fontSize: 11,
-                      opacity: 0.7,
-                      fontWeight: 500,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {cnt}
-                  </span>
-                </button>
-              );
-            })}
+            {FILTER_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => handleFilterChange(opt.key)}
+                style={{
+                  padding: "5px 14px",
+                  borderRadius: 999,
+                  border: `1px solid ${
+                    statusFilter === opt.key
+                      ? "var(--color-primary)"
+                      : "var(--color-border-divider)"
+                  }`,
+                  background:
+                    statusFilter === opt.key
+                      ? "color-mix(in srgb, var(--color-primary) 10%, transparent)"
+                      : "transparent",
+                  color:
+                    statusFilter === opt.key
+                      ? "var(--color-primary)"
+                      : "var(--color-text-secondary)",
+                  fontSize: 13,
+                  fontWeight: statusFilter === opt.key ? 600 : 400,
+                  cursor: "pointer",
+                  transition: "all 0.12s",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         ) : null}
       </div>
 
       {/* 콘텐츠 */}
-      {isLoading ? (
+      {isError ? (
+        <EmptyState
+          title="발송 내역을 불러오지 못했습니다"
+          description="잠시 후 다시 시도해 주세요."
+          tone="error"
+          scope="panel"
+        />
+      ) : isLoading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {[1, 2, 3, 4, 5].map((i) => (
             <div

@@ -52,7 +52,7 @@ export default function AdminModal({
       zIndex={zIndex}
       mask={{ closable: !isConfirm }}
       closable={!isConfirm}
-      keyboard={true}
+      keyboard={false}
       styles={{
         content: {
           padding: 0,

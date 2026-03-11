@@ -62,12 +62,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("refresh");
     setUser(null);
 
-    // 세션 만료 플래그가 있으면 안내 메시지 표시 후 로그인으로 이동
+    // 세션 만료 플래그가 있으면 안내 메시지 표시 후 루트로 이동 (RootRedirect가 적절한 곳으로 보냄)
     try {
       if (sessionStorage.getItem("session_expired") === "1") {
         sessionStorage.removeItem("session_expired");
         alert("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
-        window.location.href = "/login";
+        window.location.href = "/";
       }
     } catch { /* ignore */ }
   }, []);
@@ -86,10 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const status = err?.response?.status;
       if (status === 401 || status === 403 || status === 404) {
         clearAuth();
-      } else if (!err?.response && err?.code !== "ECONNABORTED") {
-        // CORS 차단된 401: 서버 응답 없고 타임아웃도 아니면 인증 실패로 간주
-        clearAuth();
       }
+      // 네트워크 오류(일시적 끊김 등)는 인증 상태를 유지 — axios 인터셉터의 refresh 메커니즘에 위임
       throw err;
     }
   }, [clearAuth]);
@@ -109,12 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const status = err?.response?.status;
         if (status === 401 || status === 403 || status === 404) {
           clearAuth();
-        } else if (!err?.response && err?.code !== "ECONNABORTED") {
-          // CORS 차단된 401 가능성 → 인증 해제
-          clearAuth();
-        } else {
-          setUser(null);
         }
+        // 네트워크 오류(일시적 끊김)는 인증 상태 유지 — 로그아웃하지 않음
       } finally {
         setIsLoading(false);
       }
@@ -142,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user) {
           setUser(null);
           alert("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
-          window.location.href = "/login";
+          window.location.href = "/";
         }
         return;
       }
@@ -152,15 +146,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const status = err?.response?.status;
           if (status === 401 || status === 403 || status === 404) {
             clearAuth();
-          } else if (!err?.response && err?.code !== "ECONNABORTED") {
-            clearAuth();
           }
+          // 네트워크 오류는 인증 상태 유지
         }
       );
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
+  }, [user, clearAuth]);
 
   const value = useMemo<AuthState>(
     () => ({
