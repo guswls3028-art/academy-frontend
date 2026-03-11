@@ -37,6 +37,8 @@ export type TemplateEditModalProps = {
   onSubmit: (payload: MessageTemplatePayload) => void;
   isPending?: boolean;
   zIndex?: number;
+  /** SMS/메시지 발송 연동 여부. false이면 메시지 탭에 연동 안내 표시 */
+  smsConnected?: boolean;
 };
 
 type EditorTab = "message" | "alimtalk";

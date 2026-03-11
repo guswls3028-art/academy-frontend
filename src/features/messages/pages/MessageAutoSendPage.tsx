@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FiZap, FiInfo } from "react-icons/fi";
+import { FiZap } from "react-icons/fi";
 import { Switch } from "antd";
 import {
   fetchAutoSendConfigs,
@@ -15,7 +15,6 @@ import {
   type MessageTemplateItem,
   type MessageTemplatePayload,
 } from "../api/messages.api";
-import { useMessagingInfo } from "../hooks/useMessagingInfo";
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import AutoSendSectionTree, {
@@ -348,9 +347,6 @@ export default function MessageAutoSendPage() {
   const qc = useQueryClient();
   const [selectedSection, setSelectedSection] = useState<AutoSendSectionId>("signup");
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplateItem | null>(null);
-  const { data: messagingInfo } = useMessagingInfo();
-  const smsAllowed = messagingInfo?.sms_allowed ?? true;
-
   const { data: configs = EMPTY_CONFIGS, isLoading } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: fetchAutoSendConfigs,
@@ -450,40 +446,6 @@ export default function MessageAutoSendPage() {
           학원 운영 이벤트(가입·출결·시험·과제·클리닉·결제 등) 발생 시 학생·학부모에게 알림톡/SMS를 자동 발송합니다.
           좌측에서 구간을 선택하고 각 트리거별로 템플릿·발송 시점·방식을 설정하세요.
         </p>
-        {!smsAllowed && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-              padding: "10px 14px",
-              borderRadius: "var(--radius-md)",
-              background:
-                "color-mix(in srgb, var(--color-status-warning, #d97706) 8%, transparent)",
-              border:
-                "1px solid color-mix(in srgb, var(--color-status-warning, #d97706) 20%, transparent)",
-              marginTop: "var(--space-3)",
-            }}
-          >
-            <FiInfo
-              size={14}
-              style={{
-                color: "var(--color-status-warning, #d97706)",
-                flexShrink: 0,
-                marginTop: 1,
-              }}
-              aria-hidden
-            />
-            <span
-              style={{
-                fontSize: 13,
-                color: "var(--color-text-secondary)",
-              }}
-            >
-              문자(SMS)는 이 학원 정책상 사용할 수 없습니다. SMS·알림톡→SMS 폴백은 선택할 수 없습니다.
-            </span>
-          </div>
-        )}
       </div>
 
       <div className={panelStyles.body}>
