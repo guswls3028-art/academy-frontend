@@ -157,6 +157,59 @@ function IconCheck() {
   );
 }
 
+/** 네이티브 프로필 드롭다운 — Ant Design Dropdown 대신 직접 구현 (모바일 터치 호환) */
+function ProfileDropdown({
+  open,
+  onToggle,
+  onClose,
+  content,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  content: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [open, onClose]);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div onClick={onToggle} style={{ cursor: "pointer" }}>
+        {children}
+      </div>
+      {open && (
+        <div
+          className="app-header__profileDropdownOverlay"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: 0,
+            zIndex: 1050,
+          }}
+        >
+          {content}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Header() {
   const loc = useLocation();
   const nav = useNavigate();

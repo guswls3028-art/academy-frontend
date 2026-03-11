@@ -1,10 +1,9 @@
 /**
  * 상단 바 — 좌: 로고·타이틀 / 우: 프로필(아바타+이름) 클릭 시 내정보·설정·로그아웃
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dropdown } from "antd";
 import { getStudentTenantBranding } from "@/student/shared/tenant/studentTenantBranding";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import { getTenantCodeForApiRequest, getTenantIdFromCode, getTenantBranding } from "@/shared/tenant";
@@ -54,6 +53,22 @@ export default function StudentTopBar({ tenantCode }: Props) {
   });
 
   const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [profileOpen]);
   const currentTenantCode = getTenantCodeForApiRequest();
   const isTchulTheme = currentTenantCode != null && currentTenantCode === "tchul";
   // 테넌트 브랜딩에서 헤더 전용 로고 URL 가져오기
@@ -211,20 +226,12 @@ export default function StudentTopBar({ tenantCode }: Props) {
         </span>
       </Link>
 
-      <Dropdown
-        open={profileOpen}
-        onOpenChange={setProfileOpen}
-        trigger={["click"]}
-        placement="bottomRight"
-        popupRender={() => profileDropdownContent}
-        classNames={{
-          root: `stu-topbar__profileDropdownOverlay${isVideoPage ? " stu-topbar__profileDropdownOverlay--video" : ""}`,
-        }}
-      >
+      <div ref={profileRef} style={{ position: "relative" }}>
         <button
           type="button"
           className="stu-topbar__profileBtn"
           aria-label="프로필 메뉴"
+          onClick={() => setProfileOpen((v) => !v)}
         >
           {profile ? (
             <StudentAvatar profile={profile} />
@@ -250,7 +257,20 @@ export default function StudentTopBar({ tenantCode }: Props) {
               : (profile?.name || "학생")}
           </span>
         </button>
-      </Dropdown>
+        {profileOpen && (
+          <div
+            className={`stu-topbar__profileDropdownOverlay${isVideoPage ? " stu-topbar__profileDropdownOverlay--video" : ""}`}
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              right: 0,
+              zIndex: 1050,
+            }}
+          >
+            {profileDropdownContent}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
