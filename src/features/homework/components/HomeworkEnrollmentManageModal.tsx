@@ -302,7 +302,9 @@ export default function HomeworkEnrollmentManageModal({
                             colSpan={6}
                             className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                           >
-                            검색 결과 없음. 검색어·필터를 바꿔 보세요.
+                            {keyword.trim()
+                              ? "검색 결과 없음. 검색어·필터를 바꿔 보세요."
+                              : "표시할 학생이 없습니다."}
                           </td>
                         </tr>
                       ) : (

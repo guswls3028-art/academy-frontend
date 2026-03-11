@@ -233,6 +233,10 @@ export default function EnrollmentManageModal({
                     <colgroup>
                       <col style={{ width: TABLE_COL.checkbox }} />
                       <col style={{ width: TABLE_COL.nameCompactModal }} />
+                      <col style={{ width: TABLE_COL.phoneCompact }} />
+                      <col style={{ width: TABLE_COL.phoneCompact }} />
+                      <col style={{ width: TABLE_COL.mediumModal }} />
+                      <col style={{ width: TABLE_COL.shortModal }} />
                     </colgroup>
                     <thead>
                       <tr
@@ -262,7 +266,7 @@ export default function EnrollmentManageModal({
                                   clearAll();
                                 else selectAll();
                               }}
-                              aria-label="현재 목록 전체 선택"
+                              aria-label="전체 선택 (검색·필터 결과 전체)"
                             />
                           )}
                         </th>
@@ -272,13 +276,37 @@ export default function EnrollmentManageModal({
                         >
                           이름
                         </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          부모님 전화
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학생 전화
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학교
+                        </th>
+                        <th
+                          className="border-b py-1.5 px-3 text-left text-[var(--color-text-muted)]"
+                          style={{ borderColor: "var(--color-border-divider)" }}
+                        >
+                          학년
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtered.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={2}
+                            colSpan={6}
                             className="py-5 px-3 text-center text-[var(--color-text-muted)]"
                           >
                             {keyword.trim()
@@ -323,6 +351,18 @@ export default function EnrollmentManageModal({
                                   chipSize={14}
                                 />
                               </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                -
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                -
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] truncate leading-6">
+                                -
+                              </td>
+                              <td className="py-1.5 px-3 text-[var(--color-text-secondary)] leading-6">
+                                -
+                              </td>
                             </tr>
                           );
                         })
@@ -331,6 +371,18 @@ export default function EnrollmentManageModal({
                   </table>
                 )}
               </div>
+
+              {/* 테이블 하단 총계 (차시 수강생 등록 모달과 동일) */}
+              {(filtered.length > 0 || rows.length > 0) && (
+                <div
+                  className="flex items-center justify-between gap-3 py-2.5 px-3 border-t shrink-0 bg-[var(--color-bg-surface)]"
+                  style={{ borderColor: "var(--color-border-divider)" }}
+                >
+                  <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    총 {rows.length}명
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
