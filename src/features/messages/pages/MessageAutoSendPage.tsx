@@ -192,26 +192,9 @@ function TriggerCard({
           : status === "REJECTED" ? "반려"
           : status || "";
 
-        // 수정 클릭 시 templates 배열에서 full object 조회
         const handleEditClick = () => {
           if (!config.template) return;
-          const full = templates.find((t) => t.id === config.template);
-          if (full) {
-            onEditTemplate?.(full);
-          } else {
-            // 템플릿 목록에 없으면 최소 정보로 모달 오픈
-            onEditTemplate?.({
-              id: config.template,
-              name: config.template_name,
-              category: "default",
-              subject: "",
-              body: "",
-              solapi_template_id: "",
-              solapi_status: config.template_solapi_status,
-              created_at: "",
-              updated_at: "",
-            } as MessageTemplateItem);
-          }
+          onEditTemplate?.(config.template);
         };
 
         return (
@@ -475,7 +458,16 @@ export default function MessageAutoSendPage() {
                     templates={templates}
                     onUpdate={handleUpdate}
                     saving={updateMut.isPending}
-                    onEditTemplate={(tpl) => setEditingTemplate(tpl)}
+                    onEditTemplate={(templateId) => {
+                      const cached = templates.find((t) => t.id === templateId);
+                      if (cached) {
+                        setEditingTemplate(cached);
+                      } else {
+                        fetchMessageTemplate(templateId)
+                          .then((tpl) => setEditingTemplate(tpl))
+                          .catch(() => feedback.error("템플릿 정보를 불러올 수 없습니다."));
+                      }
+                    }}
                     smsConnected={smsConnected}
                   />
                 ))}
