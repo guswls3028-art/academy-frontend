@@ -15,13 +15,14 @@ import { useProgram } from "@/shared/program";
 
 const AdminRouter = lazy(() => import("@/app/router/AdminRouter"));
 const DevAppRouter = lazy(() => import("@/dev_app/router/DevAppRouter"));
+const PromoRouter = lazy(() => import("@/promo/PromoRouter"));
 
 function MaintenanceGate({ enabled }: { enabled: boolean }) {
   const location = useLocation();
   if (!enabled) return <Outlet />;
 
   const p = location.pathname || "";
-  if (p.startsWith("/dev") || p.startsWith("/login") || p.startsWith("/maintenance")) {
+  if (p.startsWith("/dev") || p.startsWith("/login") || p.startsWith("/promo") || p.startsWith("/maintenance")) {
     return <Outlet />;
   }
 
@@ -44,9 +45,14 @@ function RootRedirect() {
 
     redirectedRef.current = true;
 
-    // ✅ 핵심 수정: 비로그인 상태 명시 처리
+    // 비로그인: 홍보 테넌트(1번/9999)면 홍보 앱, 그 외는 로그인 페이지
     if (!user) {
-      navigate("/login", { replace: true });
+      const tc = program.tenantCode;
+      if (tc === "hakwonplus" || tc === "9999") {
+        navigate("/promo", { replace: true });
+      } else {
+        navigate("/login", { replace: true });
+      }
       return;
     }
 
@@ -89,6 +95,20 @@ export default function AppRouter() {
   return (
     <Routes>
       <Route path="/login/*" element={<AuthRouter />} />
+      <Route
+        path="/promo/*"
+        element={
+          <Suspense
+            fallback={
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 200, color: "#666", fontSize: 14 }}>
+                불러오는 중…
+              </div>
+            }
+          >
+            <PromoRouter />
+          </Suspense>
+        }
+      />
       <Route path="/maintenance" element={<MaintenancePage />} />
 
       <Route
