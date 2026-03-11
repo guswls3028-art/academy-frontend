@@ -20,7 +20,11 @@ import {
   deleteReply as deleteReplyApi,
   deletePost,
   updatePost,
+  uploadPostAttachments,
+  getAttachmentDownloadUrl,
+  deletePostAttachment,
   type PostEntity,
+  type PostAttachment,
   type BlockType,
   type Answer,
   type ScopeNodeMinimal,
@@ -480,8 +484,10 @@ function BoardCreatePane({
   const [blockTypeId, setBlockTypeId] = useState<number | "">("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = { current: null as HTMLInputElement | null };
 
   // Auto-resolve node_ids from current scope
   const autoNodeIds = useMemo(() => {
@@ -511,12 +517,15 @@ function BoardCreatePane({
     setSubmitting(true);
     setError(null);
     try {
-      await createPost({
+      const post = await createPost({
         block_type: Number(blockTypeId),
         title: title.trim(),
         content,
         node_ids: autoNodeIds,
       });
+      if (files.length > 0) {
+        await uploadPostAttachments(post.id, files);
+      }
       onSuccess();
     } catch (e: unknown) {
       const msg =
@@ -574,6 +583,40 @@ function BoardCreatePane({
         <div style={{ marginBottom: "var(--space-4, 16px)" }}>
           <label className="community-field__label" style={{ display: "block", marginBottom: 6 }}>내용</label>
           <RichTextEditor value={content} onChange={setContent} placeholder="내용을 입력하세요..." minHeight={250} />
+        </div>
+
+        <div style={{ marginBottom: "var(--space-4, 16px)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <label className="community-field__label" style={{ margin: 0 }}>
+              첨부파일 {files.length > 0 && `(${files.length}/10)`}
+            </label>
+            <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={files.length >= 10}>
+              + 파일 추가
+            </Button>
+            <input
+              ref={(el) => { fileInputRef.current = el; }}
+              type="file"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files) {
+                  setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10));
+                  e.target.value = "";
+                }
+              }}
+            />
+          </div>
+          {files.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {files.map((f, i) => (
+                <div key={`${f.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--color-bg-surface-soft, #f5f5f5)", borderRadius: "var(--radius-sm, 6px)", fontSize: 13 }}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                  <span style={{ fontSize: 11, color: "var(--color-text-muted)", flexShrink: 0 }}>{f.size < 1024 * 1024 ? `${(f.size / 1024).toFixed(1)}KB` : `${(f.size / (1024 * 1024)).toFixed(1)}MB`}</span>
+                  <button type="button" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 2, color: "var(--color-text-muted)" }}>&times;</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {error && <p className="community-field__error">{error}</p>}
@@ -754,6 +797,7 @@ function PostDetailView({
                 </Button>
               </div>
             )}
+            <AdminAttachmentSection postId={postId} attachments={post.attachments ?? []} />
           </div>
         </div>
 
@@ -823,6 +867,100 @@ function CommentBlock({ postId, reply }: { postId: number; reply: Answer }) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ─── Admin Attachment Section ──────────────────────── */
+function AdminAttachmentSection({
+  postId,
+  attachments,
+}: {
+  postId: number;
+  attachments: PostAttachment[];
+}) {
+  const qc = useQueryClient();
+  const fileInputRef = { current: null as HTMLInputElement | null };
+
+  const uploadMut = useMutation({
+    mutationFn: (files: File[]) => uploadPostAttachments(postId, files),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      feedback.success("파일이 첨부되었습니다.");
+    },
+    onError: (e: unknown) => {
+      feedback.error((e as Error)?.message ?? "파일 업로드에 실패했습니다.");
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (attId: number) => deletePostAttachment(postId, attId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-post", postId] });
+      feedback.success("첨부파일이 삭제되었습니다.");
+    },
+    onError: (e: unknown) => {
+      feedback.error((e as Error)?.message ?? "삭제에 실패했습니다.");
+    },
+  });
+
+  const handleDownload = async (att: PostAttachment) => {
+    try {
+      const { url } = await getAttachmentDownloadUrl(postId, att.id);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.original_name;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      feedback.error("다운로드 URL을 가져오지 못했습니다.");
+    }
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  };
+
+  return (
+    <div style={{ marginTop: "var(--space-4, 16px)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-muted)" }}>
+          첨부파일 {attachments.length > 0 && `(${attachments.length})`}
+        </span>
+        <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploadMut.isPending || attachments.length >= 10}>
+          {uploadMut.isPending ? "업로드 중…" : "+ 추가"}
+        </Button>
+        <input
+          ref={(el) => { fileInputRef.current = el; }}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              uploadMut.mutate(Array.from(e.target.files));
+              e.target.value = "";
+            }
+          }}
+        />
+      </div>
+      {attachments.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {attachments.map((att) => (
+            <div key={att.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--color-bg-surface-soft, #f5f5f5)", borderRadius: "var(--radius-sm, 6px)", fontSize: 13 }}>
+              <button type="button" onClick={() => handleDownload(att)} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0, color: "var(--color-primary, #3b82f6)", textDecoration: "underline" }}>
+                {att.original_name}
+              </button>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)", flexShrink: 0 }}>{formatSize(att.size_bytes)}</span>
+              <button type="button" onClick={() => window.confirm("이 파일을 삭제할까요?") && deleteMut.mutate(att.id)} disabled={deleteMut.isPending} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 2, color: "var(--color-text-muted)" }}>&times;</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

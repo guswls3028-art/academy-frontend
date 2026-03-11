@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchScopeNodes,
   createPost,
+  uploadPostAttachments,
   type BlockType,
   type ScopeNodeMinimal,
 } from "../api/community.api";
@@ -23,9 +24,11 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
   const [blockTypeId, setBlockTypeId] = useState<number | "">("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [selectedNodeIds, setSelectedNodeIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = { current: null as HTMLInputElement | null };
 
   const scopeNodesQ = useQuery<ScopeNodeMinimal[]>({
     queryKey: ["community-scope-nodes"],
@@ -60,12 +63,15 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
     setSubmitting(true);
     setError(null);
     try {
-      await createPost({
+      const post = await createPost({
         block_type: Number(blockTypeId),
         title: title.trim(),
         content: content.trim(),
         node_ids: selectedNodeIds,
       });
+      if (files.length > 0) {
+        await uploadPostAttachments(post.id, files);
+      }
       onSuccess();
     } catch (e: unknown) {
       const msg =
@@ -184,6 +190,47 @@ export default function BoardCreateModal({ blockTypes, onClose, onSuccess }: Pro
             <p className="community-field__hint" style={{ marginTop: 4 }}>
               {selectedNodeIds.length}개 강의 선택됨
             </p>
+          )}
+        </div>
+
+        {/* 첨부파일 */}
+        <div className="community-field">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <label className="community-field__label" style={{ margin: 0 }}>
+              첨부파일 {files.length > 0 && `(${files.length}/10)`}
+            </label>
+            <button
+              type="button"
+              className="community-link"
+              style={{ fontSize: 11, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={files.length >= 10}
+            >
+              + 파일 추가
+            </button>
+            <input
+              ref={(el) => { fileInputRef.current = el; }}
+              type="file"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files) {
+                  setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10));
+                  e.target.value = "";
+                }
+              }}
+            />
+          </div>
+          {files.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {files.map((f, i) => (
+                <div key={`${f.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--color-bg-surface-soft, #f5f5f5)", borderRadius: 6, fontSize: 13 }}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                  <span style={{ fontSize: 11, color: "var(--color-text-muted)", flexShrink: 0 }}>{f.size < 1024 * 1024 ? `${(f.size / 1024).toFixed(1)}KB` : `${(f.size / (1024 * 1024)).toFixed(1)}MB`}</span>
+                  <button type="button" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 2 }}>&times;</button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

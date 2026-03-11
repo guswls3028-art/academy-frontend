@@ -7,13 +7,22 @@ import {
   fetchBlockTypes,
   fetchPostReplies as _fetchReplies,
   createPost as _createPost,
+  uploadPostAttachments as _uploadAttachments,
+  getAttachmentDownloadUrl as _getDownloadUrl,
   ensureCounselBlockType,
   ensureMaterialsBlockType,
   type PostEntity,
+  type PostAttachment,
   type Answer,
 } from "@/features/community/api/community.api";
 
-export type { PostEntity, Answer };
+export type { PostEntity, PostAttachment, Answer };
+
+/** 첨부파일 업로드 */
+export const uploadPostAttachments = _uploadAttachments;
+
+/** 첨부파일 다운로드 URL */
+export const getAttachmentDownloadUrl = _getDownloadUrl;
 
 // ── Block-type ID 캐시 (세션 동안 1회만 resolve) ──
 let _typeCache: { qna: number | null; notice: number | null; counsel: number | null; materials: number | null } | null = null;

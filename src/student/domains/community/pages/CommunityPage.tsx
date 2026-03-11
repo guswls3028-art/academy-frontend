@@ -24,7 +24,10 @@ import {
   isAnswered,
   fetchMyCounselRequests,
   submitCounselRequest,
+  uploadPostAttachments,
+  getAttachmentDownloadUrl,
   type PostEntity,
+  type PostAttachment,
   type Answer,
 } from "../api/community.api";
 
@@ -250,6 +253,7 @@ function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
           </div>
         </div>
         <HtmlContent html={post.content} />
+        <AttachmentList postId={post.id} attachments={post.attachments} />
       </div>
     </StudentPageShell>
   );
@@ -368,6 +372,7 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
             {formatYmd(question.created_at)}
           </div>
           <HtmlContent html={question.content} />
+          <AttachmentList postId={question.id} attachments={question.attachments} />
         </div>
 
         {/* 답변 */}
@@ -414,13 +419,18 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
 
   const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
-      return submitQuestion(title.trim(), content.trim(), profile.id);
+      const post = await submitQuestion(title.trim(), content.trim(), profile.id);
+      if (files.length > 0) {
+        await uploadPostAttachments(post.id, files);
+      }
+      return post;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", "qna", "questions"] });
@@ -459,6 +469,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>내용</span>
           <RichTextEditor value={content} onChange={setContent} placeholder="질문 내용을 적어 주세요." minHeight={200} />
         </div>
+        <FilePickerSection files={files} onChange={setFiles} />
         <button
           type="button"
           className="stu-btn stu-btn--primary"
@@ -529,6 +540,7 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
           </div>
         </div>
         <HtmlContent html={post.content} />
+        <AttachmentList postId={post.id} attachments={post.attachments} />
       </div>
     </StudentPageShell>
   );
@@ -647,6 +659,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
             {formatYmd(request.created_at)}
           </div>
           <HtmlContent html={request.content} />
+          <AttachmentList postId={request.id} attachments={request.attachments} />
         </div>
 
         {/* 관리자 답변 */}
@@ -693,13 +706,18 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   const qc = useQueryClient();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
 
   const { data: profile } = useQuery({ queryKey: ["student", "me"], queryFn: fetchMyProfile });
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
-      return submitCounselRequest(title.trim(), content.trim(), profile.id);
+      const post = await submitCounselRequest(title.trim(), content.trim(), profile.id);
+      if (files.length > 0) {
+        await uploadPostAttachments(post.id, files);
+      }
+      return post;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["student", "counsel", "requests"] });
@@ -738,6 +756,7 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>상담 내용</span>
           <RichTextEditor value={content} onChange={setContent} placeholder="상담받고 싶은 내용을 자세히 적어 주세요." minHeight={200} />
         </div>
+        <FilePickerSection files={files} onChange={setFiles} />
         <button
           type="button"
           className="stu-btn stu-btn--primary"
@@ -807,8 +826,173 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
           </div>
         </div>
         <HtmlContent html={post.content} />
+        <AttachmentList postId={post.id} attachments={post.attachments} />
       </div>
     </StudentPageShell>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Attachments — display + download
+// ═══════════════════════════════════════════
+function AttachmentList({ postId, attachments }: { postId: number; attachments?: PostAttachment[] }) {
+  if (!attachments || attachments.length === 0) return null;
+
+  const handleDownload = async (att: PostAttachment) => {
+    try {
+      const { url } = await getAttachmentDownloadUrl(postId, att.id);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.original_name;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      // silent fail
+    }
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+        첨부파일 ({attachments.length})
+      </div>
+      {attachments.map((att) => (
+        <button
+          key={att.id}
+          type="button"
+          onClick={() => handleDownload(att)}
+          className="stu-panel stu-panel--pressable"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--stu-space-3)",
+            padding: "10px var(--stu-space-4)",
+            textAlign: "left",
+            cursor: "pointer",
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0, color: "var(--stu-primary)" }}>
+            <path d="M10 1H4.5A1.5 1.5 0 003 2.5v13A1.5 1.5 0 004.5 17h9a1.5 1.5 0 001.5-1.5V6L10 1z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M10 1v5h5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {att.original_name}
+            </div>
+            <div className="stu-muted" style={{ fontSize: 12 }}>{formatSize(att.size_bytes)}</div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: "var(--stu-text-muted)" }}>
+            <path d="M8 2v9M4 7l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M2 12v2h12v-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// FilePickerSection — file picker for forms
+// ═══════════════════════════════════════════
+function FilePickerSection({
+  files,
+  onChange,
+}: {
+  files: File[];
+  onChange: (files: File[]) => void;
+}) {
+  const inputRef = { current: null as HTMLInputElement | null };
+
+  const handleAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFiles = e.target.files;
+    if (!newFiles) return;
+    const merged = [...files, ...Array.from(newFiles)].slice(0, 10);
+    onChange(merged);
+    e.target.value = "";
+  };
+
+  const handleRemove = (idx: number) => {
+    onChange(files.filter((_, i) => i !== idx));
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--stu-space-2)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--stu-text-muted)" }}>
+          첨부파일 {files.length > 0 && `(${files.length}/10)`}
+        </span>
+        <button
+          type="button"
+          className="stu-btn stu-btn--ghost"
+          style={{ fontSize: 13, padding: "4px 10px", minHeight: 0 }}
+          onClick={() => inputRef.current?.click()}
+          disabled={files.length >= 10}
+        >
+          + 파일 추가
+        </button>
+        <input
+          ref={(el) => { inputRef.current = el; }}
+          type="file"
+          multiple
+          style={{ display: "none" }}
+          onChange={handleAdd}
+        />
+      </div>
+      {files.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {files.map((f, i) => (
+            <div
+              key={`${f.name}-${i}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--stu-space-2)",
+                padding: "6px 10px",
+                background: "var(--stu-surface-soft)",
+                borderRadius: "var(--stu-radius)",
+                fontSize: 13,
+              }}
+            >
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {f.name}
+              </span>
+              <span className="stu-muted" style={{ fontSize: 11, flexShrink: 0 }}>{formatSize(f.size)}</span>
+              <button
+                type="button"
+                onClick={() => handleRemove(i)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--stu-text-muted)",
+                  padding: 2,
+                  lineHeight: 1,
+                  fontSize: 16,
+                }}
+                title="제거"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -865,6 +1049,9 @@ function PostRow({
           {formatYmd(post.created_at)}
           {subtitle && <> · {subtitle}</>}
           {isAnswered(post) && post.replies_count != null && post.replies_count > 0 && <> · 답변 {post.replies_count}개</>}
+          {(post.attachments?.length ?? 0) > 0 && (
+            <> · <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ display: "inline", verticalAlign: "-1px" }}><path d="M12 7.17l-4.59 4.59a3.25 3.25 0 01-4.6-4.6l5.3-5.3a2.17 2.17 0 013.06 3.07l-5.3 5.3a1.08 1.08 0 01-1.53-1.53l4.59-4.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg> {post.attachments!.length}</>
+          )}
         </div>
       </div>
       {right}

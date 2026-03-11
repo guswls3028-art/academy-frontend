@@ -4,6 +4,7 @@
 import { useState, useMemo } from "react";
 import {
   createCommunityBoardPost,
+  uploadPostAttachments,
   type ScopeNodeMinimal,
   type CommunityScopeParams,
 } from "../api/community.api";
@@ -37,8 +38,10 @@ export function NoticeAdminCreateModal({
 }: NoticeAdminCreateModalProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [selectedExposureNodeId, setSelectedExposureNodeId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = { current: null as HTMLInputElement | null };
 
   const exposureNodeIds = useMemo(() => {
     if (scope === "lecture" && effectiveLectureId != null) {
@@ -70,12 +73,15 @@ export function NoticeAdminCreateModal({
     if (!canSubmit || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await createCommunityBoardPost({
+      const boardPost = await createCommunityBoardPost({
         block_type: noticeTypeId,
         title: title.trim(),
         content: content.trim(),
         node_ids: exposureNodeIds,
       });
+      if (files.length > 0) {
+        await uploadPostAttachments(boardPost.id, files);
+      }
       onSuccess();
     } catch (e) {
       const err = e as { response?: { data?: { detail?: string } }; message?: string };
@@ -164,6 +170,40 @@ export function NoticeAdminCreateModal({
             placeholder="공지 내용을 입력하세요. 등록 후에도 수정할 수 있습니다."
             minHeight={180}
           />
+        </div>
+
+        <div className="community-field">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <label className="community-field__label" style={{ margin: 0 }}>
+              첨부파일 {files.length > 0 && `(${files.length}/10)`}
+            </label>
+            <Button intent="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={files.length >= 10}>
+              + 파일 추가
+            </Button>
+            <input
+              ref={(el) => { fileInputRef.current = el; }}
+              type="file"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files) {
+                  setFiles((prev) => [...prev, ...Array.from(e.target.files!)].slice(0, 10));
+                  e.target.value = "";
+                }
+              }}
+            />
+          </div>
+          {files.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {files.map((f, i) => (
+                <div key={`${f.name}-${i}`} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--color-bg-surface-soft, #f5f5f5)", borderRadius: "var(--radius-sm, 6px)", fontSize: 13 }}>
+                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                  <span style={{ fontSize: 11, color: "var(--color-text-muted)", flexShrink: 0 }}>{f.size < 1024 * 1024 ? `${(f.size / 1024).toFixed(1)}KB` : `${(f.size / (1024 * 1024)).toFixed(1)}MB`}</span>
+                  <button type="button" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 2, color: "var(--color-text-muted)" }}>&times;</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 justify-end">

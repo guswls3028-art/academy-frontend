@@ -41,6 +41,14 @@ export interface PostMappingItem {
   created_at: string;
 }
 
+export interface PostAttachment {
+  id: number;
+  original_name: string;
+  size_bytes: number;
+  content_type: string;
+  created_at: string;
+}
+
 export interface PostEntity {
   id: number;
   tenant?: number;
@@ -56,6 +64,7 @@ export interface PostEntity {
   updated_at?: string;
   replies_count?: number;
   mappings: PostMappingItem[];
+  attachments?: PostAttachment[];
 }
 
 // ----------------------------------------
@@ -556,6 +565,37 @@ export async function updateReply(postId: number, replyId: number, content: stri
 /** 답변 삭제 — DELETE /community/posts/:postId/replies/:replyId/ */
 export async function deleteReply(postId: number, replyId: number): Promise<void> {
   await api.delete(`${PREFIX}/posts/${postId}/replies/${replyId}/`);
+}
+
+// ----------------------------------------
+// 첨부파일
+// ----------------------------------------
+
+/** 게시물에 파일 첨부 — POST /community/posts/:id/attachments/ (multipart) */
+export async function uploadPostAttachments(
+  postId: number,
+  files: File[],
+): Promise<PostAttachment[]> {
+  const fd = new FormData();
+  for (const f of files) fd.append("files", f);
+  const res = await api.post(`${PREFIX}/posts/${postId}/attachments/`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+/** 첨부파일 다운로드 URL 조회 — GET /community/posts/:id/attachments/:attId/download/ */
+export async function getAttachmentDownloadUrl(
+  postId: number,
+  attId: number,
+): Promise<{ url: string; original_name: string }> {
+  const res = await api.get(`${PREFIX}/posts/${postId}/attachments/${attId}/download/`);
+  return res.data;
+}
+
+/** 첨부파일 삭제 — DELETE /community/posts/:id/attachments/:attId/ */
+export async function deletePostAttachment(postId: number, attId: number): Promise<void> {
+  await api.delete(`${PREFIX}/posts/${postId}/attachments/${attId}/`);
 }
 
 // ----------------------------------------
