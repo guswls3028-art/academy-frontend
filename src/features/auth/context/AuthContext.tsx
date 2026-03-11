@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import api from "@/shared/api/axios";
+import { feedback } from "@/shared/ui/feedback/feedback";
 
 export type TenantRole =
   | "owner"
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (sessionStorage.getItem("session_expired") === "1") {
         sessionStorage.removeItem("session_expired");
-        alert("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
+        feedback.warn("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
         window.location.href = "/";
       }
     } catch { /* ignore */ }
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 이전에 로그인 상태였으면 세션 만료 안내
         if (user) {
           setUser(null);
-          alert("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
+          feedback.warn("액세스 토큰이 만료되었습니다. 다시 로그인 해주세요.");
           window.location.href = "/";
         }
         return;
