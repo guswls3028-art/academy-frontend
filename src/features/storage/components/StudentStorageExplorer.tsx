@@ -311,7 +311,7 @@ export default function StudentStorageExplorer({ studentPs }: StudentStorageExpl
                     setSelectedFileId(file.id);
                     setSelectedFolderIds(new Set());
                     setFileActionTarget(file);
-                  }
+                  }}
                   title={file.description || file.displayName}
                   onDragStart={(e) => {
                     e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ type: "file" as const, sourceId: file.id }));

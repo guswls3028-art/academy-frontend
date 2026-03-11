@@ -36,7 +36,6 @@ export default function StudentInventoryManage({
   const { data, isLoading } = useQuery({
     queryKey: ["storage-student-search", debouncedSearch],
     queryFn: () => fetchStudents(debouncedSearch, {}, "", 1, false),
-    enabled: debouncedSearch.length >= 1,
   });
 
   const students = data?.data ?? [];
@@ -79,14 +78,12 @@ export default function StudentInventoryManage({
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
-      {debouncedSearch.length < 1 ? (
-        <div className={styles.placeholder}>
-          학생 이름이나 PS번호를 입력하면 해당 학생의 인벤토리로 이동할 수 있습니다.
-        </div>
-      ) : isLoading ? (
-        <div className={styles.placeholder}>검색 중...</div>
+      {isLoading ? (
+        <div className={styles.placeholder}>학생 목록을 불러오는 중...</div>
       ) : students.length === 0 ? (
-        <div className={styles.placeholder}>검색 결과가 없습니다.</div>
+        <div className={styles.placeholder}>
+          {debouncedSearch ? "검색 결과가 없습니다." : "등록된 학생이 없습니다."}
+        </div>
       ) : (
         <ul className={styles.list}>
           {students.slice(0, 50).map((s) => (
