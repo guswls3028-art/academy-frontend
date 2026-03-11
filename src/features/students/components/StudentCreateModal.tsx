@@ -46,7 +46,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
   const [sendWelcomeMessage, setSendWelcomeMessage] = useState(false);
   const [messageDropdownOpen, setMessageDropdownOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
-  /** 드롭다운 내 표시용 — 클릭 즉시 반영 후 API 호출. 기본값: SMS + 알림톡(폴백) */
+  /** 드롭다운 내 표시용 — 클릭 즉시 반영 후 API 호출. 기본값: 모두(메세지+알림톡) */
   const [localSignupMessageMode, setLocalSignupMessageMode] = useState<MessageMode>(DEFAULT_MESSAGE_MODE);
   const [localSignupTemplateId, setLocalSignupTemplateId] = useState<number | null>(null);
   const [form, setForm] = useState({
@@ -822,7 +822,7 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                         onClick={() => handleSetSignupMessageMode("sms")}
                         disabled={updateAutoSendMut.isPending}
                       >
-                        SMS
+                        {MESSAGE_MODE_LABELS.sms}
                       </button>
                       <button
                         type="button"
@@ -830,11 +830,11 @@ export default function StudentCreateModal({ open, onClose, onSuccess, onBulkPro
                         onClick={() => handleSetSignupMessageMode("alimtalk")}
                         disabled={updateAutoSendMut.isPending}
                       >
-                        알림톡
+                        {MESSAGE_MODE_LABELS.alimtalk}
                       </button>
                     </div>
                     <span className="modal-hint" style={{ display: "block", marginTop: "var(--space-1)" }}>
-                      SMS + 알림톡, SMS만, 알림톡만. 둘 다 선택 시 알림톡→SMS 폴백으로 발송됩니다.
+                      메세지, 알림톡, 모두. 둘 다 선택 시 모두로 발송됩니다.
                     </span>
                   </div>
                   <div style={{ marginBottom: "var(--space-2)" }}>

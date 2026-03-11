@@ -376,7 +376,7 @@ export default function SendMessageModal({
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 disabled={sending}
-                className="w-full"
+                className="w-full message-domain-input"
               />
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
@@ -424,7 +424,7 @@ export default function SendMessageModal({
                 onChange={(e) => setBody(e.target.value)}
                 rows={12}
                 disabled={sending}
-                className="template-editor__textarea w-full p-3"
+                className="template-editor__textarea message-domain-input w-full p-3"
                 style={{ resize: "vertical", minHeight: 240 }}
               />
             </div>

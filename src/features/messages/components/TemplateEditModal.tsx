@@ -206,7 +206,7 @@ export default function TemplateEditModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={locked}
-                className="template-editor__textarea"
+                className="template-editor__textarea message-domain-input"
               />
             </div>
 
@@ -222,7 +222,7 @@ export default function TemplateEditModal({
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     disabled={locked}
-                    className="template-editor__textarea"
+                    className="template-editor__textarea message-domain-input"
                   />
                 </>
               ) : (
@@ -243,7 +243,7 @@ export default function TemplateEditModal({
                   onChange={(e) => setBody(e.target.value)}
                   rows={14}
                   disabled={locked}
-                  className="template-editor__textarea w-full p-3"
+                  className="template-editor__textarea message-domain-input w-full p-3"
                   style={{ resize: "vertical", fontFamily: "inherit", minHeight: 280 }}
                 />
               </div>
