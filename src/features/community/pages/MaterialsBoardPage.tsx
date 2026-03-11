@@ -207,6 +207,7 @@ export default function MaterialsBoardPage() {
 
   // ── Tree selection callbacks ──
   const selectAll = useCallback(() => {
+    setShowCreate(false);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("scope", "all");
@@ -218,6 +219,7 @@ export default function MaterialsBoardPage() {
 
   const selectLecture = useCallback(
     (lecId: number) => {
+      setShowCreate(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set("scope", "lecture");
@@ -231,6 +233,7 @@ export default function MaterialsBoardPage() {
 
   const selectSession = useCallback(
     (lecId: number, sesId: number) => {
+      setShowCreate(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set("scope", "session");
@@ -260,7 +263,7 @@ export default function MaterialsBoardPage() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const idx = selectedId != null ? filtered.findIndex((p) => p.id === selectedId) : -1;
       if (e.key === "j") { e.preventDefault(); setSelectedId(filtered[Math.min(idx + 1, filtered.length - 1)].id); }
-      else if (e.key === "k") { e.preventDefault(); setSelectedId(filtered[Math.max(idx <= 0 ? filtered.length : idx - 1, 0)].id); }
+      else if (e.key === "k") { e.preventDefault(); const t = idx <= 0 ? filtered.length - 1 : idx - 1; setSelectedId(filtered[Math.max(t, 0)].id); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -367,7 +370,7 @@ export default function MaterialsBoardPage() {
         <div className="qna-inbox__list-header">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <h2 className="qna-inbox__list-title">자료</h2>
-            <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 자료 등록</Button>
+            {canShowList && <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 자료 등록</Button>}
           </div>
           <div className="flex items-center gap-2">
             <input type="search" className="ds-input flex-1 min-w-0" placeholder="제목 · 내용 · 작성자" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="자료실 검색" />
@@ -378,6 +381,11 @@ export default function MaterialsBoardPage() {
           {!canShowList ? (
             <div className="qna-inbox__empty">
               <p className="qna-inbox__empty-title">{expandedParent ? "강의 또는 차시를 선택하세요" : "전체 자료 또는 강의를 선택하세요"}</p>
+            </div>
+          ) : postsQ.isError ? (
+            <div className="qna-inbox__empty">
+              <p className="qna-inbox__empty-title">목록을 불러오지 못했습니다</p>
+              <p className="qna-inbox__empty-desc">잠시 후 다시 시도해 주세요.</p>
             </div>
           ) : postsQ.isLoading ? (
             <div className="qna-inbox__empty"><p className="qna-inbox__empty-title">불러오는 중…</p></div>
@@ -567,7 +575,7 @@ function MatDetailView({ postId, onClose, onDeleted }: { postId: number; onClose
 
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
-    onSuccess: () => { feedback.success("자료가 삭제되었습니다."); onDeleted(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["community-post", postId] }); feedback.success("자료가 삭제되었습니다."); onDeleted(); },
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
   });
 

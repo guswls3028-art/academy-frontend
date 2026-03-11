@@ -152,7 +152,15 @@ export default function RichTextEditor({
     },
   });
 
+  // Sync external value changes (e.g., navigating between posts)
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && value !== editor.getHTML()) {
+      editor.commands.setContent(value, false);
+    }
+  }, [editor, value]);
+
   // --- Image upload (base64) ---
+  const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
   const handleImageUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
@@ -160,6 +168,10 @@ export default function RichTextEditor({
 
       Array.from(files).forEach((file) => {
         if (!file.type.startsWith("image/")) return;
+        if (file.size > MAX_IMAGE_SIZE) {
+          alert("이미지 크기는 5MB를 초과할 수 없습니다.");
+          return;
+        }
         const reader = new FileReader();
         reader.onload = () => {
           const dataUrl = reader.result as string;

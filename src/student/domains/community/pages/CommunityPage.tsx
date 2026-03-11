@@ -10,6 +10,7 @@ import EmptyState from "@/student/shared/ui/layout/EmptyState";
 import { formatYmd } from "@/student/shared/utils/date";
 import { IconPlus, IconChevronRight } from "@/student/shared/ui/icons/Icons";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
+import DOMPurify from "dompurify";
 import { fetchMyProfile } from "@/student/domains/profile/api/profile";
 import {
   fetchMyQuestions,
@@ -198,12 +199,13 @@ export default function CommunityPage() {
 // Notice Tab (공지사항)
 // ═══════════════════════════════════════════
 function NoticeTab({ onDetail }: { onDetail: (id: number) => void }) {
-  const { data: posts = [], isLoading } = useQuery({
+  const { data: posts = [], isLoading, isError } = useQuery({
     queryKey: ["student", "notice", "posts"],
     queryFn: () => fetchNoticePosts(),
   });
 
   if (isLoading) return <SkeletonList />;
+  if (isError) return <EmptyState title="공지사항을 불러오지 못했습니다" description="잠시 후 다시 시도해 주세요." />;
   if (posts.length === 0) {
     return <EmptyState title="등록된 공지사항이 없습니다" description="공지사항이 등록되면 여기에 표시됩니다." />;
   }
@@ -327,9 +329,9 @@ function QnaDetail({ id, cached, onBack }: { id: number; cached?: PostEntity; on
   const { data: fetched, isLoading } = useQuery({
     queryKey: ["student", "qna", "question", id],
     queryFn: () => fetchQuestionDetail(id),
-    enabled: !cached,
+    initialData: cached,
   });
-  const question = cached ?? fetched;
+  const question = fetched ?? cached;
 
   if (isLoading && !question) {
     return <StudentPageShell title="질문 상세" onBack={onBack}><Loading /></StudentPageShell>;
@@ -365,7 +367,7 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
           <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)" }}>
             {formatYmd(question.created_at)}
           </div>
-          <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{question.content}</div>
+          <HtmlContent html={question.content} />
         </div>
 
         {/* 답변 */}
@@ -475,12 +477,13 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
 // Board Tab
 // ═══════════════════════════════════════════
 function BoardTab({ onDetail }: { onDetail: (id: number) => void }) {
-  const { data: posts = [], isLoading } = useQuery({
+  const { data: posts = [], isLoading, isError } = useQuery({
     queryKey: ["student", "board", "posts"],
     queryFn: () => fetchBoardPosts(),
   });
 
   if (isLoading) return <SkeletonList />;
+  if (isError) return <EmptyState title="게시물을 불러오지 못했습니다" description="잠시 후 다시 시도해 주세요." />;
   if (posts.length === 0) {
     return <EmptyState title="등록된 게시물이 없습니다" description="선생님이 게시물을 등록하면 여기에 표시됩니다." />;
   }
@@ -605,9 +608,9 @@ function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity
   const { data: fetched, isLoading } = useQuery({
     queryKey: ["student", "counsel", "request", id],
     queryFn: () => fetchPostDetail(id),
-    enabled: !cached,
+    initialData: cached,
   });
-  const request = cached ?? fetched;
+  const request = fetched ?? cached;
 
   if (isLoading && !request) {
     return <StudentPageShell title="상담 신청 상세" onBack={onBack}><Loading /></StudentPageShell>;
@@ -643,7 +646,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
           <div className="stu-muted" style={{ fontSize: 12, marginBottom: "var(--stu-space-4)" }}>
             {formatYmd(request.created_at)}
           </div>
-          <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{request.content}</div>
+          <HtmlContent html={request.content} />
         </div>
 
         {/* 관리자 답변 */}
@@ -753,12 +756,13 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
 // Materials Tab (자료실)
 // ═══════════════════════════════════════════
 function MaterialsTab({ onDetail }: { onDetail: (id: number) => void }) {
-  const { data: posts = [], isLoading } = useQuery({
+  const { data: posts = [], isLoading, isError } = useQuery({
     queryKey: ["student", "materials", "posts"],
     queryFn: () => fetchMaterialsPosts(),
   });
 
   if (isLoading) return <SkeletonList />;
+  if (isError) return <EmptyState title="자료를 불러오지 못했습니다" description="잠시 후 다시 시도해 주세요." />;
   if (posts.length === 0) {
     return <EmptyState title="등록된 자료가 없습니다" description="선생님이 자료를 등록하면 여기에서 확인할 수 있습니다." />;
   }
@@ -823,7 +827,7 @@ function HtmlContent({ html }: { html: string }) {
     <div
       className="stu-html-content"
       style={{ fontSize: 15, lineHeight: 1.7, wordBreak: "break-word" }}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
     />
   );
 }

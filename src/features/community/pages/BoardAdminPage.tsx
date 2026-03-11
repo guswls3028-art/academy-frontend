@@ -203,6 +203,7 @@ export default function BoardAdminPage() {
 
   // ── Tree selection callbacks ──
   const selectAll = useCallback(() => {
+    setShowCreate(false);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("scope", "all");
@@ -214,6 +215,7 @@ export default function BoardAdminPage() {
 
   const selectLecture = useCallback(
     (lecId: number) => {
+      setShowCreate(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set("scope", "lecture");
@@ -227,6 +229,7 @@ export default function BoardAdminPage() {
 
   const selectSession = useCallback(
     (lecId: number, sesId: number) => {
+      setShowCreate(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set("scope", "session");
@@ -260,7 +263,8 @@ export default function BoardAdminPage() {
         setSelectedId(filtered[Math.min(idx + 1, filtered.length - 1)].id);
       } else if (e.key === "k") {
         e.preventDefault();
-        setSelectedId(filtered[Math.max(idx <= 0 ? filtered.length : idx - 1, 0)].id);
+        const target = idx <= 0 ? filtered.length - 1 : idx - 1;
+        setSelectedId(filtered[Math.max(target, 0)].id);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -364,7 +368,7 @@ export default function BoardAdminPage() {
         <div className="qna-inbox__list-header">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <h2 className="qna-inbox__list-title">게시물</h2>
-            <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 글쓰기</Button>
+            {canShowList && <Button intent="primary" size="sm" onClick={() => { setShowCreate(true); setSelectedId(null); }}>+ 글쓰기</Button>}
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -384,6 +388,11 @@ export default function BoardAdminPage() {
               <p className="qna-inbox__empty-title">
                 {expandedParent ? "강의 또는 차시를 선택하세요" : "전체 게시물 또는 강의를 선택하세요"}
               </p>
+            </div>
+          ) : postsQ.isError ? (
+            <div className="qna-inbox__empty">
+              <p className="qna-inbox__empty-title">목록을 불러오지 못했습니다</p>
+              <p className="qna-inbox__empty-desc">잠시 후 다시 시도해 주세요.</p>
             </div>
           ) : postsQ.isLoading ? (
             <div className="qna-inbox__empty">
@@ -666,6 +675,7 @@ function PostDetailView({
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["community-post", postId] });
       feedback.success("게시물이 삭제되었습니다.");
       onDeleted();
     },

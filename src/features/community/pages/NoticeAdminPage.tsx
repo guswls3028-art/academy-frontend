@@ -31,6 +31,12 @@ import "@/features/community/notice-tree.css";
 
 const SNIPPET_LEN = 72;
 
+function stripHtml(html: string): string {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.textContent || div.innerText || "";
+}
+
 export default function NoticeAdminPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedIdParam = searchParams.get("id");
@@ -172,6 +178,7 @@ export default function NoticeAdminPage() {
 
   /** 트리 선택 시 URL에 반영 → Context가 동기화되어 목록/공지추가 버튼 표시 */
   const selectAll = useCallback(() => {
+    setShowCreate(false);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("scope", "all");
@@ -183,6 +190,7 @@ export default function NoticeAdminPage() {
 
   const selectLecture = useCallback(
     (lecId: number) => {
+      setShowCreate(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set("scope", "lecture");
@@ -196,6 +204,7 @@ export default function NoticeAdminPage() {
 
   const selectSession = useCallback(
     (lecId: number, sesId: number) => {
+      setShowCreate(false);
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.set("scope", "session");
@@ -446,10 +455,8 @@ function NoticeCard({
   isActive: boolean;
   onClick: () => void;
 }) {
-  const snippet =
-    post.content && post.content.length > SNIPPET_LEN
-      ? post.content.slice(0, SNIPPET_LEN).trim() + "…"
-      : post.content || "";
+  const plainText = stripHtml(post.content ?? "");
+  const snippet = plainText.length > SNIPPET_LEN ? plainText.slice(0, SNIPPET_LEN).trim() + "…" : plainText;
   const dateLabel = post.created_at
     ? new Date(post.created_at).toLocaleDateString("ko-KR", {
         month: "long",
@@ -504,6 +511,8 @@ function NoticeDetailView({
 
   const initialNodeIds = post?.mappings?.map((m) => m.node) ?? [];
   const [inspectorNodeIds, setInspectorNodeIds] = useState<number[]>([]);
+  const [editingContent, setEditingContent] = useState("");
+  const [contentSaved, setContentSaved] = useState(false);
 
   useEffect(() => {
     if (post?.mappings?.length) {
@@ -513,12 +522,17 @@ function NoticeDetailView({
     }
   }, [post?.id, post?.mappings]);
 
+  useEffect(() => {
+    setEditingContent(post?.content ?? "");
+  }, [post?.id, post?.content]);
+
   const deleteMut = useMutation({
     mutationFn: () => deletePost(postId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["community-notice-posts"] });
       qc.invalidateQueries({ queryKey: ["community-board-posts"] });
       qc.invalidateQueries({ queryKey: ["community-all-notice-posts-for-count"] });
+      qc.invalidateQueries({ queryKey: ["community-post", postId] });
       feedback.success("공지가 삭제되었습니다.");
       onDeleted();
     },
@@ -563,12 +577,6 @@ function NoticeDetailView({
 
   const lectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "—";
   const currentNodeIds = inspectorNodeIds.length ? inspectorNodeIds : initialNodeIds;
-  const [editingContent, setEditingContent] = useState(post.content ?? "");
-  const [contentSaved, setContentSaved] = useState(false);
-
-  useEffect(() => {
-    setEditingContent(post.content ?? "");
-  }, [post.id, post.content]);
 
   const updateContentMut = useMutation({
     mutationFn: (content: string) => updatePost(postId, { content }),

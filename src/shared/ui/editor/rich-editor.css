@@ -7,9 +7,10 @@
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-md);
   background: var(--color-bg-surface);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 :is([data-app="admin"], [data-app="student"]) .rich-editor--readonly {
