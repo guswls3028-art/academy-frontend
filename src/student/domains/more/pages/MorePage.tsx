@@ -13,6 +13,7 @@ import {
   IconLogout,
   IconClinic,
   IconSettings,
+  IconFolder,
 } from "@/student/shared/ui/icons/Icons";
 import type { ReactNode } from "react";
 
@@ -38,6 +39,7 @@ const FULL_NAV: { category: string; items: { label: string; to: string; icon: Re
     items: [
       { label: "시험", to: "/student/exams", icon: <IconExam style={{ width: 22, height: 22, flexShrink: 0 }} /> },
       { label: "제출", to: "/student/submit", icon: <IconClipboard style={{ width: 22, height: 22, flexShrink: 0 }} /> },
+      { label: "내 인벤토리", to: "/student/inventory", icon: <IconFolder style={{ width: 22, height: 22, flexShrink: 0 }} /> },
       { label: "성적", to: "/student/grades", icon: <IconGrade style={{ width: 22, height: 22, flexShrink: 0 }} /> },
     ],
   },

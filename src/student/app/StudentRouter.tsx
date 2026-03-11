@@ -25,6 +25,7 @@ const ExamResultPage = lazy(() => import("@/student/domains/exams/pages/ExamResu
 const SubmitHubPage = lazy(() => import("@/student/domains/submit/pages/SubmitHubPage"));
 const SubmitScorePage = lazy(() => import("@/student/domains/submit/pages/SubmitScorePage"));
 const SubmitAssignmentPage = lazy(() => import("@/student/domains/submit/pages/SubmitAssignmentPage"));
+const MyInventoryPage = lazy(() => import("@/student/domains/inventory/pages/MyInventoryPage"));
 
 const GradesPage = lazy(() => import("@/student/domains/grades/pages/GradesPage"));
 const GradeListPage = lazy(() => import("@/student/domains/grades/pages/GradeListPage"));
@@ -80,6 +81,7 @@ export default function StudentRouter() {
         <Route path="submit" element={<SubmitHubPage />} />
         <Route path="submit/score" element={<SubmitScorePage />} />
         <Route path="submit/assignment" element={<SubmitAssignmentPage />} />
+        <Route path="inventory" element={<MyInventoryPage />} />
         <Route path="exams" element={<ExamListPage />} />
         <Route path="exams/:examId" element={<ExamDetailPage />} />
         <Route path="exams/:examId/submit" element={<ExamSubmitPage />} />

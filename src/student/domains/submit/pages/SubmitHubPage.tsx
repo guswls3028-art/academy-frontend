@@ -3,7 +3,7 @@
  */
 import { Link } from "react-router-dom";
 import StudentPageShell from "@/student/shared/ui/pages/StudentPageShell";
-import { IconGrade, IconBoard } from "@/student/shared/ui/icons/Icons";
+import { IconGrade, IconBoard, IconFolder } from "@/student/shared/ui/icons/Icons";
 
 export default function SubmitHubPage() {
   return (
@@ -38,6 +38,21 @@ export default function SubmitHubPage() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 16 }}>과제 제출</div>
             <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>동영상·사진으로 과제를 제출합니다.</div>
+          </div>
+          <span style={{ color: "var(--stu-text-muted)" }}>→</span>
+        </Link>
+
+        <Link
+          to="/student/inventory"
+          className="stu-panel stu-panel--pressable stu-panel--accent stu-panel--nav"
+          style={{ display: "flex", alignItems: "center", gap: "var(--stu-space-3)", padding: "var(--stu-space-4)" }}
+        >
+          <div style={{ flexShrink: 0 }}>
+            <IconFolder style={{ width: 28, height: 28, color: "var(--stu-primary)" }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 16 }}>내 인벤토리</div>
+            <div className="stu-muted" style={{ fontSize: 13, marginTop: 2 }}>제출한 파일을 확인하고 관리합니다.</div>
           </div>
           <span style={{ color: "var(--stu-text-muted)" }}>→</span>
         </Link>

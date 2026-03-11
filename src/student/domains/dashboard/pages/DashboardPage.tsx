@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import { useMySessions } from "@/student/domains/sessions/hooks/useStudentSessions";
 import EmptyState from "@/student/shared/ui/layout/EmptyState";
-import { IconPlay, IconCalendar, IconGrade, IconExam, IconNotice, IconClipboard, IconClinic } from "@/student/shared/ui/icons/Icons";
+import { IconPlay, IconCalendar, IconGrade, IconExam, IconNotice, IconClipboard, IconClinic, IconFolder } from "@/student/shared/ui/icons/Icons";
 import { formatYmd } from "@/student/shared/utils/date";
 import { useNotificationCounts } from "@/student/domains/notifications/hooks/useNotificationCounts";
 import NotificationBadge from "@/student/shared/ui/components/NotificationBadge";
@@ -232,6 +232,15 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="stu-action-tile__label">성적</div>
+          </Link>
+          <Link
+            to="/student/inventory"
+            className="stu-action-tile"
+          >
+            <div className="stu-action-tile__icon">
+              <IconFolder style={{ width: 20, height: 20, color: "var(--stu-primary)" }} />
+            </div>
+            <div className="stu-action-tile__label">인벤토리</div>
           </Link>
           <Link
             to="/student/clinic"
