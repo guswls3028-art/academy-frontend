@@ -112,7 +112,7 @@ export default function NotificationsPage() {
                 {answeredQnaPosts.map((post) => (
                   <Link
                     key={post.id}
-                    to="/student/qna"
+                    to="/student/community"
                     state={{ openQuestionId: post.id }}
                     className="stu-panel stu-panel--pressable"
                     style={{ textDecoration: "none", color: "inherit" }}
