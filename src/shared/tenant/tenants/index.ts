@@ -70,3 +70,16 @@ export function getLoginPathForTenantId(id: TenantId): string {
 export function getTenantIdsWithDedicatedLogin(): readonly TenantId[] {
   return TENANTS.filter((t) => t.dedicatedLoginPage).map((t) => t.id);
 }
+
+/** 테넌트 ID로 TenantDef 전체 조회 */
+export function getTenantDefById(id: TenantId): TenantDef | undefined {
+  return TENANTS.find((t) => t.id === id);
+}
+
+/** 호스트명으로 TenantDef 조회 */
+export function getTenantDefByHostname(hostname: string): TenantDef | undefined {
+  const normalized = hostname.toLowerCase();
+  const id = hostToId[normalized];
+  if (id == null) return undefined;
+  return TENANTS.find((t) => t.id === id);
+}

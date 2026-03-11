@@ -11,7 +11,9 @@ export const ymath: TenantDef = {
   branding: {
     loginTitle: "ymath",
     loginSubtitle: "ymath.co.kr",
-    logoUrl: undefined,
+    windowTitle: "ymath",
+    ogDescription: "ymath 학습 플랫폼",
   },
   dedicatedLoginPage: true,
+  hasCustomLogo: false,
 };

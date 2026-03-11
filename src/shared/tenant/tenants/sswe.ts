@@ -11,7 +11,9 @@ export const sswe: TenantDef = {
   branding: {
     loginTitle: "SSWE",
     loginSubtitle: "sswe.co.kr",
-    logoUrl: undefined,
+    windowTitle: "SSWE",
+    ogDescription: "SSWE 학습 플랫폼",
   },
   dedicatedLoginPage: false,
+  hasCustomLogo: false,
 };

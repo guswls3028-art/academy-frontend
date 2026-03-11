@@ -13,6 +13,11 @@ export const tchul: TenantDef = {
     loginTitle: "박철과학",
     loginSubtitle: "관리자 로그인",
     logoUrl: "/tenants/tchul/logo.png",
+    windowTitle: "박철과학",
+    faviconUrl: "/tenants/tchul/favicon.png",
+    headerLogoUrl: "/tenants/tchul/icon.png",
+    ogDescription: "박철과학 학습 플랫폼 – 학생·선생님 로그인",
   },
   dedicatedLoginPage: true,
+  hasCustomLogo: true,
 };

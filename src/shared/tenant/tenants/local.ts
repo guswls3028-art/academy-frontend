@@ -11,7 +11,8 @@ export const local: TenantDef = {
   branding: {
     loginTitle: "학원플러스",
     loginSubtitle: "로컬 개발",
-    logoUrl: undefined,
+    windowTitle: "학원플러스 (DEV)",
   },
   dedicatedLoginPage: false,
+  hasCustomLogo: false,
 };
