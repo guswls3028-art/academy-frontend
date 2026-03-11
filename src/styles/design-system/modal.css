@@ -630,7 +630,7 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
-/* ========== 성별 버튼 — 고등/중등/학년과 동일 디자인, 색상만 남 파랑/여 분홍 하드코딩 ========== */
+/* ========== 성별 버튼 — 테마 토큰 기반 (남 primary / 여 complement 또는 핑크) ========== */
 .student-gender-btn {
   height: 36px;
   min-width: 0;
@@ -659,44 +659,48 @@
   transform: translateY(0);
 }
 
-/* 남자 — 미선택 톤 완화 */
+/* 남자 — primary 스케일 토큰 기반 */
 .student-gender-btn--m {
-  background: color-mix(in srgb, #2563eb 10%, var(--scale-Neutral0, #fff));
-  color: #1e40af;
+  --_gender: var(--scale-Primary500, #2563eb);
+  --_gender-dark: var(--scale-Primary700, #1e40af);
+  background: color-mix(in srgb, var(--_gender) 10%, var(--scale-Neutral0, #fff));
+  color: var(--_gender-dark);
 }
 
 .student-gender-btn--m:hover:not(:disabled) {
-  background: color-mix(in srgb, #2563eb 16%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--_gender) 16%, var(--scale-Neutral0, #fff));
 }
 
 .student-gender-btn--m.is-selected {
-  background: #2563eb;
+  background: var(--_gender);
   color: #fff;
   box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
     inset 0 2px 4px rgba(255, 255, 255, 0.08),
     0 1px 2px rgba(0, 0, 0, 0.04),
-    0 0 0 2px color-mix(in srgb, #2563eb 30%, transparent);
+    0 0 0 2px color-mix(in srgb, var(--_gender) 30%, transparent);
 }
 
-/* 여자 — 미선택 톤 완화 */
+/* 여자 — 핑크 (테마에서 --color-gender-female 로 커스터마이즈 가능) */
 .student-gender-btn--f {
-  background: color-mix(in srgb, #db2777 10%, var(--scale-Neutral0, #fff));
-  color: #9d174d;
+  --_gender: var(--color-gender-female, #db2777);
+  --_gender-dark: var(--color-gender-female-dark, #9d174d);
+  background: color-mix(in srgb, var(--_gender) 10%, var(--scale-Neutral0, #fff));
+  color: var(--_gender-dark);
 }
 
 .student-gender-btn--f:hover:not(:disabled) {
-  background: color-mix(in srgb, #db2777 16%, var(--scale-Neutral0, #fff));
+  background: color-mix(in srgb, var(--_gender) 16%, var(--scale-Neutral0, #fff));
 }
 
 .student-gender-btn--f.is-selected {
-  background: #db2777;
+  background: var(--_gender);
   color: #fff;
   box-shadow:
     inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
     inset 0 2px 4px rgba(255, 255, 255, 0.08),
     0 1px 2px rgba(0, 0, 0, 0.04),
-    0 0 0 2px color-mix(in srgb, #db2777 30%, transparent);
+    0 0 0 2px color-mix(in srgb, var(--_gender) 30%, transparent);
 }
 
 .student-gender-btn:disabled {
@@ -737,8 +741,8 @@
   height: 40px;
   min-height: 40px;
   border-radius: 8px;
-  background: #FAFBFC;
-  border: 1px solid var(--color-border-divider, #E5E7EB);
+  background: var(--color-bg-surface-soft, #FAFBFC);
+  border: 1px solid var(--color-border-divider);
   font-size: 0.9375rem;
   padding: 0 12px;
   color: var(--color-text-primary);
@@ -747,13 +751,13 @@
   height: 40px !important;
   min-height: 40px !important;
   border-radius: 8px !important;
-  background: #FAFBFC !important;
-  border: 1px solid var(--color-border-divider, #E5E7EB) !important;
+  background: var(--color-bg-surface-soft, #FAFBFC) !important;
+  border: 1px solid var(--color-border-divider) !important;
   font-size: 0.9375rem !important;
   padding: 0 12px !important;
 }
 .modal-phone-block-input:focus {
-  border-color: var(--color-primary, #4F7FFF) !important;
-  background: #FFFFFF !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #4F7FFF) 20%, transparent) !important;
+  border-color: var(--color-border-focus) !important;
+  background: var(--color-bg-surface) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
 }
