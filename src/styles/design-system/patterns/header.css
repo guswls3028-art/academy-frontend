@@ -141,18 +141,37 @@
   overflow: visible;
 }
 
-/* 헤더 중앙: 근무 중인 직원 아바타 + 총근무시간 + 출근/퇴근 */
+/* 헤더 중앙: 근무 중인 직원 아바타 + 총근무시간 + 출근/퇴근 — premium glass card */
 [data-app="admin"] .app-header__centerClock {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: 0 var(--space-2);
+  gap: var(--space-3);
+  padding: 4px 6px 4px 10px;
+  border-radius: 14px;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface)) 0%,
+      color-mix(in srgb, var(--color-primary) 2%, var(--color-bg-surface)) 100%
+    );
+  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider));
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 [data-app="admin"] .app-header__centerClockAvatars {
   display: flex;
   align-items: stretch;
   gap: var(--space-2);
+}
+
+[data-app="admin"] .app-header__centerClockDivider {
+  width: 1px;
+  height: 22px;
+  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-border-divider));
+  flex-shrink: 0;
+  align-self: center;
 }
 
 /* 직급 아바타 위 + 이름 아래 카드 (세로 배치, 칸 안에 맞춤, 동그란 테두리) */
@@ -263,64 +282,123 @@
 
 [data-app="admin"] .app-header__centerClockTime {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 0 6px;
+  line-height: 1;
 }
 
 [data-app="admin"] .app-header__centerClockLabel {
-  font-size: 17px;
+  font-size: 9px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--color-text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  line-height: 1;
+  margin-bottom: 2px;
 }
 
 [data-app="admin"] .app-header__centerClockValue {
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--color-primary);
-  min-width: 5ch;
-  letter-spacing: -0.02em;
+  min-width: 4.5ch;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-align: center;
 }
 
 [data-app="admin"] .app-header__centerClockActions {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
 }
 
-/* 출근(초록) 휴식(노랑) 근무(초록) 퇴근(빨강) — 가시성 강화 */
+/* 출근·휴식·근무·퇴근 — 프리미엄 필 버튼 */
 [data-app="admin"] .app-header__clockBtn {
   font-weight: 700;
-  min-height: 36px;
-  padding-left: 14px;
-  padding-right: 14px;
+  font-size: 12px;
+  min-height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  letter-spacing: 0.2px;
+  transition: all 0.18s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+[data-app="admin"] .app-header__clockBtn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 60%);
+  pointer-events: none;
 }
 [data-app="admin"] .app-header__clockBtn--start,
 [data-app="admin"] .app-header__clockBtn--resume {
-  background: var(--color-success, #22c55e) !important;
-  border-color: var(--color-success, #22c55e) !important;
+  background: linear-gradient(180deg, #34d058 0%, var(--color-success, #22c55e) 100%) !important;
+  border-color: color-mix(in srgb, var(--color-success, #22c55e) 80%, #000) !important;
   color: #fff !important;
+  box-shadow:
+    0 1px 3px rgba(34, 197, 94, 0.3),
+    0 0 0 1px rgba(34, 197, 94, 0.1);
 }
 [data-app="admin"] .app-header__clockBtn--start:hover:not(:disabled),
 [data-app="admin"] .app-header__clockBtn--resume:hover:not(:disabled) {
-  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 8px rgba(34, 197, 94, 0.35),
+    0 0 0 1px rgba(34, 197, 94, 0.15);
+}
+[data-app="admin"] .app-header__clockBtn--start:active:not(:disabled),
+[data-app="admin"] .app-header__clockBtn--resume:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(34, 197, 94, 0.2);
 }
 [data-app="admin"] .app-header__clockBtn--end {
-  background: var(--color-status-error, #ef4444) !important;
-  border-color: var(--color-status-error, #ef4444) !important;
+  background: linear-gradient(180deg, #f87171 0%, var(--color-status-error, #ef4444) 100%) !important;
+  border-color: color-mix(in srgb, var(--color-status-error, #ef4444) 80%, #000) !important;
   color: #fff !important;
+  box-shadow:
+    0 1px 3px rgba(239, 68, 68, 0.3),
+    0 0 0 1px rgba(239, 68, 68, 0.1);
 }
 [data-app="admin"] .app-header__clockBtn--end:hover:not(:disabled) {
-  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 8px rgba(239, 68, 68, 0.35),
+    0 0 0 1px rgba(239, 68, 68, 0.15);
+}
+[data-app="admin"] .app-header__clockBtn--end:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.2);
 }
 [data-app="admin"] .app-header__clockBtn--break {
-  background: var(--color-warning, #eab308) !important;
-  border-color: var(--color-warning, #eab308) !important;
+  background: linear-gradient(180deg, #fbbf24 0%, var(--color-warning, #eab308) 100%) !important;
+  border-color: color-mix(in srgb, var(--color-warning, #eab308) 80%, #000) !important;
   color: #1a1a1a !important;
+  box-shadow:
+    0 1px 3px rgba(234, 179, 8, 0.3),
+    0 0 0 1px rgba(234, 179, 8, 0.1);
 }
 [data-app="admin"] .app-header__clockBtn--break:hover:not(:disabled) {
-  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 8px rgba(234, 179, 8, 0.35),
+    0 0 0 1px rgba(234, 179, 8, 0.15);
+}
+[data-app="admin"] .app-header__clockBtn--break:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(234, 179, 8, 0.2);
+}
+[data-app="admin"] .app-header__clockBtn:disabled {
+  opacity: 0.55;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 [data-app="admin"] .app-header__right {

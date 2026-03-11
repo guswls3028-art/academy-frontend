@@ -232,69 +232,75 @@ export function HeaderCenterStaffClock() {
   return (
     <div className="app-header__centerClock">
       {sortedWorkingList.length > 0 && (
-        <div className="app-header__centerClockAvatars" aria-label="근무 중인 직원">
-          {sortedWorkingList.map((s) => (
-            <WorkingAvatar key={s.staff_id} item={s} />
-          ))}
-        </div>
+        <>
+          <div className="app-header__centerClockAvatars" aria-label="근무 중인 직원">
+            {sortedWorkingList.map((s) => (
+              <WorkingAvatar key={s.staff_id} item={s} />
+            ))}
+          </div>
+          <span className="app-header__centerClockDivider" />
+        </>
       )}
       <div className="app-header__centerClockTime">
-        <span className="app-header__centerClockLabel">총근무 시간</span>
+        <span className="app-header__centerClockLabel">WORK TIME</span>
         <span className="app-header__centerClockValue" aria-live="polite">
           {timeLabel}
         </span>
       </div>
       {staffId != null && defaultWorkTypeId != null && (
-        <div className="app-header__centerClockActions">
-          {isWorking ? (
-            <>
-              {isOnBreak ? (
+        <>
+          <span className="app-header__centerClockDivider" />
+          <div className="app-header__centerClockActions">
+            {isWorking ? (
+              <>
+                {isOnBreak ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isBreakEnding}
+                    onClick={() => workRecordId != null && endBreakMutation.mutate(workRecordId)}
+                    className="app-header__clockBtn app-header__clockBtn--resume"
+                  >
+                    {isBreakEnding ? "..." : "근무"}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isBreakStarting}
+                    onClick={() => {
+                      if (workRecordId == null) return;
+                      setOptimisticPausedElapsed(elapsedSeconds);
+                      startBreakMutation.mutate(workRecordId);
+                    }}
+                    className="app-header__clockBtn app-header__clockBtn--break"
+                  >
+                    {isBreakStarting ? "..." : "휴식"}
+                  </Button>
+                )}
                 <Button
                   type="button"
-                  size="md"
-                  disabled={isBreakEnding}
-                  onClick={() => workRecordId != null && endBreakMutation.mutate(workRecordId)}
-                  className="app-header__clockBtn app-header__clockBtn--resume"
+                  size="sm"
+                  disabled={isEnding}
+                  onClick={() => workRecordId != null && endMutation.mutate(workRecordId)}
+                  className="app-header__clockBtn app-header__clockBtn--end"
                 >
-                  {isBreakEnding ? "처리 중…" : "근무"}
+                  {isEnding ? "..." : "퇴근"}
                 </Button>
-              ) : (
-                <Button
-                  type="button"
-                  size="md"
-                  disabled={isBreakStarting}
-                  onClick={() => {
-                    if (workRecordId == null) return;
-                    setOptimisticPausedElapsed(elapsedSeconds);
-                    startBreakMutation.mutate(workRecordId);
-                  }}
-                  className="app-header__clockBtn app-header__clockBtn--break"
-                >
-                  {isBreakStarting ? "처리 중…" : "휴식"}
-                </Button>
-              )}
+              </>
+            ) : (
               <Button
                 type="button"
-                size="md"
-                disabled={isEnding}
-                onClick={() => workRecordId != null && endMutation.mutate(workRecordId)}
-                className="app-header__clockBtn app-header__clockBtn--end"
+                size="sm"
+                disabled={isStarting}
+                onClick={() => startMutation.mutate()}
+                className="app-header__clockBtn app-header__clockBtn--start"
               >
-                {isEnding ? "처리 중…" : "퇴근"}
+                {isStarting ? "..." : "출근"}
               </Button>
-            </>
-          ) : (
-            <Button
-              type="button"
-              size="md"
-              disabled={isStarting}
-              onClick={() => startMutation.mutate()}
-              className="app-header__clockBtn app-header__clockBtn--start"
-            >
-              {isStarting ? "처리 중…" : "출근"}
-            </Button>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
