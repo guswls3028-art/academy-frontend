@@ -508,6 +508,35 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       </colgroup>
 
       <thead>
+        {/* Row0: OMR 업로드 아이콘 — 시험 컬럼 위에만 배치 */}
+        {onOpenOmrModal && examOptions.length > 0 && (
+          <tr className="border-b border-[var(--color-border-divider)] bg-[var(--color-bg-surface-hover)]">
+            <td colSpan={3} className="py-1 px-2 align-middle border-r-2 border-[var(--color-border-divider)]" />
+            {examOptions.map((ex) => {
+              const examColsList = examColsMap[ex.exam_id] ?? [];
+              const colSpan = examColsList.length || 1;
+              return (
+                <td
+                  key={`omr-exam-${ex.exam_id}`}
+                  colSpan={colSpan}
+                  className="py-1 px-2 align-middle text-left"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onOpenOmrModal(ex.exam_id, ex.title ?? "")}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded border-0 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)]"
+                    title={`OMR 스캔 업로드 — ${ex.title ?? ""}`}
+                    aria-label={`${ex.title ?? "시험"} OMR 업로드`}
+                  >
+                    <OmrIcon size={16} />
+                  </button>
+                </td>
+              );
+            })}
+            <td colSpan={homeworkOptions.length * 2} className="py-1 px-2" />
+            <td colSpan={2} className="py-1 px-2" />
+          </tr>
+        )}
         {/* Row1: 선택 | 이름 | 출석 | [시험 뱃지] 시험이름 (colSpan=2) 반복 | [과제 뱃지] 과제이름 (colSpan=2) 반복 | 클리닉 | 사유 — flat 스타일(students와 동일) */}
         <tr className="border-b border-[var(--color-border-divider)]">
           <ResizableTh
@@ -578,20 +607,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     시
                   </span>
                   <span className="truncate">{ex.title}</span>
-                  {onOpenOmrModal && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenOmrModal(ex.exam_id, ex.title ?? "");
-                      }}
-                      className="inline-flex items-center justify-center w-7 h-7 rounded border-0 text-[var(--color-text-muted)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface-hover)]"
-                      title="OMR 스캔 업로드"
-                      aria-label="OMR 업로드"
-                    >
-                      <OmrIcon size={16} />
-                    </button>
-                  )}
                 </span>
               </th>
             );
